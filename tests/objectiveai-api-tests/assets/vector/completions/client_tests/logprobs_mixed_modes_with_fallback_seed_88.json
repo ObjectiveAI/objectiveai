@@ -3,6 +3,17 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "0FzLrtDMZqQ8D848JBgixg",
+        "upstream": "mock",
+        "output_mode": "json_schema",
+        "top_logprobs": 6
+      },
+      "request_choice_keys": [
+        "`J`",
+        "`N`",
+        "`O`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "0FzLrtDMZqQ8D848JBgixg",
@@ -182,6 +193,17 @@
     },
     {
       "index": 1,
+      "agent_inline": {
+        "id": "3i1W6fwTei78Z7LUJfa7S1",
+        "upstream": "mock",
+        "output_mode": "tool_call",
+        "top_logprobs": 4
+      },
+      "request_choice_keys": [
+        "`F`",
+        "`T`",
+        "`D`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "3i1W6fwTei78Z7LUJfa7S1",
@@ -374,6 +396,7 @@
     },
     {
       "index": 2,
+      "request_choice_keys": [],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "3i1W6fwTei78Z7LUJfa7S1",
@@ -426,6 +449,26 @@
     },
     {
       "index": 3,
+      "agent_inline": {
+        "id": "3ITEMQqWIRDjPoOPa4euv3",
+        "upstream": "mock",
+        "output_mode": "instruction",
+        "top_logprobs": 3,
+        "error": true,
+        "fallbacks": [
+          {
+            "id": "5XNp5nNHp99EoqqKy5UJi2",
+            "upstream": "mock",
+            "output_mode": "instruction",
+            "top_logprobs": 3
+          }
+        ]
+      },
+      "request_choice_keys": [
+        "`J`",
+        "`P`",
+        "`K`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "5XNp5nNHp99EoqqKy5UJi2",
@@ -970,6 +1013,7 @@
     },
     {
       "index": 4,
+      "request_choice_keys": [],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "5XNp5nNHp99EoqqKy5UJi2",
@@ -1563,7 +1607,8 @@
         0.2898212778281664,
         0.4271658229986733
       ],
-      "weight": 0.4
+      "weight": 0.4,
+      "completion_index": 0
     },
     {
       "agent_full_id": "3i1W6fwTei78Z7LUJfa7S1",
@@ -1581,7 +1626,8 @@
         1.0,
         0.0
       ],
-      "weight": 0.4
+      "weight": 0.4,
+      "completion_index": 5
     }
   ],
   "scores": [

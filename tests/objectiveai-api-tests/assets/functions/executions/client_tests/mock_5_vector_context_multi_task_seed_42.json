@@ -7,10 +7,44 @@
       "task_path": [
         0
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Query: best fruit. Rank by relevance."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Apple"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Banana"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "425mMcWqssOpPRrsDrjB0B",
+            "upstream": "mock",
+            "output_mode": "instruction"
+          },
+          "request_choice_keys": [
+            "`F`",
+            "`O`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -53,6 +87,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -96,6 +131,15 @@
         },
         {
           "index": 2,
+          "agent_inline": {
+            "id": "4wXv5UufT9xfKYKsCLpBXT",
+            "upstream": "mock",
+            "output_mode": "json_schema"
+          },
+          "request_choice_keys": [
+            "`E`",
+            "`S`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -152,7 +196,8 @@
             1.0,
             0.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 1
         }
       ],
       "scores": [
@@ -181,10 +226,44 @@
       "task_path": [
         1
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Query: best fruit. Rank by quality."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Apple"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Banana"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "425mMcWqssOpPRrsDrjB0B",
+            "upstream": "mock",
+            "output_mode": "instruction"
+          },
+          "request_choice_keys": [
+            "`P`",
+            "`C`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -228,6 +307,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -271,6 +351,15 @@
         },
         {
           "index": 2,
+          "agent_inline": {
+            "id": "4wXv5UufT9xfKYKsCLpBXT",
+            "upstream": "mock",
+            "output_mode": "json_schema"
+          },
+          "request_choice_keys": [
+            "`C`",
+            "`N`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -328,7 +417,8 @@
             0.0,
             1.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 1
         }
       ],
       "scores": [

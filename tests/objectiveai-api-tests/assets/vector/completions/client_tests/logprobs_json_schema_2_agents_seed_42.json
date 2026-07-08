@@ -3,6 +3,17 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "7b90sbCMo51v9LytQSy9K0",
+        "upstream": "mock",
+        "output_mode": "json_schema",
+        "top_logprobs": 5
+      },
+      "request_choice_keys": [
+        "`Q`",
+        "`E`",
+        "`G`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "7b90sbCMo51v9LytQSy9K0",
@@ -196,6 +207,17 @@
     },
     {
       "index": 1,
+      "agent_inline": {
+        "id": "7b90sbCMo51v9LytQSy9K0",
+        "upstream": "mock",
+        "output_mode": "json_schema",
+        "top_logprobs": 5
+      },
+      "request_choice_keys": [
+        "`K`",
+        "`M`",
+        "`C`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "7b90sbCMo51v9LytQSy9K0",
@@ -391,7 +413,8 @@
         0.1961459995253892,
         0.3146376055235844
       ],
-      "weight": 0.5
+      "weight": 0.5,
+      "completion_index": 0
     },
     {
       "agent_full_id": "7b90sbCMo51v9LytQSy9K0",
@@ -409,7 +432,8 @@
         0.229447097903312,
         0.4254015825751479
       ],
-      "weight": 0.5
+      "weight": 0.5,
+      "completion_index": 1
     }
   ],
   "scores": [

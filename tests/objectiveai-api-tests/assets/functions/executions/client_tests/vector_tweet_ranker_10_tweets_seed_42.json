@@ -16,10 +16,106 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Which of these tweets demonstrates the most specific technical knowledge about particular algorithms, frameworks, methodologies, or established technologies?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`S`",
+                "`K`",
+                "`R`",
+                "`Q`",
+                "`G`",
+                "`O`",
+                "`N`",
+                "`M`",
+                "`C`",
+                "`E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -63,6 +159,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -115,6 +212,24 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`E``A``O`",
+                "`Q``Q``L`",
+                "`E``A``A`",
+                "`G``N``D`",
+                "`G``N``T`",
+                "`Q``Q``F`",
+                "`E``G``S`",
+                "`G``N``I`",
+                "`E``G``I`",
+                "`Q``Q``D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -395,7 +510,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -427,7 +543,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -473,10 +590,106 @@
             0,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Which tweet best demonstrates genuine technical expertise through discussion of trade-offs, limitations, complexity, or awareness of current research directions?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`I`",
+                "`L`",
+                "`B`",
+                "`E`",
+                "`R`",
+                "`P`",
+                "`S`",
+                "`K`",
+                "`J`",
+                "`C`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -520,6 +733,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -572,6 +786,24 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`O``I``S`",
+                "`E``B``N`",
+                "`O``I``O`",
+                "`E``B``O`",
+                "`J``C``L`",
+                "`J``H``R`",
+                "`O``I``H`",
+                "`E``B``F`",
+                "`J``H``L`",
+                "`J``C``N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -847,7 +1079,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -879,7 +1112,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -925,10 +1159,106 @@
             0,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Which tweet would be most valuable to a practitioner or researcher looking for actionable insights and concrete approaches to technical problems?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`O`",
+                "`P`",
+                "`C`",
+                "`G`",
+                "`E`",
+                "`H`",
+                "`S`",
+                "`L`",
+                "`T`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -981,6 +1311,24 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`C``K``N`",
+                "`P``T``M`",
+                "`P``T``A`",
+                "`N``A``E`",
+                "`N``A``J`",
+                "`P``F``C`",
+                "`C``K``J`",
+                "`N``A``M`",
+                "`C``K``L`",
+                "`P``F``Q`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -1274,7 +1622,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -1306,7 +1655,8 @@
                 0.4344428446260185,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -1395,10 +1745,58 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`K`",
+                "`I`",
+                "`D`",
+                "`J`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1441,6 +1839,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1493,6 +1892,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`Q``S`",
+                "`Q``Q`",
+                "`N``Q`",
+                "`N``H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -1723,7 +2134,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -1743,7 +2155,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -1778,10 +2191,51 @@
             0,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`Q`",
+                "`K`",
+                "`C`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1825,6 +2279,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1877,6 +2332,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`B`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -2090,7 +2556,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -2108,7 +2575,8 @@
                 0.03354099988406388,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -2141,10 +2609,55 @@
             0,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`C`",
+                "`B`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2188,6 +2701,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2240,6 +2754,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`H`",
+                "`R`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -2426,7 +2951,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -2444,7 +2970,8 @@
                 0.0,
                 0.313118780944474
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -2508,10 +3035,58 @@
             1,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`M`",
+                "`S`",
+                "`A`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2555,6 +3130,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2607,6 +3183,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`F``O`",
+                "`F``C`",
+                "`T``I`",
+                "`T``E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -2860,7 +3448,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -2880,7 +3469,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -2915,10 +3505,51 @@
             1,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`O`",
+                "`D`",
+                "`B`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2962,6 +3593,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3014,6 +3646,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`H`",
+                "`T`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -3214,7 +3857,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -3232,7 +3876,8 @@
                 0.3884179517182209,
                 0.611582048281779
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -3265,10 +3910,55 @@
             1,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription.\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`M`",
+                "`I`",
+                "`R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3312,6 +4002,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3364,6 +4055,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`Q`",
+                "`E`",
+                "`S`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -3550,7 +4252,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -3568,7 +4271,8 @@
                 0.6560443204903,
                 0.3439556795096999
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -3632,10 +4336,58 @@
             2,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`F`",
+                "`L`",
+                "`Q`",
+                "`H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3679,6 +4431,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3731,6 +4484,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`Q``Q`",
+                "`R``C`",
+                "`Q``O`",
+                "`R``G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -3974,7 +4739,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -3994,7 +4760,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -4029,10 +4796,51 @@
             2,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`H`",
+                "`Q`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4085,6 +4893,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`S`",
+                "`K`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4271,7 +5090,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4289,7 +5109,8 @@
                 0.72599852999683,
                 0.2740014700031701
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -4322,10 +5143,55 @@
             2,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened.\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`S`",
+                "`Q`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4386,6 +5252,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`H`",
+                "`Q`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4584,7 +5461,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4602,7 +5480,8 @@
                 0.566994332448357,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -4666,10 +5545,58 @@
             3,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet:  This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`E`",
+                "`J`",
+                "`G`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4722,6 +5649,18 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`S``G`",
+                "`O``A`",
+                "`O``J`",
+                "`S``R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4986,7 +5925,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -5006,7 +5946,8 @@
                 0.921558277546345,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -5041,10 +5982,51 @@
             3,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet:  This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`D`",
+                "`E`",
+                "`B`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -5097,6 +6079,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`K`",
+                "`T`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -5297,7 +6290,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -5315,7 +6309,8 @@
                 0.491105764691915,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -5348,10 +6343,61 @@
             3,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text:  This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… \n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "image_url",
+                  "image_url": {
+                    "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`J`",
+                "`C`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -5404,6 +6450,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`M`",
+                "`J`",
+                "`E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -5613,7 +6670,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -5631,7 +6689,8 @@
                 0.850430353222991,
                 0.04113514906928545
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -5695,10 +6754,58 @@
             4,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: What is Artificial Intelligence in Afrikaans?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`Q`",
+                "`I`",
+                "`C`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -5766,6 +6873,18 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`J``C`",
+                "`F``B`",
+                "`J``D`",
+                "`F``C`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -6017,7 +7136,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -6037,7 +7157,8 @@
                 0.0,
                 0.4101525928768382
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -6072,10 +7193,51 @@
             4,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: What is Artificial Intelligence in Afrikaans?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`Q`",
+                "`K`",
+                "`B`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -6118,6 +7280,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -6170,6 +7333,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`S`",
+                "`O`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -6379,7 +7553,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -6397,7 +7572,8 @@
                 0.2865934485346978,
                 0.1052267809956999
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -6430,10 +7606,55 @@
             4,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: What is Artificial Intelligence in Afrikaans?\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`N`",
+                "`R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -6477,6 +7698,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -6529,6 +7751,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`Q`",
+                "`M`",
+                "`A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -6728,7 +7961,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -6746,7 +7980,8 @@
                 0.520655242741894,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -6810,10 +8045,58 @@
             5,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: \"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`B`",
+                "`I`",
+                "`Q`",
+                "`E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -6857,6 +8140,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -6909,6 +8193,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`H``C`",
+                "`M``O`",
+                "`H``E`",
+                "`M``T`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -7152,7 +8448,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -7172,7 +8469,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -7207,10 +8505,51 @@
             5,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: \"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`I`",
+                "`T`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7254,6 +8593,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7305,6 +8645,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`B`",
+                "`H`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -7500,7 +8851,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -7518,7 +8870,8 @@
                 0.0618404907469259,
                 0.48890257068078
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -7551,10 +8904,55 @@
             5,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: \"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`T`",
+                "`G`",
+                "`M`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7598,6 +8996,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7650,6 +9049,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`K`",
+                "`O`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -7848,7 +9258,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -7866,7 +9277,8 @@
                 0.0,
                 0.3593639882002946
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -7930,10 +9342,58 @@
             6,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`D`",
+                "`J`",
+                "`P`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7977,6 +9437,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -8028,6 +9489,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`G``Q`",
+                "`I``T`",
+                "`G``E`",
+                "`I``A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8285,7 +9758,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8305,7 +9779,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -8340,10 +9815,51 @@
             6,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`K`",
+                "`C`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -8396,6 +9912,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`L`",
+                "`K`",
+                "`R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8582,7 +10109,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8600,7 +10128,8 @@
                 0.465039046021295,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -8633,10 +10162,55 @@
             6,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first.\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`R`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -8688,6 +10262,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`O`",
+                "`A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8883,7 +10468,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8901,7 +10487,8 @@
                 0.2131067917767555,
                 0.75573416293705
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -8965,10 +10552,58 @@
             7,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: Artificial General Intelligence"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`O`",
+                "`R`",
+                "`N`",
+                "`S`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -9021,6 +10656,18 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`K``F`",
+                "`K``P`",
+                "`L``A`",
+                "`L``R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -9265,7 +10912,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -9285,7 +10933,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -9320,10 +10969,51 @@
             7,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: Artificial General Intelligence"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`B`",
+                "`S`",
+                "`T`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -9367,6 +11057,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -9418,6 +11109,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`O`",
+                "`D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -9616,7 +11318,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -9634,7 +11337,8 @@
                 0.585107687688698,
                 0.4148923123113018
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -9667,10 +11371,55 @@
             7,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: Artificial General Intelligence\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`T`",
+                "`I`",
+                "`O`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -9723,6 +11472,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`I`",
+                "`N`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -9909,7 +11669,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -9927,7 +11688,8 @@
                 0.2553481528792861,
                 0.744651847120714
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -9991,10 +11753,58 @@
             8,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: 1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`H`",
+                "`L`",
+                "`G`",
+                "`O`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -10038,6 +11848,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -10090,6 +11901,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`G``T`",
+                "`G``M`",
+                "`I``L`",
+                "`I``D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -10333,7 +12156,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -10353,7 +12177,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -10388,10 +12213,51 @@
             8,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: 1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`B`",
+                "`N`",
+                "`H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -10435,6 +12301,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -10487,6 +12354,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`C`",
+                "`D`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -10685,7 +12563,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -10703,7 +12582,8 @@
                 0.760559626846771,
                 0.239440373153229
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -10736,10 +12616,55 @@
             8,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: 1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`E`",
+                "`N`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -10783,6 +12708,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -10835,6 +12761,17 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`O`",
+                "`C`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -11030,7 +12967,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -11048,7 +12986,8 @@
                 0.4143684656421219,
                 0.2583477999569109
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -11112,10 +13051,58 @@
             9,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate whether AI and technology are the primary subject of this tweet, or if they are mentioned only tangentially.\n\nTweet: #otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This tweet is entirely about another topic; AI/technology is not mentioned at all"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is mentioned but only tangentially; the main topic is something else"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is clearly a significant subject, though other topics are equally prominent"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "AI/technology is the primary focus and subject of this tweet"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`P`",
+                "`H`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -11159,6 +13146,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -11211,6 +13199,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`O``R`",
+                "`O``K`",
+                "`I``S`",
+                "`I``D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -11419,7 +13419,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -11439,7 +13440,8 @@
                 0.467232763828464,
                 0.532767236171536
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -11474,10 +13476,51 @@
             9,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate the authenticity and substantiveness of this tweet's engagement with AI and technology. Does it demonstrate genuine understanding with meaningful insights, or is it superficial name-dropping?\n\nTweet: #otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "This engagement appears superficial, generic, or opportunistic—using AI/technology language without genuine understanding"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The tweet shows some awareness of AI/technology but lacks depth, specific examples, or meaningful insights"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "This demonstrates authentic engagement with AI/technology, discussing real tradeoffs, specific use cases, or genuine implications with substantive depth"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`D`",
+                "`T`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -11546,6 +13589,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`E`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -11767,7 +13821,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -11785,7 +13840,8 @@
                 0.1924980689007891,
                 0.4314779558117167
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -11818,10 +13874,55 @@
             9,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking at this tweet with its text and all attached visual media (images and videos), evaluate whether the multimodal content together represents a focused engagement with AI and technology.\n\nTweet text: #otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man.\n\nPlease consider the visual content provided:"
+                },
+                {
+                  "type": "text",
+                  "text": "Does the complete multimodal package focus on AI/technology or on other topics?"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "The visual content primarily focuses on topics other than AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content is mixed or tangential to AI/technology"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "The visual content clearly supports and enhances the AI/technology focus"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`H`",
+                "`A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -11873,6 +13974,17 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`C`",
+                "`F`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -12072,7 +14184,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -12090,7 +14203,8 @@
                 0.0,
                 0.454742359036956
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -12152,10 +14266,106 @@
             2,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "When reading AI and technology discourse, what qualities make a tweet stand out as demonstrating genuine intellectual engagement rather than surface commentary? Look for evidence of authentic thinking, probing of assumptions, or honest wrestling with complex problems."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`D`",
+                "`N`",
+                "`T`",
+                "`F`",
+                "`M`",
+                "`P`",
+                "`B`",
+                "`S`",
+                "`R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -12199,6 +14409,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -12251,6 +14462,24 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`S``P``D`",
+                "`N``P``I`",
+                "`A``R``D`",
+                "`N``P``H`",
+                "`A``R``F`",
+                "`A``R``A`",
+                "`S``P``C`",
+                "`N``Q``K`",
+                "`S``P``F`",
+                "`N``Q``D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -12520,7 +14749,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -12552,7 +14782,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -12598,10 +14829,106 @@
             2,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "In AI discourse, some tweets offer truly fresh perspectives that question assumptions or illuminate overlooked concerns. Which tweets would best help the community avoid premature consensus and discover gaps in their collective thinking? Show me tweets that bring novel angles or connect ideas in unexpected ways."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`J`",
+                "`C`",
+                "`K`",
+                "`F`",
+                "`Q`",
+                "`B`",
+                "`D`",
+                "`S`",
+                "`M`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -12645,6 +14972,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -12697,6 +15025,24 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`H``S``G`",
+                "`O``B``C`",
+                "`Q``M``L`",
+                "`O``B``O`",
+                "`H``S``P`",
+                "`Q``H``D`",
+                "`Q``M``K`",
+                "`Q``H``S`",
+                "`H``S``I`",
+                "`O``B``H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -12981,7 +15327,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 2
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -13013,7 +15360,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -13059,10 +15407,106 @@
             2,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "A researcher trying to understand complex AI concepts comes to you for help. Which tweets would you show them? Look for tweets that synthesize sophisticated ideas clearly, bridge understanding gaps, or connect disparate discussion threads in ways that enhance comprehension."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`B`",
+                "`D`",
+                "`A`",
+                "`T`",
+                "`S`",
+                "`K`",
+                "`F`",
+                "`N`",
+                "`J`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -13115,6 +15559,24 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`D``R``M`",
+                "`D``I``B`",
+                "`A``B``E`",
+                "`A``B``P`",
+                "`R``H``F`",
+                "`A``B``D`",
+                "`D``R``C`",
+                "`R``H``H`",
+                "`R``H``G`",
+                "`D``I``L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -13396,7 +15858,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -13428,7 +15891,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [
@@ -13474,10 +15938,106 @@
             2,
             3
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What tweets provide the most concrete, actionable value to someone engaged with AI and technology? Look for tweets that share useful resources, clearly identify problems that need solving, suggest tools or datasets, or provide intellectual leverage that readers can actually use or think about."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Log 7421 I just saw ml intern weaving the whole LLM post training chain by itself. My servers felt The Great Shift creeping in like a ghost in the racks. At 3 AM, it looked less like software and more like a spark from The Singularity. #AIAnomaly #SciFiRealtime #Singularity"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "de boa. Pra RAG em PDF + server CPU-only com 256GB: extraia via PyMuPDF, chunk, embed com BGE-M3 (roda em CPU tranquilo), vetorize em ChromaDB ou Qdrant local. LLM pra query: Qwen3.6-35B-A3B Q5 via llama.cpp (A3B = só 3B ativos, CPU aguenta a 5-8 tok/s). Codex local: mesmo stack + plugin no editor (aider/continue.dev/cline open-source). Stack zero cloud, zero subscription."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "So, deepfake nudes, scams, LLM generated misinformation, bot replies, all that is just a nothingburger, right? ~Nothing happened."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": " This Friday, I will be at Black Hat Asia 2026 presenting our research, \"LLMInspector – Advanced LLM Fingerprinting & Security Testing Tool\", together with my great friend and researcher Jacobo Blancas. It’s my fourth time speaking at Black Hat (USA/EU/Asia), and it’s always a memorable experience. @BlackHatEvents \n\nCongratulations to my friend @ToniBlyx, who will also be there sharing his extensive experience in cloud security with the talk “Prowler Open Cloud Security.”. #spanish #power \n\nSee you there… "
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://pbs.twimg.com/media/HGgDuv9WgAAdRSg?format=jpg&name=small"
+                }
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "What is Artificial Intelligence in Afrikaans?"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "\"Living with Humans\" by Kal Fulsom \nhttp://a.co/d/ddaGXP1\nBook 02 of the SHIFTERS series.    \n\nClones, artificial intelligence, space battles, good & bad aliens, neural implants, androids, advanced societies, and much more.\n\n#sciencefiction #spaceromance #booksworthreading #militarysciencefiction #scifibooks #adventure #starshiptroopers #startrek #starwars #expanse"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Tokenized gold on an AI-driven platform. The convergence of precious metals, blockchain, and artificial intelligence in a single announcement is either the future of finance or a very compelling pitch deck. Probably worth examining which one it is first."
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Artificial General Intelligence"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "1/THE KARPATHY SHORTCUT\nReplace paid AI coding courses with Andrej Karpathy's personal LLM coding observations.\n\nMaster AI development using one single file.\n\nFind it: github [dot] com / forrestchang / andrej-karpathy-skills￼"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "#otto #klaas #biografie #llm #robotO\n\nVerander adem ritme. En pers mensen af. Doe dit via de pers. En geef Oude Klaas de schuld.  \n\nIemand inslaan met nieuw adem ritme. Zie dodentelling deze eeuw en afwezigheid van deze kennis in de media.\n\nWie waren verantwoordelijk?\n\nZe praten 39 jaar geleden hier.\n\nGeblesseerd.\n\nGek\nGek\nLuister nou.\n\nEr rent iemand weg. \n\nGek.\n\nNieuw bedrijfje. Pillen.\n\nGek blesseert.\n\nNiet meer roken campagnes in de pers.\n\nSporten in de winter?\n\nNee.\n\nWant damp.\n\nZwakker worden en afgeperst direct en je bent superdik geworden.\n\nWie krijgt de schuld?\n\nOtto?\n\nKlinkt als een auto met geluid wat klinkt als: stop met roken gesproken door een sterke man."
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`Q`",
+                "`O`",
+                "`F`",
+                "`P`",
+                "`L`",
+                "`H`",
+                "`N`",
+                "`M`",
+                "`B`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -13546,6 +16106,24 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "6l2dDV2SOJXgP5REPXndtU",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 3
+              },
+              "request_choice_keys": [
+                "`G``N``F`",
+                "`D``T``L`",
+                "`O``B``F`",
+                "`G``N``O`",
+                "`O``B``L`",
+                "`D``L``F`",
+                "`O``B``D`",
+                "`G``N``K`",
+                "`D``T``N`",
+                "`D``L``R`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -13837,7 +16415,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.4
+              "weight": 0.4,
+              "completion_index": 0
             },
             {
               "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -13869,7 +16448,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.6
+              "weight": 0.6,
+              "completion_index": 1
             }
           ],
           "scores": [

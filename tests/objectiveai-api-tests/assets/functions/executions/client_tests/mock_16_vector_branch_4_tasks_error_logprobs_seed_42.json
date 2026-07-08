@@ -18,10 +18,36 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate these options"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Yes"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "No"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -45,6 +71,15 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -88,6 +123,7 @@
             },
             {
               "index": 2,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -140,6 +176,15 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -183,6 +228,16 @@
             },
             {
               "index": 4,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -381,7 +436,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 4
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -397,7 +453,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -413,7 +470,8 @@
                 0.483649557557146,
                 0.516350442442854
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -475,10 +533,36 @@
             1,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate these options"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Yes"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "No"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -502,6 +586,15 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -545,6 +638,7 @@
             },
             {
               "index": 2,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -597,6 +691,15 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -640,6 +743,16 @@
             },
             {
               "index": 4,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -838,7 +951,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 4
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -854,7 +968,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -870,7 +985,8 @@
                 0.483649557557146,
                 0.516350442442854
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -932,10 +1048,36 @@
             2,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Evaluate these options"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Yes"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "No"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -959,6 +1101,15 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1002,6 +1153,7 @@
             },
             {
               "index": 2,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1054,6 +1206,15 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`A`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -1097,6 +1258,16 @@
             },
             {
               "index": 4,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`P`",
+                "`L`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -1295,7 +1466,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 4
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -1311,7 +1483,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -1327,7 +1500,8 @@
                 0.483649557557146,
                 0.516350442442854
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -1389,10 +1563,54 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rate: Evaluate these options"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "1 star"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "2 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "3 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "4 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "5 stars"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -1416,6 +1634,18 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`O`",
+                "`T`",
+                "`M`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1468,6 +1698,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`D`",
+                "`O`",
+                "`M`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -1511,6 +1753,19 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`I`",
+                "`Q`",
+                "`C`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -1719,7 +1974,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -1741,7 +1997,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -1763,7 +2020,8 @@
                 0.0,
                 0.519805228553498
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -1831,10 +2089,54 @@
             1,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rate: Evaluate these options"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "1 star"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "2 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "3 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "4 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "5 stars"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -1858,6 +2160,18 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`O`",
+                "`T`",
+                "`M`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -1910,6 +2224,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`D`",
+                "`O`",
+                "`M`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -1953,6 +2279,19 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`I`",
+                "`Q`",
+                "`C`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -2161,7 +2500,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -2183,7 +2523,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -2205,7 +2546,8 @@
                 0.0,
                 0.519805228553498
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -2273,10 +2615,54 @@
             2,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rate: Evaluate these options"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "1 star"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "2 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "3 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "4 stars"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "5 stars"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -2300,6 +2686,18 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`O`",
+                "`T`",
+                "`M`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2352,6 +2750,18 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`D`",
+                "`O`",
+                "`M`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -2395,6 +2805,19 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`G`",
+                "`I`",
+                "`Q`",
+                "`C`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -2603,7 +3026,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -2625,7 +3049,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -2647,7 +3072,8 @@
                 0.0,
                 0.519805228553498
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -2713,10 +3139,42 @@
             2,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "First"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Second"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Third"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -2740,6 +3198,16 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`D`",
+                "`E`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -2792,6 +3260,16 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`L`",
+                "`K`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -2835,6 +3313,17 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`O`",
+                "`R`",
+                "`P`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -3054,7 +3543,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -3072,7 +3562,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -3090,7 +3581,8 @@
                 0.2656255585994757,
                 0.681168128337387
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -3156,10 +3648,42 @@
             3,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank by overall quality."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "First"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Second"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Third"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -3183,6 +3707,16 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`M`",
+                "`H`",
+                "`C`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3251,6 +3785,16 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`L`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -3293,6 +3837,17 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`M`",
+                "`Q`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -3502,7 +4057,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -3520,7 +4076,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -3538,7 +4095,8 @@
                 0.65800530580886,
                 0.0895333555233126
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -3570,10 +4128,42 @@
             3,
             1
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank by clarity."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "First"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Second"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Third"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -3597,6 +4187,16 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`B`",
+                "`F`",
+                "`K`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -3649,6 +4249,16 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`E`",
+                "`H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -3692,6 +4302,17 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`B`",
+                "`I`",
+                "`H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -3890,7 +4511,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -3908,7 +4530,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -3926,7 +4549,8 @@
                 0.0,
                 0.783163913315591
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -3958,10 +4582,42 @@
             3,
             2
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank by relevance."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "First"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Second"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Third"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -3985,6 +4641,16 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`I`",
+                "`J`",
+                "`S`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4037,6 +4703,16 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`L`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -4080,6 +4756,17 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`F`",
+                "`B`",
+                "`H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -4274,7 +4961,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -4292,7 +4980,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -4310,7 +4999,8 @@
                 0.0646790965448136,
                 0.701477027835345
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -4342,10 +5032,42 @@
             3,
             3
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank by originality."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "First"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Second"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Third"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -4369,6 +5091,16 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`I`",
+                "`J`",
+                "`N`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4436,6 +5168,16 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`K`",
+                "`G`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -4479,6 +5221,17 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`D`",
+                "`T`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -4684,7 +5437,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -4702,7 +5456,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -4720,7 +5475,8 @@
                 0.1591848455510278,
                 0.3957330464653277
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [
@@ -4752,10 +5508,42 @@
             3,
             4
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank by conciseness."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "First"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Second"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Third"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -4779,6 +5567,16 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`E`",
+                "`S`",
+                "`H`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4839,6 +5637,16 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`F`",
+                "`M`",
+                "`D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -4882,6 +5690,17 @@
             },
             {
               "index": 3,
+              "agent_inline": {
+                "id": "58LYF2WMXs4AWDLJmt5c8p",
+                "upstream": "mock",
+                "output_mode": "json_schema",
+                "top_logprobs": 8
+              },
+              "request_choice_keys": [
+                "`M`",
+                "`O`",
+                "`F`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -5102,7 +5921,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.25
+              "weight": 0.25,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -5120,7 +5940,8 @@
                 0.0,
                 0.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 1
             },
             {
               "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -5138,7 +5959,8 @@
                 0.2068615590876566,
                 0.521234716315871
               ],
-              "weight": 0.15
+              "weight": 0.15,
+              "completion_index": 2
             }
           ],
           "scores": [

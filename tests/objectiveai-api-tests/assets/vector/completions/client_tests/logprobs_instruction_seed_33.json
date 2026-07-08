@@ -3,6 +3,16 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "4ODOibgWpQQBtvFQZGUZTr",
+        "upstream": "mock",
+        "output_mode": "instruction",
+        "top_logprobs": 2
+      },
+      "request_choice_keys": [
+        "`Q`",
+        "`I`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "4ODOibgWpQQBtvFQZGUZTr",
@@ -486,6 +496,7 @@
     },
     {
       "index": 1,
+      "request_choice_keys": [],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "4ODOibgWpQQBtvFQZGUZTr",

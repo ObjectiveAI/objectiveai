@@ -16,10 +16,36 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "X"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Y"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "",
@@ -43,6 +69,15 @@
             },
             {
               "index": 1,
+              "agent_inline": {
+                "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                "upstream": "mock",
+                "output_mode": "tool_call"
+              },
+              "request_choice_keys": [
+                "`T`",
+                "`D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -95,6 +130,15 @@
             },
             {
               "index": 2,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`N`",
+                "`P`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -152,7 +196,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.3
+              "weight": 0.3,
+              "completion_index": 0
             },
             {
               "agent_full_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -168,7 +213,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 0.5
+              "weight": 0.5,
+              "completion_index": 1
             }
           ],
           "scores": [

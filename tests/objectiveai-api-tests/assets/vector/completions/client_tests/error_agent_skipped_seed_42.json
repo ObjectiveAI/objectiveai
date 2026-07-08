@@ -3,6 +3,7 @@
   "completions": [
     {
       "index": 0,
+      "request_choice_keys": [],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "",

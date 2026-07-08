@@ -3,6 +3,38 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "425mMcWqssOpPRrsDrjB0B",
+        "upstream": "mock",
+        "output_mode": "instruction"
+      },
+      "request_choice_keys": [
+        "`A``G`",
+        "`S``P`",
+        "`S``O`",
+        "`S``I`",
+        "`S``N`",
+        "`A``C`",
+        "`A``D`",
+        "`A``T`",
+        "`S``S`",
+        "`A``H`",
+        "`S``R`",
+        "`A``S`",
+        "`S``J`",
+        "`S``L`",
+        "`A``N`",
+        "`S``F`",
+        "`A``L`",
+        "`A``O`",
+        "`S``Q`",
+        "`S``B`",
+        "`A``K`",
+        "`A``B`",
+        "`A``I`",
+        "`S``D`",
+        "`S``G`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -45,6 +77,7 @@
     },
     {
       "index": 1,
+      "request_choice_keys": [],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "425mMcWqssOpPRrsDrjB0B",
