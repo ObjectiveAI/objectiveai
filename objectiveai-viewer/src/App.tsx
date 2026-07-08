@@ -168,10 +168,9 @@ function App() {
       >
         {/* Every pane stays mounted at all times; only the active one is
             shown (the rest are display:none). Keeping plugin iframes
-            mounted means their JS keeps running and the bridge keeps
-            their per-plugin Tauri subscription alive, so a plugin
-            receives its routed daemon-stream events (`plugins_run`)
-            regardless of which tab is focused. */}
+            mounted means their JS — and any daemon WebSocket
+            connections they hold — keeps running regardless of which
+            tab is focused. */}
         <div
           className={cn(
             "flex-col",
@@ -192,7 +191,7 @@ function App() {
               activeTab === p.name ? "flex" : "hidden",
             )}
           >
-            <PluginPane info={p} />
+            <PluginPane info={p} connection={connection} />
           </div>
         ))}
       </div>

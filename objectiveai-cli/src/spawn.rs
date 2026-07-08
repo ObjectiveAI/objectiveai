@@ -283,33 +283,6 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
         }
     }
-    // Plugin coordinate — set when a nested command is launched on
-    // behalf of a plugin; removed otherwise so a child can't inherit a
-    // stale plugin identity from the parent's startup environment.
-    match cfg.plugin_owner.as_deref() {
-        Some(v) => {
-            cmd.env("OBJECTIVEAI_PLUGIN_OWNER", v);
-        }
-        None => {
-            cmd.env_remove("OBJECTIVEAI_PLUGIN_OWNER");
-        }
-    }
-    match cfg.plugin_repository.as_deref() {
-        Some(v) => {
-            cmd.env("OBJECTIVEAI_PLUGIN_REPOSITORY", v);
-        }
-        None => {
-            cmd.env_remove("OBJECTIVEAI_PLUGIN_REPOSITORY");
-        }
-    }
-    match cfg.plugin_version.as_deref() {
-        Some(v) => {
-            cmd.env("OBJECTIVEAI_PLUGIN_VERSION", v);
-        }
-        None => {
-            cmd.env_remove("OBJECTIVEAI_PLUGIN_VERSION");
-        }
-    }
     // Resident-daemon broadcast WebSocket bind address/port. Always
     // projected (both carry resolved defaults), so the re-exec'd
     // foreground daemon inherits the launcher's configured listener.

@@ -5,7 +5,6 @@ pub mod db;
 pub mod error;
 pub mod executor;
 pub mod filesystem;
-pub mod plugin_path;
 mod podman;
 mod python;
 mod python_wasm;

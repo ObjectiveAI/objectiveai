@@ -454,8 +454,7 @@ export class WebSocketListener {
 }
 
 /** Pick the agent-argument fields off a request frame's context.
- * `mcp_session_id` is never teed onto the broadcast; the frame's
- * `plugin_*` coordinates are not agent arguments and are dropped. */
+ * `mcp_session_id` is never teed onto the broadcast. */
 function extractAgentArguments(
   frame: Record<string, unknown>,
 ): Record<string, string | null> {

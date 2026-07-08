@@ -82,22 +82,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     .await?;
 
     // Context for nested (plugin-originated) commands: this caller's
-    // ctx, stamped with the plugin coordinate. `ctx.plugin` is set so
-    // a nested command knows which plugin it runs on behalf of, and
-    // `config.plugin_*` is set so any subprocess that nested command
-    // itself spawns inherits the coordinate via `apply_config_env`.
-    // No `reset_api_client()` here: plugin coords aren't on the
-    // `HttpClient`, so the memoized API client deliberately stays
-    // shared with the caller's ctx.
-    let mut nested_ctx = ctx.clone();
-    nested_ctx.config.plugin_owner = Some(request.owner.clone());
-    nested_ctx.config.plugin_repository = Some(request.name.clone());
-    nested_ctx.config.plugin_version = Some(request.version.clone());
-    nested_ctx.plugin = Some(crate::plugin_path::PluginPath {
-        owner: request.owner.clone(),
-        repository: request.name.clone(),
-        version: request.version.clone(),
-    });
+    // ctx verbatim. Plugins carry no special routing identity — their
+    // nested commands broadcast on /listen like any other run, and
+    // plugins observe the daemon with the SAME WebSocket executor /
+    // listeners every other client uses.
+    let nested_ctx = ctx.clone();
 
     let mut cmd = Command::new(&program);
     cmd.args(argv)

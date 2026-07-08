@@ -43,15 +43,6 @@ pub struct ListenerRequest<T> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub response_ids: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_owner: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_repository: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_version: Option<String>,
     /// The run's actual request.
     pub value: T,
 }

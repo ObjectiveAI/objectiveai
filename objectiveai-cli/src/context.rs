@@ -24,17 +24,12 @@ use tokio::sync::{Mutex, OnceCell};
 
 use crate::db;
 use crate::filesystem;
-use crate::plugin_path::PluginPath;
 use crate::run::Config;
 
 #[derive(Clone)]
 pub struct Context {
     pub config: Config,
     pub filesystem: filesystem::Client,
-    /// The plugin a command is running on behalf of, when it was
-    /// invoked through a plugin's nested-command protocol. Assembled
-    /// from the `OBJECTIVEAI_PLUGIN_*` env vars (via `Config`).
-    pub plugin: Option<PluginPath>,
     /// Lazily-built API `HttpClient` — see [`Context::api_client`].
     api: Arc<OnceCell<HttpClient>>,
     /// The daemon's published `ws://` connect URL, stored by `run`'s
@@ -85,15 +80,9 @@ impl Context {
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
-        let plugin = PluginPath::from_parts(
-            config.plugin_owner.clone(),
-            config.plugin_repository.clone(),
-            config.plugin_version.clone(),
-        );
         Self {
             config,
             filesystem,
-            plugin,
             api: Arc::new(OnceCell::new()),
             daemon_address: Arc::new(std::sync::OnceLock::new()),
             db: Arc::new(OnceCell::new()),

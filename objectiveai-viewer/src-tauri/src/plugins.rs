@@ -5,10 +5,10 @@
 //! Plugin discovery goes through the daemon: [`list_all_plugins`]
 //! drives the SDK's typed `plugins list` leaf over the
 //! [`WebSocketExecutor`] — the one piece of daemon traffic still
-//! initiated from Rust (everything else is JS-native; plugin
-//! cli-executions run through the host bridge's own JS
-//! `WebSocketExecutor`, and `plugins/run` delivery to plugin tabs
-//! comes later).
+//! initiated from Rust. Everything else is JS-native: plugin iframes
+//! receive the daemon coordinates on their URL and talk to the daemon
+//! THEMSELVES with the same WebSocket executor/listeners the main
+//! viewer uses — no host bridge, no routing.
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
@@ -112,9 +112,7 @@ pub(crate) struct ViewerPluginInfo {
 /// `viewer_url`, or an extracted on-disk bundle (an `index.html` under
 /// `<plugins_dir>/<owner>/<name>/<version>/viewer/`). The get response
 /// no longer carries `viewer_zip`, so bundle presence is read from
-/// disk. Plugins without a viewer source don't get a tab (and, with no
-/// tab, daemon-stream `plugins/run` frames for them have nowhere to
-/// route on the JS side).
+/// disk. Plugins without a viewer source don't get a tab.
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
     executor: tauri::State<'_, WebSocketExecutor>,
