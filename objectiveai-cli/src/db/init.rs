@@ -134,6 +134,52 @@ CREATE TABLE IF NOT EXISTS objectiveai.laboratory_attachments (
 -- Existing DBs predate `attached_by` — align idempotently.
 ALTER TABLE objectiveai.laboratory_attachments
     ADD COLUMN IF NOT EXISTS attached_by TEXT;
+
+-- NOTIFY on attach/detach so the daemon's per-agent status frames can
+-- track the ATTACHED laboratory set live. A row targets EITHER an AIH
+-- OR a tag (CHECK-exclusive), and the payload preserves which:
+-- `aih:<value>` / `tag:<value>` — the daemon resolves a tag payload to
+-- its bound AIH (GROUPED tags map to no live record and are dropped
+-- there, matching the read path).
+CREATE OR REPLACE FUNCTION objectiveai.notify_laboratory_attachments_changed()
+RETURNS trigger AS $$
+DECLARE
+    row RECORD;
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        row := OLD;
+    ELSE
+        row := NEW;
+    END IF;
+    IF row.agent_instance_hierarchy IS NOT NULL THEN
+        PERFORM pg_notify('laboratory_attachments_changed',
+                          'aih:' || row.agent_instance_hierarchy);
+    ELSIF row.tag IS NOT NULL THEN
+        PERFORM pg_notify('laboratory_attachments_changed', 'tag:' || row.tag);
+    END IF;
+    RETURN row;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE TRIGGER laboratory_attachments_changed_notify
+AFTER INSERT OR UPDATE OR DELETE ON objectiveai.laboratory_attachments
+FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_laboratory_attachments_changed();
+
+-- `agent_active_laboratories`: the laboratory ids sent with an agent's
+-- MOST RECENT spawn request (what `run_multi_pass` resolved for its
+-- latest pass), replaced wholesale per pass. Most-recent-value
+-- semantics like `agent_token_usage`: survives deactivation. There is
+-- deliberately NO row trigger — the replace fires ONE
+-- `agent_active_laboratories_changed` NOTIFY (payload = the AIH) from
+-- Rust per transaction, not one per row.
+CREATE TABLE IF NOT EXISTS objectiveai.agent_active_laboratories (
+    agent_instance_hierarchy TEXT   NOT NULL,
+    laboratory_id            TEXT   NOT NULL,
+    -- Position within the resolved set (resolve order is meaningful:
+    -- first-seen dedup order from the attachment targets).
+    ordinal                  BIGINT NOT NULL,
+    updated_at               BIGINT NOT NULL,
+    PRIMARY KEY (agent_instance_hierarchy, laboratory_id)
+);
 CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_tag_unique_idx
     ON objectiveai.laboratory_attachments(tag, laboratory_id)
     WHERE tag IS NOT NULL;

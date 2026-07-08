@@ -276,6 +276,12 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // bound tags change (a `tags_changed` NOTIFY from the DB). Resident for
     // the daemon's life; reconnects on listener error.
     tokio::spawn(active.clone().watch_tag_changes());
+    // Live laboratory tracking — two independent watchers: the ATTACHED
+    // set (attach/detach NOTIFY) and the ACTIVE set (per-spawn-pass
+    // replace NOTIFY). Same lifetime + reconnect behavior as the tag
+    // watcher above.
+    tokio::spawn(active.clone().watch_attachment_changes());
+    tokio::spawn(active.clone().watch_active_laboratory_changes());
 
     // Launch every daemon plugin under the SHARED plugin executor, run
     // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed

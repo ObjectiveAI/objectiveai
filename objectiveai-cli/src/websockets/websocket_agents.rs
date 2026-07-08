@@ -69,6 +69,12 @@ pub(crate) enum StatusChange {
     },
     /// The AIH's bound tags changed (applied / moved / removed).
     TagsChanged { agent_instance_hierarchy: String },
+    /// The AIH's ATTACHED laboratory set changed (a lab was attached
+    /// or detached, on the AIH itself or on one of its bound tags).
+    AttachmentsChanged { agent_instance_hierarchy: String },
+    /// The AIH's ACTIVE laboratory set changed (a spawn pass recorded
+    /// the set it sent with its most recent request).
+    ActiveLaboratoriesChanged { agent_instance_hierarchy: String },
 }
 
 /// The fixed local-socket name for the agents hub, identical on the
@@ -241,7 +247,16 @@ impl ActiveAgents {
         let active = self.active.lock().await.contains(aih);
         let pool = self.ctx.db_client().await.ok()?;
         let item = crate::db::instances::get_exact(pool, aih).await.ok()?;
-        Some(record_from_item(&item, active))
+        // ATTACHED laboratories — the effective union (AIH ∪ bound tags).
+        let attached =
+            crate::db::laboratory_attachments::effective_for_aih(pool, aih, &item.tags)
+                .await
+                .ok()?;
+        // ACTIVE laboratories — what the most recent spawn pass sent.
+        // A fully separate concern from the attachments above.
+        let active_laboratories =
+            crate::db::agent_active_laboratories::list(pool, aih).await.ok()?;
+        Some(record_from_item(&item, active, attached, active_laboratories))
     }
 
     /// Subscribe to the `tags_changed` NOTIFY channel and emit a
@@ -278,6 +293,85 @@ impl ActiveAgents {
         }
     }
 
+    /// Subscribe to the `laboratory_attachments_changed` NOTIFY channel
+    /// and emit a [`StatusChange::AttachmentsChanged`] for each affected
+    /// AIH. The trigger payload preserves the row's target column
+    /// (`aih:<value>` / `tag:<value>`); a tag payload resolves to its
+    /// BOUND AIH here (GROUPED/absent tags map to no live record and are
+    /// dropped, matching `effective_for_aih`'s read path). Same
+    /// reconnect-loop shape as [`Self::watch_tag_changes`]; tracks the
+    /// ATTACHED set only — the ACTIVE set is a separate watcher.
+    pub(crate) async fn watch_attachment_changes(self) {
+        use std::time::Duration;
+        loop {
+            let reconnect = async {
+                let pool = self.ctx.db_client().await.ok()?;
+                let mut listener =
+                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                listener.listen("laboratory_attachments_changed").await.ok()?;
+                Some(listener)
+            }
+            .await;
+            let Some(mut listener) = reconnect else {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            };
+            while let Ok(notification) = listener.recv().await {
+                let payload = notification.payload();
+                if let Some(aih) = payload.strip_prefix("aih:") {
+                    self.emit(StatusChange::AttachmentsChanged {
+                        agent_instance_hierarchy: aih.to_string(),
+                    });
+                } else if let Some(tag) = payload.strip_prefix("tag:") {
+                    let Ok(pool) = self.ctx.db_client().await else {
+                        continue;
+                    };
+                    if let Ok(crate::db::tags::LookupState::Bound {
+                        agent_instance_hierarchy,
+                    }) = crate::db::tags::lookup(pool, tag).await
+                    {
+                        self.emit(StatusChange::AttachmentsChanged {
+                            agent_instance_hierarchy,
+                        });
+                    }
+                }
+            }
+            // Listener errored/closed — pause, then reconnect.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    /// Subscribe to the `agent_active_laboratories_changed` NOTIFY
+    /// channel and emit a [`StatusChange::ActiveLaboratoriesChanged`]
+    /// per notification (payload = the AIH; fired once per spawn-pass
+    /// replace). Same reconnect-loop shape as
+    /// [`Self::watch_tag_changes`]; tracks the ACTIVE set only — the
+    /// ATTACHED set is a separate watcher.
+    pub(crate) async fn watch_active_laboratory_changes(self) {
+        use std::time::Duration;
+        loop {
+            let reconnect = async {
+                let pool = self.ctx.db_client().await.ok()?;
+                let mut listener =
+                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                listener.listen("agent_active_laboratories_changed").await.ok()?;
+                Some(listener)
+            }
+            .await;
+            let Some(mut listener) = reconnect else {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            };
+            while let Ok(notification) = listener.recv().await {
+                self.emit(StatusChange::ActiveLaboratoriesChanged {
+                    agent_instance_hierarchy: notification.payload().to_string(),
+                });
+            }
+            // Listener errored/closed — pause, then reconnect.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+
     /// Best-effort startup reconcile: seed the registry with agents already
     /// holding an instance lock when the daemon starts (or before any
     /// client connects). Probes `try_held` per candidate AIH from
@@ -305,7 +399,12 @@ impl ActiveAgents {
 /// Map an `agents instances list` item to an [`AgentRecord`]. `created_at`
 /// becomes `spawned_at`; a live agent's `last_active_at` is suppressed
 /// (implicitly "now").
-fn record_from_item(item: &ResponseItem, active: bool) -> AgentRecord {
+fn record_from_item(
+    item: &ResponseItem,
+    active: bool,
+    attached: Vec<crate::db::laboratory_attachments::AttachmentRecord>,
+    active_laboratories: Vec<String>,
+) -> AgentRecord {
     AgentRecord {
         agent_instance_hierarchy: item.agent_instance_hierarchy.clone(),
         tags: item.tags.clone(),
@@ -318,6 +417,17 @@ fn record_from_item(item: &ResponseItem, active: bool) -> AgentRecord {
         } else {
             item.last_active_at.clone()
         },
+        attached_laboratories: attached
+            .into_iter()
+            .map(|record| {
+                objectiveai_sdk::cli::websocket_agents_instances_listener::AttachedLaboratory {
+                    id: record.laboratory_id,
+                    attached_at: crate::db::time::unix_to_rfc3339(record.attached_at),
+                    attached_by: record.attached_by,
+                }
+            })
+            .collect(),
+        active_laboratories,
     }
 }
 
@@ -438,7 +548,9 @@ async fn agents_pump(mut socket: axum::extract::ws::WebSocket, active: ActiveAge
                         StatusChange::Deactivated { agent_instance_hierarchy, .. } => {
                             AgentEvent::Deactivated { agent_instance_hierarchy }
                         }
-                        StatusChange::TagsChanged { .. } => continue,
+                        StatusChange::TagsChanged { .. }
+                        | StatusChange::AttachmentsChanged { .. }
+                        | StatusChange::ActiveLaboratoriesChanged { .. } => continue,
                     };
                     let Ok(frame) = serde_json::to_string(&event) else {
                         continue;

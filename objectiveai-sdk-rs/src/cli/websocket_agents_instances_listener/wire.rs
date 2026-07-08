@@ -53,6 +53,39 @@ pub struct AgentRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub last_active_at: Option<String>,
+    /// The agent's ATTACHED laboratories — the effective set the next
+    /// spawn pass dials (the AIH's own attachments UNION its bound
+    /// tags'), oldest-attached first. Live-tracked: attach/detach may
+    /// happen at any time, active agents included.
+    #[serde(default)]
+    pub attached_laboratories: Vec<AttachedLaboratory>,
+    /// The agent's ACTIVE laboratories — the laboratory ids actually
+    /// sent with the MOST RECENT spawn request (what the latest pass
+    /// dialed), in resolve order. Most-recent-value semantics: the set
+    /// survives deactivation and is replaced on the next pass. Fully
+    /// separate from `attached_laboratories`.
+    #[serde(default)]
+    pub active_laboratories: Vec<String>,
+}
+
+/// One laboratory attachment on the agent, as carried by
+/// [`AgentRecord::attached_laboratories`]. Mirrors `agents instances
+/// get`'s attachment shape (listener-local — this wire is a mirror,
+/// not a re-export).
+#[derive(
+    Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[schemars(rename = "cli.websocket_agents_instances_listener.AttachedLaboratory")]
+pub struct AttachedLaboratory {
+    /// The attached laboratory's id.
+    pub id: String,
+    /// RFC3339 — when it was attached.
+    pub attached_at: String,
+    /// The AIH that ran the attach. `None` on attachments predating
+    /// attacher tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub attached_by: Option<String>,
 }
 
 /// One part's opened content — what `agents logs read id` would return

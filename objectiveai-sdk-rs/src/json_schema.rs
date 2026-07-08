@@ -1134,6 +1134,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AgentInstanceEvent),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AgentRecord),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AssistantResponsePart),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AttachedLaboratory),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ClientNotificationPart),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ConversationBlock),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::PartContent),

@@ -413,6 +413,8 @@ async fn instance_pump(
                     let agent = match change {
                         StatusChange::Activated { agent_instance_hierarchy }
                         | StatusChange::TagsChanged { agent_instance_hierarchy }
+                        | StatusChange::AttachmentsChanged { agent_instance_hierarchy }
+                        | StatusChange::ActiveLaboratoriesChanged { agent_instance_hierarchy }
                             if agent_instance_hierarchy == aih =>
                         {
                             // Rebuild from DB truth + the live active

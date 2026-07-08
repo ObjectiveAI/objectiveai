@@ -401,6 +401,32 @@ async fn resolve_laboratories(
     ))
 }
 
+/// Record the ACTIVE laboratory set — the ids this pass is about to
+/// send — under the AIH (most-recent-value semantics; empty when the
+/// pass sends none). No-op while the AIH is still unknown (first-ever
+/// spawn before the first chunk): the identity-minting site re-records
+/// as soon as the AIH exists.
+async fn record_active_laboratories(
+    ctx: &Context,
+    aih: Option<&str>,
+    laboratories: &Option<Vec<objectiveai_sdk::laboratories::Laboratory>>,
+) -> Result<(), Error> {
+    let Some(aih) = aih else {
+        return Ok(());
+    };
+    let ids: Vec<String> = laboratories
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .map(|lab| match lab {
+            objectiveai_sdk::laboratories::Laboratory::Client(client) => client.id.clone(),
+        })
+        .collect();
+    let pool = ctx.db_client().await?;
+    crate::db::agent_active_laboratories::replace(pool, aih, &ids).await?;
+    Ok(())
+}
+
 /// Persist + tee one spawn-path error. THE LOGGING RULE: an error is
 /// recorded iff the AIH is known at the moment it occurs — the AIH
 /// lock is held (Historic / Instance spawns hold it from acquisition;
@@ -470,6 +496,15 @@ pub(crate) fn run_multi_pass(
                 unreachable!("Err(e)? diverges");
             }
         };
+        // Record the ACTIVE set this pass will send (no-op while the
+        // AIH is unknown — the identity-minting site covers that).
+        if let Err(e) =
+            record_active_laboratories(&ctx, registry.aih(), &laboratories).await
+        {
+            note_error(&ctx, &conversation_tee, registry.aih(), None, &e).await;
+            Err(e)?;
+            unreachable!("Err(e)? diverges");
+        }
         let mut params = AgentCompletionCreateParams {
             messages,
             provider: None,
@@ -657,6 +692,17 @@ pub(crate) fn run_multi_pass(
                             break;
                         }
                     }
+                    // First-ever spawns learn their AIH here — record
+                    // the ACTIVE set the initial resolve couldn't
+                    // (it had no AIH yet). Folds into the consolidated
+                    // raise like the agent_refs upsert above.
+                    if let Err(e) =
+                        record_active_laboratories(&ctx, Some(&hier), &params.laboratories)
+                            .await
+                    {
+                        stream_err = Some(format!("active laboratories record: {e}"));
+                        break;
+                    }
                     identity = Some((hier, full_id));
                 }
 
@@ -815,6 +861,25 @@ pub(crate) fn run_multi_pass(
                     unreachable!("Err(e)? diverges");
                 }
             };
+            // Record the ACTIVE set this pass will send.
+            if let Err(e) = record_active_laboratories(
+                &ctx,
+                identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                &params.laboratories,
+            )
+            .await
+            {
+                note_error(
+                    &ctx,
+                    &conversation_tee,
+                    identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                    last_response_id.as_deref(),
+                    &e,
+                )
+                .await;
+                Err(e)?;
+                unreachable!("Err(e)? diverges");
+            }
         }
     }
 }

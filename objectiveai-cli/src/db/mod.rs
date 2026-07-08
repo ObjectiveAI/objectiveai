@@ -16,6 +16,7 @@ pub use pool::*;
 mod init;
 pub use init::*;
 
+pub mod agent_active_laboratories;
 pub mod agent_continuations;
 pub mod agent_refs;
 pub mod compartment;
