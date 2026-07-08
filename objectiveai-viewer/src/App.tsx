@@ -19,10 +19,12 @@ import type { Entry } from "./types";
 function ObjectiveAIView({
   connection,
   agents,
+  zoom,
   onStatusChange,
 }: {
   connection: DaemonConnection | null;
   agents: AgentStatus[];
+  zoom: number;
   onStatusChange?: (status: ViewerStatus) => void;
 }) {
   const entries = useEntries();
@@ -66,7 +68,7 @@ function ObjectiveAIView({
         <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
       </div>
       {/* The body: the agent hierarchy tree, over the watermark. */}
-      <HierarchyTree connection={connection} agents={agents} />
+      <HierarchyTree connection={connection} agents={agents} zoom={zoom} />
     </div>
   );
 }
@@ -107,6 +109,9 @@ function App() {
   // The app's ONE agents-list connection: {aih, active} items, live.
   const agents = useAgentsInstancesList(connection);
   const activeAgents = agents.filter((agent) => agent.active).length;
+  // Canvas zoom — the footer slider drives it; the main tab's canvas
+  // consumes it (per-tab zoom for plugin panes comes later).
+  const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
@@ -126,9 +131,9 @@ function App() {
     return (
       <div className={cn("flex", "flex-col", "h-screen")}>
         <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-          <ObjectiveAIView connection={connection} agents={agents} onStatusChange={setStatus} />
+          <ObjectiveAIView connection={connection} agents={agents} zoom={zoom} onStatusChange={setStatus} />
         </div>
-        <StatusBar entries={status.entries} activeAgents={activeAgents} />
+        <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
       <ErrorToast />
       </div>
     );
@@ -175,7 +180,7 @@ function App() {
             activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
           )}
         >
-          <ObjectiveAIView connection={connection} agents={agents} onStatusChange={setStatus} />
+          <ObjectiveAIView connection={connection} agents={agents} zoom={zoom} onStatusChange={setStatus} />
         </div>
         {plugins.map((p) => (
           <div
@@ -192,7 +197,7 @@ function App() {
         ))}
       </div>
       {/* Spans every tab — plugin panes included. */}
-      <StatusBar entries={status.entries} activeAgents={activeAgents} />
+      <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
       <ErrorToast />
     </div>
   );

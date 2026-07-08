@@ -40,9 +40,14 @@ interface ScopedAgent {
 export function HierarchyTree({
   connection,
   agents,
+  zoom = 1,
 }: {
   connection: DaemonConnection | null;
   agents: AgentStatus[];
+  /** Canvas zoom factor from the footer slider. Applied as the CSS
+   * `zoom` property (Chromium reflows layout under it, so the scroll
+   * extents stay correct — unlike `transform: scale`). */
+  zoom?: number;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
@@ -127,6 +132,7 @@ export function HierarchyTree({
       )}
     >
       <div
+        style={{ zoom }}
         className={cn(
           "min-w-max",
           "p-6",

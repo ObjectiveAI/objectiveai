@@ -5,12 +5,19 @@ import { formatCost } from "../../lib/format";
 export function StatusBar({
   entries,
   activeAgents,
+  zoom,
+  onZoomChange,
   isHistorical,
 }: {
   entries: Entry[];
   /** Count of currently-active agents — from the app's agents-list
    * connection, threaded down by App (no global subscriptions here). */
   activeAgents: number;
+  /** Canvas zoom factor (1 = 100%), with its setter — the slider
+   * lives here so it spans every tab; only the main canvas consumes
+   * it for now. */
+  zoom: number;
+  onZoomChange: (zoom: number) => void;
   isHistorical?: boolean;
 }) {
   let totalTokens = 0;
@@ -37,6 +44,35 @@ export function StatusBar({
       )}
       {totalTokens > 0 && <span className={cn("shrink-0")}>{totalTokens.toLocaleString()} tokens</span>}
       {totalCost > 0 && <span className={cn("shrink-0")}>{formatCost(totalCost)}</span>}
+      {/* Canvas zoom — pinned to the footer's right edge. */}
+      <div className={cn("ml-auto", "flex", "items-center", "gap-1.5", "shrink-0")}>
+        <input
+          type="range"
+          data-zoom-slider
+          min={0.25}
+          max={2}
+          step={0.05}
+          value={zoom}
+          onChange={(e) => onZoomChange(Number(e.target.value))}
+          aria-label="Canvas zoom"
+          className={cn("w-24", "h-1", "cursor-pointer", "accent-[#d97706]")}
+        />
+        <button
+          type="button"
+          data-zoom-reset
+          onClick={() => onZoomChange(1)}
+          title="Reset zoom"
+          className={cn(
+            "tabular-nums",
+            "w-9",
+            "text-right",
+            "hover:text-info-bright",
+            "cursor-pointer",
+          )}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+      </div>
     </footer>
   );
 }
