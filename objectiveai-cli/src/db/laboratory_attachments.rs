@@ -37,46 +37,44 @@ fn now() -> i64 {
         .unwrap_or(0)
 }
 
-/// Attach `laboratory_id` to `target`. Returns `true` if a row was
-/// inserted, `false` if it was already attached. Caller holds the
-/// agent lock, so the select-then-insert is race-free.
+/// Attach `laboratory_id` to `target`, recording who attached it.
+/// Returns `true` if a row was inserted, `false` if it was already
+/// attached. NO LOCK is held (attach works at any time) — the
+/// per-target partial unique index arbitrates concurrent attaches:
+/// a losing racer's unique violation reads as "already attached".
 pub async fn attach(
     pool: &Pool,
     target: &Target,
     laboratory_id: &str,
+    attached_by: &str,
 ) -> Result<bool, Error> {
     let (tag, aih) = target.columns();
-    let existing = sqlx::query(
-        "SELECT 1 FROM objectiveai.laboratory_attachments \
-         WHERE tag IS NOT DISTINCT FROM $1 \
-           AND agent_instance_hierarchy IS NOT DISTINCT FROM $2 \
-           AND laboratory_id = $3",
-    )
-    .bind(tag)
-    .bind(aih)
-    .bind(laboratory_id)
-    .fetch_optional(&**pool)
-    .await?;
-    if existing.is_some() {
-        return Ok(false);
-    }
-    sqlx::query(
+    let result = sqlx::query(
         "INSERT INTO objectiveai.laboratory_attachments \
-         (tag, agent_instance_hierarchy, laboratory_id, created_at) \
-         VALUES ($1, $2, $3, $4)",
+         (tag, agent_instance_hierarchy, laboratory_id, created_at, attached_by) \
+         VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(tag)
     .bind(aih)
     .bind(laboratory_id)
     .bind(now())
+    .bind(attached_by)
     .execute(&**pool)
-    .await?;
-    Ok(true)
+    .await;
+    match result {
+        Ok(_) => Ok(true),
+        Err(sqlx::Error::Database(e)) if e.code().as_deref() == Some("23505") => {
+            // Unique violation on the per-target partial index —
+            // already attached (possibly by a concurrent racer).
+            Ok(false)
+        }
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// Detach `laboratory_id` from `target`. Returns `true` if a row was
-/// deleted, `false` if there was nothing to delete. Caller holds the
-/// agent lock.
+/// deleted, `false` if there was nothing to delete. NO LOCK is held —
+/// the DELETE is inherently race-safe.
 pub async fn detach(
     pool: &Pool,
     target: &Target,
@@ -95,6 +93,49 @@ pub async fn detach(
     .execute(&**pool)
     .await?;
     Ok(result.rows_affected() > 0)
+}
+
+/// One attachment row, as `agents instances get` surfaces it.
+pub struct AttachmentRecord {
+    pub laboratory_id: String,
+    /// Unix seconds (`created_at`).
+    pub attached_at: i64,
+    /// The AIH that ran the attach. `None` on rows predating tracking.
+    pub attached_by: Option<String>,
+}
+
+/// The agent's EFFECTIVE attachments — the union the next spawn pass
+/// dials: rows keyed on the AIH itself plus rows keyed on any of its
+/// bound tags. Oldest-attached first; a laboratory attached through
+/// multiple routes appears once (earliest attachment wins).
+pub async fn effective_for_aih(
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
+    tags: &[String],
+) -> Result<Vec<AttachmentRecord>, Error> {
+    let rows = sqlx::query(
+        "SELECT laboratory_id, created_at, attached_by \
+         FROM objectiveai.laboratory_attachments \
+         WHERE agent_instance_hierarchy = $1 OR tag = ANY($2) \
+         ORDER BY created_at, id",
+    )
+    .bind(agent_instance_hierarchy)
+    .bind(tags)
+    .fetch_all(&**pool)
+    .await?;
+    let mut out: Vec<AttachmentRecord> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let laboratory_id: String = row.try_get("laboratory_id")?;
+        if out.iter().any(|r| r.laboratory_id == laboratory_id) {
+            continue;
+        }
+        out.push(AttachmentRecord {
+            laboratory_id,
+            attached_at: row.try_get("created_at")?,
+            attached_by: row.try_get("attached_by")?,
+        });
+    }
+    Ok(out)
 }
 
 /// All laboratory ids attached to `target`, oldest-attached first.

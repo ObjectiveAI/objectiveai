@@ -39,6 +39,25 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         item.agent = crate::db::logs::lookup_session(ctx.db_client().await?, &aih)
             .await?
             .map(|lookup| lookup.agent);
+        // The effective laboratory set the next spawn pass dials:
+        // the AIH's own attachments UNION its bound tags'.
+        item.laboratories = Some(
+            crate::db::laboratory_attachments::effective_for_aih(
+                ctx.db_client().await?,
+                &aih,
+                &item.tags,
+            )
+            .await?
+            .into_iter()
+            .map(|record| {
+                objectiveai_sdk::cli::command::agents::instances::list::LaboratoryAttachment {
+                    id: record.laboratory_id,
+                    attached_at: crate::db::time::unix_to_rfc3339(record.attached_at),
+                    attached_by: record.attached_by,
+                }
+            })
+            .collect(),
+        );
         merged.insert(item.agent_instance_hierarchy.clone(), item);
     }
 

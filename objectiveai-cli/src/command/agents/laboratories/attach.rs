@@ -11,8 +11,13 @@ use crate::error::Error;
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     let target = super::resolve_target(ctx, &request.selector).await?;
     let pool = ctx.db_client().await?.clone();
-    let inserted =
-        crate::db::laboratory_attachments::attach(&pool, &target, &request.laboratory_id).await?;
+    let inserted = crate::db::laboratory_attachments::attach(
+        &pool,
+        &target,
+        &request.laboratory_id,
+        &ctx.config.agent_instance_hierarchy,
+    )
+    .await?;
     if !inserted {
         return Err(Error::LaboratoryAlreadyAttached {
             laboratory_id: request.laboratory_id,

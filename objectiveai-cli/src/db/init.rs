@@ -123,12 +123,17 @@ CREATE TABLE IF NOT EXISTS objectiveai.laboratory_attachments (
     tag                      TEXT,
     laboratory_id            TEXT   NOT NULL,
     created_at               BIGINT NOT NULL,
+    -- The AIH that ran the attach. NULL on rows predating tracking.
+    attached_by              TEXT,
     CHECK (
         (agent_instance_hierarchy IS NOT NULL AND tag IS NULL)
         OR
         (agent_instance_hierarchy IS NULL AND tag IS NOT NULL)
     )
 );
+-- Existing DBs predate `attached_by` — align idempotently.
+ALTER TABLE objectiveai.laboratory_attachments
+    ADD COLUMN IF NOT EXISTS attached_by TEXT;
 CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_tag_unique_idx
     ON objectiveai.laboratory_attachments(tag, laboratory_id)
     WHERE tag IS NOT NULL;

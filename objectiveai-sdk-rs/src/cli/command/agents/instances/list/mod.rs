@@ -66,6 +66,13 @@ pub struct ResponseItem {
     pub last_active_at: Option<String>,
     /// Total `logs.messages` rows for this agent over all time.
     pub logged: u64,
+    /// Currently attached laboratories — the EFFECTIVE set the next
+    /// spawn pass dials: the AIH's own attachments UNION its bound
+    /// tags'. Populated by `agents instances get`; `agents instances
+    /// list` leaves it unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub laboratories: Option<Vec<LaboratoryAttachment>>,
     /// The agent definition recorded for this AIH — from
     /// `objectiveai.agent_refs`, with the legacy most-recent-request
     /// fallback (`lookup_session`). Populated by `agents instances
@@ -73,6 +80,22 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent: Option<crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional>,
+}
+
+/// One laboratory attachment on an agent, as surfaced by
+/// `agents instances get`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.instances.list.LaboratoryAttachment")]
+pub struct LaboratoryAttachment {
+    /// The attached laboratory's id.
+    pub id: String,
+    /// RFC3339 — when it was attached.
+    pub attached_at: String,
+    /// The AIH that ran the attach. `None` on attachments predating
+    /// attacher tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub attached_by: Option<String>,
 }
 
 #[derive(clap::Args)]
