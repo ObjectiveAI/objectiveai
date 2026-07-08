@@ -52,10 +52,25 @@ impl VectorCompletion {
             .sort_by_cached_key(|c| serde_json::to_string(&c.inner).unwrap());
 
         // re-apply completion indices since indices are non-deterministic
+        // (first-come-first-served by design) — and REMAP the votes'
+        // `completion_index` through the same renumbering, or the
+        // votes keep pointing at the arrival-ordered indices and leak
+        // the non-determinism into normalized snapshots.
+        let mut index_map = std::collections::HashMap::new();
         let mut i = 0;
         for completion in &mut self.completions {
+            index_map.insert(completion.index, i);
             completion.index = i;
             i += 1;
+        }
+        for vote in &mut self.votes {
+            if let Some(completion_index) = vote.completion_index {
+                // A dangling reference (no matching completion) is
+                // left as-is rather than silently rewritten.
+                if let Some(new_index) = index_map.get(&completion_index) {
+                    vote.completion_index = Some(*new_index);
+                }
+            }
         }
     }
 
