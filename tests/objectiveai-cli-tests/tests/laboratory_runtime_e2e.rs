@@ -8,7 +8,7 @@
 mod cli_test_util;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::laboratories::attach::{
+use objectiveai_sdk::cli::command::laboratories::attach::{
     Path as AttachPath, Request as AttachReq, Response as AttachResp,
 };
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
@@ -89,7 +89,7 @@ async fn spawn_lab_session(
         let _: AttachResp = cli_test_util::execute_one(
             executor,
             AttachReq {
-                path_type: AttachPath::AgentsLaboratoriesAttach,
+                path_type: AttachPath::LaboratoriesAttach,
                 selector: AgentSelector::Tag {
                     agent_tag: tag.to_string(),
                 },

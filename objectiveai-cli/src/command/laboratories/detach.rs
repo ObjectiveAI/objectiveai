@@ -1,9 +1,9 @@
-//! `agents laboratories detach` — delete the `(target, laboratory_id)`
+//! `laboratories detach` — delete the `(target, laboratory_id)`
 //! row. Errors if the laboratory was not attached to the target.
 //! NO LOCKING: detaching works at any time, active agents included —
 //! the spawn picks the change up at its next pass boundary.
 
-use objectiveai_sdk::cli::command::agents::laboratories::detach::{Request, Response};
+use objectiveai_sdk::cli::command::laboratories::detach::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -24,8 +24,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::laboratories::detach as sdk;
-    use objectiveai_sdk::cli::command::agents::laboratories::detach::request_schema::{
+    use objectiveai_sdk::cli::command::laboratories::detach as sdk;
+    use objectiveai_sdk::cli::command::laboratories::detach::request_schema::{
         Request, Response,
     };
 
@@ -40,8 +40,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::laboratories::detach as sdk;
-    use objectiveai_sdk::cli::command::agents::laboratories::detach::response_schema::{
+    use objectiveai_sdk::cli::command::laboratories::detach as sdk;
+    use objectiveai_sdk::cli::command::laboratories::detach::response_schema::{
         Request, Response,
     };
 

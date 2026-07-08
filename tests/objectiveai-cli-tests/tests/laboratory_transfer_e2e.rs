@@ -5,7 +5,7 @@
 //!   1. `laboratories create` two labs (a, b).
 //!   2. `agents tags apply` a GROUPED tag carrying a mock agent whose
 //!      deterministic `calls` script drives the aggregated tools.
-//!   3. `agents laboratories attach` both labs to the tag so the spawn
+//!   3. `laboratories attach` both labs to the tag so the spawn
 //!      resolves them into the session.
 //!   4. `agents spawn` the tag. The scripted agent:
 //!        - writes `/work/x = "hi"` in lab a via its `Bash` tool,
@@ -25,10 +25,10 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::laboratories::attach::{
+use objectiveai_sdk::cli::command::laboratories::attach::{
     Path as AttachPath, Request as AttachReq, Response as AttachResp,
 };
-use objectiveai_sdk::cli::command::agents::laboratories::detach::{
+use objectiveai_sdk::cli::command::laboratories::detach::{
     Path as DetachPath, Request as DetachReq, Response as DetachResp,
 };
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
@@ -98,7 +98,7 @@ async fn attach_lab(executor: &Exec, tag: &str, lab: &str) {
     let _: AttachResp = cli_test_util::execute_one(
         executor,
         AttachReq {
-            path_type: AttachPath::AgentsLaboratoriesAttach,
+            path_type: AttachPath::LaboratoriesAttach,
             selector: AgentSelector::Tag {
                 agent_tag: tag.to_string(),
             },
@@ -597,7 +597,7 @@ async fn detach_lab(executor: &Exec, tag: &str, lab: &str) {
     let _: DetachResp = cli_test_util::execute_one(
         executor,
         DetachReq {
-            path_type: DetachPath::AgentsLaboratoriesDetach,
+            path_type: DetachPath::LaboratoriesDetach,
             selector: AgentSelector::Tag {
                 agent_tag: tag.to_string(),
             },

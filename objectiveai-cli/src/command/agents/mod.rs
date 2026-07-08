@@ -15,7 +15,6 @@ use crate::error::Error;
 pub mod enqueue;
 pub mod get;
 pub mod instances;
-pub mod laboratories;
 pub mod list;
 pub mod locks;
 pub mod logs;
@@ -64,10 +63,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Instances(req) => {
             let inner = instances::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Instances)))
-        }
-        Request::Laboratories(req) => {
-            let inner = laboratories::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
         }
         Request::List(req) => {
             let inner = list::execute(ctx, req).await?;

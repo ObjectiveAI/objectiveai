@@ -1,7 +1,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.laboratories.detach.request_schema.Request")]
+#[schemars(rename = "cli.command.laboratories.detach.request_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
@@ -9,10 +9,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.laboratories.detach.request_schema.Path")]
+#[schemars(rename = "cli.command.laboratories.detach.request_schema.Path")]
 pub enum Path {
-    #[serde(rename = "agents/laboratories/detach/request_schema")]
-    AgentsLaboratoriesDetachRequestSchema,
+    #[serde(rename = "laboratories/detach/request_schema")]
+    LaboratoriesDetachRequestSchema,
 }
 
 #[derive(clap::Args)]
@@ -37,7 +37,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
-            path_type: Path::AgentsLaboratoriesDetachRequestSchema,
+            path_type: Path::LaboratoriesDetachRequestSchema,
             base: args.base.into(),
         })
     }
@@ -64,7 +64,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor.execute_one(request, agent_arguments).await
 }
 
-/// One `/listen` broadcast run of `agents laboratories detach request_schema`: the actual
+/// One `/listen` broadcast run of `laboratories detach request_schema`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].

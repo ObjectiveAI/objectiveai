@@ -1,4 +1,4 @@
-//! `agents laboratories attach` — attach a laboratory id to an agent
+//! `laboratories attach` — attach a laboratory id to an agent
 //! target (a tag, or an instance hierarchy via PAIH + `--agent-instance`).
 //! The attachment is keyed on the tag (for a tag target) or on the AIH
 //! (for an instance target); see the CLI handler for the lock + insert.
@@ -7,7 +7,7 @@ use crate::cli::command::CommandRequest;
 use crate::cli::command::agents::selector::{AgentSelector, AgentSelectorArgs};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.laboratories.attach.Request")]
+#[schemars(rename = "cli.command.laboratories.attach.Request")]
 pub struct Request {
     pub path_type: Path,
     pub selector: AgentSelector,
@@ -17,10 +17,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.laboratories.attach.Path")]
+#[schemars(rename = "cli.command.laboratories.attach.Path")]
 pub enum Path {
-    #[serde(rename = "agents/laboratories/attach")]
-    AgentsLaboratoriesAttach,
+    #[serde(rename = "laboratories/attach")]
+    LaboratoriesAttach,
 }
 
 impl CommandRequest for Request {
@@ -36,7 +36,7 @@ impl CommandRequest for Request {
 /// Confirmation — attach succeeded; echoes the laboratory id that was
 /// attached.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.laboratories.attach.Response")]
+#[schemars(rename = "cli.command.laboratories.attach.Response")]
 pub struct Response {
     /// The laboratory id that was attached to the target.
     pub laboratory_id: String,
@@ -82,7 +82,7 @@ impl TryFrom<Args> for Request {
             )
         })?;
         Ok(Self {
-            path_type: Path::AgentsLaboratoriesAttach,
+            path_type: Path::LaboratoriesAttach,
             selector,
             laboratory_id,
             base: args.base.into(),
@@ -122,7 +122,7 @@ pub mod request_schema;
 
 pub mod response_schema;
 
-/// One `/listen` broadcast run of `agents laboratories attach`: the actual
+/// One `/listen` broadcast run of `laboratories attach`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].
