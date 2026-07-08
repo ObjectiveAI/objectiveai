@@ -1376,6 +1376,16 @@ pub enum WriterItem<'a> {
         agent_instance_hierarchy: &'a str,
         total_tokens: u64,
     },
+    /// An in-band completion error: the agent completion ITSELF
+    /// carries `error` (an upstream/API failure delivered as part of
+    /// the response, not a transport failure). The writer persists it
+    /// as an `error` log row — once per `(aih, response_id)`; the
+    /// cumulative accumulator re-yields it every tick.
+    Error {
+        agent_instance_hierarchy: &'a str,
+        response_id: &'a str,
+        error: &'a objectiveai_sdk::error::ResponseError,
+    },
 }
 
 /// Boxed iterator of [`WriterItem`]s — the return type of the three

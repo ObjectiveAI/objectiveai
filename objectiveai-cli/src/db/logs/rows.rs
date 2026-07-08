@@ -47,12 +47,20 @@ pub fn agent_completion_chunk_rows<'a>(
         agent_instance_hierarchy: agent_hierarchy,
         total_tokens: u.total_tokens,
     });
+    // The completion's own in-band error, when set (lazy-set,
+    // cumulative — present on every subsequent chunk once set; the
+    // writer dedupes per (aih, response_id)).
+    let error = chunk.error.as_ref().map(move |error| WriterItem::Error {
+        agent_instance_hierarchy: agent_hierarchy,
+        response_id,
+        error,
+    });
     let rows = chunk
         .messages
         .iter()
         .flat_map(move |msg| message_chunk_rows(response_id, agent_hierarchy, msg))
         .map(WriterItem::Row);
-    Box::new(usage.into_iter().chain(rows))
+    Box::new(usage.into_iter().chain(error).chain(rows))
 }
 
 /// Entry: walk every embedded per-agent completion in a vector chunk

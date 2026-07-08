@@ -335,6 +335,10 @@ struct LogWriterState<C> {
     tee: Option<super::tee::ConversationTee>,
     /// The tee's stateful row→typed-event mapper (head memory).
     frame_mapper: super::tee::FrameMapper,
+    /// `(aih, response_id)` pairs whose in-band completion error has
+    /// already been persisted — the cumulative accumulator re-yields
+    /// the error item every tick once set.
+    logged_errors: HashSet<(String, String)>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -365,6 +369,7 @@ impl<C> LogWriterState<C> {
             seen_agents: HashSet::new(),
             tee,
             frame_mapper: super::tee::FrameMapper::default(),
+            logged_errors: HashSet::new(),
             _chunk: PhantomData,
         }
     }
@@ -457,6 +462,36 @@ impl<C> LogWriterState<C> {
                         .await?;
                         self.last_usage
                             .insert(agent_instance_hierarchy.to_string(), total_tokens);
+                    }
+                }
+                WriterItem::Error { agent_instance_hierarchy, response_id: rid, error } => {
+                    let logged_key =
+                        (agent_instance_hierarchy.to_string(), rid.to_string());
+                    if !self.logged_errors.contains(&logged_key) {
+                        // Persist first, then tee — same order as the
+                        // spawn-path `note_error`. Covers EVERY tier:
+                        // nested agent completions inside vector /
+                        // function executions flow through the same
+                        // walker.
+                        let value = serde_json::to_value(error)
+                            .unwrap_or_else(|_| error.to_string().into());
+                        super::errors::insert_error(
+                            &self.pool,
+                            agent_instance_hierarchy,
+                            Some(rid),
+                            &value,
+                            created_at_seed,
+                        )
+                        .await?;
+                        if let Some(tee) = &self.tee {
+                            tee.send(super::tee::error_frame(
+                                agent_instance_hierarchy.to_string(),
+                                Some(rid.to_string()),
+                                value,
+                                created_at_seed,
+                            ));
+                        }
+                        self.logged_errors.insert(logged_key);
                     }
                 }
             }
