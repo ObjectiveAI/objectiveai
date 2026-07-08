@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.laboratories.attach.Response",
+  "description": "Confirmation — attach succeeded; echoes the laboratory id that was\nattached.",
+  "type": "object",
+  "properties": {
+    "laboratory_id": {
+      "description": "The laboratory id that was attached to the target.",
+      "type": "string"
+    }
+  }
+}

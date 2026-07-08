@@ -2,6 +2,18 @@
   "title": "cli.command.laboratories.Request",
   "anyOf": [
     {
+      "title": "Attach",
+      "$ref": "cli.command.laboratories.attach.Request"
+    },
+    {
+      "title": "AttachRequestSchema",
+      "$ref": "cli.command.laboratories.attach.request_schema.Request"
+    },
+    {
+      "title": "AttachResponseSchema",
+      "$ref": "cli.command.laboratories.attach.response_schema.Request"
+    },
+    {
       "title": "Create",
       "$ref": "cli.command.laboratories.create.Request"
     },
@@ -12,6 +24,18 @@
     {
       "title": "CreateResponseSchema",
       "$ref": "cli.command.laboratories.create.response_schema.Request"
+    },
+    {
+      "title": "Detach",
+      "$ref": "cli.command.laboratories.detach.Request"
+    },
+    {
+      "title": "DetachRequestSchema",
+      "$ref": "cli.command.laboratories.detach.request_schema.Request"
+    },
+    {
+      "title": "DetachResponseSchema",
+      "$ref": "cli.command.laboratories.detach.response_schema.Request"
     },
     {
       "title": "List",

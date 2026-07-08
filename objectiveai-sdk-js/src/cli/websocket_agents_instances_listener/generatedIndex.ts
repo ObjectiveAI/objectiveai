@@ -3,6 +3,7 @@
 export * from "./agentInstanceEvent";
 export * from "./agentRecord";
 export * from "./assistantResponsePart";
+export * from "./attachedLaboratory";
 export * from "./clientNotificationPart";
 export * from "./conversationBlock";
 export * from "./partContent";

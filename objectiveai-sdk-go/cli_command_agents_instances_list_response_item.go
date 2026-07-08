@@ -20,6 +20,11 @@ type CliCommandAgentsInstancesListResponseItem struct {
 	// RFC3339 timestamp of the first `logs.messages` row for this
 	// agent. `None` when the agent has no logs yet (queue-only).
 	CreatedAt *string `json:"created_at,omitempty"`
+	// Currently attached laboratories — the EFFECTIVE set the next
+	// spawn pass dials: the AIH's own attachments UNION its bound
+	// tags'. Populated by `agents instances get`; `agents instances
+	// list` leaves it unset.
+	Laboratories *[]CliCommandAgentsInstancesListLaboratoryAttachment `json:"laboratories,omitempty"`
 	// RFC3339 timestamp of the most recent `logs.messages` row for
 	// this agent. `None` when the agent has no logs yet (queue-only).
 	LastActiveAt *string `json:"last_active_at,omitempty"`

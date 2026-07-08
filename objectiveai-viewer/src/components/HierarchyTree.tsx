@@ -405,6 +405,15 @@ function AgentNode({
                 </span>
               </BadgeRow>
             ))}
+            {/* ATTACHED laboratories only — the active set is
+                deliberately not shown here (yet). */}
+            {agent.attached_laboratories.map((lab) => (
+              <BadgeRow key={lab.id} badge="laboratory">
+                <span data-laboratory={lab.id} className={cn("text-[#c3bfbb]")}>
+                  {lab.id}
+                </span>
+              </BadgeRow>
+            ))}
           </>
         )}
         <AgentDefinitionView hierarchy={hierarchy} />

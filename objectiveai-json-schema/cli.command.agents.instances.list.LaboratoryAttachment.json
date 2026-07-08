@@ -1,0 +1,27 @@
+{
+  "title": "cli.command.agents.instances.list.LaboratoryAttachment",
+  "description": "One laboratory attachment on an agent, as surfaced by\n`agents instances get`.",
+  "type": "object",
+  "properties": {
+    "attached_at": {
+      "description": "RFC3339 — when it was attached.",
+      "type": "string"
+    },
+    "attached_by": {
+      "description": "The AIH that ran the attach. `None` on attachments predating\nattacher tracking.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "description": "The attached laboratory's id.",
+      "type": "string"
+    }
+  }
+}

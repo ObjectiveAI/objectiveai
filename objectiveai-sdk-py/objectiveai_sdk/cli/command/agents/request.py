@@ -10,7 +10,6 @@ from objectiveai_sdk.cli.command.agents.get.request import Request as CliCommand
 from objectiveai_sdk.cli.command.agents.get.request_schema.request import Request as CliCommandAgentsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.get.response_schema.request import Request as CliCommandAgentsGetResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.instances.request import Request as CliCommandAgentsInstancesRequest
-from objectiveai_sdk.cli.command.agents.laboratories.request import Request as CliCommandAgentsLaboratoriesRequest
 from objectiveai_sdk.cli.command.agents.list.request import Request as CliCommandAgentsListRequest
 from objectiveai_sdk.cli.command.agents.list.request_schema.request import Request as CliCommandAgentsListRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.list.response_schema.request import Request as CliCommandAgentsListResponseSchemaRequest
@@ -72,12 +71,6 @@ class RequestInstances(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Instances'})
 
     root: CliCommandAgentsInstancesRequest
-
-
-class RequestLaboratories(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Laboratories'})
-
-    root: CliCommandAgentsLaboratoriesRequest
 
 
 class RequestList(RootModel):
@@ -197,5 +190,5 @@ class RequestWaitResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.Request')
 
-    root: Union[RequestEnqueue, RequestEnqueueRequestSchema, RequestEnqueueResponseSchema, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestLaboratories, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMcp, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags, RequestWait, RequestWaitRequestSchema, RequestWaitResponseSchema]
+    root: Union[RequestEnqueue, RequestEnqueueRequestSchema, RequestEnqueueResponseSchema, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMcp, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags, RequestWait, RequestWaitRequestSchema, RequestWaitResponseSchema]
 

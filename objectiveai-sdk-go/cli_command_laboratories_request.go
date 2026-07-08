@@ -8,15 +8,30 @@ import (
 )
 
 type CliCommandLaboratoriesRequest struct {
+	Attach *CliCommandLaboratoriesAttachRequest 
+	AttachRequestSchema *CliCommandLaboratoriesAttachRequestSchemaRequest 
+	AttachResponseSchema *CliCommandLaboratoriesAttachResponseSchemaRequest 
 	Create *CliCommandLaboratoriesCreateRequest 
 	CreateRequestSchema *CliCommandLaboratoriesCreateRequestSchemaRequest 
 	CreateResponseSchema *CliCommandLaboratoriesCreateResponseSchemaRequest 
+	Detach *CliCommandLaboratoriesDetachRequest 
+	DetachRequestSchema *CliCommandLaboratoriesDetachRequestSchemaRequest 
+	DetachResponseSchema *CliCommandLaboratoriesDetachResponseSchemaRequest 
 	List *CliCommandLaboratoriesListRequest 
 	ListRequestSchema *CliCommandLaboratoriesListRequestSchemaRequest 
 	ListResponseSchema *CliCommandLaboratoriesListResponseSchemaRequest 
 }
 
 func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
+	if v.Attach != nil {
+		return json.Marshal(v.Attach)
+	}
+	if v.AttachRequestSchema != nil {
+		return json.Marshal(v.AttachRequestSchema)
+	}
+	if v.AttachResponseSchema != nil {
+		return json.Marshal(v.AttachResponseSchema)
+	}
 	if v.Create != nil {
 		return json.Marshal(v.Create)
 	}
@@ -25,6 +40,15 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.CreateResponseSchema != nil {
 		return json.Marshal(v.CreateResponseSchema)
+	}
+	if v.Detach != nil {
+		return json.Marshal(v.Detach)
+	}
+	if v.DetachRequestSchema != nil {
+		return json.Marshal(v.DetachRequestSchema)
+	}
+	if v.DetachResponseSchema != nil {
+		return json.Marshal(v.DetachResponseSchema)
 	}
 	if v.List != nil {
 		return json.Marshal(v.List)
@@ -39,6 +63,39 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandLaboratoriesAttachRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.Attach = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesAttachRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.AttachRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesAttachResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.AttachResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try CliCommandLaboratoriesCreateRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -66,6 +123,39 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandLaboratoriesRequest{}
 			candidate.CreateResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesDetachRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.Detach = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesDetachRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.DetachRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesDetachResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.DetachResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -110,9 +200,15 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandLaboratoriesRequest) Validate() error {
 	count := 0
+	if v.Attach != nil { count++ }
+	if v.AttachRequestSchema != nil { count++ }
+	if v.AttachResponseSchema != nil { count++ }
 	if v.Create != nil { count++ }
 	if v.CreateRequestSchema != nil { count++ }
 	if v.CreateResponseSchema != nil { count++ }
+	if v.Detach != nil { count++ }
+	if v.DetachRequestSchema != nil { count++ }
+	if v.DetachResponseSchema != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }

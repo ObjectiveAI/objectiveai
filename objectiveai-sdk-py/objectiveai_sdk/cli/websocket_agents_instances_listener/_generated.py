@@ -3,6 +3,7 @@
 from .agent_instance_event import AgentInstanceEvent, AgentInstanceEventAgent, AgentInstanceEventAssistantResponsePart, AgentInstanceEventClientNotificationPart, AgentInstanceEventError, AgentInstanceEventLive, AgentInstanceEventRequestMessageAssistantPart, AgentInstanceEventRequestMessageToolPart, AgentInstanceEventRequestMessageUserPart, AgentInstanceEventToolResponsePart, AgentInstanceEventVectorRequestChoicePart, AgentInstanceEventVectorResponseVote  # noqa: F401
 from .agent_record import AgentRecord  # noqa: F401
 from .assistant_response_part import AssistantResponsePart, AssistantResponsePartAudio, AssistantResponsePartFile, AssistantResponsePartImage, AssistantResponsePartReasoning, AssistantResponsePartRefusal, AssistantResponsePartText, AssistantResponsePartToolCall, AssistantResponsePartVideo  # noqa: F401
+from .attached_laboratory import AttachedLaboratory  # noqa: F401
 from .client_notification_part import ClientNotificationPart  # noqa: F401
 from .conversation_block import ConversationBlock, ConversationBlockAssistantResponse, ConversationBlockClientNotification, ConversationBlockError, ConversationBlockRequestMessageAssistant, ConversationBlockRequestMessageTool, ConversationBlockRequestMessageUser, ConversationBlockToolResponse, ConversationBlockVectorRequestChoices, ConversationBlockVectorResponseVote  # noqa: F401
 from .part_content import PartContent, PartContentAudio, PartContentFile, PartContentImage, PartContentText, PartContentVideo  # noqa: F401

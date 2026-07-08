@@ -3,7 +3,6 @@
 export * from "./enqueue/index";
 export * from "./get/index";
 export * from "./instances/index";
-export * from "./laboratories/index";
 export * from "./list/index";
 export * from "./logs/index";
 export * from "./mcp/index";

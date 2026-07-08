@@ -21,26 +21,21 @@ use serde::Serialize;
 
 use super::{Error, Pool};
 
-/// One row's payload: the remote path's wire string, or the inline
-/// WF spec as JSON.
+/// One row's payload: the remote path's JSON, or the inline WF spec
+/// as JSON. Both columns are JSONB — serialized JSON is never stored
+/// as TEXT.
 pub enum AgentRefValue {
-    Remote(String),
+    Remote(serde_json::Value),
     Inline(serde_json::Value),
 }
 
 impl AgentRefValue {
-    /// The remote path's JSON text. `RemotePath` and its
+    /// The remote path's canonical JSON. `RemotePath` and its
     /// commit-optional twin serialize as TAGGED OBJECTS
     /// (`{"remote":"client","owner":…}`) — there is no string wire
-    /// form — so the column stores the object's JSON text and the
-    /// reader ([`super::logs::lookup_session`]) parses it back as
-    /// JSON. A string-serializing value is stored bare (the reader's
-    /// plain-string fallback picks it up).
+    /// form.
     pub fn remote<T: Serialize>(remote: &T) -> Option<Self> {
-        match serde_json::to_value(remote).ok()? {
-            serde_json::Value::String(s) => Some(Self::Remote(s)),
-            other => Some(Self::Remote(other.to_string())),
-        }
+        serde_json::to_value(remote).ok().map(Self::Remote)
     }
 
     /// The inline WF spec's JSON form.

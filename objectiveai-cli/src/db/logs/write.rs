@@ -573,7 +573,14 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
                 RowValue::RequestMessageToolContentImage { .. } => "objectiveai.request_message_tool_content_image",
                 _ => "objectiveai.request_vector_choice_content_image",
             };
-            let detail = image_url.detail.as_ref().and_then(|d| serde_json::to_string(d).ok());
+            // Bare enum token (`auto`/`low`/`high`) — matches the
+            // readers and the message-queue writer; never the
+            // JSON-quoted form.
+            let detail = image_url
+                .detail
+                .as_ref()
+                .and_then(|d| serde_json::to_value(d).ok())
+                .and_then(|v| v.as_str().map(str::to_string));
             let sql = format!(
                 "UPDATE {table} SET url = $A, detail = $B \
                  WHERE response_id = $RESP AND \"index\" = $RI AND part_index = $RSI"
@@ -718,7 +725,12 @@ async fn insert_image_part_with_msg<'a>(
     image: &ImageUrl,
     timestamp: i64,
 ) -> Result<(), Error> {
-    let detail = image.detail.as_ref().and_then(|d| serde_json::to_string(d).ok());
+    // Bare enum token — see the sibling image writer above.
+    let detail = image
+        .detail
+        .as_ref()
+        .and_then(|d| serde_json::to_value(d).ok())
+        .and_then(|v| v.as_str().map(str::to_string));
     let sql = format!(
         "WITH data_ins AS (\
             INSERT INTO {table} (response_id, \"index\", part_index, url, detail) \

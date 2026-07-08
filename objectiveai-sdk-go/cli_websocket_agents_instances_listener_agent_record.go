@@ -17,8 +17,19 @@ type CliWebsocketAgentsInstancesListenerAgentRecord struct {
 	// Whether the agent's per-instance lock is currently held — i.e. a
 	// live process owns this agent right now.
 	Active bool `json:"active"`
+	// The agent's ACTIVE laboratories — the laboratory ids actually
+	// sent with the MOST RECENT spawn request (what the latest pass
+	// dialed), in resolve order. Most-recent-value semantics: the set
+	// survives deactivation and is replaced on the next pass. Fully
+	// separate from `attached_laboratories`.
+	ActiveLaboratories []string `json:"active_laboratories" default:"[]"`
 	// Full hierarchy of this agent instance.
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// The agent's ATTACHED laboratories — the effective set the next
+	// spawn pass dials (the AIH's own attachments UNION its bound
+	// tags'), oldest-attached first. Live-tracked: attach/detach may
+	// happen at any time, active agents included.
+	AttachedLaboratories []CliWebsocketAgentsInstancesListenerAttachedLaboratory `json:"attached_laboratories" default:"[]"`
 	// RFC3339 timestamp the agent was last active. Meaningful only when
 	// `active` is `false` — a live agent's last-active is implicitly
 	// "now", so it is left `None` while active and stamped at the moment
@@ -45,7 +56,7 @@ func (v *CliWebsocketAgentsInstancesListenerAgentRecord) UnmarshalJSON(data []by
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"active", "agent_instance_hierarchy", "logged", "queued", "tags"} {
+	for _, key := range []string{"active", "active_laboratories", "agent_instance_hierarchy", "attached_laboratories", "logged", "queued", "tags"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentRecord: missing required field %q", key)
 		}

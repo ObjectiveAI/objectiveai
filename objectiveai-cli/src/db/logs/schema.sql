@@ -907,3 +907,13 @@ GRANT USAGE ON SCHEMA objectiveai TO log_reader;
 GRANT SELECT ON ALL TABLES IN SCHEMA objectiveai TO log_reader;
 ALTER DEFAULT PRIVILEGES IN SCHEMA objectiveai GRANT SELECT ON TABLES TO log_reader;
 ALTER ROLE log_reader SET search_path = objectiveai;
+
+-- `detail` holds the BARE enum token (`auto`/`low`/`high`). Early
+-- writers stored the JSON-quoted form (`"auto"`), which no reader
+-- parses — strip idempotently (fixed rows never match the filter).
+UPDATE objectiveai.assistant_response_content_image SET detail = detail::jsonb #>> '{}' WHERE detail LIKE '"%';
+UPDATE objectiveai.tool_response_content_image SET detail = detail::jsonb #>> '{}' WHERE detail LIKE '"%';
+UPDATE objectiveai.request_message_user_content_image SET detail = detail::jsonb #>> '{}' WHERE detail LIKE '"%';
+UPDATE objectiveai.request_message_assistant_content_image SET detail = detail::jsonb #>> '{}' WHERE detail LIKE '"%';
+UPDATE objectiveai.request_message_tool_content_image SET detail = detail::jsonb #>> '{}' WHERE detail LIKE '"%';
+UPDATE objectiveai.request_vector_choice_content_image SET detail = detail::jsonb #>> '{}' WHERE detail LIKE '"%';

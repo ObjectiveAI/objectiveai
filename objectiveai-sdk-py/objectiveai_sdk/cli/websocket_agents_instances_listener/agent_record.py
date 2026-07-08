@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.cli.websocket_agents_instances_listener.attached_laboratory import AttachedLaboratory
 
 
 class AgentRecord(BaseModel):
@@ -15,7 +16,9 @@ strings and carries no records."""
     model_config = ConfigDict(title='cli.websocket_agents_instances_listener.AgentRecord')
 
     active: bool = Field(..., description="Whether the agent's per-instance lock is currently held — i.e. a\nlive process owns this agent right now.")
+    active_laboratories: list[str] = Field([], description="The agent's ACTIVE laboratories — the laboratory ids actually\nsent with the MOST RECENT spawn request (what the latest pass\ndialed), in resolve order. Most-recent-value semantics: the set\nsurvives deactivation and is replaced on the next pass. Fully\nseparate from `attached_laboratories`.")
     agent_instance_hierarchy: str = Field(..., description='Full hierarchy of this agent instance.')
+    attached_laboratories: list[AttachedLaboratory] = Field([], description="The agent's ATTACHED laboratories — the effective set the next\nspawn pass dials (the AIH's own attachments UNION its bound\ntags'), oldest-attached first. Live-tracked: attach/detach may\nhappen at any time, active agents included.")
     last_active_at: Optional[str] = Field(None, description='RFC3339 timestamp the agent was last active. Meaningful only when\n`active` is `false` — a live agent\'s last-active is implicitly\n"now", so it is left `None` while active and stamped at the moment\nthe lock releases.', json_schema_extra={'omitempty': True})
     logged: int = Field(..., description='Total `objectiveai.messages` rows for this agent over all time.', ge=0, le=18446744073709551615)
     queued: int = Field(..., description='Active `message_queue` rows targeting this agent.', ge=0, le=18446744073709551615)

@@ -216,7 +216,10 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_token_usage (
 -- first chunk of every completion, any tier/nesting).
 CREATE TABLE IF NOT EXISTS objectiveai.agent_refs (
     agent_instance_hierarchy TEXT   PRIMARY KEY NOT NULL,
-    remote                   TEXT,
+    -- The remote path's canonical JSON (RemotePathCommitOptional's
+    -- tagged object). JSONB like every serialized-JSON column — never
+    -- JSON-in-TEXT.
+    remote                   JSONB,
     inline                   JSONB,
     updated_at               BIGINT NOT NULL,
     CHECK (
@@ -225,6 +228,27 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_refs (
         (remote IS NULL AND inline IS NOT NULL)
     )
 );
+
+-- Existing DBs predate JSONB `remote` (it was TEXT holding the same
+-- JSON text) — align idempotently. Legacy plain-string rows become
+-- JSON strings rather than failing the cast.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'objectiveai' AND table_name = 'agent_refs'
+          AND column_name = 'remote' AND data_type = 'text'
+    ) THEN
+        ALTER TABLE objectiveai.agent_refs
+            ALTER COLUMN remote TYPE JSONB
+            USING CASE
+                WHEN remote IS NULL THEN NULL
+                WHEN remote ~ '^\s*[\[{"]' THEN remote::jsonb
+                ELSE to_jsonb(remote)
+            END;
+    END IF;
+END $$;
+
 
 -- AFTER-INSERT/UPDATE trigger on `agent_token_usage`: every write
 -- emits `NOTIFY agent_token_usage_changed '<agent_instance_hierarchy>'`

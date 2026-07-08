@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.laboratories.detach.Response",
+  "description": "Confirmation — detach succeeded; echoes the laboratory id that was\ndetached.",
+  "type": "object",
+  "properties": {
+    "laboratory_id": {
+      "description": "The laboratory id that was detached from the target.",
+      "type": "string"
+    }
+  }
+}
