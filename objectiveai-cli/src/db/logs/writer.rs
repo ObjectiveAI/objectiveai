@@ -56,7 +56,7 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::marker::PhantomData;
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::Arc;
 use std::pin::Pin;
 
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
@@ -68,7 +68,7 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 use serde::Serialize;
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{Mutex, mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::db::Pool;
@@ -229,7 +229,7 @@ pub struct LogWriter<C> {
     written_rx: watch::Receiver<bool>,
     /// Mid-stream failure handoff slot shared with the listener —
     /// see [`finalize_with_stream_error`](Self::finalize_with_stream_error).
-    stream_error: Arc<StdMutex<Option<serde_json::Value>>>,
+    stream_error: Arc<Mutex<Option<serde_json::Value>>>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -301,8 +301,8 @@ impl<C> LogWriter<C> {
         self,
         error: Option<serde_json::Value>,
     ) -> Result<(), crate::error::Error> {
-        if let (Some(value), Ok(mut slot)) = (error, self.stream_error.lock()) {
-            *slot = Some(value);
+        if let Some(value) = error {
+            *self.stream_error.lock().await = Some(value);
         }
         self.finalize().await
     }
@@ -372,7 +372,7 @@ struct LogWriterState<C> {
     /// Mid-stream failure handoff: the caller's stream error, set by
     /// [`LogWriter::finalize_with_stream_error`] BEFORE the EOF signal,
     /// consumed by the listener's post-drain sweep.
-    stream_error: Arc<StdMutex<Option<serde_json::Value>>>,
+    stream_error: Arc<Mutex<Option<serde_json::Value>>>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -390,7 +390,7 @@ impl<C> LogWriterState<C> {
         tee: Option<super::tee::ConversationTee>,
         statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
         chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
-        stream_error: Arc<StdMutex<Option<serde_json::Value>>>,
+        stream_error: Arc<Mutex<Option<serde_json::Value>>>,
     ) -> Self {
         Self {
             pool,
@@ -772,16 +772,11 @@ where
         // carries its own in-band error (already persisted). Runs
         // strictly post-drain, so error rows land AFTER every
         // conversation row.
-        let sweep_error = state
-            .stream_error
-            .lock()
-            .ok()
-            .and_then(|mut slot| slot.take())
-            .or_else(|| {
-                (state.chunk_error_fn)(&acc).map(|e| {
-                    serde_json::to_value(e).unwrap_or_else(|_| e.to_string().into())
-                })
-            });
+        let sweep_error = state.stream_error.lock().await.take().or_else(|| {
+            (state.chunk_error_fn)(&acc).map(|e| {
+                serde_json::to_value(e).unwrap_or_else(|_| e.to_string().into())
+            })
+        });
         if let Some(value) = sweep_error {
             let ts = now_secs() as i64;
             for status in (state.statuses_fn)(&acc) {
@@ -858,8 +853,8 @@ where
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();
     let (written_tx, written_rx) = watch::channel(false);
-    let stream_error: Arc<StdMutex<Option<serde_json::Value>>> =
-        Arc::new(StdMutex::new(None));
+    let stream_error: Arc<Mutex<Option<serde_json::Value>>> =
+        Arc::new(Mutex::new(None));
     let state = LogWriterState::new(
         pool,
         tier,
