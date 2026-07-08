@@ -77,13 +77,19 @@ pub async fn lookup_session(
     let continuation: Option<String> = row.try_get("continuation")?;
 
     // Both variants round-trip through the request-side untagged
-    // union: a remote is its wire string, an inline spec its object.
-    // The log writer stores the VALIDATED `InlineAgentWithFallbacks`
+    // union. A remote's canonical form is `RemotePathCommitOptional`'s
+    // TAGGED OBJECT (`{"remote":"client","owner":…}`) — there is no
+    // string wire form — so the column holds its JSON text and is
+    // parsed back as JSON here (wrapping it in `Value::String` can
+    // never match the union and loses the definition). A plain
+    // non-JSON string falls back to `Value::String` untouched. The
+    // log writer stores the VALIDATED `InlineAgentWithFallbacks`
     // (which serializes its computed `id`s alongside the flattened
     // base); deserializing into the base type simply ignores those
     // extra fields.
     let agent_value = match (remote, inline) {
-        (Some(remote), _) => serde_json::Value::String(remote),
+        (Some(remote), _) => serde_json::from_str(&remote)
+            .unwrap_or(serde_json::Value::String(remote)),
         (None, Some(inline)) => inline,
         (None, None) => {
             return Err(Error::InvalidData(format!(

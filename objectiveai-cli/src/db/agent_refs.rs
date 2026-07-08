@@ -29,8 +29,13 @@ pub enum AgentRefValue {
 }
 
 impl AgentRefValue {
-    /// The remote path's wire form (`RemotePath` and its
-    /// commit-optional twin both serialize as plain strings).
+    /// The remote path's JSON text. `RemotePath` and its
+    /// commit-optional twin serialize as TAGGED OBJECTS
+    /// (`{"remote":"client","owner":…}`) — there is no string wire
+    /// form — so the column stores the object's JSON text and the
+    /// reader ([`super::logs::lookup_session`]) parses it back as
+    /// JSON. A string-serializing value is stored bare (the reader's
+    /// plain-string fallback picks it up).
     pub fn remote<T: Serialize>(remote: &T) -> Option<Self> {
         match serde_json::to_value(remote).ok()? {
             serde_json::Value::String(s) => Some(Self::Remote(s)),
