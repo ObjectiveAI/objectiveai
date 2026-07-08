@@ -423,6 +423,28 @@ pub enum ResponseItem {
         tool_call_id: String,
         parts: Vec<ToolResponsePart>,
     },
+    /// One logged failure (`objectiveai.errors`) — a spawn-path error
+    /// persisted into the agent's history. Always a single row: the
+    /// failing attempt dies at its first raised error, so there is
+    /// nothing to coalesce. The value is returned inline (like the
+    /// vote) — no `read id` needed — but the row is still
+    /// id-addressable like every other event.
+    #[schemars(title = "Error")]
+    Error {
+        agent_instance_hierarchy: String,
+        /// The response the failure belongs to when one existed;
+        /// `None` for post-lock pre-stream failures (the only kind
+        /// allowed a NULL response_id).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        response_id: Option<String>,
+        /// `logs.messages."index"` for this row.
+        id: i64,
+        delivered_at: String,
+        /// The CLI's user-facing error value — a structured object for
+        /// API response errors, a plain string otherwise.
+        error: serde_json::Value,
+    },
 }
 
 #[derive(clap::Args)]

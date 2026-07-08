@@ -3,20 +3,22 @@
 //!
 //! [`WebSocketAgentsInstancesListener`] connects once, then folds every
 //! incoming [`AgentInstanceEvent`] into an in-memory conversation: the
-//! DB snapshot replays as `Row` events, `Live` marks the seam, then
-//! live rows stream as the agent produces them. Rows are keyed
-//! full-value upserts — a re-sent identity REPLACES the prior row
-//! (later = more complete), which also converges any snapshot/live
-//! overlap.
+//! DB snapshot replays first, `Live` marks the seam, then live events
+//! stream as the agent produces them. Every conversation event is a
+//! keyed full-value upsert — a re-sent identity REPLACES the prior
+//! part (later = more complete), which also converges any
+//! snapshot/live overlap.
 //!
-//! The coalescer is the incremental analogue of the CLI's
-//! `read_all` block builder: consecutive rows sharing the boundary
-//! tuple `(class, agent_instance_hierarchy, response_id)` (+ sender /
-//! queue id for notifications, + `tool_call_id` for the two tool
-//! classes) join the LAST block; anything else opens a new one. A
-//! re-sent row never re-runs the boundary test — its identity routes
-//! it straight back to its block. Blocks materialize as
-//! [`ConversationBlock`]s in conversation order.
+//! The coalescer is the incremental analogue of the CLI's `read_all`
+//! block builder, and materializes the SAME shape: consecutive events
+//! sharing their block's boundary fields (each event variant carries
+//! exactly its class's boundary — response_id, plus `tool_call_id` /
+//! sender + queue id where the class has one) join the LAST block;
+//! anything else opens a new one. A re-sent identity never re-runs the
+//! boundary test — it routes straight back to its part. Single-row
+//! blocks (`vote` / `error`) arrive complete. Blocks materialize as
+//! [`ConversationBlock`]s — the `agents logs list` `ResponseItem`
+//! mirror — in conversation order.
 //!
 //! Three ways to observe, mirroring
 //! [`super::super::websocket_agents_instances_list_listener`]:
@@ -41,8 +43,9 @@ use tokio_tungstenite::tungstenite;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use super::{
-    AgentInstanceEvent, AgentRecord, ConversationBlock, ConversationChoice, ConversationRow,
-    RowContent, RowTableKind,
+    AgentInstanceEvent, AgentRecord, AssistantResponsePart, ClientNotificationPart,
+    ConversationBlock, RequestMessageUserPart, ToolResponsePart, VectorRequestChoice,
+    VectorRequestChoicePart,
 };
 use crate::cli::command::command_executor::websocket::AuthEnvelope;
 
@@ -72,258 +75,145 @@ pub enum Error {
     Ws(tungstenite::Error),
 }
 
-/// Coarse block-class for a [`RowTableKind`] — mirrors the CLI
-/// `read_all` classifier (head kinds map to the class of the block
-/// they carry metadata for).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BlockClass {
-    ClientNotification,
-    AssistantResponse,
-    ToolResponse,
+/// The class discriminant for part identity routing.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum Class {
     RequestMessageUser,
     RequestMessageAssistant,
     RequestMessageTool,
     VectorRequestChoices,
     VectorResponseVote,
+    ClientNotification,
+    AssistantResponse,
+    ToolResponse,
 }
 
-fn block_class(t: RowTableKind) -> BlockClass {
-    use RowTableKind as T;
-    match t {
-        T::MessageQueueText
-        | T::MessageQueueImage
-        | T::MessageQueueAudio
-        | T::MessageQueueVideo
-        | T::MessageQueueFile => BlockClass::ClientNotification,
-        T::AssistantResponseRefusal
-        | T::AssistantResponseReasoning
-        | T::AssistantResponseToolCalls
-        | T::AssistantResponseContentText
-        | T::AssistantResponseContentImage
-        | T::AssistantResponseContentAudio
-        | T::AssistantResponseContentVideo
-        | T::AssistantResponseContentFile => BlockClass::AssistantResponse,
-        T::ToolResponse
-        | T::ToolResponseContentText
-        | T::ToolResponseContentImage
-        | T::ToolResponseContentAudio
-        | T::ToolResponseContentVideo
-        | T::ToolResponseContentFile => BlockClass::ToolResponse,
-        T::RequestMessageUserContentText
-        | T::RequestMessageUserContentImage
-        | T::RequestMessageUserContentAudio
-        | T::RequestMessageUserContentVideo
-        | T::RequestMessageUserContentFile => BlockClass::RequestMessageUser,
-        T::RequestMessageAssistantRefusal
-        | T::RequestMessageAssistantReasoning
-        | T::RequestMessageAssistantToolCalls
-        | T::RequestMessageAssistantContentText
-        | T::RequestMessageAssistantContentImage
-        | T::RequestMessageAssistantContentAudio
-        | T::RequestMessageAssistantContentVideo
-        | T::RequestMessageAssistantContentFile => BlockClass::RequestMessageAssistant,
-        T::RequestMessageTool
-        | T::RequestMessageToolContentText
-        | T::RequestMessageToolContentImage
-        | T::RequestMessageToolContentAudio
-        | T::RequestMessageToolContentVideo
-        | T::RequestMessageToolContentFile => BlockClass::RequestMessageTool,
-        T::RequestVectorChoice
-        | T::RequestVectorChoiceContentText
-        | T::RequestVectorChoiceContentImage
-        | T::RequestVectorChoiceContentAudio
-        | T::RequestVectorChoiceContentVideo
-        | T::RequestVectorChoiceContentFile => BlockClass::VectorRequestChoices,
-        T::ResponseVectorVote => BlockClass::VectorResponseVote,
-    }
+/// A part's replace-at key: identical between the snapshot replay and
+/// the live tee. AIH is constant per connection and omitted;
+/// `response_id` is `None` only on pre-stream `error` events.
+type PartIdentity = (Class, Option<String>, i64, Option<i64>);
+
+/// One multi-part block's boundary — `read_all`'s exact tuple, typed
+/// per class. Two consecutive events join one block iff their keys are
+/// EQUAL. Single-row classes (vote / error) have no key: they never
+/// join anything.
+#[derive(Debug, Clone, PartialEq)]
+enum BlockKey {
+    RequestMessageUser {
+        response_id: String,
+    },
+    RequestMessageAssistant {
+        response_id: String,
+    },
+    RequestMessageTool {
+        response_id: String,
+        tool_call_id: String,
+    },
+    VectorRequestChoices {
+        response_id: String,
+    },
+    ClientNotification {
+        response_id: String,
+        sender_agent_instance_hierarchy: String,
+        message_queue_id: i64,
+    },
+    AssistantResponse {
+        response_id: String,
+    },
+    ToolResponse {
+        response_id: String,
+        tool_call_id: String,
+    },
 }
 
-/// A row's replace-at key: identical between the snapshot replay and
-/// the live tee (AIH is constant per connection and omitted).
-type RowIdentity = (RowTableKind, String, i64, Option<i64>);
-
-/// One in-progress block. Parts are ordered by
-/// `(row_index, row_sub_index, table)` — arrival-independent, so a
-/// late replacement lands in place.
-struct BlockState {
-    class: BlockClass,
+/// One in-progress multi-part block: its boundary key plus its typed
+/// parts, ordered by the DB row identity `(row_index, row_sub_index)`
+/// — arrival-independent, so a late replacement lands in place.
+struct OpenBlock {
     agent_instance_hierarchy: String,
-    response_id: String,
-    /// Tool classes: from the HEAD row (live) or content-row joins
-    /// (snapshot), whichever arrives.
-    tool_call_id: Option<String>,
-    sender: Option<String>,
-    message_queue_id: Option<i64>,
-    queued_at: Option<String>,
-    key: Option<String>,
-    /// VectorResponseVote's inline value.
-    vote: Option<Vec<rust_decimal::Decimal>>,
-    /// VectorRequestChoices: voting key per choice index.
-    choice_keys: HashMap<i64, String>,
-    parts: BTreeMap<(i64, Option<i64>, RowTableKind), ConversationRow>,
+    key: BlockKey,
+    body: OpenBody,
 }
 
-impl BlockState {
-    fn new(class: BlockClass, row: &ConversationRow) -> Self {
-        Self {
-            class,
-            agent_instance_hierarchy: row.agent_instance_hierarchy.clone(),
-            response_id: row.response_id.clone(),
-            tool_call_id: None,
-            sender: None,
-            message_queue_id: None,
-            queued_at: None,
-            key: None,
-            vote: None,
-            choice_keys: HashMap::new(),
-            parts: BTreeMap::new(),
-        }
-    }
+enum OpenBody {
+    /// `RequestMessageUser` parts.
+    User(BTreeMap<(i64, Option<i64>), RequestMessageUserPart>),
+    /// `AssistantResponse` / `RequestMessageAssistant` parts (the key
+    /// distinguishes the two classes).
+    Assistant(BTreeMap<(i64, Option<i64>), AssistantResponsePart>),
+    /// `ToolResponse` / `RequestMessageTool` parts.
+    Tool(BTreeMap<(i64, Option<i64>), ToolResponsePart>),
+    /// `ClientNotification` parts + the block-level queue metadata
+    /// (refreshed per event; constant per parent queue row).
+    Notification {
+        queued_at: String,
+        key: Option<String>,
+        parts: BTreeMap<(i64, Option<i64>), ClientNotificationPart>,
+    },
+    /// `VectorRequestChoices`: per `(choice_index, part_index)`, the
+    /// choice's voting key (refreshed per event) + the part.
+    Choices(BTreeMap<(i64, i64), (String, VectorRequestChoicePart)>),
+}
 
-    /// Does `row` (a NEW identity of `class`) belong to this block?
-    /// The read_all boundary tuple, evaluated against the LAST block:
-    /// `(class, aih, response_id)` + sender/queue-id for notifications
-    /// + `tool_call_id` for the tool classes. A live tool CONTENT row
-    /// carries no `tool_call_id` (only its head does) — adjacency
-    /// stands in, which is exact because the writer emits head then
-    /// contents consecutively.
-    fn accepts(&self, class: BlockClass, row: &ConversationRow) -> bool {
-        if self.class != class
-            || self.agent_instance_hierarchy != row.agent_instance_hierarchy
-            || self.response_id != row.response_id
-        {
-            return false;
-        }
-        match class {
-            BlockClass::ClientNotification => {
-                self.sender == row.sender_agent_instance_hierarchy
-                    && self.message_queue_id == row.message_queue_id
-            }
-            BlockClass::ToolResponse | BlockClass::RequestMessageTool => {
-                match (&row.tool_call_id, &self.tool_call_id) {
-                    (Some(row_id), Some(block_id)) => row_id == block_id,
-                    // No id on one side: adjacency decides.
-                    _ => true,
-                }
-            }
-            _ => true,
-        }
-    }
+/// One conversation slot: an in-progress multi-part block, or a
+/// complete single-row block (vote / error — replaced whole on
+/// identity re-send).
+enum Slot {
+    Open(OpenBlock),
+    Single(ConversationBlock),
+}
 
-    /// Fold one row in: metadata always merges; HEAD/vote rows carry
-    /// no part; everything else upserts its part slot.
-    fn apply(&mut self, row: ConversationRow) {
-        if row.tool_call_id.is_some() {
-            self.tool_call_id = row.tool_call_id.clone();
-        }
-        if let Some(key) = &row.choice_key {
-            self.choice_keys.insert(row.row_index, key.clone());
-        }
-        if row.sender_agent_instance_hierarchy.is_some() {
-            self.sender = row.sender_agent_instance_hierarchy.clone();
-        }
-        if row.queued_at.is_some() {
-            self.queued_at = row.queued_at.clone();
-        }
-        if row.message_queue_key.is_some() {
-            self.key = row.message_queue_key.clone();
-        }
-        if row.message_queue_id.is_some() {
-            self.message_queue_id = row.message_queue_id;
-        }
-        match &row.content {
-            RowContent::Head => {}
-            RowContent::Vote { vote } => self.vote = Some(vote.clone()),
-            _ => {
-                self.parts
-                    .insert((row.row_index, row.row_sub_index, row.table), row);
-            }
-        }
-    }
-
-    /// Materialize — `None` while the block has nothing presentable
-    /// yet (e.g. a lone head row whose contents are in flight).
-    fn to_block(&self) -> Option<ConversationBlock> {
-        let parts = || self.parts.values().cloned().collect::<Vec<_>>();
-        Some(match self.class {
-            BlockClass::RequestMessageUser => {
-                if self.parts.is_empty() {
-                    return None;
-                }
+impl OpenBlock {
+    /// Materialize — the `ResponseItem` mirror shape.
+    fn to_block(&self) -> ConversationBlock {
+        let aih = self.agent_instance_hierarchy.clone();
+        match (&self.key, &self.body) {
+            (BlockKey::RequestMessageUser { response_id }, OpenBody::User(parts)) => {
                 ConversationBlock::RequestMessageUser {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
-                    parts: parts(),
+                    agent_instance_hierarchy: aih,
+                    response_id: response_id.clone(),
+                    parts: parts.values().cloned().collect(),
                 }
             }
-            BlockClass::RequestMessageAssistant => {
-                if self.parts.is_empty() {
-                    return None;
-                }
+            (BlockKey::RequestMessageAssistant { response_id }, OpenBody::Assistant(parts)) => {
                 ConversationBlock::RequestMessageAssistant {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
-                    parts: parts(),
+                    agent_instance_hierarchy: aih,
+                    response_id: response_id.clone(),
+                    parts: parts.values().cloned().collect(),
                 }
             }
-            BlockClass::AssistantResponse => {
-                if self.parts.is_empty() {
-                    return None;
-                }
-                ConversationBlock::AssistantResponse {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
-                    parts: parts(),
-                }
-            }
-            BlockClass::RequestMessageTool => {
-                if self.parts.is_empty() {
-                    return None;
-                }
-                ConversationBlock::RequestMessageTool {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
-                    tool_call_id: self.tool_call_id.clone().unwrap_or_default(),
-                    parts: parts(),
-                }
-            }
-            BlockClass::ToolResponse => {
-                if self.parts.is_empty() {
-                    return None;
-                }
-                ConversationBlock::ToolResponse {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
-                    tool_call_id: self.tool_call_id.clone().unwrap_or_default(),
-                    parts: parts(),
-                }
-            }
-            BlockClass::VectorRequestChoices => {
-                if self.parts.is_empty() {
-                    return None;
-                }
-                // Parts iterate ordered by (choice index, part index);
-                // group consecutive runs of one choice index.
-                let mut choices: Vec<ConversationChoice> = Vec::new();
-                let mut current: Option<(i64, ConversationChoice)> = None;
-                for row in self.parts.values() {
+            (
+                BlockKey::RequestMessageTool {
+                    response_id,
+                    tool_call_id,
+                },
+                OpenBody::Tool(parts),
+            ) => ConversationBlock::RequestMessageTool {
+                agent_instance_hierarchy: aih,
+                response_id: response_id.clone(),
+                tool_call_id: tool_call_id.clone(),
+                parts: parts.values().cloned().collect(),
+            },
+            (BlockKey::VectorRequestChoices { response_id }, OpenBody::Choices(parts)) => {
+                // Ordered by (choice_index, part_index); group runs of
+                // one choice index.
+                let mut choices: Vec<VectorRequestChoice> = Vec::new();
+                let mut current: Option<(i64, VectorRequestChoice)> = None;
+                for ((choice_index, _part_index), (key, part)) in parts {
                     match &mut current {
-                        Some((index, choice)) if *index == row.row_index => {
-                            choice.parts.push(row.clone());
+                        Some((index, choice)) if index == choice_index => {
+                            choice.key = key.clone();
+                            choice.parts.push(part.clone());
                         }
                         _ => {
                             if let Some((_, done)) = current.take() {
                                 choices.push(done);
                             }
                             current = Some((
-                                row.row_index,
-                                ConversationChoice {
-                                    key: self
-                                        .choice_keys
-                                        .get(&row.row_index)
-                                        .cloned()
-                                        .unwrap_or_default(),
-                                    parts: vec![row.clone()],
+                                *choice_index,
+                                VectorRequestChoice {
+                                    key: key.clone(),
+                                    parts: vec![part.clone()],
                                 },
                             ));
                         }
@@ -333,30 +223,53 @@ impl BlockState {
                     choices.push(done);
                 }
                 ConversationBlock::VectorRequestChoices {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
+                    agent_instance_hierarchy: aih,
+                    response_id: response_id.clone(),
                     choices,
                 }
             }
-            BlockClass::VectorResponseVote => ConversationBlock::VectorResponseVote {
-                agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                response_id: self.response_id.clone(),
-                vote: self.vote.clone()?,
+            (
+                BlockKey::ClientNotification {
+                    response_id,
+                    sender_agent_instance_hierarchy,
+                    message_queue_id: _,
+                },
+                OpenBody::Notification {
+                    queued_at,
+                    key,
+                    parts,
+                },
+            ) => ConversationBlock::ClientNotification {
+                agent_instance_hierarchy: aih,
+                sender_agent_instance_hierarchy: sender_agent_instance_hierarchy.clone(),
+                response_id: response_id.clone(),
+                queued_at: queued_at.clone(),
+                key: key.clone(),
+                parts: parts.values().cloned().collect(),
             },
-            BlockClass::ClientNotification => {
-                if self.parts.is_empty() {
-                    return None;
-                }
-                ConversationBlock::ClientNotification {
-                    agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-                    response_id: self.response_id.clone(),
-                    sender_agent_instance_hierarchy: self.sender.clone(),
-                    queued_at: self.queued_at.clone(),
-                    key: self.key.clone(),
-                    parts: parts(),
+            (BlockKey::AssistantResponse { response_id }, OpenBody::Assistant(parts)) => {
+                ConversationBlock::AssistantResponse {
+                    agent_instance_hierarchy: aih,
+                    response_id: response_id.clone(),
+                    parts: parts.values().cloned().collect(),
                 }
             }
-        })
+            (
+                BlockKey::ToolResponse {
+                    response_id,
+                    tool_call_id,
+                },
+                OpenBody::Tool(parts),
+            ) => ConversationBlock::ToolResponse {
+                agent_instance_hierarchy: aih,
+                response_id: response_id.clone(),
+                tool_call_id: tool_call_id.clone(),
+                parts: parts.values().cloned().collect(),
+            },
+            // Key/body pairing is fixed at construction — see
+            // `ConversationState::apply_part`.
+            _ => unreachable!("BlockKey/OpenBody pairing is fixed at construction"),
+        }
     }
 }
 
@@ -365,50 +278,325 @@ impl BlockState {
 struct ConversationState {
     /// Arrival order == conversation order (snapshot `"index"` order,
     /// then live write order).
-    blocks: Vec<BlockState>,
-    /// Replace-at-key routing: a re-sent row goes straight back to its
-    /// block, never through the boundary test.
-    row_to_block: HashMap<RowIdentity, usize>,
+    slots: Vec<Slot>,
+    /// Replace-at-key routing: a re-sent part goes straight back to
+    /// its slot, never through the boundary test.
+    part_to_slot: HashMap<PartIdentity, usize>,
     live: bool,
+}
+
+/// Everything the coalescer needs from one conversation part event:
+/// its identity, its block's boundary, and the typed part.
+struct PartEvent {
+    identity: PartIdentity,
+    agent_instance_hierarchy: String,
+    key: BlockKey,
+    part: PartPayload,
+}
+
+enum PartPayload {
+    User(RequestMessageUserPart),
+    Assistant(AssistantResponsePart),
+    Tool(ToolResponsePart),
+    Notification {
+        queued_at: String,
+        key: Option<String>,
+        part: ClientNotificationPart,
+    },
+    Choice {
+        key: String,
+        part: VectorRequestChoicePart,
+    },
 }
 
 impl ConversationState {
     fn apply(&mut self, event: AgentInstanceEvent) {
         match event {
-            AgentInstanceEvent::Row { row } => self.apply_row(row),
             AgentInstanceEvent::Live => self.live = true,
             // Agent-status events never reach the conversation state —
             // the pump routes them to their own slot.
             AgentInstanceEvent::Agent { .. } => {}
+            AgentInstanceEvent::RequestMessageUserPart {
+                agent_instance_hierarchy,
+                response_id,
+                row_index,
+                row_sub_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::RequestMessageUser,
+                    Some(response_id.clone()),
+                    row_index,
+                    row_sub_index,
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::RequestMessageUser { response_id },
+                part: PartPayload::User(part),
+            }),
+            AgentInstanceEvent::RequestMessageAssistantPart {
+                agent_instance_hierarchy,
+                response_id,
+                row_index,
+                row_sub_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::RequestMessageAssistant,
+                    Some(response_id.clone()),
+                    row_index,
+                    row_sub_index,
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::RequestMessageAssistant { response_id },
+                part: PartPayload::Assistant(part),
+            }),
+            AgentInstanceEvent::RequestMessageToolPart {
+                agent_instance_hierarchy,
+                response_id,
+                tool_call_id,
+                row_index,
+                row_sub_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::RequestMessageTool,
+                    Some(response_id.clone()),
+                    row_index,
+                    row_sub_index,
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::RequestMessageTool {
+                    response_id,
+                    tool_call_id,
+                },
+                part: PartPayload::Tool(part),
+            }),
+            AgentInstanceEvent::VectorRequestChoicePart {
+                agent_instance_hierarchy,
+                response_id,
+                key,
+                choice_index,
+                part_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::VectorRequestChoices,
+                    Some(response_id.clone()),
+                    choice_index,
+                    Some(part_index),
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::VectorRequestChoices { response_id },
+                part: PartPayload::Choice { key, part },
+            }),
+            AgentInstanceEvent::ClientNotificationPart {
+                agent_instance_hierarchy,
+                response_id,
+                sender_agent_instance_hierarchy,
+                message_queue_id,
+                queued_at,
+                key,
+                row_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::ClientNotification,
+                    Some(response_id.clone()),
+                    row_index,
+                    None,
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::ClientNotification {
+                    response_id,
+                    sender_agent_instance_hierarchy,
+                    message_queue_id,
+                },
+                part: PartPayload::Notification {
+                    queued_at,
+                    key,
+                    part,
+                },
+            }),
+            AgentInstanceEvent::AssistantResponsePart {
+                agent_instance_hierarchy,
+                response_id,
+                row_index,
+                row_sub_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::AssistantResponse,
+                    Some(response_id.clone()),
+                    row_index,
+                    row_sub_index,
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::AssistantResponse { response_id },
+                part: PartPayload::Assistant(part),
+            }),
+            AgentInstanceEvent::ToolResponsePart {
+                agent_instance_hierarchy,
+                response_id,
+                tool_call_id,
+                row_index,
+                row_sub_index,
+                part,
+            } => self.apply_part(PartEvent {
+                identity: (
+                    Class::ToolResponse,
+                    Some(response_id.clone()),
+                    row_index,
+                    row_sub_index,
+                ),
+                agent_instance_hierarchy,
+                key: BlockKey::ToolResponse {
+                    response_id,
+                    tool_call_id,
+                },
+                part: PartPayload::Tool(part),
+            }),
+            AgentInstanceEvent::VectorResponseVote {
+                agent_instance_hierarchy,
+                response_id,
+                vote,
+            } => self.apply_single(
+                (
+                    Class::VectorResponseVote,
+                    Some(response_id.clone()),
+                    0,
+                    None,
+                ),
+                ConversationBlock::VectorResponseVote {
+                    agent_instance_hierarchy,
+                    response_id,
+                    vote,
+                },
+            ),
+            AgentInstanceEvent::Error {
+                agent_instance_hierarchy,
+                response_id,
+                error,
+                delivered_at,
+            } => self.apply_error(ConversationBlock::Error {
+                agent_instance_hierarchy,
+                response_id,
+                error,
+                delivered_at,
+            }),
         }
     }
 
-    fn apply_row(&mut self, row: ConversationRow) {
-        let identity: RowIdentity = (
-            row.table,
-            row.response_id.clone(),
-            row.row_index,
-            row.row_sub_index,
-        );
-        let target = if let Some(&index) = self.row_to_block.get(&identity) {
+    /// Fold one part in: a known identity routes straight back to its
+    /// slot; a new identity joins the LAST slot iff it is an open
+    /// block with an EQUAL boundary key, else opens a new block.
+    fn apply_part(&mut self, event: PartEvent) {
+        let slot = if let Some(&index) = self.part_to_slot.get(&event.identity) {
             index
         } else {
-            let class = block_class(row.table);
-            let index = match self.blocks.last() {
-                Some(last) if last.accepts(class, &row) => self.blocks.len() - 1,
-                _ => {
-                    self.blocks.push(BlockState::new(class, &row));
-                    self.blocks.len() - 1
-                }
+            let joins_last = matches!(
+                self.slots.last(),
+                Some(Slot::Open(open)) if open.key == event.key
+            );
+            let index = if joins_last {
+                self.slots.len() - 1
+            } else {
+                self.slots.push(Slot::Open(OpenBlock {
+                    agent_instance_hierarchy: event.agent_instance_hierarchy.clone(),
+                    key: event.key.clone(),
+                    body: match &event.part {
+                        PartPayload::User(_) => OpenBody::User(BTreeMap::new()),
+                        PartPayload::Assistant(_) => OpenBody::Assistant(BTreeMap::new()),
+                        PartPayload::Tool(_) => OpenBody::Tool(BTreeMap::new()),
+                        PartPayload::Notification { .. } => OpenBody::Notification {
+                            queued_at: String::new(),
+                            key: None,
+                            parts: BTreeMap::new(),
+                        },
+                        PartPayload::Choice { .. } => OpenBody::Choices(BTreeMap::new()),
+                    },
+                }));
+                self.slots.len() - 1
             };
-            self.row_to_block.insert(identity, index);
+            self.part_to_slot.insert(event.identity.clone(), index);
             index
         };
-        self.blocks[target].apply(row);
+        let Some(Slot::Open(open)) = self.slots.get_mut(slot) else {
+            return; // Identity collision with a single-row slot — impossible by class.
+        };
+        let (_, _, row_index, row_sub_index) = event.identity;
+        match (event.part, &mut open.body) {
+            (PartPayload::User(part), OpenBody::User(parts)) => {
+                parts.insert((row_index, row_sub_index), part);
+            }
+            (PartPayload::Assistant(part), OpenBody::Assistant(parts)) => {
+                parts.insert((row_index, row_sub_index), part);
+            }
+            (PartPayload::Tool(part), OpenBody::Tool(parts)) => {
+                parts.insert((row_index, row_sub_index), part);
+            }
+            (
+                PartPayload::Notification {
+                    queued_at,
+                    key,
+                    part,
+                },
+                OpenBody::Notification {
+                    queued_at: block_queued_at,
+                    key: block_key,
+                    parts,
+                },
+            ) => {
+                *block_queued_at = queued_at;
+                *block_key = key;
+                parts.insert((row_index, row_sub_index), part);
+            }
+            (PartPayload::Choice { key, part }, OpenBody::Choices(parts)) => {
+                parts.insert(
+                    (row_index, row_sub_index.unwrap_or(0)),
+                    (key, part),
+                );
+            }
+            // Pairing fixed at construction (the body was built FROM
+            // this payload's class); a same-identity payload of a
+            // different class cannot exist.
+            _ => {}
+        }
+    }
+
+    /// Fold one error block in. Errors are IMMUTABLE and carry no
+    /// replace-at identity — the snapshot/live seam (the one way the
+    /// same error arrives twice) dedupes by VALUE equality.
+    fn apply_error(&mut self, block: ConversationBlock) {
+        let duplicate = self
+            .slots
+            .iter()
+            .any(|slot| matches!(slot, Slot::Single(existing) if *existing == block));
+        if !duplicate {
+            self.slots.push(Slot::Single(block));
+        }
+    }
+
+    /// Fold one complete single-row block in: replace at a known
+    /// identity, else append.
+    fn apply_single(&mut self, identity: PartIdentity, block: ConversationBlock) {
+        if let Some(&index) = self.part_to_slot.get(&identity) {
+            if let Some(slot) = self.slots.get_mut(index) {
+                *slot = Slot::Single(block);
+            }
+            return;
+        }
+        self.slots.push(Slot::Single(block));
+        self.part_to_slot.insert(identity, self.slots.len() - 1);
     }
 
     fn conversation(&self) -> Vec<ConversationBlock> {
-        self.blocks.iter().filter_map(BlockState::to_block).collect()
+        self.slots
+            .iter()
+            .map(|slot| match slot {
+                Slot::Open(open) => open.to_block(),
+                Slot::Single(block) => block.clone(),
+            })
+            .collect()
     }
 }
 

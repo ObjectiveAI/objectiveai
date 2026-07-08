@@ -100,6 +100,11 @@ pub enum Response {
     Video(VideoUrl),
     #[schemars(title = "File")]
     File(File),
+    /// A logged failure (`objectiveai.errors`) — the CLI's user-facing
+    /// error value: a structured object for API response errors, a
+    /// plain string otherwise.
+    #[schemars(title = "Error")]
+    Error { error: serde_json::Value },
 }
 
 #[derive(clap::Args)]

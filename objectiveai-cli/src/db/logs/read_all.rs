@@ -46,7 +46,9 @@ pub(super) struct MsgRow {
     /// `objectiveai.messages."index"` — pass to `agents logs read id`
     /// for the full typed payload.
     pub(super) id: i64,
-    pub(super) response_id: String,
+    /// `None` only on `error` rows logged before any response existed
+    /// (the one kind whose column is nullable).
+    pub(super) response_id: Option<String>,
     pub(super) table_kind: MessageTable,
     pub(super) agent_instance_hierarchy: String,
     pub(super) timestamp_delivered: i64,
@@ -103,6 +105,9 @@ pub(super) struct MsgRow {
     /// `response_vector_vote` rows. Parsed into `Vec<Decimal>` and
     /// returned inline (no `read id`).
     pub(super) vote: Option<serde_json::Value>,
+    /// `objectiveai.errors.error` — `Some` only for `error` rows.
+    /// Returned inline (no `read id`).
+    pub(super) error_value: Option<serde_json::Value>,
 }
 
 /// Coarse block-class for a `objectiveai.message_table` value. Block
@@ -121,6 +126,7 @@ enum BlockClass {
     RequestMessageTool,
     VectorRequestChoices,
     VectorResponseVote,
+    Error,
 }
 
 fn block_class(t: MessageTable) -> BlockClass {
@@ -170,6 +176,7 @@ fn block_class(t: MessageTable) -> BlockClass {
         | MessageTable::RequestVectorChoiceContentVideo
         | MessageTable::RequestVectorChoiceContentFile => BlockClass::VectorRequestChoices,
         MessageTable::ResponseVectorVote => BlockClass::VectorResponseVote,
+        MessageTable::Error => BlockClass::Error,
     }
 }
 
@@ -300,7 +307,8 @@ pub(super) const SELECT_SHAPE: &str = "SELECT \
     m.row_sub_index AS row_sub_index, \
     m.row_index AS row_index, \
     rvc.key AS choice_key, \
-    rvv.vote AS vote";
+    rvv.vote AS vote, \
+    err.error AS error_value";
 
 pub(super) const FROM_JOINS: &str = "FROM objectiveai.messages m \
     LEFT JOIN objectiveai.message_queue_contents mqc \
@@ -356,7 +364,10 @@ pub(super) const FROM_JOINS: &str = "FROM objectiveai.messages m \
     LEFT JOIN objectiveai.response_vector_vote rvv \
         ON m.response_id = rvv.response_id \
         AND m.agent_instance_hierarchy = rvv.agent_instance_hierarchy \
-        AND m.\"table\" = 'response_vector_vote'";
+        AND m.\"table\" = 'response_vector_vote' \
+    LEFT JOIN objectiveai.errors err \
+        ON m.row_index = err.id \
+        AND m.\"table\" = 'error'";
 
 pub(super) fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
     Ok(MsgRow {
@@ -375,6 +386,9 @@ pub(super) fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
         row_index: r.try_get("row_index")?,
         choice_key: r.try_get("choice_key")?,
         vote: r.try_get::<Option<sqlx::types::Json<serde_json::Value>>, _>("vote")?.map(|j| j.0),
+        error_value: r
+            .try_get::<Option<sqlx::types::Json<serde_json::Value>>, _>("error_value")?
+            .map(|j| j.0),
     })
 }
 
@@ -384,7 +398,7 @@ pub(super) fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
 struct BlockAccum {
     class: Option<BlockClass>,
     aih: String,
-    rid: String,
+    rid: Option<String>,
     sender: Option<String>,
     mq_id: Option<i64>,
     timestamp_queued: Option<i64>,
@@ -425,7 +439,7 @@ impl BlockAccum {
                 out.push(ResponseItem::ClientNotification {
                     agent_instance_hierarchy: std::mem::take(&mut self.aih),
                     sender_agent_instance_hierarchy: self.sender.take().unwrap_or_default(),
-                    response_id: std::mem::take(&mut self.rid),
+                    response_id: self.rid.take().unwrap_or_default(),
                     queued_at: unix_to_rfc3339(self.timestamp_queued.take().unwrap_or_default()),
                     key: self.key.take(),
                     parts: std::mem::take(&mut self.notification_parts),
@@ -434,21 +448,21 @@ impl BlockAccum {
             Some(BlockClass::AssistantResponse) if !self.assistant_parts.is_empty() => {
                 out.push(ResponseItem::AssistantResponse {
                     agent_instance_hierarchy: std::mem::take(&mut self.aih),
-                    response_id: std::mem::take(&mut self.rid),
+                    response_id: self.rid.take().unwrap_or_default(),
                     parts: std::mem::take(&mut self.assistant_parts),
                 });
             }
             Some(BlockClass::RequestMessageAssistant) if !self.assistant_parts.is_empty() => {
                 out.push(ResponseItem::RequestMessageAssistant {
                     agent_instance_hierarchy: std::mem::take(&mut self.aih),
-                    response_id: std::mem::take(&mut self.rid),
+                    response_id: self.rid.take().unwrap_or_default(),
                     parts: std::mem::take(&mut self.assistant_parts),
                 });
             }
             Some(BlockClass::ToolResponse) if !self.tool_parts.is_empty() => {
                 out.push(ResponseItem::ToolResponse {
                     agent_instance_hierarchy: std::mem::take(&mut self.aih),
-                    response_id: std::mem::take(&mut self.rid),
+                    response_id: self.rid.take().unwrap_or_default(),
                     tool_call_id: self.tool_call_id.take().unwrap_or_default(),
                     parts: std::mem::take(&mut self.tool_parts),
                 });
@@ -456,7 +470,7 @@ impl BlockAccum {
             Some(BlockClass::RequestMessageTool) if !self.tool_parts.is_empty() => {
                 out.push(ResponseItem::RequestMessageTool {
                     agent_instance_hierarchy: std::mem::take(&mut self.aih),
-                    response_id: std::mem::take(&mut self.rid),
+                    response_id: self.rid.take().unwrap_or_default(),
                     tool_call_id: self.tool_call_id.take().unwrap_or_default(),
                     parts: std::mem::take(&mut self.tool_parts),
                 });
@@ -464,7 +478,7 @@ impl BlockAccum {
             Some(BlockClass::RequestMessageUser) if !self.user_parts.is_empty() => {
                 out.push(ResponseItem::RequestMessageUser {
                     agent_instance_hierarchy: std::mem::take(&mut self.aih),
-                    response_id: std::mem::take(&mut self.rid),
+                    response_id: self.rid.take().unwrap_or_default(),
                     parts: std::mem::take(&mut self.user_parts),
                 });
             }
@@ -473,7 +487,7 @@ impl BlockAccum {
                 if !self.choices.is_empty() {
                     out.push(ResponseItem::VectorRequestChoices {
                         agent_instance_hierarchy: std::mem::take(&mut self.aih),
-                        response_id: std::mem::take(&mut self.rid),
+                        response_id: self.rid.take().unwrap_or_default(),
                         choices: std::mem::take(&mut self.choices),
                     });
                 }
@@ -512,8 +526,24 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     .unwrap_or_default();
                 out.push(ResponseItem::VectorResponseVote {
                     agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    response_id: row.response_id,
+                    response_id: row.response_id.unwrap_or_default(),
                     vote,
+                });
+                continue;
+            }
+            // Single inline row: a logged failure. Never coalesces.
+            BlockClass::Error => {
+                acc.flush(&mut out);
+                let Some(error) = row.error_value else {
+                    // Torn write — metadata without its error row.
+                    continue;
+                };
+                out.push(ResponseItem::Error {
+                    agent_instance_hierarchy: row.agent_instance_hierarchy,
+                    response_id: row.response_id,
+                    id: row.id,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
+                    error,
                 });
                 continue;
             }
@@ -598,7 +628,9 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     r#type,
                 });
             }
-            BlockClass::SkippedRequestBlob | BlockClass::VectorResponseVote => {
+            BlockClass::SkippedRequestBlob
+            | BlockClass::VectorResponseVote
+            | BlockClass::Error => {
                 unreachable!("handled by the early `match class` above")
             }
         }

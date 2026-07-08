@@ -21,6 +21,7 @@
 //! so the shadow's verdict is authoritative — concurrent races on
 //! the same row id can't happen.
 
+mod errors;
 mod listen;
 mod lookup;
 mod plugin_messages;
@@ -34,6 +35,7 @@ mod tee;
 mod write;
 mod writer;
 
+pub use errors::*;
 pub use listen::*;
 pub use lookup::*;
 pub use plugin_messages::*;

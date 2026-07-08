@@ -333,6 +333,8 @@ struct LogWriterState<C> {
     /// non-blocking — see [`super::tee`]. `None` = no tee (e.g. hand
     /// -built writers).
     tee: Option<super::tee::ConversationTee>,
+    /// The tee's stateful row→typed-event mapper (head memory).
+    frame_mapper: super::tee::FrameMapper,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -362,6 +364,7 @@ impl<C> LogWriterState<C> {
             shadow: Shadow::new(),
             seen_agents: HashSet::new(),
             tee,
+            frame_mapper: super::tee::FrameMapper::default(),
             _chunk: PhantomData,
         }
     }
@@ -372,7 +375,7 @@ impl<C> LogWriterState<C> {
     /// per row (no shadow). `response_id`/`aih` are the spawned agent
     /// completion's own id + AIH.
     async fn write_agent_request_messages(
-        &self,
+        &mut self,
         response_id: &str,
         aih: &str,
     ) -> Result<(), crate::error::Error> {
@@ -385,7 +388,9 @@ impl<C> LogWriterState<C> {
             // so they must tee here or live subscribers never see the
             // spawned agent's opening messages.
             if let Some(tee) = &self.tee {
-                tee.send(super::tee::row_to_frame(&row, ts));
+                if let Some(frame) = self.frame_mapper.map(&row, ts) {
+                    tee.send(frame);
+                }
             }
             write_value(&self.pool, WriteOp::Insert, &row, ts).await?;
         }
@@ -432,7 +437,11 @@ impl<C> LogWriterState<C> {
                             // runs — sequential walk order, never gated
                             // on DB latency. Best-effort, non-blocking.
                             if let Some(tee) = &self.tee {
-                                tee.send(super::tee::row_to_frame(&value, created_at_seed));
+                                if let Some(frame) =
+                                    self.frame_mapper.map(&value, created_at_seed)
+                                {
+                                    tee.send(frame);
+                                }
                             }
                             buckets.entry(key).or_default().push((op, value));
                         }

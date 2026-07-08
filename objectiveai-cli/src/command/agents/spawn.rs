@@ -285,11 +285,27 @@ async fn execute_streaming(
     let (agent, agent_tag, continuation) = match mode {
         Mode::Fresh { agent, tag } => (agent, tag, None),
         Mode::Historic { hierarchy } => {
-            let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
-                .await?
-                .ok_or(Error::AgentNoPriorRequest {
-                    agent_instance_hierarchy: hierarchy,
-                })?;
+            // The AIH lock is HELD here (family acquired above) —
+            // failures are loggable, per the rule. Ad-hoc tee: the
+            // spawn-long tee is created inside `run_multi_pass`,
+            // which this error prevents from ever starting.
+            let lookup = async {
+                crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
+                    .await?
+                    .ok_or(Error::AgentNoPriorRequest {
+                        agent_instance_hierarchy: hierarchy.clone(),
+                    })
+            }
+            .await;
+            let lookup = match lookup {
+                Ok(lookup) => lookup,
+                Err(e) => {
+                    let tee =
+                        crate::db::logs::ConversationTee::spawn(ctx.filesystem.state_dir());
+                    note_error(ctx, &tee, Some(&hierarchy), None, &e).await;
+                    return Err(e);
+                }
+            };
             (lookup.agent, None, lookup.continuation)
         }
     };
@@ -383,6 +399,44 @@ async fn resolve_laboratories(
     ))
 }
 
+/// Persist + tee one spawn-path error. THE LOGGING RULE: an error is
+/// recorded iff the AIH is known at the moment it occurs — the AIH
+/// lock is held (Historic / Instance spawns hold it from acquisition;
+/// `observe` claims it on the first chunk) or identity has been
+/// minted. `aih == None` (a grouped-tag / ref spawn failing before its
+/// first chunk) is a silent no-op by design. Best-effort: its own
+/// failure is swallowed — there is nowhere left to report it.
+pub(crate) async fn note_error(
+    ctx: &Context,
+    tee: &crate::db::logs::ConversationTee,
+    aih: Option<&str>,
+    response_id: Option<&str>,
+    error: &Error,
+) {
+    let Some(aih) = aih else { return };
+    let Ok(pool) = ctx.db_client().await else {
+        return;
+    };
+    let value = error.output_message();
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    // Persist BEFORE returning the error to the caller; tee after (the
+    // tee is fire-and-forget).
+    if crate::db::logs::insert_error(pool, aih, response_id, &value, timestamp)
+        .await
+        .is_ok()
+    {
+        tee.send(crate::db::logs::error_frame(
+            aih.to_string(),
+            response_id.map(str::to_string),
+            value,
+            timestamp,
+        ));
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_multi_pass(
     ctx: Context,
@@ -397,11 +451,23 @@ pub(crate) fn run_multi_pass(
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::try_stream! {
         let mut agent_ref = agent_ref;
+        // One live-conversation tee for the whole spawn (created FIRST
+        // so even pre-loop failures can ship their error frame): every
+        // pass's log writer shares the one daemon socket connection.
+        let conversation_tee =
+            crate::db::logs::ConversationTee::spawn(ctx.filesystem.state_dir());
         // Resolve the agent's laboratory attachments (from the named targets)
         // and assemble the create-params. `provider`/`response_format` are
         // always defaulted and `stream` is always true for the in-process WS
         // path; only `messages`/`continuation` change across restart passes.
-        let laboratories = resolve_laboratories(&ctx, &lab_targets).await?;
+        let laboratories = match resolve_laboratories(&ctx, &lab_targets).await {
+            Ok(laboratories) => laboratories,
+            Err(e) => {
+                note_error(&ctx, &conversation_tee, registry.aih(), None, &e).await;
+                Err(e)?;
+                unreachable!("Err(e)? diverges");
+            }
+        };
         let mut params = AgentCompletionCreateParams {
             messages,
             provider: None,
@@ -425,13 +491,24 @@ pub(crate) fn run_multi_pass(
         let mut id_emitted = false;
         // Resolve the MCP client tuning once for the whole spawn; every
         // pass's conduit reuses these (cheap to pass per pass).
-        let mcp_timeout_ms = ctx.resolve_mcp_timeout_ms().await?;
-        let backoff_max_elapsed_time_ms =
-            ctx.resolve_backoff_max_elapsed_time_ms().await?;
-        // One live-conversation tee for the whole spawn: every pass's
-        // log writer shares the one daemon socket connection.
-        let conversation_tee =
-            crate::db::logs::ConversationTee::spawn(ctx.filesystem.state_dir());
+        let tuning = async {
+            Ok::<_, Error>((
+                ctx.resolve_mcp_timeout_ms().await?,
+                ctx.resolve_backoff_max_elapsed_time_ms().await?,
+            ))
+        }
+        .await;
+        let (mcp_timeout_ms, backoff_max_elapsed_time_ms) = match tuning {
+            Ok(tuning) => tuning,
+            Err(e) => {
+                note_error(&ctx, &conversation_tee, registry.aih(), None, &e).await;
+                Err(e)?;
+                unreachable!("Err(e)? diverges");
+            }
+        };
+        // Track the most recent response id seen on the wire — the id
+        // logged errors attach to once a stream has existed.
+        let mut last_response_id: Option<String> = None;
 
         loop {
             // Per-pass resources. New WS connection, new log writer,
@@ -451,17 +528,47 @@ pub(crate) fn run_multi_pass(
             // it yields `ResponseItem::Id` from
             // `chunk.agent_instance_hierarchy` directly on the first
             // chunk. Drop the receiver.
-            let (log_writer, _ready_rx) = crate::db::logs::write_agent_completion(
-                ctx.db_client().await?,
+            let pool = match ctx.db_client().await {
+                Ok(pool) => pool,
+                Err(e) => {
+                    let e = Error::from(e);
+                    note_error(
+                        &ctx,
+                        &conversation_tee,
+                        identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                        last_response_id.as_deref(),
+                        &e,
+                    )
+                    .await;
+                    Err(e)?;
+                    unreachable!("Err(e)? diverges");
+                }
+            };
+            let (log_writer, _ready_rx) = match crate::db::logs::write_agent_completion(
+                pool,
                 &params,
                 ctx.config.agent_instance_hierarchy.clone(),
                 Some(conversation_tee.clone()),
             )
             .map_err(|e| Error::Instance(format!(
                 "failed to build agent-completion log writer: {e}"
-            )))?;
+            ))) {
+                Ok(writer) => writer,
+                Err(e) => {
+                    note_error(
+                        &ctx,
+                        &conversation_tee,
+                        identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                        last_response_id.as_deref(),
+                        &e,
+                    )
+                    .await;
+                    Err(e)?;
+                    unreachable!("Err(e)? diverges");
+                }
+            };
 
-            let (sdk_stream, notifier) =
+            let stream_open = async {
                 objectiveai_sdk::agent::completions::create_agent_completion_streaming(
                     ctx.api_client().await?,
                     params.clone(),
@@ -470,7 +577,24 @@ pub(crate) fn run_multi_pass(
                 .await
                 .map_err(|e| Error::Instance(format!(
                     "failed to open agent-completion stream: {e}"
-                )))?;
+                )))
+            }
+            .await;
+            let (sdk_stream, notifier) = match stream_open {
+                Ok(opened) => opened,
+                Err(e) => {
+                    note_error(
+                        &ctx,
+                        &conversation_tee,
+                        identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                        last_response_id.as_deref(),
+                        &e,
+                    )
+                    .await;
+                    Err(e)?;
+                    unreachable!("Err(e)? diverges");
+                }
+            };
             conduit.install_notifier(notifier);
 
             let mut sdk_stream = Box::pin(sdk_stream);
@@ -494,6 +618,9 @@ pub(crate) fn run_multi_pass(
                     }
                 };
 
+                // The id every subsequently-logged error attaches to.
+                last_response_id = Some(chunk.id.clone());
+
                 // First chunk EVER (first pass, first chunk):
                 // capture the spawn's identity + claim the lock
                 // file. Tag-group upgrade is owned by the conduit's
@@ -509,12 +636,30 @@ pub(crate) fn run_multi_pass(
                     // Spawn-by-spec: record the definition source the
                     // moment the AIH lock is acquired.
                     if let Some(value) = agent_ref.take() {
-                        crate::db::agent_refs::upsert(
-                            ctx.db_client().await?,
-                            &hier,
-                            value,
-                        )
-                        .await?;
+                        let upsert = async {
+                            crate::db::agent_refs::upsert(
+                                ctx.db_client().await?,
+                                &hier,
+                                value,
+                            )
+                            .await?;
+                            Ok::<_, Error>(())
+                        }
+                        .await;
+                        if let Err(e) = upsert {
+                            // First chunk has landed — the AIH is
+                            // known and the error is loggable.
+                            note_error(
+                                &ctx,
+                                &conversation_tee,
+                                Some(&hier),
+                                last_response_id.as_deref(),
+                                &e,
+                            )
+                            .await;
+                            Err(e)?;
+                            unreachable!("Err(e)? diverges");
+                        }
                     }
                     identity = Some((hier, full_id));
                 }
@@ -616,7 +761,16 @@ pub(crate) fn run_multi_pass(
             drop(conduit);
 
             if let Some(e) = stream_err {
-                Err(Error::Instance(e))?;
+                let e = Error::Instance(e);
+                note_error(
+                    &ctx,
+                    &conversation_tee,
+                    identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                    last_response_id.as_deref(),
+                    &e,
+                )
+                .await;
+                Err(e)?;
             }
 
             // End-of-pass: a pure EXISTS check against the spawn's
@@ -650,7 +804,21 @@ pub(crate) fn run_multi_pass(
             // attached NOW.
             params.messages = Vec::new();
             params.continuation = last_continuation;
-            params.laboratories = resolve_laboratories(&ctx, &lab_targets).await?;
+            params.laboratories = match resolve_laboratories(&ctx, &lab_targets).await {
+                Ok(laboratories) => laboratories,
+                Err(e) => {
+                    note_error(
+                        &ctx,
+                        &conversation_tee,
+                        identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
+                        last_response_id.as_deref(),
+                        &e,
+                    )
+                    .await;
+                    Err(e)?;
+                    unreachable!("Err(e)? diverges");
+                }
+            };
         }
     }
 }

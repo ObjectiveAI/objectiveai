@@ -35,7 +35,9 @@ pub async fn read_by_id(pool: &Pool, id: i64) -> Result<Option<Response>, Error>
         return Ok(None);
     };
 
-    let response_id: String = msg.try_get("response_id")?;
+    // Nullable ONLY for `error` rows (which load by row_index alone).
+    let response_id: Option<String> = msg.try_get("response_id")?;
+    let response_id = response_id.unwrap_or_default();
     let table_kind: MessageTable = msg.try_get("table_kind")?;
     let row_index: Option<i64> = msg.try_get("row_index")?;
     let row_sub_index: Option<i64> = msg.try_get("row_sub_index")?;
@@ -450,6 +452,15 @@ async fn load_payload(
             .await?;
             let vote: sqlx::types::Json<serde_json::Value> = row.try_get("vote")?;
             Ok(Response::Text { text: vote.0.to_string() })
+        }
+        MessageTable::Error => {
+            let id = require_row_index(table_kind, row_index)?;
+            let row = sqlx::query("SELECT error FROM objectiveai.errors WHERE id = $1")
+                .bind(id)
+                .fetch_one(&**pool)
+                .await?;
+            let error: sqlx::types::Json<serde_json::Value> = row.try_get("error")?;
+            Ok(Response::Error { error: error.0 })
         }
     }
 }

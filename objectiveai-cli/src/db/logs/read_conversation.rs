@@ -5,28 +5,29 @@
 //! `SELECT_SHAPE` / `FROM_JOINS` / [`MsgRow`]), but instead of
 //! emitting `{id, type}` parts for `agents logs read id` to resolve,
 //! each row's ACTUAL content is batch-fetched from its per-kind table
-//! and inlined into an SDK
-//! [`ConversationRow`](objectiveai_sdk::cli::websocket_agents_instances_listener::ConversationRow)
+//! and inlined into a typed SDK
+//! [`AgentInstanceEvent`](objectiveai_sdk::cli::websocket_agents_instances_listener::AgentInstanceEvent)
 //! — the same frame shape the live tee ships, so the WS handler
 //! replays the snapshot and relays live frames through one type and
-//! clients converge the seam by row identity.
+//! clients converge the seam by part identity.
 //!
 //! Batching: one metadata page (`"index"` ASC), then ONE query per
 //! content family present in the page (`unnest` key joins /
-//! `id = ANY` for the message-queue kinds) — never a per-row round
-//! trip. Request-blob rows are skipped (hidden from conversations,
-//! exactly as `read_all` hides them); a metadata row whose content
-//! row is missing (torn write) skips that row.
+//! `id = ANY` for the message-queue and error kinds) — never a
+//! per-row round trip. Request-blob rows are skipped (hidden from
+//! conversations, exactly as `read_all` hides them); a metadata row
+//! whose content row is missing (torn write) skips that row.
 
 use std::collections::HashMap;
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 use objectiveai_sdk::cli::websocket_agents_instances_listener::{
-    ConversationRow, RowContent, RowTableKind,
+    AgentInstanceEvent, AssistantResponsePart, ClientNotificationPart, PartContent,
+    RequestMessageUserPart, ToolResponsePart, VectorRequestChoicePart,
 };
 use sqlx::Row as _;
 
-use super::super::time::{unix_to_rfc3339, unix_to_rfc3339_opt};
+use super::super::time::unix_to_rfc3339;
 use super::super::{Error, Pool};
 use super::read_all::{FROM_JOINS, MsgRow, SELECT_SHAPE, row_into_msg};
 use super::row::MessageTable;
@@ -47,14 +48,15 @@ enum Source {
     Part { table: &'static str, kind: ContentKind },
     /// `(response_id, "index")`-keyed single-text table
     /// (refusal / reasoning).
-    IndexedText { table: &'static str, refusal: bool },
+    IndexedText { table: &'static str },
     /// `(response_id, "index", tool_call_index)`-keyed tool-call table
-    /// — only `arguments` is fetched (`function_name` / `tool_call_id`
-    /// already ride the metadata joins).
+    /// — arguments + call metadata.
     ToolCalls { table: &'static str },
     /// `id`-keyed per-kind message-queue content table
     /// (`row_index` = `message_queue_contents.id`).
     MessageQueue { table: &'static str, kind: ContentKind },
+    /// `id`-keyed `objectiveai.errors` row (`row_index` = `errors.id`).
+    ErrorRow,
     /// Inline on the metadata row (`MsgRow::vote`).
     Vote,
     /// Request-blob marker — hidden from conversations.
@@ -92,11 +94,9 @@ fn source(t: MessageTable) -> Source {
         },
         T::AssistantResponseRefusal => Source::IndexedText {
             table: "objectiveai.assistant_response_refusal",
-            refusal: true,
         },
         T::AssistantResponseReasoning => Source::IndexedText {
             table: "objectiveai.assistant_response_reasoning",
-            refusal: false,
         },
         T::AssistantResponseToolCalls => Source::ToolCalls {
             table: "objectiveai.assistant_response_tool_calls",
@@ -163,11 +163,9 @@ fn source(t: MessageTable) -> Source {
         },
         T::RequestMessageAssistantRefusal => Source::IndexedText {
             table: "objectiveai.request_message_assistant_refusal",
-            refusal: true,
         },
         T::RequestMessageAssistantReasoning => Source::IndexedText {
             table: "objectiveai.request_message_assistant_reasoning",
-            refusal: false,
         },
         T::RequestMessageAssistantToolCalls => Source::ToolCalls {
             table: "objectiveai.request_message_assistant_tool_calls",
@@ -233,76 +231,33 @@ fn source(t: MessageTable) -> Source {
             kind: K::File,
         },
         T::ResponseVectorVote => Source::Vote,
+        T::Error => Source::ErrorRow,
     }
 }
 
-/// The wire kind for one metadata row. `None` for the request blobs
-/// (never on the conversation stream). The three HEAD kinds never
-/// appear here — heads emit no `objectiveai.messages` event; their
-/// payload reaches snapshot rows via the metadata joins
-/// (`tool_call_id` / `choice_key`).
-fn wire_table(t: MessageTable) -> Option<RowTableKind> {
-    use MessageTable as T;
-    use RowTableKind as K;
-    Some(match t {
-        T::AgentCompletionRequest
-        | T::VectorCompletionRequest
-        | T::FunctionExecutionRequest => return None,
-        T::MessageQueueText => K::MessageQueueText,
-        T::MessageQueueImage => K::MessageQueueImage,
-        T::MessageQueueAudio => K::MessageQueueAudio,
-        T::MessageQueueVideo => K::MessageQueueVideo,
-        T::MessageQueueFile => K::MessageQueueFile,
-        T::AssistantResponseRefusal => K::AssistantResponseRefusal,
-        T::AssistantResponseReasoning => K::AssistantResponseReasoning,
-        T::AssistantResponseToolCalls => K::AssistantResponseToolCalls,
-        T::AssistantResponseContentText => K::AssistantResponseContentText,
-        T::AssistantResponseContentImage => K::AssistantResponseContentImage,
-        T::AssistantResponseContentAudio => K::AssistantResponseContentAudio,
-        T::AssistantResponseContentVideo => K::AssistantResponseContentVideo,
-        T::AssistantResponseContentFile => K::AssistantResponseContentFile,
-        T::ToolResponseContentText => K::ToolResponseContentText,
-        T::ToolResponseContentImage => K::ToolResponseContentImage,
-        T::ToolResponseContentAudio => K::ToolResponseContentAudio,
-        T::ToolResponseContentVideo => K::ToolResponseContentVideo,
-        T::ToolResponseContentFile => K::ToolResponseContentFile,
-        T::RequestMessageUserContentText => K::RequestMessageUserContentText,
-        T::RequestMessageUserContentImage => K::RequestMessageUserContentImage,
-        T::RequestMessageUserContentAudio => K::RequestMessageUserContentAudio,
-        T::RequestMessageUserContentVideo => K::RequestMessageUserContentVideo,
-        T::RequestMessageUserContentFile => K::RequestMessageUserContentFile,
-        T::RequestMessageAssistantRefusal => K::RequestMessageAssistantRefusal,
-        T::RequestMessageAssistantReasoning => K::RequestMessageAssistantReasoning,
-        T::RequestMessageAssistantToolCalls => K::RequestMessageAssistantToolCalls,
-        T::RequestMessageAssistantContentText => K::RequestMessageAssistantContentText,
-        T::RequestMessageAssistantContentImage => K::RequestMessageAssistantContentImage,
-        T::RequestMessageAssistantContentAudio => K::RequestMessageAssistantContentAudio,
-        T::RequestMessageAssistantContentVideo => K::RequestMessageAssistantContentVideo,
-        T::RequestMessageAssistantContentFile => K::RequestMessageAssistantContentFile,
-        T::RequestMessageToolContentText => K::RequestMessageToolContentText,
-        T::RequestMessageToolContentImage => K::RequestMessageToolContentImage,
-        T::RequestMessageToolContentAudio => K::RequestMessageToolContentAudio,
-        T::RequestMessageToolContentVideo => K::RequestMessageToolContentVideo,
-        T::RequestMessageToolContentFile => K::RequestMessageToolContentFile,
-        T::RequestVectorChoiceContentText => K::RequestVectorChoiceContentText,
-        T::RequestVectorChoiceContentImage => K::RequestVectorChoiceContentImage,
-        T::RequestVectorChoiceContentAudio => K::RequestVectorChoiceContentAudio,
-        T::RequestVectorChoiceContentVideo => K::RequestVectorChoiceContentVideo,
-        T::RequestVectorChoiceContentFile => K::RequestVectorChoiceContentFile,
-        T::ResponseVectorVote => K::ResponseVectorVote,
-    })
+/// One fetched content value, keyed by the metadata row's
+/// `(table, response_id, row_index, row_sub_index)`.
+enum Fetched {
+    /// A media content part.
+    Media(PartContent),
+    /// A refusal / reasoning text.
+    Text(String),
+    /// A tool call's full state.
+    ToolCall {
+        tool_call_id: String,
+        function_name: String,
+        arguments: String,
+    },
 }
 
-/// Fetched content, keyed by the metadata row's
-/// `(table, response_id, row_index, row_sub_index)`.
-type ContentMap = HashMap<(MessageTable, String, i64, Option<i64>), RowContent>;
+type ContentMap = HashMap<(MessageTable, String, i64, Option<i64>), Fetched>;
 
 /// Build the per-kind media content from one fetched content row.
 /// Column shapes are identical across every table of a kind — the
 /// same contract [`super::read_id`] relies on.
-fn media_content(kind: ContentKind, row: &sqlx::postgres::PgRow) -> Result<RowContent, Error> {
+fn media_content(kind: ContentKind, row: &sqlx::postgres::PgRow) -> Result<PartContent, Error> {
     Ok(match kind {
-        ContentKind::Text => RowContent::Text {
+        ContentKind::Text => PartContent::Text {
             text: row.try_get("text")?,
         },
         ContentKind::Image => {
@@ -312,16 +267,16 @@ fn media_content(kind: ContentKind, row: &sqlx::postgres::PgRow) -> Result<RowCo
                 Some(s) => serde_json::from_value(serde_json::Value::String(s))?,
                 None => None,
             };
-            RowContent::Image(ImageUrl { url, detail })
+            PartContent::Image(ImageUrl { url, detail })
         }
-        ContentKind::Audio => RowContent::Audio(InputAudio {
+        ContentKind::Audio => PartContent::Audio(InputAudio {
             data: row.try_get("data")?,
             format: row.try_get("format")?,
         }),
-        ContentKind::Video => RowContent::Video(VideoUrl {
+        ContentKind::Video => PartContent::Video(VideoUrl {
             url: row.try_get("url")?,
         }),
-        ContentKind::File => RowContent::File(File {
+        ContentKind::File => PartContent::File(File {
             file_data: row.try_get("file_data")?,
             file_id: row.try_get("file_id")?,
             filename: row.try_get("filename")?,
@@ -341,17 +296,38 @@ fn media_columns(kind: ContentKind) -> &'static str {
     }
 }
 
-/// One page of an agent's conversation, content inlined, in
-/// `objectiveai.messages."index"` order. Returns the rows plus the
-/// `after_id` cursor for the next page (`None` when this page was the
-/// last). The caller (the daemon WS handler) loops pages, streaming
-/// each row as one frame — bounded memory for huge histories.
+/// An assistant-part from its media content.
+fn assistant_media(delivered_at: String, content: PartContent) -> AssistantResponsePart {
+    match content {
+        PartContent::Text { text } => AssistantResponsePart::Text { delivered_at, text },
+        PartContent::Image(image) => AssistantResponsePart::Image {
+            delivered_at,
+            image,
+        },
+        PartContent::Audio(audio) => AssistantResponsePart::Audio {
+            delivered_at,
+            audio,
+        },
+        PartContent::Video(video) => AssistantResponsePart::Video {
+            delivered_at,
+            video,
+        },
+        PartContent::File(file) => AssistantResponsePart::File { delivered_at, file },
+    }
+}
+
+/// One page of an agent's conversation as typed events, content
+/// inlined, in `objectiveai.messages."index"` order. Returns the
+/// events plus the `after_id` cursor for the next page (`None` when
+/// this page was the last). The caller (the daemon WS handler) loops
+/// pages, streaming each event as one frame — bounded memory for huge
+/// histories.
 pub async fn read_conversation_page(
     pool: &Pool,
     agent_instance_hierarchy: &str,
     after_id: Option<i64>,
     limit: i64,
-) -> Result<(Vec<ConversationRow>, Option<i64>), Error> {
+) -> Result<(Vec<AgentInstanceEvent>, Option<i64>), Error> {
     // Phase 1 — one metadata page via the shared read_all query.
     let sql = format!(
         "{SELECT_SHAPE} {FROM_JOINS} \
@@ -381,21 +357,25 @@ pub async fn read_conversation_page(
     let mut text_keys: HashMap<MessageTable, (Vec<String>, Vec<i64>)> = HashMap::new();
     let mut call_keys: HashMap<MessageTable, (Vec<String>, Vec<i64>, Vec<i64>)> = HashMap::new();
     let mut queue_ids: HashMap<MessageTable, Vec<i64>> = HashMap::new();
+    let mut error_ids: Vec<i64> = Vec::new();
     for msg in &msgs {
+        // Every content-fetch kind carries a response_id (only
+        // `error` rows may lack one, and those fetch by id alone).
+        let rid = msg.response_id.clone().unwrap_or_default();
         match source(msg.table_kind) {
             Source::Part { .. } => {
                 let (Some(index), Some(part_index)) = (msg.row_index, msg.row_sub_index) else {
                     continue;
                 };
                 let entry = part_keys.entry(msg.table_kind).or_default();
-                entry.0.push(msg.response_id.clone());
+                entry.0.push(rid);
                 entry.1.push(index);
                 entry.2.push(part_index);
             }
             Source::IndexedText { .. } => {
                 let Some(index) = msg.row_index else { continue };
                 let entry = text_keys.entry(msg.table_kind).or_default();
-                entry.0.push(msg.response_id.clone());
+                entry.0.push(rid);
                 entry.1.push(index);
             }
             Source::ToolCalls { .. } => {
@@ -404,7 +384,7 @@ pub async fn read_conversation_page(
                     continue;
                 };
                 let entry = call_keys.entry(msg.table_kind).or_default();
-                entry.0.push(msg.response_id.clone());
+                entry.0.push(rid);
                 entry.1.push(index);
                 entry.2.push(tool_call_index);
             }
@@ -412,11 +392,16 @@ pub async fn read_conversation_page(
                 let Some(id) = msg.row_index else { continue };
                 queue_ids.entry(msg.table_kind).or_default().push(id);
             }
+            Source::ErrorRow => {
+                let Some(id) = msg.row_index else { continue };
+                error_ids.push(id);
+            }
             Source::Vote | Source::Blob => {}
         }
     }
 
     let mut content: ContentMap = HashMap::new();
+    let mut errors_by_id: HashMap<i64, serde_json::Value> = HashMap::new();
 
     for (kind_table, (rids, indices, part_indices)) in &part_keys {
         let Source::Part { table, kind } = source(*kind_table) else {
@@ -441,13 +426,13 @@ pub async fn read_conversation_page(
             let pidx: i64 = row.try_get("pidx")?;
             content.insert(
                 (*kind_table, rid, idx, Some(pidx)),
-                media_content(kind, &row)?,
+                Fetched::Media(media_content(kind, &row)?),
             );
         }
     }
 
     for (kind_table, (rids, indices)) in &text_keys {
-        let Source::IndexedText { table, refusal } = source(*kind_table) else {
+        let Source::IndexedText { table } = source(*kind_table) else {
             unreachable!("grouped as IndexedText above");
         };
         let sql = format!(
@@ -465,12 +450,7 @@ pub async fn read_conversation_page(
             let rid: String = row.try_get("response_id")?;
             let idx: i64 = row.try_get("idx")?;
             let text: String = row.try_get("text")?;
-            let value = if refusal {
-                RowContent::Refusal { text }
-            } else {
-                RowContent::Reasoning { text }
-            };
-            content.insert((*kind_table, rid, idx, None), value);
+            content.insert((*kind_table, rid, idx, None), Fetched::Text(text));
         }
     }
 
@@ -497,7 +477,7 @@ pub async fn read_conversation_page(
             let tci: i64 = row.try_get("tci")?;
             content.insert(
                 (*kind_table, rid, idx, Some(tci)),
-                RowContent::ToolCall {
+                Fetched::ToolCall {
                     tool_call_id: row.try_get("tool_call_id")?,
                     function_name: row.try_get("function_name")?,
                     arguments: row.try_get("arguments")?,
@@ -523,20 +503,59 @@ pub async fn read_conversation_page(
                 .filter(|m| m.table_kind == *kind_table && m.row_index == Some(id))
             {
                 content.insert(
-                    (*kind_table, msg.response_id.clone(), id, None),
-                    media_content(kind, &row)?,
+                    (
+                        *kind_table,
+                        msg.response_id.clone().unwrap_or_default(),
+                        id,
+                        None,
+                    ),
+                    Fetched::Media(media_content(kind, &row)?),
                 );
             }
         }
     }
 
-    // Phase 3 — emit in index order, blobs skipped, content inlined.
+    if !error_ids.is_empty() {
+        for row in
+            sqlx::query("SELECT id, error FROM objectiveai.errors WHERE id = ANY($1::bigint[])")
+                .bind(&error_ids)
+                .fetch_all(&**pool)
+                .await?
+        {
+            let id: i64 = row.try_get("id")?;
+            let error: serde_json::Value = row.try_get("error")?;
+            errors_by_id.insert(id, error);
+        }
+    }
+
+    // Phase 3 — emit typed events in index order, blobs skipped,
+    // content inlined.
     let mut out = Vec::with_capacity(msgs.len());
     for msg in &msgs {
-        let Some(table) = wire_table(msg.table_kind) else {
-            continue; // request blob — hidden
+        let delivered_at = unix_to_rfc3339(msg.timestamp_delivered);
+        let aih = msg.agent_instance_hierarchy.clone();
+
+        // `error` first — the one kind whose response_id may be NULL.
+        if msg.table_kind == MessageTable::Error {
+            let Some(error) = msg.row_index.and_then(|id| errors_by_id.get(&id)) else {
+                continue; // torn write
+            };
+            out.push(AgentInstanceEvent::Error {
+                agent_instance_hierarchy: aih,
+                response_id: msg.response_id.clone(),
+                error: error.clone(),
+                delivered_at,
+            });
+            continue;
+        }
+
+        // Every other kind requires its response_id.
+        let Some(response_id) = msg.response_id.clone() else {
+            continue;
         };
-        let row_content = match source(msg.table_kind) {
+
+        match source(msg.table_kind) {
+            Source::Blob | Source::ErrorRow => continue,
             Source::Vote => {
                 let Some(vote) = msg
                     .vote
@@ -545,44 +564,294 @@ pub async fn read_conversation_page(
                 else {
                     continue;
                 };
-                RowContent::Vote { vote }
+                out.push(AgentInstanceEvent::VectorResponseVote {
+                    agent_instance_hierarchy: aih,
+                    response_id,
+                    vote,
+                });
             }
-            Source::Blob => continue,
             _ => {
-                // Vote rows aside, `row_index` is always Some for
-                // event rows; the live tee's identity uses the same
-                // value.
+                let row_index = msg.row_index.unwrap_or(0);
                 let key = (
                     msg.table_kind,
-                    msg.response_id.clone(),
-                    msg.row_index.unwrap_or(0),
+                    response_id.clone(),
+                    row_index,
                     msg.row_sub_index,
                 );
-                match content.get(&key) {
-                    Some(value) => value.clone(),
+                let Some(fetched) = content.get(&key) else {
                     // Torn write (metadata row without its content
                     // row) — skip, exactly like a missing read_id.
-                    None => continue,
-                }
+                    continue;
+                };
+                let Some(event) = build_event(
+                    msg,
+                    aih,
+                    response_id,
+                    row_index,
+                    delivered_at,
+                    fetched,
+                ) else {
+                    continue;
+                };
+                out.push(event);
             }
-        };
-        out.push(ConversationRow {
-            agent_instance_hierarchy: msg.agent_instance_hierarchy.clone(),
-            response_id: msg.response_id.clone(),
-            table,
-            // Vote rows have NULL row_index in the DB; the live tee
-            // ships 0 — match it so identities line up.
-            row_index: msg.row_index.unwrap_or(0),
-            row_sub_index: msg.row_sub_index,
-            delivered_at: unix_to_rfc3339(msg.timestamp_delivered),
-            tool_call_id: msg.tool_call_id.clone(),
-            choice_key: msg.choice_key.clone(),
-            sender_agent_instance_hierarchy: msg.sender_agent_instance_hierarchy.clone(),
-            queued_at: unix_to_rfc3339_opt(msg.timestamp_queued),
-            message_queue_key: msg.message_queue_key.clone(),
-            message_queue_id: msg.message_queue_id,
-            content: row_content,
-        });
+        }
     }
     Ok((out, next_after_id))
+}
+
+/// One metadata row + its fetched content → the typed event. `None`
+/// when a joined boundary field the event requires is missing (torn
+/// metadata — same skip policy as missing content).
+fn build_event(
+    msg: &MsgRow,
+    agent_instance_hierarchy: String,
+    response_id: String,
+    row_index: i64,
+    delivered_at: String,
+    fetched: &Fetched,
+) -> Option<AgentInstanceEvent> {
+    use MessageTable as T;
+    let row_sub_index = msg.row_sub_index;
+    Some(match msg.table_kind {
+        // ---- notifications ----
+        T::MessageQueueText
+        | T::MessageQueueImage
+        | T::MessageQueueAudio
+        | T::MessageQueueVideo
+        | T::MessageQueueFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::ClientNotificationPart {
+                agent_instance_hierarchy,
+                response_id,
+                sender_agent_instance_hierarchy: msg
+                    .sender_agent_instance_hierarchy
+                    .clone()
+                    .unwrap_or_default(),
+                message_queue_id: msg.message_queue_id?,
+                queued_at: unix_to_rfc3339(msg.timestamp_queued.unwrap_or_default()),
+                key: msg.message_queue_key.clone(),
+                row_index,
+                part: ClientNotificationPart {
+                    delivered_at,
+                    content: content.clone(),
+                },
+            }
+        }
+
+        // ---- assistant (response side) ----
+        T::AssistantResponseRefusal => AgentInstanceEvent::AssistantResponsePart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part: AssistantResponsePart::Refusal {
+                delivered_at,
+                text: fetched_text(fetched)?,
+            },
+        },
+        T::AssistantResponseReasoning => AgentInstanceEvent::AssistantResponsePart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part: AssistantResponsePart::Reasoning {
+                delivered_at,
+                text: fetched_text(fetched)?,
+            },
+        },
+        T::AssistantResponseToolCalls => AgentInstanceEvent::AssistantResponsePart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part: tool_call_part(fetched, delivered_at, row_sub_index)?,
+        },
+        T::AssistantResponseContentText
+        | T::AssistantResponseContentImage
+        | T::AssistantResponseContentAudio
+        | T::AssistantResponseContentVideo
+        | T::AssistantResponseContentFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::AssistantResponsePart {
+                agent_instance_hierarchy,
+                response_id,
+                row_index,
+                row_sub_index,
+                part: assistant_media(delivered_at, content.clone()),
+            }
+        }
+
+        // ---- assistant (request side) ----
+        T::RequestMessageAssistantRefusal => AgentInstanceEvent::RequestMessageAssistantPart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part: AssistantResponsePart::Refusal {
+                delivered_at,
+                text: fetched_text(fetched)?,
+            },
+        },
+        T::RequestMessageAssistantReasoning => AgentInstanceEvent::RequestMessageAssistantPart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part: AssistantResponsePart::Reasoning {
+                delivered_at,
+                text: fetched_text(fetched)?,
+            },
+        },
+        T::RequestMessageAssistantToolCalls => AgentInstanceEvent::RequestMessageAssistantPart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part: tool_call_part(fetched, delivered_at, row_sub_index)?,
+        },
+        T::RequestMessageAssistantContentText
+        | T::RequestMessageAssistantContentImage
+        | T::RequestMessageAssistantContentAudio
+        | T::RequestMessageAssistantContentVideo
+        | T::RequestMessageAssistantContentFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::RequestMessageAssistantPart {
+                agent_instance_hierarchy,
+                response_id,
+                row_index,
+                row_sub_index,
+                part: assistant_media(delivered_at, content.clone()),
+            }
+        }
+
+        // ---- tool response (response side) ----
+        T::ToolResponseContentText
+        | T::ToolResponseContentImage
+        | T::ToolResponseContentAudio
+        | T::ToolResponseContentVideo
+        | T::ToolResponseContentFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::ToolResponsePart {
+                agent_instance_hierarchy,
+                response_id,
+                tool_call_id: msg.tool_call_id.clone()?,
+                row_index,
+                row_sub_index,
+                part: ToolResponsePart {
+                    delivered_at,
+                    content: content.clone(),
+                },
+            }
+        }
+
+        // ---- tool response (request side) ----
+        T::RequestMessageToolContentText
+        | T::RequestMessageToolContentImage
+        | T::RequestMessageToolContentAudio
+        | T::RequestMessageToolContentVideo
+        | T::RequestMessageToolContentFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::RequestMessageToolPart {
+                agent_instance_hierarchy,
+                response_id,
+                tool_call_id: msg.tool_call_id.clone()?,
+                row_index,
+                row_sub_index,
+                part: ToolResponsePart {
+                    delivered_at,
+                    content: content.clone(),
+                },
+            }
+        }
+
+        // ---- user ----
+        T::RequestMessageUserContentText
+        | T::RequestMessageUserContentImage
+        | T::RequestMessageUserContentAudio
+        | T::RequestMessageUserContentVideo
+        | T::RequestMessageUserContentFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::RequestMessageUserPart {
+                agent_instance_hierarchy,
+                response_id,
+                row_index,
+                row_sub_index,
+                part: RequestMessageUserPart {
+                    delivered_at,
+                    content: content.clone(),
+                },
+            }
+        }
+
+        // ---- vector choices ----
+        T::RequestVectorChoiceContentText
+        | T::RequestVectorChoiceContentImage
+        | T::RequestVectorChoiceContentAudio
+        | T::RequestVectorChoiceContentVideo
+        | T::RequestVectorChoiceContentFile => {
+            let Fetched::Media(content) = fetched else {
+                return None;
+            };
+            AgentInstanceEvent::VectorRequestChoicePart {
+                agent_instance_hierarchy,
+                response_id,
+                key: msg.choice_key.clone()?,
+                choice_index: row_index,
+                part_index: row_sub_index?,
+                part: VectorRequestChoicePart {
+                    delivered_at,
+                    content: content.clone(),
+                },
+            }
+        }
+
+        // Handled before dispatch / never content-built.
+        T::AgentCompletionRequest
+        | T::VectorCompletionRequest
+        | T::FunctionExecutionRequest
+        | T::ResponseVectorVote
+        | T::Error => return None,
+    })
+}
+
+fn fetched_text(fetched: &Fetched) -> Option<String> {
+    match fetched {
+        Fetched::Text(text) => Some(text.clone()),
+        _ => None,
+    }
+}
+
+fn tool_call_part(
+    fetched: &Fetched,
+    delivered_at: String,
+    row_sub_index: Option<i64>,
+) -> Option<AssistantResponsePart> {
+    let Fetched::ToolCall {
+        tool_call_id,
+        function_name,
+        arguments,
+    } = fetched
+    else {
+        return None;
+    };
+    Some(AssistantResponsePart::ToolCall {
+        delivered_at,
+        function_name: function_name.clone(),
+        tool_call_id: tool_call_id.clone(),
+        tool_call_index: row_sub_index.unwrap_or(0),
+        arguments: arguments.clone(),
+    })
 }

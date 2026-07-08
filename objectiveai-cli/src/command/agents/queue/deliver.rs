@@ -265,14 +265,33 @@ fn deliver_one_hierarchy(
         let lookup = match crate::db::logs::lookup_session(pool, &hierarchy).await {
             Ok(Some(lookup)) => lookup,
             Ok(None) => {
+                // The AIH lock is HELD — log the failure into the
+                // agent's history (the rule), then release via the
+                // registry drop below.
+                let e = Error::AgentNoPriorRequest {
+                    agent_instance_hierarchy: hierarchy.clone(),
+                };
+                let tee = crate::db::logs::ConversationTee::spawn(
+                    ctx.filesystem.state_dir(),
+                );
+                crate::command::agents::spawn::note_error(
+                    &ctx, &tee, Some(&hierarchy), None, &e,
+                )
+                .await;
                 // `registry` drops here → releases the whole family.
-                yield Err(Error::AgentNoPriorRequest {
-                    agent_instance_hierarchy: hierarchy,
-                });
+                yield Err(e);
                 return;
             }
             Err(e) => {
-                yield Err(e.into());
+                let e: Error = e.into();
+                let tee = crate::db::logs::ConversationTee::spawn(
+                    ctx.filesystem.state_dir(),
+                );
+                crate::command::agents::spawn::note_error(
+                    &ctx, &tee, Some(&hierarchy), None, &e,
+                )
+                .await;
+                yield Err(e);
                 return;
             }
         };

@@ -59,6 +59,15 @@ impl AgentInstanceRegistry {
     /// historic-spawn initial lock), so the mid-stream `observe` of
     /// the same hierarchy dedupes and the claim is released on drop
     /// with the rest.
+    /// The AIH of a held per-instance claim, if any — the spawn
+    /// error-logging eligibility check (an AIH lock is held) and its
+    /// AIH source before the first chunk mints identity. A spawn holds
+    /// at most one claim until `observe` runs, and `observe`'s AIH IS
+    /// the identity — so "any key" is exact.
+    pub fn aih(&self) -> Option<&str> {
+        self.open.keys().next().map(String::as_str)
+    }
+
     pub fn preseed(&mut self, hier: String, claim: AgentLock) {
         self.attempted.insert(hier.clone());
         self.announce_active(&hier);

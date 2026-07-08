@@ -18,6 +18,7 @@
 //! rows — so each frame is tagged with its own row's AIH and the
 //! daemon routes per-frame, never per-connection.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -28,7 +29,8 @@ use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::Name;
 use interprocess::local_socket::tokio::prelude::*;
 use objectiveai_sdk::cli::websocket_agents_instances_listener::{
-    ConversationRow, RowContent, RowTableKind,
+    AgentInstanceEvent, AssistantResponsePart, PartContent, RequestMessageUserPart,
+    ToolResponsePart, VectorRequestChoicePart,
 };
 use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
@@ -41,12 +43,13 @@ use super::row::RowValue;
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TeeFrame {
-    /// A fully-resolved conversation row.
-    Row { row: ConversationRow },
+    /// A fully-resolved conversation event, fanned out verbatim.
+    Event { event: AgentInstanceEvent },
     /// A consumed message-queue notification. The writer only knows
     /// the `message_queue_contents.id` — the content and the parent
     /// queue row's metadata live in the DB, so the DAEMON resolves
-    /// them before fan-out (notifications are low-frequency).
+    /// them into the typed `ClientNotificationPart` event before
+    /// fan-out (notifications are low-frequency).
     MessageQueueContent {
         agent_instance_hierarchy: String,
         response_id: String,
@@ -56,316 +59,387 @@ pub enum TeeFrame {
     },
 }
 
-/// Build the owned tee frame for one row the writer is about to
-/// write. `created_at` is the same timestamp the SQL will bind.
-/// Metadata mapping: HEAD rows carry their payload (`tool_call_id` /
-/// choice `key`) on the row's metadata fields with `RowContent::Head`;
-/// tool-call rows carry `tool_call_id` both inline (content) and as
-/// metadata, mirroring the snapshot reader's joined shape.
-pub fn row_to_frame(value: &RowValue<'_>, created_at: i64) -> TeeFrame {
-    use RowContent as C;
-    use RowTableKind as K;
-    let delivered_at = crate::db::time::unix_to_rfc3339(created_at);
-    if let RowValue::MessageQueueContent {
-        response_id,
-        agent_instance_hierarchy,
-        message_queue_content_id,
-    } = value
-    {
-        return TeeFrame::MessageQueueContent {
-            agent_instance_hierarchy: (*agent_instance_hierarchy).to_string(),
-            response_id: (*response_id).to_string(),
-            message_queue_content_id: *message_queue_content_id,
-            delivered_at,
-        };
-    }
-    let (table, content, tool_call_id, choice_key) = match value {
-        RowValue::MessageQueueContent { .. } => {
-            unreachable!("early-returned above")
-        }
-        // ---- head rows (metadata carriers; no content payload) ----
-        RowValue::ToolResponse { tool_call_id, .. } => (
-            K::ToolResponse,
-            C::Head,
-            Some((*tool_call_id).to_string()),
-            None,
-        ),
-        RowValue::RequestMessageTool { tool_call_id, .. } => (
-            K::RequestMessageTool,
-            C::Head,
-            Some((*tool_call_id).to_string()),
-            None,
-        ),
-        RowValue::RequestVectorChoice { key, .. } => (
-            K::RequestVectorChoice,
-            C::Head,
-            None,
-            Some((*key).to_string()),
-        ),
-        // ---- assistant response ----
-        RowValue::AssistantResponseRefusal { text, .. } => (
-            K::AssistantResponseRefusal,
-            C::Refusal { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::AssistantResponseReasoning { text, .. } => (
-            K::AssistantResponseReasoning,
-            C::Reasoning { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::AssistantResponseToolCalls {
-            tool_call_id,
-            function_name,
-            arguments,
-            ..
-        } => (
-            K::AssistantResponseToolCalls,
-            C::ToolCall {
-                tool_call_id: (*tool_call_id).to_string(),
-                function_name: (*function_name).to_string(),
-                arguments: (*arguments).to_string(),
-            },
-            Some((*tool_call_id).to_string()),
-            None,
-        ),
-        RowValue::AssistantResponseContentText { text, .. } => (
-            K::AssistantResponseContentText,
-            C::Text { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::AssistantResponseContentImage { image_url, .. } => (
-            K::AssistantResponseContentImage,
-            C::Image((*image_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::AssistantResponseContentAudio { input_audio, .. } => (
-            K::AssistantResponseContentAudio,
-            C::Audio((*input_audio).clone()),
-            None,
-            None,
-        ),
-        RowValue::AssistantResponseContentVideo { video_url, .. } => (
-            K::AssistantResponseContentVideo,
-            C::Video((*video_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::AssistantResponseContentFile { file, .. } => (
-            K::AssistantResponseContentFile,
-            C::File((*file).clone()),
-            None,
-            None,
-        ),
-        // ---- tool response content ----
-        RowValue::ToolResponseContentText { text, .. } => (
-            K::ToolResponseContentText,
-            C::Text { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::ToolResponseContentImage { image_url, .. } => (
-            K::ToolResponseContentImage,
-            C::Image((*image_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::ToolResponseContentAudio { input_audio, .. } => (
-            K::ToolResponseContentAudio,
-            C::Audio((*input_audio).clone()),
-            None,
-            None,
-        ),
-        RowValue::ToolResponseContentVideo { video_url, .. } => (
-            K::ToolResponseContentVideo,
-            C::Video((*video_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::ToolResponseContentFile { file, .. } => (
-            K::ToolResponseContentFile,
-            C::File((*file).clone()),
-            None,
-            None,
-        ),
-        // ---- request message: user ----
-        RowValue::RequestMessageUserContentText { text, .. } => (
-            K::RequestMessageUserContentText,
-            C::Text { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::RequestMessageUserContentImage { image_url, .. } => (
-            K::RequestMessageUserContentImage,
-            C::Image((*image_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageUserContentAudio { input_audio, .. } => (
-            K::RequestMessageUserContentAudio,
-            C::Audio((*input_audio).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageUserContentVideo { video_url, .. } => (
-            K::RequestMessageUserContentVideo,
-            C::Video((*video_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageUserContentFile { file, .. } => (
-            K::RequestMessageUserContentFile,
-            C::File((*file).clone()),
-            None,
-            None,
-        ),
-        // ---- request message: assistant ----
-        RowValue::RequestMessageAssistantRefusal { text, .. } => (
-            K::RequestMessageAssistantRefusal,
-            C::Refusal { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::RequestMessageAssistantReasoning { text, .. } => (
-            K::RequestMessageAssistantReasoning,
-            C::Reasoning { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::RequestMessageAssistantToolCalls {
-            tool_call_id,
-            function_name,
-            arguments,
-            ..
-        } => (
-            K::RequestMessageAssistantToolCalls,
-            C::ToolCall {
-                tool_call_id: (*tool_call_id).to_string(),
-                function_name: (*function_name).to_string(),
-                arguments: (*arguments).to_string(),
-            },
-            Some((*tool_call_id).to_string()),
-            None,
-        ),
-        RowValue::RequestMessageAssistantContentText { text, .. } => (
-            K::RequestMessageAssistantContentText,
-            C::Text { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::RequestMessageAssistantContentImage { image_url, .. } => (
-            K::RequestMessageAssistantContentImage,
-            C::Image((*image_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageAssistantContentAudio { input_audio, .. } => (
-            K::RequestMessageAssistantContentAudio,
-            C::Audio((*input_audio).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageAssistantContentVideo { video_url, .. } => (
-            K::RequestMessageAssistantContentVideo,
-            C::Video((*video_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageAssistantContentFile { file, .. } => (
-            K::RequestMessageAssistantContentFile,
-            C::File((*file).clone()),
-            None,
-            None,
-        ),
-        // ---- request message: tool content ----
-        RowValue::RequestMessageToolContentText { text, .. } => (
-            K::RequestMessageToolContentText,
-            C::Text { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::RequestMessageToolContentImage { image_url, .. } => (
-            K::RequestMessageToolContentImage,
-            C::Image((*image_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageToolContentAudio { input_audio, .. } => (
-            K::RequestMessageToolContentAudio,
-            C::Audio((*input_audio).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageToolContentVideo { video_url, .. } => (
-            K::RequestMessageToolContentVideo,
-            C::Video((*video_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestMessageToolContentFile { file, .. } => (
-            K::RequestMessageToolContentFile,
-            C::File((*file).clone()),
-            None,
-            None,
-        ),
-        // ---- vector request choice content ----
-        RowValue::RequestVectorChoiceContentText { text, .. } => (
-            K::RequestVectorChoiceContentText,
-            C::Text { text: (*text).to_string() },
-            None,
-            None,
-        ),
-        RowValue::RequestVectorChoiceContentImage { image_url, .. } => (
-            K::RequestVectorChoiceContentImage,
-            C::Image((*image_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestVectorChoiceContentAudio { input_audio, .. } => (
-            K::RequestVectorChoiceContentAudio,
-            C::Audio((*input_audio).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestVectorChoiceContentVideo { video_url, .. } => (
-            K::RequestVectorChoiceContentVideo,
-            C::Video((*video_url).clone()),
-            None,
-            None,
-        ),
-        RowValue::RequestVectorChoiceContentFile { file, .. } => (
-            K::RequestVectorChoiceContentFile,
-            C::File((*file).clone()),
-            None,
-            None,
-        ),
-        // ---- vector response vote ----
-        RowValue::ResponseVectorVote { vote, .. } => (
-            K::ResponseVectorVote,
-            C::Vote { vote: vote.to_vec() },
-            None,
-            None,
-        ),
-    };
-    TeeFrame::Row {
-        row: ConversationRow {
-            agent_instance_hierarchy: value.agent_instance_hierarchy().to_string(),
-            response_id: value.response_id().to_string(),
-            table,
-            row_index: value.row_index(),
-            row_sub_index: value.row_sub_index(),
-            delivered_at,
-            tool_call_id,
-            choice_key,
-            sender_agent_instance_hierarchy: None,
-            queued_at: None,
-            message_queue_key: None,
-            message_queue_id: None,
-            content,
+/// Build the tee frame for one logged error — persist-before-return:
+/// the spawn path calls this AFTER `insert_error` committed the row.
+pub fn error_frame(
+    agent_instance_hierarchy: String,
+    response_id: Option<String>,
+    error: serde_json::Value,
+    created_at: i64,
+) -> TeeFrame {
+    TeeFrame::Event {
+        event: AgentInstanceEvent::Error {
+            agent_instance_hierarchy,
+            response_id,
+            error,
+            delivered_at: crate::db::time::unix_to_rfc3339(created_at),
         },
+    }
+}
+
+/// The writer's row→event mapper. STATEFUL: head rows (the
+/// `tool_response` / `request_message_tool` / `request_vector_choice`
+/// metadata carriers) produce NO frame — they feed the maps below, and
+/// their payload rides every subsequent content event of their block
+/// (`tool_call_id` on the event's boundary fields; the choice's voting
+/// `key` per part). The writer emits each head strictly before its
+/// contents, so a lookup miss means a torn iterator — that content
+/// frame is skipped (reconnecting clients replay DB truth).
+#[derive(Default)]
+pub struct FrameMapper {
+    /// `(aih, response_id, message index)` → `tool_call_id`, from
+    /// `tool_response` heads. The AIH is part of the key because ONE
+    /// writer streams MANY agents' rows (a function execution's
+    /// writer carries every nested agent).
+    tool_response_heads: HashMap<(String, String, i64), String>,
+    /// Same, from `request_message_tool` heads.
+    request_tool_heads: HashMap<(String, String, i64), String>,
+    /// `(aih, response_id, choice index)` → the agent's voting key,
+    /// from `request_vector_choice` heads.
+    choice_keys: HashMap<(String, String, i64), String>,
+}
+
+impl FrameMapper {
+    /// Map one row the writer is about to write into its typed event
+    /// frame. `created_at` is the same timestamp the SQL will bind.
+    /// `None` for head rows (memory only) and for content rows whose
+    /// head never registered.
+    pub fn map(&mut self, value: &RowValue<'_>, created_at: i64) -> Option<TeeFrame> {
+        let delivered_at = crate::db::time::unix_to_rfc3339(created_at);
+        let aih = value.agent_instance_hierarchy().to_string();
+        let event = match value {
+            // ---- daemon-resolved notification rows ----
+            RowValue::MessageQueueContent {
+                response_id,
+                agent_instance_hierarchy,
+                message_queue_content_id,
+            } => {
+                return Some(TeeFrame::MessageQueueContent {
+                    agent_instance_hierarchy: (*agent_instance_hierarchy).to_string(),
+                    response_id: (*response_id).to_string(),
+                    message_queue_content_id: *message_queue_content_id,
+                    delivered_at,
+                });
+            }
+
+            // ---- head rows: memory only, no frame ----
+            RowValue::ToolResponse { tool_call_id, .. } => {
+                self.tool_response_heads.insert(
+                    (aih, value.response_id().to_string(), value.row_index()),
+                    (*tool_call_id).to_string(),
+                );
+                return None;
+            }
+            RowValue::RequestMessageTool { tool_call_id, .. } => {
+                self.request_tool_heads.insert(
+                    (aih, value.response_id().to_string(), value.row_index()),
+                    (*tool_call_id).to_string(),
+                );
+                return None;
+            }
+            RowValue::RequestVectorChoice { key, .. } => {
+                self.choice_keys.insert(
+                    (aih, value.response_id().to_string(), value.row_index()),
+                    (*key).to_string(),
+                );
+                return None;
+            }
+
+            // ---- assistant response ----
+            RowValue::AssistantResponseRefusal { text, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::Refusal { delivered_at, text: (*text).to_string() },
+            ),
+            RowValue::AssistantResponseReasoning { text, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::Reasoning { delivered_at, text: (*text).to_string() },
+            ),
+            RowValue::AssistantResponseToolCalls {
+                tool_call_id, function_name, arguments, ..
+            } => assistant_event(
+                value, false,
+                AssistantResponsePart::ToolCall {
+                    delivered_at,
+                    function_name: (*function_name).to_string(),
+                    tool_call_id: (*tool_call_id).to_string(),
+                    tool_call_index: value.row_sub_index().unwrap_or(0),
+                    arguments: (*arguments).to_string(),
+                },
+            ),
+            RowValue::AssistantResponseContentText { text, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::Text { delivered_at, text: (*text).to_string() },
+            ),
+            RowValue::AssistantResponseContentImage { image_url, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::Image { delivered_at, image: (*image_url).clone() },
+            ),
+            RowValue::AssistantResponseContentAudio { input_audio, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::Audio { delivered_at, audio: (*input_audio).clone() },
+            ),
+            RowValue::AssistantResponseContentVideo { video_url, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::Video { delivered_at, video: (*video_url).clone() },
+            ),
+            RowValue::AssistantResponseContentFile { file, .. } => assistant_event(
+                value, false,
+                AssistantResponsePart::File { delivered_at, file: (*file).clone() },
+            ),
+
+            // ---- request message: assistant (same part shape) ----
+            RowValue::RequestMessageAssistantRefusal { text, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::Refusal { delivered_at, text: (*text).to_string() },
+            ),
+            RowValue::RequestMessageAssistantReasoning { text, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::Reasoning { delivered_at, text: (*text).to_string() },
+            ),
+            RowValue::RequestMessageAssistantToolCalls {
+                tool_call_id, function_name, arguments, ..
+            } => assistant_event(
+                value, true,
+                AssistantResponsePart::ToolCall {
+                    delivered_at,
+                    function_name: (*function_name).to_string(),
+                    tool_call_id: (*tool_call_id).to_string(),
+                    tool_call_index: value.row_sub_index().unwrap_or(0),
+                    arguments: (*arguments).to_string(),
+                },
+            ),
+            RowValue::RequestMessageAssistantContentText { text, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::Text { delivered_at, text: (*text).to_string() },
+            ),
+            RowValue::RequestMessageAssistantContentImage { image_url, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::Image { delivered_at, image: (*image_url).clone() },
+            ),
+            RowValue::RequestMessageAssistantContentAudio { input_audio, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::Audio { delivered_at, audio: (*input_audio).clone() },
+            ),
+            RowValue::RequestMessageAssistantContentVideo { video_url, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::Video { delivered_at, video: (*video_url).clone() },
+            ),
+            RowValue::RequestMessageAssistantContentFile { file, .. } => assistant_event(
+                value, true,
+                AssistantResponsePart::File { delivered_at, file: (*file).clone() },
+            ),
+
+            // ---- tool response content (needs its head's id) ----
+            RowValue::ToolResponseContentText { text, .. } => self.tool_event(
+                value, delivered_at, PartContent::Text { text: (*text).to_string() }, false,
+            )?,
+            RowValue::ToolResponseContentImage { image_url, .. } => self.tool_event(
+                value, delivered_at, PartContent::Image((*image_url).clone()), false,
+            )?,
+            RowValue::ToolResponseContentAudio { input_audio, .. } => self.tool_event(
+                value, delivered_at, PartContent::Audio((*input_audio).clone()), false,
+            )?,
+            RowValue::ToolResponseContentVideo { video_url, .. } => self.tool_event(
+                value, delivered_at, PartContent::Video((*video_url).clone()), false,
+            )?,
+            RowValue::ToolResponseContentFile { file, .. } => self.tool_event(
+                value, delivered_at, PartContent::File((*file).clone()), false,
+            )?,
+            RowValue::RequestMessageToolContentText { text, .. } => self.tool_event(
+                value, delivered_at, PartContent::Text { text: (*text).to_string() }, true,
+            )?,
+            RowValue::RequestMessageToolContentImage { image_url, .. } => self.tool_event(
+                value, delivered_at, PartContent::Image((*image_url).clone()), true,
+            )?,
+            RowValue::RequestMessageToolContentAudio { input_audio, .. } => self.tool_event(
+                value, delivered_at, PartContent::Audio((*input_audio).clone()), true,
+            )?,
+            RowValue::RequestMessageToolContentVideo { video_url, .. } => self.tool_event(
+                value, delivered_at, PartContent::Video((*video_url).clone()), true,
+            )?,
+            RowValue::RequestMessageToolContentFile { file, .. } => self.tool_event(
+                value, delivered_at, PartContent::File((*file).clone()), true,
+            )?,
+
+            // ---- request message: user ----
+            RowValue::RequestMessageUserContentText { text, .. } => user_event(
+                value,
+                RequestMessageUserPart {
+                    delivered_at,
+                    content: PartContent::Text { text: (*text).to_string() },
+                },
+            ),
+            RowValue::RequestMessageUserContentImage { image_url, .. } => user_event(
+                value,
+                RequestMessageUserPart {
+                    delivered_at,
+                    content: PartContent::Image((*image_url).clone()),
+                },
+            ),
+            RowValue::RequestMessageUserContentAudio { input_audio, .. } => user_event(
+                value,
+                RequestMessageUserPart {
+                    delivered_at,
+                    content: PartContent::Audio((*input_audio).clone()),
+                },
+            ),
+            RowValue::RequestMessageUserContentVideo { video_url, .. } => user_event(
+                value,
+                RequestMessageUserPart {
+                    delivered_at,
+                    content: PartContent::Video((*video_url).clone()),
+                },
+            ),
+            RowValue::RequestMessageUserContentFile { file, .. } => user_event(
+                value,
+                RequestMessageUserPart {
+                    delivered_at,
+                    content: PartContent::File((*file).clone()),
+                },
+            ),
+
+            // ---- vector request choice content (needs its head's key) ----
+            RowValue::RequestVectorChoiceContentText { text, .. } => self.choice_event(
+                value, delivered_at, PartContent::Text { text: (*text).to_string() },
+            )?,
+            RowValue::RequestVectorChoiceContentImage { image_url, .. } => self.choice_event(
+                value, delivered_at, PartContent::Image((*image_url).clone()),
+            )?,
+            RowValue::RequestVectorChoiceContentAudio { input_audio, .. } => self.choice_event(
+                value, delivered_at, PartContent::Audio((*input_audio).clone()),
+            )?,
+            RowValue::RequestVectorChoiceContentVideo { video_url, .. } => self.choice_event(
+                value, delivered_at, PartContent::Video((*video_url).clone()),
+            )?,
+            RowValue::RequestVectorChoiceContentFile { file, .. } => self.choice_event(
+                value, delivered_at, PartContent::File((*file).clone()),
+            )?,
+
+            // ---- vector response vote (complete single-row block) ----
+            RowValue::ResponseVectorVote { vote, .. } => {
+                AgentInstanceEvent::VectorResponseVote {
+                    agent_instance_hierarchy: aih,
+                    response_id: value.response_id().to_string(),
+                    vote: vote.to_vec(),
+                }
+            }
+        };
+        Some(TeeFrame::Event { event })
+    }
+
+    /// A tool-response / request-tool content event — `tool_call_id`
+    /// from the block's registered head.
+    fn tool_event(
+        &self,
+        value: &RowValue<'_>,
+        delivered_at: String,
+        content: PartContent,
+        request: bool,
+    ) -> Option<AgentInstanceEvent> {
+        let response_id = value.response_id().to_string();
+        let row_index = value.row_index();
+        let heads = if request {
+            &self.request_tool_heads
+        } else {
+            &self.tool_response_heads
+        };
+        let aih = value.agent_instance_hierarchy().to_string();
+        let tool_call_id = heads.get(&(aih, response_id.clone(), row_index))?.clone();
+        let part = ToolResponsePart {
+            delivered_at,
+            content,
+        };
+        Some(if request {
+            AgentInstanceEvent::RequestMessageToolPart {
+                agent_instance_hierarchy: value.agent_instance_hierarchy().to_string(),
+                response_id,
+                tool_call_id,
+                row_index,
+                row_sub_index: value.row_sub_index(),
+                part,
+            }
+        } else {
+            AgentInstanceEvent::ToolResponsePart {
+                agent_instance_hierarchy: value.agent_instance_hierarchy().to_string(),
+                response_id,
+                tool_call_id,
+                row_index,
+                row_sub_index: value.row_sub_index(),
+                part,
+            }
+        })
+    }
+
+    /// A vector-choice content event — the voting `key` from the
+    /// choice's registered head.
+    fn choice_event(
+        &self,
+        value: &RowValue<'_>,
+        delivered_at: String,
+        content: PartContent,
+    ) -> Option<AgentInstanceEvent> {
+        let response_id = value.response_id().to_string();
+        let choice_index = value.row_index();
+        let key = self
+            .choice_keys
+            .get(&(
+                value.agent_instance_hierarchy().to_string(),
+                response_id.clone(),
+                choice_index,
+            ))?
+            .clone();
+        Some(AgentInstanceEvent::VectorRequestChoicePart {
+            agent_instance_hierarchy: value.agent_instance_hierarchy().to_string(),
+            response_id,
+            key,
+            choice_index,
+            part_index: value.row_sub_index().unwrap_or(0),
+            part: VectorRequestChoicePart {
+                delivered_at,
+                content,
+            },
+        })
+    }
+}
+
+/// An assistant-part event, response (`request == false`) or request
+/// (`request == true`) side.
+fn assistant_event(
+    value: &RowValue<'_>,
+    request: bool,
+    part: AssistantResponsePart,
+) -> AgentInstanceEvent {
+    let agent_instance_hierarchy = value.agent_instance_hierarchy().to_string();
+    let response_id = value.response_id().to_string();
+    let row_index = value.row_index();
+    let row_sub_index = value.row_sub_index();
+    if request {
+        AgentInstanceEvent::RequestMessageAssistantPart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part,
+        }
+    } else {
+        AgentInstanceEvent::AssistantResponsePart {
+            agent_instance_hierarchy,
+            response_id,
+            row_index,
+            row_sub_index,
+            part,
+        }
+    }
+}
+
+/// A user-part event.
+fn user_event(value: &RowValue<'_>, part: RequestMessageUserPart) -> AgentInstanceEvent {
+    AgentInstanceEvent::RequestMessageUserPart {
+        agent_instance_hierarchy: value.agent_instance_hierarchy().to_string(),
+        response_id: value.response_id().to_string(),
+        row_index: value.row_index(),
+        row_sub_index: value.row_sub_index(),
+        part,
     }
 }
 

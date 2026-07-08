@@ -1139,11 +1139,14 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::websocket_agents_instances_list_listener::AgentStatus),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AgentInstanceEvent),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AgentRecord),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::AssistantResponsePart),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ClientNotificationPart),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ConversationBlock),
-        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ConversationChoice),
-        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ConversationRow),
-        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::RowContent),
-        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::RowTableKind),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::PartContent),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::RequestMessageUserPart),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ToolResponsePart),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::VectorRequestChoice),
+        schemars::schema_for!(crate::cli::websocket_agents_instances_listener::VectorRequestChoicePart),
         schemars::schema_for!(crate::cli::websocket_listener::ListenerEnd),
     ]);
 

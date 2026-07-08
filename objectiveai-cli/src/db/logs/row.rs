@@ -103,6 +103,11 @@ pub enum RowTable {
 
     // ---- vector response vote (inline closer) ----
     ResponseVectorVote,
+
+    /// Logged failures (`objectiveai.errors`). Written by the dedicated
+    /// error helper (`db::logs::insert_error`), never by the
+    /// chunk-driven writer — no [`RowValue`] variant exists for it.
+    Error,
 }
 
 /// The subset of [`RowTable`] that produces a `objectiveai.messages` event
@@ -160,6 +165,7 @@ pub enum MessageTable {
     RequestVectorChoiceContentVideo,
     RequestVectorChoiceContentFile,
     ResponseVectorVote,
+    Error,
 }
 
 impl MessageTable {
@@ -214,6 +220,7 @@ impl MessageTable {
             MessageTable::RequestVectorChoiceContentVideo => "request_vector_choice_content_video",
             MessageTable::RequestVectorChoiceContentFile => "request_vector_choice_content_file",
             MessageTable::ResponseVectorVote => "response_vector_vote",
+            MessageTable::Error => "error",
         }
     }
 }
@@ -282,6 +289,7 @@ impl RowTable {
             RowTable::RequestVectorChoiceContentVideo => MessageTable::RequestVectorChoiceContentVideo,
             RowTable::RequestVectorChoiceContentFile => MessageTable::RequestVectorChoiceContentFile,
             RowTable::ResponseVectorVote => MessageTable::ResponseVectorVote,
+            RowTable::Error => MessageTable::Error,
             RowTable::AgentCompletionResponses
             | RowTable::VectorCompletionResponses
             | RowTable::FunctionExecutionResponses => return None,
@@ -340,6 +348,7 @@ impl RowTable {
             RowTable::RequestVectorChoiceContentVideo => "objectiveai.request_vector_choice_content_video",
             RowTable::RequestVectorChoiceContentFile => "objectiveai.request_vector_choice_content_file",
             RowTable::ResponseVectorVote => "objectiveai.response_vector_vote",
+            RowTable::Error => "objectiveai.errors",
         }
     }
 }

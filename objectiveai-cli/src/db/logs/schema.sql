@@ -631,7 +631,8 @@ DO $logs_message_table_bootstrap$ BEGIN
         'request_vector_choice_content_audio',
         'request_vector_choice_content_video',
         'request_vector_choice_content_file',
-        'response_vector_vote'
+        'response_vector_vote',
+        'error'
     );
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $logs_message_table_bootstrap$;
@@ -664,10 +665,31 @@ DO $logs_message_table_extend$ BEGIN
     ALTER TYPE objectiveai.message_table ADD VALUE IF NOT EXISTS 'request_vector_choice_content_video';
     ALTER TYPE objectiveai.message_table ADD VALUE IF NOT EXISTS 'request_vector_choice_content_file';
     ALTER TYPE objectiveai.message_table ADD VALUE IF NOT EXISTS 'response_vector_vote';
+    ALTER TYPE objectiveai.message_table ADD VALUE IF NOT EXISTS 'error';
 END $logs_message_table_extend$;
 
+-- Logged failures: one row per error the CLI persisted into an agent's
+-- history (spawn-path failures after the AIH became known — see
+-- `command/agents/spawn.rs`). `error` holds the CLI's user-facing
+-- error value (`Error::output_message()`): a structured object for API
+-- response errors, a plain string otherwise. `response_id` is the
+-- response the failure belongs to when one existed, NULL for
+-- post-lock pre-stream failures. The BIGSERIAL `id` doubles as the
+-- `objectiveai.messages.row_index` — per-row identity that never
+-- collides even when `response_id` is NULL.
+CREATE TABLE IF NOT EXISTS objectiveai.errors (
+    id                       BIGSERIAL           PRIMARY KEY,
+    agent_instance_hierarchy TEXT                NOT NULL,
+    response_id              TEXT                NULL,
+    error                    JSONB               NOT NULL,
+    inserted_at              TIMESTAMPTZ         NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS objectiveai.messages (
-    response_id              TEXT                NOT NULL,
+    -- NULL only on `error` rows logged before any response existed
+    -- for the attempt; the row-consistency constraint (attached
+    -- below the table) enforces NOT NULL for every other kind.
+    response_id              TEXT                NULL,
     "table"                  objectiveai.message_table  NOT NULL,
     row_index                BIGINT              NULL,
     row_sub_index            BIGINT              NULL,
@@ -697,11 +719,32 @@ CREATE TABLE IF NOT EXISTS objectiveai.messages (
     -- at read time, not duplicated.
     agent_instance_hierarchy TEXT                NOT NULL,
     "timestamp"              BIGINT              NOT NULL,
-    CONSTRAINT messages_table_row_consistency CHECK (
+    UNIQUE NULLS NOT DISTINCT (response_id, "table", row_index, row_sub_index, agent_instance_hierarchy)
+);
+-- Existing DBs predate nullable `response_id` — align idempotently
+-- (a no-op when already nullable).
+ALTER TABLE objectiveai.messages ALTER COLUMN response_id DROP NOT NULL;
+-- The row-shape consistency constraint is attached OUTSIDE the CREATE
+-- TABLE (drop + re-add) so schema evolution reaches pre-existing DBs
+-- — `CREATE TABLE IF NOT EXISTS` never revisits an existing table's
+-- constraints. Every kind comparison is on `"table"::text`, NOT enum
+-- literals: an enum value added by the extend block above cannot be
+-- referenced as an enum literal in the same transaction (the whole
+-- schema applies as one batch), and text comparison sidesteps that.
+ALTER TABLE objectiveai.messages DROP CONSTRAINT IF EXISTS messages_table_row_consistency;
+ALTER TABLE objectiveai.messages ADD CONSTRAINT messages_table_row_consistency CHECK (
+    -- `error` rows: the ONLY kind allowed a NULL response_id
+    -- (post-lock pre-stream failures have no response). row_index =
+    -- `objectiveai.errors.id` — identity that never collides even
+    -- with response_id NULL; no sub-index.
+    ("table"::text = 'error'
+     AND row_index IS NOT NULL AND row_sub_index IS NULL)
+    OR
+    (response_id IS NOT NULL AND (
         -- No-per-row-identity kinds: the request blobs, plus the
         -- per-agent vector vote (keyed by response_id +
         -- agent_instance_hierarchy, both already on this row).
-        ("table" IN (
+        ("table"::text IN (
             'agent_completion_request',
             'vector_completion_request',
             'function_execution_request',
@@ -715,7 +758,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.messages (
         -- corresponding per-kind table `message_queue_texts` /
         -- `_images` / `_audios` / `_videos` / `_files` directly at
         -- read time). row_index only — no sub_index.
-        ("table" IN (
+        ("table"::text IN (
             'message_queue_text',
             'message_queue_image',
             'message_queue_audio',
@@ -732,7 +775,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.messages (
         -- table, response and request): both indices required. For the
         -- request_vector_choice_content_* kinds, row_index = choice
         -- index and row_sub_index = part index.
-        ("table" IN (
+        ("table"::text IN (
             'assistant_response_tool_calls',
             'assistant_response_content_text',
             'assistant_response_content_image',
@@ -767,8 +810,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.messages (
             'request_vector_choice_content_file'
          )
          AND row_index IS NOT NULL AND row_sub_index IS NOT NULL)
-    ),
-    UNIQUE NULLS NOT DISTINCT (response_id, "table", row_index, row_sub_index, agent_instance_hierarchy)
+    ))
 );
 CREATE INDEX IF NOT EXISTS messages_index_idx
     ON objectiveai.messages("index");

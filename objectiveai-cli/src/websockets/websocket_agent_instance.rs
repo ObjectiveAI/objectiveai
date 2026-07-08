@@ -36,7 +36,7 @@ use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 use objectiveai_sdk::cli::websocket_agents_instances_listener::{
-    AgentInstanceEvent, ConversationRow, RowContent, RowTableKind,
+    AgentInstanceEvent, ClientNotificationPart, PartContent,
 };
 use sqlx::Row as _;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -107,11 +107,15 @@ impl ConversationHub {
         self.events.subscribe()
     }
 
-    /// Serialize + fan one row out. A send error means no subscribers
-    /// — drop the frame.
-    fn broadcast_row(&self, row: ConversationRow) {
-        let aih: Arc<str> = Arc::from(row.agent_instance_hierarchy.as_str());
-        let event = AgentInstanceEvent::Row { row };
+    /// Serialize + fan one conversation event out, routed by the
+    /// event's own AIH. A send error means no subscribers — drop the
+    /// frame. `Live` / `Agent` carry no AIH and are never fanned out
+    /// here (they are per-connection concerns).
+    fn broadcast_event(&self, event: AgentInstanceEvent) {
+        let Some(aih) = event_aih(&event) else {
+            return;
+        };
+        let aih: Arc<str> = Arc::from(aih);
         if let Ok(json) = serde_json::to_string(&event) {
             let _ = self.events.send((aih, Arc::from(json.as_str())));
         }
@@ -128,7 +132,7 @@ impl ConversationHub {
         response_id: String,
         message_queue_content_id: i64,
         delivered_at: String,
-    ) -> Option<ConversationRow> {
+    ) -> Option<AgentInstanceEvent> {
         let pool = self.ctx.db_client().await.ok()?;
         let row = sqlx::query(
             "SELECT mqc.kind::text AS kind, \
@@ -156,13 +160,10 @@ impl ConversationHub {
         .ok()??;
 
         let kind: String = row.try_get("kind").ok()?;
-        let (table, content) = match kind.as_str() {
-            "text" => (
-                RowTableKind::MessageQueueText,
-                RowContent::Text {
-                    text: row.try_get("text").ok()?,
-                },
-            ),
+        let content = match kind.as_str() {
+            "text" => PartContent::Text {
+                text: row.try_get("text").ok()?,
+            },
             "image" => {
                 let url: String = row.try_get("image_url").ok()?;
                 let detail_str: Option<String> = row.try_get("image_detail").ok()?;
@@ -170,51 +171,57 @@ impl ConversationHub {
                     Some(s) => serde_json::from_value(serde_json::Value::String(s)).ok()?,
                     None => None,
                 };
-                (
-                    RowTableKind::MessageQueueImage,
-                    RowContent::Image(ImageUrl { url, detail }),
-                )
+                PartContent::Image(ImageUrl { url, detail })
             }
-            "audio" => (
-                RowTableKind::MessageQueueAudio,
-                RowContent::Audio(InputAudio {
-                    data: row.try_get("audio_data").ok()?,
-                    format: row.try_get("audio_format").ok()?,
-                }),
-            ),
-            "video" => (
-                RowTableKind::MessageQueueVideo,
-                RowContent::Video(VideoUrl {
-                    url: row.try_get("video_url").ok()?,
-                }),
-            ),
-            "file" => (
-                RowTableKind::MessageQueueFile,
-                RowContent::File(File {
-                    file_data: row.try_get("file_data").ok()?,
-                    file_id: row.try_get("file_id").ok()?,
-                    filename: row.try_get("filename").ok()?,
-                    file_url: row.try_get("file_url").ok()?,
-                }),
-            ),
+            "audio" => PartContent::Audio(InputAudio {
+                data: row.try_get("audio_data").ok()?,
+                format: row.try_get("audio_format").ok()?,
+            }),
+            "video" => PartContent::Video(VideoUrl {
+                url: row.try_get("video_url").ok()?,
+            }),
+            "file" => PartContent::File(File {
+                file_data: row.try_get("file_data").ok()?,
+                file_id: row.try_get("file_id").ok()?,
+                filename: row.try_get("filename").ok()?,
+                file_url: row.try_get("file_url").ok()?,
+            }),
             _ => return None,
         };
         let enqueued_at: Option<i64> = row.try_get("enqueued_at").ok()?;
-        Some(ConversationRow {
+        let sender: Option<String> = row.try_get("sender").ok()?;
+        Some(AgentInstanceEvent::ClientNotificationPart {
             agent_instance_hierarchy,
             response_id,
-            table,
-            row_index: message_queue_content_id,
-            row_sub_index: None,
-            delivered_at,
-            tool_call_id: None,
-            choice_key: None,
-            sender_agent_instance_hierarchy: row.try_get("sender").ok()?,
-            queued_at: crate::db::time::unix_to_rfc3339_opt(enqueued_at),
-            message_queue_key: row.try_get("mq_key").ok()?,
+            sender_agent_instance_hierarchy: sender.unwrap_or_default(),
             message_queue_id: row.try_get("mq_id").ok()?,
-            content,
+            queued_at: crate::db::time::unix_to_rfc3339(enqueued_at.unwrap_or_default()),
+            key: row.try_get("mq_key").ok()?,
+            row_index: message_queue_content_id,
+            part: ClientNotificationPart {
+                delivered_at,
+                content,
+            },
         })
+    }
+}
+
+/// The conversation event's own AIH — every conversation-carrying
+/// variant has one; `Live` / `Agent` do not (per-connection concerns,
+/// never hub-routed).
+fn event_aih(event: &AgentInstanceEvent) -> Option<&str> {
+    use AgentInstanceEvent as E;
+    match event {
+        E::RequestMessageUserPart { agent_instance_hierarchy, .. }
+        | E::RequestMessageAssistantPart { agent_instance_hierarchy, .. }
+        | E::RequestMessageToolPart { agent_instance_hierarchy, .. }
+        | E::VectorRequestChoicePart { agent_instance_hierarchy, .. }
+        | E::VectorResponseVote { agent_instance_hierarchy, .. }
+        | E::ClientNotificationPart { agent_instance_hierarchy, .. }
+        | E::AssistantResponsePart { agent_instance_hierarchy, .. }
+        | E::ToolResponsePart { agent_instance_hierarchy, .. }
+        | E::Error { agent_instance_hierarchy, .. } => Some(agent_instance_hierarchy),
+        E::Live | E::Agent { .. } => None,
     }
 }
 
@@ -254,14 +261,14 @@ pub fn serve_conversation_socket_listener(
                         continue;
                     };
                     match frame {
-                        TeeFrame::Row { row } => hub.broadcast_row(row),
+                        TeeFrame::Event { event } => hub.broadcast_event(event),
                         TeeFrame::MessageQueueContent {
                             agent_instance_hierarchy,
                             response_id,
                             message_queue_content_id,
                             delivered_at,
                         } => {
-                            if let Some(row) = hub
+                            if let Some(event) = hub
                                 .resolve_message_queue_content(
                                     agent_instance_hierarchy,
                                     response_id,
@@ -270,7 +277,7 @@ pub fn serve_conversation_socket_listener(
                                 )
                                 .await
                             {
-                                hub.broadcast_row(row);
+                                hub.broadcast_event(event);
                             }
                         }
                     }
@@ -354,8 +361,7 @@ async fn instance_pump(
                 // client re-snapshots on its next reconnect anyway.
                 Err(_) => break,
             };
-            for row in rows {
-                let event = AgentInstanceEvent::Row { row };
+            for event in rows {
                 let Ok(frame) = serde_json::to_string(&event) else {
                     continue;
                 };
