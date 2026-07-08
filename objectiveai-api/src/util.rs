@@ -1,6 +1,8 @@
 //! Utility types for streaming and choice indexing.
 
+use dashmap::DashMap;
 use futures::Stream;
+use std::sync::atomic::AtomicU64;
 
 /// Mint a response id of the form `{prefix}-{rand_b62}{created_b62}`,
 /// or `{rand_b62}{created_b62}` when `prefix` is `None`.
@@ -49,38 +51,38 @@ mod tests {
     }
 }
 
-/// Maps native slot keys to wire indices — DETERMINISTICALLY.
+/// Assigns sequential indices to concurrent streams in first-come-first-served order.
 ///
-/// The wire `index` on completions / task chunks correlates chunks,
-/// votes (`completion_index`), and final results across the stream.
-/// It was previously assigned FIRST-COME-FIRST-SERVED across the
-/// concurrently racing slot streams, which made the wire content
-/// scheduler-dependent: identical seeded runs produced different
-/// index attributions (and thus different snapshots/results) purely
-/// by task arrival order. The index rule is now identity:
+/// When multiple concurrent streams need unique indices, this struct ensures
+/// each stream gets the next available index. The first stream to request an
+/// index for a given native key gets index 0 (or `initial`), the next gets 1, etc.
 ///
-/// - `get(native)` = `initial + native` — the slot's own stable key
-///   (`flat_swarm_index` for completions, `task_index` for task
-///   chunks; retry slots use `flat_swarm_index + flat_swarm_len`,
-///   still unique and stable).
-///
-/// Consumers correlate BY index (SDK `mergedList`, vote attribution,
-/// the confidence maps), so the only observable change is that the
-/// numbers are stable instead of arrival-ordered.
+/// Thread-safe: uses atomic operations and concurrent hash map.
 pub struct ChoiceIndexer {
-    /// Offset added to every native key.
-    initial: u64,
+    /// Counter for the next index to assign.
+    counter: AtomicU64,
+    /// Map from native keys to their assigned indices.
+    indices: DashMap<usize, u64>,
 }
 
 impl ChoiceIndexer {
     /// Creates a new choice indexer starting from the given initial value.
     pub fn new(initial: u64) -> Self {
-        Self { initial }
+        Self {
+            counter: AtomicU64::new(initial),
+            indices: DashMap::new(),
+        }
     }
 
-    /// The wire index for a native slot key: `initial + native_index`.
+    /// Gets the index for a native key, assigning the next available index if new.
+    ///
+    /// First-come-first-served: the first caller for a given native key gets
+    /// the current counter value, then the counter increments for the next caller.
     pub fn get(&self, native_index: usize) -> u64 {
-        self.initial + native_index as u64
+        *self.indices.entry(native_index).or_insert_with(|| {
+            self.counter
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst)
+        })
     }
 }
 
