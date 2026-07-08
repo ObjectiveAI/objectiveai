@@ -8,12 +8,18 @@ import { ErrorToast } from "./components/ErrorToast";
  * The agent conversation WINDOW — the `agent.html` entry. One AIH's
  * whole conversation, fullscreen: no tabs, no footer, just the
  * [`ConversationView`] (plus the error toast — failures stay loud).
- * The AIH arrives via the `aih` query parameter, set by the Rust
- * shell (`open_agent_window` / `--agent-instance-hierarchy`); the
- * window title is the AIH itself.
+ * The AIH arrives via the shell-injected global (`open_agent_window`
+ * / `--agent-instance-hierarchy`), with an `aih` query-param fallback
+ * for plain-browser dev; the window title is the AIH itself.
  */
 function AgentApp() {
-  const aih = new URLSearchParams(window.location.search).get("aih");
+  // The Rust shell injects the AIH as a pre-page-script global (a URL
+  // query can't ride WebviewUrl::App — it's a path). The query-param
+  // fallback keeps plain-browser dev workable.
+  const aih =
+    (window as { __AGENT_INSTANCE_HIERARCHY__?: string })
+      .__AGENT_INSTANCE_HIERARCHY__ ??
+    new URLSearchParams(window.location.search).get("aih");
   const [connection, setConnection] = useState<DaemonConnection | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +31,7 @@ function AgentApp() {
     };
   }, []);
 
-  if (aih === null || aih === "") {
+  if (aih == null || aih === "") {
     return (
       <div
         className={cn(

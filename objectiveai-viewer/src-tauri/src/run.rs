@@ -86,25 +86,13 @@ fn agent_window_label(agent_instance_hierarchy: &str) -> String {
     format!("agent-{:016x}", hasher.finish())
 }
 
-/// Percent-encode one URL query component (RFC 3986 unreserved set
-/// passes through; everything else — `/`, `&`, `#`, spaces, UTF-8
-/// bytes — encodes).
-fn encode_query_component(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(byte as char);
-            }
-            _ => out.push_str(&format!("%{byte:02X}")),
-        }
-    }
-    out
-}
-
 /// Create — or focus, when already open — the agent conversation
 /// window for one AIH: the `agent.html` entry (the popup UI as a full
-/// window; no tabs, no footer), scoped by the `aih` query parameter.
+/// window; no tabs, no footer). The AIH reaches the page via an
+/// initialization script (a global set before any page script runs) —
+/// NOT a URL query: `WebviewUrl::App` is a PathBuf, so a query string
+/// would be treated as part of the asset path and 404 to a white
+/// window.
 fn open_agent_window_impl(
     app: &tauri::AppHandle,
     agent_instance_hierarchy: &str,
@@ -115,14 +103,19 @@ fn open_agent_window_impl(
         let _ = existing.set_focus();
         return Ok(());
     }
-    let url = format!(
-        "agent.html?aih={}",
-        encode_query_component(agent_instance_hierarchy),
-    );
-    tauri::WebviewWindowBuilder::new(app, &label, tauri::WebviewUrl::App(url.into()))
-        .title(agent_instance_hierarchy)
-        .inner_size(1024.0, 768.0)
-        .build()?;
+    let aih_json = serde_json::to_string(agent_instance_hierarchy)
+        .expect("a str serializes infallibly");
+    tauri::WebviewWindowBuilder::new(
+        app,
+        &label,
+        tauri::WebviewUrl::App("agent.html".into()),
+    )
+    .initialization_script(format!(
+        "window.__AGENT_INSTANCE_HIERARCHY__ = {aih_json};"
+    ))
+    .title(agent_instance_hierarchy)
+    .inner_size(1024.0, 768.0)
+    .build()?;
     Ok(())
 }
 
