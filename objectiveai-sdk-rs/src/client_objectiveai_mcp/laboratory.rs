@@ -109,3 +109,18 @@ pub enum SocketResponse {
     /// mid-request, forward timeout, malformed request line.
     Error { message: String },
 }
+
+/// The manager's connection-lock key for `(id, address)`:
+/// `<id>.<base62(xxh3_128(address))>`. One manager per laboratory per
+/// daemon address, enforced by the state's lockfile dir — the address
+/// folds to a fixed 22-char base62 token (the agent-id encoding, see
+/// `agent::claude_agent_sdk`) so any `ws://` URL is filesystem-safe,
+/// and base62 contains no `.`, so the key is unambiguous. Shared by
+/// the manager (acquire) and the CLI (spawn-until-published), so the
+/// two sides can never disagree on the key.
+pub fn connect_lock_key(id: &str, address: &str) -> String {
+    let mut hasher = twox_hash::XxHash3_128::with_seed(0);
+    hasher.write(address.as_bytes());
+    let token = format!("{:0>22}", base62::encode(hasher.finish_128()));
+    format!("{id}.{token}")
+}

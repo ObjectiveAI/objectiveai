@@ -12,6 +12,38 @@ use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem, Source,
 };
 
+/// Expect a duplicate `create` for `id` to fail with "already exists".
+async fn expect_create_err(executor: &cli_test_util::HangPreventingBinaryCommandExecutor, id: &str) {
+    use futures::StreamExt;
+    use objectiveai_sdk::cli::command::CommandExecutor;
+    let stream = executor
+        .execute::<CreateReq, CreateResp>(
+            CreateReq {
+                path_type: CreatePath::LaboratoriesCreate,
+                kind: Kind::Client,
+                id: id.to_string(),
+                image: BASE_IMAGE.to_string(),
+                mounts: Vec::new(),
+                env: Vec::new(),
+                cwd: "/work".to_string(),
+                base: Default::default(),
+            },
+            None,
+        )
+        .await
+        .expect("cli execute must start");
+    let mut stream = std::pin::pin!(stream);
+    let mut saw = false;
+    while let Some(item) = stream.next().await {
+        if let Err(e) = item {
+            if format!("{e:?}").contains("already exists") {
+                saw = true;
+            }
+        }
+    }
+    assert!(saw, "duplicate create must error with 'already exists'");
+}
+
 /// A minimal, widely-available base image for the laboratory.
 const BASE_IMAGE: &str = "docker.io/library/busybox:latest";
 
@@ -68,6 +100,9 @@ async fn create_then_list_round_trips_the_spec() {
         Source::Local,
         "a laboratory created on this machine + state must be local"
     );
+
+    // A second create for the same id must fail loudly.
+    expect_create_err(&executor, &id).await;
     assert!(
         found.env.iter().any(|e| e.key == "FOO" && e.value == "bar"),
         "env not round-tripped: {:?}",

@@ -16,6 +16,7 @@ use crate::db::laboratory_attachments::Target;
 use crate::error::Error;
 
 pub mod attach;
+pub mod connect;
 pub mod create;
 pub mod detach;
 pub mod list;
@@ -53,6 +54,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::DetachResponseSchema(req) => {
             let value = detach::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::DetachResponseSchema(value)))
+        }
+        Request::Connect(req) => {
+            let value = connect::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Connect(value)))
+        }
+        Request::ConnectRequestSchema(req) => {
+            let value = connect::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ConnectRequestSchema(value)))
+        }
+        Request::ConnectResponseSchema(req) => {
+            let value = connect::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ConnectResponseSchema(value)))
         }
         Request::Create(req) => {
             let value = create::execute(ctx, req).await?;

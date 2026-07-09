@@ -1,22 +1,23 @@
 //! `objectiveai-laboratory` — the laboratory manager binary.
 //!
-//! Two subcommands:
+//! Three subcommands:
 //!
-//! - **`run`** — own ONE laboratory: hold the
-//!   `<state>/locks/laboratories/<id>` file lock (the id is unique per
-//!   state, so no full-path key is needed), drive the podman container
-//!   (create-if-absent → inject the MCP binary → start — the exact
-//!   logic that used to live CLI-side), and dial OUT to the daemon's
-//!   `/laboratory` WebSocket where it IDENTIFIES itself first and
-//!   authorizes second. From then on it is a mini-conduit: the daemon
-//!   forwards MCP + transfer requests here and this process serves
-//!   them against its container. On graceful shutdown the container is
-//!   STOPPED (never removed).
-//! - **`list`** — read every laboratory container in the state back
-//!   from podman (the `objectiveai.laboratory` label, running or not)
-//!   and print ONE JSON array of identity objects to stdout. This is
-//!   how the CLI sees local laboratories whose managers are NOT
-//!   connected — the CLI itself no longer touches podman.
+//! - **`create`** — create the laboratory container (podman create +
+//!   inject the MCP binary; NOT started) and exit. Errors if the id
+//!   already exists in this state. Pure and daemonless: no lock, no
+//!   WebSocket, no signature.
+//! - **`connect`** — the resident manager for one `(id, address)`
+//!   pair: rebuild the lab's identity from its container label, hold
+//!   the `<state>/locks/laboratories/<id>.<base62(xxh3(address))>`
+//!   lock (one manager per laboratory per daemon; simultaneous
+//!   connects to the same pair resolve to exactly one winner), start
+//!   the container, and dial `<address>/laboratory` — IDENTIFY first,
+//!   authorize second — serving MCP + transfer requests until killed.
+//!   On graceful shutdown the container is STOPPED (never removed).
+//!   The same laboratory may be connected to several daemons at once,
+//!   one manager process per address.
+//! - **`list`** — print the state's laboratory containers (running or
+//!   not) as a JSON array of identity objects on stdout.
 //!
 //! Everything is a clap argument except the authorization signature,
 //! which arrives via the `DAEMON_SIGNATURE` environment variable (the
@@ -31,20 +32,26 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{Identify, IdentifyMount};
+use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
+    connect_lock_key, Identify, IdentifyMount,
+};
 
 #[derive(Parser)]
 #[command(name = "objectiveai-laboratory", version)]
 enum Command {
-    /// Run the manager for one laboratory (resident until killed).
-    Run(RunArgs),
+    /// Create the laboratory container (not started); errors if the id
+    /// already exists in this state.
+    Create(CreateArgs),
+    /// Run the resident manager: connect a CREATED laboratory to a
+    /// daemon (until killed).
+    Connect(ConnectArgs),
     /// Print the state's laboratory containers (running or not) as a
     /// JSON array of identity objects on stdout.
     List(ListArgs),
 }
 
 #[derive(clap::Args)]
-struct RunArgs {
+struct CreateArgs {
     /// The laboratory id (unique within the state).
     #[arg(long)]
     id: String,
@@ -61,10 +68,23 @@ struct RunArgs {
     /// Default working directory new agents start in.
     #[arg(long)]
     cwd: String,
-    /// The daemon's `ws://` base address (its `/laboratory` route is
-    /// appended).
+    /// ObjectiveAI home; defaults to `~/.objectiveai`.
     #[arg(long)]
-    daemon_address: String,
+    objectiveai_dir: Option<PathBuf>,
+    /// ObjectiveAI state name; defaults to `default`.
+    #[arg(long, default_value = "default")]
+    objectiveai_state: String,
+}
+
+#[derive(clap::Args)]
+struct ConnectArgs {
+    /// The laboratory id (must already be created).
+    #[arg(long)]
+    id: String,
+    /// The daemon's `ws://` base address to connect to (its
+    /// `/laboratory` route is appended).
+    #[arg(long)]
+    address: String,
     /// ObjectiveAI home; defaults to `~/.objectiveai`.
     #[arg(long)]
     objectiveai_dir: Option<PathBuf>,
@@ -100,80 +120,17 @@ async fn main() {
     // Load a `.env` if present BEFORE reading DAEMON_SIGNATURE.
     let _ = dotenv::dotenv();
     match Command::parse() {
-        Command::Run(args) => run(args).await,
+        Command::Create(args) => create(args).await,
+        Command::Connect(args) => connect(args).await,
         Command::List(args) => list(args).await,
     }
 }
 
-/// `list`: podman label read → JSON array on stdout. Same on-demand
-/// podman install/machine semantics the manager itself has.
-async fn list(args: ListArgs) {
-    let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
-    let podman = podman::Podman::new(objectiveai_dir.join("bin"));
-    let labs = match podman::laboratory::list(&podman, &args.objectiveai_state).await {
-        Ok(labs) => labs,
-        Err(e) => {
-            eprintln!("list laboratories: {e}");
-            std::process::exit(1);
-        }
-    };
-    let identities: Vec<Identify> = labs
-        .into_iter()
-        .map(|lab| Identify {
-            id: lab.id,
-            image: lab.image,
-            mounts: lab
-                .mounts
-                .into_iter()
-                .map(|m| IdentifyMount {
-                    host: m.host,
-                    container: m.container,
-                })
-                .collect(),
-            env: lab.env.into_iter().map(|(k, v)| [k, v]).collect(),
-            cwd: lab.cwd,
-        })
-        .collect();
-    match serde_json::to_string(&identities) {
-        Ok(json) => println!("{json}"),
-        Err(e) => {
-            eprintln!("serialize laboratories: {e}");
-            std::process::exit(1);
-        }
-    }
-}
-
-async fn run(args: RunArgs) {
-    let signature = std::env::var("DAEMON_SIGNATURE").ok();
-
+/// `create`: container + injected binary, NOT started; exit. The
+/// exists case is a HARD error — creating an id twice is a caller bug.
+async fn create(args: CreateArgs) {
     let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
     let bin_dir = objectiveai_dir.join("bin");
-    let state_dir = objectiveai_dir
-        .join("state")
-        .join(&args.objectiveai_state);
-
-    // ── The laboratory id lock ───────────────────────────────────
-    // One manager per (state, id), enforced by the same kernel-backed
-    // lockfile the rest of the system uses; released on any death.
-    let lock_dir = state_dir.join("locks").join("laboratories");
-    let claim = match objectiveai_sdk::lockfile::try_acquire(
-        &lock_dir,
-        &args.id,
-        &format!("manager pid {}", std::process::id()),
-    )
-    .await
-    {
-        Some(claim) => claim,
-        None => {
-            eprintln!(
-                "laboratory '{}' is already managed (its lock is held) — exiting",
-                args.id
-            );
-            std::process::exit(1);
-        }
-    };
-
-    // ── Container up (the former CLI-side logic, relocated) ──────
     let mounts: Vec<podman::laboratory::Mount> = args
         .mounts
         .iter()
@@ -192,9 +149,6 @@ async fn run(args: RunArgs) {
 
     let podman = podman::Podman::new(bin_dir.clone());
     let laboratory_binary = bin_dir.join("objectiveai-mcp-laboratory");
-    // Create-if-absent: a manager restarting onto an existing container
-    // skips creation (podman's name-in-use error reads as "exists") and
-    // just starts it.
     if let Err(e) = podman::laboratory::create(
         &podman,
         &args.objectiveai_state,
@@ -208,12 +162,107 @@ async fn run(args: RunArgs) {
     .await
     {
         let message = e.0.to_ascii_lowercase();
-        if !(message.contains("already in use") || message.contains("already exists")) {
+        if message.contains("already in use") || message.contains("already exists") {
+            eprintln!("laboratory '{}' already exists", args.id);
+        } else {
             eprintln!("create laboratory '{}': {e}", args.id);
-            let _ = claim.release();
+        }
+        std::process::exit(1);
+    }
+}
+
+/// `list`: podman label read → JSON array on stdout. Same on-demand
+/// podman install/machine semantics the manager itself has.
+async fn list(args: ListArgs) {
+    let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
+    let podman = podman::Podman::new(objectiveai_dir.join("bin"));
+    let labs = match podman::laboratory::list(&podman, &args.objectiveai_state).await {
+        Ok(labs) => labs,
+        Err(e) => {
+            eprintln!("list laboratories: {e}");
+            std::process::exit(1);
+        }
+    };
+    let identities: Vec<Identify> = labs.into_iter().map(identify_from_info).collect();
+    match serde_json::to_string(&identities) {
+        Ok(json) => println!("{json}"),
+        Err(e) => {
+            eprintln!("serialize laboratories: {e}");
             std::process::exit(1);
         }
     }
+}
+
+fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Identify {
+    Identify {
+        id: lab.id,
+        image: lab.image,
+        mounts: lab
+            .mounts
+            .into_iter()
+            .map(|m| IdentifyMount {
+                host: m.host,
+                container: m.container,
+            })
+            .collect(),
+        env: lab.env.into_iter().map(|(k, v)| [k, v]).collect(),
+        cwd: lab.cwd,
+    }
+}
+
+/// `connect`: the resident manager for one `(id, address)` pair.
+async fn connect(args: ConnectArgs) {
+    let signature = std::env::var("DAEMON_SIGNATURE").ok();
+
+    let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
+    let bin_dir = objectiveai_dir.join("bin");
+    let state_dir = objectiveai_dir
+        .join("state")
+        .join(&args.objectiveai_state);
+    let podman = podman::Podman::new(bin_dir.clone());
+
+    // ── Identity from the container label (create is a prerequisite) ─
+    let labs = match podman::laboratory::list(&podman, &args.objectiveai_state).await {
+        Ok(labs) => labs,
+        Err(e) => {
+            eprintln!("read laboratories: {e}");
+            std::process::exit(1);
+        }
+    };
+    let Some(info) = labs.into_iter().find(|l| l.id == args.id) else {
+        eprintln!(
+            "laboratory '{}' is not created — run `laboratories create` first",
+            args.id
+        );
+        std::process::exit(1);
+    };
+    let identify = identify_from_info(info);
+
+    // ── The (id, address) connection lock ────────────────────────
+    // One manager per laboratory per daemon address; simultaneous
+    // connects to the same pair race this try_acquire and exactly one
+    // wins (the loser's spawner re-probes the published lock — the
+    // api/db/mcp spawn discipline).
+    let lock_dir = state_dir.join("locks").join("laboratories");
+    let lock_key = connect_lock_key(&args.id, &args.address);
+    let claim = match objectiveai_sdk::lockfile::try_acquire(
+        &lock_dir,
+        &lock_key,
+        &format!("manager pid {}", std::process::id()),
+    )
+    .await
+    {
+        Some(claim) => claim,
+        None => {
+            eprintln!(
+                "laboratory '{}' is already connected to {} (its lock is held) — exiting",
+                args.id, args.address
+            );
+            std::process::exit(1);
+        }
+    };
+
+    // ── Container up (start-not-create; a stopped container resumes) ─
     if let Err(e) =
         podman::laboratory::start(&podman, &args.objectiveai_state, &args.id).await
     {
@@ -239,23 +288,10 @@ async fn run(args: RunArgs) {
         }
     };
     if !args.suppress_output {
-        eprintln!("laboratory '{}' on 127.0.0.1:{port}", args.id);
+        eprintln!("laboratory '{}' on 127.0.0.1:{port} → {}", args.id, args.address);
     }
 
     // ── Serve until killed ───────────────────────────────────────
-    let identify = Identify {
-        id: args.id.clone(),
-        image: args.image.clone(),
-        mounts: mounts
-            .iter()
-            .map(|m| IdentifyMount {
-                host: m.host.clone(),
-                container: m.container.clone(),
-            })
-            .collect(),
-        env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
-        cwd: args.cwd.clone(),
-    };
     let server = Arc::new(server::LabServer::new(format!("http://127.0.0.1:{port}")));
 
     // Serve until a graceful-shutdown signal, then STOP (never remove)
@@ -264,7 +300,7 @@ async fn run(args: RunArgs) {
     // then keeps running until someone stops it.
     tokio::select! {
         _ = channel::run(
-            args.daemon_address.clone(),
+            args.address.clone(),
             identify,
             signature,
             server,

@@ -182,6 +182,24 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::laboratories::attach::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::AttachResponseSchema(execution)), feed))
         }
+        "laboratories/connect" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::connect::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::connect::Response>(path_type);
+            let execution = crate::cli::command::laboratories::connect::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Connect(execution)), feed))
+        }
+        "laboratories/connect/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::connect::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::connect::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::connect::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::ConnectRequestSchema(execution)), feed))
+        }
+        "laboratories/connect/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::connect::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::connect::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::connect::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::ConnectResponseSchema(execution)), feed))
+        }
         "laboratories/detach" => {
             let parsed = serde_json::from_str::<crate::cli::command::laboratories::detach::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::laboratories::detach::Response>(path_type);

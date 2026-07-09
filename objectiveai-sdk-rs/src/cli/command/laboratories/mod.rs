@@ -9,6 +9,7 @@
 use crate::cli::command::CommandRequest;
 
 pub mod attach;
+pub mod connect;
 pub mod create;
 pub mod detach;
 pub mod list;
@@ -17,6 +18,8 @@ pub mod list;
 pub enum Command {
     /// Attach a laboratory id to an agent target.
     Attach(attach::Command),
+    /// Connect a created laboratory to a daemon (local by default).
+    Connect(connect::Command),
     /// Create + start a laboratory container.
     Create(create::Command),
     /// Detach a laboratory id from an agent target.
@@ -35,6 +38,12 @@ pub enum Request {
     AttachRequestSchema(attach::request_schema::Request),
     #[schemars(title = "AttachResponseSchema")]
     AttachResponseSchema(attach::response_schema::Request),
+    #[schemars(title = "Connect")]
+    Connect(connect::Request),
+    #[schemars(title = "ConnectRequestSchema")]
+    ConnectRequestSchema(connect::request_schema::Request),
+    #[schemars(title = "ConnectResponseSchema")]
+    ConnectResponseSchema(connect::response_schema::Request),
     #[schemars(title = "Create")]
     Create(create::Request),
     #[schemars(title = "CreateRequestSchema")]
@@ -68,6 +77,12 @@ pub enum ResponseItem {
     AttachRequestSchema(attach::request_schema::Response),
     #[schemars(title = "AttachResponseSchema")]
     AttachResponseSchema(attach::response_schema::Response),
+    #[schemars(title = "Connect")]
+    Connect(connect::Response),
+    #[schemars(title = "ConnectRequestSchema")]
+    ConnectRequestSchema(connect::request_schema::Response),
+    #[schemars(title = "ConnectResponseSchema")]
+    ConnectResponseSchema(connect::response_schema::Response),
     #[schemars(title = "Create")]
     Create(create::Response),
     #[schemars(title = "CreateRequestSchema")]
@@ -95,6 +110,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Attach(v) => v.into_mcp(),
             ResponseItem::AttachRequestSchema(v) => v.into_mcp(),
             ResponseItem::AttachResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Connect(v) => v.into_mcp(),
+            ResponseItem::ConnectRequestSchema(v) => v.into_mcp(),
+            ResponseItem::ConnectResponseSchema(v) => v.into_mcp(),
             ResponseItem::Create(v) => v.into_mcp(),
             ResponseItem::CreateRequestSchema(v) => v.into_mcp(),
             ResponseItem::CreateResponseSchema(v) => v.into_mcp(),
@@ -119,6 +137,15 @@ impl TryFrom<Command> for Request {
                 )),
                 Some(attach::Schema::ResponseSchema(args)) => Ok(Request::AttachResponseSchema(
                     attach::response_schema::Request::try_from(args)?,
+                )),
+            },
+            Command::Connect(cmd) => match cmd.schema {
+                None => Ok(Request::Connect(connect::Request::try_from(cmd.args)?)),
+                Some(connect::Schema::RequestSchema(args)) => Ok(Request::ConnectRequestSchema(
+                    connect::request_schema::Request::try_from(args)?,
+                )),
+                Some(connect::Schema::ResponseSchema(args)) => Ok(Request::ConnectResponseSchema(
+                    connect::response_schema::Request::try_from(args)?,
                 )),
             },
             Command::Create(cmd) => match cmd.schema {
@@ -158,6 +185,9 @@ impl CommandRequest for Request {
             Request::Attach(inner) => inner.request_base(),
             Request::AttachRequestSchema(inner) => inner.request_base(),
             Request::AttachResponseSchema(inner) => inner.request_base(),
+            Request::Connect(inner) => inner.request_base(),
+            Request::ConnectRequestSchema(inner) => inner.request_base(),
+            Request::ConnectResponseSchema(inner) => inner.request_base(),
             Request::Create(inner) => inner.request_base(),
             Request::CreateRequestSchema(inner) => inner.request_base(),
             Request::CreateResponseSchema(inner) => inner.request_base(),
@@ -175,6 +205,9 @@ impl CommandRequest for Request {
             Request::Attach(inner) => inner.request_base_mut(),
             Request::AttachRequestSchema(inner) => inner.request_base_mut(),
             Request::AttachResponseSchema(inner) => inner.request_base_mut(),
+            Request::Connect(inner) => inner.request_base_mut(),
+            Request::ConnectRequestSchema(inner) => inner.request_base_mut(),
+            Request::ConnectResponseSchema(inner) => inner.request_base_mut(),
             Request::Create(inner) => inner.request_base_mut(),
             Request::CreateRequestSchema(inner) => inner.request_base_mut(),
             Request::CreateResponseSchema(inner) => inner.request_base_mut(),
@@ -217,6 +250,24 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             let value = attach::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::AttachResponseSchema(value),
+            )))
+        }
+        Request::Connect(req) => {
+            let value = connect::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Connect(value),
+            )))
+        }
+        Request::ConnectRequestSchema(req) => {
+            let value = connect::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ConnectRequestSchema(value),
+            )))
+        }
+        Request::ConnectResponseSchema(req) => {
+            let value = connect::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ConnectResponseSchema(value),
             )))
         }
         Request::Create(req) => {
@@ -312,6 +363,30 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             .await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
+        Request::Connect(req) => {
+            let value = connect::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::ConnectRequestSchema(req) => {
+            let value = connect::request_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::ConnectResponseSchema(req) => {
+            let value = connect::response_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
         Request::Create(req) => {
             let value = create::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
@@ -395,6 +470,9 @@ pub enum ListenerExecution {
     Attach(attach::ListenerExecution),
     AttachRequestSchema(attach::request_schema::ListenerExecution),
     AttachResponseSchema(attach::response_schema::ListenerExecution),
+    Connect(connect::ListenerExecution),
+    ConnectRequestSchema(connect::request_schema::ListenerExecution),
+    ConnectResponseSchema(connect::response_schema::ListenerExecution),
     Create(create::ListenerExecution),
     CreateRequestSchema(create::request_schema::ListenerExecution),
     CreateResponseSchema(create::response_schema::ListenerExecution),
