@@ -224,7 +224,7 @@ jobs:
             libssl-dev
       - name: Build + package the zip
         shell: bash
-        # --no-sdk: only phase 1 (the 4 cli/server crates, the Tauri viewer
+        # --no-sdk: only phase 1 (the 5 cli/server crates, the Tauri viewer
         # via `tauri build`, and the 2 PyInstaller runners) + packaging run;
         # no SDK toolchain. --no-test-integration: skip the plugin/tool
         # integration-test fixture crates — they're test inputs, never
