@@ -6,9 +6,16 @@
 //! simply echoed back. Only client-side laboratories exist today.
 
 use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Response};
+use objectiveai_sdk::client_objectiveai_mcp::laboratory::{SocketRequest, SocketResponse};
 
 use crate::context::Context;
 use crate::error::Error;
+
+/// How long `create` waits for the spawned manager to CONNECT to the
+/// daemon (appear in `laboratories list`). Generous on purpose: a
+/// first-ever create may pull the container image, and the old
+/// CLI-side create blocked through that too.
+const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
@@ -69,6 +76,44 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         }
     })
     .await?;
+
+    // Readiness = CONNECTED: the manager acquires its id lock at
+    // startup, but the laboratory only exists (for `list`, for the
+    // conduit, for agents) once it has dialed /laboratory and
+    // identified. Poll the registry until it appears — and fail fast
+    // if the manager dies (its id lock releases) instead of spinning
+    // out the full timeout.
+    let deadline = std::time::Instant::now() + CONNECT_TIMEOUT;
+    let state_dir = ctx.filesystem.state_dir();
+    loop {
+        match crate::websockets::websocket_laboratory::call_laboratories_socket(
+            &state_dir,
+            &SocketRequest::List,
+        )
+        .await
+        {
+            Ok(SocketResponse::List { laboratories })
+                if laboratories.iter().any(|l| l.id == request.id) =>
+            {
+                break;
+            }
+            _ => {}
+        }
+        if !objectiveai_sdk::lockfile::try_held(&lock_dir, &request.id).await {
+            return Err(Error::Laboratory(format!(
+                "laboratory manager for '{}' exited before connecting to the daemon",
+                request.id
+            )));
+        }
+        if std::time::Instant::now() >= deadline {
+            return Err(Error::Laboratory(format!(
+                "laboratory '{}' did not connect to the daemon within {}s",
+                request.id,
+                CONNECT_TIMEOUT.as_secs()
+            )));
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
 
     Ok(Response {
         id: request.id,
