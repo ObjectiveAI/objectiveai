@@ -154,6 +154,9 @@ async fn main() {
         Ok(p) => p,
         Err(e) => {
             eprintln!("laboratory '{}' port: {e}", args.id);
+            // We just started it — don't leak a running container.
+            let _ =
+                podman::laboratory::stop(&podman, &args.objectiveai_state, &args.id).await;
             let _ = claim.release();
             std::process::exit(1);
         }
@@ -177,14 +180,47 @@ async fn main() {
         cwd: args.cwd.clone(),
     };
     let server = Arc::new(server::LabServer::new(format!("http://127.0.0.1:{port}")));
-    channel::run(
-        args.daemon_address.clone(),
-        identify,
-        signature,
-        server,
-        args.suppress_output,
-    )
-    .await;
-    // channel::run never returns; the claim lives for the process.
+
+    // Serve until a graceful-shutdown signal, then STOP (never remove)
+    // the container: it and its filesystem survive for the next
+    // manager to `start` again. A hard kill skips this — the container
+    // then keeps running until someone stops it.
+    tokio::select! {
+        _ = channel::run(
+            args.daemon_address.clone(),
+            identify,
+            signature,
+            server,
+            args.suppress_output,
+        ) => {}
+        _ = shutdown_signal() => {
+            if !args.suppress_output {
+                eprintln!("shutting down: stopping laboratory '{}'", args.id);
+            }
+        }
+    }
+    if let Err(e) =
+        podman::laboratory::stop(&podman, &args.objectiveai_state, &args.id).await
+    {
+        eprintln!("stop laboratory '{}': {e}", args.id);
+    }
     let _ = claim.release();
+}
+
+/// Resolves on a graceful-shutdown request: Ctrl+C everywhere, plus
+/// SIGTERM on Unix (what `kill-all`'s Term attempt sends).
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("install SIGTERM handler");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = tokio::signal::ctrl_c().await;
+    }
 }

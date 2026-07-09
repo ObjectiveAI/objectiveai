@@ -230,6 +230,29 @@ pub async fn start(podman: &Podman, state: &str, id: &str) -> Result<(), Error> 
     Ok(())
 }
 
+/// Stop a laboratory container (podman's default SIGTERM-then-SIGKILL
+/// grace applies). STOP only — never remove: the container and its
+/// filesystem survive for the next manager to `start` again. A
+/// missing container reads as success (nothing to stop).
+pub async fn stop(podman: &Podman, state: &str, id: &str) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let name = container_name(state, id);
+    let output = container_command(exe)
+        .arg("stop")
+        .arg(&name)
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman stop: {e}")))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.to_ascii_lowercase().contains("no such container") {
+            return Ok(());
+        }
+        return Err(Error(format!("podman stop {name}: {}", stderr.trim())));
+    }
+    Ok(())
+}
+
 /// The `127.0.0.1` host port the container's [`LAB_PORT`]/tcp is published on.
 pub async fn host_port(podman: &Podman, state: &str, id: &str) -> Result<u16, Error> {
     let exe = podman.executable().await?;
