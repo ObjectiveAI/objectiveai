@@ -168,40 +168,162 @@ impl ReverseChannel {
             .await;
     }
 
-    /// Stream a file/folder from one laboratory to another. The conduit
-    /// splices the source laboratory's `/export` straight into the
-    /// destination's `/import`; both laboratories are on the same conduit,
-    /// so this rides the session's reverse channel like any other op.
-    pub async fn transfer_laboratories(
+    /// `LaboratoryExportBegin`: start an export on the conduit and get
+    /// its transfer id. Each transfer op below is ONE id-correlated
+    /// request/response exchange — the per-op timeout applies per
+    /// chunk, so long transfers never race a single global budget.
+    pub async fn laboratory_export_begin(
         &self,
-        source_id: String,
-        dest_id: String,
-        source_path: String,
-        dest_path: String,
-    ) -> Result<server_response::LaboratoryTransferResult, McpError> {
+        laboratory_id: String,
+        path: String,
+    ) -> Result<String, McpError> {
         let response = self
             .request(
-                server_request::Payload::LaboratoryTransfer(
-                    server_request::LaboratoryTransferRequest {
-                        source_id,
-                        dest_id,
-                        source_path,
-                        dest_path,
-                    },
+                server_request::Payload::LaboratoryExportBegin(
+                    server_request::LaboratoryExportBeginRequest { laboratory_id, path },
                 ),
                 IndexMap::new(),
             )
             .await?;
         match response.payload {
-            server_response::Payload::LaboratoryTransfer(result) => {
-                unwrap_rpc("laboratory_transfer", result)
+            server_response::Payload::LaboratoryExportBegin(result) => {
+                unwrap_rpc("laboratory_export_begin", result)
+                    .map(|r| r.transfer_id)
             }
             other => Err(variant_mismatch(
-                "laboratory_transfer",
-                "laboratory_transfer",
+                "laboratory_export_begin",
+                "laboratory_export_begin",
                 &other,
             )),
         }
+    }
+
+    /// `LaboratoryExportRead`: pull the next chunk.
+    pub async fn laboratory_export_read(
+        &self,
+        transfer_id: String,
+    ) -> Result<server_response::LaboratoryExportChunk, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryExportRead(
+                    server_request::LaboratoryExportReadRequest { transfer_id },
+                ),
+                IndexMap::new(),
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryExportRead(result) => {
+                unwrap_rpc("laboratory_export_read", result)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_export_read",
+                "laboratory_export_read",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryExportAbort`: best-effort early cleanup.
+    pub async fn laboratory_export_abort(&self, transfer_id: String) {
+        let _ = self
+            .request(
+                server_request::Payload::LaboratoryExportAbort(
+                    server_request::LaboratoryExportAbortRequest { transfer_id },
+                ),
+                IndexMap::new(),
+            )
+            .await;
+    }
+
+    /// `LaboratoryImportBegin`: start an import on the conduit and get
+    /// its transfer id.
+    pub async fn laboratory_import_begin(
+        &self,
+        laboratory_id: String,
+        path: String,
+    ) -> Result<String, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryImportBegin(
+                    server_request::LaboratoryImportBeginRequest { laboratory_id, path },
+                ),
+                IndexMap::new(),
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryImportBegin(result) => {
+                unwrap_rpc("laboratory_import_begin", result)
+                    .map(|r| r.transfer_id)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_import_begin",
+                "laboratory_import_begin",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryImportWrite`: push one chunk.
+    pub async fn laboratory_import_write(
+        &self,
+        transfer_id: String,
+        data: String,
+    ) -> Result<(), McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryImportWrite(
+                    server_request::LaboratoryImportWriteRequest { transfer_id, data },
+                ),
+                IndexMap::new(),
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryImportWrite(result) => {
+                unwrap_rpc("laboratory_import_write", result).map(|_| ())
+            }
+            other => Err(variant_mismatch(
+                "laboratory_import_write",
+                "laboratory_import_write",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryImportEnd`: close the body and get the byte total.
+    pub async fn laboratory_import_end(
+        &self,
+        transfer_id: String,
+    ) -> Result<u64, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryImportEnd(
+                    server_request::LaboratoryImportEndRequest { transfer_id },
+                ),
+                IndexMap::new(),
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryImportEnd(result) => {
+                unwrap_rpc("laboratory_import_end", result).map(|r| r.bytes)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_import_end",
+                "laboratory_import_end",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryImportAbort`: best-effort early cleanup.
+    pub async fn laboratory_import_abort(&self, transfer_id: String) {
+        let _ = self
+            .request(
+                server_request::Payload::LaboratoryImportAbort(
+                    server_request::LaboratoryImportAbortRequest { transfer_id },
+                ),
+                IndexMap::new(),
+            )
+            .await;
     }
 
     /// Hand a proxy-bound `server_response` (one of the 6 MCP variants)
@@ -861,6 +983,12 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::ReadMessageQueue(_) => "read_message_queue",
         P::Retrieve(_) => "retrieve",
         P::Drop(_) => "drop",
-        P::LaboratoryTransfer(_) => "laboratory_transfer",
+        P::LaboratoryExportBegin(_) => "laboratory_export_begin",
+        P::LaboratoryExportRead(_) => "laboratory_export_read",
+        P::LaboratoryExportAbort(_) => "laboratory_export_abort",
+        P::LaboratoryImportBegin(_) => "laboratory_import_begin",
+        P::LaboratoryImportWrite(_) => "laboratory_import_write",
+        P::LaboratoryImportEnd(_) => "laboratory_import_end",
+        P::LaboratoryImportAbort(_) => "laboratory_import_abort",
     }
 }

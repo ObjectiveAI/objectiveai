@@ -90,13 +90,43 @@ pub enum Payload {
     #[schemars(title = "Drop")]
     Drop(DropRequest),
 
-    /// Copy a file/folder from one laboratory to another (both on this
-    /// conduit). Non-MCP — it spans TWO laboratories, so it carries their
-    /// ids directly rather than a single `mcp_kind`. The conduit streams
-    /// the source laboratory's `/export` straight into the destination's
-    /// `/import` (a tar splice, no intermediate buffering).
-    #[schemars(title = "LaboratoryTransfer")]
-    LaboratoryTransfer(LaboratoryTransferRequest),
+    /// Begin streaming a tar export OUT of one laboratory on this
+    /// conduit. Non-MCP — carries the laboratory id directly. The
+    /// conduit opens the laboratory's `/export` and parks the byte
+    /// stream under a fresh `transfer_id`; the requester then PULLS
+    /// chunks with [`Payload::LaboratoryExportRead`]. Fully
+    /// independent of any import — the splice (if any) happens on
+    /// the requester's (API/proxy) side, so the peer laboratory may
+    /// live on any host.
+    #[schemars(title = "LaboratoryExportBegin")]
+    LaboratoryExportBegin(LaboratoryExportBeginRequest),
+    /// Pull the next chunk of a parked export stream. `eof: true` on
+    /// the reply means the stream completed and the entry is gone
+    /// (the final reply's `data` may still be non-empty).
+    #[schemars(title = "LaboratoryExportRead")]
+    LaboratoryExportRead(LaboratoryExportReadRequest),
+    /// Drop a parked export stream early (requester-side failure).
+    #[schemars(title = "LaboratoryExportAbort")]
+    LaboratoryExportAbort(LaboratoryExportAbortRequest),
+    /// Begin streaming a tar import INTO one laboratory on this
+    /// conduit: the conduit opens the laboratory's `/import` with a
+    /// channel-backed body and parks the sender under a fresh
+    /// `transfer_id`; the requester then PUSHES chunks with
+    /// [`Payload::LaboratoryImportWrite`] and closes with
+    /// [`Payload::LaboratoryImportEnd`]. Independent of any export.
+    #[schemars(title = "LaboratoryImportBegin")]
+    LaboratoryImportBegin(LaboratoryImportBeginRequest),
+    /// Push one chunk into a parked import body.
+    #[schemars(title = "LaboratoryImportWrite")]
+    LaboratoryImportWrite(LaboratoryImportWriteRequest),
+    /// Close a parked import body and await the laboratory's unpack
+    /// result. Replies with the total bytes fed.
+    #[schemars(title = "LaboratoryImportEnd")]
+    LaboratoryImportEnd(LaboratoryImportEndRequest),
+    /// Drop a parked import early — the truncated tar makes the
+    /// laboratory's unpack fail, so nothing partial is kept silently.
+    #[schemars(title = "LaboratoryImportAbort")]
+    LaboratoryImportAbort(LaboratoryImportAbortRequest),
 }
 
 impl Payload {
@@ -114,7 +144,13 @@ impl Payload {
             Payload::ReadMessageQueue(_)
             | Payload::Retrieve(_)
             | Payload::Drop(_)
-            | Payload::LaboratoryTransfer(_) => None,
+            | Payload::LaboratoryExportBegin(_)
+            | Payload::LaboratoryExportRead(_)
+            | Payload::LaboratoryExportAbort(_)
+            | Payload::LaboratoryImportBegin(_)
+            | Payload::LaboratoryImportWrite(_)
+            | Payload::LaboratoryImportEnd(_)
+            | Payload::LaboratoryImportAbort(_) => None,
         }
     }
 }
@@ -154,16 +190,59 @@ pub struct DropRequest {
     pub response_id: String,
 }
 
-/// Parameters for [`Payload::LaboratoryTransfer`]. Copy `source_path` from
-/// the `source_id` laboratory into `dest_path` of the `dest_id` laboratory
-/// (cp-style: a directory `source_path` lands as `dest_path/<basename>`).
+/// Parameters for [`Payload::LaboratoryExportBegin`]. `path` exports
+/// cp-style (a directory is archived under its basename).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryTransferRequest")]
-pub struct LaboratoryTransferRequest {
-    pub source_id: String,
-    pub dest_id: String,
-    pub source_path: String,
-    pub dest_path: String,
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryExportBeginRequest")]
+pub struct LaboratoryExportBeginRequest {
+    pub laboratory_id: String,
+    pub path: String,
+}
+
+/// Parameters for [`Payload::LaboratoryExportRead`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryExportReadRequest")]
+pub struct LaboratoryExportReadRequest {
+    pub transfer_id: String,
+}
+
+/// Parameters for [`Payload::LaboratoryExportAbort`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryExportAbortRequest")]
+pub struct LaboratoryExportAbortRequest {
+    pub transfer_id: String,
+}
+
+/// Parameters for [`Payload::LaboratoryImportBegin`]. The tar is
+/// unpacked into `path` (created if missing).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportBeginRequest")]
+pub struct LaboratoryImportBeginRequest {
+    pub laboratory_id: String,
+    pub path: String,
+}
+
+/// Parameters for [`Payload::LaboratoryImportWrite`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportWriteRequest")]
+pub struct LaboratoryImportWriteRequest {
+    pub transfer_id: String,
+    /// Base64-encoded tar bytes.
+    pub data: String,
+}
+
+/// Parameters for [`Payload::LaboratoryImportEnd`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportEndRequest")]
+pub struct LaboratoryImportEndRequest {
+    pub transfer_id: String,
+}
+
+/// Parameters for [`Payload::LaboratoryImportAbort`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportAbortRequest")]
+pub struct LaboratoryImportAbortRequest {
+    pub transfer_id: String,
 }
 
 /// Parameters for [`Payload::Initialize`].

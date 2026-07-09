@@ -105,6 +105,12 @@ struct Inner {
     /// `initialize`; any cache miss returns `-32001`. Inner maps are
     /// reaped on terminate so the outer map doesn't grow unbounded.
     connections: DashMap<String, DashMap<McpKind, Arc<ConduitState>>>,
+    /// Parked laboratory-transfer halves (exports being PULLED and
+    /// imports being PUSHED chunk-by-chunk by the proxy), keyed by
+    /// the conduit-minted `transfer_id`. Values are `Arc` so an op
+    /// can clone out and drop the map ref before awaiting (no map
+    /// locks held across awaits). Swept lazily on every Begin.
+    transfers: DashMap<String, Arc<TransferEntry>>,
     /// Late-bound: filled by [`ConduitMcpHandler::install_notifier`]
     /// after the WS-creating call returns the notifier. Pump
     /// closures read it at fire time.
@@ -175,6 +181,7 @@ impl ConduitMcpHandler {
                 mcp_server,
                 client,
                 connections: DashMap::new(),
+                transfers: DashMap::new(),
                 notifier: OnceLock::new(),
                 ctx,
                 agent_tag,
@@ -289,8 +296,26 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_retrieve(&self.inner, req).await
             }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
-            server_request::Payload::LaboratoryTransfer(req) => {
-                dispatch_laboratory_transfer(&self.inner, req).await
+            server_request::Payload::LaboratoryExportBegin(req) => {
+                dispatch_laboratory_export_begin(&self.inner, req).await
+            }
+            server_request::Payload::LaboratoryExportRead(req) => {
+                dispatch_laboratory_export_read(&self.inner, req).await
+            }
+            server_request::Payload::LaboratoryExportAbort(req) => {
+                dispatch_laboratory_export_abort(&self.inner, req)
+            }
+            server_request::Payload::LaboratoryImportBegin(req) => {
+                dispatch_laboratory_import_begin(&self.inner, req).await
+            }
+            server_request::Payload::LaboratoryImportWrite(req) => {
+                dispatch_laboratory_import_write(&self.inner, req).await
+            }
+            server_request::Payload::LaboratoryImportEnd(req) => {
+                dispatch_laboratory_import_end(&self.inner, req).await
+            }
+            server_request::Payload::LaboratoryImportAbort(req) => {
+                dispatch_laboratory_import_abort(&self.inner, req)
             }
         };
 
@@ -558,83 +583,339 @@ fn dispatch_drop(
     server_response::Payload::Drop(server_response::DropResult { dropped })
 }
 
-/// Copy a file/folder from one laboratory container to another by splicing
-/// the source's streamed `/export` tar straight into the destination's
-/// `/import` — single pass, flat memory, no full-archive buffer. Both
-/// containers live on this conduit host; we ensure each is started, resolve
-/// its published `127.0.0.1` port, and relay over loopback.
-async fn dispatch_laboratory_transfer(
+/// One parked laboratory-transfer half. The conduit handles export
+/// and import COMPLETELY INDEPENDENTLY — the splice (if the peer is
+/// another laboratory) happens on the proxy/API side, so tar bytes
+/// always stream to and from the API and the peer may live on any
+/// host. Same-host transfer is just the degenerate case.
+enum TransferEntry {
+    /// A live `GET /export` response being pulled chunk-by-chunk.
+    Export {
+        response: tokio::sync::Mutex<Option<reqwest::Response>>,
+        last_used: std::sync::atomic::AtomicI64,
+    },
+    /// A live `POST /import` whose body is fed chunk-by-chunk.
+    Import {
+        /// `Some` until `ImportEnd`/abort; dropping it EOFs the body.
+        tx: tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<Result<Vec<u8>, std::io::Error>>>>,
+        /// Raw tar bytes fed so far.
+        bytes: std::sync::atomic::AtomicU64,
+        /// The in-flight POST; joined by `ImportEnd` for the verdict.
+        join: tokio::sync::Mutex<Option<tokio::task::JoinHandle<Result<(), String>>>>,
+        last_used: std::sync::atomic::AtomicI64,
+    },
+}
+
+impl TransferEntry {
+    fn touch(&self) {
+        let (TransferEntry::Export { last_used, .. }
+        | TransferEntry::Import { last_used, .. }) = self;
+        last_used.store(now_secs(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn idle_secs(&self) -> i64 {
+        let (TransferEntry::Export { last_used, .. }
+        | TransferEntry::Import { last_used, .. }) = self;
+        now_secs() - last_used.load(std::sync::atomic::Ordering::Relaxed)
+    }
+}
+
+fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Raw bytes per `LaboratoryExportRead` chunk (base64 on the wire, so
+/// the JSON frame is ~4/3 of this).
+const TRANSFER_CHUNK_SIZE: usize = 2 * 1024 * 1024;
+
+/// Orphan cap: a transfer half untouched this long was abandoned by
+/// its proxy (died mid-transfer without aborting) — drop it. Dropping
+/// an export cancels the lab GET; dropping an import truncates the
+/// tar so the lab's unpack fails (nothing partial is kept silently).
+const TRANSFER_IDLE_SECS: i64 = 300;
+
+/// Lazy sweep, run on every Begin — no background task needed at
+/// these op rates.
+fn gc_transfers(inner: &Arc<Inner>) {
+    inner
+        .transfers
+        .retain(|_, entry| entry.idle_secs() < TRANSFER_IDLE_SECS);
+}
+
+/// Ensure the laboratory is running and resolve its loopback base URL.
+async fn laboratory_base_url(
     inner: &Arc<Inner>,
-    req: server_request::LaboratoryTransferRequest,
+    laboratory_id: &str,
+) -> Result<String, String> {
+    crate::podman::laboratory::start(&inner.ctx, laboratory_id)
+        .await
+        .map_err(|e| format!("start laboratory {laboratory_id}: {e}"))?;
+    let port = crate::podman::laboratory::host_port(&inner.ctx, laboratory_id)
+        .await
+        .map_err(|e| format!("laboratory {laboratory_id}: {e}"))?;
+    Ok(format!("http://127.0.0.1:{port}"))
+}
+
+/// `LaboratoryExportBegin`: open the laboratory's `/export` and park
+/// the response for chunked pulls.
+async fn dispatch_laboratory_export_begin(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryExportBeginRequest,
 ) -> server_response::Payload {
-    use futures::TryStreamExt;
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    let err = |message: String| -> server_response::Payload {
-        server_response::Payload::LaboratoryTransfer(rpc_err(-32603, message))
+    use server_response::Payload;
+    let err =
+        |m: String| Payload::LaboratoryExportBegin(rpc_err(-32603, m));
+    gc_transfers(inner);
+    let base = match laboratory_base_url(inner, &req.laboratory_id).await {
+        Ok(b) => b,
+        Err(m) => return err(m),
     };
-
-    // Both containers must be running before we can reach their MCP port.
-    // `start` is idempotent + concurrency-safe.
-    if let Err(e) = crate::podman::laboratory::start(&inner.ctx, &req.source_id).await {
-        return err(format!("start source laboratory {}: {e}", req.source_id));
-    }
-    if let Err(e) = crate::podman::laboratory::start(&inner.ctx, &req.dest_id).await {
-        return err(format!("start destination laboratory {}: {e}", req.dest_id));
-    }
-    let source_port = match crate::podman::laboratory::host_port(&inner.ctx, &req.source_id).await {
-        Ok(p) => p,
-        Err(e) => return err(format!("source laboratory {}: {e}", req.source_id)),
-    };
-    let dest_port = match crate::podman::laboratory::host_port(&inner.ctx, &req.dest_id).await {
-        Ok(p) => p,
-        Err(e) => return err(format!("destination laboratory {}: {e}", req.dest_id)),
-    };
-
-    let client = reqwest::Client::new();
-
-    // Source `/export` → a streamed tar of `source_path`.
-    let export = match client
-        .get(format!("http://127.0.0.1:{source_port}/export"))
-        .query(&[("path", &req.source_path)])
+    let response = match reqwest::Client::new()
+        .get(format!("{base}/export"))
+        .query(&[("path", &req.path)])
         .send()
         .await
     {
         Ok(r) => r,
-        Err(e) => return err(format!("export from source: {e}")),
+        Err(e) => return err(format!("export from {}: {e}", req.laboratory_id)),
     };
-    if !export.status().is_success() {
-        let status = export.status();
-        let body = export.text().await.unwrap_or_default();
-        return err(format!("export from source: HTTP {status}: {}", body.trim()));
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        return err(format!(
+            "export from {}: HTTP {status}: {}",
+            req.laboratory_id,
+            body.trim()
+        ));
     }
+    let transfer_id = uuid::Uuid::new_v4().to_string();
+    let entry = TransferEntry::Export {
+        response: tokio::sync::Mutex::new(Some(response)),
+        last_used: std::sync::atomic::AtomicI64::new(now_secs()),
+    };
+    inner.transfers.insert(transfer_id.clone(), Arc::new(entry));
+    Payload::LaboratoryExportBegin(JsonRpcResult::Ok {
+        result: server_response::LaboratoryTransferBeginResult { transfer_id },
+    })
+}
 
-    // Splice the export stream straight into the destination `/import`,
-    // counting bytes as they pass (no intermediate buffer).
-    let counter = Arc::new(AtomicU64::new(0));
-    let counter_for_stream = counter.clone();
-    let body_stream = export.bytes_stream().inspect_ok(move |chunk| {
-        counter_for_stream.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+/// `LaboratoryExportRead`: pull up to [`TRANSFER_CHUNK_SIZE`] bytes
+/// from the parked stream. EOF removes the entry.
+async fn dispatch_laboratory_export_read(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryExportReadRequest,
+) -> server_response::Payload {
+    use base64::Engine as _;
+    use server_response::Payload;
+    let err = |m: String| Payload::LaboratoryExportRead(rpc_err(-32603, m));
+    // Clone the Arc out and drop the map ref BEFORE awaiting.
+    let entry = match inner.transfers.get(&req.transfer_id) {
+        Some(e) => Arc::clone(&e),
+        None => return err(format!("no export transfer '{}'", req.transfer_id)),
+    };
+    let TransferEntry::Export { response, .. } = &*entry else {
+        return err(format!("transfer '{}' is an import", req.transfer_id));
+    };
+    entry.touch();
+    let mut guard = response.lock().await;
+    let Some(live) = guard.as_mut() else {
+        return err(format!("export transfer '{}' already closed", req.transfer_id));
+    };
+    let mut buf: Vec<u8> = Vec::new();
+    let mut eof = false;
+    while buf.len() < TRANSFER_CHUNK_SIZE {
+        match live.chunk().await {
+            Ok(Some(bytes)) => buf.extend_from_slice(&bytes),
+            Ok(None) => {
+                eof = true;
+                break;
+            }
+            Err(e) => {
+                *guard = None;
+                drop(guard);
+                inner.transfers.remove(&req.transfer_id);
+                return err(format!("export stream: {e}"));
+            }
+        }
+    }
+    if eof {
+        *guard = None;
+        drop(guard);
+        inner.transfers.remove(&req.transfer_id);
+    }
+    Payload::LaboratoryExportRead(JsonRpcResult::Ok {
+        result: server_response::LaboratoryExportChunk {
+            data: base64::engine::general_purpose::STANDARD.encode(&buf),
+            eof,
+        },
+    })
+}
+
+/// `LaboratoryExportAbort`: drop the parked stream (cancels the lab
+/// GET). Idempotent — an unknown id still acks.
+fn dispatch_laboratory_export_abort(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryExportAbortRequest,
+) -> server_response::Payload {
+    inner.transfers.remove(&req.transfer_id);
+    server_response::Payload::LaboratoryExportAbort(JsonRpcResult::Ok {
+        result: server_response::LaboratoryTransferAck {},
+    })
+}
+
+/// `LaboratoryImportBegin`: open the laboratory's `/import` with a
+/// channel-backed streaming body and park the sender for chunked
+/// pushes.
+async fn dispatch_laboratory_import_begin(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryImportBeginRequest,
+) -> server_response::Payload {
+    use server_response::Payload;
+    let err =
+        |m: String| Payload::LaboratoryImportBegin(rpc_err(-32603, m));
+    gc_transfers(inner);
+    let base = match laboratory_base_url(inner, &req.laboratory_id).await {
+        Ok(b) => b,
+        Err(m) => return err(m),
+    };
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Vec<u8>, std::io::Error>>(4);
+    let laboratory_id = req.laboratory_id.clone();
+    let path = req.path.clone();
+    let join = tokio::spawn(async move {
+        let response = reqwest::Client::new()
+            .post(format!("{base}/import"))
+            .query(&[("path", &path)])
+            .body(reqwest::Body::wrap_stream(
+                tokio_stream::wrappers::ReceiverStream::new(rx),
+            ))
+            .send()
+            .await
+            .map_err(|e| format!("import to {laboratory_id}: {e}"))?;
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            Err(format!(
+                "import to {laboratory_id}: HTTP {status}: {}",
+                body.trim()
+            ))
+        }
     });
-    let import = match client
-        .post(format!("http://127.0.0.1:{dest_port}/import"))
-        .query(&[("path", &req.dest_path)])
-        .body(reqwest::Body::wrap_stream(body_stream))
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => return err(format!("import to destination: {e}")),
+    let transfer_id = uuid::Uuid::new_v4().to_string();
+    let entry = TransferEntry::Import {
+        tx: tokio::sync::Mutex::new(Some(tx)),
+        bytes: std::sync::atomic::AtomicU64::new(0),
+        join: tokio::sync::Mutex::new(Some(join)),
+        last_used: std::sync::atomic::AtomicI64::new(now_secs()),
     };
-    if !import.status().is_success() {
-        let status = import.status();
-        let body = import.text().await.unwrap_or_default();
-        return err(format!("import to destination: HTTP {status}: {}", body.trim()));
-    }
+    inner.transfers.insert(transfer_id.clone(), Arc::new(entry));
+    Payload::LaboratoryImportBegin(JsonRpcResult::Ok {
+        result: server_response::LaboratoryTransferBeginResult { transfer_id },
+    })
+}
 
-    let bytes = counter.load(Ordering::Relaxed);
-    server_response::Payload::LaboratoryTransfer(JsonRpcResult::Ok {
-        result: server_response::LaboratoryTransferResult { bytes },
+/// `LaboratoryImportWrite`: decode one chunk and feed the parked body
+/// (awaiting the bounded channel — a stalled laboratory backpressures
+/// straight to the proxy's pull loop).
+async fn dispatch_laboratory_import_write(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryImportWriteRequest,
+) -> server_response::Payload {
+    use base64::Engine as _;
+    use server_response::Payload;
+    let err = |m: String| Payload::LaboratoryImportWrite(rpc_err(-32603, m));
+    let entry = match inner.transfers.get(&req.transfer_id) {
+        Some(e) => Arc::clone(&e),
+        None => return err(format!("no import transfer '{}'", req.transfer_id)),
+    };
+    let TransferEntry::Import { tx, bytes, join, .. } = &*entry else {
+        return err(format!("transfer '{}' is an export", req.transfer_id));
+    };
+    entry.touch();
+    let data = match base64::engine::general_purpose::STANDARD.decode(&req.data) {
+        Ok(d) => d,
+        Err(e) => return err(format!("chunk is not valid base64: {e}")),
+    };
+    let guard = tx.lock().await;
+    let Some(sender) = guard.as_ref() else {
+        return err(format!("import transfer '{}' already closed", req.transfer_id));
+    };
+    let len = data.len() as u64;
+    if sender.send(Ok(data)).await.is_err() {
+        // Body receiver gone — the POST died; surface its verdict.
+        drop(guard);
+        let joined = join.lock().await.take();
+        inner.transfers.remove(&req.transfer_id);
+        let detail = match joined {
+            Some(handle) => match handle.await {
+                Ok(Ok(())) => "import ended early".to_string(),
+                Ok(Err(m)) => m,
+                Err(e) => format!("import task panicked: {e}"),
+            },
+            None => "import body closed".to_string(),
+        };
+        return err(detail);
+    }
+    bytes.fetch_add(len, std::sync::atomic::Ordering::Relaxed);
+    Payload::LaboratoryImportWrite(JsonRpcResult::Ok {
+        result: server_response::LaboratoryTransferAck {},
+    })
+}
+
+/// `LaboratoryImportEnd`: close the body (EOF), await the laboratory's
+/// unpack verdict, reply with the byte total.
+async fn dispatch_laboratory_import_end(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryImportEndRequest,
+) -> server_response::Payload {
+    use server_response::Payload;
+    let err = |m: String| Payload::LaboratoryImportEnd(rpc_err(-32603, m));
+    let entry = match inner.transfers.remove(&req.transfer_id) {
+        Some((_, e)) => e,
+        None => return err(format!("no import transfer '{}'", req.transfer_id)),
+    };
+    let TransferEntry::Import { tx, bytes, join, .. } = &*entry else {
+        return err(format!("transfer '{}' is an export", req.transfer_id));
+    };
+    // Drop the sender → body EOF → the POST completes.
+    tx.lock().await.take();
+    let joined = join.lock().await.take();
+    match joined {
+        Some(handle) => match handle.await {
+            Ok(Ok(())) => Payload::LaboratoryImportEnd(JsonRpcResult::Ok {
+                result: server_response::LaboratoryImportEndResult {
+                    bytes: bytes.load(std::sync::atomic::Ordering::Relaxed),
+                },
+            }),
+            Ok(Err(m)) => err(m),
+            Err(e) => err(format!("import task panicked: {e}")),
+        },
+        None => err(format!("import transfer '{}' already ended", req.transfer_id)),
+    }
+}
+
+/// `LaboratoryImportAbort`: drop the parked body without EOF-ing it
+/// cleanly — the truncated tar makes the laboratory's unpack fail.
+/// Idempotent — an unknown id still acks.
+fn dispatch_laboratory_import_abort(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryImportAbortRequest,
+) -> server_response::Payload {
+    if let Some((_, entry)) = inner.transfers.remove(&req.transfer_id) {
+        if let TransferEntry::Import { join, .. } = &*entry {
+            // Detach the POST task; it finishes on its own (the lab
+            // rejects the truncated tar) — nothing awaits it.
+            if let Ok(mut guard) = join.try_lock() {
+                guard.take();
+            }
+        }
+    }
+    server_response::Payload::LaboratoryImportAbort(JsonRpcResult::Ok {
+        result: server_response::LaboratoryTransferAck {},
     })
 }
 

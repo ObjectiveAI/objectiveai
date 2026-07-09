@@ -411,11 +411,16 @@ impl Session {
     }
 
     /// Handle the proxy-native `laboratory_transfer` tool: copy a
-    /// file/folder from one laboratory to another. Source/destination are
-    /// identified by laboratory **id** (the `laboratory.id` from
-    /// `agents mcp servers list`), resolved against the typed markers — no
-    /// prefix/name strings. The actual byte movement is delegated to the
-    /// conduit over the session reverse channel (a streamed tar splice).
+    /// file/folder from one laboratory to another. Source/destination
+    /// are identified by laboratory **id** (the `laboratory.id` from
+    /// `agents mcp servers list`), resolved against the typed markers.
+    /// The byte movement is a PROXY-SIDE SPLICE of two completely
+    /// independent conduit operations — an export pulled chunk-by-chunk
+    /// from the source's channel and an import pushed chunk-by-chunk to
+    /// the destination's channel — so the tar bytes stream through the
+    /// API and the two laboratories need not share a host. (Today both
+    /// channels are clones of the one session channel; the splice shape
+    /// stops caring.)
     async fn laboratory_transfer(&self, params: &CallToolRequestParams) -> CallToolResult {
         let arg = |key: &str| -> Option<&str> {
             params
@@ -441,12 +446,16 @@ impl Session {
         if source == destination {
             return transfer_error("source and destination must be different laboratories");
         }
-        if self.find_laboratory(source).is_none() {
-            return transfer_error(format!("no laboratory with id '{source}' in this session"));
-        }
-        // Any laboratory's reverse channel reaches the conduit that hosts
-        // both (one conduit per session).
-        let channel = match self.find_laboratory(destination) {
+        let source_channel = match self.find_laboratory(source) {
+            Some(u) => match u.reverse_channel() {
+                Some(c) => c,
+                None => return transfer_error("source laboratory has no reverse channel"),
+            },
+            None => {
+                return transfer_error(format!("no laboratory with id '{source}' in this session"));
+            }
+        };
+        let dest_channel = match self.find_laboratory(destination) {
             Some(u) => match u.reverse_channel() {
                 Some(c) => c,
                 None => return transfer_error("destination laboratory has no reverse channel"),
@@ -457,21 +466,62 @@ impl Session {
                 ));
             }
         };
-        match channel
-            .transfer_laboratories(
-                source.to_string(),
-                destination.to_string(),
-                source_path.to_string(),
-                destination_path.to_string(),
-            )
+
+        // Begin both halves; a failure on either aborts the survivor.
+        let export_id = match source_channel
+            .laboratory_export_begin(source.to_string(), source_path.to_string())
             .await
         {
-            Ok(result) => transfer_text(format!(
-                "transferred {} bytes: {source}:{source_path} → {destination}:{destination_path}",
-                result.bytes
-            )),
-            Err(e) => transfer_error(format!("transfer failed: {e}")),
-        }
+            Ok(id) => id,
+            Err(e) => return transfer_error(format!("transfer failed: {e}")),
+        };
+        let import_id = match dest_channel
+            .laboratory_import_begin(destination.to_string(), destination_path.to_string())
+            .await
+        {
+            Ok(id) => id,
+            Err(e) => {
+                source_channel.laboratory_export_abort(export_id).await;
+                return transfer_error(format!("transfer failed: {e}"));
+            }
+        };
+
+        // The splice: pull a chunk, push a chunk, until eof. One chunk
+        // in flight is the backpressure.
+        let mut export_open = true;
+        let bytes = loop {
+            let chunk = match source_channel.laboratory_export_read(export_id.clone()).await {
+                Ok(chunk) => chunk,
+                Err(e) => {
+                    dest_channel.laboratory_import_abort(import_id.clone()).await;
+                    return transfer_error(format!("transfer failed: {e}"));
+                }
+            };
+            if chunk.eof {
+                // The conduit already removed the export entry.
+                export_open = false;
+            }
+            if !chunk.data.is_empty() {
+                if let Err(e) = dest_channel
+                    .laboratory_import_write(import_id.clone(), chunk.data)
+                    .await
+                {
+                    if export_open {
+                        source_channel.laboratory_export_abort(export_id.clone()).await;
+                    }
+                    return transfer_error(format!("transfer failed: {e}"));
+                }
+            }
+            if !export_open {
+                match dest_channel.laboratory_import_end(import_id.clone()).await {
+                    Ok(bytes) => break bytes,
+                    Err(e) => return transfer_error(format!("transfer failed: {e}")),
+                }
+            }
+        };
+        transfer_text(format!(
+            "transferred {bytes} bytes: {source}:{source_path} → {destination}:{destination_path}",
+        ))
     }
 
     /// Forward `resources/read` to whichever upstream owns the URI. Same

@@ -327,17 +327,13 @@ pub async fn recv_loop(
             // Demux by type: the 6 MCP variants (`mcp_kind().is_some()`)
             // belong to this request's proxy; `ReadMessageQueue`/`Retrieve`
             // (no mcp_kind) are the API's own (queue delegate + retrieval),
-            // awaited on `pending`. `LaboratoryTransfer` is ALSO proxy-bound
-            // (issued on the proxy's reverse channel via
-            // `ReverseChannel::transfer_laboratories`) but carries no
-            // `mcp_kind`, so it must be routed to the proxy explicitly —
-            // otherwise it falls through to the API `pending` map, is not
-            // found, and gets dropped (hanging the transfer waiter).
+            // awaited on `pending`. The laboratory-transfer ops are ALSO
+            // proxy-bound (issued on the proxy's reverse channel) but carry
+            // no `mcp_kind`, so they must be routed to the proxy explicitly —
+            // otherwise they fall through to the API `pending` map, are not
+            // found, and get dropped (hanging the transfer waiter).
             let proxy_bound = response.payload.mcp_kind().is_some()
-                || matches!(
-                    response.payload,
-                    objectiveai_sdk::client_objectiveai_mcp::server_response::Payload::LaboratoryTransfer(_)
-                );
+                || is_laboratory_transfer_response(&response.payload);
             if proxy_bound {
                 channel.deliver_response(response);
             } else {
@@ -358,4 +354,23 @@ pub async fn recv_loop(
 
         eprintln!("dropping unparseable WS frame (matched neither client_request nor server_response)");
     }
+}
+
+/// The proxy-bound laboratory-transfer replies: no `mcp_kind`, but every
+/// one was issued on the proxy's reverse channel and must route back to
+/// its `pending` map rather than the API's.
+fn is_laboratory_transfer_response(
+    payload: &objectiveai_sdk::client_objectiveai_mcp::server_response::Payload,
+) -> bool {
+    use objectiveai_sdk::client_objectiveai_mcp::server_response::Payload;
+    matches!(
+        payload,
+        Payload::LaboratoryExportBegin(_)
+            | Payload::LaboratoryExportRead(_)
+            | Payload::LaboratoryExportAbort(_)
+            | Payload::LaboratoryImportBegin(_)
+            | Payload::LaboratoryImportWrite(_)
+            | Payload::LaboratoryImportEnd(_)
+            | Payload::LaboratoryImportAbort(_)
+    )
 }

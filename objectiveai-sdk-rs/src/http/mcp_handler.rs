@@ -93,8 +93,26 @@ impl McpHandler for RejectHandler {
             server_request::Payload::Drop(_) => {
                 Payload::Drop(server_response::DropResult { dropped: false })
             }
-            server_request::Payload::LaboratoryTransfer(_) => {
-                Payload::LaboratoryTransfer(reject_err())
+            server_request::Payload::LaboratoryExportBegin(_) => {
+                Payload::LaboratoryExportBegin(reject_err())
+            }
+            server_request::Payload::LaboratoryExportRead(_) => {
+                Payload::LaboratoryExportRead(reject_err())
+            }
+            server_request::Payload::LaboratoryExportAbort(_) => {
+                Payload::LaboratoryExportAbort(reject_err())
+            }
+            server_request::Payload::LaboratoryImportBegin(_) => {
+                Payload::LaboratoryImportBegin(reject_err())
+            }
+            server_request::Payload::LaboratoryImportWrite(_) => {
+                Payload::LaboratoryImportWrite(reject_err())
+            }
+            server_request::Payload::LaboratoryImportEnd(_) => {
+                Payload::LaboratoryImportEnd(reject_err())
+            }
+            server_request::Payload::LaboratoryImportAbort(_) => {
+                Payload::LaboratoryImportAbort(reject_err())
             }
         };
         server_response::Response {
