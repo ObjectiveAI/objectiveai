@@ -42,10 +42,25 @@ pub struct ResponseItem {
     pub mounts: Vec<super::create::Mount>,
     pub env: Vec<super::create::EnvVar>,
     pub cwd: String,
-    /// Whether this laboratory's manager is currently CONNECTED to the
-    /// daemon (a live `/laboratory` session). `false` = a container
-    /// that exists on the local machine but has no running manager.
-    pub connected: bool,
+    /// Where this laboratory lives relative to this machine + state.
+    pub source: Source,
+}
+
+/// Where a listed laboratory lives. Classification is by the RAW
+/// laboratory id: ids found by the local machine's state-scoped
+/// container scan are `Local` (connected or not); ids present ONLY as
+/// live `/laboratory` connections are `Remote` — including a
+/// laboratory running on this machine under a DIFFERENT state.
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.laboratories.list.Source")]
+pub enum Source {
+    #[schemars(title = "Local")]
+    Local,
+    #[schemars(title = "Remote")]
+    Remote,
 }
 
 #[derive(clap::Args)]

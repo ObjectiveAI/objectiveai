@@ -39,8 +39,12 @@ pub struct IdentifyMount {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.laboratory.Identify")]
 pub struct Identify {
-    /// The laboratory id (unique per state — the manager holds the
-    /// `<state>/locks/laboratories/<id>` lock).
+    /// The RAW, state-agnostic laboratory id — never prefixed or
+    /// namespaced (the manager's state scopes its container NAME and
+    /// its `<state>/locks/laboratories/<id>` lock, but the identity on
+    /// this wire is the bare id). Local-vs-remote classification in
+    /// `laboratories list` compares exactly this value against the
+    /// local machine's state-scoped container scan.
     pub id: String,
     pub image: String,
     pub mounts: Vec<IdentifyMount>,

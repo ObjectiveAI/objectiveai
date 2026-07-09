@@ -2,14 +2,17 @@
 //! daemon's `/laboratory` registry) FOLLOWED BY local laboratories
 //! whose managers are not running, read back from podman by the
 //! `objectiveai-laboratory list` subcommand (the CLI itself never
-//! touches podman). `connected` distinguishes the two. Read-only.
+//! touches podman). `source` classifies by RAW id: anything the local
+//! state-scoped scan knows is `local` (connected or not); anything
+//! present only as a live connection is `remote` — including a
+//! laboratory on this machine under a different state. Read-only.
 //! Only client-side laboratories are supported today.
 
 use std::pin::Pin;
 
 use futures::Stream;
 use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Kind, Mount};
-use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem};
+use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem, Source};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -51,12 +54,19 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             Ok(labs) => {
                 let connected_ids: std::collections::HashSet<String> =
                     labs.iter().map(|l| l.id.clone()).collect();
+                let local_ids: std::collections::HashSet<String> =
+                    local.iter().map(|l| l.id.clone()).collect();
                 for lab in labs {
-                    yield Ok(item_from_identify(lab, true));
+                    let source = if local_ids.contains(&lab.id) {
+                        Source::Local
+                    } else {
+                        Source::Remote
+                    };
+                    yield Ok(item_from_identify(lab, source));
                 }
                 for lab in local {
                     if !connected_ids.contains(&lab.id) {
-                        yield Ok(item_from_identify(lab, false));
+                        yield Ok(item_from_identify(lab, Source::Local));
                     }
                 }
             }
@@ -68,7 +78,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
 fn item_from_identify(
     lab: objectiveai_sdk::client_objectiveai_mcp::laboratory::Identify,
-    connected: bool,
+    source: Source,
 ) -> ResponseItem {
     ResponseItem {
         id: lab.id,
@@ -87,7 +97,7 @@ fn item_from_identify(
             .map(|[key, value]| EnvVar { key, value })
             .collect(),
         cwd: lab.cwd,
-        connected,
+        source,
     }
 }
 

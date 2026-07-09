@@ -9,7 +9,7 @@ use objectiveai_sdk::cli::command::laboratories::create::{
     EnvVar, Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
 use objectiveai_sdk::cli::command::laboratories::list::{
-    Path as ListPath, Request as ListReq, ResponseItem as ListItem,
+    Path as ListPath, Request as ListReq, ResponseItem as ListItem, Source,
 };
 
 /// A minimal, widely-available base image for the laboratory.
@@ -63,7 +63,11 @@ async fn create_then_list_round_trips_the_spec() {
         .unwrap_or_else(|| panic!("created lab {id} not in list: {:?}", labs.iter().map(|l| &l.id).collect::<Vec<_>>()));
     assert_eq!(found.image, BASE_IMAGE);
     assert_eq!(found.cwd, "/work");
-    assert!(found.connected, "freshly created laboratory must be connected");
+    assert_eq!(
+        found.source,
+        Source::Local,
+        "a laboratory created on this machine + state must be local"
+    );
     assert!(
         found.env.iter().any(|e| e.key == "FOO" && e.value == "bar"),
         "env not round-tripped: {:?}",
