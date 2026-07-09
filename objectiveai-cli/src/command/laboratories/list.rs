@@ -10,7 +10,7 @@ use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::podman::laboratory;
+use objectiveai_sdk::podman::laboratory;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -21,7 +21,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Kind::Client => {}
     }
 
-    let labs = laboratory::list(ctx).await;
+    let labs = laboratory::list(ctx.podman_runtime(), ctx.filesystem.state()).await;
     let stream = async_stream::stream! {
         match labs {
             Ok(labs) => {
@@ -46,7 +46,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                     });
                 }
             }
-            Err(e) => yield Err(e),
+            Err(e) => yield Err(e.into()),
         }
     };
     Ok(Box::pin(stream))

@@ -28,8 +28,8 @@
 
 use std::path::Path;
 
-use crate::error::Error;
-use crate::podman::setup::{self, MACHINE_NAME};
+use super::Error;
+use super::setup::{self, MACHINE_NAME};
 
 /// The global machine's lifecycle state, as read by [`machine_state`].
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -45,8 +45,8 @@ enum MachineState {
 /// Ensure the global podman machine is **running** for this host, creating it
 /// first if necessary. No-op on Linux (native rootless podman needs no
 /// machine). Concurrency-safe; see the module docs. `machine_lock` is the
-/// process-wide [`crate::context::Context`] mutex that serializes the in-process
-/// slow path; `exe` is the podman binary from [`super::install`].
+/// process-wide mutex (held by [`super::Podman`]) that serializes the
+/// in-process slow path; `exe` is the podman binary from [`super::install`].
 pub async fn ensure_running(
     machine_lock: &tokio::sync::Mutex<()>,
     bin_dir: &Path,
@@ -72,13 +72,13 @@ pub async fn ensure_running(
 
     // 3. Serialize the reconcile machine-WIDE. We may BLOCK here while a
     //    sibling process is mid-init/start (or about to finish one).
-    let claim = objectiveai_sdk::lockfile::wait_acquire(
+    let claim = crate::lockfile::wait_acquire(
         &bin_dir.join("locks"),
         "podman-machine",
         &format!("pid {}", std::process::id()),
     )
     .await
-    .map_err(|e| Error::Podman(format!("machine lock: {e}")))?;
+    .map_err(|e| Error(format!("machine lock: {e}")))?;
 
     // 4. DOUBLE-CHECKED LOCKING: `reconcile` re-probes now that we hold both
     //    locks — a sibling (process OR, before we got the Mutex, an in-process
@@ -91,7 +91,7 @@ pub async fn ensure_running(
     //    in-process Mutex guard drops at end of scope.
     claim
         .release()
-        .map_err(|e| Error::Podman(format!("machine lock release: {e}")))?;
+        .map_err(|e| Error(format!("machine lock release: {e}")))?;
     result
 }
 
@@ -147,7 +147,7 @@ async fn machine_start(exe: &Path, helper_dir: Option<&Path>) -> Result<(), Erro
         .arg(MACHINE_NAME)
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman machine start: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman machine start: {e}")))?;
     if output.status.success() {
         return Ok(());
     }
@@ -155,7 +155,7 @@ async fn machine_start(exe: &Path, helper_dir: Option<&Path>) -> Result<(), Erro
     if stderr.contains("already running") || stderr.contains("already started") {
         return Ok(());
     }
-    Err(Error::Podman(format!(
+    Err(Error(format!(
         "podman machine start failed: {}",
         String::from_utf8_lossy(&output.stderr).trim()
     )))

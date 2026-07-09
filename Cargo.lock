@@ -4215,7 +4215,6 @@ dependencies = [
  "dirs",
  "dotenv",
  "envconfig",
- "flate2",
  "futures",
  "git2",
  "hashbrown 0.15.5",
@@ -4248,7 +4247,6 @@ dependencies = [
  "sqlx-postgres",
  "subtle",
  "sysinfo",
- "tar",
  "tempfile",
  "thiserror 2.0.18",
  "tiktoken-rs",
@@ -4394,6 +4392,7 @@ dependencies = [
  "dashmap",
  "dirs",
  "eventsource-stream",
+ "flate2",
  "futures",
  "futures-util",
  "getrandom 0.3.4",
@@ -4418,6 +4417,7 @@ dependencies = [
  "serde_path_to_error",
  "starlark",
  "syn 2.0.117",
+ "tar",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4428,6 +4428,7 @@ dependencies = [
  "walkdir",
  "windows-sys 0.59.0",
  "wiremock",
+ "zip",
 ]
 
 [[package]]

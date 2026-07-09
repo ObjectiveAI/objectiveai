@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::OnceCell;
 
 use crate::db;
 use crate::filesystem;
@@ -46,17 +46,11 @@ pub struct Context {
     /// [`Context::python`]. No per-request identity; always shared
     /// across clones.
     python: Arc<OnceCell<crate::python::Python>>,
-    /// Lazily-installed podman executable path — see
-    /// [`Context::podman`]. Downloaded + installed on first use,
-    /// shared across clones.
-    podman: Arc<OnceCell<std::path::PathBuf>>,
-    /// Serializes the podman-machine "ensure running" SLOW path within this
-    /// process (shared across clones). The cross-process bin lock used there
-    /// is reentrant in-process, so this is what stops two concurrent in-process
-    /// callers (e.g. the conduit dialing several laboratories at once) from
-    /// both reconciling and double-starting the machine. See
-    /// [`crate::podman::running::ensure_running`].
-    podman_machine: Arc<Mutex<()>>,
+    /// The shared podman runtime (install memo + machine
+    /// serialization live inside the handle) —
+    /// [`objectiveai_sdk::podman::Podman`], rooted at the bin dir.
+    /// Arc'd because `Context` is cloned per command.
+    podman: Arc<objectiveai_sdk::podman::Podman>,
     /// Per-key in-process gate for agent locks (AIH + tag), shared across
     /// clones. The lockfile is a cross-process mutex that is reentrant
     /// in-process, so this is what gives agent locks true in-process exclusion.
@@ -80,6 +74,9 @@ impl Context {
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
+        let podman = Arc::new(objectiveai_sdk::podman::Podman::new(
+            filesystem.bin_dir(),
+        ));
         Self {
             config,
             filesystem,
@@ -87,8 +84,7 @@ impl Context {
             daemon_address: Arc::new(std::sync::OnceLock::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
-            podman: Arc::new(OnceCell::new()),
-            podman_machine: Arc::new(Mutex::new(())),
+            podman,
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             no_objectiveai: false,
         }
@@ -132,23 +128,18 @@ impl Context {
             .await
     }
 
-    /// The podman executable, ready to use. The **install** (download +
-    /// extract into `<bin>/podman/<version>/`, [`crate::podman::install`]) is
-    /// memoized in the `OnceCell` — it's immutable, so it's paid once per
-    /// process and coalesced in-process. The **machine** is then ensured
-    /// *running* on EVERY call ([`crate::podman::running`] — `machine init` if
-    /// absent, then `machine start`; no-op on Linux), because running-state is
-    /// volatile (a host reboot stops it) and a memoized/marker result would go
-    /// stale. The warm path is a single `machine inspect`. Commands that never
-    /// need podman never pay the cost.
+    /// The podman executable, ready to use — installed if missing, its
+    /// machine running. Delegates to the shared
+    /// [`objectiveai_sdk::podman::Podman`] runtime; lazy on purpose, so
+    /// commands that never need podman never pay the cost.
     pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
-        let bin = self.filesystem.bin_dir();
-        let exe = self
-            .podman
-            .get_or_try_init(|| crate::podman::install::ensure_installed(bin.clone()))
-            .await?;
-        crate::podman::running::ensure_running(&self.podman_machine, &bin, exe).await?;
-        Ok(exe.as_path())
+        Ok(self.podman.executable().await?)
+    }
+
+    /// The shared podman runtime handle — for call sites that drive
+    /// `objectiveai_sdk::podman::laboratory` directly.
+    pub fn podman_runtime(&self) -> &objectiveai_sdk::podman::Podman {
+        &self.podman
     }
 
     /// The per-key in-process gate for agent locks — for direct acquire sites

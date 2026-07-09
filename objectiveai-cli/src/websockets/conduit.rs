@@ -461,10 +461,10 @@ async fn dispatch_initialize(
             // if already running) and concurrency-safe, so run it blindly. Then
             // resolve the published port and connect to it as a streamable-HTTP
             // MCP upstream (no subprocess → no drain handle).
-            if let Err(message) = crate::podman::laboratory::start(&inner.ctx, id).await {
+            if let Err(message) = objectiveai_sdk::podman::laboratory::start(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), id).await {
                 return initialize_err(-32603, format!("laboratory {id}: {message}"));
             }
-            let port = match crate::podman::laboratory::host_port(&inner.ctx, id).await {
+            let port = match objectiveai_sdk::podman::laboratory::host_port(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), id).await {
                 Ok(p) => p,
                 Err(message) => {
                     return initialize_err(-32603, format!("laboratory {id}: {message}"));
@@ -650,10 +650,10 @@ async fn laboratory_base_url(
     inner: &Arc<Inner>,
     laboratory_id: &str,
 ) -> Result<String, String> {
-    crate::podman::laboratory::start(&inner.ctx, laboratory_id)
+    objectiveai_sdk::podman::laboratory::start(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), laboratory_id)
         .await
         .map_err(|e| format!("start laboratory {laboratory_id}: {e}"))?;
-    let port = crate::podman::laboratory::host_port(&inner.ctx, laboratory_id)
+    let port = objectiveai_sdk::podman::laboratory::host_port(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), laboratory_id)
         .await
         .map_err(|e| format!("laboratory {laboratory_id}: {e}"))?;
     Ok(format!("http://127.0.0.1:{port}"))

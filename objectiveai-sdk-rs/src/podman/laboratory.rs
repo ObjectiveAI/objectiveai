@@ -2,7 +2,8 @@
 //! container and the host port its MCP server is published on.
 //!
 //! A laboratory's container is named `objectiveai-laboratory-<state>-<id>`
-//! (`<state>` from `ctx.filesystem.state()`), so the same id in different
+//! (`<state>` is the caller's namespace — the CLI passes its state name,
+//! other hosts pass their own), so the same id in different
 //! objectiveai states maps to different containers. Inside the container the
 //! laboratory MCP server listens on the fixed port [`LAB_PORT`]; that port is
 //! published to a random `127.0.0.1` host port the caller looks up here.
@@ -13,9 +14,9 @@
 
 use std::path::Path;
 
-use crate::context::Context;
-use crate::error::Error;
-use crate::podman::setup::MACHINE_NAME;
+use super::Podman;
+use super::Error;
+use super::setup::MACHINE_NAME;
 
 /// Fixed port the laboratory MCP server listens on inside its container.
 pub const LAB_PORT: u16 = 14978;
@@ -99,15 +100,16 @@ struct LabelMount {
 /// `podman cp`'d binary is executable regardless of the host's file mode, and
 /// the container lifetime == MCP lifetime).
 pub async fn create(
-    ctx: &Context,
+    podman: &Podman,
+    state: &str,
+    laboratory_binary: &Path,
     id: &str,
     image: &str,
     mounts: &[Mount],
     env: &[(String, String)],
     cwd: &str,
 ) -> Result<(), Error> {
-    let exe = ctx.podman().await?;
-    let state = ctx.filesystem.state();
+    let exe = podman.executable().await?;
     let name = container_name(state, id);
 
     let label = Label {
@@ -124,7 +126,7 @@ pub async fn create(
         cwd: cwd.to_string(),
     };
     let label_json = serde_json::to_string(&label)
-        .map_err(|e| Error::Podman(format!("serialize laboratory label: {e}")))?;
+        .map_err(|e| Error(format!("serialize laboratory label: {e}")))?;
 
     // 1. podman create
     let mut create_cmd = container_command(exe);
@@ -174,25 +176,26 @@ pub async fn create(
     let output = create_cmd
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman create: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman create: {e}")))?;
     if !output.status.success() {
-        return Err(Error::Podman(format!(
+        return Err(Error(format!(
             "podman create {name}: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
 
-    // 2. podman cp — inject the bundled musl MCP binary (no `.exe`, ever).
-    let bin = ctx.filesystem.bin_dir().join("objectiveai-mcp-laboratory");
+    // 2. podman cp — inject the caller-supplied musl MCP binary (the CLI
+    // passes its staged `objectiveai-mcp-laboratory`; other hosts pass
+    // their own copy — no `.exe`, ever).
     let output = container_command(exe)
         .arg("cp")
-        .arg(&bin)
+        .arg(laboratory_binary)
         .arg(format!("{name}:/objectiveai-mcp-laboratory"))
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman cp: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman cp: {e}")))?;
     if !output.status.success() {
-        return Err(Error::Podman(format!(
+        return Err(Error(format!(
             "podman cp into {name}: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
@@ -209,17 +212,17 @@ pub async fn create(
 /// container ops internally — so this is safe to run BLINDLY and CONCURRENTLY
 /// (two parallel starters both succeed; no check-then-start race). Errors only
 /// if the container does not exist (the id was never [`create`]d).
-pub async fn start(ctx: &Context, id: &str) -> Result<(), Error> {
-    let exe = ctx.podman().await?;
-    let name = container_name(ctx.filesystem.state(), id);
+pub async fn start(podman: &Podman, state: &str, id: &str) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let name = container_name(state, id);
     let output = container_command(exe)
         .arg("start")
         .arg(&name)
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman start: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman start: {e}")))?;
     if !output.status.success() {
-        return Err(Error::Podman(format!(
+        return Err(Error(format!(
             "podman start {name}: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
@@ -228,18 +231,18 @@ pub async fn start(ctx: &Context, id: &str) -> Result<(), Error> {
 }
 
 /// The `127.0.0.1` host port the container's [`LAB_PORT`]/tcp is published on.
-pub async fn host_port(ctx: &Context, id: &str) -> Result<u16, Error> {
-    let exe = ctx.podman().await?;
-    let name = container_name(ctx.filesystem.state(), id);
+pub async fn host_port(podman: &Podman, state: &str, id: &str) -> Result<u16, Error> {
+    let exe = podman.executable().await?;
+    let name = container_name(state, id);
     let output = container_command(exe)
         .arg("port")
         .arg(&name)
         .arg(format!("{LAB_PORT}/tcp"))
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman port: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman port: {e}")))?;
     if !output.status.success() {
-        return Err(Error::Podman(format!(
+        return Err(Error(format!(
             "podman port {name}: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
@@ -252,11 +255,11 @@ pub async fn host_port(ctx: &Context, id: &str) -> Result<u16, Error> {
         .map(str::trim)
         .find(|l| !l.is_empty())
         .ok_or_else(|| {
-            Error::Podman(format!("podman port {name}: no mapping for {LAB_PORT}/tcp"))
+            Error(format!("podman port {name}: no mapping for {LAB_PORT}/tcp"))
         })?;
     let port_str = line.rsplit_once(':').map(|(_, p)| p).unwrap_or(line);
     port_str.parse::<u16>().map_err(|e| {
-        Error::Podman(format!(
+        Error(format!(
             "podman port {name}: unparseable host port {port_str:?}: {e}"
         ))
     })
@@ -270,9 +273,8 @@ pub async fn host_port(ctx: &Context, id: &str) -> Result<u16, Error> {
 /// the authoritative `objectiveai.laboratory` label per container (the label is
 /// the round-trip record, avoiding podman's merged env/mount parsing).
 /// Containers missing the label are skipped.
-pub async fn list(ctx: &Context) -> Result<Vec<LaboratoryInfo>, Error> {
-    let exe = ctx.podman().await?;
-    let state = ctx.filesystem.state();
+pub async fn list(podman: &Podman, state: &str) -> Result<Vec<LaboratoryInfo>, Error> {
+    let exe = podman.executable().await?;
     let output = container_command(exe)
         .arg("ps")
         .arg("-a")
@@ -282,19 +284,19 @@ pub async fn list(ctx: &Context) -> Result<Vec<LaboratoryInfo>, Error> {
         .arg("json")
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman ps: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman ps: {e}")))?;
     if !output.status.success() {
-        return Err(Error::Podman(format!(
+        return Err(Error(format!(
             "podman ps: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let value: serde_json::Value = serde_json::from_str(&stdout)
-        .map_err(|e| Error::Podman(format!("parse podman ps output: {e}")))?;
+        .map_err(|e| Error(format!("parse podman ps output: {e}")))?;
     let array = value
         .as_array()
-        .ok_or_else(|| Error::Podman("podman ps output: expected a JSON array".to_string()))?;
+        .ok_or_else(|| Error("podman ps output: expected a JSON array".to_string()))?;
     let mut labs = Vec::new();
     for elem in array {
         let Some(label_str) = elem
@@ -305,7 +307,7 @@ pub async fn list(ctx: &Context) -> Result<Vec<LaboratoryInfo>, Error> {
             continue;
         };
         let label: Label = serde_json::from_str(label_str)
-            .map_err(|e| Error::Podman(format!("parse laboratory label: {e}")))?;
+            .map_err(|e| Error(format!("parse laboratory label: {e}")))?;
         labs.push(LaboratoryInfo {
             id: label.id,
             image: label.image,

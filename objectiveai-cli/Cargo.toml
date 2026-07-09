@@ -13,7 +13,7 @@ keywords = ["llm", "ai", "swarm", "cli"]
 publish = true
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.10", features = ["lockfile", "subprocess-reaper"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.10", features = ["lockfile", "subprocess-reaper", "podman"] }
 objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.2.10" }
 axum = { version = "0.8.8", features = ["ws"] }
 clap = { version = "4.6.0", features = ["derive"] }
@@ -30,8 +30,6 @@ subtle = "2.6.1"
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 humantime = "2"
 zip = { version = "2.4.0", default-features = false, features = ["deflate"] }
-tar = "0.4.46"
-flate2 = "1.1.9"
 tokio = { version = "1.50.0", features = ["full"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = "1.0.228"

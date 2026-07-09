@@ -6,7 +6,7 @@ use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Respons
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::podman::laboratory;
+use objectiveai_sdk::podman::laboratory;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
@@ -30,7 +30,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .collect();
 
     laboratory::create(
-        ctx,
+        ctx.podman_runtime(),
+        ctx.filesystem.state(),
+        &ctx.filesystem.bin_dir().join("objectiveai-mcp-laboratory"),
         &request.id,
         &request.image,
         &podman_mounts,

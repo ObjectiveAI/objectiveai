@@ -15,7 +15,7 @@
 
 use std::path::Path;
 
-use crate::error::Error;
+use super::Error;
 
 /// The single global podman machine name, shared by every objectiveai dir on
 /// the host. Public so the "use podman" code targets it
@@ -37,7 +37,7 @@ pub(crate) async fn machine_init(exe: &Path, helper_dir: Option<&Path>) -> Resul
         .arg(MACHINE_NAME)
         .output()
         .await
-        .map_err(|e| Error::Podman(format!("spawn podman machine init: {e}")))?;
+        .map_err(|e| Error(format!("spawn podman machine init: {e}")))?;
     if output.status.success() {
         return Ok(());
     }
@@ -48,7 +48,7 @@ pub(crate) async fn machine_init(exe: &Path, helper_dir: Option<&Path>) -> Resul
     if stderr.to_ascii_lowercase().contains("already exists") {
         return Ok(());
     }
-    Err(Error::Podman(format!(
+    Err(Error(format!(
         "podman machine init failed: {}",
         stderr.trim()
     )))

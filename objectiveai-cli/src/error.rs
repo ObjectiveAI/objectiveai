@@ -223,3 +223,9 @@ local server. to (re)start the local server: `objectiveai api spawn`"
         err.to_string()
     }
 }
+
+impl From<objectiveai_sdk::podman::Error> for Error {
+    fn from(e: objectiveai_sdk::podman::Error) -> Self {
+        Error::Podman(e.0)
+    }
+}

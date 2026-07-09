@@ -22,7 +22,7 @@
 //!     virtualization entitlement) and `gvproxy` (networking) beside `podman`
 //!     — podman won't auto-download those. See [`fetch_macos_helpers`].
 //!
-//! Concurrency mirrors [`crate::python`] / `objectiveai-db`'s installer:
+//! Concurrency mirrors `objectiveai-cli`'s python installer / `objectiveai-db`'s installer:
 //! in-process callers coalesce on the `Context`'s `OnceCell`; across
 //! processes the install is serialized by the bin lock
 //! (`<bin>/locks`, key `podman`) and gated by a `.objectiveai-install-complete`
@@ -32,7 +32,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error::Error;
+use super::Error;
 
 // One pinned version per (os, arch) so any single platform can be bumped
 // independently. All identical for now — every source hosts v5.8.4.
@@ -85,7 +85,7 @@ fn resolve_target() -> Result<Target, Error> {
         "x86_64" => "amd64",
         "aarch64" => "arm64",
         other => {
-            return Err(Error::Podman(format!("unsupported architecture: {other}")));
+            return Err(Error(format!("unsupported architecture: {other}")));
         }
     };
     match std::env::consts::OS {
@@ -137,7 +137,7 @@ fn resolve_target() -> Result<Target, Error> {
                 version,
             })
         }
-        other => Err(Error::Podman(format!("unsupported OS: {other}"))),
+        other => Err(Error(format!("unsupported OS: {other}"))),
     }
 }
 
@@ -159,13 +159,13 @@ pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
 
     // 2. Serialize installs machine-wide. We may BLOCK here while a sibling
     //    process is mid-install (or about to finish one).
-    let claim = objectiveai_sdk::lockfile::wait_acquire(
+    let claim = crate::lockfile::wait_acquire(
         &bin_dir.join("locks"),
         "podman",
         &format!("pid {}", std::process::id()),
     )
     .await
-    .map_err(|e| Error::Podman(format!("bin lock: {e}")))?;
+    .map_err(|e| Error(format!("bin lock: {e}")))?;
 
     // 3. DOUBLE-CHECKED LOCKING: re-check the marker now that we hold the
     //    lock — a sibling may have completed the install while we were
@@ -185,7 +185,7 @@ pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
     //    leaked.
     claim
         .release()
-        .map_err(|e| Error::Podman(format!("bin lock release: {e}")))?;
+        .map_err(|e| Error(format!("bin lock release: {e}")))?;
     result?;
     Ok(exe)
 }
@@ -210,7 +210,7 @@ async fn install(
         let trash = podman_dir.join(format!("{}.trash-{}", target.version, std::process::id()));
         tokio::fs::rename(root, &trash)
             .await
-            .map_err(|e| Error::Podman(format!("move partial install aside: {e}")))?;
+            .map_err(|e| Error(format!("move partial install aside: {e}")))?;
     }
     // Best-effort sweep of leftover trash dirs / download temp files (this
     // run's renamed-aside tree, plus anything a crashed prior run left).
@@ -219,7 +219,7 @@ async fn install(
 
     tokio::fs::create_dir_all(root)
         .await
-        .map_err(|e| Error::Podman(format!("mkdir {root:?}: {e}")))?;
+        .map_err(|e| Error(format!("mkdir {root:?}: {e}")))?;
 
     // Download the archive to a same-filesystem temp beside the install.
     let archive = podman_dir.join(format!(
@@ -250,7 +250,7 @@ async fn install(
 
     // Guard against upstream layout drift: the exe must be where we expect.
     if !tokio::fs::try_exists(exe).await.unwrap_or(false) {
-        return Err(Error::Podman(format!(
+        return Err(Error(format!(
             "podman executable not found after extract at {exe:?}"
         )));
     }
@@ -267,7 +267,7 @@ async fn install(
     // Marker LAST — its presence is the signal that the install is COMPLETE.
     tokio::fs::write(marker, b"")
         .await
-        .map_err(|e| Error::Podman(format!("write {marker:?}: {e}")))?;
+        .map_err(|e| Error(format!("write {marker:?}: {e}")))?;
     Ok(())
 }
 
@@ -284,7 +284,7 @@ async fn install(
 async fn fetch_macos_helpers(exe: &Path) -> Result<(), Error> {
     let dir = exe
         .parent()
-        .ok_or_else(|| Error::Podman(format!("podman exe has no parent: {exe:?}")))?;
+        .ok_or_else(|| Error(format!("podman exe has no parent: {exe:?}")))?;
 
     let vfkit = dir.join("vfkit");
     let vfkit_url =
@@ -313,7 +313,7 @@ async fn set_executable(path: &Path) -> Result<(), Error> {
         use std::os::unix::fs::PermissionsExt;
         tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
             .await
-            .map_err(|e| Error::Podman(format!("chmod {path:?}: {e}")))?;
+            .map_err(|e| Error(format!("chmod {path:?}: {e}")))?;
     }
     #[cfg(not(unix))]
     {
@@ -331,11 +331,11 @@ async fn ad_hoc_codesign(path: &Path) -> Result<(), Error> {
         .arg(path)
         .status()
         .await
-        .map_err(|e| Error::Podman(format!("spawn codesign: {e}")))?;
+        .map_err(|e| Error(format!("spawn codesign: {e}")))?;
     if status.success() {
         Ok(())
     } else {
-        Err(Error::Podman(format!("codesign failed for {path:?}")))
+        Err(Error(format!("codesign failed for {path:?}")))
     }
 }
 
@@ -345,7 +345,7 @@ async fn run_extract(archive: &Path, root: &Path, kind: ArchiveKind) -> Result<(
     let root = root.to_path_buf();
     tokio::task::spawn_blocking(move || extract_archive(&archive, &root, kind))
         .await
-        .map_err(|e| Error::Podman(format!("extract task join: {e}")))?
+        .map_err(|e| Error(format!("extract task join: {e}")))?
 }
 
 /// Best-effort removal of `*.trash-*` dirs and `*.download-*` temp files
@@ -374,19 +374,19 @@ async fn sweep_leftovers(podman_dir: &Path) {
 /// executables stay executable). Synchronous — run on a blocking thread.
 fn extract_archive(archive: &Path, dest: &Path, kind: ArchiveKind) -> Result<(), Error> {
     let file = std::fs::File::open(archive)
-        .map_err(|e| Error::Podman(format!("open {archive:?}: {e}")))?;
+        .map_err(|e| Error(format!("open {archive:?}: {e}")))?;
     match kind {
         ArchiveKind::Zip => {
             let mut zip = zip::ZipArchive::new(file)
-                .map_err(|e| Error::Podman(format!("read zip: {e}")))?;
+                .map_err(|e| Error(format!("read zip: {e}")))?;
             zip.extract(dest)
-                .map_err(|e| Error::Podman(format!("extract zip: {e}")))?;
+                .map_err(|e| Error(format!("extract zip: {e}")))?;
         }
         ArchiveKind::TarGz => {
             let decoder = flate2::read::GzDecoder::new(file);
             let mut tar = tar::Archive::new(decoder);
             tar.unpack(dest)
-                .map_err(|e| Error::Podman(format!("extract tar.gz: {e}")))?;
+                .map_err(|e| Error(format!("extract tar.gz: {e}")))?;
         }
     }
     Ok(())
@@ -408,24 +408,24 @@ async fn download_to(url: &str, dst: &Path) -> Result<(), Error> {
         .timeout(DOWNLOAD_TIMEOUT)
         .send()
         .await
-        .map_err(|e| Error::Podman(format!("http: {e}")))?;
+        .map_err(|e| Error(format!("http: {e}")))?;
     let status = resp.status();
     if !status.is_success() {
-        return Err(Error::Podman(format!("download {url}: status {status}")));
+        return Err(Error(format!("download {url}: status {status}")));
     }
 
     let mut file = tokio::fs::File::create(dst)
         .await
-        .map_err(|e| Error::Podman(format!("create {dst:?}: {e}")))?;
+        .map_err(|e| Error(format!("create {dst:?}: {e}")))?;
     let mut stream = resp.bytes_stream();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| Error::Podman(format!("http: {e}")))?;
+        let chunk = chunk.map_err(|e| Error(format!("http: {e}")))?;
         file.write_all(&chunk)
             .await
-            .map_err(|e| Error::Podman(format!("write {dst:?}: {e}")))?;
+            .map_err(|e| Error(format!("write {dst:?}: {e}")))?;
     }
     file.flush()
         .await
-        .map_err(|e| Error::Podman(format!("flush {dst:?}: {e}")))?;
+        .map_err(|e| Error(format!("flush {dst:?}: {e}")))?;
     Ok(())
 }
