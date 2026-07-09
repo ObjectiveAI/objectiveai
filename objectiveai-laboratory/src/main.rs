@@ -238,12 +238,31 @@ async fn connect(args: ConnectArgs) {
     };
     let identify = identify_from_info(info);
 
-    // ── The (id, address) connection lock ────────────────────────
+    // ── The (id, address) connection lock, under the id GUARD ────
+    // Guard first (BLOCKING, bare id — no url hash): the cleaner holds
+    // this same guard around its check-locks-then-stop window, so a
+    // connect can never slip its lock acquisition between a cleaner's
+    // "no locks held" observation and its `podman stop`. Released
+    // explicitly the moment the connection lock is held — a manager
+    // past the guard is always visible to the cleaner's veto check.
+    let lock_dir = state_dir.join("locks").join("laboratories");
+    let guard = match objectiveai_sdk::lockfile::wait_acquire(
+        &lock_dir,
+        &args.id,
+        &format!("guard pid {}", std::process::id()),
+    )
+    .await
+    {
+        Ok(guard) => guard,
+        Err(e) => {
+            eprintln!("laboratory '{}' guard lock: {e}", args.id);
+            std::process::exit(1);
+        }
+    };
     // One manager per laboratory per daemon address; simultaneous
     // connects to the same pair race this try_acquire and exactly one
     // wins (the loser's spawner re-probes the published lock — the
     // api/db/mcp spawn discipline).
-    let lock_dir = state_dir.join("locks").join("laboratories");
     let lock_key = connect_lock_key(&args.id, &args.address);
     let claim = match objectiveai_sdk::lockfile::try_acquire(
         &lock_dir,
@@ -252,8 +271,16 @@ async fn connect(args: ConnectArgs) {
     )
     .await
     {
-        Some(claim) => claim,
+        Some(claim) => {
+            if let Err(e) = guard.release() {
+                eprintln!("laboratory '{}' guard release: {e}", args.id);
+                let _ = claim.release();
+                std::process::exit(1);
+            }
+            claim
+        }
         None => {
+            let _ = guard.release();
             eprintln!(
                 "laboratory '{}' is already connected to {} (its lock is held) — exiting",
                 args.id, args.address
