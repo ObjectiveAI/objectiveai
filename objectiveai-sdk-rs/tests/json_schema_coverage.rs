@@ -40,9 +40,6 @@ fn module_prefix(path: &str) -> String {
 fn is_skipped_module(relative: &str) -> bool {
     relative.starts_with("src/mcp/")
         || relative.starts_with("src/client_objectiveai_mcp/")
-        // Internal serde types (the container label round-trip record,
-        // podman ps parsing) — never wire schema, never bindings.
-        || relative.starts_with("src/podman/")
 }
 
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {

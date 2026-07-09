@@ -34,6 +34,10 @@
 //!   `/agents/instances/{*aih}` WebSocket route + its dedicated
 //!   `conversation.sock` producer socket: one agent's full
 //!   conversation, DB history + live rows teed from the log writer.
+//! - [`websocket_laboratory`] — the daemon's `/laboratory` WebSocket
+//!   route (laboratory managers dial in, identify, then authorize) +
+//!   the `laboratories.sock` request/response socket the conduit uses
+//!   to reach connected laboratories.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
@@ -45,3 +49,4 @@ pub mod mcp_listener;
 pub mod mcp_server;
 pub mod websocket_agent_instance;
 pub mod websocket_agents;
+pub mod websocket_laboratory;

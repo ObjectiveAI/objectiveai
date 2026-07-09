@@ -70,9 +70,6 @@ pub mod mcp;
 #[cfg(feature = "lockfile")]
 pub mod lockfile;
 
-#[cfg(feature = "podman")]
-pub mod podman;
-
 #[cfg(feature = "subprocess-reaper")]
 pub mod subprocess_reaper;
 

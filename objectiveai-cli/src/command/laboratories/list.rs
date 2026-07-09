@@ -1,6 +1,7 @@
-//! `laboratories list` — stream the laboratory containers created in this
-//! state by reading them back from podman (the source of truth). Read-only.
-//! Only client-side laboratories are supported today.
+//! `laboratories list` — stream the CONNECTED laboratories: the
+//! daemon's `/laboratory` registry is the source of truth (a manager
+//! that disconnects is no longer listed; podman is never consulted).
+//! Read-only. Only client-side laboratories are supported today.
 
 use std::pin::Pin;
 
@@ -10,7 +11,7 @@ use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
-use objectiveai_sdk::podman::laboratory;
+use objectiveai_sdk::client_objectiveai_mcp::laboratory::{SocketRequest, SocketResponse};
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -21,7 +22,21 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Kind::Client => {}
     }
 
-    let labs = laboratory::list(ctx.podman_runtime(), ctx.filesystem.state()).await;
+    // The daemon owns the registry; ensure it's up (idempotent).
+    crate::command::daemon::spawn::spawn(ctx).await?;
+    let labs = match crate::websockets::websocket_laboratory::call_laboratories_socket(
+        &ctx.filesystem.state_dir(),
+        &SocketRequest::List,
+    )
+    .await
+    {
+        Ok(SocketResponse::List { laboratories }) => Ok(laboratories),
+        Ok(SocketResponse::Error { message }) => Err(Error::Laboratory(message)),
+        Ok(SocketResponse::Forwarded { .. }) => {
+            Err(Error::Laboratory("unexpected socket reply".to_string()))
+        }
+        Err(e) => Err(Error::Laboratory(format!("laboratories socket: {e}"))),
+    };
     let stream = async_stream::stream! {
         match labs {
             Ok(labs) => {
@@ -40,13 +55,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                         env: lab
                             .env
                             .into_iter()
-                            .map(|(key, value)| EnvVar { key, value })
+                            .map(|[key, value]| EnvVar { key, value })
                             .collect(),
                         cwd: lab.cwd,
                     });
                 }
             }
-            Err(e) => yield Err(e.into()),
+            Err(e) => yield Err(e),
         }
     };
     Ok(Box::pin(stream))

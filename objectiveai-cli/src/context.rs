@@ -46,11 +46,6 @@ pub struct Context {
     /// [`Context::python`]. No per-request identity; always shared
     /// across clones.
     python: Arc<OnceCell<crate::python::Python>>,
-    /// The shared podman runtime (install memo + machine
-    /// serialization live inside the handle) —
-    /// [`objectiveai_sdk::podman::Podman`], rooted at the bin dir.
-    /// Arc'd because `Context` is cloned per command.
-    podman: Arc<objectiveai_sdk::podman::Podman>,
     /// Per-key in-process gate for agent locks (AIH + tag), shared across
     /// clones. The lockfile is a cross-process mutex that is reentrant
     /// in-process, so this is what gives agent locks true in-process exclusion.
@@ -74,9 +69,6 @@ impl Context {
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
-        let podman = Arc::new(objectiveai_sdk::podman::Podman::new(
-            filesystem.bin_dir(),
-        ));
         Self {
             config,
             filesystem,
@@ -84,7 +76,6 @@ impl Context {
             daemon_address: Arc::new(std::sync::OnceLock::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
-            podman,
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             no_objectiveai: false,
         }
@@ -128,19 +119,6 @@ impl Context {
             .await
     }
 
-    /// The podman executable, ready to use — installed if missing, its
-    /// machine running. Delegates to the shared
-    /// [`objectiveai_sdk::podman::Podman`] runtime; lazy on purpose, so
-    /// commands that never need podman never pay the cost.
-    pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
-        Ok(self.podman.executable().await?)
-    }
-
-    /// The shared podman runtime handle — for call sites that drive
-    /// `objectiveai_sdk::podman::laboratory` directly.
-    pub fn podman_runtime(&self) -> &objectiveai_sdk::podman::Podman {
-        &self.podman
-    }
 
     /// The per-key in-process gate for agent locks — for direct acquire sites
     /// (`crate::command::agents::locks::{try_acquire, wait_acquire}`).

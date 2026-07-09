@@ -1,12 +1,14 @@
-//! `laboratories create` — create + start a laboratory container via podman,
-//! injecting and running the bundled lab MCP binary. Echoes back what it
-//! created. Only client-side laboratories are supported today.
+//! `laboratories create` — launch the DETACHED `objectiveai-laboratory`
+//! manager for this id. The manager owns everything from here: the
+//! per-state id lock, the podman container, the MCP connection, and
+//! the dial-out to the daemon's `/laboratory` route. Idempotent — a
+//! held id lock means a manager is already running and the spec is
+//! simply echoed back. Only client-side laboratories exist today.
 
 use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
-use objectiveai_sdk::podman::laboratory;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
@@ -15,30 +17,57 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Kind::Client => {}
     }
 
-    let podman_mounts: Vec<laboratory::Mount> = request
-        .mounts
-        .iter()
-        .map(|m| laboratory::Mount {
-            host: m.host.clone(),
-            container: m.container.clone(),
-        })
-        .collect();
-    let env: Vec<(String, String)> = request
-        .env
-        .iter()
-        .map(|e| (e.key.clone(), e.value.clone()))
-        .collect();
+    // The manager dials the daemon's /laboratory route — the daemon
+    // must be up first (idempotent; returns the published ws:// URL).
+    let daemon_address = crate::command::daemon::spawn::spawn(ctx).await?;
+    let signature = ctx
+        .config
+        .daemon_secret
+        .as_deref()
+        .map(crate::websockets::daemon_auth::derive_signature);
 
-    laboratory::create(
-        ctx.podman_runtime(),
-        ctx.filesystem.state(),
-        &ctx.filesystem.bin_dir().join("objectiveai-mcp-laboratory"),
-        &request.id,
-        &request.image,
-        &podman_mounts,
-        &env,
-        &request.cwd,
-    )
+    let exe = ctx.filesystem.bin_dir().join(if cfg!(windows) {
+        "objectiveai-laboratory.exe"
+    } else {
+        "objectiveai-laboratory"
+    });
+    let lock_dir = ctx.filesystem.state_dir().join("locks").join("laboratories");
+    let objectiveai_dir = ctx.filesystem.dir().clone();
+    let state = ctx.filesystem.state().to_string();
+
+    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, &request.id, |cmd| {
+        cmd.arg("--id")
+            .arg(&request.id)
+            .arg("--image")
+            .arg(&request.image)
+            .arg("--cwd")
+            .arg(&request.cwd)
+            .arg("--daemon-address")
+            .arg(&daemon_address)
+            .arg("--objectiveai-dir")
+            .arg(&objectiveai_dir)
+            .arg("--objectiveai-state")
+            .arg(&state)
+            .arg("--suppress-output");
+        for mount in &request.mounts {
+            cmd.arg("--mount")
+                .arg(format!("{}:{}", mount.host, mount.container));
+        }
+        for env in &request.env {
+            cmd.arg("--env").arg(format!("{}={}", env.key, env.value));
+        }
+        // The authorization signature travels by ENV VAR only (never
+        // argv); cleared when the daemon is secretless so the child
+        // can't inherit a stale one.
+        match &signature {
+            Some(s) => {
+                cmd.env("DAEMON_SIGNATURE", s);
+            }
+            None => {
+                cmd.env_remove("DAEMON_SIGNATURE");
+            }
+        }
+    })
     .await?;
 
     Ok(Response {
@@ -52,7 +81,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 
 pub mod request_schema {
     use objectiveai_sdk::cli::command::laboratories::create as sdk;
-    use objectiveai_sdk::cli::command::laboratories::create::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::laboratories::create::request_schema::{
+        Request, Response,
+    };
 
     use crate::context::Context;
     use crate::error::Error;
@@ -66,7 +97,9 @@ pub mod request_schema {
 
 pub mod response_schema {
     use objectiveai_sdk::cli::command::laboratories::create as sdk;
-    use objectiveai_sdk::cli::command::laboratories::create::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::laboratories::create::response_schema::{
+        Request, Response,
+    };
 
     use crate::context::Context;
     use crate::error::Error;

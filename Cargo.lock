@@ -4302,6 +4302,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-laboratory"
+version = "2.2.10"
+dependencies = [
+ "base64 0.22.1",
+ "clap",
+ "dashmap",
+ "dirs",
+ "dotenv",
+ "flate2",
+ "futures",
+ "indexmap 2.14.0",
+ "objectiveai-sdk",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tar",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite 0.24.0",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "objectiveai-mcp"
 version = "2.2.10"
 dependencies = [
@@ -4392,7 +4416,6 @@ dependencies = [
  "dashmap",
  "dirs",
  "eventsource-stream",
- "flate2",
  "futures",
  "futures-util",
  "getrandom 0.3.4",
@@ -4417,7 +4440,6 @@ dependencies = [
  "serde_path_to_error",
  "starlark",
  "syn 2.0.117",
- "tar",
  "tempfile",
  "thiserror 2.0.18",
  "tokio",
@@ -4428,7 +4450,6 @@ dependencies = [
  "walkdir",
  "windows-sys 0.59.0",
  "wiremock",
- "zip",
 ]
 
 [[package]]

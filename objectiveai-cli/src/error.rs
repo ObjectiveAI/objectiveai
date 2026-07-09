@@ -18,6 +18,8 @@ pub enum Error {
     PythonWasm(String),
     #[error("podman: {0}")]
     Podman(String),
+    #[error("laboratory: {0}")]
+    Laboratory(String),
     #[error("failed to read python file {0}: {1}")]
     PythonFileRead(std::path::PathBuf, std::io::Error),
     #[error("failed to read prompt file {0}: {1}")]
@@ -221,11 +223,5 @@ local server. to (re)start the local server: `objectiveai api spawn`"
         )
     } else {
         err.to_string()
-    }
-}
-
-impl From<objectiveai_sdk::podman::Error> for Error {
-    fn from(e: objectiveai_sdk::podman::Error) -> Self {
-        Error::Podman(e.0)
     }
 }

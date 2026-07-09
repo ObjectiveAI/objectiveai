@@ -67,3 +67,14 @@ fn verify_signature(secret: &str, signature: &str) -> bool {
     let expected = Sha256::digest(secret.as_bytes());
     expected.ct_eq(&sig_bytes).into()
 }
+
+/// The client-side half of [`verify_signature`]'s math:
+/// `sha256=<hex(SHA256(secret))>` — identical to
+/// `generate_viewer_secret_signature_pair`'s derivation. Used when the
+/// CLI launches a consumer (the laboratory manager) that must present
+/// the signature back to this daemon.
+pub fn derive_signature(secret: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(secret.as_bytes());
+    format!("sha256={}", hex::encode(digest))
+}

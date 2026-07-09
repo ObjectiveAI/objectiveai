@@ -159,7 +159,7 @@ pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
 
     // 2. Serialize installs machine-wide. We may BLOCK here while a sibling
     //    process is mid-install (or about to finish one).
-    let claim = crate::lockfile::wait_acquire(
+    let claim = objectiveai_sdk::lockfile::wait_acquire(
         &bin_dir.join("locks"),
         "podman",
         &format!("pid {}", std::process::id()),

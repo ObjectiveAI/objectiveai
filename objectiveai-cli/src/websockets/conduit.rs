@@ -105,12 +105,11 @@ struct Inner {
     /// `initialize`; any cache miss returns `-32001`. Inner maps are
     /// reaped on terminate so the outer map doesn't grow unbounded.
     connections: DashMap<String, DashMap<McpKind, Arc<ConduitState>>>,
-    /// Parked laboratory-transfer halves (exports being PULLED and
-    /// imports being PUSHED chunk-by-chunk by the proxy), keyed by
-    /// the conduit-minted `transfer_id`. Values are `Arc` so an op
-    /// can clone out and drop the map ref before awaiting (no map
-    /// locks held across awaits). Swept lazily on every Begin.
-    transfers: DashMap<String, Arc<TransferEntry>>,
+    /// Which laboratory each in-flight transfer belongs to: the
+    /// chunked transfer ops after Begin carry only a `transfer_id`,
+    /// but socket routing needs the laboratory — Begin forwards
+    /// record the pair here; eof/end/abort forwards drop it.
+    transfer_routes: DashMap<String, String>,
     /// Late-bound: filled by [`ConduitMcpHandler::install_notifier`]
     /// after the WS-creating call returns the notifier. Pump
     /// closures read it at fire time.
@@ -181,7 +180,7 @@ impl ConduitMcpHandler {
                 mcp_server,
                 client,
                 connections: DashMap::new(),
-                transfers: DashMap::new(),
+                transfer_routes: DashMap::new(),
                 notifier: OnceLock::new(),
                 ctx,
                 agent_tag,
@@ -246,6 +245,20 @@ impl McpHandler for ConduitMcpHandler {
 
         let id = request.id.clone();
 
+        // Laboratory traffic never touches podman or local HTTP any
+        // more: every payload addressed to a laboratory — the MCP ops
+        // (by `mcp_kind`) and the chunked transfer ops (by inline
+        // `laboratory_id`, or `transfer_id` via `transfer_routes`) —
+        // forwards through the daemon's `laboratories.sock` to
+        // whichever CONNECTED manager owns that laboratory, local or
+        // remote alike.
+        if let Some(laboratory_id) = self.laboratory_target(&request.payload) {
+            let payload = self
+                .dispatch_laboratory_forward(laboratory_id, &request.headers, request.payload)
+                .await;
+            return server_response::Response { id, payload };
+        }
+
         let payload = match request.payload {
             server_request::Payload::Initialize { mcp_kind, params } => {
                 dispatch_initialize(&self.inner, mcp_kind, params, &request.headers).await
@@ -296,26 +309,50 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_retrieve(&self.inner, req).await
             }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
-            server_request::Payload::LaboratoryExportBegin(req) => {
-                dispatch_laboratory_export_begin(&self.inner, req).await
+            // Laboratory-addressed payloads are intercepted above when a
+            // route exists; reaching one of these arms means the transfer
+            // id maps to no known laboratory (never Begun here, or its
+            // route was already closed).
+            server_request::Payload::LaboratoryExportBegin(_) => {
+                server_response::Payload::LaboratoryExportBegin(rpc_err(
+                    -32001,
+                    "laboratory not routable".to_string(),
+                ))
             }
             server_request::Payload::LaboratoryExportRead(req) => {
-                dispatch_laboratory_export_read(&self.inner, req).await
+                server_response::Payload::LaboratoryExportRead(rpc_err(
+                    -32001,
+                    format!("unknown transfer '{}'", req.transfer_id),
+                ))
             }
-            server_request::Payload::LaboratoryExportAbort(req) => {
-                dispatch_laboratory_export_abort(&self.inner, req)
+            server_request::Payload::LaboratoryExportAbort(_) => {
+                // Abort of an unknown transfer is a successful no-op.
+                server_response::Payload::LaboratoryExportAbort(JsonRpcResult::Ok {
+                    result: server_response::LaboratoryTransferAck {},
+                })
             }
-            server_request::Payload::LaboratoryImportBegin(req) => {
-                dispatch_laboratory_import_begin(&self.inner, req).await
+            server_request::Payload::LaboratoryImportBegin(_) => {
+                server_response::Payload::LaboratoryImportBegin(rpc_err(
+                    -32001,
+                    "laboratory not routable".to_string(),
+                ))
             }
             server_request::Payload::LaboratoryImportWrite(req) => {
-                dispatch_laboratory_import_write(&self.inner, req).await
+                server_response::Payload::LaboratoryImportWrite(rpc_err(
+                    -32001,
+                    format!("unknown transfer '{}'", req.transfer_id),
+                ))
             }
             server_request::Payload::LaboratoryImportEnd(req) => {
-                dispatch_laboratory_import_end(&self.inner, req).await
+                server_response::Payload::LaboratoryImportEnd(rpc_err(
+                    -32001,
+                    format!("unknown transfer '{}'", req.transfer_id),
+                ))
             }
-            server_request::Payload::LaboratoryImportAbort(req) => {
-                dispatch_laboratory_import_abort(&self.inner, req)
+            server_request::Payload::LaboratoryImportAbort(_) => {
+                server_response::Payload::LaboratoryImportAbort(JsonRpcResult::Ok {
+                    result: server_response::LaboratoryTransferAck {},
+                })
             }
         };
 
@@ -453,30 +490,11 @@ async fn dispatch_initialize(
             .map(|(c, drain)| (c, Some(drain)))
             .map_err(|e| format!("{e}"))
         }
-        McpKind::Laboratory { id } => {
-            // A laboratory is a podman container running the laboratory MCP
-            // server on a fixed in-container port, published to a random
-            // 127.0.0.1 host port. The container may or may not be running, so
-            // ensure it's started first — `start` is idempotent (no-op + exit 0
-            // if already running) and concurrency-safe, so run it blindly. Then
-            // resolve the published port and connect to it as a streamable-HTTP
-            // MCP upstream (no subprocess → no drain handle).
-            if let Err(message) = objectiveai_sdk::podman::laboratory::start(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), id).await {
-                return initialize_err(-32603, format!("laboratory {id}: {message}"));
-            }
-            let port = match objectiveai_sdk::podman::laboratory::host_port(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), id).await {
-                Ok(p) => p,
-                Err(message) => {
-                    return initialize_err(-32603, format!("laboratory {id}: {message}"));
-                }
-            };
-            let connect_headers = sanitize_connect_headers(headers);
-            inner
-                .client
-                .connect(format!("http://127.0.0.1:{port}/"), None, Some(connect_headers))
-                .await
-                .map(|c| (c, None))
-                .map_err(|e| format!("connect: {e}"))
+        McpKind::Laboratory { .. } => {
+            // Laboratory payloads are intercepted in `handle` and
+            // forwarded over the laboratories socket — they never
+            // reach this dial.
+            Err("laboratory requests route via the daemon".to_string())
         }
     };
 
@@ -583,340 +601,206 @@ fn dispatch_drop(
     server_response::Payload::Drop(server_response::DropResult { dropped })
 }
 
-/// One parked laboratory-transfer half. The conduit handles export
-/// and import COMPLETELY INDEPENDENTLY — the splice (if the peer is
-/// another laboratory) happens on the proxy/API side, so tar bytes
-/// always stream to and from the API and the peer may live on any
-/// host. Same-host transfer is just the degenerate case.
-enum TransferEntry {
-    /// A live `GET /export` response being pulled chunk-by-chunk.
-    Export {
-        response: tokio::sync::Mutex<Option<reqwest::Response>>,
-        last_used: std::sync::atomic::AtomicI64,
-    },
-    /// A live `POST /import` whose body is fed chunk-by-chunk.
-    Import {
-        /// `Some` until `ImportEnd`/abort; dropping it EOFs the body.
-        tx: tokio::sync::Mutex<Option<tokio::sync::mpsc::Sender<Result<Vec<u8>, std::io::Error>>>>,
-        /// Raw tar bytes fed so far.
-        bytes: std::sync::atomic::AtomicU64,
-        /// The in-flight POST; joined by `ImportEnd` for the verdict.
-        join: tokio::sync::Mutex<Option<tokio::task::JoinHandle<Result<(), String>>>>,
-        last_used: std::sync::atomic::AtomicI64,
-    },
-}
-
-impl TransferEntry {
-    fn touch(&self) {
-        let (TransferEntry::Export { last_used, .. }
-        | TransferEntry::Import { last_used, .. }) = self;
-        last_used.store(now_secs(), std::sync::atomic::Ordering::Relaxed);
+impl ConduitMcpHandler {
+    /// Which laboratory (if any) a payload is addressed to.
+    fn laboratory_target(&self, payload: &server_request::Payload) -> Option<String> {
+        if let Some(McpKind::Laboratory { id }) = payload.mcp_kind() {
+            return Some(id);
+        }
+        match payload {
+            server_request::Payload::LaboratoryExportBegin(req) => {
+                Some(req.laboratory_id.clone())
+            }
+            server_request::Payload::LaboratoryImportBegin(req) => {
+                Some(req.laboratory_id.clone())
+            }
+            server_request::Payload::LaboratoryExportRead(req) => self
+                .inner
+                .transfer_routes
+                .get(&req.transfer_id)
+                .map(|r| r.clone()),
+            server_request::Payload::LaboratoryExportAbort(req) => self
+                .inner
+                .transfer_routes
+                .get(&req.transfer_id)
+                .map(|r| r.clone()),
+            server_request::Payload::LaboratoryImportWrite(req) => self
+                .inner
+                .transfer_routes
+                .get(&req.transfer_id)
+                .map(|r| r.clone()),
+            server_request::Payload::LaboratoryImportEnd(req) => self
+                .inner
+                .transfer_routes
+                .get(&req.transfer_id)
+                .map(|r| r.clone()),
+            server_request::Payload::LaboratoryImportAbort(req) => self
+                .inner
+                .transfer_routes
+                .get(&req.transfer_id)
+                .map(|r| r.clone()),
+            _ => None,
+        }
     }
 
-    fn idle_secs(&self) -> i64 {
-        let (TransferEntry::Export { last_used, .. }
-        | TransferEntry::Import { last_used, .. }) = self;
-        now_secs() - last_used.load(std::sync::atomic::Ordering::Relaxed)
-    }
-}
-
-fn now_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
-}
-
-/// Raw bytes per `LaboratoryExportRead` chunk (base64 on the wire, so
-/// the JSON frame is ~4/3 of this).
-const TRANSFER_CHUNK_SIZE: usize = 2 * 1024 * 1024;
-
-/// Orphan cap: a transfer half untouched this long was abandoned by
-/// its proxy (died mid-transfer without aborting) — drop it. Dropping
-/// an export cancels the lab GET; dropping an import truncates the
-/// tar so the lab's unpack fails (nothing partial is kept silently).
-const TRANSFER_IDLE_SECS: i64 = 300;
-
-/// Lazy sweep, run on every Begin — no background task needed at
-/// these op rates.
-fn gc_transfers(inner: &Arc<Inner>) {
-    inner
-        .transfers
-        .retain(|_, entry| entry.idle_secs() < TRANSFER_IDLE_SECS);
-}
-
-/// Ensure the laboratory is running and resolve its loopback base URL.
-async fn laboratory_base_url(
-    inner: &Arc<Inner>,
-    laboratory_id: &str,
-) -> Result<String, String> {
-    objectiveai_sdk::podman::laboratory::start(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), laboratory_id)
-        .await
-        .map_err(|e| format!("start laboratory {laboratory_id}: {e}"))?;
-    let port = objectiveai_sdk::podman::laboratory::host_port(inner.ctx.podman_runtime(), inner.ctx.filesystem.state(), laboratory_id)
-        .await
-        .map_err(|e| format!("laboratory {laboratory_id}: {e}"))?;
-    Ok(format!("http://127.0.0.1:{port}"))
-}
-
-/// `LaboratoryExportBegin`: open the laboratory's `/export` and park
-/// the response for chunked pulls.
-async fn dispatch_laboratory_export_begin(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryExportBeginRequest,
-) -> server_response::Payload {
-    use server_response::Payload;
-    let err =
-        |m: String| Payload::LaboratoryExportBegin(rpc_err(-32603, m));
-    gc_transfers(inner);
-    let base = match laboratory_base_url(inner, &req.laboratory_id).await {
-        Ok(b) => b,
-        Err(m) => return err(m),
-    };
-    let response = match reqwest::Client::new()
-        .get(format!("{base}/export"))
-        .query(&[("path", &req.path)])
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(e) => return err(format!("export from {}: {e}", req.laboratory_id)),
-    };
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return err(format!(
-            "export from {}: HTTP {status}: {}",
-            req.laboratory_id,
-            body.trim()
-        ));
-    }
-    let transfer_id = uuid::Uuid::new_v4().to_string();
-    let entry = TransferEntry::Export {
-        response: tokio::sync::Mutex::new(Some(response)),
-        last_used: std::sync::atomic::AtomicI64::new(now_secs()),
-    };
-    inner.transfers.insert(transfer_id.clone(), Arc::new(entry));
-    Payload::LaboratoryExportBegin(JsonRpcResult::Ok {
-        result: server_response::LaboratoryTransferBeginResult { transfer_id },
-    })
-}
-
-/// `LaboratoryExportRead`: pull up to [`TRANSFER_CHUNK_SIZE`] bytes
-/// from the parked stream. EOF removes the entry.
-async fn dispatch_laboratory_export_read(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryExportReadRequest,
-) -> server_response::Payload {
-    use base64::Engine as _;
-    use server_response::Payload;
-    let err = |m: String| Payload::LaboratoryExportRead(rpc_err(-32603, m));
-    // Clone the Arc out and drop the map ref BEFORE awaiting.
-    let entry = match inner.transfers.get(&req.transfer_id) {
-        Some(e) => Arc::clone(&e),
-        None => return err(format!("no export transfer '{}'", req.transfer_id)),
-    };
-    let TransferEntry::Export { response, .. } = &*entry else {
-        return err(format!("transfer '{}' is an import", req.transfer_id));
-    };
-    entry.touch();
-    let mut guard = response.lock().await;
-    let Some(live) = guard.as_mut() else {
-        return err(format!("export transfer '{}' already closed", req.transfer_id));
-    };
-    let mut buf: Vec<u8> = Vec::new();
-    let mut eof = false;
-    while buf.len() < TRANSFER_CHUNK_SIZE {
-        match live.chunk().await {
-            Ok(Some(bytes)) => buf.extend_from_slice(&bytes),
-            Ok(None) => {
-                eof = true;
-                break;
+    /// Forward one laboratory-addressed payload over the daemon's
+    /// laboratories socket and maintain `transfer_routes` from what
+    /// passes through (Begin replies open a route; eof/end/abort
+    /// close it).
+    async fn dispatch_laboratory_forward(
+        &self,
+        laboratory_id: String,
+        headers: &IndexMap<String, String>,
+        payload: server_request::Payload,
+    ) -> server_response::Payload {
+        use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
+            SocketRequest, SocketResponse,
+        };
+        let shape = LabErrorShape::of(&payload);
+        // Route bookkeeping BEFORE the await: aborts always drop their
+        // route (even if the forward fails, the driver is done with it).
+        match &payload {
+            server_request::Payload::LaboratoryExportAbort(req) => {
+                self.inner.transfer_routes.remove(&req.transfer_id);
+            }
+            server_request::Payload::LaboratoryImportAbort(req) => {
+                self.inner.transfer_routes.remove(&req.transfer_id);
+            }
+            server_request::Payload::LaboratoryImportEnd(req) => {
+                self.inner.transfer_routes.remove(&req.transfer_id);
+            }
+            _ => {}
+        }
+        let socket_reply = crate::websockets::websocket_laboratory::call_laboratories_socket(
+            &self.inner.ctx.filesystem.state_dir(),
+            &SocketRequest::Forward {
+                laboratory_id: laboratory_id.clone(),
+                headers: headers.clone(),
+                request: payload,
+            },
+        )
+        .await;
+        let response = match socket_reply {
+            Ok(SocketResponse::Forwarded { response }) => response,
+            Ok(SocketResponse::Error { message }) => {
+                return shape.error(-32603, format!("laboratory {laboratory_id}: {message}"));
+            }
+            Ok(SocketResponse::List { .. }) => {
+                return shape.error(-32603, "unexpected socket reply".to_string());
             }
             Err(e) => {
-                *guard = None;
-                drop(guard);
-                inner.transfers.remove(&req.transfer_id);
-                return err(format!("export stream: {e}"));
+                return shape.error(
+                    -32603,
+                    format!("laboratories socket (is the daemon up?): {e}"),
+                );
             }
-        }
-    }
-    if eof {
-        *guard = None;
-        drop(guard);
-        inner.transfers.remove(&req.transfer_id);
-    }
-    Payload::LaboratoryExportRead(JsonRpcResult::Ok {
-        result: server_response::LaboratoryExportChunk {
-            data: base64::engine::general_purpose::STANDARD.encode(&buf),
-            eof,
-        },
-    })
-}
-
-/// `LaboratoryExportAbort`: drop the parked stream (cancels the lab
-/// GET). Idempotent — an unknown id still acks.
-fn dispatch_laboratory_export_abort(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryExportAbortRequest,
-) -> server_response::Payload {
-    inner.transfers.remove(&req.transfer_id);
-    server_response::Payload::LaboratoryExportAbort(JsonRpcResult::Ok {
-        result: server_response::LaboratoryTransferAck {},
-    })
-}
-
-/// `LaboratoryImportBegin`: open the laboratory's `/import` with a
-/// channel-backed streaming body and park the sender for chunked
-/// pushes.
-async fn dispatch_laboratory_import_begin(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryImportBeginRequest,
-) -> server_response::Payload {
-    use server_response::Payload;
-    let err =
-        |m: String| Payload::LaboratoryImportBegin(rpc_err(-32603, m));
-    gc_transfers(inner);
-    let base = match laboratory_base_url(inner, &req.laboratory_id).await {
-        Ok(b) => b,
-        Err(m) => return err(m),
-    };
-    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Vec<u8>, std::io::Error>>(4);
-    let laboratory_id = req.laboratory_id.clone();
-    let path = req.path.clone();
-    let join = tokio::spawn(async move {
-        let response = reqwest::Client::new()
-            .post(format!("{base}/import"))
-            .query(&[("path", &path)])
-            .body(reqwest::Body::wrap_stream(
-                tokio_stream::wrappers::ReceiverStream::new(rx),
-            ))
-            .send()
-            .await
-            .map_err(|e| format!("import to {laboratory_id}: {e}"))?;
-        if response.status().is_success() {
-            Ok(())
-        } else {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            Err(format!(
-                "import to {laboratory_id}: HTTP {status}: {}",
-                body.trim()
-            ))
-        }
-    });
-    let transfer_id = uuid::Uuid::new_v4().to_string();
-    let entry = TransferEntry::Import {
-        tx: tokio::sync::Mutex::new(Some(tx)),
-        bytes: std::sync::atomic::AtomicU64::new(0),
-        join: tokio::sync::Mutex::new(Some(join)),
-        last_used: std::sync::atomic::AtomicI64::new(now_secs()),
-    };
-    inner.transfers.insert(transfer_id.clone(), Arc::new(entry));
-    Payload::LaboratoryImportBegin(JsonRpcResult::Ok {
-        result: server_response::LaboratoryTransferBeginResult { transfer_id },
-    })
-}
-
-/// `LaboratoryImportWrite`: decode one chunk and feed the parked body
-/// (awaiting the bounded channel — a stalled laboratory backpressures
-/// straight to the proxy's pull loop).
-async fn dispatch_laboratory_import_write(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryImportWriteRequest,
-) -> server_response::Payload {
-    use base64::Engine as _;
-    use server_response::Payload;
-    let err = |m: String| Payload::LaboratoryImportWrite(rpc_err(-32603, m));
-    let entry = match inner.transfers.get(&req.transfer_id) {
-        Some(e) => Arc::clone(&e),
-        None => return err(format!("no import transfer '{}'", req.transfer_id)),
-    };
-    let TransferEntry::Import { tx, bytes, join, .. } = &*entry else {
-        return err(format!("transfer '{}' is an export", req.transfer_id));
-    };
-    entry.touch();
-    let data = match base64::engine::general_purpose::STANDARD.decode(&req.data) {
-        Ok(d) => d,
-        Err(e) => return err(format!("chunk is not valid base64: {e}")),
-    };
-    let guard = tx.lock().await;
-    let Some(sender) = guard.as_ref() else {
-        return err(format!("import transfer '{}' already closed", req.transfer_id));
-    };
-    let len = data.len() as u64;
-    if sender.send(Ok(data)).await.is_err() {
-        // Body receiver gone — the POST died; surface its verdict.
-        drop(guard);
-        let joined = join.lock().await.take();
-        inner.transfers.remove(&req.transfer_id);
-        let detail = match joined {
-            Some(handle) => match handle.await {
-                Ok(Ok(())) => "import ended early".to_string(),
-                Ok(Err(m)) => m,
-                Err(e) => format!("import task panicked: {e}"),
-            },
-            None => "import body closed".to_string(),
         };
-        return err(detail);
-    }
-    bytes.fetch_add(len, std::sync::atomic::Ordering::Relaxed);
-    Payload::LaboratoryImportWrite(JsonRpcResult::Ok {
-        result: server_response::LaboratoryTransferAck {},
-    })
-}
-
-/// `LaboratoryImportEnd`: close the body (EOF), await the laboratory's
-/// unpack verdict, reply with the byte total.
-async fn dispatch_laboratory_import_end(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryImportEndRequest,
-) -> server_response::Payload {
-    use server_response::Payload;
-    let err = |m: String| Payload::LaboratoryImportEnd(rpc_err(-32603, m));
-    let entry = match inner.transfers.remove(&req.transfer_id) {
-        Some((_, e)) => e,
-        None => return err(format!("no import transfer '{}'", req.transfer_id)),
-    };
-    let TransferEntry::Import { tx, bytes, join, .. } = &*entry else {
-        return err(format!("transfer '{}' is an export", req.transfer_id));
-    };
-    // Drop the sender → body EOF → the POST completes.
-    tx.lock().await.take();
-    let joined = join.lock().await.take();
-    match joined {
-        Some(handle) => match handle.await {
-            Ok(Ok(())) => Payload::LaboratoryImportEnd(JsonRpcResult::Ok {
-                result: server_response::LaboratoryImportEndResult {
-                    bytes: bytes.load(std::sync::atomic::Ordering::Relaxed),
-                },
-            }),
-            Ok(Err(m)) => err(m),
-            Err(e) => err(format!("import task panicked: {e}")),
-        },
-        None => err(format!("import transfer '{}' already ended", req.transfer_id)),
-    }
-}
-
-/// `LaboratoryImportAbort`: drop the parked body without EOF-ing it
-/// cleanly — the truncated tar makes the laboratory's unpack fail.
-/// Idempotent — an unknown id still acks.
-fn dispatch_laboratory_import_abort(
-    inner: &Arc<Inner>,
-    req: server_request::LaboratoryImportAbortRequest,
-) -> server_response::Payload {
-    if let Some((_, entry)) = inner.transfers.remove(&req.transfer_id) {
-        if let TransferEntry::Import { join, .. } = &*entry {
-            // Detach the POST task; it finishes on its own (the lab
-            // rejects the truncated tar) — nothing awaits it.
-            if let Ok(mut guard) = join.try_lock() {
-                guard.take();
+        // Open/close routes from the manager's replies.
+        match &response {
+            server_response::Payload::LaboratoryExportBegin(JsonRpcResult::Ok { result }) => {
+                self.inner
+                    .transfer_routes
+                    .insert(result.transfer_id.clone(), laboratory_id);
             }
+            server_response::Payload::LaboratoryImportBegin(JsonRpcResult::Ok { result }) => {
+                self.inner
+                    .transfer_routes
+                    .insert(result.transfer_id.clone(), laboratory_id);
+            }
+            server_response::Payload::LaboratoryExportRead(JsonRpcResult::Ok { result }) => {
+                if result.eof {
+                    // The manager already dropped its entry.
+                    self.inner.transfer_routes.retain(|_, lab| lab != &laboratory_id);
+                }
+            }
+            _ => {}
+        }
+        response
+    }
+}
+
+/// Enough of a request payload's shape to build a same-variant error
+/// reply after the payload itself has been moved into the forward.
+enum LabErrorShape {
+    Initialize(McpKind),
+    SessionTerminate(McpKind),
+    ToolsList(McpKind),
+    ToolsCall(McpKind),
+    ResourcesList(McpKind),
+    ResourcesRead(McpKind),
+    Drop,
+    ExportBegin,
+    ExportRead,
+    ExportAbort,
+    ImportBegin,
+    ImportWrite,
+    ImportEnd,
+    ImportAbort,
+    Other,
+}
+
+impl LabErrorShape {
+    fn of(payload: &server_request::Payload) -> Self {
+        use server_request::Payload as P;
+        match payload {
+            P::Initialize { mcp_kind, .. } => Self::Initialize(mcp_kind.clone()),
+            P::SessionTerminate { mcp_kind } => Self::SessionTerminate(mcp_kind.clone()),
+            P::ToolsList { mcp_kind, .. } => Self::ToolsList(mcp_kind.clone()),
+            P::ToolsCall { mcp_kind, .. } => Self::ToolsCall(mcp_kind.clone()),
+            P::ResourcesList { mcp_kind, .. } => Self::ResourcesList(mcp_kind.clone()),
+            P::ResourcesRead { mcp_kind, .. } => Self::ResourcesRead(mcp_kind.clone()),
+            P::Drop(_) => Self::Drop,
+            P::LaboratoryExportBegin(_) => Self::ExportBegin,
+            P::LaboratoryExportRead(_) => Self::ExportRead,
+            P::LaboratoryExportAbort(_) => Self::ExportAbort,
+            P::LaboratoryImportBegin(_) => Self::ImportBegin,
+            P::LaboratoryImportWrite(_) => Self::ImportWrite,
+            P::LaboratoryImportEnd(_) => Self::ImportEnd,
+            P::LaboratoryImportAbort(_) => Self::ImportAbort,
+            _ => Self::Other,
         }
     }
-    server_response::Payload::LaboratoryImportAbort(JsonRpcResult::Ok {
-        result: server_response::LaboratoryTransferAck {},
-    })
+
+    fn error(self, code: i64, message: String) -> server_response::Payload {
+        use server_response::Payload as R;
+        match self {
+            Self::Initialize(mcp_kind) => R::Initialize {
+                mcp_kind,
+                result: rpc_err(code, message),
+            },
+            Self::SessionTerminate(mcp_kind) => R::SessionTerminate {
+                mcp_kind,
+                result: rpc_err(code, message),
+            },
+            Self::ToolsList(mcp_kind) => R::ToolsList {
+                mcp_kind,
+                result: rpc_err(code, message),
+            },
+            Self::ToolsCall(mcp_kind) => R::ToolsCall {
+                mcp_kind,
+                result: rpc_err(code, message),
+            },
+            Self::ResourcesList(mcp_kind) => R::ResourcesList {
+                mcp_kind,
+                result: rpc_err(code, message),
+            },
+            Self::ResourcesRead(mcp_kind) => R::ResourcesRead {
+                mcp_kind,
+                result: rpc_err(code, message),
+            },
+            Self::Drop => R::Drop(objectiveai_sdk::client_objectiveai_mcp::server_response::DropResult {
+                dropped: false,
+            }),
+            Self::ExportBegin => R::LaboratoryExportBegin(rpc_err(code, message)),
+            Self::ExportRead => R::LaboratoryExportRead(rpc_err(code, message)),
+            Self::ExportAbort => R::LaboratoryExportAbort(rpc_err(code, message)),
+            Self::ImportBegin => R::LaboratoryImportBegin(rpc_err(code, message)),
+            Self::ImportWrite => R::LaboratoryImportWrite(rpc_err(code, message)),
+            Self::ImportEnd => R::LaboratoryImportEnd(rpc_err(code, message)),
+            Self::ImportAbort => R::LaboratoryImportAbort(rpc_err(code, message)),
+            Self::Other => R::Retrieve(rpc_err(code, message)),
+        }
+    }
 }
 
 async fn dispatch_tools_list(

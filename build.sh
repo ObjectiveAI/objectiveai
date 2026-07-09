@@ -26,7 +26,7 @@
 #   artifacts (pnpm workspace link for js, module graph for go, the py venv for
 #   py). Ordered after the SDK build; under --no-sdk it runs against the
 #   existing artifacts. Skipped by --no-test-integration.
-# Final: wait for phase 1, then package the HOST platform's 7 binaries into
+# Final: wait for phase 1, then package the HOST platform's 8 binaries into
 #        the same per-platform zip the release ships
 #        (objectiveai-<version>-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
 #        so the installer / `objectiveai update` can use it locally. Host
@@ -261,7 +261,7 @@ if [ "$NO_ZIP" != "1" ]; then
     # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
     # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
     # `--no-test-integration` case (FIXTURE_CRATES left empty).
-    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
+    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
@@ -391,7 +391,7 @@ if [ "$NO_ZIP" != "1" ]; then
   fi
 fi
 
-# ── Package the host's 7 binaries into <dir>/bin/<release-asset>.zip ─────
+# ── Package the host's 8 binaries into <dir>/bin/<release-asset>.zip ─────
 # Bundles the freshly-built binaries into the same per-platform zip the
 # GitHub Release ships (objectiveai-<version>-<os>-<arch>.zip) and drops
 # it in <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can
@@ -431,7 +431,7 @@ package_host_zip() {
   local bin_dir="$install_dir/bin"
   mkdir -p "$bin_dir"
 
-  # Stage the 7 binaries under their shipped names (built-name -> ship-name).
+  # Stage the 8 binaries under their shipped names (built-name -> ship-name).
   local stage="$REPO_ROOT/target/.package-stage.$$"
   rm -rf "$stage"; mkdir -p "$stage"
 
@@ -439,7 +439,7 @@ package_host_zip() {
   local src
   # The four CLI/server crates from the cargo build (built-name -> ship-name;
   # the cli crate builds as objectiveai-cli but ships as objectiveai).
-  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db"
+  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
   local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"

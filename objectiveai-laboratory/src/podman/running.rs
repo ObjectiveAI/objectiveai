@@ -72,7 +72,7 @@ pub async fn ensure_running(
 
     // 3. Serialize the reconcile machine-WIDE. We may BLOCK here while a
     //    sibling process is mid-init/start (or about to finish one).
-    let claim = crate::lockfile::wait_acquire(
+    let claim = objectiveai_sdk::lockfile::wait_acquire(
         &bin_dir.join("locks"),
         "podman-machine",
         &format!("pid {}", std::process::id()),

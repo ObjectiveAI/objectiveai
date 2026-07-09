@@ -31,6 +31,7 @@
 # <dir>/state/<OBJECTIVEAI_STATE>, default "default"):
 #   <dir>/bin/objectiveai{.exe}        ← CLI
 #   <dir>/bin/objectiveai-api{.exe}
+#   <dir>/bin/objectiveai-laboratory{.exe}
 #   <dir>/bin/objectiveai-viewer{.exe}
 #   <dir>/bin/objectiveai-mcp{.exe}
 #   <dir>/bin/objectiveai-db{.exe}

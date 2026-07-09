@@ -228,6 +228,9 @@ pub(crate) struct DaemonWsState {
     /// The live-conversation hub backing the `/agents/instances/{*aih}`
     /// route.
     pub(crate) conversations: crate::websockets::websocket_agent_instance::ConversationHub,
+    /// The connected-laboratory registry backing the `/laboratory`
+    /// route and `laboratories.sock`.
+    pub(crate) laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
 }
 
 /// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
@@ -259,6 +262,7 @@ pub fn serve_ws(
     ctx: crate::context::Context,
     active: crate::websockets::websocket_agents::ActiveAgents,
     conversations: crate::websockets::websocket_agent_instance::ConversationHub,
+    laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::any(listen_handler))
@@ -280,12 +284,21 @@ pub fn serve_ws(
                 crate::websockets::websocket_agent_instance::instance_handler,
             ),
         )
+        // Laboratory managers dial in here: Identify frame first,
+        // auth preamble second, then correlated request/response.
+        .route(
+            "/laboratory",
+            axum::routing::any(
+                crate::websockets::websocket_laboratory::laboratory_handler,
+            ),
+        )
         .with_state(DaemonWsState {
             tx,
             ctx,
             secret,
             active,
             conversations,
+            laboratories,
         });
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;

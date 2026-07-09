@@ -188,6 +188,22 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
                 return Err(Error::Spawn("daemon conversation socket bind".into(), e));
             }
         };
+    // The laboratories request/response socket (conduit → connected
+    // laboratory managers), same init-gate guarantee.
+    let laboratories_socket_listener =
+        match crate::websockets::websocket_laboratory::bind_laboratories_socket_listener(
+            &state_dir,
+        ) {
+            Ok(listener) => listener,
+            Err(e) => {
+                drop(ws_listener);
+                drop(socket_listener);
+                drop(agents_socket_listener);
+                drop(conversation_socket_listener);
+                let _ = init.release();
+                return Err(Error::Spawn("daemon laboratories socket bind".into(), e));
+            }
+        };
 
     // Publish the client-connect `ws://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
@@ -247,6 +263,8 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         conversation_tx,
         ctx.clone(),
     );
+    let laboratories =
+        crate::websockets::websocket_laboratory::LaboratoryRegistry::new();
     crate::websockets::daemon_stream::serve_ws(
         ws_listener,
         tx.clone(),
@@ -254,6 +272,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         ctx.clone(),
         active.clone(),
         conversations.clone(),
+        laboratories.clone(),
     );
     crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
     crate::websockets::websocket_agents::serve_agents_socket_listener(
@@ -263,6 +282,10 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     crate::websockets::websocket_agent_instance::serve_conversation_socket_listener(
         conversation_socket_listener,
         conversations.clone(),
+    );
+    crate::websockets::websocket_laboratory::serve_laboratories_socket_listener(
+        laboratories_socket_listener,
+        laboratories.clone(),
     );
     // Best-effort: seed the registry with agents already holding a lock
     // when the daemon started (off the boot path — no DB round-trip block).
