@@ -42,6 +42,10 @@ pub struct ResponseItem {
     pub mounts: Vec<super::create::Mount>,
     pub env: Vec<super::create::EnvVar>,
     pub cwd: String,
+    /// Whether this laboratory's manager is currently CONNECTED to the
+    /// daemon (a live `/laboratory` session). `false` = a container
+    /// that exists on the local machine but has no running manager.
+    pub connected: bool,
 }
 
 #[derive(clap::Args)]

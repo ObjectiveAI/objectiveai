@@ -63,6 +63,7 @@ async fn create_then_list_round_trips_the_spec() {
         .unwrap_or_else(|| panic!("created lab {id} not in list: {:?}", labs.iter().map(|l| &l.id).collect::<Vec<_>>()));
     assert_eq!(found.image, BASE_IMAGE);
     assert_eq!(found.cwd, "/work");
+    assert!(found.connected, "freshly created laboratory must be connected");
     assert!(
         found.env.iter().any(|e| e.key == "FOO" && e.value == "bar"),
         "env not round-tripped: {:?}",

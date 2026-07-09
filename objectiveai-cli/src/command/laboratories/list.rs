@@ -1,7 +1,9 @@
-//! `laboratories list` — stream the CONNECTED laboratories: the
-//! daemon's `/laboratory` registry is the source of truth (a manager
-//! that disconnects is no longer listed; podman is never consulted).
-//! Read-only. Only client-side laboratories are supported today.
+//! `laboratories list` — stream the CONNECTED laboratories (the
+//! daemon's `/laboratory` registry) FOLLOWED BY local laboratories
+//! whose managers are not running, read back from podman by the
+//! `objectiveai-laboratory list` subcommand (the CLI itself never
+//! touches podman). `connected` distinguishes the two. Read-only.
+//! Only client-side laboratories are supported today.
 
 use std::pin::Pin;
 
@@ -37,34 +39,96 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         }
         Err(e) => Err(Error::Laboratory(format!("laboratories socket: {e}"))),
     };
+    // Local laboratories (running or not) via the manager binary's
+    // `list` subcommand — the only podman reader left. A missing
+    // binary means a remote-only install: the local set is empty.
+    let local = match &labs {
+        Ok(_) => local_laboratories(ctx).await?,
+        Err(_) => Vec::new(),
+    };
     let stream = async_stream::stream! {
         match labs {
             Ok(labs) => {
+                let connected_ids: std::collections::HashSet<String> =
+                    labs.iter().map(|l| l.id.clone()).collect();
                 for lab in labs {
-                    yield Ok(ResponseItem {
-                        id: lab.id,
-                        image: lab.image,
-                        mounts: lab
-                            .mounts
-                            .into_iter()
-                            .map(|m| Mount {
-                                host: m.host,
-                                container: m.container,
-                            })
-                            .collect(),
-                        env: lab
-                            .env
-                            .into_iter()
-                            .map(|[key, value]| EnvVar { key, value })
-                            .collect(),
-                        cwd: lab.cwd,
-                    });
+                    yield Ok(item_from_identify(lab, true));
+                }
+                for lab in local {
+                    if !connected_ids.contains(&lab.id) {
+                        yield Ok(item_from_identify(lab, false));
+                    }
                 }
             }
             Err(e) => yield Err(e),
         }
     };
     Ok(Box::pin(stream))
+}
+
+fn item_from_identify(
+    lab: objectiveai_sdk::client_objectiveai_mcp::laboratory::Identify,
+    connected: bool,
+) -> ResponseItem {
+    ResponseItem {
+        id: lab.id,
+        image: lab.image,
+        mounts: lab
+            .mounts
+            .into_iter()
+            .map(|m| Mount {
+                host: m.host,
+                container: m.container,
+            })
+            .collect(),
+        env: lab
+            .env
+            .into_iter()
+            .map(|[key, value]| EnvVar { key, value })
+            .collect(),
+        cwd: lab.cwd,
+        connected,
+    }
+}
+
+/// The local machine's laboratories (running or not), from the manager
+/// binary's `list` subcommand. `Ok(vec![])` when the binary is not
+/// installed (remote-only setups); `Err` when it exists but fails.
+async fn local_laboratories(
+    ctx: &Context,
+) -> Result<Vec<objectiveai_sdk::client_objectiveai_mcp::laboratory::Identify>, Error> {
+    let exe = ctx.filesystem.bin_dir().join(if cfg!(windows) {
+        "objectiveai-laboratory.exe"
+    } else {
+        "objectiveai-laboratory"
+    });
+    let output = match tokio::process::Command::new(&exe)
+        .arg("list")
+        .arg("--objectiveai-dir")
+        .arg(ctx.filesystem.dir())
+        .arg("--objectiveai-state")
+        .arg(ctx.filesystem.state())
+        .output()
+        .await
+    {
+        Ok(output) => output,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => {
+            return Err(Error::Laboratory(format!(
+                "spawn objectiveai-laboratory list: {e}"
+            )));
+        }
+    };
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(Error::Laboratory(format!(
+            "objectiveai-laboratory list: {}",
+            stderr.trim()
+        )));
+    }
+    serde_json::from_slice(&output.stdout).map_err(|e| {
+        Error::Laboratory(format!("parse objectiveai-laboratory list output: {e}"))
+    })
 }
 
 pub mod request_schema {

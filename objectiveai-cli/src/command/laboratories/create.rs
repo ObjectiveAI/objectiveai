@@ -43,7 +43,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let state = ctx.filesystem.state().to_string();
 
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, &request.id, |cmd| {
-        cmd.arg("--id")
+        cmd.arg("run")
+            .arg("--id")
             .arg(&request.id)
             .arg("--image")
             .arg(&request.image)
