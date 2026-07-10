@@ -54,12 +54,6 @@ pub struct EnvVar {
     pub value: String,
 }
 
-#[derive(serde::Serialize)]
-pub struct Connected {
-    pub id: String,
-    pub address: String,
-}
-
 /// Create the laboratory container on this machine (waited; not
 /// started; errors if the id already exists).
 #[tauri::command]
@@ -140,12 +134,12 @@ async fn local_scan(env: &LabEnv) -> Result<Vec<Identify>, String> {
 /// spawned concurrently; idempotent per (id, address) via the
 /// lock-publication discipline, so already-connected laboratories are
 /// no-ops. Partial failures reject with every failure listed;
-/// successes stay connected regardless.
+/// successes stay connected regardless. Resolves to nothing.
 #[tauri::command]
 pub(crate) async fn laboratories_connect(
     env: tauri::State<'_, LabEnv>,
     ws: tauri::State<'_, crate::run::WebSocketConfig>,
-) -> Result<Vec<Connected>, String> {
+) -> Result<(), String> {
     let address = ws.address.clone();
     let signature = ws.signature.clone();
     let ids: Vec<String> = local_scan(&env)
@@ -161,27 +155,16 @@ pub(crate) async fn laboratories_connect(
         async move {
             connect_one(env_ref, &id, &address, signature.as_deref())
                 .await
-                .map(|()| Connected {
-                    id: id.clone(),
-                    address: address.clone(),
-                })
                 .map_err(|e| format!("laboratory '{id}': {e}"))
         }
     }))
     .await;
 
-    let mut connected = Vec::new();
-    let mut failures = Vec::new();
-    for result in results {
-        match result {
-            Ok(c) => connected.push(c),
-            Err(e) => failures.push(e),
-        }
-    }
+    let failures: Vec<String> = results.into_iter().filter_map(Result::err).collect();
     if !failures.is_empty() {
         return Err(failures.join("; "));
     }
-    Ok(connected)
+    Ok(())
 }
 
 /// Spawn (or find already-published) the detached manager for one
