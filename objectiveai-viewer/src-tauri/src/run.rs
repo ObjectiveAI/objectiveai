@@ -266,6 +266,7 @@ pub fn serve(
     websocket_config_state: WebSocketConfig,
     agents_dir: AgentsDir,
     plugins_dir: PathBuf,
+    lab_env: crate::laboratories::LabEnv,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
     agent_window: Option<String>,
 ) -> i32 {
@@ -280,6 +281,7 @@ pub fn serve(
         .manage(executor)
         .manage(websocket_config_state)
         .manage(agents_dir)
+        .manage(lab_env)
         .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
@@ -291,6 +293,9 @@ pub fn serve(
         open_url,
         open_agent_window,
         crate::plugins::list_plugins_with_viewer,
+        crate::laboratories::laboratories_create,
+        crate::laboratories::laboratories_list,
+        crate::laboratories::laboratories_connect,
     ]);
     builder
         .setup(move |tauri_app| {
@@ -380,11 +385,17 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
             .join("agents"),
     );
 
+    let lab_env = crate::laboratories::LabEnv {
+        objectiveai_dir: config.objectiveai_dir.clone(),
+        state: config.objectiveai_state.clone(),
+    };
+
     Ok(serve(
         executor,
         websocket_config_state,
         agents_dir,
         plugins_dir,
+        lab_env,
         None,
         config.agent_instance_hierarchy.clone(),
     ))

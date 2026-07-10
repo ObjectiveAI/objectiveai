@@ -60,6 +60,8 @@
 //! return `io::Result`.
 
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::sync::LazyLock;
 
 use dashmap::DashMap;
@@ -1088,6 +1090,150 @@ fn gate_path(dir: &Path, key: &str) -> PathBuf {
 /// collide with another key's announce.
 fn announce_path(dir: &Path, key: &str) -> PathBuf {
     dir.join(format!("{}.live.lock", filename_escape(key)))
+}
+
+/// Why [`spawn_until_published`] failed.
+#[derive(Debug)]
+pub enum SpawnPublishError {
+    /// A lockfile operation failed.
+    Lock(std::io::Error),
+    /// Spawning the executable failed.
+    Spawn(std::io::Error),
+    /// The child exited without the lock ever being published (and no
+    /// concurrent winner published it either). Carries the child's
+    /// captured output for the error report.
+    ExitedBeforePublishing {
+        name: String,
+        status: std::process::ExitStatus,
+        stdout: String,
+        stderr: String,
+    },
+}
+
+impl std::fmt::Display for SpawnPublishError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Lock(e) => write!(f, "lockfile: {e}"),
+            Self::Spawn(e) => write!(f, "spawn: {e}"),
+            Self::ExitedBeforePublishing { name, status, stdout, stderr } => write!(
+                f,
+                "{name} exited ({status}) before publishing its lock; stdout: {stdout}; stderr: {stderr}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SpawnPublishError {}
+
+/// Lock-based background spawn: the detached-server discipline shared
+/// by every `* spawn` flow (api/db/mcp/daemon/laboratories in the CLI,
+/// laboratory managers in the viewer shell).
+///
+/// A server's readiness signal is its lockfile: once up, it claims
+/// `(dir, key)` and publishes its client-connect content. The flow:
+///
+/// 1. [`try_read`] — already held by a live owner ⇒ return its
+///    published content without spawning.
+/// 2. Otherwise spawn `exe` (caller's `configure` sets args/env; the
+///    child inherits the parent environment): null stdin,
+///    piped-and-drained stdout/stderr (a child that dies before
+///    publishing reports its own output in the error), detached from
+///    the console on Windows (`CREATE_NO_WINDOW | DETACHED_PROCESS`),
+///    `kill_on_drop` false so the child outlives the caller.
+/// 3. Race [`wait_read`] against the child's exit. Published ⇒ return
+///    the content. Child exited first ⇒ re-probe (it may have LOST the
+///    claim race to a concurrent winner — a held lock now is success);
+///    only a dead child AND a free lock is a failure.
+pub async fn spawn_until_published(
+    exe: &Path,
+    dir: &Path,
+    key: &str,
+    configure: impl FnOnce(&mut tokio::process::Command),
+) -> Result<String, SpawnPublishError> {
+    if let Some(listening) = try_read(dir, key).await.map_err(SpawnPublishError::Lock)? {
+        return Ok(listening);
+    }
+
+    let name = exe
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| exe.display().to_string());
+
+    let mut cmd = tokio::process::Command::new(exe);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008).
+        cmd.creation_flags(0x0800_0008);
+    }
+    configure(&mut cmd);
+
+    let mut child = cmd.spawn().map_err(SpawnPublishError::Spawn)?;
+
+    // Drain both pipes from the moment of spawn: a failing child can
+    // spew more than a pipe buffer before exiting, and an undrained
+    // pipe would wedge it before it ever reports.
+    let mut stdout_pipe = child.stdout.take();
+    let mut stderr_pipe = child.stderr.take();
+    let stdout_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(pipe) = stdout_pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut buf).await;
+        }
+        buf
+    });
+    let stderr_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(pipe) = stderr_pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut buf).await;
+        }
+        buf
+    });
+
+    let listening = tokio::select! {
+        read = wait_read(dir, key) => read.map_err(SpawnPublishError::Lock)?,
+        status = child.wait() => {
+            return match try_read(dir, key).await.map_err(SpawnPublishError::Lock)? {
+                Some(listening) => Ok(listening),
+                None => {
+                    // The dead child's pipes EOF promptly; the timeout
+                    // guards a still-living grandchild holding the
+                    // write ends open.
+                    let drain_timeout = std::time::Duration::from_secs(2);
+                    let stdout = match tokio::time::timeout(drain_timeout, stdout_task).await {
+                        Ok(Ok(buf)) => buf,
+                        _ => Vec::new(),
+                    };
+                    let stderr = match tokio::time::timeout(drain_timeout, stderr_task).await {
+                        Ok(Ok(buf)) => buf,
+                        _ => Vec::new(),
+                    };
+                    // One last probe: the drain gave a concurrent
+                    // winner extra time to publish.
+                    if let Some(listening) =
+                        try_read(dir, key).await.map_err(SpawnPublishError::Lock)?
+                    {
+                        return Ok(listening);
+                    }
+                    Err(SpawnPublishError::ExitedBeforePublishing {
+                        name,
+                        status: status.map_err(SpawnPublishError::Spawn)?,
+                        stdout: String::from_utf8_lossy(&stdout).trim().to_string(),
+                        stderr: String::from_utf8_lossy(&stderr).trim().to_string(),
+                    })
+                }
+            };
+        }
+    };
+
+    // Child drops without killing (kill_on_drop false): detached.
+    drop(child);
+
+    Ok(listening)
 }
 
 /// Invert [`filename_escape`]: `%XX` → byte, everything else verbatim.

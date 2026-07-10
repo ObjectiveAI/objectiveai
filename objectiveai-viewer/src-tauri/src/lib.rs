@@ -1,3 +1,4 @@
+mod laboratories;
 mod plugins;
 mod run;
 

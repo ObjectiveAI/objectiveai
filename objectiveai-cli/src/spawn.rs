@@ -87,123 +87,35 @@ pub async fn spawn_until_lock_published(
     key: &str,
     configure: impl FnOnce(&mut Command),
 ) -> Result<String, crate::error::Error> {
-    let lock_err = |e: std::io::Error| crate::error::Error::Lockfile {
-        key: key.to_string(),
-        source: e,
-    };
-
-    if let Some(listening) = objectiveai_sdk::lockfile::try_read(lock_dir, key)
+    // The discipline itself lives in the SDK (shared with the viewer
+    // shell's laboratory commands); this wrapper only maps errors into
+    // the cli's variants.
+    objectiveai_sdk::lockfile::spawn_until_published(exe, lock_dir, key, configure)
         .await
-        .map_err(lock_err)?
-    {
-        return Ok(listening);
-    }
-
-    let name = exe
-        .file_name()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_else(|| exe.display().to_string());
-
-    // Pipe both output streams: a child that dies before publishing
-    // would otherwise leave no trace, so its captured stdout/stderr
-    // are embedded in the failure error. On the success path the
-    // captured bytes are simply abandoned — the detached server is
-    // quiet by design (`SUPPRESS_OUTPUT`), and the pipes close with
-    // this cli process.
-    let mut cmd = Command::new(exe);
-    cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    #[cfg(windows)]
-    {
-        // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008)
-        // — keep the spawned binary off the parent console and let it
-        // outlive the cli. (The cli's own stdio handles were made
-        // non-inheritable at entry — `crate::clear_stdio_inheritance`
-        // — so the invoker's capture pipes can't leak into this
-        // long-lived child and pin its readers open.)
-        cmd.creation_flags(0x0800_0008);
-    }
-    configure(&mut cmd);
-
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| crate::error::Error::Spawn(name.clone(), e))?;
-
-    // Drain both pipes from the moment of spawn: a failing child can
-    // spew more than a pipe buffer before exiting, and an undrained
-    // pipe would wedge it before it ever reports.
-    let mut stdout_pipe = child.stdout.take();
-    let mut stderr_pipe = child.stderr.take();
-    let stdout_task = tokio::spawn(async move {
-        use tokio::io::AsyncReadExt;
-        let mut buf = Vec::new();
-        if let Some(pipe) = stdout_pipe.as_mut() {
-            let _ = pipe.read_to_end(&mut buf).await;
-        }
-        buf
-    });
-    let stderr_task = tokio::spawn(async move {
-        use tokio::io::AsyncReadExt;
-        let mut buf = Vec::new();
-        if let Some(pipe) = stderr_pipe.as_mut() {
-            let _ = pipe.read_to_end(&mut buf).await;
-        }
-        buf
-    });
-
-    let listening = tokio::select! {
-        read = objectiveai_sdk::lockfile::wait_read(lock_dir, key) => read.map_err(lock_err)?,
-        status = child.wait() => {
-            // The child may have lost the claim race to a concurrently
-            // spawned server — re-probe before declaring failure. Held
-            // now ⇒ one won in reality ⇒ success.
-            return match objectiveai_sdk::lockfile::try_read(lock_dir, key)
-                .await
-                .map_err(lock_err)?
-            {
-                Some(listening) => Ok(listening),
-                None => {
-                    // The dead child's pipes EOF promptly; the timeout
-                    // guards the exotic case of a still-living
-                    // grandchild holding the write ends open.
-                    let drain_timeout = std::time::Duration::from_secs(2);
-                    let stdout = match tokio::time::timeout(drain_timeout, stdout_task).await {
-                        Ok(Ok(buf)) => buf,
-                        _ => Vec::new(),
-                    };
-                    let stderr = match tokio::time::timeout(drain_timeout, stderr_task).await {
-                        Ok(Ok(buf)) => buf,
-                        _ => Vec::new(),
-                    };
-                    // One last probe before declaring failure: the
-                    // drain gave a concurrently-spawned winner extra
-                    // time to publish, and a lost race is a success.
-                    if let Some(listening) =
-                        objectiveai_sdk::lockfile::try_read(lock_dir, key)
-                            .await
-                            .map_err(lock_err)?
-                    {
-                        return Ok(listening);
-                    }
-                    Err(crate::error::Error::SpawnExitedBeforePublishing {
-                        name,
-                        status: status.map_err(|e| crate::error::Error::Spawn(key.to_string(), e))?,
-                        stdout: String::from_utf8_lossy(&stdout).trim().to_string(),
-                        stderr: String::from_utf8_lossy(&stderr).trim().to_string(),
-                    })
-                }
-            };
-        }
-    };
-
-    // tokio's Child drops without killing (kill_on_drop is false by
-    // default), so the spawned binary is detached: on Unix the kernel
-    // re-parents it to init when the cli exits; on Windows the parent's
-    // handle is released and the spawned binary continues.
-    drop(child);
-
-    Ok(listening)
+        .map_err(|e| match e {
+            objectiveai_sdk::lockfile::SpawnPublishError::Lock(source) => {
+                crate::error::Error::Lockfile { key: key.to_string(), source }
+            }
+            objectiveai_sdk::lockfile::SpawnPublishError::Spawn(source) => {
+                crate::error::Error::Spawn(
+                    exe.file_name()
+                        .map(|s| s.to_string_lossy().into_owned())
+                        .unwrap_or_else(|| exe.display().to_string()),
+                    source,
+                )
+            }
+            objectiveai_sdk::lockfile::SpawnPublishError::ExitedBeforePublishing {
+                name,
+                status,
+                stdout,
+                stderr,
+            } => crate::error::Error::SpawnExitedBeforePublishing {
+                name,
+                status,
+                stdout,
+                stderr,
+            },
+        })
 }
 
 /// Stamp every field of the cli's [`crate::Config`] onto `cmd`'s env
