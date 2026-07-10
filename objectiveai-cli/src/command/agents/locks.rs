@@ -66,7 +66,8 @@ pub type AgentLockMap = DashMap<(PathBuf, String), Arc<Mutex<()>>>;
 /// lockfile [`LockClaim`]. Release order is enforced — lockfile claim first,
 /// in-process guard last (the guard field is dropped after `claim` is taken).
 pub struct AgentLock {
-    /// `None` once the claim has been taken for a child-process transfer.
+    /// `None` once released (explicitly or on drop) — distinguishes the
+    /// explicit [`release`](Self::release) path from the [`Drop`] fallback.
     claim: Option<LockClaim>,
     /// Dropped LAST — frees the per-key in-process [`Mutex`].
     _guard: OwnedMutexGuard<()>,
@@ -81,13 +82,6 @@ impl AgentLock {
             Some(claim) => claim.release(),
             None => Ok(()),
         }
-    }
-
-    /// Hand the cross-process claim to a child-process transfer, keeping the
-    /// in-process guard alive in the caller until the transfer completes. After
-    /// this, [`Drop`]/[`release`](Self::release) is a guard-only no-op.
-    pub fn take_claim(&mut self) -> Option<LockClaim> {
-        self.claim.take()
     }
 }
 
@@ -161,8 +155,9 @@ pub struct AcquiredFamily {
 
 impl AcquiredFamily {
     /// Flatten to the raw lock list (AIH lock first, then tags) — for callers
-    /// that transfer or hold the whole family rather than partitioning it into a
-    /// registry (e.g. `agents message`, which transfers the family to the child).
+    /// that hold or release the whole family rather than partitioning it into a
+    /// registry (e.g. `agents message`, which releases the family before waking
+    /// the agent with a fresh-competing child).
     pub fn into_locks(self) -> Vec<AgentLock> {
         let mut locks = Vec::with_capacity(self.tags.len() + 1);
         if let Some((_, aih)) = self.aih {

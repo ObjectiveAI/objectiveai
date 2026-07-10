@@ -119,7 +119,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     match route {
-        Route::Ref { child } => spawn_child(child, content, seed, Vec::new()).await,
+        Route::Ref { child } => spawn_child(child, content, seed).await,
         Route::Locked {
             dir,
             key,
@@ -200,7 +200,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                             child.clone(),
                             RichContent::Text(String::new()),
                             seed,
-                            Vec::new(),
                         );
                         tokio::select! {
                             biased;
@@ -305,23 +304,15 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
 /// first item as the unary response. The Ref route passes real
 /// `content`; the Locked route passes EMPTY content — `agents spawn`
 /// maps that to an empty `messages` array, a wake-up turn whose
-/// prompt is the queue drain. When `transfer` is non-empty, the won
-/// claims — AIH or TAG — are TRANSFERRED into the child: it adopts
-/// each inherited lock at startup and re-acquires it instantly,
-/// becoming the sole owner, and the lock lives exactly as long as the
-/// child. (Continuous hold through the child's pre-first-chunk window
-/// is preserved — the transfer hands off the same OS handles with no
-/// gap; a BOUND tag routes by AIH and never re-acquires the tag lock,
-/// so holding it for the child's lifetime is safe.) When empty (a
-/// plain agent ref), the child acquires its own lock fresh. The
-/// child's first item is always its `Id` (chunks are gated behind
-/// it); the rest of the stream is dropped and the orphan keeps
-/// running.
+/// prompt is the queue drain. The child acquires its OWN family lock
+/// at startup (in `agents spawn`) — this process hands it nothing
+/// (cross-process lock transfer is unsound on Windows). The child's
+/// first item is always its `Id` (chunks are gated behind it); the
+/// rest of the stream is dropped and the orphan keeps running.
 async fn spawn_child(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
-    transfer: Vec<super::locks::AgentLock>,
 ) -> Result<Response, Error> {
     let child_request = spawn_sdk::Request {
         path_type: spawn_sdk::Path::AgentsSpawn,
@@ -336,21 +327,7 @@ async fn spawn_child(
 
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
-    let mut executor = BinaryExecutor::from_path(exe).detach(true);
-    // Hold the in-process guards across the synchronous prepare→spawn→transfer
-    // inside `execute` (each cross-process claim is handed to the child). The
-    // `AgentLock`s — now guard-only after `take_claim` — drop at the end of this
-    // fn, freeing the per-key in-process mutexes; by then the child owns the
-    // cross-process locks, so a later in-process acquirer passes the mutex but
-    // correctly fails the lockfile.
-    let mut transfer = transfer;
-    let claims: Vec<_> = transfer
-        .iter_mut()
-        .filter_map(|lock| lock.take_claim())
-        .collect();
-    if !claims.is_empty() {
-        executor = executor.transfer_locks(claims);
-    }
+    let executor = BinaryExecutor::from_path(exe).detach(true);
     let mut stream = executor
         .execute::<spawn_sdk::Request, spawn_sdk::ResponseItem>(child_request, None)
         .await
