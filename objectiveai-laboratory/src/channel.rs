@@ -22,7 +22,9 @@ pub async fn run(
     signature: Option<String>,
     server: Arc<LabServer>,
     suppress_output: bool,
+    on_first_connect: Box<dyn FnOnce() + Send>,
 ) {
+    let mut on_first_connect = Some(on_first_connect);
     let url = format!("{}/laboratory", daemon_address.trim_end_matches('/'));
     let identify_frame =
         serde_json::to_string(&identify).expect("identify serializes");
@@ -42,6 +44,12 @@ pub async fn run(
                 {
                     // Fall through to the reconnect pause.
                 } else {
+                    // First successful connection: fire the one-shot
+                    // hook (spawns the cleaner sweep) — strictly after
+                    // the WS is up so it delays nothing.
+                    if let Some(hook) = on_first_connect.take() {
+                        hook();
+                    }
                     // Replies funnel through one writer task; each request
                     // is served concurrently.
                     let (reply_tx, mut reply_rx) =

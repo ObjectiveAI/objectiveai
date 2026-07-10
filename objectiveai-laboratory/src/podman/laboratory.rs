@@ -288,6 +288,51 @@ pub async fn host_port(podman: &Podman, state: &str, id: &str) -> Result<u16, Er
     })
 }
 
+/// The ids of this state's laboratory containers that are RUNNING
+/// right now (`podman ps` without `-a`), from the authoritative
+/// `objectiveai.laboratory` label. The cleaner's candidate set —
+/// stopped containers need no cleaning.
+pub async fn list_running(podman: &Podman, state: &str) -> Result<Vec<String>, Error> {
+    let exe = podman.executable().await?;
+    let output = container_command(exe)
+        .arg("ps")
+        .arg("--filter")
+        .arg(format!("name=objectiveai-laboratory-{state}-"))
+        .arg("--filter")
+        .arg("status=running")
+        .arg("--format")
+        .arg("json")
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman ps: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman ps: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|e| Error(format!("parse podman ps output: {e}")))?;
+    let array = value
+        .as_array()
+        .ok_or_else(|| Error("podman ps output: expected a JSON array".to_string()))?;
+    let mut ids = Vec::new();
+    for elem in array {
+        let Some(label_str) = elem
+            .get("Labels")
+            .and_then(|l| l.get("objectiveai.laboratory"))
+            .and_then(|v| v.as_str())
+        else {
+            continue;
+        };
+        let label: Label = serde_json::from_str(label_str)
+            .map_err(|e| Error(format!("parse laboratory label: {e}")))?;
+        ids.push(label.id);
+    }
+    Ok(ids)
+}
+
 /// The laboratory containers created in this state, reconstructed from each
 /// container's `objectiveai.laboratory` label.
 ///

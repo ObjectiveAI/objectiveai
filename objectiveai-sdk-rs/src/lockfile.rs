@@ -1090,6 +1090,56 @@ fn announce_path(dir: &Path, key: &str) -> PathBuf {
     dir.join(format!("{}.live.lock", filename_escape(key)))
 }
 
+/// Invert [`filename_escape`]: `%XX` → byte, everything else verbatim.
+/// `None` on malformed escapes (foreign files in the dir).
+fn filename_unescape(escaped: &str) -> Option<String> {
+    let bytes = escaped.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = bytes.get(i + 1..i + 3)?;
+            let hi = (hex[0] as char).to_digit(16)?;
+            let lo = (hex[1] as char).to_digit(16)?;
+            out.push((hi * 16 + lo) as u8);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// Every claim KEY with files in `dir`, recovered from the gate
+/// filenames (`<escape(key)>.lock`; the `.live.lock` announces are
+/// skipped so each key appears once). Purely an enumeration — no
+/// locks are taken, no liveness is implied; pair with [`try_held`].
+/// Filenames that aren't gate files or don't unescape are skipped.
+pub async fn keys_in_dir(dir: &Path) -> std::io::Result<Vec<String>> {
+    let mut keys = Vec::new();
+    let mut entries = match tokio::fs::read_dir(dir).await {
+        Ok(entries) => entries,
+        // No dir = no keys.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(keys),
+        Err(e) => return Err(e),
+    };
+    while let Some(entry) = entries.next_entry().await? {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.ends_with(".live.lock") {
+            continue;
+        }
+        let Some(escaped) = name.strip_suffix(".lock") else {
+            continue;
+        };
+        if let Some(key) = filename_unescape(escaped) {
+            keys.push(key);
+        }
+    }
+    Ok(keys)
+}
+
 /// Percent-escape `key` into a filename-safe token: `[A-Za-z0-9_-]`
 /// pass through, every other byte (including `.` and `%` itself)
 /// becomes `%XX` (uppercase hex). Injective — distinct keys can

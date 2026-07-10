@@ -25,6 +25,7 @@
 //! in a process listing.
 
 mod channel;
+mod cleaner;
 mod podman;
 mod server;
 
@@ -325,6 +326,16 @@ async fn connect(args: ConnectArgs) {
     // the container: it and its filesystem survive for the next
     // manager to `start` again. A hard kill skips this — the container
     // then keeps running until someone stops it.
+    let cleaner_bin_dir = bin_dir.clone();
+    let cleaner_state = args.objectiveai_state.clone();
+    let cleaner_lock_dir = lock_dir.clone();
+    let on_first_connect: Box<dyn FnOnce() + Send> = Box::new(move || {
+        tokio::spawn(cleaner::sweep(
+            cleaner_bin_dir,
+            cleaner_state,
+            cleaner_lock_dir,
+        ));
+    });
     tokio::select! {
         _ = channel::run(
             args.address.clone(),
@@ -332,6 +343,7 @@ async fn connect(args: ConnectArgs) {
             signature,
             server,
             args.suppress_output,
+            on_first_connect,
         ) => {}
         _ = shutdown_signal() => {
             if !args.suppress_output {

@@ -124,3 +124,23 @@ pub fn connect_lock_key(id: &str, address: &str) -> String {
     let token = format!("{:0>22}", base62::encode(hasher.finish_128()));
     format!("{id}.{token}")
 }
+
+/// Invert [`connect_lock_key`]'s SHAPE: split a lock key into
+/// `(id, token)` iff it ends with `.` + exactly 22 base62 characters
+/// (the fixed-length address token — base62 contains no `.`).
+/// Returns `None` for anything else, notably the bare-id GUARD keys
+/// that share the locks directory. One pathological ambiguity exists
+/// by construction — a lab id literally ending in `.` + 22 base62
+/// chars parses as another lab's connection key — and its failure
+/// direction is conservative (the cleaner under-stops); ids in
+/// practice never look like that.
+pub fn parse_connect_lock_key(key: &str) -> Option<(&str, &str)> {
+    let (id, token) = key.rsplit_once('.')?;
+    if id.is_empty()
+        || token.len() != 22
+        || !token.bytes().all(|b| b.is_ascii_alphanumeric())
+    {
+        return None;
+    }
+    Some((id, token))
+}
