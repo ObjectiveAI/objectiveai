@@ -1005,6 +1005,21 @@ pub async fn check_any_pending(
 // Delivery subscription — native postgres LISTEN/NOTIFY.
 // ---------------------------------------------------------------------------
 
+/// Whether the `message_queue` row identified by `id` still awaits
+/// delivery — i.e. exists with `active = TRUE`. A missing row counts
+/// as delivered (consumed rows survive soft-deleted; a hard-gone row
+/// has nothing left to wait for).
+pub async fn is_active(pool: &Pool, id: i64) -> Result<bool, Error> {
+    let active: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM objectiveai.message_queue \
+         WHERE id = $1 AND active = TRUE)",
+    )
+    .bind(id)
+    .fetch_one(&**pool)
+    .await?;
+    Ok(active)
+}
+
 /// Wait until the `message_queue` row identified by `id` has been
 /// consumed — i.e. its `active` column has flipped from TRUE to
 /// FALSE. Resolves `Ok(())` the moment the flip is observed,
@@ -1023,18 +1038,11 @@ pub async fn subscribe_delivered(pool: &Pool, id: i64) -> Result<(), Error> {
 
     // Belt-and-suspenders: if the row already flipped to inactive
     // (the conduit / LogWriter raced our listen), the LISTEN saw
-    // nothing and would hang forever. SELECT once after attaching
+    // nothing and would hang forever. Probe once after attaching
     // — if the row is gone or already inactive, we already
     // delivered. After this point the LISTEN is attached so any
     // future flip will wake us.
-    let still_active: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM objectiveai.message_queue \
-         WHERE id = $1 AND active = TRUE)",
-    )
-    .bind(id)
-    .fetch_one(&**pool)
-    .await?;
-    if !still_active {
+    if !is_active(pool, id).await? {
         return Ok(());
     }
 

@@ -13,15 +13,20 @@
 //!   (the tag lock): ALWAYS enqueue first — the queue row's id fixes
 //!   the message's delivery position at commit time — then loop:
 //!   try_acquire the agent's whole lock family (all-or-nothing);
-//!   won → exec a WAKE-UP spawn child (EMPTY message — the agent's
-//!   startup snapshot and pass-boundary reads drain the queue
-//!   oldest-id-first) with the claim TRANSFERRED into it; either way
-//!   race `subscribe_delivered` (our row flipped inactive — a live
-//!   agent consumed it → `Delivered`) against `wait_released` (the
-//!   owner — possibly our own child — exited before consuming →
-//!   re-race). This command never deletes its row: it is durable
-//!   across crashes of any participant, and a spawn failure leaves
-//!   it parked for a later `message` / `agents queue deliver`.
+//!   won → if our row is STILL ACTIVE (probe first — a consumed row
+//!   means we're done, not a reason to wake anyone), exec a WAKE-UP
+//!   spawn child (EMPTY message — the agent's startup snapshot and
+//!   pass-boundary reads drain the queue oldest-id-first) with the
+//!   claim TRANSFERRED into it; either way race the ONE pinned
+//!   `subscribe_delivered` (created before the loop so it survives
+//!   iterations — our row flipped inactive → `Delivered`) against
+//!   `wait_released` (the owner — possibly our own child — exited
+//!   before consuming → re-race). Spawns are capped at
+//!   [`MAX_WAKE_SPAWNS`]; past that the command errors loudly rather
+//!   than respawning forever. This command never deletes its row: it
+//!   is durable across crashes of any participant, and a spawn
+//!   failure leaves it parked for a later `message` /
+//!   `agents queue deliver`.
 //!
 //! FIFO: every message is a queue row and every spawn starts empty,
 //! so delivery order is exactly queue-id (enqueue-commit) order
@@ -40,6 +45,19 @@ use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
 use crate::context::Context;
 use crate::error::Error;
+
+/// Wake-spawn cap for one `agents message` wait. The rules:
+///
+/// - Each spawned wake child gets one full turn to consume our queue
+///   row (its startup snapshot reads pending rows oldest-id-first, so
+///   an active row IS read by the very first pass).
+/// - A row still active after a spawned turn therefore signals a real
+///   fault (lock not excluding, notify chain down, row unreadable) —
+///   never a normal wait.
+/// - After this many spawned children with the row still active, the
+///   command errors out LOUDLY rather than respawning agents forever;
+///   the row stays parked and durable for a later message/deliver.
+const MAX_WAKE_SPAWNS: usize = 3;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     let Request {
@@ -121,15 +139,29 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             )
             .await?;
             let pool = ctx.db_client().await?.clone();
+            // ONE delivery subscription for the whole wait, pinned OUTSIDE
+            // the loop: its LISTEN attach + probe make progress across
+            // iterations instead of being torn down and restarted by every
+            // `wait_released` wake — a recreated-per-iteration subscription
+            // can be starved indefinitely by a busy released arm (the
+            // ghost-respawn incident), a pinned one cannot.
+            let delivered =
+                crate::db::message_queue::subscribe_delivered(&pool, queue_id);
+            tokio::pin!(delivered);
+            let mut wake_spawns = 0usize;
             loop {
                 // FETCH the current family + LOCK it (all-or-nothing) in one
                 // call — the membership can shift during a long wait, so it
-                // must be resolved at lock time. Won → exec a WAKE-UP spawn
-                // child (EMPTY message; the child drains the queue) with the
-                // family transferred, then fall into the same race as a
-                // loser: our row flipping inactive is the resolution either
-                // way. A spawn failure propagates with the row left parked —
-                // durable, recoverable by a later message/deliver.
+                // must be resolved at lock time. Won → re-probe OUR row
+                // first: if it was already consumed (we won the lock before
+                // observing the flip), release the family and resolve —
+                // spawning here would be a pointless empty wake turn. Still
+                // active → exec a WAKE-UP spawn child (EMPTY message; the
+                // child drains the queue) with the family transferred, then
+                // fall into the same race as a loser: our row flipping
+                // inactive is the resolution either way. A spawn failure
+                // propagates with the row left parked — durable, recoverable
+                // by a later message/deliver.
                 if let Some(fam) = super::locks::try_acquire_family(
                     ctx.agent_locks(),
                     ctx.db_client().await?,
@@ -138,6 +170,31 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 )
                 .await?
                 {
+                    if !crate::db::message_queue::is_active(&pool, queue_id).await? {
+                        for lock in fam.into_locks() {
+                            lock.release().map_err(|e| Error::Lockfile {
+                                key: key.clone(),
+                                source: e,
+                            })?;
+                        }
+                        return Ok(Response::Delivered);
+                    }
+                    // Respawn bound: each spawned child gets one full turn to
+                    // consume our row (its startup snapshot reads the queue
+                    // oldest-id-first, so an active row IS read). Needing more
+                    // than MAX_WAKE_SPAWNS turns means something is broken —
+                    // lock not actually excluding, notify chain down, row
+                    // unreadable — and looping further would respawn agents
+                    // forever (the incident). Error out loudly instead; the
+                    // row stays parked and durable.
+                    if wake_spawns >= MAX_WAKE_SPAWNS {
+                        return Err(Error::Instance(format!(
+                            "agents message: queue row {queue_id} still undelivered \
+                             after {MAX_WAKE_SPAWNS} wake spawns — aborting instead \
+                             of respawning forever; the message remains parked"
+                        )));
+                    }
+                    wake_spawns += 1;
                     spawn_child(
                         child.clone(),
                         RichContent::Text(String::new()),
@@ -147,7 +204,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                     .await?;
                 }
                 tokio::select! {
-                    delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
+                    delivery = &mut delivered => {
                         delivery?;
                         return Ok(Response::Delivered);
                     }
