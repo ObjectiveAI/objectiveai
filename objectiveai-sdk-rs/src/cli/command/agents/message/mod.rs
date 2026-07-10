@@ -1,13 +1,17 @@
-//! `agents message` — unary delivery primitive.
+//! `agents message` — unary delivery primitive with a total FIFO
+//! order.
 //!
 //! Addresses an agent with the same shape as `agents spawn` (ref /
-//! tag / instance). The handler races a lock: winning it (or
-//! targeting a plain ref) execs a detached `agents spawn` child
-//! with the lock TRANSFERRED into it and returns the child's first
-//! item (`Id`); losing it enqueues, then waits for whichever comes
-//! first — the queue row marked inactive (`Delivered`) or the lock
-//! freeing up (exec the spawn child after all → `Id`). For
-//! fire-and-forget parking without the race, see `agents enqueue`.
+//! tag / instance). A plain ref execs a detached `agents spawn`
+//! child carrying the message inline and returns the child's first
+//! item (`Id`). An instance or tag ALWAYS enqueues first — the queue
+//! row's id fixes the delivery position at commit time — then races
+//! the agent's lock; winning it execs a WAKE-UP spawn child (EMPTY
+//! message, the lock TRANSFERRED into it) that drains the queue
+//! oldest-id-first. Either way the call resolves `Delivered` when
+//! its own row is consumed, so delivery order is always enqueue
+//! order. For fire-and-forget parking without the race, see
+//! `agents enqueue`.
 
 use crate::agent::completions::message::RichContent;
 use crate::cli::command::CommandRequest;
@@ -123,13 +127,16 @@ impl CommandRequest for Request {
 pub enum Response {
     /// The queue row reached a live agent (its row flipped to
     /// inactive — the API stamped its id onto an assistant chunk's
-    /// `request_message_ids`) before the agent's lock freed up.
+    /// `request_message_ids`). The only resolution for instance and
+    /// tag targets: whether the handler found the agent live or
+    /// spawned it, the message rides the queue and this fires when
+    /// its own row is consumed.
     #[schemars(title = "Delivered")]
     Delivered,
-    /// The handler execed a detached `agents spawn` child (with the
-    /// agent's lock transferred into it) and the child yielded its
-    /// `Id` first item — the bare `agent_instance_hierarchy` the
-    /// runner just minted or resumed.
+    /// Plain-ref targets only: the handler execed a detached
+    /// `agents spawn` child carrying the message inline and the
+    /// child yielded its `Id` first item — the bare
+    /// `agent_instance_hierarchy` the runner just minted.
     #[schemars(title = "Id")]
     Id { agent_instance_hierarchy: String },
 }

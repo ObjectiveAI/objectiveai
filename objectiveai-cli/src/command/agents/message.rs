@@ -1,26 +1,35 @@
-//! `agents message` — unary delivery primitive.
+//! `agents message` — unary delivery primitive with a total FIFO
+//! order.
 //!
 //! The agent input is the shared [`AgentSelector`] — the same shape
 //! `agents spawn` takes, so an unspawned agent can be messaged:
 //!
-//! - **ref**: nothing to lock — exec a detached `agents spawn`
-//!   child (stream=true) carrying the resolved agent + message
-//!   inline, return its first item as `Id`.
+//! - **ref**: nothing to lock or enqueue against (no AIH or tag
+//!   exists before the spawn) — exec a detached `agents spawn` child
+//!   (stream=true) carrying the resolved agent + message inline,
+//!   return its first item as `Id`. The only route where content
+//!   rides inline.
 //! - **instance / BOUND tag** (the AIH lock) and **GROUPED tag**
-//!   (the tag lock): try_acquire. Won → exec the spawn child with
-//!   `skip_lock=true`; an AIH claim is TRANSFERRED into the child
-//!   (the lock then lives exactly as long as the child), a TAG claim
-//!   is held by THIS process instead — only AIH locks ever transfer
-//!   — and persists until this process exits → `Id`. Lost → enqueue
-//!   the message, then race `subscribe_delivered` (the row flipping
-//!   inactive means a live agent consumed it → `Delivered`) against
-//!   `wait_acquire` (the slot freed up first → reclaim our queue
-//!   row, exec the spawn child with the fresh claim → `Id`).
+//!   (the tag lock): ALWAYS enqueue first — the queue row's id fixes
+//!   the message's delivery position at commit time — then loop:
+//!   try_acquire the agent's whole lock family (all-or-nothing);
+//!   won → exec a WAKE-UP spawn child (EMPTY message — the agent's
+//!   startup snapshot and pass-boundary reads drain the queue
+//!   oldest-id-first) with the claim TRANSFERRED into it; either way
+//!   race `subscribe_delivered` (our row flipped inactive — a live
+//!   agent consumed it → `Delivered`) against `wait_released` (the
+//!   owner — possibly our own child — exited before consuming →
+//!   re-race). This command never deletes its row: it is durable
+//!   across crashes of any participant, and a spawn failure leaves
+//!   it parked for a later `message` / `agents queue deliver`.
+//!
+//! FIFO: every message is a queue row and every spawn starts empty,
+//! so delivery order is exactly queue-id (enqueue-commit) order
+//! under any interleaving of senders, lock winners, and respawns.
 //!
 //! The message payload is resolved ONCE in this process (file IO /
-//! Python run here); spawn children always receive the resolved
-//! `RichContent` via `--inline`. Fire-and-forget parking without
-//! the race lives in `agents enqueue`.
+//! Python run here). Fire-and-forget parking without the race lives
+//! in `agents enqueue`.
 
 use futures::StreamExt;
 use objectiveai_sdk::agent::completions::message::RichContent;
@@ -98,81 +107,58 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             tag,
             child,
         } => {
-            // Fast path: FETCH the current family + LOCK it (all-or-nothing) in
-            // one call. If every member is free, exec the spawn child carrying
-            // the family — transferred, so the child adopts it with no gap.
-            if let Some(fam) = super::locks::try_acquire_family(
-                ctx.agent_locks(),
-                ctx.db_client().await?,
-                &state_dir,
-                family.clone(),
-            )
-            .await?
-            {
-                return spawn_locked(child, content, seed, fam.into_locks()).await;
-            }
-
-            // Slow path: a live owner holds part of the family. Park the
-            // message, then race "the owner consumed it" vs "the owner exited
-            // and we take over". On exit we re-FETCH the (possibly changed)
-            // family and LOCK it in one call — the membership can shift during
-            // the long wait, so it must be resolved at lock time, not before.
+            // Park the message FIRST — the row's id fixes its delivery
+            // position at commit time, before any lock race. Rows are
+            // consumed strictly oldest-id-first, so whoever wins any
+            // race below, delivery order stays enqueue order.
             let queue_id = crate::db::message_queue::enqueue_with_content(
                 ctx.db_client().await?,
                 hierarchy,
                 tag,
                 &ctx.config.agent_instance_hierarchy,
                 None,
-                content.clone(),
+                content,
             )
             .await?;
             let pool = ctx.db_client().await?.clone();
-            let primary = (dir, key);
-            let mut child = Some(child);
-            let mut content = Some(content);
             loop {
+                // FETCH the current family + LOCK it (all-or-nothing) in one
+                // call — the membership can shift during a long wait, so it
+                // must be resolved at lock time. Won → exec a WAKE-UP spawn
+                // child (EMPTY message; the child drains the queue) with the
+                // family transferred, then fall into the same race as a
+                // loser: our row flipping inactive is the resolution either
+                // way. A spawn failure propagates with the row left parked —
+                // durable, recoverable by a later message/deliver.
+                if let Some(fam) = super::locks::try_acquire_family(
+                    ctx.agent_locks(),
+                    ctx.db_client().await?,
+                    &state_dir,
+                    family.clone(),
+                )
+                .await?
+                {
+                    spawn_child(
+                        child.clone(),
+                        RichContent::Text(String::new()),
+                        seed,
+                        fam.into_locks(),
+                    )
+                    .await?;
+                }
                 tokio::select! {
                     delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
                         delivery?;
                         return Ok(Response::Delivered);
                     }
-                    // Wait for the owner to EXIT (release, don't acquire), so the
-                    // fetch+lock below sees a free family.
-                    released = objectiveai_sdk::lockfile::wait_released(&primary.0, &primary.1) => {
+                    // Wait for the owner — possibly our own child — to EXIT
+                    // (release, don't acquire), so the fetch+lock above sees
+                    // a free family on the next iteration.
+                    released = objectiveai_sdk::lockfile::wait_released(&dir, &key) => {
                         released.map_err(|e| Error::Lockfile {
-                            key: primary.1.clone(),
+                            key: key.clone(),
                             source: e,
                         })?;
-                        match super::locks::try_acquire_family(
-                            ctx.agent_locks(),
-                            ctx.db_client().await?,
-                            &state_dir,
-                            family.clone(),
-                        )
-                        .await?
-                        {
-                            Some(fam) => {
-                                // We own the whole family. Reclaim our queue row
-                                // so the child doesn't re-see it — the message
-                                // rides inline instead.
-                                let _ = crate::db::message_queue::delete_by_id(
-                                    ctx.db_client().await?,
-                                    queue_id,
-                                    &ctx.config.agent_instance_hierarchy,
-                                )
-                                .await;
-                                return spawn_locked(
-                                    child.take().expect("child consumed once"),
-                                    content.take().expect("content consumed once"),
-                                    seed,
-                                    fam.into_locks(),
-                                )
-                                .await;
-                            }
-                            // Someone grabbed it first — re-arm; `wait_released`
-                            // blocks again on the now-held lock.
-                            None => continue,
-                        }
                     }
                 }
             }
@@ -221,31 +207,22 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
     }
 }
 
-/// Exec the spawn child for a freshly won lock. The claim — AIH or
-/// TAG — is TRANSFERRED into the child: the child adopts the inherited
-/// lock at startup and re-acquires it instantly, becoming the sole
-/// owner, and the lock lives exactly as long as the child. (Continuous
-/// hold through the child's pre-first-chunk window is preserved — the
-/// transfer hands off the same OS handles with no gap; a BOUND tag
-/// routes by AIH and never re-acquires the tag lock, so holding it for
-/// the child's lifetime is safe.)
-async fn spawn_locked(
-    agent: AgentSelector,
-    content: RichContent,
-    seed: Option<i64>,
-    family: Vec<super::locks::AgentLock>,
-) -> Result<Response, Error> {
-    spawn_child(agent, content, seed, family).await
-}
-
 /// Exec a detached `agents spawn` child (stream=true) and return its
-/// first item as the unary response. When `transfer` is `Some`, the lock
-/// claim is transferred into the child — the child adopts + re-acquires
-/// it instantly and becomes the sole owner; the lock lives until it
-/// exits. When `None` (a plain agent ref), the child acquires its own
-/// lock fresh. The child's first item is always its `Id` (chunks are
-/// gated behind it); the rest of the stream is dropped and the orphan
-/// keeps running.
+/// first item as the unary response. The Ref route passes real
+/// `content`; the Locked route passes EMPTY content — `agents spawn`
+/// maps that to an empty `messages` array, a wake-up turn whose
+/// prompt is the queue drain. When `transfer` is non-empty, the won
+/// claims — AIH or TAG — are TRANSFERRED into the child: it adopts
+/// each inherited lock at startup and re-acquires it instantly,
+/// becoming the sole owner, and the lock lives exactly as long as the
+/// child. (Continuous hold through the child's pre-first-chunk window
+/// is preserved — the transfer hands off the same OS handles with no
+/// gap; a BOUND tag routes by AIH and never re-acquires the tag lock,
+/// so holding it for the child's lifetime is safe.) When empty (a
+/// plain agent ref), the child acquires its own lock fresh. The
+/// child's first item is always its `Id` (chunks are gated behind
+/// it); the rest of the stream is dropped and the orphan keeps
+/// running.
 async fn spawn_child(
     agent: AgentSelector,
     content: RichContent,
