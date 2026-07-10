@@ -9,14 +9,15 @@
 //!   viewer machine's local scan. The daemon's merged view is already
 //!   reachable from JS through the WebSocketExecutor, so this command
 //!   adds exactly the capability JS cannot have.
-//! - `laboratories_connect` spawns the resident manager DETACHED via
-//!   the SDK's lock-published discipline, defaulting to the viewer's
-//!   own daemon (address + signature from the managed
-//!   [`crate::run::WebSocketConfig`]) — a local container serving a
-//!   possibly-remote daemon, the viewer-side-laboratory story.
-//!   Readiness is lock publication (the viewer cannot reach a remote
-//!   daemon's laboratories socket; the manager retries its dial
-//!   forever).
+//! - `laboratories_connect` takes NO arguments: it autonomously
+//!   connects EVERY laboratory on this machine to the viewer's own
+//!   daemon (address + signature from the managed
+//!   [`crate::run::WebSocketConfig`]), spawning one resident manager
+//!   per laboratory DETACHED via the SDK's lock-published discipline —
+//!   idempotent per (id, address), so already-connected laboratories
+//!   are no-ops. Readiness is lock publication (the viewer cannot
+//!   reach a remote daemon's laboratories socket; managers retry
+//!   their dials forever).
 //!
 //! NOT wired into the JS/UI yet.
 
@@ -108,6 +109,11 @@ pub(crate) async fn laboratories_create(
 pub(crate) async fn laboratories_list(
     env: tauri::State<'_, LabEnv>,
 ) -> Result<Vec<Identify>, String> {
+    local_scan(&env).await
+}
+
+/// Run the manager binary's `list` and parse the identity array.
+async fn local_scan(env: &LabEnv) -> Result<Vec<Identify>, String> {
     let output = tokio::process::Command::new(env.binary())
         .arg("list")
         .arg("--objectiveai-dir")
@@ -127,30 +133,72 @@ pub(crate) async fn laboratories_list(
         .map_err(|e| format!("parse objectiveai-laboratory list output: {e}"))
 }
 
-/// Connect a created laboratory on this machine to a daemon — the
-/// viewer's own by default.
+/// Connect EVERY laboratory on this machine to the viewer's daemon.
+/// No arguments: the target address + signature are the viewer's own
+/// (the managed [`crate::run::WebSocketConfig`]), and the laboratory
+/// set is the local scan. One detached manager per laboratory, all
+/// spawned concurrently; idempotent per (id, address) via the
+/// lock-publication discipline, so already-connected laboratories are
+/// no-ops. Partial failures reject with every failure listed;
+/// successes stay connected regardless.
 #[tauri::command]
 pub(crate) async fn laboratories_connect(
     env: tauri::State<'_, LabEnv>,
     ws: tauri::State<'_, crate::run::WebSocketConfig>,
-    id: String,
-    address: Option<String>,
-    signature: Option<String>,
-) -> Result<Connected, String> {
-    // Unset address = the viewer's daemon, with the viewer's own
-    // signature; an explicit address takes the caller's signature (or
-    // none — the remote daemon's signature is the caller's to supply).
-    let (address, signature) = match address {
-        Some(address) => (address, signature),
-        None => (ws.address.clone(), ws.signature.clone()),
-    };
+) -> Result<Vec<Connected>, String> {
+    let address = ws.address.clone();
+    let signature = ws.signature.clone();
+    let ids: Vec<String> = local_scan(&env)
+        .await?
+        .into_iter()
+        .map(|lab| lab.id)
+        .collect();
+
+    let env_ref = &env;
+    let results = futures::future::join_all(ids.into_iter().map(|id| {
+        let address = address.clone();
+        let signature = signature.clone();
+        async move {
+            connect_one(env_ref, &id, &address, signature.as_deref())
+                .await
+                .map(|()| Connected {
+                    id: id.clone(),
+                    address: address.clone(),
+                })
+                .map_err(|e| format!("laboratory '{id}': {e}"))
+        }
+    }))
+    .await;
+
+    let mut connected = Vec::new();
+    let mut failures = Vec::new();
+    for result in results {
+        match result {
+            Ok(c) => connected.push(c),
+            Err(e) => failures.push(e),
+        }
+    }
+    if !failures.is_empty() {
+        return Err(failures.join("; "));
+    }
+    Ok(connected)
+}
+
+/// Spawn (or find already-published) the detached manager for one
+/// laboratory against `address`.
+async fn connect_one(
+    env: &LabEnv,
+    id: &str,
+    address: &str,
+    signature: Option<&str>,
+) -> Result<(), String> {
     let lock_dir = env
         .objectiveai_dir
         .join("state")
         .join(&env.state)
         .join("locks")
         .join("laboratories");
-    let lock_key = connect_lock_key(&id, &address);
+    let lock_key = connect_lock_key(id, address);
 
     objectiveai_sdk::lockfile::spawn_until_published(
         &env.binary(),
@@ -159,9 +207,9 @@ pub(crate) async fn laboratories_connect(
         |cmd| {
             cmd.arg("connect")
                 .arg("--id")
-                .arg(&id)
+                .arg(id)
                 .arg("--address")
-                .arg(&address)
+                .arg(address)
                 .arg("--objectiveai-dir")
                 .arg(&env.objectiveai_dir)
                 .arg("--objectiveai-state")
@@ -169,7 +217,7 @@ pub(crate) async fn laboratories_connect(
                 .arg("--suppress-output");
             // The signature travels by ENV VAR only; cleared when
             // absent so the child can't inherit a stale one.
-            match &signature {
+            match signature {
                 Some(s) => {
                     cmd.env("DAEMON_SIGNATURE", s);
                 }
@@ -180,7 +228,6 @@ pub(crate) async fn laboratories_connect(
         },
     )
     .await
-    .map_err(|e| format!("connect laboratory '{id}': {e}"))?;
-
-    Ok(Connected { id, address })
+    .map(|_published| ())
+    .map_err(|e| e.to_string())
 }
