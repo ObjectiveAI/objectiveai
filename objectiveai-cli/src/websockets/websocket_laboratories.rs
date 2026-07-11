@@ -47,6 +47,10 @@ pub(crate) enum LabsChange {
     /// A `laboratory_attachments` row was written or removed
     /// (any laboratory, any target).
     Attachments,
+    /// The machine's LOCAL laboratory set changed — a container was
+    /// created or deleted (signalled over `laboratories.sock` by the
+    /// CLI's `create`/`delete`, since podman has no event source).
+    LocalChanged,
 }
 
 /// The live-laboratories hub: the connected registry + the coalesced
@@ -70,6 +74,13 @@ impl LaboratoriesHub {
 
     fn subscribe(&self) -> broadcast::Receiver<LabsChange> {
         self.changes.subscribe()
+    }
+
+    /// Signal that the machine's local laboratory set changed (a
+    /// container create/delete). Best-effort — no subscriber is fine.
+    /// Called by the `laboratories.sock` handler.
+    pub(crate) fn signal_local_changed(&self) {
+        let _ = self.changes.send(LabsChange::LocalChanged);
     }
 
     /// Spawn the hub's resident tasks: the registry-event forwarder and
@@ -350,7 +361,7 @@ async fn laboratories_list_pump(
                     // Attachment changes don't ride the list; identity
                     // and connected-ness are its whole payload.
                     Ok(LabsChange::Attachments) => continue,
-                    Ok(LabsChange::Registry)
+                    Ok(LabsChange::Registry | LabsChange::LocalChanged)
                     | Err(broadcast::error::RecvError::Lagged(_)) => {}
                     Err(broadcast::error::RecvError::Closed) => break,
                 }

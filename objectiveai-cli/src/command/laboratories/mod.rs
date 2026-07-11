@@ -18,6 +18,7 @@ use crate::error::Error;
 pub mod attach;
 pub mod connect;
 pub mod create;
+pub mod delete;
 pub mod detach;
 pub mod list;
 
@@ -79,6 +80,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = create::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::CreateResponseSchema(value)))
         }
+        Request::Delete(req) => {
+            let value = delete::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Delete(value)))
+        }
+        Request::DeleteRequestSchema(req) => {
+            let value = delete::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::DeleteRequestSchema(value)))
+        }
+        Request::DeleteResponseSchema(req) => {
+            let value = delete::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::DeleteResponseSchema(value)))
+        }
         Request::List(req) => {
             let inner = list::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::List)))
@@ -95,6 +108,20 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(stream)
 }
 
+
+/// Best-effort: tell a running daemon the machine's LOCAL laboratory
+/// set changed (a container was created or deleted) so its
+/// `/laboratories/*` streams rebuild + rescan. Shared by `create` +
+/// `delete`. If no daemon is up the socket connect fails and this is a
+/// silent no-op (nothing is watching, and this NEVER spawns a daemon
+/// or DB). Podman has no event source, so this poke is the only signal.
+pub(super) async fn signal_local_changed(ctx: &Context) {
+    let _ = crate::websockets::websocket_laboratory::call_laboratories_socket(
+        &ctx.filesystem.state_dir(),
+        &objectiveai_sdk::client_objectiveai_mcp::laboratory::SocketRequest::LocalChanged,
+    )
+    .await;
+}
 
 /// Resolve the agent target to its DB key. Shared by `attach` +
 /// `detach`.

@@ -1,11 +1,11 @@
-//! `laboratories create` — create the laboratory container, WAITED to
-//! completion: the manager binary's `create` subcommand does the
-//! podman create + MCP-binary injection and exits. The container is
-//! NOT started and nothing connects to any daemon — that is
-//! `laboratories connect`'s job. Errors if the id already exists.
+//! `laboratories delete` — remove the laboratory container, WAITED to
+//! completion: the manager binary's `delete` subcommand does the
+//! podman `rm -f` (force-removes even a running container, reclaiming
+//! disk) and exits. A missing container is not an error. Signals a
+//! running daemon afterward so the `/laboratories/*` streams update.
 //! Only client-side laboratories are supported today.
 
-use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Response};
+use objectiveai_sdk::cli::command::laboratories::delete::{Kind, Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -22,33 +22,21 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     } else {
         "objectiveai-laboratory"
     });
-    let mut cmd = tokio::process::Command::new(&exe);
-    cmd.arg("create")
+    let output = tokio::process::Command::new(&exe)
+        .arg("delete")
         .arg("--id")
         .arg(&request.id)
-        .arg("--image")
-        .arg(&request.image)
-        .arg("--cwd")
-        .arg(&request.cwd)
         .arg("--objectiveai-dir")
         .arg(ctx.filesystem.dir())
         .arg("--objectiveai-state")
-        .arg(ctx.filesystem.state());
-    for mount in &request.mounts {
-        cmd.arg("--mount")
-            .arg(format!("{}:{}", mount.host, mount.container));
-    }
-    for env in &request.env {
-        cmd.arg("--env").arg(format!("{}={}", env.key, env.value));
-    }
-    let output = cmd
+        .arg(ctx.filesystem.state())
         .output()
         .await
-        .map_err(|e| Error::Laboratory(format!("spawn objectiveai-laboratory create: {e}")))?;
+        .map_err(|e| Error::Laboratory(format!("spawn objectiveai-laboratory delete: {e}")))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(Error::Laboratory(format!(
-            "objectiveai-laboratory create: {}",
+            "objectiveai-laboratory delete: {}",
             stderr.trim()
         )));
     }
@@ -56,18 +44,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // Tell a running daemon its local set changed (best-effort).
     super::signal_local_changed(ctx).await;
 
-    Ok(Response {
-        id: request.id,
-        image: request.image,
-        mounts: request.mounts,
-        env: request.env,
-        cwd: request.cwd,
-    })
+    Ok(Response { id: request.id })
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::laboratories::create as sdk;
-    use objectiveai_sdk::cli::command::laboratories::create::request_schema::{
+    use objectiveai_sdk::cli::command::laboratories::delete as sdk;
+    use objectiveai_sdk::cli::command::laboratories::delete::request_schema::{
         Request, Response,
     };
 
@@ -82,8 +64,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::laboratories::create as sdk;
-    use objectiveai_sdk::cli::command::laboratories::create::response_schema::{
+    use objectiveai_sdk::cli::command::laboratories::delete as sdk;
+    use objectiveai_sdk::cli::command::laboratories::delete::response_schema::{
         Request, Response,
     };
 

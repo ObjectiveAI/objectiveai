@@ -269,6 +269,7 @@ pub fn bind_laboratories_socket_listener(
 pub fn serve_laboratories_socket_listener(
     listener: interprocess::local_socket::tokio::Listener,
     registry: LaboratoryRegistry,
+    hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
 ) {
     tokio::spawn(async move {
         loop {
@@ -276,12 +277,16 @@ pub fn serve_laboratories_socket_listener(
                 Ok(conn) => conn,
                 Err(_) => continue,
             };
-            tokio::spawn(handle_conn(conn, registry.clone()));
+            tokio::spawn(handle_conn(conn, registry.clone(), hub.clone()));
         }
     });
 }
 
-async fn handle_conn(conn: LocalSocketStream, registry: LaboratoryRegistry) {
+async fn handle_conn(
+    conn: LocalSocketStream,
+    registry: LaboratoryRegistry,
+    hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
+) {
     let (read_half, mut write_half) = tokio::io::split(conn);
     let mut reader = BufReader::new(read_half);
     let mut line = String::new();
@@ -297,6 +302,10 @@ async fn handle_conn(conn: LocalSocketStream, registry: LaboratoryRegistry) {
             }
         }
         Ok(SocketRequest::List) => SocketResponse::List { laboratories: registry.list() },
+        Ok(SocketRequest::LocalChanged) => {
+            hub.signal_local_changed();
+            SocketResponse::Ack
+        }
         Err(e) => SocketResponse::Error { message: format!("malformed request: {e}") },
     };
 

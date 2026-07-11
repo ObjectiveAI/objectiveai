@@ -685,7 +685,7 @@ impl ConduitMcpHandler {
             Ok(SocketResponse::Error { message }) => {
                 return shape.error(-32603, format!("laboratory {laboratory_id}: {message}"));
             }
-            Ok(SocketResponse::List { .. }) => {
+            Ok(SocketResponse::List { .. } | SocketResponse::Ack) => {
                 return shape.error(-32603, "unexpected socket reply".to_string());
             }
             Err(e) => {

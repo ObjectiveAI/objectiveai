@@ -37,7 +37,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     {
         Ok(SocketResponse::List { laboratories }) => Ok(laboratories),
         Ok(SocketResponse::Error { message }) => Err(Error::Laboratory(message)),
-        Ok(SocketResponse::Forwarded { .. }) => {
+        Ok(SocketResponse::Forwarded { .. } | SocketResponse::Ack) => {
             Err(Error::Laboratory("unexpected socket reply".to_string()))
         }
         Err(e) => Err(Error::Laboratory(format!("laboratories socket: {e}"))),

@@ -282,7 +282,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         active.clone(),
         conversations.clone(),
         laboratories.clone(),
-        labs_hub,
+        labs_hub.clone(),
     );
     crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
     crate::websockets::websocket_agents::serve_agents_socket_listener(
@@ -296,6 +296,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     crate::websockets::websocket_laboratory::serve_laboratories_socket_listener(
         laboratories_socket_listener,
         laboratories.clone(),
+        labs_hub.clone(),
     );
     // Best-effort: seed the registry with agents already holding a lock
     // when the daemon started (off the boot path — no DB round-trip block).
