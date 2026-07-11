@@ -8,11 +8,12 @@
 //!   connected / disconnected on `/laboratory`);
 //! - the LOCAL set — the machine's state-scoped container scan, via
 //!   the `objectiveai-laboratory list` subprocess (the same reader the
-//!   unary `laboratories list` uses). Podman has no event source, but
-//!   the daemon does NOT poll: a SCANNER task runs EVENT-DRIVEN only —
-//!   on a fresh subscriber (the one-time list on WS connect) and on a
-//!   registry connect/disconnect — coalesced through a `Notify` with a
-//!   [`SCAN_MIN_GAP`] floor. No timer;
+//!   unary `laboratories list` uses). It is NOT cached and NOT polled:
+//!   every response (re)build scans podman on-demand, so a `list`
+//!   subprocess fires exactly when a frame is built — on connect and on
+//!   a registry connect/disconnect for the list, plus attachment
+//!   changes for the per-id record. (Caching this scan is a deferred
+//!   perf optimization.);
 //! - ATTACHMENTS — a dedicated `laboratory_attachments_changed`
 //!   watcher with NO payload filtering (unlike `ActiveAgents`' agent
 //!   watcher, which drops GROUPED-tag payloads — the per-lab record
@@ -23,8 +24,6 @@
 //! a lagged subscriber self-heals on its next rebuild.
 
 use std::collections::{BTreeMap, HashSet};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Mount};
 use objectiveai_sdk::cli::command::laboratories::list::Source;
@@ -35,13 +34,9 @@ use objectiveai_sdk::cli::websocket_laboratories_listener::{
     LaboratoryAttachment, LaboratoryInstanceEvent, LaboratoryRecord,
 };
 use objectiveai_sdk::client_objectiveai_mcp::laboratory::Identify;
-use tokio::sync::{Mutex, Notify, broadcast};
+use tokio::sync::broadcast;
 
 use crate::websockets::websocket_laboratory::LaboratoryRegistry;
-
-/// Floor between two scans, however hard the nudges arrive — one
-/// podman subprocess per event burst, not per event.
-const SCAN_MIN_GAP: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// One coalesced "something changed" tick. No payloads — every
 /// consumer rebuilds from truth.
@@ -49,41 +44,19 @@ const SCAN_MIN_GAP: std::time::Duration = std::time::Duration::from_secs(2);
 pub(crate) enum LabsChange {
     /// The connected set changed (a manager connected/disconnected).
     Registry,
-    /// The local scan produced a DIFFERENT set than the cache held.
-    LocalScan,
     /// A `laboratory_attachments` row was written or removed
     /// (any laboratory, any target).
     Attachments,
 }
 
-/// The live-laboratories hub: the connected registry + the cached
-/// local scan + the coalesced change feed, shared by both routes.
+/// The live-laboratories hub: the connected registry + the coalesced
+/// change feed, shared by both routes. The local podman scan is NOT
+/// cached — each response build scans on-demand.
 #[derive(Clone)]
 pub(crate) struct LaboratoriesHub {
     registry: LaboratoryRegistry,
     ctx: crate::context::Context,
-    /// Latest local (podman) scan. Refreshed by the scanner task.
-    local: Arc<Mutex<Vec<Identify>>>,
-    /// Live subscriber count across BOTH routes — gates the scanner
-    /// (no podman subprocesses while nobody watches).
-    subscribers: Arc<AtomicUsize>,
-    /// Nudges the scanner out of its sleep (registry events,
-    /// subscriber joins).
-    rescan: Arc<Notify>,
     changes: broadcast::Sender<LabsChange>,
-}
-
-/// RAII subscriber registration: bumps the count (and nudges the
-/// scanner so a fresh subscriber gets a prompt local scan), decrements
-/// on drop.
-pub(crate) struct SubscriberGuard {
-    subscribers: Arc<AtomicUsize>,
-}
-
-impl Drop for SubscriberGuard {
-    fn drop(&mut self) {
-        self.subscribers.fetch_sub(1, Ordering::SeqCst);
-    }
 }
 
 impl LaboratoriesHub {
@@ -91,9 +64,6 @@ impl LaboratoriesHub {
         Self {
             registry,
             ctx,
-            local: Arc::new(Mutex::new(Vec::new())),
-            subscribers: Arc::new(AtomicUsize::new(0)),
-            rescan: Arc::new(Notify::new()),
             changes: broadcast::channel(1024).0,
         }
     }
@@ -102,75 +72,22 @@ impl LaboratoriesHub {
         self.changes.subscribe()
     }
 
-    fn register_subscriber(&self) -> SubscriberGuard {
-        self.subscribers.fetch_add(1, Ordering::SeqCst);
-        self.rescan.notify_one();
-        SubscriberGuard {
-            subscribers: self.subscribers.clone(),
-        }
-    }
-
-    /// Spawn the hub's resident tasks: the local scanner, the
-    /// registry-event forwarder, and the attachments watcher. Called
-    /// once at daemon boot.
+    /// Spawn the hub's resident tasks: the registry-event forwarder and
+    /// the attachments watcher. Called once at daemon boot. (No local
+    /// scanner — the scan is done on-demand per response build.)
     pub(crate) fn spawn_tasks(&self) {
-        tokio::spawn(self.clone().scanner());
         tokio::spawn(self.clone().forward_registry_events());
         tokio::spawn(self.clone().watch_attachment_changes());
     }
 
-    /// The local scanner: sleeps until NUDGED — on a fresh subscriber
-    /// (the one-time list on WS connect) or a registry
-    /// connect/disconnect — with NO timer, so podman is never polled.
-    /// The `Notify` coalesces a burst of nudges into one trailing
-    /// scan. Skips entirely while nobody subscribes, floors
-    /// back-to-back scans at [`SCAN_MIN_GAP`], and emits
-    /// [`LabsChange::LocalScan`] only when the scan RESULT differs
-    /// from the cache. Scan failures keep the previous cache (a
-    /// transient podman error must not flap every local lab to
-    /// removed and back).
-    async fn scanner(self) {
-        let mut last_scan: Option<tokio::time::Instant> = None;
-        loop {
-            self.rescan.notified().await;
-            if self.subscribers.load(Ordering::SeqCst) == 0 {
-                continue;
-            }
-            if let Some(at) = last_scan {
-                let since = at.elapsed();
-                if since < SCAN_MIN_GAP {
-                    tokio::time::sleep(SCAN_MIN_GAP - since).await;
-                }
-            }
-            last_scan = Some(tokio::time::Instant::now());
-            let Ok(fresh) = local_scan(&self.ctx).await else {
-                continue;
-            };
-            let changed = {
-                let mut cache = self.local.lock().await;
-                if *cache == fresh {
-                    false
-                } else {
-                    *cache = fresh;
-                    true
-                }
-            };
-            if changed {
-                let _ = self.changes.send(LabsChange::LocalScan);
-            }
-        }
-    }
-
     /// Forward registry connect/disconnect events into the coalesced
-    /// feed and nudge the scanner (a connect often accompanies a
-    /// just-created local container).
+    /// change feed (which drives the pumps to rebuild + rescan).
     async fn forward_registry_events(self) {
         let mut rx = self.registry.subscribe();
         loop {
             match rx.recv().await {
                 Ok(_) => {
                     let _ = self.changes.send(LabsChange::Registry);
-                    self.rescan.notify_one();
                 }
                 Err(broadcast::error::RecvError::Lagged(_)) => {
                     // Coalesced anyway — one Registry tick covers any
@@ -216,7 +133,10 @@ impl LaboratoriesHub {
     /// otherwise; then local labs with no live connection).
     async fn merged_list(&self) -> Vec<LaboratoryStatus> {
         let connected = self.registry.list();
-        let local = self.local.lock().await.clone();
+        // On-demand scan; a transient podman failure yields an empty
+        // local set (connected labs still list) — there is no cache to
+        // fall back on, by design.
+        let local = local_scan(&self.ctx).await.unwrap_or_default();
         let local_ids: HashSet<&str> = local.iter().map(|l| l.id.as_str()).collect();
         let connected_ids: HashSet<String> =
             connected.iter().map(|l| l.id.clone()).collect();
@@ -238,21 +158,20 @@ impl LaboratoriesHub {
     }
 
     /// One laboratory's full record: identity from the registry
-    /// (connected) or the local cache, zero-filled when absent from
-    /// both (`source: None` — attachment rows can outlive their
+    /// (connected) or an on-demand local scan, zero-filled when absent
+    /// from both (`source: None` — attachment rows can outlive their
     /// laboratory); attachments from the DB. `None` when the DB is
     /// unavailable (the frame is skipped; a later change retries).
     async fn build_record(&self, id: &str) -> Option<LaboratoryRecord> {
         let connected_identity =
             self.registry.list().into_iter().find(|lab| lab.id == id);
         let connected = connected_identity.is_some();
-        let local_identity = self
-            .local
-            .lock()
+        // On-demand scan (empty on failure — no cache).
+        let local_identity = local_scan(&self.ctx)
             .await
-            .iter()
-            .find(|lab| lab.id == id)
-            .cloned();
+            .unwrap_or_default()
+            .into_iter()
+            .find(|lab| lab.id == id);
         let locally_present = local_identity.is_some();
         let source = if locally_present {
             Some(Source::Local)
@@ -409,7 +328,6 @@ async fn laboratories_list_pump(
 ) {
     use axum::extract::ws::Message;
     let mut rx = hub.subscribe();
-    let _guard = hub.register_subscriber();
 
     let mut last: BTreeMap<String, LaboratoryStatus> = hub
         .merged_list()
@@ -432,7 +350,7 @@ async fn laboratories_list_pump(
                     // Attachment changes don't ride the list; identity
                     // and connected-ness are its whole payload.
                     Ok(LabsChange::Attachments) => continue,
-                    Ok(LabsChange::Registry | LabsChange::LocalScan)
+                    Ok(LabsChange::Registry)
                     | Err(broadcast::error::RecvError::Lagged(_)) => {}
                     Err(broadcast::error::RecvError::Closed) => break,
                 }
@@ -503,7 +421,6 @@ async fn laboratory_instance_pump(
 ) {
     use axum::extract::ws::Message;
     let mut rx = hub.subscribe();
-    let _guard = hub.register_subscriber();
 
     let mut last: Option<LaboratoryRecord> = hub.build_record(&id).await;
     if let Some(record) = &last {
