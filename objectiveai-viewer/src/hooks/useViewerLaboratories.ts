@@ -14,23 +14,20 @@ export interface ViewerLaboratory {
   cwd: string;
 }
 
-/** Rescan cadence while the laboratories tab is focused. */
-const SCAN_INTERVAL_MS = 30_000;
-
 /**
  * The viewer machine's laboratories (running or not), via the
  * `laboratories_list` Tauri command (a podman label scan by the local
- * `objectiveai-laboratory` binary). Fetches once on mount and then
- * every 30s WHILE `active` — the pane stays mounted across tab swaps,
- * so polling is gated on the tab actually being focused. A failed
- * scan reports to the toast and keeps the last good result.
+ * `objectiveai-laboratory` binary). Scans exactly ONCE per effect run
+ * — on mount and again only when `active` transitions (tab focus).
+ * NO timer: the podman subprocess never fires on an interval. A
+ * failed scan reports to the toast and keeps the last good result.
  */
 export function useViewerLaboratories(active: boolean): ViewerLaboratory[] {
   const [laboratories, setLaboratories] = useState<ViewerLaboratory[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    const scan = async () => {
+    void (async () => {
       try {
         const result = await tauriInvoke<ViewerLaboratory[]>(
           "laboratories_list",
@@ -39,17 +36,9 @@ export function useViewerLaboratories(active: boolean): ViewerLaboratory[] {
       } catch (error) {
         reportError("viewer laboratories", error);
       }
-    };
-    // One scan on mount regardless — the first classification
-    // shouldn't wait for a tab focus.
-    void scan();
-    if (!active) return () => {
-      cancelled = true;
-    };
-    const interval = setInterval(() => void scan(), SCAN_INTERVAL_MS);
+    })();
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
   }, [active]);
 
