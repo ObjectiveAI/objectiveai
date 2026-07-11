@@ -26,8 +26,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         None => (crate::command::daemon::spawn::spawn(ctx).await?, true),
     };
     // The authorization signature: for the LOCAL daemon it derives
-    // from this state's DAEMON_SECRET; for a REMOTE daemon the remote's
-    // signature is the caller's to supply via the DAEMON_SIGNATURE
+    // from this state's bare `SECRET`; for a REMOTE daemon the remote's
+    // signature is the caller's to supply via the `DAEMON_SIGNATURE`
     // environment variable.
     let signature = if local {
         ctx.config

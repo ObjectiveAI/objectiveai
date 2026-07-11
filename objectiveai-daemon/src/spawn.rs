@@ -195,20 +195,27 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
         }
     }
-    // Resident-daemon broadcast WebSocket bind address/port. Always
-    // projected (both carry resolved defaults), so the re-exec'd
-    // foreground daemon inherits the launcher's configured listener.
-    cmd.env("DAEMON_ADDRESS", &cfg.daemon_address);
-    cmd.env("DAEMON_PORT", cfg.daemon_port.to_string());
-    // Optional daemon WebSocket auth secret — set when present, cleared
-    // otherwise so a child can't inherit a stale secret from the parent's
-    // startup environment.
+    // NOTE: the daemon's own bind config (bare `ADDRESS`/`PORT`/`SECRET`)
+    // is deliberately NOT projected here — it is server-specific and would
+    // pollute a plugin/tool child's generic `$PORT`/`$SECRET`. Only the
+    // foreground-daemon spawn stamps them, via `apply_daemon_env` below.
+}
+
+/// Stamp the daemon's own bind config as the BARE `ADDRESS`/`PORT`/`SECRET`
+/// env the daemon reads (see `run::EnvConfigBuilder`). Used ONLY when
+/// spawning the resident foreground daemon — never for plugins/tools,
+/// which must not inherit these generic-named vars. Address/port always
+/// carry resolved defaults; the secret is set when present and cleared
+/// otherwise so the child can't inherit a stale secret.
+pub fn apply_daemon_env(cmd: &mut Command, cfg: &crate::Config) {
+    cmd.env("ADDRESS", &cfg.daemon_address);
+    cmd.env("PORT", cfg.daemon_port.to_string());
     match cfg.daemon_secret.as_deref() {
         Some(v) => {
-            cmd.env("DAEMON_SECRET", v);
+            cmd.env("SECRET", v);
         }
         None => {
-            cmd.env_remove("DAEMON_SECRET");
+            cmd.env_remove("SECRET");
         }
     }
 }

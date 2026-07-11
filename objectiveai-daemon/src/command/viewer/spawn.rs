@@ -32,8 +32,8 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    // Derive the daemon WS auth signature from the cli's DAEMON_SECRET
-    // (env-sourced): `sha256=<hex(SHA256(secret))>` — the same one-way
+    // Derive the daemon WS auth signature from the daemon's own `SECRET`
+    // (bare env): `sha256=<hex(SHA256(secret))>` — the same one-way
     // math as `generate_viewer_secret_signature_pair`. Clients send it
     // verbatim in the first-message auth preamble (the SDK
     // `AuthEnvelope`) on every daemon WebSocket connection.
@@ -51,13 +51,13 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // `objectiveai-viewer/src-tauri/src/run.rs`: DAEMON_ADDRESS,
     // DAEMON_SIGNATURE, SUPPRESS_OUTPUT, OBJECTIVEAI_DIR,
     // OBJECTIVEAI_STATE) is set explicitly here when known.
-    // DAEMON_ADDRESS is the daemon's full ws:// connect URL (always
-    // set — required above; note it shadows any inherited value, which
-    // in the cli's namespace would be a bind address, a different
-    // semantic). DAEMON_SIGNATURE is derived from DAEMON_SECRET when
-    // the cli has one; otherwise any inherited DAEMON_SIGNATURE from
-    // the invoking shell is left as-is (the spawner may know the
-    // signature without the secret).
+    // `DAEMON_ADDRESS` is the daemon's full ws:// connect URL the viewer
+    // (a client) dials (always set — required above). `DAEMON_SIGNATURE`
+    // is derived here from the daemon's own bare `SECRET` when it has one;
+    // otherwise any inherited `DAEMON_SIGNATURE` is left as-is (the spawner
+    // may know the signature without the secret). The daemon's own bind
+    // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
+    // distinct from these client-facing `DAEMON_` vars.
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())

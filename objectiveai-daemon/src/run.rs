@@ -73,11 +73,15 @@ struct EnvConfigBuilder {
     response_ids: Option<String>,
     #[envconfig(from = "MCP_SESSION_ID")]
     mcp_session_id: Option<String>,
-    #[envconfig(from = "DAEMON_ADDRESS")]
+    // The daemon is a deployable server: its own config reads BARE env
+    // (`ADDRESS`/`PORT`/`SECRET`), the 12-factor convention (a platform's
+    // `$PORT` is the port to bind). Clients (CLI/viewer/laboratory) use the
+    // `DAEMON_`-prefixed vars to reach it.
+    #[envconfig(from = "ADDRESS")]
     daemon_address: Option<String>,
-    #[envconfig(from = "DAEMON_PORT")]
+    #[envconfig(from = "PORT")]
     daemon_port: Option<u16>,
-    #[envconfig(from = "DAEMON_SECRET")]
+    #[envconfig(from = "SECRET")]
     daemon_secret: Option<String>,
 }
 
@@ -200,15 +204,15 @@ pub struct Config {
     pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
     /// Bind address for the resident daemon's broadcast WebSocket
-    /// server (`DAEMON_ADDRESS`); default `127.0.0.1`.
+    /// server (bare `ADDRESS`); default `127.0.0.1`.
     pub daemon_address: String,
     /// Bind port for the resident daemon's broadcast WebSocket server
-    /// (`DAEMON_PORT`); default `0` (OS-assigned).
+    /// (bare `PORT`); default `0` (OS-assigned).
     pub daemon_port: u16,
-    /// Optional shared secret for the daemon's WebSocket server
-    /// (`DAEMON_SECRET`). When set, every connection's first-message
-    /// auth preamble must carry a valid `sha256=<hex(SHA256(secret))>`
-    /// signature; when `None`, the server is open.
+    /// Optional shared secret for the daemon's WebSocket server (bare
+    /// `SECRET`). When set, every connection's first-message auth preamble
+    /// must carry a valid `sha256=<hex(SHA256(secret))>` signature; when
+    /// `None`, the server is open.
     pub daemon_secret: Option<String>,
 }
 

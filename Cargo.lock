@@ -4209,11 +4209,9 @@ dependencies = [
  "dirs",
  "dotenv",
  "futures",
- "hex",
  "objectiveai-sdk",
  "serde",
  "serde_json",
- "sha2",
  "tokio",
 ]
 

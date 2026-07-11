@@ -175,18 +175,13 @@ fn resolve_layout() -> Layout {
     Layout { dir, state, lock_dir, daemon_exe }
 }
 
-/// Derive the daemon WS auth signature from `DAEMON_SECRET` (the same
-/// one-way math as `viewer spawn`): `sha256=<hex(SHA256(secret))>`, sent
-/// verbatim in the first-message auth preamble. `None` = connect
-/// unauthenticated (the daemon must be open).
+/// The daemon WS auth signature the CLI sends in the first-message auth
+/// preamble, read verbatim from `DAEMON_SIGNATURE`
+/// (`sha256=<hex(SHA256(secret))>`). The CLI never derives it from a
+/// secret — `DAEMON_SECRET` is only for handing a spawned daemon its
+/// `SECRET`. `None` = connect unauthenticated (the daemon must be open).
 fn daemon_signature() -> Option<String> {
-    std::env::var("DAEMON_SECRET")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .map(|secret| {
-            use sha2::{Digest, Sha256};
-            format!("sha256={}", hex::encode(Sha256::digest(secret.as_bytes())))
-        })
+    std::env::var("DAEMON_SIGNATURE").ok().filter(|s| !s.is_empty())
 }
 
 /// Build a `/execute` [`WebSocketExecutor`] for an already-known daemon
@@ -203,6 +198,15 @@ fn executor_for(url: &str) -> WebSocketExecutor {
 /// `/execute` [`WebSocketExecutor`] plus the per-request identity
 /// override to send with every command.
 async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String> {
+    // Remote override: when `DAEMON_ADDRESS` is set, connect to that daemon
+    // directly and NEVER spawn a local one — this is how the CLI reaches a
+    // daemon on another machine.
+    if let Ok(addr) = std::env::var("DAEMON_ADDRESS")
+        && !addr.is_empty()
+    {
+        return Ok((executor_for(&addr), agent_arguments_from_env()));
+    }
+
     let layout = resolve_layout();
 
     // Idempotent: returns immediately if the daemon already holds its
@@ -245,6 +249,21 @@ async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String
                 cmd.env_remove(var);
             }
             cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
+            // The daemon reads its bind config as bare `ADDRESS`/`PORT`/
+            // `SECRET`. Hand it the `SECRET` from the CLI's `DAEMON_SECRET`
+            // (or clear it), and scrub bare `ADDRESS`/`PORT` so a locally
+            // spawned daemon uses its defaults and never inherits a stray
+            // `$ADDRESS`/`$PORT` from the CLI's environment.
+            match std::env::var("DAEMON_SECRET") {
+                Ok(s) if !s.is_empty() => {
+                    cmd.env("SECRET", s);
+                }
+                _ => {
+                    cmd.env_remove("SECRET");
+                }
+            }
+            cmd.env_remove("ADDRESS");
+            cmd.env_remove("PORT");
         },
     )
     .await

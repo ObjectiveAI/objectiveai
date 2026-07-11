@@ -64,6 +64,10 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
                 .arg("--dangerous-advanced")
                 .arg("{\"foreground\":true}");
             crate::spawn::apply_config_env(cmd, &ctx.config);
+            // The foreground daemon reads its bind config as bare
+            // `ADDRESS`/`PORT`/`SECRET`; stamp them here (never for
+            // plugins/tools).
+            crate::spawn::apply_daemon_env(cmd, &ctx.config);
             // The resident daemon is a per-state singleton service, not
             // part of any agent's lineage. Since the producer tee makes
             // ANY command auto-spawn it, scrub the transient identity
@@ -178,9 +182,10 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // client. The `_rx` clone keeps the channel open for the daemon's
     // whole life.
     let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
-    // Optional WS auth: when `DAEMON_SECRET` is set, every connection's
-    // first-message auth preamble must carry a valid signature; when
-    // unset, the server is open (the preamble is consumed regardless).
+    // Optional WS auth: when the daemon's bare `SECRET` is set, every
+    // connection's first-message auth preamble must carry a valid
+    // signature; when unset, the server is open (the preamble is consumed
+    // regardless).
     let secret = ctx.config.daemon_secret.clone().map(std::sync::Arc::new);
     // The live agent-status hub: its own broadcast of `AgentEvent` frames,
     // fed by AIH-lock announcements on `agents.sock` and watched for
