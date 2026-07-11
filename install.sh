@@ -29,7 +29,8 @@
 #
 # Layout on disk (bin/ is machine-wide; per-state data lives under
 # <dir>/state/<OBJECTIVEAI_STATE>, default "default"):
-#   <dir>/bin/objectiveai{.exe}        ← CLI
+#   <dir>/bin/objectiveai{.exe}         ← CLI (thin WebSocket client)
+#   <dir>/bin/objectiveai-daemon{.exe}  ← resident daemon (the executor)
 #   <dir>/bin/objectiveai-api{.exe}
 #   <dir>/bin/objectiveai-laboratory{.exe}
 #   <dir>/bin/objectiveai-viewer{.exe}

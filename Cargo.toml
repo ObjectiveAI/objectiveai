@@ -12,7 +12,7 @@ members = [
     "objectiveai-sdk-rs-wasm-js",
     "objectiveai-sdk-rs-macros",
     "objectiveai-sdk-rs-pyo3",
-    "objectiveai-sdk-rs-cffi", "objectiveai-daemon",
+    "objectiveai-sdk-rs-cffi", "objectiveai-daemon", "objectiveai-cli",
     # Integration-test fixture crates — plugin and tool stubs the cli
     # integration tests build and exec. Grouped under tests/ by kind:
     # plugins under tests/plugins/, tools under tests/tools/.

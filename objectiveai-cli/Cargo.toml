@@ -1,0 +1,31 @@
+[package]
+name = "objectiveai-cli"
+version = "2.2.10"
+edition = "2024"
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
+description = "ObjectiveAI CLI: a thin WebSocket client for the resident daemon"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objectiveai.dev"
+documentation = "https://docs.rs/objectiveai-cli"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "cli"]
+publish = true
+
+# Ships as the user-facing `objectiveai` binary; the resident executor is
+# the separate `objectiveai-daemon` crate this client dials.
+[[bin]]
+name = "objectiveai"
+path = "src/main.rs"
+
+[dependencies]
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.10", features = ["cli-executor", "lockfile"] }
+clap = "4.6.0"
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "io-std", "io-util"] }
+futures = "0.3.32"
+serde = "1.0.228"
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
+dotenv = "0.15.0"
+dirs = "6.0.0"
+sha2 = "0.10.9"
+hex = "0.4.3"

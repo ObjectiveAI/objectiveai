@@ -261,7 +261,7 @@ if [ "$NO_ZIP" != "1" ]; then
     # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
     # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
     # `--no-test-integration` case (FIXTURE_CRATES left empty).
-    for crate in objectiveai-daemon objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
+    for crate in objectiveai-cli objectiveai-daemon objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
@@ -396,8 +396,9 @@ fi
 # GitHub Release ships (objectiveai-<version>-<os>-<arch>.zip) and drops
 # it in <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can
 # pick it up locally. Host platform only — not the other 5. Uses `python
-# -m zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The cli
-# crate builds as `objectiveai-cli` but ships as `objectiveai`. The
+# -m zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The thin
+# `objectiveai-cli` crate builds the `objectiveai` binary; the resident
+# `objectiveai-daemon` crate builds its own like-named binary. The
 # version is read from objectiveai-daemon/Cargo.toml — the canonical release
 # version (release.yml gates on it, version.sh keeps install.sh in sync).
 package_host_zip() {
@@ -431,15 +432,16 @@ package_host_zip() {
   local bin_dir="$install_dir/bin"
   mkdir -p "$bin_dir"
 
-  # Stage the 8 binaries under their shipped names (built-name -> ship-name).
+  # Stage the 10 binaries under their shipped names (built-name -> ship-name).
   local stage="$REPO_ROOT/target/.package-stage.$$"
   rm -rf "$stage"; mkdir -p "$stage"
 
   local cargo_dir="$REPO_ROOT/target/$profile"
   local src
-  # The four CLI/server crates from the cargo build (built-name -> ship-name;
-  # the daemon crate builds as objectiveai-daemon but ships as objectiveai).
-  local pairs="objectiveai-daemon|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
+  # The CLI + daemon + server crates from the cargo build (built-name ->
+  # ship-name; the thin objectiveai-cli crate builds the `objectiveai`
+  # binary, and the daemon crate builds/ships `objectiveai-daemon`).
+  local pairs="objectiveai|objectiveai objectiveai-daemon|objectiveai-daemon objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
   local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"
