@@ -1,0 +1,57 @@
+{
+  "title": "cli.websocket_laboratories_list_listener.LaboratoryEvent",
+  "description": "One event on the `/laboratories/list` stream. The first is always\na [`Snapshot`](LaboratoryEvent::Snapshot); every later one upserts\nor removes a single laboratory as the connected set or the local\nscan changes.",
+  "anyOf": [
+    {
+      "title": "Snapshot",
+      "description": "The full laboratory set (connected ∪ local scan), sent once\nimmediately on connect.",
+      "type": "object",
+      "properties": {
+        "laboratories": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_laboratories_list_listener.LaboratoryStatus"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "snapshot"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Upserted",
+      "description": "A laboratory appeared or changed — connected, disconnected\n(but still locally present), entered the local scan, or had\nits identity re-announced. Full-value replace by `id`.",
+      "type": "object",
+      "properties": {
+        "laboratory": {
+          "$ref": "cli.websocket_laboratories_list_listener.LaboratoryStatus"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "upserted"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Removed",
+      "description": "A laboratory vanished from BOTH halves — no live connection\nand absent from the local scan.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "removed"
+          ]
+        }
+      }
+    }
+  ]
+}

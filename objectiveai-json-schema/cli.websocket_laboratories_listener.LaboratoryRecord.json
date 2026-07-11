@@ -1,0 +1,71 @@
+{
+  "title": "cli.websocket_laboratories_listener.LaboratoryRecord",
+  "description": "One laboratory's full record. Identity fields are present when the\nlaboratory is connected to the daemon or found by the local scan;\na laboratory known ONLY through attachment rows (or not at all)\nzero-fills them — `source: None` marks \"not present anywhere\",\nmirroring the agents `get_exact` zero-fill convention.",
+  "type": "object",
+  "properties": {
+    "attachments": {
+      "description": "Every attachment row targeting this laboratory, oldest first.",
+      "type": "array",
+      "items": {
+        "$ref": "cli.websocket_laboratories_listener.LaboratoryAttachment"
+      },
+      "default": []
+    },
+    "connected": {
+      "description": "Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now.",
+      "type": "boolean"
+    },
+    "cwd": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "env": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.EnvVar"
+      },
+      "default": []
+    },
+    "id": {
+      "description": "Raw (state-agnostic) laboratory id.",
+      "type": "string"
+    },
+    "image": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.Mount"
+      },
+      "default": []
+    },
+    "source": {
+      "description": "Where this laboratory lives relative to this machine + state —\n`None` when it is neither connected nor in the local scan.",
+      "anyOf": [
+        {
+          "$ref": "cli.command.laboratories.list.Source"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

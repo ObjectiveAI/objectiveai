@@ -14,6 +14,18 @@
       "$ref": "cli.command.laboratories.attach.response_schema.Request"
     },
     {
+      "title": "Connect",
+      "$ref": "cli.command.laboratories.connect.Request"
+    },
+    {
+      "title": "ConnectRequestSchema",
+      "$ref": "cli.command.laboratories.connect.request_schema.Request"
+    },
+    {
+      "title": "ConnectResponseSchema",
+      "$ref": "cli.command.laboratories.connect.response_schema.Request"
+    },
+    {
       "title": "Create",
       "$ref": "cli.command.laboratories.create.Request"
     },

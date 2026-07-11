@@ -23,6 +23,10 @@
       "items": {
         "$ref": "cli.command.laboratories.create.Mount"
       }
+    },
+    "source": {
+      "description": "Where this laboratory lives relative to this machine + state.",
+      "$ref": "cli.command.laboratories.list.Source"
     }
   }
 }

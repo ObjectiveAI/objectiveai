@@ -1,0 +1,37 @@
+{
+  "title": "cli.websocket_laboratories_list_listener.LaboratoryStatus",
+  "description": "One laboratory on the `/laboratories/list` stream: its spec, where\nit lives relative to this machine + state, and whether it is\nconnected to the daemon right now.",
+  "type": "object",
+  "properties": {
+    "connected": {
+      "description": "Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now.",
+      "type": "boolean"
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "env": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.EnvVar"
+      }
+    },
+    "id": {
+      "description": "Raw (state-agnostic) laboratory id.",
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.Mount"
+      }
+    },
+    "source": {
+      "description": "Where this laboratory lives relative to this machine + state —\nthe same RAW-id classification as the unary `laboratories\nlist`.",
+      "$ref": "cli.command.laboratories.list.Source"
+    }
+  }
+}

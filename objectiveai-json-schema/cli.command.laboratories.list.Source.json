@@ -1,0 +1,20 @@
+{
+  "title": "cli.command.laboratories.list.Source",
+  "description": "Where a listed laboratory lives. Classification is by the RAW\nlaboratory id: ids found by the local machine's state-scoped\ncontainer scan are `Local` (connected or not); ids present ONLY as\nlive `/laboratory` connections are `Remote` — including a\nlaboratory running on this machine under a DIFFERENT state.",
+  "anyOf": [
+    {
+      "title": "Local",
+      "type": "string",
+      "enum": [
+        "local"
+      ]
+    },
+    {
+      "title": "Remote",
+      "type": "string",
+      "enum": [
+        "remote"
+      ]
+    }
+  ]
+}

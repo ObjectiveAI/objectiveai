@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.laboratories.connect.Response",
+  "description": "Confirmation — the manager is spawned (and, for a local daemon,\nCONNECTED). Echoes the id and the RESOLVED daemon address.",
+  "type": "object",
+  "properties": {
+    "address": {
+      "description": "The daemon address the manager dials (the local daemon's\npublished `ws://` URL when the request left `address` unset).",
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    }
+  }
+}

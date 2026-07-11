@@ -1,0 +1,74 @@
+{
+  "title": "cli.websocket_laboratories_listener.LaboratoryAttachment",
+  "description": "One attachment row targeting this laboratory: the agent target it\nis attached to — an AIH or a tag, exactly one (the DB row's\nCHECK-exclusive pair) — plus when and by whom.",
+  "anyOf": [
+    {
+      "title": "Aih",
+      "description": "Attached directly to an agent instance hierarchy.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "attached_at": {
+          "description": "Unix seconds when the attachment row was created.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "attached_by": {
+          "description": "The AIH that performed the attach, when recorded.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "aih"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "description": "Attached to a tag (BOUND or GROUPED — the row targets the tag\nitself, wherever it points).",
+      "type": "object",
+      "properties": {
+        "attached_at": {
+          "description": "Unix seconds when the attachment row was created.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "attached_by": {
+          "description": "The AIH that performed the attach, when recorded.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "tag": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    }
+  ]
+}
