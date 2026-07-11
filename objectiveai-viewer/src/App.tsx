@@ -104,7 +104,10 @@ function ObjectiveAIView({
           homeTab === "laboratories" ? "flex" : "hidden",
         )}
       >
-        <LaboratoriesPane />
+        <LaboratoriesPane
+          connection={connection}
+          active={homeTab === "laboratories"}
+        />
       </div>
     </div>
   );
