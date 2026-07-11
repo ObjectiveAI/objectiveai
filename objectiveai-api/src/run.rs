@@ -866,10 +866,16 @@ pub async fn run(config: Config) -> std::io::Result<()> {
 
 // Create Context
 
+/// The server's per-1-second duration billing rates. ZERO for now —
+/// durations are tracked and reported in usage, but bill nothing until
+/// real rates are configured here.
+const DURATION_COSTS: ctx::DurationCosts = ctx::DurationCosts::ZERO;
+
 pub(crate) fn context(headers: &axum::http::HeaderMap, suppress_output: bool) -> ctx::Context<ctx::DefaultContextExt> {
     ctx::Context::new(
         Arc::new(ctx::DefaultContextExt),
         rust_decimal::Decimal::ONE,
+        DURATION_COSTS,
         suppress_output,
         headers,
     )

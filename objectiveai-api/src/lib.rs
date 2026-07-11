@@ -21,6 +21,8 @@ pub mod auth;
 pub mod ctx;
 /// Agent management, fetching, and retrieval.
 pub mod agent;
+/// Duration billing math (billing-critical, exact Decimal arithmetic).
+pub mod duration;
 /// Error response handling and conversion.
 pub mod error;
 /// Function execution, profile management, and computations.

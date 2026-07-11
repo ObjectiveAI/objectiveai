@@ -70,6 +70,10 @@ impl Client {
         index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
+        // create→finish clock start; stamped onto the terminal usage chunk.
+        started: std::time::Instant,
+        // per-1-SECOND rate for this upstream's wall time.
+        duration_cost: rust_decimal::Decimal,
         agent_instance_hierarchy: String,
         agent_id: String,
         agent_full_id: String,
@@ -111,7 +115,7 @@ impl Client {
                         >(&mut de)
                         {
                             Ok(chunk) => {
-                                let downstream = chunk.into_downstream(
+                                let mut downstream = chunk.into_downstream(
                                     id.clone(),
                                     created,
                                     index,
@@ -139,6 +143,29 @@ impl Client {
                                                 )
                                             }
                                         }
+                                    }
+                                }
+
+                                // Stamp this upstream's elapsed on the
+                                // terminal usage chunk (the one carrying
+                                // usage) and bill it. BYOK-independent:
+                                // duration is infra time. OpenRouter emits
+                                // usage on exactly one chunk, so this fires
+                                // once per create() call.
+                                for message in &mut downstream.messages {
+                                    if let MessageChunk::Assistant(asst) = message
+                                        && let Some(usage) = asst.usage.as_mut()
+                                    {
+                                        let elapsed_ms =
+                                            started.elapsed().as_millis() as u64;
+                                        usage.upstream_duration_ms.openrouter =
+                                            Some(elapsed_ms);
+                                        let charge = crate::duration::duration_charge(
+                                            elapsed_ms,
+                                            duration_cost,
+                                        );
+                                        usage.cost += charge;
+                                        usage.total_cost += charge;
                                     }
                                 }
 
@@ -246,6 +273,7 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
+        duration_cost: rust_decimal::Decimal,
         _tools_enabled: bool,
         agent_instance_hierarchy: &str,
         agent_id: &str,
@@ -274,6 +302,10 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         let byok = byok.map(String::from);
 
         async move {
+            // Clock this upstream's whole create→finish wall time (tool
+            // resolution + network + streaming), stamped on the terminal
+            // usage chunk and billed at `duration_cost`.
+            let started = std::time::Instant::now();
             // Reject required tool call when tools are not allowed.
             if !tools_enabled {
                 use objectiveai_sdk::agent::completions::request::{ResponseFormat, ResponseFormatParam};
@@ -348,6 +380,8 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
                 index,
                 is_byok,
                 cost_multiplier,
+                started,
+                duration_cost,
                 agent_instance_hierarchy.clone(),
                 agent_id.clone(),
                 agent_full_id.clone(),

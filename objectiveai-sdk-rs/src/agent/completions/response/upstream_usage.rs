@@ -1,6 +1,9 @@
 //! Token usage and cost information from an upstream provider.
 
-use super::{CompletionTokensDetails, CostDetails, PromptTokensDetails};
+use super::{
+    CompletionTokensDetails, CostDetails, PromptTokensDetails,
+    UpstreamDurationMs,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +56,11 @@ pub struct UpstreamUsage {
     #[schemars(with = "f64")]
     #[arbitrary(with = crate::arbitrary_util::arbitrary_rust_decimal)]
     pub total_cost: rust_decimal::Decimal,
+    /// Wall-clock milliseconds this upstream spent producing the
+    /// response, measured create→finish by the upstream client itself
+    /// and stamped on its own field of the terminal usage chunk.
+    #[serde(default)]
+    pub upstream_duration_ms: UpstreamDurationMs,
     /// The multiplier applied to compute ObjectiveAI's charge.
     #[serde(deserialize_with = "crate::serde_util::decimal")]
     #[schemars(with = "f64")]
@@ -103,5 +111,6 @@ impl UpstreamUsage {
             _ => {}
         }
         self.total_cost += other.total_cost;
+        self.upstream_duration_ms.push(&other.upstream_duration_ms);
     }
 }

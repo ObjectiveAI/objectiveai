@@ -213,6 +213,7 @@ impl
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
+        duration_cost: rust_decimal::Decimal,
         _tools_enabled: bool,
         agent_instance_hierarchy: &str,
         agent_id: &str,
@@ -235,6 +236,9 @@ impl
         let agent_remote = agent_remote.cloned();
 
         async move {
+            // Clock this upstream's create→finish wall time; stamped on
+            // the terminal TurnCompleted event's usage and billed.
+            let started = std::time::Instant::now();
             if !enabled {
                 return Err(super::Error::NotEnabled);
             }
@@ -372,6 +376,8 @@ impl
                                 msg_index,
                                 is_byok,
                                 cost_multiplier,
+                                duration_cost,
+                                started.elapsed().as_millis() as u64,
                                 objectiveai_sdk::agent::Upstream::CodexSdk,
                                 &latest_thread_id,
                                 agent_instance_hierarchy.clone(),

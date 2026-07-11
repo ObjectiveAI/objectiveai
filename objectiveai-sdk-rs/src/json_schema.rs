@@ -87,6 +87,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::completions::response::unary::AssistantResponse),
         schemars::schema_for!(crate::agent::completions::response::unary::Message),
         schemars::schema_for!(crate::agent::completions::response::unary::Object),
+        schemars::schema_for!(crate::agent::completions::response::UpstreamDurationMs),
         schemars::schema_for!(crate::agent::completions::response::UpstreamUsage),
         schemars::schema_for!(crate::agent::completions::response::Usage),
         schemars::schema_for!(crate::agent::Continuation),

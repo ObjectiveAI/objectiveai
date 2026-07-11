@@ -1001,6 +1001,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                ctx.openrouter_duration_cost,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Openrouter {
@@ -1037,6 +1038,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                ctx.claude_agent_sdk_duration_cost,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::ClaudeAgentSdk {
@@ -1073,6 +1075,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                ctx.codex_sdk_duration_cost,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::CodexSdk {
@@ -1109,6 +1112,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                rust_decimal::Decimal::ZERO,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Mock {
@@ -1181,6 +1185,10 @@ where
         created: u64,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
+        // per-1-SECOND wall-time rate for THIS upstream, forwarded into
+        // every `upstream.create()` (each tool-turn re-creates); the
+        // upstream stamps its own `upstream_duration_ms` field and bills.
+        duration_cost: rust_decimal::Decimal,
         wrap_continuation: impl FnOnce(Vec<super::ContinuationItem<U::State>>) -> CONT + Send + 'static,
         map_upstream_err: impl Fn(U::Error) -> super::Error + Send + 'static,
         agent_base: objectiveai_sdk::agent::InlineAgentRef<'_>,
@@ -1369,6 +1377,7 @@ where
             cont_ref,
             byok,
             cost_multiplier,
+            duration_cost,
             true,
             agent_instance_hierarchy_header,
             agent_id,
@@ -1713,6 +1722,7 @@ where
                         Some(&continuation_items),
                         byok.as_deref(),
                         cost_multiplier,
+                        duration_cost,
                         tools_enabled,
                         agent_instance_hierarchy_header.as_str(),
                         agent_id.as_str(),

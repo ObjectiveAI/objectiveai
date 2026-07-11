@@ -1,7 +1,8 @@
 //! Aggregated token usage and cost information for agent completions.
 
 use super::{
-    CompletionTokensDetails, CostDetails, PromptTokensDetails, UpstreamUsage,
+    CompletionTokensDetails, CostDetails, PromptTokensDetails,
+    UpstreamDurationMs, UpstreamUsage,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -54,6 +55,10 @@ pub struct Usage {
     #[schemars(with = "f64")]
     #[arbitrary(with = crate::arbitrary_util::arbitrary_rust_decimal)]
     pub total_cost: rust_decimal::Decimal,
+    /// Wall-clock milliseconds spent inside each upstream client,
+    /// summed across turns, fallbacks, and parallel agents.
+    #[serde(default)]
+    pub upstream_duration_ms: UpstreamDurationMs,
 }
 
 impl Usage {
@@ -76,6 +81,7 @@ impl Usage {
                 .as_ref()
                 .is_some_and(CostDetails::any_usage)
             || self.total_cost > rust_decimal::Decimal::ZERO
+            || self.upstream_duration_ms.any_usage()
     }
 
     /// Appends usage statistics from another instance.
@@ -118,6 +124,7 @@ impl Usage {
             _ => {}
         }
         self.total_cost += other.total_cost;
+        self.upstream_duration_ms.push(&other.upstream_duration_ms);
     }
 
     /// Appends usage from an upstream usage response.
@@ -160,5 +167,6 @@ impl Usage {
             _ => {}
         }
         self.total_cost += other.total_cost;
+        self.upstream_duration_ms.push(&other.upstream_duration_ms);
     }
 }

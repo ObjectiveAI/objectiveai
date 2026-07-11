@@ -65,6 +65,9 @@ impl Usage {
             cost,
             cost_details,
             total_cost,
+            // Stamped later in `create_streaming_stream` once the terminal
+            // usage chunk is identified (this conversion runs per chunk).
+            upstream_duration_ms: Default::default(),
             cost_multiplier,
             is_byok,
         }

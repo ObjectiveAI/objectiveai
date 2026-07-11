@@ -7,6 +7,28 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 
+/// The three per-1-SECOND per-upstream duration billing rates carried by
+/// [`Context`], bundled so the server initializer can define them as one
+/// `const`. See the field docs on [`Context`] for the exact math and rules.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DurationCosts {
+    /// Rate for OpenRouter upstream wall time.
+    pub openrouter_duration_cost: rust_decimal::Decimal,
+    /// Rate for Claude Agent SDK upstream wall time.
+    pub claude_agent_sdk_duration_cost: rust_decimal::Decimal,
+    /// Rate for Codex SDK upstream wall time.
+    pub codex_sdk_duration_cost: rust_decimal::Decimal,
+}
+
+impl DurationCosts {
+    /// All rates zero — duration is tracked but not billed.
+    pub const ZERO: DurationCosts = DurationCosts {
+        openrouter_duration_cost: rust_decimal::Decimal::ZERO,
+        claude_agent_sdk_duration_cost: rust_decimal::Decimal::ZERO,
+        codex_sdk_duration_cost: rust_decimal::Decimal::ZERO,
+    };
+}
+
 /// Per-request context containing user-specific state and deduplication caches.
 ///
 /// The context is generic over `CTXEXT`, allowing custom extensions for
@@ -23,6 +45,16 @@ pub struct Context<CTXEXT> {
     pub ext: Arc<CTXEXT>,
     /// Multiplier applied to costs for this request.
     pub cost_multiplier: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of OpenRouter upstream wall time
+    /// (`usage.upstream_duration_ms.openrouter`); same math and rules as
+    /// [`Self::duration_cost`].
+    pub openrouter_duration_cost: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of Claude Agent SDK upstream wall time
+    /// (`usage.upstream_duration_ms.claude_agent_sdk`).
+    pub claude_agent_sdk_duration_cost: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of Codex SDK upstream wall time
+    /// (`usage.upstream_duration_ms.codex_sdk`).
+    pub codex_sdk_duration_cost: rust_decimal::Decimal,
     /// Whether to suppress output (eprintln, logging, etc).
     pub suppress_output: bool,
     /// Per-request ObjectiveAI authorization token.
@@ -146,6 +178,9 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
         Self {
             ext: self.ext.clone(),
             cost_multiplier: self.cost_multiplier,
+            openrouter_duration_cost: self.openrouter_duration_cost,
+            claude_agent_sdk_duration_cost: self.claude_agent_sdk_duration_cost,
+            codex_sdk_duration_cost: self.codex_sdk_duration_cost,
             suppress_output: self.suppress_output,
             objectiveai_authorization: self.objectiveai_authorization.clone(),
             openrouter_authorization: self.openrouter_authorization.clone(),
@@ -191,6 +226,7 @@ impl<CTXEXT> Context<CTXEXT> {
     pub fn new(
         ext: Arc<CTXEXT>,
         cost_multiplier: rust_decimal::Decimal,
+        duration_costs: DurationCosts,
         suppress_output: bool,
         headers: &axum::http::HeaderMap,
     ) -> Self {
@@ -229,6 +265,9 @@ impl<CTXEXT> Context<CTXEXT> {
         Self {
             ext,
             cost_multiplier,
+            openrouter_duration_cost: duration_costs.openrouter_duration_cost,
+            claude_agent_sdk_duration_cost: duration_costs.claude_agent_sdk_duration_cost,
+            codex_sdk_duration_cost: duration_costs.codex_sdk_duration_cost,
             suppress_output,
             openrouter_authorization,
             github_authorization,

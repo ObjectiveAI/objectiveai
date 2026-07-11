@@ -25,7 +25,7 @@ fn test_text_delta() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-1".to_string(), 1000, 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-1".to_string(), 1000, 0, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -83,7 +83,7 @@ fn test_thinking_delta() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-2".to_string(), 2000, 3, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-2".to_string(), 2000, 3, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -144,7 +144,7 @@ fn test_tool_use_content_block_start() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-3".to_string(), 3000, 5, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-3".to_string(), 3000, 5, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -212,7 +212,7 @@ fn test_input_json_delta() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-4".to_string(), 4000, 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-4".to_string(), 4000, 0, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -287,7 +287,7 @@ fn test_message_delta_tool_use_stop_reason() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-5".to_string(), 5000, 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-5".to_string(), 5000, 0, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -339,7 +339,7 @@ fn test_content_block_stop_and_message_stop_ignored() {
     });
 
     assert_eq!(
-        stop.into_downstream("id-6".to_string(), 6000, 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        stop.into_downstream("id-6".to_string(), 6000, 0, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -361,7 +361,7 @@ fn test_content_block_stop_and_message_stop_ignored() {
     });
 
     assert_eq!(
-        msg_stop.into_downstream("id-6".to_string(), 6000, 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg_stop.into_downstream("id-6".to_string(), 6000, 0, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -388,7 +388,7 @@ fn test_user_message_tool_result() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-7".to_string(), 7000, 4, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-7".to_string(), 7000, 4, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -444,7 +444,7 @@ fn test_user_message_without_tool_result_ignored() {
     });
 
     assert_eq!(
-        msg.into_downstream("id-8".to_string(), 8000, 0, false, Decimal::from(1), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-8".to_string(), 8000, 0, false, Decimal::from(1), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -466,6 +466,7 @@ fn test_rate_limit_event_is_ignored() {
 
     let result = msg.into_downstream(
         "id-9".to_string(), 9000, 0, false, Decimal::from(1),
+        Decimal::ZERO, 0,
         objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
@@ -516,7 +517,7 @@ fn test_result_success_byok() {
     }));
 
     assert_eq!(
-        msg.into_downstream("id-10".to_string(), 10000, 0, true, Decimal::from_str("1.5").unwrap(), objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        msg.into_downstream("id-10".to_string(), 10000, 0, true, Decimal::from_str("1.5").unwrap(), Decimal::ZERO, 0, objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),
         String::new(),
@@ -555,6 +556,12 @@ fn test_result_success_byok() {
                                 upstream_upstream_inference_cost: Decimal::ZERO,
                             }),
                             total_cost: Decimal::from_str("0.075").unwrap(),
+                            // elapsed_ms 0 + ZERO rate ⇒ no duration charge;
+                            // claude always stamps its own field.
+                            upstream_duration_ms: objectiveai_sdk::agent::completions::response::UpstreamDurationMs {
+                                claude_agent_sdk: Some(0),
+                                ..Default::default()
+                            },
                             cost_multiplier: Decimal::from_str("1.5").unwrap(),
                             is_byok: true,
                         }),
@@ -617,6 +624,8 @@ fn runner_tool_result_becomes_tool_chunk_with_id_from_content_block() {
             7,
             false,
             Decimal::from(1),
+            Decimal::ZERO,
+            0,
             objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             String::new(),
             String::new(),
@@ -670,6 +679,8 @@ fn plain_user_text_message_is_not_a_tool_response() {
         0,
         false,
         Decimal::from(1),
+        Decimal::ZERO,
+        0,
         objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
         String::new(),
         String::new(),

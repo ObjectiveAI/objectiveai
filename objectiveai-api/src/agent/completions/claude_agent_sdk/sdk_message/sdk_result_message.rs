@@ -103,6 +103,10 @@ impl SDKResultMessage {
         assistant_index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
+        // per-1-SECOND duration rate + this upstream's create→finish
+        // elapsed, stamped on the (terminal) usage and billed.
+        duration_cost: rust_decimal::Decimal,
+        elapsed_ms: u64,
         upstream: objectiveai_sdk::agent::Upstream,
         agent_instance_hierarchy: String,
         agent_id: String,
@@ -157,6 +161,14 @@ impl SDKResultMessage {
             (total_cost, None, total_cost)
         };
 
+        // Bill our measured wall time RAW (no cost_multiplier), BYOK
+        // included — duration is infra time, not a provider charge. Use
+        // OUR Instant, not the SDK-reported `duration_ms`.
+        let duration_charge =
+            crate::duration::duration_charge(elapsed_ms, duration_cost);
+        let cost = cost + duration_charge;
+        let total_cost = total_cost + duration_charge;
+
         let downstream_usage = objectiveai_sdk::agent::completions::response::UpstreamUsage {
             completion_tokens,
             prompt_tokens,
@@ -166,6 +178,11 @@ impl SDKResultMessage {
             cost,
             cost_details,
             total_cost,
+            upstream_duration_ms:
+                objectiveai_sdk::agent::completions::response::UpstreamDurationMs {
+                    claude_agent_sdk: Some(elapsed_ms),
+                    ..Default::default()
+                },
             cost_multiplier,
             is_byok,
         };

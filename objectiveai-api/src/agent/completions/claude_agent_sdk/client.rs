@@ -192,6 +192,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
+        duration_cost: rust_decimal::Decimal,
         _tools_enabled: bool,
         agent_instance_hierarchy: &str,
         agent_id: &str,
@@ -220,6 +221,9 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         let agent_remote = agent_remote.cloned();
 
         async move {
+            // Clock this upstream's create→finish wall time; stamped on
+            // the terminal ResultMessage's usage and billed.
+            let started = std::time::Instant::now();
             if !enabled {
                 return Err(super::Error::NotEnabled);
             }
@@ -369,6 +373,8 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                                 effective_index,
                                 is_byok,
                                 cost_multiplier,
+                                duration_cost,
+                                started.elapsed().as_millis() as u64,
                                 objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
                                 agent_instance_hierarchy.clone(),
                                 agent_id.clone(),

@@ -53,6 +53,13 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         byok: Option<&str>,
         // cost multiplier for usage reporting
         cost_multiplier: rust_decimal::Decimal,
+        // per-1-SECOND rate for this upstream's wall time. The upstream
+        // measures its own create→finish elapsed, stamps it on its
+        // `upstream_duration_ms` field of the terminal usage chunk, and
+        // adds `elapsed_ms × duration_cost ÷ 1000` (exact Decimal math)
+        // to BOTH `cost` and `total_cost` — raw (no cost_multiplier),
+        // BYOK included: duration is infra time, not a provider charge.
+        duration_cost: rust_decimal::Decimal,
         // when false, the model should not be allowed to call tools
         tools_enabled: bool,
         // Composite per-slot agent instance hierarchy
@@ -118,6 +125,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
         _byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
+        _duration_cost: rust_decimal::Decimal,
         _tools_enabled: bool,
         _agent_instance_hierarchy: &str,
         _agent_id: &str,
