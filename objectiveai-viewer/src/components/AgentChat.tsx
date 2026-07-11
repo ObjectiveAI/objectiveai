@@ -104,15 +104,12 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
               <span
                 className={cn(
                   "shrink-0",
-                  "mt-0.5",
                   "px-1.5",
                   "py-px",
                   "rounded-sm",
                   "border",
                   "font-mono",
-                  "text-[10px]",
-                  "uppercase",
-                  "tracking-wide",
+                  "text-[11px]",
                   m.failed
                     ? ["border-error/70", "bg-error/10", "text-error"]
                     : [
@@ -128,7 +125,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
                 className={cn(
                   "flex-1",
                   "min-w-0",
-                  "text-sm",
+                  "text-[11px]",
                   "font-mono",
                   "whitespace-pre-wrap",
                   "break-words",
