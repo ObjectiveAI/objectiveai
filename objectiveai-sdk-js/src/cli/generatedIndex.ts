@@ -4,6 +4,8 @@ export * from "./command/index";
 export * from "./plugins/index";
 export * from "./websocket_agents_instances_list_listener/index";
 export * from "./websocket_agents_instances_listener/index";
+export * from "./websocket_laboratories_list_listener/index";
+export * from "./websocket_laboratories_listener/index";
 export * from "./websocket_listener/index";
 export * from "./error";
 export * from "./errorType";

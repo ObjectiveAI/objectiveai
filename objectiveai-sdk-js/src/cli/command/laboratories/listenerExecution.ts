@@ -3,6 +3,9 @@
 import { type CliCommandLaboratoriesAttachListenerExecution } from "./attach/listenerExecution";
 import { type CliCommandLaboratoriesAttachRequestSchemaListenerExecution } from "./attach/request_schema/listenerExecution";
 import { type CliCommandLaboratoriesAttachResponseSchemaListenerExecution } from "./attach/response_schema/listenerExecution";
+import { type CliCommandLaboratoriesConnectListenerExecution } from "./connect/listenerExecution";
+import { type CliCommandLaboratoriesConnectRequestSchemaListenerExecution } from "./connect/request_schema/listenerExecution";
+import { type CliCommandLaboratoriesConnectResponseSchemaListenerExecution } from "./connect/response_schema/listenerExecution";
 import { type CliCommandLaboratoriesCreateListenerExecution } from "./create/listenerExecution";
 import { type CliCommandLaboratoriesCreateRequestSchemaListenerExecution } from "./create/request_schema/listenerExecution";
 import { type CliCommandLaboratoriesCreateResponseSchemaListenerExecution } from "./create/response_schema/listenerExecution";
@@ -18,6 +21,9 @@ export type CliCommandLaboratoriesListenerExecution =
   | CliCommandLaboratoriesAttachListenerExecution
   | CliCommandLaboratoriesAttachRequestSchemaListenerExecution
   | CliCommandLaboratoriesAttachResponseSchemaListenerExecution
+  | CliCommandLaboratoriesConnectListenerExecution
+  | CliCommandLaboratoriesConnectRequestSchemaListenerExecution
+  | CliCommandLaboratoriesConnectResponseSchemaListenerExecution
   | CliCommandLaboratoriesCreateListenerExecution
   | CliCommandLaboratoriesCreateRequestSchemaListenerExecution
   | CliCommandLaboratoriesCreateResponseSchemaListenerExecution

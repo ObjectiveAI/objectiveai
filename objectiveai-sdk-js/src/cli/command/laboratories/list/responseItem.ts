@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "../create/envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "../create/mount";
+import { CliCommandLaboratoriesListSourceSchema } from "./source";
 
 export const CliCommandLaboratoriesListResponseItemSchema = z.object({
   cwd: z.string(),
@@ -10,5 +11,6 @@ export const CliCommandLaboratoriesListResponseItemSchema = z.object({
   id: z.string(),
   image: z.string(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
+  source: CliCommandLaboratoriesListSourceSchema.describe("Where this laboratory lives relative to this machine + state."),
 }).describe("One laboratory container, reconstructed from its `objectiveai.laboratory`\nlabel. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.").meta({ title: "cli.command.laboratories.list.ResponseItem" });
 export type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;

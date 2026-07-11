@@ -4,8 +4,8 @@ import { z } from "zod";
 
 export const CliCommandAgentsMessageResponseSchema = z.union([z.object({
   type: z.literal("delivered"),
-}).describe("The queue row reached a live agent (its row flipped to\ninactive — the API stamped its id onto an assistant chunk's\n`request_message_ids`) before the agent's lock freed up.").meta({"variantTitle":"Delivered"}), z.object({
+}).describe("The queue row reached a live agent (its row flipped to\ninactive — the API stamped its id onto an assistant chunk's\n`request_message_ids`). The only resolution for instance and\ntag targets: whether the handler found the agent live or\nspawned it, the message rides the queue and this fires when\nits own row is consumed.").meta({"variantTitle":"Delivered"}), z.object({
   agent_instance_hierarchy: z.string(),
   type: z.literal("id"),
-}).describe("The handler execed a detached `agents spawn` child (with the\nagent's lock transferred into it) and the child yielded its\n`Id` first item — the bare `agent_instance_hierarchy` the\nrunner just minted or resumed.").meta({"variantTitle":"Id"})]).describe("Unary response. Exactly one of these per call. Internally tagged\nvia `type`; bare unit variant `Delivered` serializes as\n`{\"type\":\"delivered\"}`.").meta({ title: "cli.command.agents.message.Response" });
+}).describe("Plain-ref targets only: the handler execed a detached\n`agents spawn` child carrying the message inline and the\nchild yielded its `Id` first item — the bare\n`agent_instance_hierarchy` the runner just minted.").meta({"variantTitle":"Id"})]).describe("Unary response. Exactly one of these per call. Internally tagged\nvia `type`; bare unit variant `Delivered` serializes as\n`{\"type\":\"delivered\"}`.").meta({ title: "cli.command.agents.message.Response" });
 export type CliCommandAgentsMessageResponse = z.infer<typeof CliCommandAgentsMessageResponseSchema>;
