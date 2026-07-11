@@ -152,19 +152,8 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // a held lock guarantees they are already listening — a producer then
     // either connects on the first try or the daemon is dead (no retry).
     let state_dir = ctx.filesystem.state_dir();
-    // The dedicated agents-status producer socket, bound under the same
-    // init gate (a held daemon lock ⇒ it is up).
-    let agents_socket_listener =
-        match crate::websockets::websocket_agents::bind_agents_socket_listener(&state_dir) {
-            Ok(listener) => listener,
-            Err(e) => {
-                drop(ws_listener);
-                let _ = init.release();
-                return Err(Error::Spawn("daemon agents socket bind".into(), e));
-            }
-        };
     // The dedicated live-conversation producer socket (log-writer tee),
-    // same init-gate guarantee.
+    // bound under the same init gate (a held daemon lock ⇒ it is up).
     let conversation_socket_listener =
         match crate::websockets::websocket_agent_instance::bind_conversation_socket_listener(
             &state_dir,
@@ -172,7 +161,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             Ok(listener) => listener,
             Err(e) => {
                 drop(ws_listener);
-                drop(agents_socket_listener);
                 let _ = init.release();
                 return Err(Error::Spawn("daemon conversation socket bind".into(), e));
             }
@@ -186,7 +174,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             Ok(listener) => listener,
             Err(e) => {
                 drop(ws_listener);
-                drop(agents_socket_listener);
                 drop(conversation_socket_listener);
                 let _ = init.release();
                 return Err(Error::Spawn("daemon laboratories socket bind".into(), e));
@@ -208,7 +195,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         // bow out.
         None => {
             drop(ws_listener);
-            drop(agents_socket_listener);
             drop(conversation_socket_listener);
             let _ = init.release();
             return Ok(Box::pin(futures::stream::empty()));
@@ -284,10 +270,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         conversations.clone(),
         laboratories.clone(),
         labs_hub.clone(),
-    );
-    crate::websockets::websocket_agents::serve_agents_socket_listener(
-        agents_socket_listener,
-        active.clone(),
     );
     crate::websockets::websocket_agent_instance::serve_conversation_socket_listener(
         conversation_socket_listener,

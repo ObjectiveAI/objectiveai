@@ -217,7 +217,11 @@ fn deliver_one_hierarchy(
         .await
         {
             Ok(Some(fam)) => {
-                let mut registry = AgentInstanceRegistry::new(state_dir, ctx.agent_locks_arc());
+                let mut registry = AgentInstanceRegistry::new(
+                    state_dir,
+                    ctx.agent_locks_arc(),
+                    ctx.resident_hubs().map(|h| h.active.clone()),
+                );
                 if let Some((h, aih_lock)) = fam.aih {
                     registry.preseed(h, aih_lock);
                 }
@@ -370,7 +374,11 @@ fn deliver_one_tag(
         .await
         {
             Ok(Some(fam)) => {
-                let mut registry = AgentInstanceRegistry::new(state_dir, ctx.agent_locks_arc());
+                let mut registry = AgentInstanceRegistry::new(
+                    state_dir,
+                    ctx.agent_locks_arc(),
+                    ctx.resident_hubs().map(|h| h.active.clone()),
+                );
                 registry.hold_tag_claims(fam.tags);
                 registry
             }

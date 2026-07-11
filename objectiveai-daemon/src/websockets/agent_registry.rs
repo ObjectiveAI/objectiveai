@@ -27,12 +27,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::command::agents::locks::{AgentLock, AgentLockMap};
+use crate::websockets::websocket_agents::ActiveAgents;
 
 pub struct AgentInstanceRegistry {
     state_dir: PathBuf,
     /// Shared per-key in-process gate (from [`crate::context::Context`]); every
     /// acquire here goes through it.
     agent_locks: Arc<AgentLockMap>,
+    /// The resident daemon's live agent-status hub (from `Context`'s
+    /// resident hubs), notified directly when an AIH goes active — the
+    /// in-process replacement for the former `agents.sock`. `None` when
+    /// this context isn't the resident daemon.
+    active: Option<ActiveAgents>,
     open: HashMap<String, AgentLock>,
     /// Every hierarchy `observe` has ever tried — exactly one
     /// try_acquire per AIH per registry lifetime, success or not.
@@ -45,10 +51,15 @@ pub struct AgentInstanceRegistry {
 }
 
 impl AgentInstanceRegistry {
-    pub fn new(state_dir: PathBuf, agent_locks: Arc<AgentLockMap>) -> Self {
+    pub fn new(
+        state_dir: PathBuf,
+        agent_locks: Arc<AgentLockMap>,
+        active: Option<ActiveAgents>,
+    ) -> Self {
         Self {
             state_dir,
             agent_locks,
+            active,
             open: HashMap::new(),
             attempted: HashSet::new(),
             tag_claims: Vec::new(),
@@ -100,20 +111,23 @@ impl AgentInstanceRegistry {
         }
     }
 
-    /// Best-effort, detached: tell the resident daemon this process just
-    /// acquired `hier`'s instance lock, so its `/agents/instances/list` endpoint flips the
-    /// agent active and starts watching the lock for release. Fire-and-
-    /// forget — never blocks the acquire path, and a dead/absent daemon is
-    /// a silent no-op. The daemon dedupes by AIH, so a re-announce (e.g. a
-    /// child that inherited the lock) is harmless.
+    /// Best-effort, detached: tell the resident daemon's live agent-status
+    /// hub this process just acquired `hier`'s instance lock, so its
+    /// `/agents/instances/list` endpoint flips the agent active and starts
+    /// watching the lock for release. Fire-and-forget — never blocks the
+    /// acquire path, and an absent hub (not the resident daemon) is a
+    /// silent no-op. The hub dedupes by AIH, so a re-announce (e.g. a child
+    /// that inherited the lock) is harmless.
     fn announce_active(&self, hier: &str) {
+        let Some(active) = self.active.clone() else {
+            return;
+        };
         if tokio::runtime::Handle::try_current().is_err() {
             return;
         }
-        let state_dir = self.state_dir.clone();
         let hier = hier.to_string();
         tokio::spawn(async move {
-            super::websocket_agents::announce_active(&state_dir, &hier).await;
+            active.activate(hier).await;
         });
     }
 

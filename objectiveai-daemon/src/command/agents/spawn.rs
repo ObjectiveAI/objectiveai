@@ -218,7 +218,11 @@ async fn execute_streaming(
     // INSTANTLY rather than conflicting with the inherited handles. Mid-stream
     // best-effort AIH claims in `run_multi_pass` are unaffected.
     let state_dir = ctx.filesystem.state_dir();
-    let mut registry = AgentInstanceRegistry::new(state_dir.clone(), ctx.agent_locks_arc());
+    let mut registry = AgentInstanceRegistry::new(
+        state_dir.clone(),
+        ctx.agent_locks_arc(),
+        ctx.resident_hubs().map(|h| h.active.clone()),
+    );
     if let Some(family) = family {
         let is_group = matches!(family, Family::Group(_));
         match super::locks::try_acquire_family(

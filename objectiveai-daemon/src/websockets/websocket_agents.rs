@@ -24,31 +24,14 @@
 //! wire as `None` and is filled at the moment its lock releases.
 
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
-#[cfg(unix)]
-use interprocess::local_socket::GenericFilePath;
-#[cfg(windows)]
-use interprocess::local_socket::GenericNamespaced;
-use interprocess::local_socket::tokio::prelude::*;
-use interprocess::local_socket::{ListenerOptions, Name};
 use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
 use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentStatus};
 use objectiveai_sdk::cli::websocket_agents_instances_listener::AgentRecord;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, broadcast};
 
-use crate::websockets::mcp_listener::socks_dir;
-
-/// One-line producer message: "this AIH just acquired its instance lock."
-/// CLI-internal (not part of the codegen'd wire surface); the AIH is the
-/// whole payload — the daemon derives everything else from the DB + the
-/// lock's release.
-#[derive(serde::Serialize, serde::Deserialize)]
-struct ActiveAnnounce {
-    agent_instance_hierarchy: String,
-}
 
 /// CLI-internal agent-status change, broadcast by [`ActiveAgents`] to
 /// BOTH websocket routes, which map it to their own wire vocabularies:
@@ -77,44 +60,7 @@ pub(crate) enum StatusChange {
     ActiveLaboratoriesChanged { agent_instance_hierarchy: String },
 }
 
-/// The fixed local-socket name for the agents hub, identical on the
-/// listener and producer sides. Mirrors
-/// [`crate::websockets::daemon_stream`]'s scheme with the constant
-/// `agents` in place of `daemon`.
-#[cfg(unix)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    socks_dir(state_dir)
-        .join("agents.sock")
-        .to_fs_name::<GenericFilePath>()
-}
 
-#[cfg(windows)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    use std::hash::{Hash, Hasher};
-    // Named pipes are machine-global; fold the state NAME into the pipe
-    // name to preserve the per-state isolation the Unix `<state>/socks/`
-    // path gives (matching `daemon_stream`/`mcp_listener`).
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    state_dir.file_name().hash(&mut hasher);
-    let state = hasher.finish();
-    format!("objectiveai-{state:016x}-agents.sock").to_ns_name::<GenericNamespaced>()
-}
-
-/// Bind the fixed-name agents producer socket, returning the bound
-/// listener. Bound **synchronously** under the daemon init gate (like
-/// [`crate::websockets::daemon_stream::bind_socket_listener`]) so a held
-/// daemon lock guarantees the socket is up. `try_overwrite` clears a stale
-/// socket file left by a crashed predecessor.
-pub fn bind_agents_socket_listener(
-    state_dir: &Path,
-) -> std::io::Result<interprocess::local_socket::tokio::Listener> {
-    let _ = std::fs::create_dir_all(socks_dir(state_dir));
-    let name = socket_name(state_dir)?;
-    ListenerOptions::new()
-        .name(name)
-        .try_overwrite(true)
-        .create_tokio()
-}
 
 /// Shared live-agent registry + delta broadcast. Cloned into the WS state
 /// and the socket accept loop; the sender clones keep the broadcast open
@@ -431,75 +377,6 @@ fn record_from_item(
     }
 }
 
-/// Spawn the accept loop on the pre-bound agents socket: one task per
-/// connection, each reading a single [`ActiveAnnounce`] line and marking
-/// the AIH active.
-pub fn serve_agents_socket_listener(
-    listener: interprocess::local_socket::tokio::Listener,
-    active: ActiveAgents,
-) {
-    tokio::spawn(async move {
-        loop {
-            let conn = match listener.accept().await {
-                Ok(conn) => conn,
-                // Transient accept error — keep serving.
-                Err(_) => continue,
-            };
-            let active = active.clone();
-            tokio::spawn(async move {
-                let (read_half, _write_half) = tokio::io::split(conn);
-                let mut reader = BufReader::new(read_half);
-                let mut line = String::new();
-                if reader.read_line(&mut line).await.is_err() {
-                    return;
-                }
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    return;
-                }
-                if let Ok(announce) = serde_json::from_str::<ActiveAnnounce>(trimmed) {
-                    active.activate(announce.agent_instance_hierarchy).await;
-                }
-            });
-        }
-    });
-}
-
-/// Producer helper: announce "AIH just went active" to the daemon's agents
-/// socket. Best-effort — a missing/dead daemon socket is a silent no-op
-/// (the agent runs regardless); idempotent (the daemon dedupes by AIH, so
-/// callers need not track prior announcements). The single retried error
-/// is Windows `ERROR_PIPE_BUSY` (a live listener mid-accept), same as
-/// [`crate::websockets::daemon_stream::connect_feed`].
-pub async fn announce_active(state_dir: &Path, aih: &str) {
-    let announce = ActiveAnnounce {
-        agent_instance_hierarchy: aih.to_string(),
-    };
-    let Ok(line) = serde_json::to_string(&announce) else {
-        return;
-    };
-    const ERROR_PIPE_BUSY: i32 = 231;
-    let mut attempts = 0u32;
-    let conn = loop {
-        let Ok(name) = socket_name(state_dir) else {
-            return;
-        };
-        match LocalSocketStream::connect(name).await {
-            Ok(conn) => break conn,
-            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) && attempts < 20 => {
-                attempts += 1;
-                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-            }
-            // Daemon not running / socket absent → best-effort no-op.
-            Err(_) => return,
-        }
-    };
-    let (_read_half, mut write_half) = tokio::io::split(conn);
-    let _ = write_half.write_all(line.as_bytes()).await;
-    let _ = write_half.write_all(b"\n").await;
-    let _ = write_half.flush().await;
-    let _ = write_half.shutdown().await;
-}
 
 /// `/agents/instances/list`: upgrade to WebSocket, consume the auth preamble, send the
 /// snapshot, then stream deltas.
