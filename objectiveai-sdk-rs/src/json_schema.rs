@@ -1150,6 +1150,11 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::ToolResponsePart),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::VectorRequestChoice),
         schemars::schema_for!(crate::cli::websocket_agents_instances_listener::VectorRequestChoicePart),
+        schemars::schema_for!(crate::cli::websocket_laboratories_list_listener::LaboratoryEvent),
+        schemars::schema_for!(crate::cli::websocket_laboratories_list_listener::LaboratoryStatus),
+        schemars::schema_for!(crate::cli::websocket_laboratories_listener::LaboratoryAttachment),
+        schemars::schema_for!(crate::cli::websocket_laboratories_listener::LaboratoryInstanceEvent),
+        schemars::schema_for!(crate::cli::websocket_laboratories_listener::LaboratoryRecord),
         schemars::schema_for!(crate::cli::websocket_listener::ListenerEnd),
     ]);
 

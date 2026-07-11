@@ -54,16 +54,41 @@ struct LabConnection {
     pending: DashMap<String, oneshot::Sender<ChannelResponse>>,
 }
 
+/// One connected-set mutation, broadcast to the live `/laboratories/*`
+/// endpoints. Payload is the RAW laboratory id; consumers rebuild
+/// from the registry rather than trusting the event's shape.
+#[derive(Debug, Clone)]
+pub enum LabRegistryChange {
+    /// A manager connection registered under this id (fresh connect
+    /// OR a reconnect displacing its predecessor).
+    Connected(String),
+    /// The id's manager connection deregistered (socket closed and
+    /// the entry was still its own).
+    Disconnected(String),
+}
+
 /// The connected-laboratory registry, shared by the `/laboratory`
-/// route (writers) and the socket + `laboratories list` (readers).
+/// route (writers) and the socket + `laboratories list` +
+/// `/laboratories/*` endpoints (readers).
 #[derive(Clone)]
 pub struct LaboratoryRegistry {
     labs: Arc<DashMap<String, Arc<LabConnection>>>,
+    /// Connected-set change feed. Send errors (no subscriber) are
+    /// ignored — the feed is advisory.
+    events: tokio::sync::broadcast::Sender<LabRegistryChange>,
 }
 
 impl LaboratoryRegistry {
     pub fn new() -> Self {
-        Self { labs: Arc::new(DashMap::new()) }
+        Self {
+            labs: Arc::new(DashMap::new()),
+            events: tokio::sync::broadcast::channel(1024).0,
+        }
+    }
+
+    /// Subscribe to connected-set changes.
+    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<LabRegistryChange> {
+        self.events.subscribe()
     }
 
     /// Identity snapshots of every connected laboratory.
@@ -149,6 +174,10 @@ pub(crate) async fn laboratory_handler(
             pending: DashMap::new(),
         });
         state.laboratories.labs.insert(identify.id.clone(), Arc::clone(&lab));
+        let _ = state
+            .laboratories
+            .events
+            .send(LabRegistryChange::Connected(identify.id.clone()));
 
         // Pump: outbound requests + inbound correlated replies.
         loop {
@@ -187,10 +216,16 @@ pub(crate) async fn laboratory_handler(
 
         // Deregister — but only if the entry is still OURS (a reconnect
         // may have displaced it already).
-        state
+        let removed = state
             .laboratories
             .labs
             .remove_if(&identify.id, |_, current| Arc::ptr_eq(current, &lab));
+        if removed.is_some() {
+            let _ = state
+                .laboratories
+                .events
+                .send(LabRegistryChange::Disconnected(identify.id.clone()));
+        }
         // Dropping `lab.pending` (last Arc) fails all in-flight waiters.
     })
 }

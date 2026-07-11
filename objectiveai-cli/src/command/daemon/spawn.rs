@@ -265,6 +265,15 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     );
     let laboratories =
         crate::websockets::websocket_laboratory::LaboratoryRegistry::new();
+    // The live-laboratories hub: local-scan cache + coalesced change
+    // feed for `/laboratories/list` + `/laboratories/{*id}`. Its
+    // resident tasks (scanner, registry forwarder, attachments
+    // watcher) live for the daemon's life.
+    let labs_hub = crate::websockets::websocket_laboratories::LaboratoriesHub::new(
+        laboratories.clone(),
+        ctx.clone(),
+    );
+    labs_hub.spawn_tasks();
     crate::websockets::daemon_stream::serve_ws(
         ws_listener,
         tx.clone(),
@@ -273,6 +282,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         active.clone(),
         conversations.clone(),
         laboratories.clone(),
+        labs_hub,
     );
     crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
     crate::websockets::websocket_agents::serve_agents_socket_listener(

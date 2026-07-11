@@ -5,6 +5,10 @@ pub mod websocket_agents_instances_list_listener;
 #[cfg(feature = "cli-listener")]
 pub mod websocket_agents_instances_listener;
 #[cfg(feature = "cli-listener")]
+pub mod websocket_laboratories_list_listener;
+#[cfg(feature = "cli-listener")]
+pub mod websocket_laboratories_listener;
+#[cfg(feature = "cli-listener")]
 pub mod websocket_listener;
 pub mod plugins;
 

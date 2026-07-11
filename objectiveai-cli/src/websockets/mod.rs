@@ -38,6 +38,10 @@
 //!   route (laboratory managers dial in, identify, then authorize) +
 //!   the `laboratories.sock` request/response socket the conduit uses
 //!   to reach connected laboratories.
+//! - [`websocket_laboratories`] — the daemon's `/laboratories/list` +
+//!   `/laboratories/{*id}` WebSocket routes: the live laboratories
+//!   merge (connected ∪ local scan) and per-laboratory records with
+//!   attachments.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
@@ -49,4 +53,5 @@ pub mod mcp_listener;
 pub mod mcp_server;
 pub mod websocket_agent_instance;
 pub mod websocket_agents;
+pub mod websocket_laboratories;
 pub mod websocket_laboratory;

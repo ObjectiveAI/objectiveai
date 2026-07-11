@@ -231,6 +231,9 @@ pub(crate) struct DaemonWsState {
     /// The connected-laboratory registry backing the `/laboratory`
     /// route and `laboratories.sock`.
     pub(crate) laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
+    /// The live-laboratories hub backing the `/laboratories/list` +
+    /// `/laboratories/{*id}` routes.
+    pub(crate) labs_hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
 }
 
 /// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
@@ -263,6 +266,7 @@ pub fn serve_ws(
     active: crate::websockets::websocket_agents::ActiveAgents,
     conversations: crate::websockets::websocket_agent_instance::ConversationHub,
     laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
+    labs_hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::any(listen_handler))
@@ -292,6 +296,20 @@ pub fn serve_ws(
                 crate::websockets::websocket_laboratory::laboratory_handler,
             ),
         )
+        .route(
+            "/laboratories/list",
+            axum::routing::any(
+                crate::websockets::websocket_laboratories::laboratories_handler,
+            ),
+        )
+        // Wildcard ({*id}) under the literal `list` route — the same
+        // proven axum-0.8 overlap as `/agents/instances/*` above.
+        .route(
+            "/laboratories/{*id}",
+            axum::routing::any(
+                crate::websockets::websocket_laboratories::laboratory_instance_handler,
+            ),
+        )
         .with_state(DaemonWsState {
             tx,
             ctx,
@@ -299,6 +317,7 @@ pub fn serve_ws(
             active,
             conversations,
             laboratories,
+            labs_hub,
         });
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;

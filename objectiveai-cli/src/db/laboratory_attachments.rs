@@ -138,6 +138,46 @@ pub async fn effective_for_aih(
     Ok(out)
 }
 
+/// One attachment row seen from the LABORATORY side: the agent
+/// target it is attached to (exactly one of `agent_instance_hierarchy`
+/// / `tag`, per the table's CHECK), plus when and by whom.
+pub struct TargetAttachment {
+    pub agent_instance_hierarchy: Option<String>,
+    pub tag: Option<String>,
+    /// Unix seconds (`created_at`).
+    pub attached_at: i64,
+    /// The AIH that ran the attach. `None` on rows predating tracking.
+    pub attached_by: Option<String>,
+}
+
+/// Every attachment row targeting `laboratory_id`, oldest first — the
+/// reverse direction of [`list`]/[`effective_for_aih`], for the
+/// `/laboratories/{id}` endpoint's record.
+pub async fn list_for_laboratory(
+    pool: &Pool,
+    laboratory_id: &str,
+) -> Result<Vec<TargetAttachment>, Error> {
+    let rows = sqlx::query(
+        "SELECT agent_instance_hierarchy, tag, created_at, attached_by \
+         FROM objectiveai.laboratory_attachments \
+         WHERE laboratory_id = $1 \
+         ORDER BY created_at, id",
+    )
+    .bind(laboratory_id)
+    .fetch_all(&**pool)
+    .await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(TargetAttachment {
+            agent_instance_hierarchy: row.try_get("agent_instance_hierarchy")?,
+            tag: row.try_get("tag")?,
+            attached_at: row.try_get("created_at")?,
+            attached_by: row.try_get("attached_by")?,
+        });
+    }
+    Ok(out)
+}
+
 /// All laboratory ids attached to `target`, oldest-attached first.
 pub async fn list(pool: &Pool, target: &Target) -> Result<Vec<String>, Error> {
     let (tag, aih) = target.columns();
