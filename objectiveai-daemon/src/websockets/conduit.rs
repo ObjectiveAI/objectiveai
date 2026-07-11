@@ -653,9 +653,6 @@ impl ConduitMcpHandler {
         headers: &IndexMap<String, String>,
         payload: server_request::Payload,
     ) -> server_response::Payload {
-        use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
-            SocketRequest, SocketResponse,
-        };
         let shape = LabErrorShape::of(&payload);
         // Route bookkeeping BEFORE the await: aborts always drop their
         // route (even if the forward fails, the driver is done with it).
@@ -671,28 +668,22 @@ impl ConduitMcpHandler {
             }
             _ => {}
         }
-        let socket_reply = crate::websockets::websocket_laboratory::call_laboratories_socket(
-            &self.inner.ctx.filesystem.state_dir(),
-            &SocketRequest::Forward {
-                laboratory_id: laboratory_id.clone(),
-                headers: headers.clone(),
-                request: payload,
-            },
-        )
-        .await;
-        let response = match socket_reply {
-            Ok(SocketResponse::Forwarded { response }) => response,
-            Ok(SocketResponse::Error { message }) => {
+        // In-process: forward straight to the connected laboratory's
+        // registry entry (was the laboratories.sock `Forward`).
+        let Some(hubs) = self.inner.ctx.resident_hubs() else {
+            return shape.error(
+                -32603,
+                "laboratory forward requires the resident daemon".to_string(),
+            );
+        };
+        let response = match hubs
+            .laboratories
+            .forward(&laboratory_id, headers.clone(), payload)
+            .await
+        {
+            Ok(response) => response,
+            Err(message) => {
                 return shape.error(-32603, format!("laboratory {laboratory_id}: {message}"));
-            }
-            Ok(SocketResponse::List { .. } | SocketResponse::Ack) => {
-                return shape.error(-32603, "unexpected socket reply".to_string());
-            }
-            Err(e) => {
-                return shape.error(
-                    -32603,
-                    format!("laboratories socket (is the daemon up?): {e}"),
-                );
             }
         };
         // Open/close routes from the manager's replies.

@@ -1,5 +1,5 @@
 //! The daemon's laboratory surface: the `/laboratory` WebSocket route
-//! plus the `laboratories.sock` local socket.
+//! and the in-process laboratory registry.
 //!
 //! Laboratory MANAGERS (`objectiveai-laboratory` processes — local or
 //! remote, the daemon cannot tell and does not care) dial IN on
@@ -14,29 +14,20 @@
 //!    answers [`ChannelResponse`]s, correlated by id.
 //!
 //! The set of live `/laboratory` connections IS the laboratory
-//! registry: `laboratories list` snapshots it, and a disconnect
-//! removes the laboratory (its in-flight forwards fail cleanly). The
-//! CLI conduit reaches connected laboratories through
-//! `laboratories.sock` ([`SocketRequest`]/[`SocketResponse`], one JSON
-//! line each way per connection — the `mcp_listener` protocol shape).
+//! registry: `laboratories list` snapshots it, and a disconnect removes
+//! the laboratory (its in-flight forwards fail cleanly). The conduit and
+//! the `laboratories` commands reach connected laboratories by calling
+//! [`LaboratoryRegistry::forward`] / [`LaboratoryRegistry::list`]
+//! directly on the resident daemon's registry (via `Context`'s resident
+//! hubs) — in-process, no socket.
 
-use std::path::Path;
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use interprocess::local_socket::tokio::prelude::*;
-use interprocess::local_socket::{ListenerOptions, Name};
-#[cfg(unix)]
-use interprocess::local_socket::GenericFilePath;
-#[cfg(windows)]
-use interprocess::local_socket::GenericNamespaced;
 use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
-    ChannelRequest, ChannelResponse, Identify, SocketRequest, SocketResponse,
+    ChannelRequest, ChannelResponse, Identify,
 };
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot};
-
-use crate::websockets::mcp_listener::socks_dir;
 
 /// How long a forward waits for the manager's reply. Generous — tool
 /// calls and 2 MiB transfer chunks ride this; the API layer above owns
@@ -228,115 +219,4 @@ pub(crate) async fn laboratory_handler(
         }
         // Dropping `lab.pending` (last Arc) fails all in-flight waiters.
     })
-}
-
-// ── laboratories.sock ────────────────────────────────────────────
-
-/// The fixed local-socket name, `laboratories` in place of `daemon` —
-/// see [`crate::websockets::daemon_stream::bind_socket_listener`].
-#[cfg(unix)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    socks_dir(state_dir)
-        .join("laboratories.sock")
-        .to_fs_name::<GenericFilePath>()
-}
-
-#[cfg(windows)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    state_dir.file_name().hash(&mut hasher);
-    let state = hasher.finish();
-    format!("objectiveai-{state:016x}-laboratories.sock").to_ns_name::<GenericNamespaced>()
-}
-
-/// Bind `laboratories.sock` (synchronously, so the daemon publishes its
-/// lock only after the socket is listening — the producer-socket
-/// convention).
-pub fn bind_laboratories_socket_listener(
-    state_dir: &Path,
-) -> std::io::Result<interprocess::local_socket::tokio::Listener> {
-    let _ = std::fs::create_dir_all(socks_dir(state_dir));
-    let name = socket_name(state_dir)?;
-    ListenerOptions::new()
-        .name(name)
-        .try_overwrite(true)
-        .create_tokio()
-}
-
-/// Accept loop: one connection = one [`SocketRequest`] line → one
-/// [`SocketResponse`] line.
-pub fn serve_laboratories_socket_listener(
-    listener: interprocess::local_socket::tokio::Listener,
-    registry: LaboratoryRegistry,
-    hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
-) {
-    tokio::spawn(async move {
-        loop {
-            let conn = match listener.accept().await {
-                Ok(conn) => conn,
-                Err(_) => continue,
-            };
-            tokio::spawn(handle_conn(conn, registry.clone(), hub.clone()));
-        }
-    });
-}
-
-async fn handle_conn(
-    conn: LocalSocketStream,
-    registry: LaboratoryRegistry,
-    hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
-) {
-    let (read_half, mut write_half) = tokio::io::split(conn);
-    let mut reader = BufReader::new(read_half);
-    let mut line = String::new();
-    if reader.read_line(&mut line).await.is_err() {
-        return;
-    }
-
-    let response = match serde_json::from_str::<SocketRequest>(line.trim()) {
-        Ok(SocketRequest::Forward { laboratory_id, headers, request }) => {
-            match registry.forward(&laboratory_id, headers, request).await {
-                Ok(response) => SocketResponse::Forwarded { response },
-                Err(message) => SocketResponse::Error { message },
-            }
-        }
-        Ok(SocketRequest::List) => SocketResponse::List { laboratories: registry.list() },
-        Ok(SocketRequest::LocalChanged) => {
-            hub.signal_local_changed();
-            SocketResponse::Ack
-        }
-        Err(e) => SocketResponse::Error { message: format!("malformed request: {e}") },
-    };
-
-    let Ok(reply) = serde_json::to_string(&response) else {
-        return;
-    };
-    let _ = write_half.write_all(reply.as_bytes()).await;
-    let _ = write_half.write_all(b"\n").await;
-    let _ = write_half.shutdown().await;
-}
-
-/// Client side: one request line → one response line against
-/// `laboratories.sock`. A connect failure means the daemon is not
-/// running (or predates this socket).
-pub async fn call_laboratories_socket(
-    state_dir: &Path,
-    request: &SocketRequest,
-) -> std::io::Result<SocketResponse> {
-    let name = socket_name(state_dir)?;
-    let conn = LocalSocketStream::connect(name).await?;
-    let (read_half, mut write_half) = tokio::io::split(conn);
-
-    let line = serde_json::to_string(request)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-    write_half.write_all(line.as_bytes()).await?;
-    write_half.write_all(b"\n").await?;
-    write_half.flush().await?;
-
-    let mut reader = BufReader::new(read_half);
-    let mut reply = String::new();
-    reader.read_line(&mut reply).await?;
-    serde_json::from_str::<SocketResponse>(reply.trim())
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }

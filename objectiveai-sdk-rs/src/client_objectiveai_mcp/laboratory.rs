@@ -1,4 +1,4 @@
-//! Laboratory-manager channel + socket envelopes.
+//! Laboratory-manager channel envelopes.
 //!
 //! A laboratory is managed by a standalone `objectiveai-laboratory`
 //! process that dials OUT to the daemon's `/laboratory` WebSocket.
@@ -13,11 +13,11 @@
 //!    vocabulary, verbatim) and the manager answers with
 //!    [`ChannelResponse`]s.
 //!
-//! The CLI conduit reaches connected laboratories through the daemon's
-//! `laboratories.sock` local socket with [`SocketRequest`] /
-//! [`SocketResponse`] (one JSON line each way per connection) — the
-//! daemon forwards over the WS and correlates the reply. Local and
-//! remote laboratories are therefore one code path: whatever dialed
+//! The daemon reaches connected laboratories in-process: the conduit and
+//! the `laboratories` commands call the resident laboratory registry
+//! directly (`LaboratoryRegistry::forward` / `::list`), which forwards
+//! over the `/laboratory` WS and correlates the reply. Local and remote
+//! laboratories are therefore one code path: whatever dialed
 //! `/laboratory` serves the traffic, wherever it runs.
 
 use indexmap::IndexMap;
@@ -76,47 +76,6 @@ pub struct ChannelResponse {
     pub id: String,
     #[serde(flatten)]
     pub payload: super::server_response::Payload,
-}
-
-/// One request line on the daemon's `laboratories.sock` local socket
-/// (CLI/conduit → daemon). Exactly one request → one
-/// [`SocketResponse`] line per connection.
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "op", rename_all = "snake_case")]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.SocketRequest")]
-pub enum SocketRequest {
-    /// Forward `request` to the connected laboratory `laboratory_id`
-    /// and relay its reply.
-    Forward {
-        laboratory_id: String,
-        headers: IndexMap<String, String>,
-        request: super::server_request::Payload,
-    },
-    /// Snapshot the identities of every connected laboratory.
-    List,
-    /// Signal that the machine's LOCAL laboratory set changed (a
-    /// container was created or deleted) — the daemon's
-    /// `/laboratories/*` streams rebuild + rescan. Best-effort from
-    /// the CLI's `create`/`delete`; carries no payload (consumers
-    /// rebuild from truth).
-    LocalChanged,
-}
-
-/// One response line on `laboratories.sock` (daemon → CLI/conduit).
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.SocketResponse")]
-pub enum SocketResponse {
-    Forwarded {
-        response: super::server_response::Payload,
-    },
-    List { laboratories: Vec<Identify> },
-    /// Acknowledgement of a [`SocketRequest::LocalChanged`] — the
-    /// daemon accepted the signal (nothing to return).
-    Ack,
-    /// Daemon-level failure: unknown laboratory, manager disconnected
-    /// mid-request, forward timeout, malformed request line.
-    Error { message: String },
 }
 
 /// The manager's connection-lock key for `(id, address)`:

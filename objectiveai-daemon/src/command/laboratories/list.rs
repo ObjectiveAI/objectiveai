@@ -16,7 +16,6 @@ use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem, S
 
 use crate::context::Context;
 use crate::error::Error;
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{SocketRequest, SocketResponse};
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -27,20 +26,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Kind::Client => {}
     }
 
-    // The daemon owns the registry; ensure it's up (idempotent).
+    // The daemon owns the registry; ensure it's up (idempotent), then
+    // read it in-process (was the laboratories.sock `List`).
     crate::command::daemon::spawn::spawn(ctx).await?;
-    let labs = match crate::websockets::websocket_laboratory::call_laboratories_socket(
-        &ctx.filesystem.state_dir(),
-        &SocketRequest::List,
-    )
-    .await
-    {
-        Ok(SocketResponse::List { laboratories }) => Ok(laboratories),
-        Ok(SocketResponse::Error { message }) => Err(Error::Laboratory(message)),
-        Ok(SocketResponse::Forwarded { .. } | SocketResponse::Ack) => {
-            Err(Error::Laboratory("unexpected socket reply".to_string()))
-        }
-        Err(e) => Err(Error::Laboratory(format!("laboratories socket: {e}"))),
+    let labs = match ctx.resident_hubs() {
+        Some(hubs) => Ok(hubs.laboratories.list()),
+        None => Err(Error::Laboratory(
+            "laboratories list requires the resident daemon".to_string(),
+        )),
     };
     // Local laboratories (running or not) via the manager binary's
     // `list` subcommand — the only podman reader left. A missing

@@ -148,24 +148,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         }
     };
 
-    // Bind the remaining producer sockets BEFORE publishing the lock, so
-    // a held lock guarantees they are already listening — a producer then
-    // either connects on the first try or the daemon is dead (no retry).
     let state_dir = ctx.filesystem.state_dir();
-    // The laboratories request/response socket (conduit → connected
-    // laboratory managers), bound under the same init gate (a held daemon
-    // lock ⇒ it is up).
-    let laboratories_socket_listener =
-        match crate::websockets::websocket_laboratory::bind_laboratories_socket_listener(
-            &state_dir,
-        ) {
-            Ok(listener) => listener,
-            Err(e) => {
-                drop(ws_listener);
-                let _ = init.release();
-                return Err(Error::Spawn("daemon laboratories socket bind".into(), e));
-            }
-        };
 
     // Publish the client-connect `ws://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
@@ -254,11 +237,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         ctx.clone(),
         active.clone(),
         conversations.clone(),
-        laboratories.clone(),
-        labs_hub.clone(),
-    );
-    crate::websockets::websocket_laboratory::serve_laboratories_socket_listener(
-        laboratories_socket_listener,
         laboratories.clone(),
         labs_hub.clone(),
     );

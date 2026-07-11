@@ -116,11 +116,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 /// silent no-op (nothing is watching, and this NEVER spawns a daemon
 /// or DB). Podman has no event source, so this poke is the only signal.
 pub(super) async fn signal_local_changed(ctx: &Context) {
-    let _ = crate::websockets::websocket_laboratory::call_laboratories_socket(
-        &ctx.filesystem.state_dir(),
-        &objectiveai_sdk::client_objectiveai_mcp::laboratory::SocketRequest::LocalChanged,
-    )
-    .await;
+    // In-process: poke the resident hub directly (was the
+    // laboratories.sock `LocalChanged`). No resident hub (not the daemon)
+    // → silent no-op, as before.
+    if let Some(hubs) = ctx.resident_hubs() {
+        hubs.labs_hub.signal_local_changed();
+    }
 }
 
 /// Resolve the agent target to its DB key. Shared by `attach` +

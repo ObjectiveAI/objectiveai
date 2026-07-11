@@ -8,9 +8,7 @@
 //! idempotently (the api/db/mcp spawn discipline).
 
 use objectiveai_sdk::cli::command::laboratories::connect::{Request, Response};
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
-    connect_lock_key, SocketRequest, SocketResponse,
-};
+use objectiveai_sdk::client_objectiveai_mcp::laboratory::connect_lock_key;
 
 use crate::context::Context;
 use crate::error::Error;
@@ -81,20 +79,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // forever).
     if local {
         let deadline = std::time::Instant::now() + CONNECT_TIMEOUT;
-        let state_dir = ctx.filesystem.state_dir();
         loop {
-            match crate::websockets::websocket_laboratory::call_laboratories_socket(
-                &state_dir,
-                &SocketRequest::List,
-            )
-            .await
+            // In-process: poll the connected-laboratory registry directly
+            // (was the laboratories.sock `List`).
+            if let Some(hubs) = ctx.resident_hubs()
+                && hubs.laboratories.list().iter().any(|l| l.id == request.id)
             {
-                Ok(SocketResponse::List { laboratories })
-                    if laboratories.iter().any(|l| l.id == request.id) =>
-                {
-                    break;
-                }
-                _ => {}
+                break;
             }
             if !objectiveai_sdk::lockfile::try_held(&lock_dir, &lock_key).await {
                 return Err(Error::Laboratory(format!(
