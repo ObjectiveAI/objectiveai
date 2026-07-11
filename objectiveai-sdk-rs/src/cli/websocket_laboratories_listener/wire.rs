@@ -88,6 +88,12 @@ pub struct LaboratoryRecord {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum LaboratoryInstanceEvent {
     /// The laboratory's current full record.
-    #[schemars(title = "Laboratory")]
+    ///
+    /// NO variant-level `#[schemars(title)]` here, deliberately: a
+    /// SINGLE-variant tagged enum collapses to the variant's inline
+    /// schema, and a variant title would OVERWRITE the container's
+    /// dot-path rename above — breaking the per-language codegen
+    /// (module names key off the title). Restore per-variant titles
+    /// only when a second variant joins.
     Laboratory { laboratory: LaboratoryRecord },
 }
