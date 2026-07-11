@@ -8,10 +8,11 @@
 //!   connected / disconnected on `/laboratory`);
 //! - the LOCAL set — the machine's state-scoped container scan, via
 //!   the `objectiveai-laboratory list` subprocess (the same reader the
-//!   unary `laboratories list` uses; podman has no event source, so a
-//!   SCANNER task polls every [`SCAN_INTERVAL`] while at least one
-//!   subscriber is connected, nudged immediately on registry events
-//!   and subscriber joins, with a [`SCAN_MIN_GAP`] floor);
+//!   unary `laboratories list` uses). Podman has no event source, but
+//!   the daemon does NOT poll: a SCANNER task runs EVENT-DRIVEN only —
+//!   on a fresh subscriber (the one-time list on WS connect) and on a
+//!   registry connect/disconnect — coalesced through a `Notify` with a
+//!   [`SCAN_MIN_GAP`] floor. No timer;
 //! - ATTACHMENTS — a dedicated `laboratory_attachments_changed`
 //!   watcher with NO payload filtering (unlike `ActiveAgents`' agent
 //!   watcher, which drops GROUPED-tag payloads — the per-lab record
@@ -38,8 +39,6 @@ use tokio::sync::{Mutex, Notify, broadcast};
 
 use crate::websockets::websocket_laboratory::LaboratoryRegistry;
 
-/// Local-scan cadence while at least one subscriber is connected.
-const SCAN_INTERVAL: std::time::Duration = std::time::Duration::from_secs(30);
 /// Floor between two scans, however hard the nudges arrive — one
 /// podman subprocess per event burst, not per event.
 const SCAN_MIN_GAP: std::time::Duration = std::time::Duration::from_secs(2);
@@ -120,8 +119,11 @@ impl LaboratoriesHub {
         tokio::spawn(self.clone().watch_attachment_changes());
     }
 
-    /// The local scanner: sleeps until nudged or [`SCAN_INTERVAL`]
-    /// elapses, skips entirely while nobody subscribes, floors
+    /// The local scanner: sleeps until NUDGED — on a fresh subscriber
+    /// (the one-time list on WS connect) or a registry
+    /// connect/disconnect — with NO timer, so podman is never polled.
+    /// The `Notify` coalesces a burst of nudges into one trailing
+    /// scan. Skips entirely while nobody subscribes, floors
     /// back-to-back scans at [`SCAN_MIN_GAP`], and emits
     /// [`LabsChange::LocalScan`] only when the scan RESULT differs
     /// from the cache. Scan failures keep the previous cache (a
@@ -130,10 +132,7 @@ impl LaboratoriesHub {
     async fn scanner(self) {
         let mut last_scan: Option<tokio::time::Instant> = None;
         loop {
-            tokio::select! {
-                _ = self.rescan.notified() => {}
-                _ = tokio::time::sleep(SCAN_INTERVAL) => {}
-            }
+            self.rescan.notified().await;
             if self.subscribers.load(Ordering::SeqCst) == 0 {
                 continue;
             }
