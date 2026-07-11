@@ -35,11 +35,11 @@
 //! flowing after it.
 //!
 //! Mode split on `dangerous_advanced.stream_spawns` (mirrors
-//! `agents spawn`'s `stream`): unset/false re-execs this binary as a
-//! DETACHED ORPHAN with `stream_spawns=true` and yields the child's
-//! status items (spawn `Value` output is skipped) up to and including
-//! `AllAgentsActive`, then returns — the orphan keeps running the
-//! spawns to completion.
+//! `agents spawn`'s `stream`): unset/false runs the delivery as a
+//! DETACHED in-process daemon task with `stream_spawns=true` and
+//! yields the task's status items (spawn `Value` output is skipped) up
+//! to and including `AllAgentsActive`, then returns — the task keeps
+//! running the spawns to completion on the daemon's runtime.
 
 use std::collections::HashSet;
 use std::pin::Pin;
@@ -53,7 +53,6 @@ use objectiveai_sdk::cli::command::agents::queue::deliver::{
     TagActiveType, TagSpawnedResponseItem, TagSpawnedType, ValueResponseItem,
 };
 use objectiveai_sdk::cli::command::agents::spawn::ResponseItem as SpawnResponseItem;
-use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
 use crate::context::Context;
 use crate::db;
@@ -77,20 +76,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     {
         execute_streaming(ctx, request).await
     } else {
-        execute_detached(request).await
+        execute_detached(ctx, request).await
     }
 }
 
-/// Default mode: re-invoke `objectiveai-cli agents queue deliver` as
-/// a detached subprocess with `stream_spawns = true`, yield the
-/// child's STATUS items (`AgentActive` / `AgentSpawned` /
-/// `TagActive` / `TagSpawned` — `Value` spawn output is skipped) up
-/// to and including `AllAgentsActive`, and return.
-/// The subprocess outlives this call — its `tokio::process::Child`
-/// handle is dropped without kill (the SDK's `BinaryExecutor` default
-/// + Windows `DETACHED_PROCESS` flag), so the spawns run to
-/// completion as an orphan.
-async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
+/// Default mode: run the full delivery (`stream_spawns = true`) as a
+/// detached in-process daemon task
+/// ([`crate::command::detached::spawn_detached`]) and surface only the
+/// STATUS items (`AgentActive` / `AgentSpawned` / `TagActive` /
+/// `TagSpawned` — `Value` spawn output is skipped) up to and including
+/// `AllAgentsActive`, then return. The task outlives this call and
+/// drains the spawns to completion on the daemon's runtime.
+async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let mut child_request = request;
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream_spawns = Some(true),
@@ -100,43 +97,21 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
             })
         }
     }
-    // Re-exec of this CLI — strip the parent-only envelope fields.
+    // The detached run re-enters via `crate::run` — strip the
+    // parent-only envelope fields.
     crate::command::reexec::strip_inherited(&mut child_request.base);
 
-    let exe = std::env::current_exe()
-        .map_err(|e| Error::Spawn("current_exe".into(), e))?;
-    let executor = BinaryExecutor::from_path(exe).detach(true);
-
-    let mut stream = executor
-        .execute::<Request, ResponseItem>(child_request, None)
-        .await
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for agents queue deliver: {e}"
-        )))?;
-
-    let out = async_stream::stream! {
-        while let Some(item) = stream.next().await {
-            match item {
-                // Spawn output is the child's business — detached
-                // mode surfaces only the status variants.
-                Ok(ResponseItem::Value(_)) => {}
-                Ok(item) => {
-                    let done = matches!(item, ResponseItem::AllAgentsActive(_));
-                    yield Ok(item);
-                    if done {
-                        // Final item for the detached mode. Dropping
-                        // the stream drops the Child handle without
-                        // kill — the orphan finishes the spawns.
-                        break;
-                    }
-                }
-                Err(e) => yield Err(Error::Instance(format!(
-                    "self-respawn for agents queue deliver: {e}"
-                ))),
-            }
-        }
-    };
-    Ok(Box::pin(out))
+    // Surface status items; skip `Value` spawn output; detach after
+    // `AllAgentsActive` (the task drains the spawns to completion).
+    Ok(crate::command::detached::spawn_detached::<Request, ResponseItem>(
+        ctx.clone(),
+        child_request,
+        |item| match item {
+            ResponseItem::Value(_) => None,
+            ResponseItem::AllAgentsActive(_) => Some(true),
+            _ => Some(false),
+        },
+    ))
 }
 
 /// `stream_spawns = true`: run the full delivery in-process.

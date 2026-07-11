@@ -306,6 +306,32 @@ impl Context {
     pub fn reset_api_client(&mut self) {
         self.api = Arc::new(OnceCell::new());
     }
+
+    /// Reset the per-request agent identity to the daemon's scrubbed
+    /// defaults (`agent_instance_hierarchy = "cli"`, every other
+    /// identity field cleared), then rebuild the API client so its
+    /// identity headers can't carry a stale value.
+    ///
+    /// Used by [`crate::command::detached::spawn_detached`]: the former
+    /// detached self-reexec inherited the daemon PROCESS env (whose
+    /// identity is scrubbed to these defaults at daemon spawn), NOT the
+    /// per-request `/execute` override. Cloning the daemon's context
+    /// preserves the shared state that in-process work REQUIRES — the
+    /// `agent_locks` gate and the db/api/python pools — while this reset
+    /// restores that same default identity, so a detached daemon task
+    /// runs exactly as the orphan subprocess did.
+    pub fn reset_identity(&mut self) {
+        // Mirror `run::ConfigBuilder::build`'s defaults for the identity
+        // fields (the daemon's env has these scrubbed at spawn).
+        self.config.agent_instance_hierarchy = "cli".to_string();
+        self.config.agent_id = None;
+        self.config.agent_full_id = None;
+        self.config.agent_remote = None;
+        self.config.response_id = None;
+        self.config.response_ids = None;
+        self.config.mcp_session_id = None;
+        self.reset_api_client();
+    }
 }
 
 /// Build the SDK `HttpClient` for this cli process. `address` is the

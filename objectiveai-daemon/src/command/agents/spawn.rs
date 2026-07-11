@@ -21,14 +21,13 @@
 //! `message_queue` rows, restart with the latest continuation —
 //! restart passes flow into the same output stream.
 //!
-//! Stream-false (the default): re-invoke `objectiveai-cli agents
-//! spawn ...` as a **detached subprocess** with the same arguments
-//! plus `stream = true` (so the resolution + locking above runs in
-//! the child), read the first `ResponseItem::Id` line off the
-//! child's stdout, yield it, and return. The subprocess runs
-//! orphaned to completion (Unix: kernel re-parents to init;
-//! Windows: `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` keeps
-//! it alive past parent exit).
+//! Stream-false (the default): run the same real streaming path
+//! (`stream = true`, so the resolution + locking above run in the
+//! task) as a **detached in-process daemon task**
+//! ([`crate::command::detached::spawn_detached`]), yield the first
+//! `ResponseItem::Id` it produces, and return. The task outlives this
+//! call and drains to completion on the daemon's runtime; its lock
+//! family releases when its stream ends.
 //!
 //! `params.stream` on the wire is always `Some(true)`; the
 //! `dangerous_advanced.stream` setting only controls cli-side
@@ -45,8 +44,6 @@ use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
     Request, RequestDangerousAdvanced, ResponseItem,
 };
-use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
-
 use crate::context::Context;
 use crate::error::Error;
 use crate::websockets::agent_hierarchies::ChunkAgentHierarchies;
@@ -66,21 +63,18 @@ pub async fn execute(
     if want_stream {
         execute_streaming(ctx, request).await
     } else {
-        execute_detached(request).await
+        execute_detached(ctx, request).await
     }
 }
 
-/// Stream-false: re-invoke `objectiveai-cli agents spawn`
-/// as a detached subprocess with `stream = true`, capture the
-/// first `ResponseItem::Id` off the child's stdout, yield it, and
-/// return. The subprocess outlives this call — its
-/// `tokio::process::Child` handle is dropped without kill (the
-/// SDK's `BinaryExecutor` default + Windows `DETACHED_PROCESS`
-/// flag).
-async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
-    // Re-invoke with stream=true so the child runs the real
-    // streaming path. Same argv otherwise — `BinaryExecutor` will
-    // ask `Request::into_command()` for it.
+/// Stream-false: run the real streaming path (`stream = true`) as a
+/// detached in-process daemon task and surface only its first item —
+/// the gated `Id`. The task outlives this call and drains to
+/// completion (see [`crate::command::detached::spawn_detached`]); the
+/// agent's lock family releases when its stream ends.
+async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+    // Re-invoke with stream=true so the detached run takes the real
+    // streaming path (resolution + locking above run in the task).
     let mut child_request = request;
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream = Some(true),
@@ -91,38 +85,14 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
             })
         }
     }
-    // The child is a re-exec of this CLI — it must not inherit the
+    // The child re-enters via `crate::run` — it must not re-apply the
     // parent's transform / token budget (timeout survives).
     crate::command::reexec::strip_inherited(&mut child_request.base);
 
-    // Self-respawn: point the executor at *this* binary (whichever
-    // path the OS recorded for the current process), then arm
-    // Windows-detach so the child survives parent exit. Unix gets
-    // re-parent-to-init for free via the default kill_on_drop=false.
-    let exe = std::env::current_exe()
-        .map_err(|e| Error::Spawn("current_exe".into(), e))?;
-    let executor = BinaryExecutor::from_path(exe).detach(true);
-
-    let mut stream = executor
-        .execute::<Request, ResponseItem>(child_request, None)
-        .await
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for agents spawn: {e}"
-        )))?;
-
-    // Take exactly the first ResponseItem (the LogStreamReady Id),
-    // yield it, return. Drop the rest of the stream + the Child
-    // handle without kill. On Windows the detach flags keep the
-    // child running; on Unix the kernel re-parents to init.
-    let first = stream
-        .next()
-        .await
-        .ok_or(Error::EmptyStream)?
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for agents spawn: {e}"
-        )))?;
-    Ok(Box::pin(
-        objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)),
+    Ok(crate::command::detached::spawn_detached::<Request, ResponseItem>(
+        ctx.clone(),
+        child_request,
+        |_| Some(true),
     ))
 }
 

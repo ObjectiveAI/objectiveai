@@ -10,7 +10,6 @@ use objectiveai_sdk::cli::command::functions::execute::swiss_system::{
     AgentInstanceHierarchy, AgentInstanceHierarchyType, Request,
     RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
-use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 use objectiveai_sdk::functions::executions::request::{
     FunctionExecutionCreateParams, Strategy,
 };
@@ -29,7 +28,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     if want_stream {
         execute_streaming(ctx, request).await
     } else {
-        execute_detached(request).await
+        execute_detached(ctx, request).await
     }
 }
 
@@ -79,11 +78,12 @@ async fn execute_streaming(
     })))
 }
 
-/// Stream-false: self-respawn as a detached subprocess running
-/// the same `functions execute swiss-system ...` argv with
-/// `stream=true`. Take the first `ResponseItem::Id` off the
-/// child's stdout, yield it, return. Child outlives this call.
-async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
+/// Stream-false: run the real streaming path (`stream=true`) as a
+/// detached in-process daemon task
+/// ([`crate::command::detached::spawn_detached`]), surface its first
+/// item (the gated `Id`), and return. The task outlives this call and
+/// drives the execution to completion on the daemon's runtime.
+async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let mut child_request = request;
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream = Some(true),
@@ -94,26 +94,13 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
             })
         }
     }
-    // Re-exec of this CLI — strip the parent-only envelope fields.
+    // The detached run re-enters via `crate::run` — strip the
+    // parent-only envelope fields.
     crate::command::reexec::strip_inherited(&mut child_request.base);
-    let exe = std::env::current_exe()
-        .map_err(|e| Error::Spawn("current_exe".into(), e))?;
-    let executor = BinaryExecutor::from_path(exe).detach(true);
-    let mut stream = executor
-        .execute::<Request, ResponseItem>(child_request, None)
-        .await
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for functions execute swiss-system: {e}"
-        )))?;
-    let first = stream
-        .next()
-        .await
-        .ok_or(Error::EmptyStream)?
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for functions execute swiss-system: {e}"
-        )))?;
-    Ok(Box::pin(
-        objectiveai_sdk::cli::command::StreamOnce::new(Ok(first)),
+    Ok(crate::command::detached::spawn_detached::<Request, ResponseItem>(
+        ctx.clone(),
+        child_request,
+        |_| Some(true),
     ))
 }
 

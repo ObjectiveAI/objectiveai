@@ -57,7 +57,6 @@ use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::cli::command::agents::message::{Request, RequestMessage, Response};
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn as spawn_sdk;
-use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -119,7 +118,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     match route {
-        Route::Ref { child } => spawn_child(child, content, seed).await,
+        Route::Ref { child } => spawn_child(ctx, child, content, seed).await,
         Route::Locked {
             dir,
             key,
@@ -195,8 +194,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                             })?;
                         }
                         // Lazy: if `delivered` is already ready, this future
-                        // is never polled and no child process is launched.
+                        // is never polled and no wake task is launched.
                         let spawn = spawn_child(
+                            ctx,
                             child.clone(),
                             RichContent::Text(String::new()),
                             seed,
@@ -300,16 +300,18 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
     }
 }
 
-/// Exec a detached `agents spawn` child (stream=true) and return its
-/// first item as the unary response. The Ref route passes real
-/// `content`; the Locked route passes EMPTY content — `agents spawn`
-/// maps that to an empty `messages` array, a wake-up turn whose
-/// prompt is the queue drain. The child acquires its OWN family lock
-/// at startup (in `agents spawn`) — this process hands it nothing
-/// (cross-process lock transfer is unsound on Windows). The child's
-/// first item is always its `Id` (chunks are gated behind it); the
-/// rest of the stream is dropped and the orphan keeps running.
+/// Run a detached `agents spawn` wake (stream=true) as an in-process
+/// daemon task and return its first item as the unary response. The
+/// Ref route passes real `content`; the Locked route passes EMPTY
+/// content — `agents spawn` maps that to an empty `messages` array, a
+/// wake-up turn whose prompt is the queue drain. The wake task
+/// acquires its OWN family lock at startup (in `agents spawn`); this
+/// handler hands it nothing — it released the family first (the Locked
+/// caller) so the task re-acquires cleanly. The task's first item is
+/// always its `Id` (chunks are gated behind it); it then drains to
+/// completion on the daemon's runtime.
 async fn spawn_child(
+    ctx: &Context,
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
@@ -325,18 +327,15 @@ async fn spawn_child(
         base: Default::default(),
     };
 
-    let exe = std::env::current_exe()
-        .map_err(|e| Error::Spawn("current_exe".into(), e))?;
-    let executor = BinaryExecutor::from_path(exe).detach(true);
-    let mut stream = executor
-        .execute::<spawn_sdk::Request, spawn_sdk::ResponseItem>(child_request, None)
-        .await
-        .map_err(|e| Error::Instance(format!("exec agents spawn child: {e}")))?;
+    let mut stream = crate::command::detached::spawn_detached::<
+        spawn_sdk::Request,
+        spawn_sdk::ResponseItem,
+    >(ctx.clone(), child_request, |_| Some(true));
     let first = stream
         .next()
         .await
         .ok_or(Error::EmptyStream)?
-        .map_err(|e| Error::Instance(format!("exec agents spawn child: {e}")))?;
+        .map_err(|e| Error::Instance(format!("exec agents spawn wake: {e}")))?;
     match first {
         spawn_sdk::ResponseItem::Id(agent_instance_hierarchy) => Ok(Response::Id {
             agent_instance_hierarchy,

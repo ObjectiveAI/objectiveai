@@ -14,6 +14,7 @@ pub mod api;
 pub mod command;
 pub mod daemon;
 pub mod db;
+pub mod detached;
 pub mod functions;
 pub mod kill_all;
 pub mod kill_helpers;
