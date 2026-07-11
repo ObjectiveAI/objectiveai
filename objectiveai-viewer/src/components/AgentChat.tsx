@@ -109,7 +109,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
                   "rounded-sm",
                   "border",
                   "font-mono",
-                  "text-[11px]",
+                  "text-xs",
                   m.failed
                     ? ["border-error/70", "bg-error/10", "text-error"]
                     : [
@@ -125,7 +125,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
                 className={cn(
                   "flex-1",
                   "min-w-0",
-                  "text-base",
+                  "text-sm",
                   "font-mono",
                   "whitespace-pre-wrap",
                   "break-words",
@@ -164,7 +164,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
             "rounded-md",
             "px-3",
             "py-2",
-            "text-base",
+            "text-sm",
             "text-info-bright",
             "font-mono",
             "resize-none",

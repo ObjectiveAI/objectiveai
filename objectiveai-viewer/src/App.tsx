@@ -10,11 +10,20 @@ import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
 import { ErrorToast } from "./components/ErrorToast";
 import { HierarchyTree } from "./components/HierarchyTree";
+import { LaboratoriesPane } from "./components/LaboratoriesPane";
 import { TabBar, type Tab } from "./TabBar";
 import { PluginPane } from "./PluginPane";
 import { CommandPalette } from "./components/shared/CommandPalette";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
+
+/** The home pane's second-level tabs — the row below the main header
+ * bar. `agents` is the historic hierarchy view; `laboratories` hosts
+ * the laboratory builder. */
+const HOME_TABS: Tab[] = [
+  { id: "agents", label: "agents" },
+  { id: "laboratories", label: "laboratories" },
+];
 
 function ObjectiveAIView({
   connection,
@@ -29,6 +38,7 @@ function ObjectiveAIView({
 }) {
   const entries = useEntries();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [homeTab, setHomeTab] = useState<string>("agents");
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -48,27 +58,54 @@ function ObjectiveAIView({
   }, [entries, onStatusChange]);
 
   return (
-    <div className={cn("relative", "flex-1", "min-h-0")}>
-      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
-      {/* The brand mark: perfectly centered, always behind the body. */}
+    <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
+      <TabBar tabs={HOME_TABS} activeTab={homeTab} onSelect={setHomeTab} />
+      {/* Both panes stay mounted; only the active one shows — the
+          hierarchy tree's per-agent listeners keep running while the
+          laboratories pane is focused (same pattern as the main
+          plugin tabs). */}
       <div
         className={cn(
-          "absolute",
-          "inset-0",
-          "flex",
-          "flex-col",
-          "items-center",
-          "justify-center",
-          "gap-3",
-          "pointer-events-none",
-          "select-none",
+          "relative",
+          "flex-1",
+          "min-h-0",
+          homeTab === "agents" ? "block" : "hidden",
         )}
       >
-        <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
-        <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
+        <CommandPalette
+          open={commandPaletteOpen}
+          onOpenChange={setCommandPaletteOpen}
+        />
+        {/* The brand mark: perfectly centered, always behind the body. */}
+        <div
+          className={cn(
+            "absolute",
+            "inset-0",
+            "flex",
+            "flex-col",
+            "items-center",
+            "justify-center",
+            "gap-3",
+            "pointer-events-none",
+            "select-none",
+          )}
+        >
+          <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
+          <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
+        </div>
+        {/* The body: the agent hierarchy tree, over the watermark. */}
+        <HierarchyTree connection={connection} agents={agents} zoom={zoom} />
       </div>
-      {/* The body: the agent hierarchy tree, over the watermark. */}
-      <HierarchyTree connection={connection} agents={agents} zoom={zoom} />
+      <div
+        className={cn(
+          "flex-col",
+          "flex-1",
+          "min-h-0",
+          homeTab === "laboratories" ? "flex" : "hidden",
+        )}
+      >
+        <LaboratoriesPane />
+      </div>
     </div>
   );
 }

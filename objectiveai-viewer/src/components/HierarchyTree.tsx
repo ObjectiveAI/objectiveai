@@ -13,7 +13,8 @@ import {
   useAgentDefinition,
   type AgentDefinition,
 } from "../hooks/useAgentDefinition";
-import { formatAgo } from "../lib/formatAgo";
+import { useAgo } from "../hooks/useAgo";
+import { useOrientation } from "../hooks/useOrientation";
 
 /** One agent scoped under a tree node: the path segments REMAINING
  * below that node, plus the agent itself. `rest` empty means the
@@ -49,6 +50,10 @@ export function HierarchyTree({
    * extents stay correct — unlike `transform: scale`). */
   zoom?: number;
 }) {
+  // Canvas orientation (footer toggle): vertical = tiers top-down,
+  // horizontal = the transpose. Every scaffold axis below derives
+  // from this.
+  const orientation = useOrientation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     x: number;
@@ -139,7 +144,7 @@ export function HierarchyTree({
           "font-mono",
           "text-xs",
           "flex",
-          "flex-row",
+          orientation === "vertical" ? "flex-row" : "flex-col",
           "items-start",
           "gap-6",
         )}
@@ -184,6 +189,8 @@ function HierarchyNode({
   connection: DaemonConnection | null;
   onOpen: (hierarchy: string) => void;
 }) {
+  const orientation = useOrientation();
+  const vertical = orientation === "vertical";
   // The agent AT this node, if any (hierarchies are unique — at most
   // one member terminates here).
   const self =
@@ -192,7 +199,7 @@ function HierarchyNode({
     members.filter((member) => member.rest.length > 0),
   );
   return (
-    <div className={cn("flex", "flex-col", "items-start")}>
+    <div className={cn("flex", vertical ? "flex-col" : "flex-row", "items-start")}>
       {self !== null ? (
         <AgentNode
           name={name}
@@ -222,49 +229,62 @@ function HierarchyNode({
             "text-info-bright",
           )}
         >
-          <span className={cn("text-[11px]")}>{name}</span>
+          <span className={cn("text-sm")}>{name}</span>
         </div>
       )}
       {children.length > 0 && (
         <>
-          {/* Stem from this node down to its children's rail —
-              anchored left, under the parent's leading edge. */}
+          {/* Stem from this node toward its children's rail —
+              anchored at the parent's leading edge (12px in from the
+              descent-side corner). */}
           <div
             className={cn(
-              "w-px",
-              "h-3",
-              "ml-3",
+              vertical ? cn("w-px", "h-3", "ml-3") : cn("h-px", "w-3", "mt-3"),
               "bg-copper-hot",
             )}
           />
-          <div className={cn("flex", "flex-row", "items-start")}>
+          <div
+            className={cn(
+              "flex",
+              vertical ? "flex-row" : "flex-col",
+              "items-start",
+            )}
+          >
             {children.map(([child, group], i) => {
               const first = i === 0;
               const last = i === children.length - 1;
               return (
                 <div
                   key={child}
-                  className={cn("flex", "flex-col", "items-stretch")}
+                  className={cn(
+                    "flex",
+                    vertical ? "flex-col" : "flex-row",
+                    "items-stretch",
+                  )}
                 >
                   {/* The rail, built per-child so it CAPS at the
-                      first and last drop points: a left piece up to
-                      this child's stem (skipped on the first child)
-                      and a right piece onward to the next sibling
-                      (skipped on the last). A single child renders
-                      neither — just the straight vertical. */}
+                      first and last drop points: a leading piece up
+                      to this child's stem (skipped on the first
+                      child) and a trailing piece onward to the next
+                      sibling (skipped on the last). A single child
+                      renders neither — just the straight stem. */}
                   {children.length > 1 && (
-                    <div className={cn("flex", "flex-row")}>
+                    <div
+                      className={cn(
+                        "flex",
+                        vertical ? "flex-row" : "flex-col",
+                      )}
+                    >
                       <div
                         className={cn(
-                          "h-px",
-                          "w-3",
+                          vertical ? cn("h-px", "w-3") : cn("w-px", "h-3"),
                           "shrink-0",
                           !first && "bg-copper-hot",
                         )}
                       />
                       <div
                         className={cn(
-                          "h-px",
+                          vertical ? "h-px" : "w-px",
                           "flex-1",
                           !last && "bg-copper-hot",
                         )}
@@ -274,16 +294,21 @@ function HierarchyNode({
                   <div
                     className={cn(
                       "flex",
-                      "flex-col",
+                      vertical ? "flex-col" : "flex-row",
                       "items-start",
                       // Sibling spacing lives INSIDE the cell so the
-                      // rail's right piece spans the whole gap.
-                      !last && "pr-4",
+                      // rail's trailing piece spans the whole gap.
+                      !last && (vertical ? "pr-4" : "pb-4"),
                     )}
                   >
-                    {/* Stem from the rail down INTO this child. */}
+                    {/* Stem from the rail INTO this child. */}
                     <div
-                      className={cn("w-px", "h-3", "ml-3", "bg-copper-hot")}
+                      className={cn(
+                        vertical
+                          ? cn("w-px", "h-3", "ml-3")
+                          : cn("h-px", "w-3", "mt-3"),
+                        "bg-copper-hot",
+                      )}
                     />
                     <HierarchyNode
                       name={child}
@@ -328,6 +353,9 @@ function AgentNode({
   // A live agent's last-active is implicitly "now" — while active the
   // status row reads `active`; inactive shows the record's timestamp.
   const lastActiveAt = !status.active ? (agent?.last_active_at ?? null) : null;
+  // Live-updating relative date; "" (active / no record) renders
+  // nothing and schedules nothing.
+  const lastActiveAgo = useAgo(lastActiveAt ?? "");
   return (
     <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
       <div
@@ -381,7 +409,7 @@ function AgentNode({
             "border-copper-mid",
             "bg-copper-warm/10",
             "text-copper-bright",
-            "text-[11px]",
+            "text-xs",
             "hover:border-copper-hot",
             "hover:text-copper-hot",
             "cursor-pointer",
@@ -425,7 +453,7 @@ function AgentNode({
               "flex",
               "items-center",
               "gap-1.5",
-              "text-[9px]",
+              "text-xs",
               "text-info-mid",
               "tabular-nums",
             )}
@@ -441,7 +469,7 @@ function AgentNode({
                   : "bg-info-dim",
               )}
             />
-            {status.active ? "active" : formatAgo(lastActiveAt ?? "")}
+            {status.active ? "active" : lastActiveAgo}
           </span>
         )}
       </div>
@@ -504,7 +532,7 @@ function LastItemView({ block }: { block: ConversationBlock }) {
         "rounded-t-none",
         "border",
         "border-copper-mid",
-        "text-[10px]",
+        "text-xs",
         // Between info-bright (#d6d3d1) and info-mid (#a8a29e).
         "text-[#c3bfbb]",
         "text-left",
@@ -529,7 +557,7 @@ function LastItemView({ block }: { block: ConversationBlock }) {
           "border-copper-mid/70",
           "bg-copper-warm/10",
           "text-copper-bright",
-          "text-[9px]",
+          "text-xs",
         )}
       >
         {label}
@@ -637,7 +665,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         "border-copper-mid/70",
         // The label's tint clips to the border at the top-left.
         "overflow-hidden",
-        "text-[11px]",
+        "text-sm",
         "text-copper-bright",
       )}
     >
@@ -645,6 +673,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         className={cn(
           "px-1.5",
           "py-px",
+          "text-xs",
           "bg-copper-warm/10",
           "rounded-br-sm",
         )}
@@ -654,7 +683,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
       <pre
         data-agent-definition
         className={cn(
-          "text-[9px]",
+          "text-sm",
           "text-[#c3bfbb]",
           "text-left",
           "whitespace-pre",
@@ -696,7 +725,7 @@ function BadgeRow({
         // box's own padding).
         "mt-1",
         "first:mt-0",
-        "text-[11px]",
+        "text-sm",
       )}
     >
       <span
@@ -705,6 +734,7 @@ function BadgeRow({
           "py-px",
           "rounded-sm",
           "border",
+          "text-xs",
           "border-copper-mid/70",
           "bg-copper-warm/10",
           "text-copper-bright",

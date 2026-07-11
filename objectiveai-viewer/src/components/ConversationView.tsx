@@ -6,7 +6,7 @@ import {
   type ConversationBlock,
 } from "../hooks/useAgentInstance";
 import type { AssistantPart, PartContent } from "./conversationContent";
-import { formatAgo } from "../lib/formatAgo";
+import { useAgo } from "../hooks/useAgo";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
 
@@ -62,7 +62,7 @@ export function ConversationView({
         "py-3",
         "gap-3",
         "font-mono",
-        "text-[11px]",
+        "text-sm",
         "text-[#c3bfbb]",
       )}
     >
@@ -83,6 +83,9 @@ function KindLabel({
   note?: string;
   at?: string;
 }) {
+  // Live-updating relative date; "" (no `at`) renders nothing and
+  // schedules nothing.
+  const ago = useAgo(at ?? "");
   return (
     <div className={cn("flex", "items-center", "gap-1.5", "self-stretch")}>
       <span
@@ -91,6 +94,7 @@ function KindLabel({
           "py-px",
           "rounded-sm",
           "border",
+          "text-xs",
           "border-copper-mid/70",
           "bg-copper-warm/10",
           "text-copper-bright",
@@ -99,19 +103,21 @@ function KindLabel({
         {children}
       </span>
       {note !== undefined && (
-        <span className={cn("text-info-dim", "truncate")}>{note}</span>
+        <span className={cn("text-xs", "text-info-dim", "truncate")}>
+          {note}
+        </span>
       )}
       {at !== undefined && (
         <span
           data-badge-ago
           className={cn(
             "ml-auto",
-            "text-[9px]",
+            "text-xs",
             "text-info-dim",
             "tabular-nums",
           )}
         >
-          {formatAgo(at)}
+          {ago}
         </span>
       )}
     </div>
@@ -619,7 +625,6 @@ function MediaView({ media }: { media: Media }) {
           <pre
             data-json-part
             className={cn(
-              "text-[10px]",
               "text-left",
               "whitespace-pre-wrap",
               "break-words",
