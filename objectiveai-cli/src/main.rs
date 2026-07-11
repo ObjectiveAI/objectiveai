@@ -17,12 +17,13 @@
 //! keyed on the per-state `plugins-daemon` lock, whose published
 //! contents are the daemon's connect `ws://` URL.
 
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::command_executor::websocket;
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, ParseError, WebSocketExecutor, parse_request,
+    AgentArguments, CommandExecutor, ParseError, Request, WebSocketExecutor, parse_request,
 };
 use tokio::io::AsyncWriteExt;
 
@@ -86,6 +87,28 @@ async fn run(args: Vec<String>) -> i32 {
         }
     };
 
+    // Daemon-lifecycle commands that would make the daemon kill ITSELF are
+    // handled client-side — the daemon can't `TerminateProcess` itself
+    // mid-`/execute` without truncating the response. Classify first (this
+    // borrow ends before `request` is moved below).
+    enum Special {
+        DaemonKill,
+        KillAll,
+        None,
+    }
+    let special = match &request {
+        Request::Daemon(objectiveai_sdk::cli::command::daemon::Request::Kill(_)) => {
+            Special::DaemonKill
+        }
+        Request::KillAll(_) => Special::KillAll,
+        _ => Special::None,
+    };
+    match special {
+        Special::DaemonKill => return handle_daemon_kill(&mut stdout).await,
+        Special::KillAll => return handle_kill_all(&mut stdout, request).await,
+        Special::None => {}
+    }
+
     // Ensure the daemon is up and build the WS executor + identity bag.
     let (executor, agent_arguments) = match connect().await {
         Ok(pair) => pair,
@@ -126,10 +149,17 @@ async fn run(args: Vec<String>) -> i32 {
     }
 }
 
-/// Ensure the resident `objectiveai-daemon` is up and return a
-/// `/execute` [`WebSocketExecutor`] plus the per-request identity
-/// override to send with every command.
-async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String> {
+/// On-disk layout the CLI needs for the bootstrap + the client-side kills.
+struct Layout {
+    dir: PathBuf,
+    state: String,
+    lock_dir: PathBuf,
+    daemon_exe: PathBuf,
+}
+
+/// Resolve the layout from the environment (same defaults as the daemon's
+/// `filesystem::Client`).
+fn resolve_layout() -> Layout {
     let dir = objectiveai_dir();
     let state = std::env::var("OBJECTIVEAI_STATE")
         .ok()
@@ -142,6 +172,38 @@ async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String
         "objectiveai-daemon"
     };
     let daemon_exe = dir.join("bin").join(daemon_bin);
+    Layout { dir, state, lock_dir, daemon_exe }
+}
+
+/// Derive the daemon WS auth signature from `DAEMON_SECRET` (the same
+/// one-way math as `viewer spawn`): `sha256=<hex(SHA256(secret))>`, sent
+/// verbatim in the first-message auth preamble. `None` = connect
+/// unauthenticated (the daemon must be open).
+fn daemon_signature() -> Option<String> {
+    std::env::var("DAEMON_SECRET")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .map(|secret| {
+            use sha2::{Digest, Sha256};
+            format!("sha256={}", hex::encode(Sha256::digest(secret.as_bytes())))
+        })
+}
+
+/// Build a `/execute` [`WebSocketExecutor`] for an already-known daemon
+/// `ws://` URL (no spawn).
+fn executor_for(url: &str) -> WebSocketExecutor {
+    let executor = WebSocketExecutor::new(format!("{url}/execute"));
+    match daemon_signature() {
+        Some(signature) => executor.signature(signature),
+        None => executor,
+    }
+}
+
+/// Ensure the resident `objectiveai-daemon` is up and return a
+/// `/execute` [`WebSocketExecutor`] plus the per-request identity
+/// override to send with every command.
+async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String> {
+    let layout = resolve_layout();
 
     // Idempotent: returns immediately if the daemon already holds its
     // lock; otherwise launches it once (as its own foreground process)
@@ -150,8 +212,8 @@ async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String
     // `objectiveai_daemon::command::daemon::spawn::spawn`, but launches
     // the `objectiveai-daemon` binary rather than re-execing this one.
     let url = objectiveai_sdk::lockfile::spawn_until_published(
-        &daemon_exe,
-        &lock_dir,
+        &layout.daemon_exe,
+        &layout.lock_dir,
         DAEMON_LOCK_KEY,
         |cmd| {
             cmd.arg("daemon")
@@ -160,8 +222,8 @@ async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String
                 .arg("{\"foreground\":true}");
             // Pin the daemon to the same layout regardless of how this
             // client resolved it.
-            cmd.env("OBJECTIVEAI_DIR", &dir);
-            cmd.env("OBJECTIVEAI_STATE", &state);
+            cmd.env("OBJECTIVEAI_DIR", &layout.dir);
+            cmd.env("OBJECTIVEAI_STATE", &layout.state);
             // The resident daemon is a per-state singleton with the
             // DEFAULT identity — scrub any agent/plugin identity from
             // this (possibly agent-invoked) process so it never leaks
@@ -188,24 +250,126 @@ async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String
     .await
     .map_err(|e| format!("ensure objectiveai-daemon: {e}"))?;
 
-    // Derive the daemon WS auth signature from DAEMON_SECRET (the same
-    // one-way math as `viewer spawn`): `sha256=<hex(SHA256(secret))>`,
-    // sent verbatim in the first-message auth preamble. Absent secret →
-    // connect unauthenticated (the daemon must be open).
-    let signature = std::env::var("DAEMON_SECRET")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .map(|secret| {
-            use sha2::{Digest, Sha256};
-            format!("sha256={}", hex::encode(Sha256::digest(secret.as_bytes())))
-        });
+    Ok((executor_for(&url), agent_arguments_from_env()))
+}
 
-    let mut executor = WebSocketExecutor::new(format!("{url}/execute"));
-    if let Some(signature) = signature {
-        executor = executor.signature(signature);
+/// `daemon kill` — client-side. Signal the daemon-lock owner(s) directly
+/// (never over the WS: the daemon can't kill itself mid-`/execute`).
+/// Works whether the daemon is up (kills it) or down (nothing to kill).
+/// Mirrors the former in-daemon `daemon kill` handler, now on this side.
+async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
+    let layout = resolve_layout();
+    let killed: usize = match objectiveai_sdk::lockfile::owners(&layout.lock_dir, DAEMON_LOCK_KEY)
+        .await
+    {
+        Ok(pids) => pids.into_iter().map(objectiveai_sdk::process::kill_pid).sum(),
+        Err(e) => {
+            write_error_line(stdout, format!("read daemon lock owners: {e}"), Some(true)).await;
+            return 1;
+        }
+    };
+    write_json_line(
+        stdout,
+        &objectiveai_sdk::cli::command::daemon::kill::Response { killed },
+    )
+    .await;
+    0
+}
+
+/// `kill-all` — client-side coordination. If the daemon is UP, it sweeps
+/// every OTHER lock owner over `/execute` (its `kill_all` already excludes
+/// itself) and this side kills the daemon after the response. If it's
+/// DOWN, sweep the tree here. Either way the reported count includes the
+/// daemon. Any output transform on the request is ignored (esoteric for a
+/// lifecycle command; the merged count is emitted plainly).
+async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i32 {
+    let layout = resolve_layout();
+    let daemon_up = match objectiveai_sdk::lockfile::try_read(&layout.lock_dir, DAEMON_LOCK_KEY)
+        .await
+    {
+        Ok(url) => url,
+        Err(e) => {
+            write_error_line(stdout, format!("read daemon lock: {e}"), Some(true)).await;
+            return 1;
+        }
+    };
+
+    let killed = match daemon_up {
+        // Daemon up: it sweeps the others (excluding itself); we kill it.
+        Some(url) => {
+            let others = match kill_all_via_daemon(&url, request).await {
+                Ok(n) => n,
+                Err(message) => {
+                    write_error_line(stdout, message, Some(true)).await;
+                    return 1;
+                }
+            };
+            let daemon_killed: usize =
+                match objectiveai_sdk::lockfile::owners(&layout.lock_dir, DAEMON_LOCK_KEY).await {
+                    Ok(pids) => pids.into_iter().map(objectiveai_sdk::process::kill_pid).sum(),
+                    // Best-effort: the sweep already ran; still report it.
+                    Err(_) => 0,
+                };
+            others + daemon_killed
+        }
+        // Daemon down: nothing to delegate to — sweep the tree locally
+        // (kills orphaned api/db/etc.), exactly as the daemon's `kill_all`
+        // would, minus the (absent) daemon.
+        None => kill_tree_locally(&layout.dir).await,
+    };
+
+    write_json_line(
+        stdout,
+        &objectiveai_sdk::cli::command::kill_all::Response { killed },
+    )
+    .await;
+    0
+}
+
+/// Send `kill-all` to the running daemon and return the OTHERS-killed
+/// count it reports. Strips any output transform so the reply decodes as
+/// the plain `{killed}` shape.
+async fn kill_all_via_daemon(url: &str, mut request: Request) -> Result<usize, String> {
+    if let Request::KillAll(kr) = &mut request {
+        kr.base.jq = None;
+        kr.base.python = None;
     }
+    let executor = executor_for(url);
+    let mut stream = executor
+        .execute::<_, serde_json::Value>(request, None)
+        .await
+        .map_err(|e| format!("kill-all over daemon: {e}"))?;
+    match stream.next().await {
+        Some(Ok(value)) => Ok(value
+            .get("killed")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0) as usize),
+        Some(Err(e)) => Err(format!("kill-all over daemon: {e}")),
+        // No item — treat as zero others killed.
+        None => Ok(0),
+    }
+}
 
-    Ok((executor, agent_arguments_from_env()))
+/// Sweep every lock owner under `dir` and signal it (skip self + pid 0),
+/// two passes with a de-duped tally — the client-side twin of the
+/// daemon's `kill_all` for when the daemon isn't running.
+async fn kill_tree_locally(dir: &Path) -> usize {
+    let me = std::process::id();
+    let mut killed: HashSet<u32> = HashSet::new();
+    for _ in 0..2 {
+        let Ok(pids) = objectiveai_sdk::lockfile::owners_in_tree(dir).await else {
+            break;
+        };
+        for pid in pids {
+            if pid == me || pid == 0 {
+                continue;
+            }
+            if objectiveai_sdk::process::kill_pid(pid) == 1 {
+                killed.insert(pid);
+            }
+        }
+    }
+    killed.len()
 }
 
 /// Build the per-request identity override from this process's

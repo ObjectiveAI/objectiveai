@@ -40,6 +40,10 @@ pub enum Error {
     InlineJson(#[from] serde_json::Error),
     #[error("stream ended without producing any chunks")]
     EmptyStream,
+    #[error(
+        "the daemon cannot kill itself over /execute; run `objectiveai daemon kill` from the CLI"
+    )]
+    CannotKillSelf,
     #[error("config set forbidden by server configuration")]
     ConfigSetForbidden,
     #[error("log writer task panicked or was cancelled")]

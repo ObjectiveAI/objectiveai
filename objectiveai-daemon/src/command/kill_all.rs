@@ -1,13 +1,20 @@
 //! `kill-all` — terminate every process holding a lock anywhere under
-//! the configured `OBJECTIVEAI_DIR`.
+//! the configured `OBJECTIVEAI_DIR`, EXCEPT the daemon running this
+//! handler.
 //!
 //! The blunt counterpart to the targeted `{api,db,mcp,viewer} kill`:
 //! rather than resolving one server by its known lock key, this asks
 //! [`objectiveai_sdk::lockfile::owners_in_tree`] for every process
 //! holding any `*.lock` anywhere in the dir tree and kills the lot —
 //! the api server, per-state db supervisors (which take their
-//! postmasters with them), viewers, mcp servers, and any
-//! agent-holding cli processes.
+//! postmasters with them), viewers, and mcp servers.
+//!
+//! It runs INSIDE the daemon (via `/execute`), and deliberately skips
+//! its OWN pid — a self-`TerminateProcess` would drop the WebSocket
+//! before the response could be sent. So the daemon sweeps everything
+//! else and SURVIVES; the thin CLI kills the daemon itself right after
+//! this response returns. The reported count is the OTHERS killed; the
+//! CLI adds the daemon back in.
 //!
 //! Two sweeps: killing a lock owner can orphan children that only
 //! surface as lock owners once their parent is gone (a hard-killed
@@ -34,8 +41,10 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
             .await
             .map_err(|e| Error::Spawn("read lock owners in tree".to_string(), e))?;
         for pid in pids {
-            // Never signal ourselves (this very `kill-all` process may
-            // hold a lock under the tree) or the kernel's pid 0.
+            // Never signal ourselves — the daemon running this handler
+            // holds the `plugins-daemon` lock, and killing it here would
+            // truncate this very response (the CLI kills the daemon after
+            // it returns). Also skip the kernel's pid 0.
             if pid == me || pid == 0 {
                 continue;
             }
