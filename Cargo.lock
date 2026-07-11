@@ -4202,6 +4202,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-cli"
+version = "2.2.10"
+dependencies = [
+ "clap",
+ "dirs",
+ "dotenv",
+ "futures",
+ "hex",
+ "objectiveai-sdk",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
 name = "objectiveai-cli-tests"
 version = "2.2.3"
 dependencies = [
