@@ -173,12 +173,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                                 delivery?;
                                 return Ok(Response::Delivered);
                             }
-                            released = objectiveai_sdk::lockfile::wait_released(&dir, &key) => {
-                                released.map_err(|e| Error::Lockfile {
-                                    key: key.clone(),
-                                    source: e,
-                                })?;
-                            }
+                            () = super::locks::wait_released(ctx.agent_locks(), &dir, &key) => {}
                         }
                     }
                     // IDLE: we hold the family. Nobody delivers unless we
@@ -188,10 +183,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                     // OWN family lock and drains the queue oldest-id-first).
                     Some(fam) => {
                         for lock in fam.into_locks() {
-                            lock.release().map_err(|e| Error::Lockfile {
-                                key: key.clone(),
-                                source: e,
-                            })?;
+                            lock.release();
                         }
                         // Lazy: if `delivered` is already ready, this future
                         // is never polled and no wake task is launched.
@@ -234,10 +226,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                                         // its Id" race.
                                         Some(fam2) => {
                                             for lock in fam2.into_locks() {
-                                                lock.release().map_err(|e| Error::Lockfile {
-                                                    key: key.clone(),
-                                                    source: e,
-                                                })?;
+                                                lock.release();
                                             }
                                             if crate::db::message_queue::is_active(
                                                 &pool, queue_id,

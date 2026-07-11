@@ -1,26 +1,21 @@
-//! Process-owned exclusive claims keyed by
-//! `agent_instance_hierarchy`, backed by
-//! [`objectiveai_sdk::lockfile`] at the per-agent lock layout
-//! ([`crate::command::agents::locks`]).
+//! In-process exclusive claims keyed by `agent_instance_hierarchy`, over
+//! the per-agent in-process mutex layout ([`crate::command::agents::locks`]).
 //!
 //! A `HashMap<hierarchy, AgentLock>` that attempts each hierarchy's
 //! lock exactly once ([`AgentInstanceRegistry::observe`] is
-//! best-effort — a failed try_acquire is silently dropped, which
-//! also covers the case where this process already holds the lock
-//! via handles a parent transferred in). The registry can carry one
-//! tag claim ([`AgentInstanceRegistry::hold_tag_claim`]) for spawns
-//! materializing a (GROUPED) tag; it is RETAINED for the registry's
-//! lifetime (released on drop with the rest), NOT dropped at the
-//! GROUPED→BOUND upgrade — laboratories travel with a tag, so the tag
-//! must stay locked (un-relocatable) for the agent's whole active life.
+//! best-effort — a failed try_acquire is silently dropped, meaning
+//! another in-process task already holds that key). The registry can
+//! carry a tag-lock family ([`AgentInstanceRegistry::hold_tag_claims`])
+//! for spawns materializing a (GROUPED) tag; it is RETAINED for the
+//! registry's lifetime, NOT dropped at the GROUPED→BOUND upgrade —
+//! laboratories travel with a tag, so the tag must stay locked
+//! (un-relocatable) for the agent's whole active life.
 //!
-//! SDK claims do NOT release on drop (their handles are leaked on
-//! purpose so a lock normally lives until process death). The
-//! registry restores scope-bound semantics: its `Drop` explicitly
-//! releases every claim it owns, so an in-process streaming spawn
-//! frees its slots when its stream ends. Transferred-in locks have
-//! no claim object here and die with the process — by design, since
-//! the process IS the spawn.
+//! Each [`AgentLock`] is an owned in-process mutex guard, so it releases
+//! automatically when the registry (and thus the `HashMap`/`Vec` holding
+//! it) drops — freeing the key and waking `wait_released` observers. An
+//! in-process streaming spawn therefore frees its slots exactly when its
+//! stream ends. No explicit release ceremony is needed.
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -131,25 +126,9 @@ impl AgentInstanceRegistry {
         });
     }
 
-    /// Release `hier`'s claim immediately — another process can then
-    /// acquire the slot. No-op if `hier` was never observed or never
-    /// produced a successful claim.
-    pub fn destroy(&mut self, hier: &str) {
-        if let Some(claim) = self.open.remove(hier) {
-            let _ = claim.release();
-        }
-    }
 }
 
-impl Drop for AgentInstanceRegistry {
-    fn drop(&mut self) {
-        // AIH claims first, then the tag family — each AgentLock releases its
-        // lockfile claim, then drops its in-process guard.
-        for (_, claim) in self.open.drain() {
-            let _ = claim.release();
-        }
-        for claim in self.tag_claims.drain(..) {
-            let _ = claim.release();
-        }
-    }
-}
+// No explicit `Drop`: dropping `open` + `tag_claims` drops every
+// `AgentLock`, each of which frees its in-process mutex guard and fires
+// its release `Notify`. With pure in-process mutexes, cross-key release
+// ordering is irrelevant, so nothing needs sequencing here.

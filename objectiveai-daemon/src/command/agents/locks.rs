@@ -1,39 +1,31 @@
-//! Lock coordinates for the per-agent lockfiles.
+//! In-process lock coordinates + gate for agents and tags.
 //!
-//! Two families, both under the per-state locks root and both held
-//! through [`objectiveai_sdk::lockfile`] (contents are always empty —
-//! these locks carry liveness, not data):
+//! Two key families, both addressed by a `(dir, key)` computed here. The
+//! `dir` is only a map-key component now — NOTHING is written to disk:
 //!
-//! - **Per-instance**: `<state>/locks/agents/instances/<…>` — the
-//!   `agent_instance_hierarchy` is split on `/`; every segment but
-//!   the last becomes a literal subdirectory, the last segment is the
-//!   lockfile key (the SDK escapes the key; directory segments ride
-//!   raw). A held instance lock ⇔ a live process owns that agent.
-//! - **Per-tag**: `<state>/locks/agents/tags` keyed by the tag name —
-//!   held while a spawn is materializing an un-upgraded (GROUPED)
-//!   tag, released once the spawn claims its minted AIH lock.
+//! - **Per-instance**: key = the last `/`-segment of the
+//!   `agent_instance_hierarchy`, dir =
+//!   `<state>/locks/agents/instances/<parent segments>`. Held ⇔ a live
+//!   in-process agent task owns that AIH.
+//! - **Per-tag**: dir `<state>/locks/agents/tags`, key = the tag name —
+//!   held while a spawn is materializing an un-upgraded (GROUPED) tag.
 //!
-//! No `create_dir_all` here — the SDK's acquire functions create the
-//! directory chain themselves.
-//!
-//! ## In-process gate
-//!
-//! [`objectiveai_sdk::lockfile`] is a cross-PROCESS mutex that is REENTRANT
-//! in-process (its `HELD` map refcounts per process), so two concurrent
-//! in-process tasks acquiring the SAME agent key both succeed reentrantly
-//! instead of mutually excluding. [`AgentLock`] closes that gap: every agent
-//! lock is taken through [`try_acquire`]/[`wait_acquire`] here, which lock a
-//! per-key in-process [`tokio::sync::Mutex`] (the [`AgentLockMap`] on
-//! [`crate::context::Context`]) FIRST, then the lockfile — and release the
-//! lockfile claim FIRST, then the in-process guard LAST. The in-process lock
-//! both precedes and succeeds the cross-process one.
+//! Since the daemon is a single long-lived process, exclusion is a plain
+//! per-key [`tokio::sync::Mutex`] in the [`AgentLockMap`] on
+//! [`crate::context::Context`] (shared across every ctx clone — so it is
+//! the single authoritative exclusion for every agent/tag key). Each entry
+//! also carries a release [`Notify`], so observers can await a key going
+//! free ([`wait_released`]) or probe it ([`try_held`]) WITHOUT acquiring it
+//! — the in-process replacements for the former
+//! `objectiveai_sdk::lockfile::{wait_released,try_held}`. The cross-process
+//! lockfile layer these once sat on was removed when agents became
+//! in-process tasks: one process needs no filesystem mutex.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use objectiveai_sdk::lockfile::LockClaim;
-use tokio::sync::{Mutex, OwnedMutexGuard};
+use tokio::sync::{Mutex, Notify, OwnedMutexGuard};
 
 /// `(lock_dir, key)` for an `agent_instance_hierarchy`.
 pub fn agent_instance_lock(state_dir: &Path, agent_instance_hierarchy: &str) -> (PathBuf, String) {
@@ -58,80 +50,100 @@ pub fn agent_tag_lock(state_dir: &Path, agent_tag: &str) -> (PathBuf, String) {
     )
 }
 
-/// Per-key in-process gate for agent locks, keyed by the SAME `(dir, key)` the
-/// lockfile uses. Lives on [`crate::context::Context`], shared across clones.
-pub type AgentLockMap = DashMap<(PathBuf, String), Arc<Mutex<()>>>;
+/// The per-key in-process lock entry: the exclusion [`Mutex`] plus a
+/// release [`Notify`] fired when a held [`AgentLock`] drops, so observers
+/// ([`wait_released`]) can wake and re-check.
+pub struct LockEntry {
+    mutex: Arc<Mutex<()>>,
+    released: Notify,
+}
 
-/// A held agent lock: the in-process [`Mutex`] guard PLUS the cross-process
-/// lockfile [`LockClaim`]. Release order is enforced — lockfile claim first,
-/// in-process guard last (the guard field is dropped after `claim` is taken).
+/// Per-key in-process gate for agent locks, keyed by the SAME `(dir, key)`
+/// [`agent_instance_lock`]/[`agent_tag_lock`] compute. Lives on
+/// [`crate::context::Context`], shared across clones.
+pub type AgentLockMap = DashMap<(PathBuf, String), Arc<LockEntry>>;
+
+/// A held agent lock: an owned guard of the per-key in-process [`Mutex`].
+/// Dropping it (explicitly via [`release`](Self::release) or at end of
+/// scope) frees the mutex and then wakes every [`wait_released`] observer.
 pub struct AgentLock {
-    /// `None` once released (explicitly or on drop) — distinguishes the
-    /// explicit [`release`](Self::release) path from the [`Drop`] fallback.
-    claim: Option<LockClaim>,
-    /// Dropped LAST — frees the per-key in-process [`Mutex`].
-    _guard: OwnedMutexGuard<()>,
+    /// `Some` while held; taken on drop so the notify fires exactly once
+    /// and the guard frees BEFORE the notify.
+    guard: Option<OwnedMutexGuard<()>>,
+    /// The key's entry — its `released` `Notify` fires after the guard frees.
+    entry: Arc<LockEntry>,
 }
 
 impl AgentLock {
-    /// Explicit release: lockfile claim first, then the guard drops at the end
-    /// of scope. (Dropping a [`LockClaim`] does NOT release it — we must call
-    /// `release`; the [`Drop`] impl below covers the implicit path.)
-    pub fn release(mut self) -> std::io::Result<()> {
-        match self.claim.take() {
-            Some(claim) => claim.release(),
-            None => Ok(()),
-        }
-    }
+    /// Release now: free the mutex, then wake observers. Infallible — an
+    /// in-process guard always releases on drop (no cross-process claim to
+    /// fail). Consuming `self` runs [`Drop`].
+    pub fn release(self) {}
 }
 
 impl Drop for AgentLock {
     fn drop(&mut self) {
-        // Scope-bound release (e.g. the registry's drop): claim first, then the
-        // guard drops immediately after.
-        if let Some(claim) = self.claim.take() {
-            let _ = claim.release();
+        // Free the mutex FIRST (drop the guard), THEN notify — so a woken
+        // `wait_released` re-check sees the key free.
+        if let Some(guard) = self.guard.take() {
+            drop(guard);
+            self.entry.released.notify_waiters();
         }
     }
 }
 
-/// Get-or-insert the per-key in-process mutex, returning a cloned `Arc`. The
+/// Get-or-insert the per-key [`LockEntry`], returning a cloned `Arc`. The
 /// `DashMap` entry guard is dropped before returning — NEVER held across the
 /// `.await` in the acquire fns.
-fn mutex_for(map: &AgentLockMap, dir: &Path, key: &str) -> Arc<Mutex<()>> {
+fn entry_for(map: &AgentLockMap, dir: &Path, key: &str) -> Arc<LockEntry> {
     map.entry((dir.to_path_buf(), key.to_string()))
-        .or_insert_with(|| Arc::new(Mutex::new(())))
+        .or_insert_with(|| {
+            Arc::new(LockEntry {
+                mutex: Arc::new(Mutex::new(())),
+                released: Notify::new(),
+            })
+        })
         .clone()
 }
 
-/// Acquire an agent lock NON-BLOCKING. Returns `None` if the key is busy
-/// in-process (another task holds the guard) OR held cross-process. On the
-/// cross-process miss the in-process guard is dropped before returning, so it
-/// never lingers.
+/// Acquire an agent lock NON-BLOCKING. `None` if another in-process task
+/// holds the key's mutex.
 pub async fn try_acquire(map: &AgentLockMap, dir: &Path, key: &str) -> Option<AgentLock> {
-    let guard = mutex_for(map, dir, key).try_lock_owned().ok()?;
-    match objectiveai_sdk::lockfile::try_acquire(dir, key, "").await {
-        Some(claim) => Some(AgentLock {
-            claim: Some(claim),
-            _guard: guard,
-        }),
-        None => None,
+    let entry = entry_for(map, dir, key);
+    let guard = entry.mutex.clone().try_lock_owned().ok()?;
+    Some(AgentLock { guard: Some(guard), entry })
+}
+
+/// Acquire an agent lock, BLOCKING until the key's in-process mutex is free.
+pub async fn wait_acquire(map: &AgentLockMap, dir: &Path, key: &str) -> AgentLock {
+    let entry = entry_for(map, dir, key);
+    let guard = entry.mutex.clone().lock_owned().await;
+    AgentLock { guard: Some(guard), entry }
+}
+
+/// Block until the key's lock is free (released, or never held). The
+/// in-process replacement for `objectiveai_sdk::lockfile::wait_released`:
+/// register for the NEXT release, then re-check — the enable-before-check
+/// order closes the wake gap, and the `try_lock` handles the already-free
+/// case (observation only — the guard drops immediately).
+pub async fn wait_released(map: &AgentLockMap, dir: &Path, key: &str) {
+    let entry = entry_for(map, dir, key);
+    loop {
+        let notified = entry.released.notified();
+        tokio::pin!(notified);
+        notified.as_mut().enable();
+        if entry.mutex.try_lock().is_ok() {
+            return;
+        }
+        notified.await;
     }
 }
 
-/// Acquire an agent lock, BLOCKING at both layers: the in-process [`Mutex`]
-/// first, then the cross-process lockfile.
-pub async fn wait_acquire(
-    map: &AgentLockMap,
-    dir: &Path,
-    key: &str,
-) -> std::io::Result<AgentLock> {
-    let guard = mutex_for(map, dir, key).lock_owned().await;
-    let claim = objectiveai_sdk::lockfile::wait_acquire(dir, key, "").await?;
-    Ok(AgentLock {
-        claim: Some(claim),
-        _guard: guard,
-    })
+/// Whether the key is currently held by some in-process task. The
+/// in-process replacement for `objectiveai_sdk::lockfile::try_held`
+/// (observation only — the momentary `try_lock` guard drops at once).
+pub fn try_held(map: &AgentLockMap, dir: &Path, key: &str) -> bool {
+    entry_for(map, dir, key).mutex.try_lock().is_err()
 }
 
 /// The lock "family" of an agent target — the set of locks a live agent must

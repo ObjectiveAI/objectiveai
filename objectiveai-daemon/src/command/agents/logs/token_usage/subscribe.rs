@@ -61,28 +61,23 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 }))
                 .map_err(Error::from)
         }
-        result = objectiveai_sdk::lockfile::wait_released(&lock_dir, &lock_key) => {
-            match result {
-                Ok(()) => {
-                    // A change may have landed as the lock dropped —
-                    // report it rather than a bare inactive signal.
-                    match crate::db::logs::get_agent_token_usage(&db, &aih).await {
-                        Ok(current) if current != baseline => match current {
-                            Some(total_tokens) => Ok(ResponseItem::Item(TokenUsage {
-                                agent_instance_hierarchy: aih.clone(),
-                                total_tokens,
-                            })),
-                            None => Ok(ResponseItem::AgentsInactive(
-                                AgentsInactiveTag::AgentsInactive,
-                            )),
-                        },
-                        Ok(_) => Ok(ResponseItem::AgentsInactive(
-                            AgentsInactiveTag::AgentsInactive,
-                        )),
-                        Err(e) => Err(Error::from(e)),
-                    }
-                }
-                Err(e) => Err(Error::Lockfile { key: lock_key.clone(), source: e }),
+        () = crate::command::agents::locks::wait_released(ctx.agent_locks(), &lock_dir, &lock_key) => {
+            // A change may have landed as the lock dropped — report it
+            // rather than a bare inactive signal.
+            match crate::db::logs::get_agent_token_usage(&db, &aih).await {
+                Ok(current) if current != baseline => match current {
+                    Some(total_tokens) => Ok(ResponseItem::Item(TokenUsage {
+                        agent_instance_hierarchy: aih.clone(),
+                        total_tokens,
+                    })),
+                    None => Ok(ResponseItem::AgentsInactive(
+                        AgentsInactiveTag::AgentsInactive,
+                    )),
+                },
+                Ok(_) => Ok(ResponseItem::AgentsInactive(
+                    AgentsInactiveTag::AgentsInactive,
+                )),
+                Err(e) => Err(Error::from(e)),
             }
         }
     };

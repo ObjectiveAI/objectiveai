@@ -80,11 +80,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         return Err(Error::TagApplyAgentActive { tag: request.name });
     };
     let result = db::tags::apply(pool, &request.name, resolved).await;
-    // Release on every path (dropping a LockClaim does NOT release it) before
-    // propagating the apply outcome.
-    claim
-        .release()
-        .map_err(|e| Error::Lockfile { key: lock_key, source: e })?;
+    // Release the in-process guard before propagating the apply outcome.
+    claim.release();
     let state = result?;
     Ok(match (source_tag, state) {
         (None, db::tags::LookupState::Bound { agent_instance_hierarchy }) => {

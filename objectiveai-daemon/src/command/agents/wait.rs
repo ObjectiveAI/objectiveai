@@ -5,7 +5,7 @@
 //! target's lock releases, however long that takes.
 //!
 //! - **Instance**: subscribe to the AIH lock's release
-//!   ([`objectiveai_sdk::lockfile::wait_released`] returns
+//!   ([`crate::command::agents::locks::wait_released`] returns
 //!   immediately when nobody holds it).
 //! - **BOUND tag**: resolve to its hierarchy, then the instance wait.
 //! - **GROUPED (un-upgraded) tag**: the tag lock's holder is the
@@ -62,9 +62,7 @@ async fn wait(ctx: &Context, agent: AgentSelector) -> Result<Response, Error> {
     };
 
     let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
-    objectiveai_sdk::lockfile::wait_released(&dir, &key)
-        .await
-        .map_err(|source| Error::Lockfile { key, source })?;
+    super::locks::wait_released(ctx.agent_locks(), &dir, &key).await;
     Ok(Response::Ok)
 }
 
@@ -79,10 +77,8 @@ async fn wait_for_tag_upgrade(
 ) -> Result<Option<String>, Error> {
     let (dir, key) = super::locks::agent_tag_lock(state_dir, &agent_tag);
 
-    if objectiveai_sdk::lockfile::try_held(&dir, &key).await {
-        objectiveai_sdk::lockfile::wait_released(&dir, &key)
-            .await
-            .map_err(|source| Error::Lockfile { key, source })?;
+    if super::locks::try_held(ctx.agent_locks(), &dir, &key) {
+        super::locks::wait_released(ctx.agent_locks(), &dir, &key).await;
         // The spawn flow upgrades GROUPED→BOUND strictly before
         // releasing the tag lock — a still-GROUPED tag here means
         // that invariant is broken somewhere.

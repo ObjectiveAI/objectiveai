@@ -1,18 +1,19 @@
 //! The resident daemon's live agent-status hub — the `/agents/instances/list` endpoint.
 //!
-//! Robust active/inactive tracking, driven by the per-agent lockfile
-//! (`objectiveai_sdk::lockfile`) rather than by stream lifecycles:
+//! Robust active/inactive tracking, driven by the per-agent IN-PROCESS
+//! lock ([`crate::command::agents::locks`]) rather than by stream
+//! lifecycles:
 //!
-//! - **Producer side** — a fixed-name local socket (`<state>/socks/agents.sock`
-//!   on Unix; a namespaced pipe on Windows), SEPARATE from `daemon.sock`.
-//!   Every place the CLI acquires an `agent_instance_hierarchy` (AIH)
-//!   instance lock (via [`crate::websockets::agent_registry`]) fires a
-//!   one-line [`ActiveAnnounce`] over this socket: "AIH X is now active."
-//! - **Watcher** — on each announce the daemon spawns
-//!   [`objectiveai_sdk::lockfile::wait_released`] for that AIH's instance
-//!   lock. The kernel releases a `flock`/`LockFileEx` even when its holder
-//!   is killed, so a spawn killed mid-stream flips to inactive exactly —
-//!   no leak, no reliance on a clean stream end.
+//! - **Producer side** — every place the daemon acquires an
+//!   `agent_instance_hierarchy` (AIH) instance lock (via
+//!   [`crate::websockets::agent_registry`]) calls [`ActiveAgents::activate`]
+//!   directly: "AIH X is now active."
+//! - **Watcher** — on each activation the daemon spawns
+//!   [`ActiveAgents::watch`], which awaits the AIH lock's release
+//!   ([`crate::command::agents::locks::wait_released`]). A guard drops when
+//!   the agent's task ends (or the whole daemon dies), so a spawn killed
+//!   mid-stream flips to inactive exactly — no leak, no reliance on a clean
+//!   stream end.
 //! - **Consumer side** — the [`axum`] WebSocket `/agents/instances/list` route
 //!   (registered by [`crate::websockets::daemon_stream::serve_ws`]). On
 //!   connect a client gets one [`AgentEvent::Snapshot`] of ALL agents
@@ -131,14 +132,13 @@ impl ActiveAgents {
         let (dir, key) =
             crate::command::agents::locks::agent_instance_lock(&self.state_dir, &aih);
         loop {
-            // Wakes on release OR holder death (kernel drops the flock /
-            // LockFileEx). An error is treated as "released" via the probe.
-            let _ = objectiveai_sdk::lockfile::wait_released(&dir, &key).await;
+            // Wakes when the AIH's in-process mutex is released.
+            crate::command::agents::locks::wait_released(self.ctx.agent_locks(), &dir, &key).await;
             let mut active = self.active.lock().await;
             // A new holder may have acquired during the wake gap (fast
-            // reacquire / transfer). Under the lock so `activate` cannot
-            // interleave and lose the transition.
-            if objectiveai_sdk::lockfile::try_held(&dir, &key).await {
+            // reacquire). Under the lock so `activate` cannot interleave
+            // and lose the transition.
+            if crate::command::agents::locks::try_held(self.ctx.agent_locks(), &dir, &key) {
                 drop(active);
                 continue;
             }
@@ -318,11 +318,13 @@ impl ActiveAgents {
         }
     }
 
-    /// Best-effort startup reconcile: seed the registry with agents already
-    /// holding an instance lock when the daemon starts (or before any
-    /// client connects). Probes `try_held` per candidate AIH from
-    /// `list_all` (`owners_in_tree` returns PIDs, not AIHs, so it cannot
-    /// reconstruct the hierarchy). Errors are ignored.
+    /// Best-effort startup reconcile: seed the registry with agents whose
+    /// in-process lock is already held when the daemon starts (or before
+    /// any client connects). Probes `try_held` per candidate AIH from
+    /// `list_all`. Since agents are in-process tasks that die with the
+    /// daemon, a freshly-booted daemon holds no agent mutex and this finds
+    /// nothing — it stays for the mid-life "before first client" case and
+    /// as a harmless invariant. Errors are ignored.
     pub(crate) async fn reconcile_startup(&self) {
         let Ok(pool) = self.ctx.db_client().await else {
             return;
@@ -335,7 +337,7 @@ impl ActiveAgents {
                 &self.state_dir,
                 &item.agent_instance_hierarchy,
             );
-            if objectiveai_sdk::lockfile::try_held(&dir, &key).await {
+            if crate::command::agents::locks::try_held(self.ctx.agent_locks(), &dir, &key) {
                 self.activate(item.agent_instance_hierarchy).await;
             }
         }

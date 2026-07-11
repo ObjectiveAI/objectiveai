@@ -11,7 +11,7 @@
 //!    ([`crate::command::agents::locks`]) is held, emit
 //!    `AgentsInactive` and close.
 //! 3. Else: per held-target, race `wait_for_logs_message_at` vs
-//!    `lockfile::wait_released`. First fire wins. DB ping →
+//!    `locks::wait_released`. First fire wins. DB ping →
 //!    restart from step 1 (but loop back to existence check —
 //!    type-filter false positives are dropped silently). Lock
 //!    release → restart from step 1.
@@ -65,6 +65,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let kinds = build_kind_filter(request.kinds);
     let after_id = request.after_id;
     let limit = request.limit;
+    // The shared in-process agent-lock map, moved into the stream so the
+    // held-set probe + release wait observe the same mutexes the spawns hold.
+    let agent_locks = ctx.agent_locks_arc();
 
     let stream = async_stream::stream! {
         loop {
@@ -101,19 +104,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 return;
             }
 
-            // Step 2: filter to held-lock targets — probe every lock
-            // concurrently (a probe can briefly park on a mid-flight
-            // acquisition; joined, the wait is the max, not the sum).
-            let probes = futures::future::join_all(
-                resolved
-                    .iter()
-                    .map(|r| objectiveai_sdk::lockfile::try_held(&r.lock_dir, &r.lock_key)),
-            )
-            .await;
+            // Step 2: filter to held-lock targets — probe each key's
+            // in-process mutex (non-blocking, synchronous).
             let held: Vec<Resolved> = resolved
                 .iter()
-                .zip(probes)
-                .filter_map(|(r, held)| held.then(|| r.clone()))
+                .filter(|r| {
+                    crate::command::agents::locks::try_held(&agent_locks, &r.lock_dir, &r.lock_key)
+                })
+                .cloned()
                 .collect();
             if held.is_empty() {
                 yield Ok(ResponseItem::AgentsInactive(
@@ -132,8 +130,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let mut watch_set = FuturesUnordered::new();
             for r in &held {
                 let db = db.clone();
+                let agent_locks = agent_locks.clone();
                 let r = r.clone();
-                watch_set.push(async move { watch_target(&db, r).await });
+                watch_set.push(async move { watch_target(&db, &agent_locks, r).await });
             }
             match watch_set.next().await {
                 Some(Ok(())) => continue,
@@ -149,17 +148,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 /// Returns `Ok(())` on either fire — the outer loop doesn't care
 /// which one woke us up; it re-runs the existence check + lock
 /// check from the top.
-async fn watch_target(pool: &crate::db::Pool, target: Resolved) -> Result<(), Error> {
+async fn watch_target(
+    pool: &crate::db::Pool,
+    agent_locks: &crate::command::agents::locks::AgentLockMap,
+    target: Resolved,
+) -> Result<(), Error> {
     tokio::select! {
         result = crate::db::logs::wait_for_logs_message_at(pool, &target.spawned) => {
             result.map_err(Error::from)
         }
-        result = objectiveai_sdk::lockfile::wait_released(&target.lock_dir, &target.lock_key) => {
-            result.map_err(|e| Error::Lockfile {
-                key: target.lock_key.clone(),
-                source: e,
-            })
-        }
+        () = crate::command::agents::locks::wait_released(
+            agent_locks, &target.lock_dir, &target.lock_key,
+        ) => Ok(()),
     }
 }
 
