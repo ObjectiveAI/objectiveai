@@ -104,7 +104,7 @@ async fn handle_execute(mut socket: WebSocket, ctx: Context) {
         }
     };
     let args = vec![
-        "objectiveai-cli".to_string(),
+        "objectiveai".to_string(),
         "--request".to_string(),
         request_json,
     ];

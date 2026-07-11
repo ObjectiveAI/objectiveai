@@ -1,13 +1,13 @@
 [package]
-name = "objectiveai-cli"
+name = "objectiveai-daemon"
 version = "2.2.10"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
-description = "ObjectiveAI command-line interface and embeddable library"
+description = "ObjectiveAI resident daemon: the sole command executor and WebSocket server"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://objectiveai.dev"
-documentation = "https://docs.rs/objectiveai-cli"
+documentation = "https://docs.rs/objectiveai-daemon"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm", "cli"]
 publish = true

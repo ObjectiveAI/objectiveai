@@ -94,7 +94,7 @@ impl Drop for PluginGuard {
 /// filesystem `Client` directly (not the cli command), mirroring
 /// `viewer_send_e2e`.
 async fn set_test_mcp_timeout() {
-    let fs = objectiveai_cli::filesystem::Client::new(
+    let fs = objectiveai_daemon::filesystem::Client::new(
         Some(cli_test_util::objectiveai_dir()),
         Some(cli_test_util::test_state_name()),
         None::<String>,

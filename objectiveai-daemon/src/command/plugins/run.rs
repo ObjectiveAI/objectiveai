@@ -342,7 +342,7 @@ async fn run_nested_inner(
     // `args[0]` is the program name, which `crate::run` strips
     // unconditionally; the plugin's command is just the subcommand
     // tokens, so prepend a placeholder.
-    let mut args: Vec<String> = vec!["objectiveai-cli".to_string()];
+    let mut args: Vec<String> = vec!["objectiveai".to_string()];
     args.extend(tokens);
 
     // A mirror of `main.rs::run_command`: drive the same `crate::run`

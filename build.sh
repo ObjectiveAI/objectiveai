@@ -261,7 +261,7 @@ if [ "$NO_ZIP" != "1" ]; then
     # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
     # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
     # `--no-test-integration` case (FIXTURE_CRATES left empty).
-    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
+    for crate in objectiveai-daemon objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
@@ -398,7 +398,7 @@ fi
 # pick it up locally. Host platform only — not the other 5. Uses `python
 # -m zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The cli
 # crate builds as `objectiveai-cli` but ships as `objectiveai`. The
-# version is read from objectiveai-cli/Cargo.toml — the canonical release
+# version is read from objectiveai-daemon/Cargo.toml — the canonical release
 # version (release.yml gates on it, version.sh keeps install.sh in sync).
 package_host_zip() {
   local os arch ext profile host_triple
@@ -423,8 +423,8 @@ package_host_zip() {
   [ -n "$py" ] || { echo "package: need python3 to build the zip" >&2; return 1; }
 
   local version
-  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$REPO_ROOT/objectiveai-cli/Cargo.toml" | head -1)
-  [ -n "$version" ] || { echo "package: could not read version from objectiveai-cli/Cargo.toml" >&2; return 1; }
+  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$REPO_ROOT/objectiveai-daemon/Cargo.toml" | head -1)
+  [ -n "$version" ] || { echo "package: could not read version from objectiveai-daemon/Cargo.toml" >&2; return 1; }
 
   local asset="objectiveai-${version}-${os}-${arch}.zip"
   local install_dir="${OBJECTIVEAI_DIR:-$HOME/.objectiveai}"
@@ -438,8 +438,8 @@ package_host_zip() {
   local cargo_dir="$REPO_ROOT/target/$profile"
   local src
   # The four CLI/server crates from the cargo build (built-name -> ship-name;
-  # the cli crate builds as objectiveai-cli but ships as objectiveai).
-  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
+  # the daemon crate builds as objectiveai-daemon but ships as objectiveai).
+  local pairs="objectiveai-daemon|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
   local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"

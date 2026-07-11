@@ -28,7 +28,7 @@ async fn main() {
 
     // Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
     // stdio handles before any child spawns. See
-    // `objectiveai_cli::clear_stdio_inheritance` for the
+    // `objectiveai_daemon::clear_stdio_inheritance` for the
     // grandchild-stdio-leak background. Still relevant: even
     // though there's no more `instance` subprocess, the
     // `stream=false` self-respawn for agents-spawn / functions-
@@ -36,7 +36,7 @@ async fn main() {
     // and plugin RMCP servers spawned downstream from there
     // would inherit our stdio handles otherwise.
     #[cfg(windows)]
-    objectiveai_cli::clear_stdio_inheritance();
+    objectiveai_daemon::clear_stdio_inheritance();
 
     let args: Vec<String> = std::env::args().collect();
     let code = run_command(args).await;
@@ -45,14 +45,14 @@ async fn main() {
 
 async fn run_command(args: Vec<String>) -> i32 {
     let mut stdout = tokio::io::stdout();
-    match objectiveai_cli::run(args, None).await {
+    match objectiveai_daemon::run(args, None).await {
         // Both arms drain to stdout, one JSON line per item — `Execute`
         // yields typed root items, `ExecuteTransform` yields the
         // post-transform JSON; `drain` is generic over the item type.
         Ok(run_stream) => {
             let last_tool_exit = match run_stream {
-                objectiveai_cli::RunStream::Execute(stream) => drain(&mut stdout, stream).await,
-                objectiveai_cli::RunStream::ExecuteTransform(stream) => {
+                objectiveai_daemon::RunStream::Execute(stream) => drain(&mut stdout, stream).await,
+                objectiveai_daemon::RunStream::ExecuteTransform(stream) => {
                     drain(&mut stdout, stream).await
                 }
             };
@@ -62,15 +62,15 @@ async fn run_command(args: Vec<String>) -> i32 {
             // `--help` / `--version` / no-subcommand → render the
             // clap output as a single informational line. Exit 0 so
             // scripts pipelining `--help` aren't penalised.
-            if let objectiveai_cli::error::Error::ClapParse(ref clap_err) = e {
-                if objectiveai_cli::is_informational(clap_err) {
+            if let objectiveai_daemon::error::Error::ClapParse(ref clap_err) = e {
+                if objectiveai_daemon::is_informational(clap_err) {
                     write_help_line(&mut stdout, &clap_err.to_string()).await;
                     return 0;
                 }
             }
             write_error_line(&mut stdout, &e, Some(true)).await;
             match e {
-                objectiveai_cli::error::Error::ToolExit(code) => code,
+                objectiveai_daemon::error::Error::ToolExit(code) => code,
                 _ => 1,
             }
         }
@@ -82,7 +82,7 @@ async fn run_command(args: Vec<String>) -> i32 {
 /// Generic over the item type so it serves both `RunStream` arms.
 async fn drain<S, T>(stdout: &mut tokio::io::Stdout, mut stream: S) -> Option<i32>
 where
-    S: futures::Stream<Item = Result<T, objectiveai_cli::error::Error>> + Unpin,
+    S: futures::Stream<Item = Result<T, objectiveai_daemon::error::Error>> + Unpin,
     T: serde::Serialize,
 {
     let mut last_tool_exit: Option<i32> = None;
@@ -93,7 +93,7 @@ where
                 // `ToolExit(code)` carries the exit code the upstream
                 // tool exited with — propagate it even though it's
                 // surfaced as an Err item.
-                if let objectiveai_cli::error::Error::ToolExit(code) = &e {
+                if let objectiveai_daemon::error::Error::ToolExit(code) = &e {
                     last_tool_exit = Some(*code);
                 }
                 write_error_line(stdout, &e, None).await;
@@ -120,7 +120,7 @@ async fn write_line<T: serde::Serialize>(
 
 async fn write_error_line(
     stdout: &mut tokio::io::Stdout,
-    e: &objectiveai_cli::error::Error,
+    e: &objectiveai_daemon::error::Error,
     fatal: Option<bool>,
 ) {
     let payload = objectiveai_sdk::cli::Error {

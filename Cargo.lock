@@ -4202,7 +4202,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai-cli"
+name = "objectiveai-cli-tests"
+version = "2.2.3"
+dependencies = [
+ "axum",
+ "clap",
+ "futures",
+ "insta",
+ "notify",
+ "objectiveai-daemon",
+ "objectiveai-sdk",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
+name = "objectiveai-daemon"
 version = "2.2.10"
 dependencies = [
  "async-stream",
@@ -4260,26 +4280,6 @@ dependencies = [
  "wiremock",
  "zip",
  "zstd",
-]
-
-[[package]]
-name = "objectiveai-cli-tests"
-version = "2.2.3"
-dependencies = [
- "axum",
- "clap",
- "futures",
- "insta",
- "notify",
- "objectiveai-cli",
- "objectiveai-sdk",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "uuid",
- "wiremock",
 ]
 
 [[package]]

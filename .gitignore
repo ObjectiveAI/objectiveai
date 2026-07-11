@@ -49,8 +49,8 @@ objectiveai-claude-agent-sdk-runner-py/
 **/embed/
 target-*/
 
-# rustpython wasm blob cache (built by objectiveai-cli/build.rs)
-objectiveai-cli/.cache/
+# rustpython wasm blob cache (built by objectiveai-daemon/build.rs)
+objectiveai-daemon/.cache/
 
 # local staging dir for json schemas; never committed (the crate's
 # cargo publish does not need it staged)
