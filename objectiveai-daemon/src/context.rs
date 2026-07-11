@@ -46,10 +46,6 @@ use crate::websockets::websocket_laboratory::LaboratoryRegistry;
 /// `OnceLock`. The cycle is bounded to the daemon's forever-lifetime
 /// (these hubs already live for the whole process), so it never leaks in
 /// practice — the daemon is a per-state singleton.
-// TODO(#254 phase 5): drop this `allow` once every socket is removed and
-// all fields are read — `active`/`conversations`/`laboratories`/`labs_hub`/
-// `mcp_notifiers` are wired one socket-removal commit at a time.
-#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct ResidentHubs {
     /// `/listen` broadcast sender (former `daemon.sock`).

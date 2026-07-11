@@ -7,13 +7,12 @@ use objectiveai_sdk::cli::command::agents::mcp::servers::list::{Request, Respons
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::websockets::mcp_listener::{SocketRequest, SocketResponse, call_socket};
+use crate::websockets::mcp_listener::{SocketRequest, SocketResponse, call_notifier};
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let state_dir = ctx.filesystem.state_dir();
     let socket_request = SocketRequest::ListServers;
     let response: SocketResponse<Response> =
-        call_socket(&state_dir, &request.response_id, &socket_request)
+        call_notifier(ctx, &request.response_id, &socket_request)
             .await
             .map_err(|e| Error::Instance(format!("mcp socket: {e}")))?;
     match response {

@@ -46,7 +46,6 @@ use objectiveai_sdk::mcp::tool::{
 };
 use std::sync::{Arc, OnceLock};
 
-use crate::websockets::mcp_listener::spawn_mcp_listener;
 use std::time::Duration;
 
 struct ConduitState {
@@ -130,11 +129,10 @@ struct Inner {
     /// selection. `None` for the Direct spawn path (no upgrade
     /// to fire).
     agent_tag: Option<String>,
-    /// Objectiveai `response_id`s we've already spawned a per-response
-    /// MCP listener for (see [`spawn_mcp_listener`]). Spawn-once for the
-    /// process lifetime — deliberately decoupled from `connections`
-    /// (created on initialize, reaped on terminate/`Drop`) so a listener
-    /// is never re-bound or torn down mid-process.
+    /// Objectiveai `response_id`s we've already registered a per-response
+    /// MCP notifier for (in the resident hubs' `mcp_notifiers` map).
+    /// Register-once guard; this conduit's entries are removed from the
+    /// map when [`Inner`] drops (agent completion ended).
     listener_ids: DashSet<String>,
 }
 
@@ -224,12 +222,31 @@ impl ConduitMcpHandler {
         let Some(notifier) = self.inner.notifier.get().cloned() else {
             return;
         };
-        if self.inner.listener_ids.insert(response_id.clone()) {
-            spawn_mcp_listener(
-                response_id,
-                notifier,
-                self.inner.ctx.filesystem.state_dir(),
-            );
+        // Register `(response_id, notifier)` in the resident daemon's
+        // in-process map (was `spawn_mcp_listener` binding a per-response
+        // socket). The `listener_ids` guard keeps it register-once, and
+        // `Inner`'s `Drop` removes these entries when the conduit tears
+        // down. Absent resident hubs (not the daemon) → no-op, as the
+        // socket bind was best-effort.
+        if self.inner.listener_ids.insert(response_id.clone())
+            && let Some(hubs) = self.inner.ctx.resident_hubs()
+        {
+            hubs.mcp_notifiers.insert(response_id, notifier);
+        }
+    }
+}
+
+impl Drop for Inner {
+    /// Remove this conduit's registered `response_id -> Notifier` entries
+    /// from the resident daemon's map when the conduit tears down (the
+    /// agent completion ended, so the notifier's WS is closing). The
+    /// former per-response sockets never cleaned up — this is a strict
+    /// improvement over unbounded growth.
+    fn drop(&mut self) {
+        if let Some(hubs) = self.ctx.resident_hubs() {
+            for id in self.listener_ids.iter() {
+                hubs.mcp_notifiers.remove(id.key());
+            }
         }
     }
 }
