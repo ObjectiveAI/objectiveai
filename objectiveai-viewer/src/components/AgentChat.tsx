@@ -125,7 +125,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
                 className={cn(
                   "flex-1",
                   "min-w-0",
-                  "text-[11px]",
+                  "text-base",
                   "font-mono",
                   "whitespace-pre-wrap",
                   "break-words",
@@ -164,7 +164,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
             "rounded-md",
             "px-3",
             "py-2",
-            "text-sm",
+            "text-base",
             "text-info-bright",
             "font-mono",
             "resize-none",
