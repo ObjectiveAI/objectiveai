@@ -246,7 +246,7 @@ pub fn is_informational(e: &clap::Error) -> bool {
 /// Clap-parse argv against the SDK's top-level command surface;
 /// `TryFrom` it into [`Request`]; resolve [`Context`] (caller-
 /// supplied or built from env); dispatch through the in-process
-/// [`crate::executor::CliCommandExecutor`] via the SDK root
+/// [`crate::executor::DaemonCommandExecutor`] via the SDK root
 /// `execute` / `execute_transform` (the latter when the request
 /// carries an output transform). Returns a [`RunStream`] whose
 /// variant reflects that choice.
@@ -262,7 +262,7 @@ pub fn is_informational(e: &clap::Error) -> bool {
 /// context build) and child-function errors propagate as the outer
 /// `Err`. On success the caller consumes the stream.
 // NOTE: explicit boxed future (not `async fn`). `run` calls the SDK
-// root dispatch through `CliCommandExecutor`, and `tasks run` /
+// root dispatch through `DaemonCommandExecutor`, and `tasks run` /
 // `plugins run` re-enter `run` — so `run`, the executor, and the local
 // command dispatch are mutually recursive. An `async fn`'s opaque
 // return type can't be computed through that cycle (E0391); an explicit
@@ -369,7 +369,7 @@ pub fn run(
     // request and yields the post-transform JSON, whereas `execute`
     // yields the typed root items.
     let transform = request.request_base().transform();
-    let executor = crate::executor::CliCommandExecutor::new(ctx, tee_tx);
+    let executor = crate::executor::DaemonCommandExecutor::new(ctx, tee_tx);
     match transform {
         Some(transform) => {
             let stream =

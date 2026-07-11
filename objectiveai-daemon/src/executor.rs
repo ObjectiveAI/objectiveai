@@ -26,7 +26,7 @@ use crate::error::Error;
 
 /// In-process executor. Owns a [`Context`] and dispatches each
 /// `CommandRequest` through the CLI's local root dispatcher.
-pub struct CliCommandExecutor {
+pub struct DaemonCommandExecutor {
     ctx: Context,
     /// Broadcast tee: every PRE-transform response item is serialized
     /// and sent here (unbounded — a send never blocks stream
@@ -37,7 +37,7 @@ pub struct CliCommandExecutor {
     tee: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
 }
 
-impl CliCommandExecutor {
+impl DaemonCommandExecutor {
     pub fn new(
         ctx: Context,
         tee: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
@@ -77,7 +77,7 @@ fn extract_leaf<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, serde
 /// `HttpClient` rebuilds with the overridden identity headers. When
 /// `agent_arguments` is `None`, `base` is borrowed unchanged.
 ///
-/// Shared by [`CliCommandExecutor`] and the daemon's `/execute`
+/// Shared by [`DaemonCommandExecutor`] and the daemon's `/execute`
 /// WebSocket route (`crate::websockets::daemon_execute`), which applies
 /// the same override to its own resident ctx per request.
 pub(crate) fn apply_agent_arguments<'a>(
@@ -104,7 +104,7 @@ pub(crate) fn apply_agent_arguments<'a>(
     }
 }
 
-impl CliCommandExecutor {
+impl DaemonCommandExecutor {
     /// Build the per-call [`Context`] for this execute — see
     /// [`apply_agent_arguments`].
     fn resolve_ctx<'a>(
@@ -115,7 +115,7 @@ impl CliCommandExecutor {
     }
 }
 
-impl CommandExecutor for CliCommandExecutor {
+impl CommandExecutor for DaemonCommandExecutor {
     type Error = Error;
     type Stream<T>
         = Pin<Box<dyn Stream<Item = Result<T, Self::Error>> + Send>>

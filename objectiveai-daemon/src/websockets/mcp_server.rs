@@ -9,7 +9,7 @@ use futures::future::Shared;
 use tokio::sync::oneshot;
 
 use crate::context::Context;
-use crate::executor::CliCommandExecutor;
+use crate::executor::DaemonCommandExecutor;
 
 /// Handle to the in-process `objectiveai-mcp` server. `port`
 /// resolves to the OS-assigned port the listener picked up; the
@@ -36,7 +36,7 @@ pub fn spawn(ctx: Context) -> McpServerHandle {
         objectiveai_dir: ctx.filesystem.dir().clone(),
         objectiveai_state: ctx.filesystem.state().to_string(),
     };
-    let executor = CliCommandExecutor::new(ctx, None);
+    let executor = DaemonCommandExecutor::new(ctx, None);
     tokio::spawn(async move {
         match objectiveai_mcp::setup(config, executor).await {
             Ok((listener, app)) => {
