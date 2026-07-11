@@ -25,63 +25,19 @@
 //! reserved for the planned client→daemon message requests over this
 //! stream.
 
-use std::path::Path;
 use std::sync::Arc;
 
-#[cfg(unix)]
-use interprocess::local_socket::GenericFilePath;
-#[cfg(windows)]
-use interprocess::local_socket::GenericNamespaced;
-use interprocess::local_socket::tokio::prelude::*;
-use interprocess::local_socket::{ListenerOptions, Name};
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 use objectiveai_sdk::cli::websocket_agents_instances_listener::{
     AgentInstanceEvent, ClientNotificationPart, PartContent,
 };
 use sqlx::Row as _;
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::broadcast;
-
-use crate::db::logs::TeeFrame;
-use crate::websockets::mcp_listener::socks_dir;
 
 /// Snapshot page size — rows per DB round-trip while replaying a
 /// conversation on connect. Bounds peak memory for huge histories.
 const SNAPSHOT_PAGE: i64 = 5000;
 
-/// The fixed local-socket name for the conversation hub — MUST match
-/// the producer side in `crate::db::logs::tee::socket_name`. Mirrors
-/// the `daemon.sock` / `agents.sock` scheme with the constant
-/// `conversation`.
-#[cfg(unix)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    socks_dir(state_dir)
-        .join("conversation.sock")
-        .to_fs_name::<GenericFilePath>()
-}
-
-#[cfg(windows)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    state_dir.file_name().hash(&mut hasher);
-    let state = hasher.finish();
-    format!("objectiveai-{state:016x}-conversation.sock").to_ns_name::<GenericNamespaced>()
-}
-
-/// Bind the fixed-name conversation producer socket. Bound
-/// **synchronously** under the daemon init gate (like the daemon /
-/// agents sockets) so a held daemon lock guarantees it is up.
-pub fn bind_conversation_socket_listener(
-    state_dir: &Path,
-) -> std::io::Result<interprocess::local_socket::tokio::Listener> {
-    let _ = std::fs::create_dir_all(socks_dir(state_dir));
-    let name = socket_name(state_dir)?;
-    ListenerOptions::new()
-        .name(name)
-        .try_overwrite(true)
-        .create_tokio()
-}
 
 /// The conversation fan-out: one global broadcast of
 /// `(aih, pre-serialized AgentInstanceEvent JSON)` tuples; each
@@ -111,7 +67,7 @@ impl ConversationHub {
     /// event's own AIH. A send error means no subscribers — drop the
     /// frame. `Live` / `Agent` carry no AIH and are never fanned out
     /// here (they are per-connection concerns).
-    fn broadcast_event(&self, event: AgentInstanceEvent) {
+    pub(crate) fn broadcast_event(&self, event: AgentInstanceEvent) {
         let Some(aih) = event_aih(&event) else {
             return;
         };
@@ -126,7 +82,7 @@ impl ConversationHub {
     /// a full [`ConversationRow`]. Best-effort: DB unavailable or the
     /// row missing drops the frame (notifications are low-frequency
     /// and land in reconnect snapshots regardless).
-    async fn resolve_message_queue_content(
+    pub(crate) async fn resolve_message_queue_content(
         &self,
         agent_instance_hierarchy: String,
         response_id: String,
@@ -225,67 +181,6 @@ fn event_aih(event: &AgentInstanceEvent) -> Option<&str> {
     }
 }
 
-/// Spawn the accept loop on the pre-bound conversation socket: one
-/// task per producer connection, each a long-lived JSONL line loop
-/// (a writer streams frames for its whole spawn/execution lifetime).
-pub fn serve_conversation_socket_listener(
-    listener: interprocess::local_socket::tokio::Listener,
-    hub: ConversationHub,
-) {
-    tokio::spawn(async move {
-        loop {
-            let conn = match listener.accept().await {
-                Ok(conn) => conn,
-                // Transient accept error — keep serving.
-                Err(_) => continue,
-            };
-            let hub = hub.clone();
-            tokio::spawn(async move {
-                let (read_half, _write_half) = tokio::io::split(conn);
-                let mut reader = BufReader::new(read_half);
-                let mut line = String::new();
-                loop {
-                    line.clear();
-                    match reader.read_line(&mut line).await {
-                        Ok(0) => break, // EOF: writer closed.
-                        Ok(_) => {}
-                        Err(_) => break,
-                    }
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    // Skip a malformed line rather than tearing down
-                    // the stream (daemon_stream::handle_feed pattern).
-                    let Ok(frame) = serde_json::from_str::<TeeFrame>(trimmed) else {
-                        continue;
-                    };
-                    match frame {
-                        TeeFrame::Event { event } => hub.broadcast_event(event),
-                        TeeFrame::MessageQueueContent {
-                            agent_instance_hierarchy,
-                            response_id,
-                            message_queue_content_id,
-                            delivered_at,
-                        } => {
-                            if let Some(event) = hub
-                                .resolve_message_queue_content(
-                                    agent_instance_hierarchy,
-                                    response_id,
-                                    message_queue_content_id,
-                                    delivered_at,
-                                )
-                                .await
-                            {
-                                hub.broadcast_event(event);
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    });
-}
 
 /// `/agents/instances/{*aih}`: upgrade, consume the auth preamble,
 /// replay the DB snapshot, mark live, relay this AIH's frames.

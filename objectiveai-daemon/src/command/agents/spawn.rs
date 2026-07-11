@@ -277,7 +277,7 @@ async fn execute_streaming(
                 Ok(lookup) => lookup,
                 Err(e) => {
                     let tee =
-                        crate::db::logs::ConversationTee::spawn(ctx.filesystem.state_dir());
+                        crate::db::logs::ConversationTee::spawn(ctx.resident_hubs().map(|h| h.conversations.clone()));
                     note_error(ctx, &tee, Some(&hierarchy), None, &e).await;
                     return Err(e);
                 }
@@ -457,7 +457,7 @@ pub(crate) fn run_multi_pass(
         // so even pre-loop failures can ship their error frame): every
         // pass's log writer shares the one daemon socket connection.
         let conversation_tee =
-            crate::db::logs::ConversationTee::spawn(ctx.filesystem.state_dir());
+            crate::db::logs::ConversationTee::spawn(ctx.resident_hubs().map(|h| h.conversations.clone()));
         // Resolve the agent's laboratory attachments (from the named targets)
         // and assemble the create-params. `provider`/`response_format` are
         // always defaulted and `stream` is always true for the in-process WS

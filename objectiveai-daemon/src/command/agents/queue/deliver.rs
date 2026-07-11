@@ -251,7 +251,7 @@ fn deliver_one_hierarchy(
                     agent_instance_hierarchy: hierarchy.clone(),
                 };
                 let tee = crate::db::logs::ConversationTee::spawn(
-                    ctx.filesystem.state_dir(),
+                    ctx.resident_hubs().map(|h| h.conversations.clone()),
                 );
                 crate::command::agents::spawn::note_error(
                     &ctx, &tee, Some(&hierarchy), None, &e,
@@ -264,7 +264,7 @@ fn deliver_one_hierarchy(
             Err(e) => {
                 let e: Error = e.into();
                 let tee = crate::db::logs::ConversationTee::spawn(
-                    ctx.filesystem.state_dir(),
+                    ctx.resident_hubs().map(|h| h.conversations.clone()),
                 );
                 crate::command::agents::spawn::note_error(
                     &ctx, &tee, Some(&hierarchy), None, &e,

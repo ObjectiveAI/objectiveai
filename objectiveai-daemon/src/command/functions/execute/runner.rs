@@ -95,7 +95,7 @@ pub fn run(
             // Live-conversation tee: this one writer streams every
             // nested agent's rows; the daemon routes per-frame by AIH.
             Some(crate::db::logs::ConversationTee::spawn(
-                ctx.filesystem.state_dir(),
+                ctx.resident_hubs().map(|h| h.conversations.clone()),
             )),
         )
         .map_err(|e| Error::Instance(format!(

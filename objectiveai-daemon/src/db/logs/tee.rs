@@ -19,23 +19,15 @@
 //! daemon routes per-frame, never per-connection.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
-#[cfg(unix)]
-use interprocess::local_socket::GenericFilePath;
-#[cfg(windows)]
-use interprocess::local_socket::GenericNamespaced;
-use interprocess::local_socket::Name;
-use interprocess::local_socket::tokio::prelude::*;
 use objectiveai_sdk::cli::websocket_agents_instances_listener::{
     AgentInstanceEvent, AssistantResponsePart, PartContent, RequestMessageUserPart,
     ToolResponsePart, VectorRequestChoicePart,
 };
-use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 
 use super::row::RowValue;
+use crate::websockets::websocket_agent_instance::ConversationHub;
 
 /// One JSONL line on `conversation.sock`. CLI-internal (the daemon is
 /// the only reader); the resolved wire type the daemon fans out is the
@@ -443,32 +435,8 @@ fn user_event(value: &RowValue<'_>, part: RequestMessageUserPart) -> AgentInstan
     }
 }
 
-/// The fixed local-socket name for the daemon's conversation hub —
-/// MUST match the listener side in
-/// `crate::websockets::websocket_agent_instance::socket_name`.
-/// Mirrors the `daemon.sock` / `agents.sock` scheme with the constant
-/// `conversation`.
-#[cfg(unix)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    crate::websockets::mcp_listener::socks_dir(state_dir)
-        .join("conversation.sock")
-        .to_fs_name::<GenericFilePath>()
-}
-
-#[cfg(windows)]
-fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
-    use std::hash::{Hash, Hasher};
-    // Named pipes are machine-global; fold the state NAME into the
-    // pipe name to preserve per-state isolation (matching
-    // `daemon_stream` / `websocket_agents` / `mcp_listener`).
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    state_dir.file_name().hash(&mut hasher);
-    let state = hasher.finish();
-    format!("objectiveai-{state:016x}-conversation.sock").to_ns_name::<GenericNamespaced>()
-}
-
 /// Handle held by the log writer. Cloneable — one spawn's restart
-/// passes share one tee (one socket connection). Dropping every clone
+/// passes share one tee (one hub reference). Dropping every clone
 /// closes the channel; the RX task drains and exits.
 #[derive(Clone)]
 pub struct ConversationTee {
@@ -476,13 +444,16 @@ pub struct ConversationTee {
 }
 
 impl ConversationTee {
-    /// Create the tee and detach its RX task. The task owns the
-    /// receiver and the socket connection; all I/O failure modes
-    /// (daemon absent, mid-stream write error) degrade to dropped
-    /// frames, never to writer backpressure.
-    pub fn spawn(state_dir: PathBuf) -> Self {
+    /// Create the tee and detach its RX task. The task owns the receiver
+    /// and drives frames straight into the resident daemon's
+    /// [`ConversationHub`] — the in-process replacement for the former
+    /// `conversation.sock`. `hub` is `None` when this context isn't the
+    /// resident daemon; the RX task then drops frames, exactly as the old
+    /// tee dropped them when the daemon socket was unreachable. Either
+    /// way `send` never blocks the writer.
+    pub fn spawn(hub: Option<ConversationHub>) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
-        tokio::spawn(rx_task(state_dir, rx));
+        tokio::spawn(rx_task(hub, rx));
         Self { tx }
     }
 
@@ -493,57 +464,37 @@ impl ConversationTee {
     }
 }
 
-/// Drain the channel into `conversation.sock` as JSONL. Lazy connect
-/// on the first frame; on failure (daemon absent) frames are dropped
-/// and reconnect attempts are gated to once per second — cheap
-/// recovery after a daemon restart without a per-row connect storm.
-async fn rx_task(state_dir: PathBuf, mut rx: mpsc::UnboundedReceiver<TeeFrame>) {
-    let mut write: Option<tokio::io::WriteHalf<LocalSocketStream>> = None;
-    let mut last_attempt: Option<Instant> = None;
+/// Drain the channel into the resident [`ConversationHub`]: `Event`
+/// frames fan out verbatim; `MessageQueueContent` frames are resolved
+/// against the DB first (the resolve runs HERE, off the writer's send
+/// path — exactly where the former socket consumer ran it). A `None` hub
+/// drains and drops every frame (best-effort, no consumer).
+async fn rx_task(hub: Option<ConversationHub>, mut rx: mpsc::UnboundedReceiver<TeeFrame>) {
+    let Some(hub) = hub else {
+        while rx.recv().await.is_some() {}
+        return;
+    };
     while let Some(frame) = rx.recv().await {
-        let Ok(mut line) = serde_json::to_vec(&frame) else {
-            continue;
-        };
-        line.push(b'\n');
-        if write.is_none() {
-            let due = last_attempt
-                .map(|at| at.elapsed() >= Duration::from_secs(1))
-                .unwrap_or(true);
-            if due {
-                last_attempt = Some(Instant::now());
-                write = connect(&state_dir).await;
+        match frame {
+            TeeFrame::Event { event } => hub.broadcast_event(event),
+            TeeFrame::MessageQueueContent {
+                agent_instance_hierarchy,
+                response_id,
+                message_queue_content_id,
+                delivered_at,
+            } => {
+                if let Some(event) = hub
+                    .resolve_message_queue_content(
+                        agent_instance_hierarchy,
+                        response_id,
+                        message_queue_content_id,
+                        delivered_at,
+                    )
+                    .await
+                {
+                    hub.broadcast_event(event);
+                }
             }
-        }
-        let Some(sink) = write.as_mut() else {
-            // No daemon reachable — drop the frame (best-effort).
-            continue;
-        };
-        if sink.write_all(&line).await.is_err() || sink.flush().await.is_err() {
-            // Connection died (daemon restart) — drop this frame;
-            // later frames retry through the 1s gate above.
-            write = None;
-        }
-    }
-}
-
-/// Connect to the daemon's conversation socket. The ONE retried error
-/// is Windows `ERROR_PIPE_BUSY` (a live listener mid-accept), same
-/// rationale as `daemon_stream::connect_feed`.
-async fn connect(state_dir: &Path) -> Option<tokio::io::WriteHalf<LocalSocketStream>> {
-    const ERROR_PIPE_BUSY: i32 = 231;
-    let mut attempts = 0u32;
-    loop {
-        let name = socket_name(state_dir).ok()?;
-        match LocalSocketStream::connect(name).await {
-            Ok(conn) => {
-                let (_read_half, write_half) = tokio::io::split(conn);
-                return Some(write_half);
-            }
-            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) && attempts < 20 => {
-                attempts += 1;
-                tokio::time::sleep(Duration::from_millis(5)).await;
-            }
-            Err(_) => return None,
         }
     }
 }
