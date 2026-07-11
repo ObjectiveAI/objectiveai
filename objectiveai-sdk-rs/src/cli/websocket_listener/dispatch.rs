@@ -1553,6 +1553,24 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::laboratories::create::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::CreateResponseSchema(execution)), feed))
         }
+        "laboratories/delete" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::delete::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::delete::Response>(path_type);
+            let execution = crate::cli::command::laboratories::delete::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Delete(execution)), feed))
+        }
+        "laboratories/delete/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::delete::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::delete::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::delete::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::DeleteRequestSchema(execution)), feed))
+        }
+        "laboratories/delete/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::delete::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::delete::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::delete::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::DeleteResponseSchema(execution)), feed))
+        }
         "laboratories/list" => {
             let parsed = serde_json::from_str::<crate::cli::command::laboratories::list::Request>(request.get()).ok()?;
             let (response, feed) = stream_feed::<crate::cli::command::laboratories::list::ResponseItem>();

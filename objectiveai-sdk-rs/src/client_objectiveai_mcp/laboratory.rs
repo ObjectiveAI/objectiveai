@@ -94,6 +94,12 @@ pub enum SocketRequest {
     },
     /// Snapshot the identities of every connected laboratory.
     List,
+    /// Signal that the machine's LOCAL laboratory set changed (a
+    /// container was created or deleted) — the daemon's
+    /// `/laboratories/*` streams rebuild + rescan. Best-effort from
+    /// the CLI's `create`/`delete`; carries no payload (consumers
+    /// rebuild from truth).
+    LocalChanged,
 }
 
 /// One response line on `laboratories.sock` (daemon → CLI/conduit).
@@ -105,6 +111,9 @@ pub enum SocketResponse {
         response: super::server_response::Payload,
     },
     List { laboratories: Vec<Identify> },
+    /// Acknowledgement of a [`SocketRequest::LocalChanged`] — the
+    /// daemon accepted the signal (nothing to return).
+    Ack,
     /// Daemon-level failure: unknown laboratory, manager disconnected
     /// mid-request, forward timeout, malformed request line.
     Error { message: String },

@@ -11,6 +11,7 @@ use crate::cli::command::CommandRequest;
 pub mod attach;
 pub mod connect;
 pub mod create;
+pub mod delete;
 pub mod detach;
 pub mod list;
 
@@ -22,6 +23,8 @@ pub enum Command {
     Connect(connect::Command),
     /// Create + start a laboratory container.
     Create(create::Command),
+    /// Delete (remove) a laboratory container, reclaiming disk.
+    Delete(delete::Command),
     /// Detach a laboratory id from an agent target.
     Detach(detach::Command),
     /// List the laboratory containers created in this state.
@@ -50,6 +53,12 @@ pub enum Request {
     CreateRequestSchema(create::request_schema::Request),
     #[schemars(title = "CreateResponseSchema")]
     CreateResponseSchema(create::response_schema::Request),
+    #[schemars(title = "Delete")]
+    Delete(delete::Request),
+    #[schemars(title = "DeleteRequestSchema")]
+    DeleteRequestSchema(delete::request_schema::Request),
+    #[schemars(title = "DeleteResponseSchema")]
+    DeleteResponseSchema(delete::response_schema::Request),
     #[schemars(title = "Detach")]
     Detach(detach::Request),
     #[schemars(title = "DetachRequestSchema")]
@@ -89,6 +98,12 @@ pub enum ResponseItem {
     CreateRequestSchema(create::request_schema::Response),
     #[schemars(title = "CreateResponseSchema")]
     CreateResponseSchema(create::response_schema::Response),
+    #[schemars(title = "Delete")]
+    Delete(delete::Response),
+    #[schemars(title = "DeleteRequestSchema")]
+    DeleteRequestSchema(delete::request_schema::Response),
+    #[schemars(title = "DeleteResponseSchema")]
+    DeleteResponseSchema(delete::response_schema::Response),
     #[schemars(title = "Detach")]
     Detach(detach::Response),
     #[schemars(title = "DetachRequestSchema")]
@@ -116,6 +131,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Create(v) => v.into_mcp(),
             ResponseItem::CreateRequestSchema(v) => v.into_mcp(),
             ResponseItem::CreateResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Delete(v) => v.into_mcp(),
+            ResponseItem::DeleteRequestSchema(v) => v.into_mcp(),
+            ResponseItem::DeleteResponseSchema(v) => v.into_mcp(),
             ResponseItem::Detach(v) => v.into_mcp(),
             ResponseItem::DetachRequestSchema(v) => v.into_mcp(),
             ResponseItem::DetachResponseSchema(v) => v.into_mcp(),
@@ -157,6 +175,15 @@ impl TryFrom<Command> for Request {
                     create::response_schema::Request::try_from(args)?,
                 )),
             },
+            Command::Delete(cmd) => match cmd.schema {
+                None => Ok(Request::Delete(delete::Request::try_from(cmd.args)?)),
+                Some(delete::Schema::RequestSchema(args)) => Ok(Request::DeleteRequestSchema(
+                    delete::request_schema::Request::try_from(args)?,
+                )),
+                Some(delete::Schema::ResponseSchema(args)) => Ok(Request::DeleteResponseSchema(
+                    delete::response_schema::Request::try_from(args)?,
+                )),
+            },
             Command::Detach(cmd) => match cmd.schema {
                 None => Ok(Request::Detach(detach::Request::try_from(cmd.args)?)),
                 Some(detach::Schema::RequestSchema(args)) => Ok(Request::DetachRequestSchema(
@@ -191,6 +218,9 @@ impl CommandRequest for Request {
             Request::Create(inner) => inner.request_base(),
             Request::CreateRequestSchema(inner) => inner.request_base(),
             Request::CreateResponseSchema(inner) => inner.request_base(),
+            Request::Delete(inner) => inner.request_base(),
+            Request::DeleteRequestSchema(inner) => inner.request_base(),
+            Request::DeleteResponseSchema(inner) => inner.request_base(),
             Request::Detach(inner) => inner.request_base(),
             Request::DetachRequestSchema(inner) => inner.request_base(),
             Request::DetachResponseSchema(inner) => inner.request_base(),
@@ -211,6 +241,9 @@ impl CommandRequest for Request {
             Request::Create(inner) => inner.request_base_mut(),
             Request::CreateRequestSchema(inner) => inner.request_base_mut(),
             Request::CreateResponseSchema(inner) => inner.request_base_mut(),
+            Request::Delete(inner) => inner.request_base_mut(),
+            Request::DeleteRequestSchema(inner) => inner.request_base_mut(),
+            Request::DeleteResponseSchema(inner) => inner.request_base_mut(),
             Request::Detach(inner) => inner.request_base_mut(),
             Request::DetachRequestSchema(inner) => inner.request_base_mut(),
             Request::DetachResponseSchema(inner) => inner.request_base_mut(),
@@ -286,6 +319,24 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             let value = create::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::CreateResponseSchema(value),
+            )))
+        }
+        Request::Delete(req) => {
+            let value = delete::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Delete(value),
+            )))
+        }
+        Request::DeleteRequestSchema(req) => {
+            let value = delete::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DeleteRequestSchema(value),
+            )))
+        }
+        Request::DeleteResponseSchema(req) => {
+            let value = delete::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DeleteResponseSchema(value),
             )))
         }
         Request::Detach(req) => {
@@ -411,6 +462,30 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             .await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
+        Request::Delete(req) => {
+            let value = delete::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DeleteRequestSchema(req) => {
+            let value = delete::request_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DeleteResponseSchema(req) => {
+            let value = delete::response_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
         Request::Detach(req) => {
             let value = detach::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
@@ -476,6 +551,9 @@ pub enum ListenerExecution {
     Create(create::ListenerExecution),
     CreateRequestSchema(create::request_schema::ListenerExecution),
     CreateResponseSchema(create::response_schema::ListenerExecution),
+    Delete(delete::ListenerExecution),
+    DeleteRequestSchema(delete::request_schema::ListenerExecution),
+    DeleteResponseSchema(delete::response_schema::ListenerExecution),
     Detach(detach::ListenerExecution),
     DetachRequestSchema(detach::request_schema::ListenerExecution),
     DetachResponseSchema(detach::response_schema::ListenerExecution),
