@@ -49,6 +49,9 @@ enum Command {
     /// Print the state's laboratory containers (running or not) as a
     /// JSON array of identity objects on stdout.
     List(ListArgs),
+    /// Force-remove the laboratory container (`podman rm -f`),
+    /// reclaiming disk. A missing container is not an error.
+    Delete(DeleteArgs),
 }
 
 #[derive(clap::Args)]
@@ -107,6 +110,19 @@ struct ListArgs {
     objectiveai_state: String,
 }
 
+#[derive(clap::Args)]
+struct DeleteArgs {
+    /// The laboratory id to remove.
+    #[arg(long)]
+    id: String,
+    /// ObjectiveAI home; defaults to `~/.objectiveai`.
+    #[arg(long)]
+    objectiveai_dir: Option<PathBuf>,
+    /// ObjectiveAI state name; defaults to `default`.
+    #[arg(long, default_value = "default")]
+    objectiveai_state: String,
+}
+
 /// `<args.objectiveai_dir or ~/.objectiveai>` — the layout root.
 fn resolve_objectiveai_dir(dir: &Option<PathBuf>) -> PathBuf {
     dir.clone().unwrap_or_else(|| {
@@ -124,6 +140,7 @@ async fn main() {
         Command::Create(args) => create(args).await,
         Command::Connect(args) => connect(args).await,
         Command::List(args) => list(args).await,
+        Command::Delete(args) => delete(args).await,
     }
 }
 
@@ -208,6 +225,18 @@ fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Identify {
             .collect(),
         env: lab.env.into_iter().map(|(k, v)| [k, v]).collect(),
         cwd: lab.cwd,
+    }
+}
+
+/// `delete`: force-remove the container (`podman rm -f`) + exit.
+async fn delete(args: DeleteArgs) {
+    let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
+    let podman = podman::Podman::new(objectiveai_dir.join("bin"));
+    if let Err(e) =
+        podman::laboratory::remove(&podman, &args.objectiveai_state, &args.id).await
+    {
+        eprintln!("delete laboratory: {e}");
+        std::process::exit(1);
     }
 }
 
