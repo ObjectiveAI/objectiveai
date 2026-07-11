@@ -148,27 +148,17 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         }
     };
 
-    // Bind the producer socket BEFORE publishing the lock, so a held lock
-    // guarantees the socket is already listening — a producer then either
-    // connects on the first try or the daemon is dead (no connect retry).
+    // Bind the remaining producer sockets BEFORE publishing the lock, so
+    // a held lock guarantees they are already listening — a producer then
+    // either connects on the first try or the daemon is dead (no retry).
     let state_dir = ctx.filesystem.state_dir();
-    let socket_listener =
-        match crate::websockets::daemon_stream::bind_socket_listener(&state_dir) {
-            Ok(listener) => listener,
-            Err(e) => {
-                drop(ws_listener);
-                let _ = init.release();
-                return Err(Error::Spawn("daemon socket bind".into(), e));
-            }
-        };
     // The dedicated agents-status producer socket, bound under the same
-    // init gate as the broadcast socket (a held daemon lock ⇒ it is up).
+    // init gate (a held daemon lock ⇒ it is up).
     let agents_socket_listener =
         match crate::websockets::websocket_agents::bind_agents_socket_listener(&state_dir) {
             Ok(listener) => listener,
             Err(e) => {
                 drop(ws_listener);
-                drop(socket_listener);
                 let _ = init.release();
                 return Err(Error::Spawn("daemon agents socket bind".into(), e));
             }
@@ -182,7 +172,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             Ok(listener) => listener,
             Err(e) => {
                 drop(ws_listener);
-                drop(socket_listener);
                 drop(agents_socket_listener);
                 let _ = init.release();
                 return Err(Error::Spawn("daemon conversation socket bind".into(), e));
@@ -197,7 +186,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             Ok(listener) => listener,
             Err(e) => {
                 drop(ws_listener);
-                drop(socket_listener);
                 drop(agents_socket_listener);
                 drop(conversation_socket_listener);
                 let _ = init.release();
@@ -220,7 +208,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         // bow out.
         None => {
             drop(ws_listener);
-            drop(socket_listener);
             drop(agents_socket_listener);
             drop(conversation_socket_listener);
             let _ = init.release();
@@ -230,11 +217,11 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     };
     init.release().map_err(lock_err)?;
 
-    // Bring up the broadcast hub: producer streams fed into the
-    // fixed-name local socket fan out to every connected WebSocket client
-    // of the root endpoint. Both listeners share one broadcast channel of
-    // pre-serialized frames; the sender clones they hold keep the channel
-    // open for the daemon's whole life.
+    // Bring up the broadcast hub: in-process producers (the run tee)
+    // push pre-serialized frames onto this channel via `ctx`'s resident
+    // hubs, and they fan out to every connected `/listen` WebSocket
+    // client. The `_rx` clone keeps the channel open for the daemon's
+    // whole life.
     let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
     // Optional WS auth: when `DAEMON_SECRET` is set, every connection's
     // first-message auth preamble must carry a valid signature; when
@@ -274,6 +261,20 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         ctx.clone(),
     );
     labs_hub.spawn_tasks();
+    // Publish the in-process hubs on the shared `Context` so every
+    // in-process producer reaches its consumer directly (the former
+    // unix sockets). Every `/execute`-derived ctx and `DaemonWsState.ctx`
+    // is an Arc-sibling of this one, so this single set is visible
+    // everywhere. `mcp_notifiers` replaces the per-response mcp sockets.
+    let mcp_notifiers = std::sync::Arc::new(dashmap::DashMap::new());
+    ctx.set_resident_hubs(crate::context::ResidentHubs {
+        broadcast: tx.clone(),
+        active: active.clone(),
+        conversations: conversations.clone(),
+        laboratories: laboratories.clone(),
+        labs_hub: labs_hub.clone(),
+        mcp_notifiers,
+    });
     crate::websockets::daemon_stream::serve_ws(
         ws_listener,
         tx.clone(),
@@ -284,7 +285,6 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         laboratories.clone(),
         labs_hub.clone(),
     );
-    crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
     crate::websockets::websocket_agents::serve_agents_socket_listener(
         agents_socket_listener,
         active.clone(),

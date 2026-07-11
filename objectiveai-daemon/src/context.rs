@@ -19,12 +19,52 @@
 
 use std::sync::Arc;
 
+use dashmap::DashMap;
 use objectiveai_sdk::HttpClient;
-use tokio::sync::OnceCell;
+use objectiveai_sdk::Notifier;
+use tokio::sync::{OnceCell, broadcast};
 
 use crate::db;
 use crate::filesystem;
 use crate::run::Config;
+use crate::websockets::websocket_agent_instance::ConversationHub;
+use crate::websockets::websocket_agents::ActiveAgents;
+use crate::websockets::websocket_laboratories::LaboratoriesHub;
+use crate::websockets::websocket_laboratory::LaboratoryRegistry;
+
+/// The resident daemon's in-process hubs — the direct replacements for
+/// the former unix sockets. Built once at daemon boot in
+/// [`crate::command::daemon::spawn`]'s `execute_foreground` and
+/// published on the [`Context`] via [`Context::set_resident_hubs`], so
+/// every in-process producer (the executor tee, the agent registry, the
+/// log writer, the conduit, the laboratories commands, the `agents mcp`
+/// dispatch) reaches its consumer with a direct method call instead of a
+/// socket hop.
+///
+/// Intended reference cycle: `active` / `conversations` / `labs_hub`
+/// each hold a `Context` clone, and `Context` holds this bundle via a
+/// `OnceLock`. The cycle is bounded to the daemon's forever-lifetime
+/// (these hubs already live for the whole process), so it never leaks in
+/// practice — the daemon is a per-state singleton.
+// TODO(#254 phase 5): drop this `allow` once every socket is removed and
+// all fields are read — `active`/`conversations`/`laboratories`/`labs_hub`/
+// `mcp_notifiers` are wired one socket-removal commit at a time.
+#[allow(dead_code)]
+#[derive(Clone)]
+pub(crate) struct ResidentHubs {
+    /// `/listen` broadcast sender (former `daemon.sock`).
+    pub broadcast: broadcast::Sender<String>,
+    /// Live agent-status hub (former `agents.sock`).
+    pub active: ActiveAgents,
+    /// Live-conversation hub (former `conversation.sock`).
+    pub conversations: ConversationHub,
+    /// Connected-laboratory registry (former `laboratories.sock`).
+    pub laboratories: LaboratoryRegistry,
+    /// Local-laboratory change hub (former `laboratories.sock`).
+    pub labs_hub: LaboratoriesHub,
+    /// Per-`response_id` MCP notifiers (former per-response mcp sockets).
+    pub mcp_notifiers: Arc<DashMap<String, Notifier>>,
+}
 
 #[derive(Clone)]
 pub struct Context {
@@ -52,6 +92,12 @@ pub struct Context {
     /// Acquired/released only through
     /// [`crate::command::agents::locks::{try_acquire, wait_acquire}`].
     agent_locks: Arc<crate::command::agents::locks::AgentLockMap>,
+    /// The resident daemon's in-process hubs, published once at daemon
+    /// boot (`execute_foreground`). `None` in any process that is not the
+    /// resident daemon — a stray separate-process run then degrades
+    /// exactly as a failed socket connect once did. Shared across clones
+    /// (first set wins).
+    resident_hubs: Arc<std::sync::OnceLock<ResidentHubs>>,
     /// When true, the embedded python's `objectiveai.execute(...)` host
     /// call raises instead of dispatching a CLI command. Read by
     /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
@@ -77,6 +123,7 @@ impl Context {
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
+            resident_hubs: Arc::new(std::sync::OnceLock::new()),
             no_objectiveai: false,
         }
     }
@@ -94,6 +141,19 @@ impl Context {
     /// went through `run`).
     pub fn daemon_address(&self) -> Option<&str> {
         self.daemon_address.get().map(String::as_str)
+    }
+
+    /// Publish the resident daemon's in-process hubs. Called once by
+    /// `execute_foreground` at daemon boot; first set wins.
+    pub(crate) fn set_resident_hubs(&self, hubs: ResidentHubs) {
+        let _ = self.resident_hubs.set(hubs);
+    }
+
+    /// The resident daemon's in-process hubs, when this context belongs
+    /// to the resident daemon process (`None` otherwise). The direct
+    /// in-process replacement for the former unix sockets.
+    pub(crate) fn resident_hubs(&self) -> Option<&ResidentHubs> {
+        self.resident_hubs.get()
     }
 
     /// Derive a clone with `objectiveai.execute` inside the embedded

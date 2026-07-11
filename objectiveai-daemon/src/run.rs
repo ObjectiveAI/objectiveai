@@ -3,6 +3,7 @@ use std::pin::Pin;
 use envconfig::Envconfig;
 use futures::Stream;
 use objectiveai_sdk::cli::command::{CommandRequest, ResponseItem, parse_request};
+use objectiveai_sdk::cli::websocket_listener::ListenerEnd;
 
 use crate::context::Context;
 use crate::error::Error;
@@ -342,19 +343,24 @@ pub fn run(
     // command finishes, so a program exit can never truncate in-flight
     // socket writes.
     let (tee_tx, tee_writer) = match feed {
-        Some(mut feed) => {
+        Some(TeeHandle { broadcast, id }) => {
             let (tx, mut rx) =
                 tokio::sync::mpsc::unbounded_channel::<serde_json::Value>();
             let writer = tokio::spawn(async move {
+                // Frame each pre-transform item as the bare
+                // `ListenerResponse` `{id, value}` and fan it out on the
+                // resident `/listen` broadcast (this framing was done by
+                // the daemon socket's `handle_feed`; now it is in-process).
                 while let Some(value) = rx.recv().await {
-                    if feed.write(&value).await.is_err() {
-                        // Daemon gone: stop consuming; remaining sends
-                        // fail and the executor's tee goes quiet.
-                        break;
-                    }
+                    let frame =
+                        serde_json::json!({ "id": id.clone(), "value": value }).to_string();
+                    let _ = broadcast.send(frame);
                 }
-                // `feed` drops here → socket closes → the daemon reads
-                // EOF and broadcasts the run's terminator.
+                // Channel closed → the run is complete. Broadcast exactly
+                // one terminator so consumers can end this id's stream.
+                if let Ok(frame) = serde_json::to_string(&ListenerEnd { id, end: true }) {
+                    let _ = broadcast.send(frame);
+                }
             });
             (Some(tx), Some(writer))
         }
@@ -441,32 +447,42 @@ fn tee_context(config: &Config) -> serde_json::Value {
     serde_json::Value::Object(map)
 }
 
-/// Ensure the daemon is up and open a feed, writing the producer context
-/// then the request. Best-effort: returns `None` (no teeing) on any
-/// failure or for a non-teed request.
-async fn start_tee(
-    ctx: &Context,
-    request: &objectiveai_sdk::cli::command::Request,
-) -> Option<crate::websockets::daemon_stream::FeedWriter> {
+/// In-process tee handle: the resident `/listen` broadcast sender plus
+/// this run's frame id. The direct in-process replacement for the former
+/// producer socket (`FeedWriter`).
+struct TeeHandle {
+    broadcast: tokio::sync::broadcast::Sender<String>,
+    id: String,
+}
+
+/// Open an in-process tee onto the resident `/listen` broadcast: record
+/// the daemon address and emit the opening `ListenerRequest` frame.
+/// Best-effort: returns `None` (no teeing) for a non-teed request or when
+/// this context isn't the resident daemon (no hubs → the same silent
+/// fallback the failed socket connect gave).
+async fn start_tee(ctx: &Context, request: &objectiveai_sdk::cli::command::Request) -> Option<TeeHandle> {
     if !should_tee(request) {
         return None;
     }
-    // Idempotent: `spawn` returns immediately if the daemon already holds
-    // its lock; otherwise it spawns it once and waits for readiness. The
-    // returned lock content is the daemon's published `ws://` URL —
-    // record it on the ctx so later handlers (notably `viewer spawn`)
-    // can hand it to daemon WebSocket consumers.
+    // Idempotent: records the daemon's published `ws://` URL on the ctx
+    // (used by `viewer spawn`). In-process this is a lock read — the
+    // daemon is already up (we are it), so no spawn happens.
     if let Ok(url) = crate::command::daemon::spawn::spawn(ctx).await {
         ctx.set_daemon_address(url);
     }
-    let mut feed =
-        crate::websockets::daemon_stream::connect_feed(&ctx.filesystem.state_dir())
-            .await
-            .ok()?;
-    feed.write(&tee_context(&ctx.config)).await.ok()?;
-    let request_json = serde_json::to_value(request).ok()?;
-    feed.write(&request_json).await.ok()?;
-    Some(feed)
+    let broadcast = ctx.resident_hubs()?.broadcast.clone();
+    let id = uuid::Uuid::new_v4().to_string();
+    // Opening frame: the `ListenerRequest` shape — the producer context
+    // map with `id` + `value` (the request) stamped in. (Was framed by
+    // the daemon socket's `handle_feed`; now it is in-process.)
+    let mut envelope = match tee_context(&ctx.config) {
+        serde_json::Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    envelope.insert("id".to_string(), serde_json::Value::String(id.clone()));
+    envelope.insert("value".to_string(), serde_json::to_value(request).ok()?);
+    let _ = broadcast.send(serde_json::Value::Object(envelope).to_string());
+    Some(TeeHandle { broadcast, id })
 }
 
 /// Wrap the command stream so that, after it completes, the run
