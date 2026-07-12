@@ -193,12 +193,19 @@ impl ReverseChannel {
     pub async fn laboratory_export_begin(
         &self,
         laboratory_id: String,
+        machine: Option<String>,
+        machine_state: Option<String>,
         path: String,
     ) -> Result<String, McpError> {
         let response = self
             .request(
                 server_request::Payload::LaboratoryExportBegin(
-                    server_request::LaboratoryExportBeginRequest { laboratory_id, path },
+                    server_request::LaboratoryExportBeginRequest {
+                        laboratory_id,
+                        machine,
+                        machine_state,
+                        path,
+                    },
                 ),
                 IndexMap::new(),
                 None,
@@ -261,12 +268,19 @@ impl ReverseChannel {
     pub async fn laboratory_import_begin(
         &self,
         laboratory_id: String,
+        machine: Option<String>,
+        machine_state: Option<String>,
         path: String,
     ) -> Result<String, McpError> {
         let response = self
             .request(
                 server_request::Payload::LaboratoryImportBegin(
-                    server_request::LaboratoryImportBeginRequest { laboratory_id, path },
+                    server_request::LaboratoryImportBeginRequest {
+                        laboratory_id,
+                        machine,
+                        machine_state,
+                        path,
+                    },
                 ),
                 IndexMap::new(),
                 None,

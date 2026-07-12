@@ -113,10 +113,11 @@ impl LaboratoryRegistry {
         self.events.subscribe()
     }
 
-    /// Every served laboratory with the machine that serves it — the
-    /// registry snapshot `laboratories list` and the `/laboratories/*`
-    /// streams are built from.
-    pub async fn list(&self) -> Vec<(MachineIdentity, Identify)> {
+    /// Every served laboratory with the host serving it — machine
+    /// identity + the host's STATE (laboratory ids are only unique
+    /// per (machine, state)) — the registry snapshot `laboratories
+    /// list` and the `/laboratories/*` streams are built from.
+    pub async fn list(&self) -> Vec<(MachineIdentity, String, Identify)> {
         // Clone the Arcs out first; never hold a map guard across an
         // await.
         let hosts: Vec<Arc<HostConnection>> =
@@ -124,10 +125,9 @@ impl LaboratoryRegistry {
         let mut out = Vec::new();
         for host in hosts {
             let labs = host.labs.read().await;
-            out.extend(
-                labs.values()
-                    .map(|identify| (host.machine.clone(), identify.clone())),
-            );
+            out.extend(labs.values().map(|identify| {
+                (host.machine.clone(), host.state.clone(), identify.clone())
+            }));
         }
         out
     }
@@ -137,17 +137,6 @@ impl LaboratoryRegistry {
     pub fn has_host(&self, machine_id: &str, state: &str) -> bool {
         self.hosts
             .contains_key(&(machine_id.to_string(), state.to_string()))
-    }
-
-    /// Every connected host for this machine id, as `(state, machine
-    /// identity)` — the command layer applies its own preference rule
-    /// over them.
-    pub fn hosts_for_machine(&self, machine_id: &str) -> Vec<(String, MachineIdentity)> {
-        self.hosts
-            .iter()
-            .filter(|e| e.key().0 == machine_id)
-            .map(|e| (e.key().1.clone(), e.machine.clone()))
-            .collect()
     }
 
     /// The identity of the exact connected host `(machine id, state)`.
@@ -178,18 +167,30 @@ impl LaboratoryRegistry {
 
     /// Forward one request to the host serving `laboratory_id` and
     /// await its correlated reply. The request is stamped with the
-    /// laboratory id — the host demuxes on it.
+    /// laboratory id — the host demuxes on it. When the caller knows
+    /// the exact host (`machine` + `machine_state`, e.g. from an
+    /// attachment row via the McpKind), routing is DIRECT; an absent
+    /// pair falls back to the legacy first-match-by-id scan.
     pub async fn forward(
         &self,
         laboratory_id: &str,
+        machine: Option<&str>,
+        machine_state: Option<&str>,
         headers: indexmap::IndexMap<String, String>,
         request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
     ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
-        let Some((machine_id, state)) = self.host_for_laboratory(laboratory_id).await
-        else {
-            return Err(format!(
-                "laboratory '{laboratory_id}' is not served by any connected host"
-            ));
+        let (machine_id, state) = match (machine, machine_state) {
+            (Some(machine), Some(machine_state)) => {
+                (machine.to_string(), machine_state.to_string())
+            }
+            _ => match self.host_for_laboratory(laboratory_id).await {
+                Some(host) => host,
+                None => {
+                    return Err(format!(
+                        "laboratory '{laboratory_id}' is not served by any connected host"
+                    ));
+                }
+            },
         };
         self.forward_inner(
             &machine_id,

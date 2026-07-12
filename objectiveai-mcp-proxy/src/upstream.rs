@@ -197,7 +197,14 @@ async fn connect_upstream(
     // a parse of the URL path. Everything else falls back to URL-derived
     // kinds (objectiveai / plugin) or plain HTTP.
     let ws_kind = match &laboratory {
-        Some(Laboratory::Client(c)) => Some(McpKind::Laboratory { id: c.id.clone() }),
+        Some(Laboratory::Client(c)) => Some(McpKind::Laboratory {
+            id: c.id.clone(),
+            // Laboratory ids are only unique per (machine, state) —
+            // the marker's pair rides the kind so the CLI conduit
+            // forwards to the exact host.
+            machine: c.machine.clone(),
+            machine_state: c.machine_state.clone(),
+        }),
         None => crate::reverse_channel::parse_ws_mcp_kind(url),
     };
     if let Some(mcp_kind) = ws_kind {

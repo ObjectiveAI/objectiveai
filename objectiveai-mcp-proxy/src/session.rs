@@ -10,7 +10,7 @@ use dashmap::DashMap;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
 use std::sync::Arc;
-use objectiveai_sdk::laboratories::Laboratory;
+use objectiveai_sdk::laboratories::{ClientLaboratory, Laboratory};
 use objectiveai_sdk::mcp::{
     JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
@@ -403,10 +403,14 @@ impl Session {
     }
 
     /// Find the upstream that IS the laboratory with this id (matched on
-    /// the typed laboratory id, never a routing prefix / name).
-    fn find_laboratory(&self, id: &str) -> Option<&Upstream> {
-        self.connections.values().find(|u| {
-            matches!(u.laboratory(), Some(Laboratory::Client(c)) if c.id == id)
+    /// the typed laboratory id, never a routing prefix / name; ids are
+    /// unique WITHIN a session — spawn dedups by id). Returns the
+    /// upstream and its typed marker, whose (machine, machine_state)
+    /// pair pins the exact host for downstream routing.
+    fn find_laboratory(&self, id: &str) -> Option<(&Upstream, ClientLaboratory)> {
+        self.connections.values().find_map(|u| match u.laboratory() {
+            Some(Laboratory::Client(c)) if c.id == id => Some((u, c)),
+            _ => None,
         })
     }
 
@@ -446,18 +450,18 @@ impl Session {
         if source == destination {
             return transfer_error("source and destination must be different laboratories");
         }
-        let source_channel = match self.find_laboratory(source) {
-            Some(u) => match u.reverse_channel() {
-                Some(c) => c,
+        let (source_channel, source_marker) = match self.find_laboratory(source) {
+            Some((u, marker)) => match u.reverse_channel() {
+                Some(c) => (c, marker),
                 None => return transfer_error("source laboratory has no reverse channel"),
             },
             None => {
                 return transfer_error(format!("no laboratory with id '{source}' in this session"));
             }
         };
-        let dest_channel = match self.find_laboratory(destination) {
-            Some(u) => match u.reverse_channel() {
-                Some(c) => c,
+        let (dest_channel, dest_marker) = match self.find_laboratory(destination) {
+            Some((u, marker)) => match u.reverse_channel() {
+                Some(c) => (c, marker),
                 None => return transfer_error("destination laboratory has no reverse channel"),
             },
             None => {
@@ -468,15 +472,28 @@ impl Session {
         };
 
         // Begin both halves; a failure on either aborts the survivor.
+        // Each Begin carries its marker's (machine, machine_state)
+        // pair — laboratory ids are only unique per (machine, state),
+        // so the conduit forwards each half to the exact host.
         let export_id = match source_channel
-            .laboratory_export_begin(source.to_string(), source_path.to_string())
+            .laboratory_export_begin(
+                source.to_string(),
+                source_marker.machine,
+                source_marker.machine_state,
+                source_path.to_string(),
+            )
             .await
         {
             Ok(id) => id,
             Err(e) => return transfer_error(format!("transfer failed: {e}")),
         };
         let import_id = match dest_channel
-            .laboratory_import_begin(destination.to_string(), destination_path.to_string())
+            .laboratory_import_begin(
+                destination.to_string(),
+                dest_marker.machine,
+                dest_marker.machine_state,
+                destination_path.to_string(),
+            )
             .await
         {
             Ok(id) => id,

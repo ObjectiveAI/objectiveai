@@ -350,24 +350,31 @@ async fn resolve_laboratories(
             .map(|target| crate::db::laboratory_attachments::list(pool, target)),
     )
     .await?;
-    let mut ids: Vec<String> = Vec::new();
+    // Dedup by BARE id, earliest attachment wins: an agent dials at
+    // most one laboratory per id (the session's `ws://laboratory/{id}`
+    // upstreams key by id). Each kept record's (machine, machine_state)
+    // pair rides the ClientLaboratory so downstream routing is exact.
+    let mut records: Vec<crate::db::laboratory_attachments::AttachmentRecord> = Vec::new();
     for list in lists {
-        for id in list {
-            if !ids.contains(&id) {
-                ids.push(id);
+        for record in list {
+            if !records.iter().any(|r| r.laboratory_id == record.laboratory_id) {
+                records.push(record);
             }
         }
     }
-    if ids.is_empty() {
+    if records.is_empty() {
         return Ok(None);
     }
     Ok(Some(
-        ids.into_iter()
-            .map(|id| {
+        records
+            .into_iter()
+            .map(|record| {
                 objectiveai_sdk::laboratories::Laboratory::Client(
                     objectiveai_sdk::laboratories::ClientLaboratory {
                         r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
-                        id,
+                        id: record.laboratory_id,
+                        machine: record.machine_id,
+                        machine_state: record.machine_state,
                     },
                 )
             })

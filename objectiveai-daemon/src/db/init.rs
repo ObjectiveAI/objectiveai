@@ -122,6 +122,10 @@ CREATE TABLE IF NOT EXISTS objectiveai.laboratory_attachments (
     agent_instance_hierarchy TEXT,
     tag                      TEXT,
     laboratory_id            TEXT   NOT NULL,
+    -- The exact laboratory host: laboratory ids are only unique per
+    -- (machine, state). NULL only on rows predating machine tracking.
+    machine_id               TEXT,
+    machine_state            TEXT,
     created_at               BIGINT NOT NULL,
     -- The AIH that ran the attach. NULL on rows predating tracking.
     attached_by              TEXT,
@@ -131,9 +135,14 @@ CREATE TABLE IF NOT EXISTS objectiveai.laboratory_attachments (
         (agent_instance_hierarchy IS NULL AND tag IS NOT NULL)
     )
 );
--- Existing DBs predate `attached_by` — align idempotently.
+-- Existing DBs predate `attached_by` / the machine pair — align
+-- idempotently.
 ALTER TABLE objectiveai.laboratory_attachments
     ADD COLUMN IF NOT EXISTS attached_by TEXT;
+ALTER TABLE objectiveai.laboratory_attachments
+    ADD COLUMN IF NOT EXISTS machine_id TEXT;
+ALTER TABLE objectiveai.laboratory_attachments
+    ADD COLUMN IF NOT EXISTS machine_state TEXT;
 
 -- NOTIFY on attach/detach so the daemon's per-agent status frames can
 -- track the ATTACHED laboratory set live. A row targets EITHER an AIH
@@ -180,11 +189,16 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_active_laboratories (
     updated_at               BIGINT NOT NULL,
     PRIMARY KEY (agent_instance_hierarchy, laboratory_id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_tag_unique_idx
-    ON objectiveai.laboratory_attachments(tag, laboratory_id)
+-- Uniqueness is per FULL laboratory identity: the same id from two
+-- different hosts can attach to one target. The narrow pre-machine
+-- indexes are dropped (idempotently) in favor of the widened ones.
+DROP INDEX IF EXISTS objectiveai.laboratory_attachments_tag_unique_idx;
+DROP INDEX IF EXISTS objectiveai.laboratory_attachments_aih_unique_idx;
+CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_tag_machine_unique_idx
+    ON objectiveai.laboratory_attachments(tag, laboratory_id, machine_id, machine_state)
     WHERE tag IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_aih_unique_idx
-    ON objectiveai.laboratory_attachments(agent_instance_hierarchy, laboratory_id)
+CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_aih_machine_unique_idx
+    ON objectiveai.laboratory_attachments(agent_instance_hierarchy, laboratory_id, machine_id, machine_state)
     WHERE agent_instance_hierarchy IS NOT NULL;
 
 -- Latest continuation token per agent_instance_hierarchy. Upserted

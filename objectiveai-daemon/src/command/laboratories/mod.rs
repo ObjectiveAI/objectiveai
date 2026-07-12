@@ -133,70 +133,61 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(stream)
 }
 
-/// Resolve `--machine` to the exact CONNECTED host `(machine id,
-/// state)` that will serve the request, auto-spawning the local host
-/// when the target is this machine and nothing is connected yet.
-/// Shared by `create` (delete routes by laboratory id instead).
+/// Resolve a command's optional `--machine`/`--machine-state` pair to
+/// the exact laboratory-host identity it addresses — NAIVE, no
+/// preference logic:
 ///
-/// Hosts are one per (machine, state), and a machine may have SEVERAL
-/// connected (different states). Preference order:
-///
-/// 1. `None` ⇒ the target machine is the current one (the daemon's
-///    own machine id).
-/// 2. The host matching this daemon's OWN state, when connected.
-/// 3. Otherwise a UNIQUE connected host for the target machine —
-///    whatever its state (the normal remote case: one host per
-///    machine, its state name is its own business).
-/// 4. Several candidates and none own-state ⇒ ambiguity error (naming
-///    the states) rather than a silent pick.
-/// 5. NONE connected: target is THIS machine ⇒ `laboratories spawn`
-///    in-process (which errors when `laboratories config local` is
-///    false — a local host that never dials this daemon can't serve
-///    it) and wait for it to register; any other machine ⇒ error
-///    (this daemon cannot spawn a host elsewhere).
-pub(super) async fn resolve_host(
+/// - Both given ⇒ that pair, verbatim.
+/// - Neither ⇒ auto-fill (the current machine's id, the daemon's own
+///   state).
+/// - Exactly one ⇒ error (they travel together).
+pub(super) fn resolve_pair(
     ctx: &Context,
     machine: Option<String>,
+    machine_state: Option<String>,
 ) -> Result<(String, String), Error> {
-    let local_machine = objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
-    let own_state = ctx.filesystem.state().to_string();
-    let target = machine.unwrap_or_else(|| local_machine.clone());
+    match (machine, machine_state) {
+        (Some(machine), Some(machine_state)) => Ok((machine, machine_state)),
+        (None, None) => Ok((
+            objectiveai_sdk::machine::machine_id(ctx.filesystem.dir()),
+            ctx.filesystem.state().to_string(),
+        )),
+        _ => Err(Error::Laboratory(
+            "machine and machine_state must be provided together".to_string(),
+        )),
+    }
+}
+
+/// Ensure a CONNECTED host for the exact `(machine id, state)` pair,
+/// auto-spawning when the pair IS this daemon's own (local machine +
+/// own state — `laboratories spawn` errors when `laboratories config
+/// local` is false, and waits for the host to register otherwise).
+/// Any other unconnected pair is an error: this daemon cannot spawn a
+/// host elsewhere (nor for another state).
+pub(super) async fn ensure_host(
+    ctx: &Context,
+    machine: &str,
+    machine_state: &str,
+) -> Result<(), Error> {
     let hubs = ctx.resident_hubs().ok_or_else(|| {
         Error::Laboratory("laboratories commands require the resident daemon".to_string())
     })?;
-    if hubs.laboratories.has_host(&target, &own_state) {
-        return Ok((target, own_state));
+    if hubs.laboratories.has_host(machine, machine_state) {
+        return Ok(());
     }
-    let mut hosts = hubs.laboratories.hosts_for_machine(&target);
-    match hosts.len() {
-        1 => {
-            let (state, _) = hosts.remove(0);
-            Ok((target, state))
-        }
-        0 => {
-            if target == local_machine {
-                // `spawn::spawn` waits for the local host to appear in
-                // the registry (or fails fast), so the caller can
-                // forward immediately after.
-                spawn::spawn(ctx).await?;
-                Ok((target, own_state))
-            } else {
-                Err(Error::Laboratory(format!(
-                    "no laboratory host connected for machine '{target}' — run \
-                     `laboratories spawn` on that machine with this daemon's address configured"
-                )))
-            }
-        }
-        _ => {
-            let states: Vec<&str> =
-                hosts.iter().map(|(state, _)| state.as_str()).collect();
-            Err(Error::Laboratory(format!(
-                "multiple laboratory hosts are connected for machine '{target}' \
-                 (states: {}) and none matches this daemon's state '{own_state}' — \
-                 the target is ambiguous",
-                states.join(", ")
-            )))
-        }
+    let local_machine = objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
+    if machine == local_machine && machine_state == ctx.filesystem.state() {
+        // `spawn::spawn` waits for the local host to appear in the
+        // registry (or fails fast), so the caller can forward
+        // immediately after.
+        spawn::spawn(ctx).await?;
+        Ok(())
+    } else {
+        Err(Error::Laboratory(format!(
+            "no laboratory host connected for machine '{machine}' state \
+             '{machine_state}' — run `laboratories spawn` on that machine/state \
+             with this daemon's address configured"
+        )))
     }
 }
 

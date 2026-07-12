@@ -370,6 +370,8 @@ fn record_from_item(
             .map(|record| {
                 objectiveai_sdk::cli::websocket_agents_instances_listener::AttachedLaboratory {
                     id: record.laboratory_id,
+                    machine: record.machine_id,
+                    machine_state: record.machine_state,
                     attached_at: crate::db::time::unix_to_rfc3339(record.attached_at),
                     attached_by: record.attached_by,
                 }

@@ -1,16 +1,19 @@
 //! `laboratories create` — create the laboratory container on the
-//! TARGET MACHINE's laboratory host, forwarded over its `/laboratory`
-//! WS (`LaboratoryCreate`): podman runs host-side, wherever the host
-//! is. `--machine` picks the exact machine id (from `laboratories
-//! list`); unset targets the current machine, auto-spawning its host
-//! when none is connected (unless `laboratories config local` is
-//! false — then this errors, as the local host would never dial this
-//! daemon). The container is NOT started — it starts lazily on its
-//! first routed op. The host broadcasts `laboratory_created` to every
-//! daemon it serves, so all registries update without scanning. The
-//! echo is the host's own reply (podman's record, `created_at`
-//! included). Errors if the id already exists on that host. Only
-//! client-side laboratories are supported today.
+//! TARGET host, forwarded over its `/laboratory` WS
+//! (`LaboratoryCreate`): podman runs host-side, wherever the host is.
+//! `--machine` + `--machine-state` pick the exact host (both or
+//! neither); neither targets (the current machine, the daemon's own
+//! state), auto-spawning its host when none is connected (unless
+//! `laboratories config local` is false — then this errors, as the
+//! local host would never dial this daemon). The container is NOT
+//! started — it starts lazily on its first routed op. The host
+//! broadcasts `laboratory_created` to every daemon it serves, so all
+//! registries update without scanning. The echo is the host's own
+//! reply (podman's record, `created_at` included). Errors ONLY if the
+//! id already exists on THAT host — the same id on a different
+//! laboratory daemon is fine (ids are only unique per (machine,
+//! state); there is deliberately no cross-host duplicate check).
+//! Only client-side laboratories are supported today.
 
 use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Response};
 use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
@@ -26,7 +29,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Kind::Client => {}
     }
 
-    let (target, host_state) = super::resolve_host(ctx, request.machine.clone()).await?;
+    let (target, host_state) =
+        super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
+    super::ensure_host(ctx, &target, &host_state).await?;
     let hubs = ctx
         .resident_hubs()
         .ok_or_else(|| Error::Laboratory("laboratories create requires the resident daemon".to_string()))?;
@@ -85,6 +90,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         cwd: identify.cwd,
         created_at: identify.created_at,
         machine: hubs.laboratories.machine(&target, &host_state),
+        machine_state: Some(host_state),
     })
 }
 

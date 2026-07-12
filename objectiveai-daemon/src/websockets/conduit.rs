@@ -107,8 +107,8 @@ struct Inner {
     /// Which laboratory each in-flight transfer belongs to: the
     /// chunked transfer ops after Begin carry only a `transfer_id`,
     /// but socket routing needs the laboratory — Begin forwards
-    /// record the pair here; eof/end/abort forwards drop it.
-    transfer_routes: DashMap<String, String>,
+    /// record the target here; eof/end/abort forwards drop it.
+    transfer_routes: DashMap<String, LabTarget>,
     /// Late-bound: filled by [`ConduitMcpHandler::install_notifier`]
     /// after the WS-creating call returns the notifier. Pump
     /// closures read it at fire time.
@@ -269,9 +269,9 @@ impl McpHandler for ConduitMcpHandler {
         // forwards through the daemon's `laboratories.sock` to
         // whichever CONNECTED manager owns that laboratory, local or
         // remote alike.
-        if let Some(laboratory_id) = self.laboratory_target(&request.payload) {
+        if let Some(target) = self.laboratory_target(&request.payload) {
             let payload = self
-                .dispatch_laboratory_forward(laboratory_id, &request.headers, request.payload)
+                .dispatch_laboratory_forward(target, &request.headers, request.payload)
                 .await;
             return server_response::Response { id, payload };
         }
@@ -634,18 +634,27 @@ fn dispatch_drop(
 }
 
 impl ConduitMcpHandler {
-    /// Which laboratory (if any) a payload is addressed to.
-    fn laboratory_target(&self, payload: &server_request::Payload) -> Option<String> {
-        if let Some(McpKind::Laboratory { id }) = payload.mcp_kind() {
-            return Some(id);
+    /// Which laboratory (if any) a payload is addressed to — the id
+    /// plus the exact host pair when the payload carries it
+    /// (laboratory ids are only unique per (machine, state); a
+    /// pair-less target routes first-match-by-id).
+    fn laboratory_target(&self, payload: &server_request::Payload) -> Option<LabTarget> {
+        if let Some(McpKind::Laboratory { id, machine, machine_state }) =
+            payload.mcp_kind()
+        {
+            return Some(LabTarget { id, machine, machine_state });
         }
         match payload {
-            server_request::Payload::LaboratoryExportBegin(req) => {
-                Some(req.laboratory_id.clone())
-            }
-            server_request::Payload::LaboratoryImportBegin(req) => {
-                Some(req.laboratory_id.clone())
-            }
+            server_request::Payload::LaboratoryExportBegin(req) => Some(LabTarget {
+                id: req.laboratory_id.clone(),
+                machine: req.machine.clone(),
+                machine_state: req.machine_state.clone(),
+            }),
+            server_request::Payload::LaboratoryImportBegin(req) => Some(LabTarget {
+                id: req.laboratory_id.clone(),
+                machine: req.machine.clone(),
+                machine_state: req.machine_state.clone(),
+            }),
             server_request::Payload::LaboratoryExportRead(req) => self
                 .inner
                 .transfer_routes
@@ -681,7 +690,7 @@ impl ConduitMcpHandler {
     /// close it).
     async fn dispatch_laboratory_forward(
         &self,
-        laboratory_id: String,
+        target: LabTarget,
         headers: &IndexMap<String, String>,
         payload: server_request::Payload,
     ) -> server_response::Payload {
@@ -710,12 +719,19 @@ impl ConduitMcpHandler {
         };
         let response = match hubs
             .laboratories
-            .forward(&laboratory_id, headers.clone(), payload)
+            .forward(
+                &target.id,
+                target.machine.as_deref(),
+                target.machine_state.as_deref(),
+                headers.clone(),
+                payload,
+            )
             .await
         {
             Ok(response) => response,
             Err(message) => {
-                return shape.error(-32603, format!("laboratory {laboratory_id}: {message}"));
+                return shape
+                    .error(-32603, format!("laboratory {}: {message}", target.id));
             }
         };
         // Open/close routes from the manager's replies.
@@ -723,23 +739,36 @@ impl ConduitMcpHandler {
             server_response::Payload::LaboratoryExportBegin(JsonRpcResult::Ok { result }) => {
                 self.inner
                     .transfer_routes
-                    .insert(result.transfer_id.clone(), laboratory_id);
+                    .insert(result.transfer_id.clone(), target);
             }
             server_response::Payload::LaboratoryImportBegin(JsonRpcResult::Ok { result }) => {
                 self.inner
                     .transfer_routes
-                    .insert(result.transfer_id.clone(), laboratory_id);
+                    .insert(result.transfer_id.clone(), target);
             }
             server_response::Payload::LaboratoryExportRead(JsonRpcResult::Ok { result }) => {
                 if result.eof {
-                    // The manager already dropped its entry.
-                    self.inner.transfer_routes.retain(|_, lab| lab != &laboratory_id);
+                    // The manager already dropped its entry. Same
+                    // FULL target only — a same-id transfer on a
+                    // different host keeps its route.
+                    self.inner.transfer_routes.retain(|_, lab| *lab != target);
                 }
             }
             _ => {}
         }
         response
     }
+}
+
+/// One laboratory-addressed payload's target: the raw id plus the
+/// exact host pair when known. Laboratory ids are only unique per
+/// (machine, state) — with the pair the registry forward is direct;
+/// without it, first-match-by-id (legacy senders).
+#[derive(Clone, PartialEq, Eq)]
+struct LabTarget {
+    id: String,
+    machine: Option<String>,
+    machine_state: Option<String>,
 }
 
 /// Enough of a request payload's shape to build a same-variant error

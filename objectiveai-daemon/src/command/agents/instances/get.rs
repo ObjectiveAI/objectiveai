@@ -52,6 +52,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             .map(|record| {
                 objectiveai_sdk::cli::command::agents::instances::list::LaboratoryAttachment {
                     id: record.laboratory_id,
+                    machine: record.machine_id,
+                    machine_state: record.machine_state,
                     attached_at: crate::db::time::unix_to_rfc3339(record.attached_at),
                     attached_by: record.attached_by,
                 }

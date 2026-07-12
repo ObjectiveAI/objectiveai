@@ -1,11 +1,15 @@
 //! Laboratory IDs attached to an agent target, backed by the postgres
 //! `laboratory_attachments` table.
 //!
-//! A row attaches one `laboratory_id` to EITHER an
+//! A row attaches one laboratory to EITHER an
 //! `agent_instance_hierarchy` (AIH) OR a `tag` — never both (a CHECK
-//! constraint enforces exclusivity). A given laboratory is attached at
-//! most once per target (a partial unique index per target column).
-//! `laboratory_id` is an opaque external identifier.
+//! constraint enforces exclusivity). Laboratory ids are only unique
+//! per (machine, state), so a row records the FULL identity:
+//! `(machine_id, machine_state, laboratory_id)` — the same id from two
+//! different hosts can attach to one target. A given laboratory
+//! (full identity) is attached at most once per target (a partial
+//! unique index per target column). `machine_id`/`machine_state` are
+//! `NULL` only on rows predating machine tracking.
 
 use sqlx::Row as _;
 
@@ -37,26 +41,32 @@ fn now() -> i64 {
         .unwrap_or(0)
 }
 
-/// Attach `laboratory_id` to `target`, recording who attached it.
-/// Returns `true` if a row was inserted, `false` if it was already
-/// attached. NO LOCK is held (attach works at any time) — the
-/// per-target partial unique index arbitrates concurrent attaches:
-/// a losing racer's unique violation reads as "already attached".
+/// Attach the laboratory `(machine_id, machine_state, laboratory_id)`
+/// to `target`, recording who attached it. Returns `true` if a row
+/// was inserted, `false` if it was already attached. NO LOCK is held
+/// (attach works at any time) — the per-target partial unique index
+/// arbitrates concurrent attaches: a losing racer's unique violation
+/// reads as "already attached".
 pub async fn attach(
     pool: &Pool,
     target: &Target,
     laboratory_id: &str,
+    machine_id: &str,
+    machine_state: &str,
     attached_by: &str,
 ) -> Result<bool, Error> {
     let (tag, aih) = target.columns();
     let result = sqlx::query(
         "INSERT INTO objectiveai.laboratory_attachments \
-         (tag, agent_instance_hierarchy, laboratory_id, created_at, attached_by) \
-         VALUES ($1, $2, $3, $4, $5)",
+         (tag, agent_instance_hierarchy, laboratory_id, machine_id, machine_state, \
+          created_at, attached_by) \
+         VALUES ($1, $2, $3, $4, $5, $6, $7)",
     )
     .bind(tag)
     .bind(aih)
     .bind(laboratory_id)
+    .bind(machine_id)
+    .bind(machine_state)
     .bind(now())
     .bind(attached_by)
     .execute(&**pool)
@@ -72,49 +82,74 @@ pub async fn attach(
     }
 }
 
-/// Detach `laboratory_id` from `target`. Returns `true` if a row was
-/// deleted, `false` if there was nothing to delete. NO LOCK is held —
-/// the DELETE is inherently race-safe.
+/// Detach the exact laboratory `(machine_id, machine_state,
+/// laboratory_id)` from `target`. Returns `true` if a row was deleted,
+/// `false` if there was nothing to delete. NO LOCK is held — the
+/// DELETE is inherently race-safe. Rows predating machine tracking
+/// (NULL pair) are not addressable here — pre-release acceptable.
 pub async fn detach(
     pool: &Pool,
     target: &Target,
     laboratory_id: &str,
+    machine_id: &str,
+    machine_state: &str,
 ) -> Result<bool, Error> {
     let (tag, aih) = target.columns();
     let result = sqlx::query(
         "DELETE FROM objectiveai.laboratory_attachments \
          WHERE tag IS NOT DISTINCT FROM $1 \
            AND agent_instance_hierarchy IS NOT DISTINCT FROM $2 \
-           AND laboratory_id = $3",
+           AND laboratory_id = $3 \
+           AND machine_id = $4 \
+           AND machine_state = $5",
     )
     .bind(tag)
     .bind(aih)
     .bind(laboratory_id)
+    .bind(machine_id)
+    .bind(machine_state)
     .execute(&**pool)
     .await?;
     Ok(result.rows_affected() > 0)
 }
 
-/// One attachment row, as `agents instances get` surfaces it.
+/// One attachment row, as `agents instances get` surfaces it (and as
+/// the spawn pass dials it).
 pub struct AttachmentRecord {
     pub laboratory_id: String,
+    /// The exact host the row records — `None` only on rows predating
+    /// machine tracking (routed first-match-by-id downstream).
+    pub machine_id: Option<String>,
+    pub machine_state: Option<String>,
     /// Unix seconds (`created_at`).
     pub attached_at: i64,
     /// The AIH that ran the attach. `None` on rows predating tracking.
     pub attached_by: Option<String>,
 }
 
+fn record_from_row(row: &sqlx::postgres::PgRow) -> Result<AttachmentRecord, Error> {
+    Ok(AttachmentRecord {
+        laboratory_id: row.try_get("laboratory_id")?,
+        machine_id: row.try_get("machine_id")?,
+        machine_state: row.try_get("machine_state")?,
+        attached_at: row.try_get("created_at")?,
+        attached_by: row.try_get("attached_by")?,
+    })
+}
+
 /// The agent's EFFECTIVE attachments — the union the next spawn pass
 /// dials: rows keyed on the AIH itself plus rows keyed on any of its
-/// bound tags. Oldest-attached first; a laboratory attached through
-/// multiple routes appears once (earliest attachment wins).
+/// bound tags. Oldest-attached first; a laboratory id attached through
+/// multiple routes (or from multiple hosts) appears once — earliest
+/// attachment wins, BY BARE ID: an agent dials at most one laboratory
+/// per id (the session's `ws://laboratory/{id}` upstreams key by id).
 pub async fn effective_for_aih(
     pool: &Pool,
     agent_instance_hierarchy: &str,
     tags: &[String],
 ) -> Result<Vec<AttachmentRecord>, Error> {
     let rows = sqlx::query(
-        "SELECT laboratory_id, created_at, attached_by \
+        "SELECT laboratory_id, machine_id, machine_state, created_at, attached_by \
          FROM objectiveai.laboratory_attachments \
          WHERE agent_instance_hierarchy = $1 OR tag = ANY($2) \
          ORDER BY created_at, id",
@@ -125,15 +160,11 @@ pub async fn effective_for_aih(
     .await?;
     let mut out: Vec<AttachmentRecord> = Vec::with_capacity(rows.len());
     for row in rows {
-        let laboratory_id: String = row.try_get("laboratory_id")?;
-        if out.iter().any(|r| r.laboratory_id == laboratory_id) {
+        let record = record_from_row(&row)?;
+        if out.iter().any(|r| r.laboratory_id == record.laboratory_id) {
             continue;
         }
-        out.push(AttachmentRecord {
-            laboratory_id,
-            attached_at: row.try_get("created_at")?,
-            attached_by: row.try_get("attached_by")?,
-        });
+        out.push(record);
     }
     Ok(out)
 }
@@ -144,6 +175,10 @@ pub async fn effective_for_aih(
 pub struct TargetAttachment {
     pub agent_instance_hierarchy: Option<String>,
     pub tag: Option<String>,
+    /// The exact host the row records — `None` only on rows predating
+    /// machine tracking.
+    pub machine_id: Option<String>,
+    pub machine_state: Option<String>,
     /// Unix seconds (`created_at`).
     pub attached_at: i64,
     /// The AIH that ran the attach. `None` on rows predating tracking.
@@ -152,18 +187,30 @@ pub struct TargetAttachment {
 
 /// Every attachment row targeting `laboratory_id`, oldest first — the
 /// reverse direction of [`list`]/[`effective_for_aih`], for the
-/// `/laboratories/{id}` endpoint's record.
+/// `/laboratories/{id}` endpoint's record. `host` narrows to rows
+/// recording that exact `(machine_id, machine_state)`; `None` returns
+/// every row with the id, whatever host it points at.
 pub async fn list_for_laboratory(
     pool: &Pool,
     laboratory_id: &str,
+    host: Option<(&str, &str)>,
 ) -> Result<Vec<TargetAttachment>, Error> {
+    let (machine_id, machine_state) = match host {
+        Some((machine_id, machine_state)) => (Some(machine_id), Some(machine_state)),
+        None => (None, None),
+    };
     let rows = sqlx::query(
-        "SELECT agent_instance_hierarchy, tag, created_at, attached_by \
+        "SELECT agent_instance_hierarchy, tag, machine_id, machine_state, \
+                created_at, attached_by \
          FROM objectiveai.laboratory_attachments \
          WHERE laboratory_id = $1 \
+           AND ($2::text IS NULL OR machine_id = $2) \
+           AND ($3::text IS NULL OR machine_state = $3) \
          ORDER BY created_at, id",
     )
     .bind(laboratory_id)
+    .bind(machine_id)
+    .bind(machine_state)
     .fetch_all(&**pool)
     .await?;
     let mut out = Vec::with_capacity(rows.len());
@@ -171,6 +218,8 @@ pub async fn list_for_laboratory(
         out.push(TargetAttachment {
             agent_instance_hierarchy: row.try_get("agent_instance_hierarchy")?,
             tag: row.try_get("tag")?,
+            machine_id: row.try_get("machine_id")?,
+            machine_state: row.try_get("machine_state")?,
             attached_at: row.try_get("created_at")?,
             attached_by: row.try_get("attached_by")?,
         });
@@ -178,14 +227,16 @@ pub async fn list_for_laboratory(
     Ok(out)
 }
 
-/// All laboratory ids attached to `target`, oldest-attached first.
-pub async fn list(pool: &Pool, target: &Target) -> Result<Vec<String>, Error> {
+/// All attachments on `target`, oldest-attached first — full records
+/// (the spawn pass needs each row's host pair to route its dial).
+pub async fn list(pool: &Pool, target: &Target) -> Result<Vec<AttachmentRecord>, Error> {
     let (tag, aih) = target.columns();
     let rows = sqlx::query(
-        "SELECT laboratory_id FROM objectiveai.laboratory_attachments \
+        "SELECT laboratory_id, machine_id, machine_state, created_at, attached_by \
+         FROM objectiveai.laboratory_attachments \
          WHERE tag IS NOT DISTINCT FROM $1 \
            AND agent_instance_hierarchy IS NOT DISTINCT FROM $2 \
-         ORDER BY created_at",
+         ORDER BY created_at, id",
     )
     .bind(tag)
     .bind(aih)
@@ -193,7 +244,7 @@ pub async fn list(pool: &Pool, target: &Target) -> Result<Vec<String>, Error> {
     .await?;
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
-        out.push(row.try_get::<String, _>(0)?);
+        out.push(record_from_row(&row)?);
     }
     Ok(out)
 }

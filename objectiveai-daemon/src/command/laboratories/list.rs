@@ -42,7 +42,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         }
     };
     let stream = async_stream::stream! {
-        for (machine, lab) in labs {
+        for (machine, machine_state, lab) in labs {
             yield Ok(ResponseItem {
                 id: lab.id,
                 image: lab.image,
@@ -62,6 +62,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 cwd: lab.cwd,
                 created_at: lab.created_at,
                 machine: Some(machine),
+                machine_state: Some(machine_state),
             });
         }
     };

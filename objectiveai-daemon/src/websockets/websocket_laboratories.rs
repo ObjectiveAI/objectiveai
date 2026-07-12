@@ -124,33 +124,48 @@ impl LaboratoriesHub {
 
     /// The full list — the registry snapshot, one item per laboratory
     /// served by a connected host. Everything listed is connected by
-    /// construction (the registry IS the live connections).
+    /// construction (the registry IS the live connections). Same-id
+    /// items from different hosts coexist — laboratory ids are only
+    /// unique per (machine, state).
     async fn list(&self) -> Vec<LaboratoryStatus> {
         self.registry
             .list()
             .await
             .into_iter()
-            .map(|(machine, identify)| status_from_identify(identify, machine))
+            .map(|(machine, state, identify)| status_from_identify(identify, machine, state))
             .collect()
     }
 
     /// One laboratory's full record: identity + machine from the
     /// registry when a connected host serves it, zero-filled otherwise
     /// (`machine: None` — attachment rows can outlive their
-    /// laboratory); attachments from the DB. `None` when the DB is
+    /// laboratory); attachments from the DB. `host` (the route's
+    /// optional `?machine=…&machine_state=…`) pins the exact
+    /// laboratory — identity resolution AND the attachment rows are
+    /// narrowed to it; without it, first-match-by-id and every row
+    /// with the id (legacy behavior). `None` when the DB is
     /// unavailable (the frame is skipped; a later change retries).
-    async fn build_record(&self, id: &str) -> Option<LaboratoryRecord> {
+    async fn build_record(
+        &self,
+        id: &str,
+        host: Option<(&str, &str)>,
+    ) -> Option<LaboratoryRecord> {
         let identity = self
             .registry
             .list()
             .await
             .into_iter()
-            .find(|(_, lab)| lab.id == id);
+            .find(|(machine, state, lab)| {
+                lab.id == id
+                    && host.is_none_or(|(host_machine, host_state)| {
+                        machine.id == host_machine && state == host_state
+                    })
+            });
         let connected = identity.is_some();
 
         let pool = self.ctx.db_client().await.ok()?;
         let rows =
-            crate::db::laboratory_attachments::list_for_laboratory(pool, id)
+            crate::db::laboratory_attachments::list_for_laboratory(pool, id, host)
                 .await
                 .ok()?;
         let attachments = rows
@@ -160,11 +175,15 @@ impl LaboratoriesHub {
                     agent_instance_hierarchy,
                     attached_at: row.attached_at,
                     attached_by: row.attached_by,
+                    machine: row.machine_id,
+                    machine_state: row.machine_state,
                 }),
                 (None, Some(tag)) => Some(LaboratoryAttachment::Tag {
                     tag,
                     attached_at: row.attached_at,
                     attached_by: row.attached_by,
+                    machine: row.machine_id,
+                    machine_state: row.machine_state,
                 }),
                 // Both NULL is unrepresentable (table CHECK); skip
                 // defensively rather than invent a target.
@@ -172,8 +191,9 @@ impl LaboratoriesHub {
             })
             .collect();
 
-        let (image, mounts, env, cwd, created_at, machine) = match identity {
-            Some((machine, identify)) => (
+        let (image, mounts, env, cwd, created_at, machine, machine_state) = match identity
+        {
+            Some((machine, state, identify)) => (
                 Some(identify.image),
                 identify
                     .mounts
@@ -191,8 +211,9 @@ impl LaboratoriesHub {
                 Some(identify.cwd),
                 identify.created_at,
                 Some(machine),
+                Some(state),
             ),
-            None => (None, Vec::new(), Vec::new(), None, None, None),
+            None => (None, Vec::new(), Vec::new(), None, None, None, None),
         };
         Some(LaboratoryRecord {
             id: id.to_string(),
@@ -202,14 +223,19 @@ impl LaboratoriesHub {
             cwd,
             created_at,
             machine,
+            machine_state,
             connected,
             attachments,
         })
     }
 }
 
-/// [`Identify`] + its serving machine → one list item.
-fn status_from_identify(lab: Identify, machine: MachineIdentity) -> LaboratoryStatus {
+/// [`Identify`] + its serving host (machine + state) → one list item.
+fn status_from_identify(
+    lab: Identify,
+    machine: MachineIdentity,
+    machine_state: String,
+) -> LaboratoryStatus {
     LaboratoryStatus {
         id: lab.id,
         image: lab.image,
@@ -229,8 +255,21 @@ fn status_from_identify(lab: Identify, machine: MachineIdentity) -> LaboratorySt
         cwd: lab.cwd,
         created_at: lab.created_at,
         machine: Some(machine),
+        machine_state: Some(machine_state),
         connected: true,
     }
+}
+
+/// The list pump's diff key: the FULL laboratory identity — ids are
+/// only unique per (machine, state), so same-id items from different
+/// hosts must not collide in the diff map.
+fn status_key(status: &LaboratoryStatus) -> String {
+    format!(
+        "{}\n{}\n{}",
+        status.machine.as_ref().map(|m| m.id.as_str()).unwrap_or(""),
+        status.machine_state.as_deref().unwrap_or(""),
+        status.id
+    )
 }
 
 // ── the two routes ──────────────────────────────────────────────────
@@ -268,7 +307,7 @@ async fn laboratories_list_pump(
         .list()
         .await
         .into_iter()
-        .map(|lab| (lab.id.clone(), lab))
+        .map(|lab| (status_key(&lab), lab))
         .collect();
     let snapshot = LaboratoryEvent::Snapshot {
         laboratories: last.values().cloned().collect(),
@@ -293,19 +332,26 @@ async fn laboratories_list_pump(
                     .list()
                     .await
                     .into_iter()
-                    .map(|lab| (lab.id.clone(), lab))
+                    .map(|lab| (status_key(&lab), lab))
                     .collect();
                 let mut frames: Vec<LaboratoryEvent> = Vec::new();
-                for (id, lab) in &next {
-                    if last.get(id) != Some(lab) {
+                for (key, lab) in &next {
+                    if last.get(key) != Some(lab) {
                         frames.push(LaboratoryEvent::Upserted {
                             laboratory: lab.clone(),
                         });
                     }
                 }
-                for id in last.keys() {
-                    if !next.contains_key(id) {
-                        frames.push(LaboratoryEvent::Removed { id: id.clone() });
+                for (key, old) in &last {
+                    if !next.contains_key(key) {
+                        // The pair rides the removal — a bare id is
+                        // ambiguous when another host serves the same
+                        // id.
+                        frames.push(LaboratoryEvent::Removed {
+                            id: old.id.clone(),
+                            machine: old.machine.as_ref().map(|m| m.id.clone()),
+                            machine_state: old.machine_state.clone(),
+                        });
                     }
                 }
                 last = next;
@@ -326,6 +372,18 @@ async fn laboratories_list_pump(
     }
 }
 
+/// The `/laboratories/{*id}` route's optional query: pins the exact
+/// laboratory (`?machine=…&machine_state=…`) — ids are only unique
+/// per (machine, state). Anything short of the full pair is treated
+/// as absent (legacy first-match-by-id).
+#[derive(serde::Deserialize)]
+pub(crate) struct RecordQuery {
+    #[serde(default)]
+    machine: Option<String>,
+    #[serde(default)]
+    machine_state: Option<String>,
+}
+
 /// `/laboratories/{*id}`: upgrade, consume the auth preamble, send
 /// the record, then re-send it (full-value) on every relevant change.
 pub(crate) async fn laboratory_instance_handler(
@@ -333,6 +391,7 @@ pub(crate) async fn laboratory_instance_handler(
         crate::websockets::daemon_stream::DaemonWsState,
     >,
     axum::extract::Path(id): axum::extract::Path<String>,
+    axum::extract::Query(query): axum::extract::Query<RecordQuery>,
     ws: axum::extract::ws::WebSocketUpgrade,
 ) -> axum::response::Response {
     ws.on_upgrade(move |mut socket| async move {
@@ -341,7 +400,11 @@ pub(crate) async fn laboratory_instance_handler(
         {
             return;
         }
-        laboratory_instance_pump(socket, state.labs_hub, id).await;
+        let host = match (query.machine, query.machine_state) {
+            (Some(machine), Some(machine_state)) => Some((machine, machine_state)),
+            _ => None,
+        };
+        laboratory_instance_pump(socket, state.labs_hub, id, host).await;
     })
 }
 
@@ -353,11 +416,15 @@ async fn laboratory_instance_pump(
     mut socket: axum::extract::ws::WebSocket,
     hub: LaboratoriesHub,
     id: String,
+    host: Option<(String, String)>,
 ) {
     use axum::extract::ws::Message;
+    let host = host
+        .as_ref()
+        .map(|(machine, machine_state)| (machine.as_str(), machine_state.as_str()));
     let mut rx = hub.subscribe();
 
-    let mut last: Option<LaboratoryRecord> = hub.build_record(&id).await;
+    let mut last: Option<LaboratoryRecord> = hub.build_record(&id, host).await;
     if let Some(record) = &last {
         let event = LaboratoryInstanceEvent::Laboratory {
             laboratory: record.clone(),
@@ -375,7 +442,7 @@ async fn laboratory_instance_pump(
                     Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
                     Err(broadcast::error::RecvError::Closed) => break,
                 }
-                let Some(record) = hub.build_record(&id).await else {
+                let Some(record) = hub.build_record(&id, host).await else {
                     continue;
                 };
                 if last.as_ref() == Some(&record) {
