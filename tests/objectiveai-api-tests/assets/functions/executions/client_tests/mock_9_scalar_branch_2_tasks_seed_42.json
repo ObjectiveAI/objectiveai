@@ -206,6 +206,7 @@
                     "total_tokens": 410,
                     "cost": 0.0,
                     "total_cost": 0.0,
+                    "upstream_duration_ms": {},
                     "cost_multiplier": 1.0,
                     "is_byok": false
                   }
@@ -217,7 +218,8 @@
                 "prompt_tokens": 311,
                 "total_tokens": 410,
                 "cost": 0.0,
-                "total_cost": 0.0
+                "total_cost": 0.0,
+                "upstream_duration_ms": {}
               },
               "upstream": "mock",
               "error": null,
@@ -259,7 +261,8 @@
             "prompt_tokens": 311,
             "total_tokens": 410,
             "cost": 0.0,
-            "total_cost": 0.0
+            "total_cost": 0.0,
+            "upstream_duration_ms": {}
           },
           "error": null
         }
@@ -282,7 +285,8 @@
         "prompt_tokens": 311,
         "total_tokens": 410,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       }
     },
     {
@@ -517,6 +521,7 @@
                     "total_tokens": 893,
                     "cost": 0.0,
                     "total_cost": 0.0,
+                    "upstream_duration_ms": {},
                     "cost_multiplier": 1.0,
                     "is_byok": false
                   }
@@ -528,7 +533,8 @@
                 "prompt_tokens": 385,
                 "total_tokens": 893,
                 "cost": 0.0,
-                "total_cost": 0.0
+                "total_cost": 0.0,
+                "upstream_duration_ms": {}
               },
               "upstream": "mock",
               "error": null,
@@ -570,7 +576,8 @@
             "prompt_tokens": 385,
             "total_tokens": 893,
             "cost": 0.0,
-            "total_cost": 0.0
+            "total_cost": 0.0,
+            "upstream_duration_ms": {}
           },
           "error": null
         }
@@ -593,7 +600,8 @@
         "prompt_tokens": 385,
         "total_tokens": 893,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       }
     }
   ],
@@ -618,6 +626,7 @@
     "prompt_tokens": 696,
     "total_tokens": 1303,
     "cost": 0.0,
-    "total_cost": 0.0
+    "total_cost": 0.0,
+    "upstream_duration_ms": {}
   }
 }

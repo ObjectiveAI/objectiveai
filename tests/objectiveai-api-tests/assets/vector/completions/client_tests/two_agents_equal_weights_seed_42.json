@@ -36,6 +36,7 @@
             "total_tokens": 660,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -47,7 +48,8 @@
         "prompt_tokens": 394,
         "total_tokens": 660,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -87,6 +89,7 @@
             "total_tokens": 498,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -98,7 +101,8 @@
         "prompt_tokens": 394,
         "total_tokens": 498,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -131,6 +135,7 @@
             "total_tokens": 780,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -142,7 +147,8 @@
         "prompt_tokens": 648,
         "total_tokens": 780,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -175,6 +181,7 @@
             "total_tokens": 1345,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -186,7 +193,8 @@
         "prompt_tokens": 810,
         "total_tokens": 1345,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -210,6 +218,7 @@
     "prompt_tokens": 2246,
     "total_tokens": 3283,
     "cost": 0.0,
-    "total_cost": 0.0
+    "total_cost": 0.0,
+    "upstream_duration_ms": {}
   }
 }
