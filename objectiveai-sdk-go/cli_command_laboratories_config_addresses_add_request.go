@@ -28,8 +28,11 @@ type CliCommandLaboratoriesConfigAddressesAddRequest struct {
 	// when set; omit for uncapped.
 	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// The signature to present at that address. Empty ⇒ dial
-	// unauthenticated (the address's daemon must be open).
-	Value string `json:"value" default:""`
+	// unauthenticated (the address's daemon must be open). Always
+	// sent explicitly — NO serde default: empty-string schema
+	// defaults are banned (the json-schema builder asserts it), and
+	// the CLI fills `""` itself when `--value` is omitted.
+	Value string `json:"value"`
 }
 
 func (CliCommandLaboratoriesConfigAddressesAddRequest) SchemaTitle() string { return "cli.command.laboratories.config.addresses.add.Request" }
