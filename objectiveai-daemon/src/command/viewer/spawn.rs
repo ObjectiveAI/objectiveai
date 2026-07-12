@@ -32,19 +32,13 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    // Derive the daemon WS auth signature from the daemon's own `SECRET`
-    // (bare env): `sha256=<hex(SHA256(secret))>` — the same one-way
-    // math as `generate_viewer_secret_signature_pair`. Clients send it
+    // The daemon WS auth signature: the daemon's own bare `SIGNATURE`
+    // env when set, else derived one-way from its bare `SECRET`
+    // (`sha256=<hex(SHA256(secret))>`, the same math as
+    // `generate_viewer_secret_signature_pair`). Clients send it
     // verbatim in the first-message auth preamble (the SDK
     // `AuthEnvelope`) on every daemon WebSocket connection.
-    let daemon_signature = ctx.config.daemon_secret.as_deref().map(|secret| {
-        use sha2::{Digest, Sha256};
-        let hash = Sha256::digest(secret.as_bytes());
-        format!(
-            "sha256={}",
-            hash.iter().map(|b| format!("{:02x}", b)).collect::<String>()
-        )
-    });
+    let daemon_signature = ctx.config.client_signature();
 
     // The child inherits the cli's environment; every env key the
     // viewer's config reads (`EnvConfigBuilder` in

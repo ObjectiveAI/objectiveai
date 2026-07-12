@@ -201,12 +201,13 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     // foreground-daemon spawn stamps them, via `apply_daemon_env` below.
 }
 
-/// Stamp the daemon's own bind config as the BARE `ADDRESS`/`PORT`/`SECRET`
-/// env the daemon reads (see `run::EnvConfigBuilder`). Used ONLY when
-/// spawning the resident foreground daemon — never for plugins/tools,
-/// which must not inherit these generic-named vars. Address/port always
-/// carry resolved defaults; the secret is set when present and cleared
-/// otherwise so the child can't inherit a stale secret.
+/// Stamp the daemon's own bind config as the BARE
+/// `ADDRESS`/`PORT`/`SECRET`/`SIGNATURE` env the daemon reads (see
+/// `run::EnvConfigBuilder`). Used ONLY when spawning the resident
+/// foreground daemon — never for plugins/tools, which must not inherit
+/// these generic-named vars. Address/port always carry resolved
+/// defaults; the secret and pre-derived client signature are set when
+/// present and cleared otherwise so the child can't inherit stale ones.
 pub fn apply_daemon_env(cmd: &mut Command, cfg: &crate::Config) {
     cmd.env("ADDRESS", &cfg.daemon_address);
     cmd.env("PORT", cfg.daemon_port.to_string());
@@ -216,6 +217,14 @@ pub fn apply_daemon_env(cmd: &mut Command, cfg: &crate::Config) {
         }
         None => {
             cmd.env_remove("SECRET");
+        }
+    }
+    match cfg.daemon_signature.as_deref() {
+        Some(v) => {
+            cmd.env("SIGNATURE", v);
+        }
+        None => {
+            cmd.env_remove("SIGNATURE");
         }
     }
 }

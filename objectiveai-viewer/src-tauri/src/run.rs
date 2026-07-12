@@ -293,9 +293,8 @@ pub fn serve(
         open_url,
         open_agent_window,
         crate::plugins::list_plugins_with_viewer,
-        crate::laboratories::laboratories_create,
-        crate::laboratories::laboratories_list,
-        crate::laboratories::laboratories_connect,
+        crate::laboratories::machine_identity,
+        crate::laboratories::laboratories_spawn_host,
     ]);
     builder
         .setup(move |tauri_app| {

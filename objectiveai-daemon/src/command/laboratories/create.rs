@@ -1,11 +1,20 @@
-//! `laboratories create` — create the laboratory container, WAITED to
-//! completion: the manager binary's `create` subcommand does the
-//! podman create + MCP-binary injection and exits. The container is
-//! NOT started and nothing connects to any daemon — that is
-//! `laboratories connect`'s job. Errors if the id already exists.
-//! Only client-side laboratories are supported today.
+//! `laboratories create` — create the laboratory container on the
+//! TARGET MACHINE's laboratory host, forwarded over its `/laboratory`
+//! WS (`LaboratoryCreate`): podman runs host-side, wherever the host
+//! is. `--machine` picks the exact machine id (from `laboratories
+//! list`); unset targets the current machine, auto-spawning its host
+//! when none is connected (unless `laboratories config local` is
+//! false — then this errors, as the local host would never dial this
+//! daemon). The container is NOT started — it starts lazily on its
+//! first routed op. The host broadcasts `laboratory_created` to every
+//! daemon it serves, so all registries update without scanning. The
+//! echo is the host's own reply (podman's record, `created_at`
+//! included). Errors if the id already exists on that host. Only
+//! client-side laboratories are supported today.
 
 use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Response};
+use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
+use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -17,51 +26,65 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Kind::Client => {}
     }
 
-    let exe = ctx.filesystem.bin_dir().join(if cfg!(windows) {
-        "objectiveai-laboratory.exe"
-    } else {
-        "objectiveai-laboratory"
-    });
-    let mut cmd = tokio::process::Command::new(&exe);
-    cmd.arg("create")
-        .arg("--id")
-        .arg(&request.id)
-        .arg("--image")
-        .arg(&request.image)
-        .arg("--cwd")
-        .arg(&request.cwd)
-        .arg("--objectiveai-dir")
-        .arg(ctx.filesystem.dir())
-        .arg("--objectiveai-state")
-        .arg(ctx.filesystem.state());
-    for mount in &request.mounts {
-        cmd.arg("--mount")
-            .arg(format!("{}:{}", mount.host, mount.container));
-    }
-    for env in &request.env {
-        cmd.arg("--env").arg(format!("{}={}", env.key, env.value));
-    }
-    let output = cmd
-        .output()
+    let target = super::resolve_machine(ctx, request.machine.clone()).await?;
+    let hubs = ctx
+        .resident_hubs()
+        .ok_or_else(|| Error::Laboratory("laboratories create requires the resident daemon".to_string()))?;
+
+    let payload = server_request::Payload::LaboratoryCreate(
+        server_request::LaboratoryCreateRequest {
+            id: request.id.clone(),
+            image: request.image.clone(),
+            mounts: request
+                .mounts
+                .iter()
+                .map(|m| [m.host.clone(), m.container.clone()])
+                .collect(),
+            env: request
+                .env
+                .iter()
+                .map(|e| [e.key.clone(), e.value.clone()])
+                .collect(),
+            cwd: request.cwd.clone(),
+        },
+    );
+    let response = hubs
+        .laboratories
+        .forward_to_machine(&target, indexmap::IndexMap::new(), payload)
         .await
-        .map_err(|e| Error::Laboratory(format!("spawn objectiveai-laboratory create: {e}")))?;
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(Error::Laboratory(format!(
-            "objectiveai-laboratory create: {}",
-            stderr.trim()
-        )));
-    }
-
-    // Tell a running daemon its local set changed (best-effort).
-    super::signal_local_changed(ctx).await;
-
+        .map_err(Error::Laboratory)?;
+    let identify = match response {
+        server_response::Payload::LaboratoryCreate(JsonRpcResult::Ok { result }) => result,
+        server_response::Payload::LaboratoryCreate(JsonRpcResult::Err {
+            message, ..
+        }) => return Err(Error::Laboratory(message)),
+        _ => {
+            return Err(Error::Laboratory(
+                "laboratory host answered create with an unexpected payload".to_string(),
+            ));
+        }
+    };
     Ok(Response {
-        id: request.id,
-        image: request.image,
-        mounts: request.mounts,
-        env: request.env,
-        cwd: request.cwd,
+        id: identify.id,
+        image: identify.image,
+        mounts: identify
+            .mounts
+            .into_iter()
+            .map(|m| objectiveai_sdk::cli::command::laboratories::create::Mount {
+                host: m.host,
+                container: m.container,
+            })
+            .collect(),
+        env: identify
+            .env
+            .into_iter()
+            .map(|[key, value]| {
+                objectiveai_sdk::cli::command::laboratories::create::EnvVar { key, value }
+            })
+            .collect(),
+        cwd: identify.cwd,
+        created_at: identify.created_at,
+        machine: hubs.laboratories.machine(&target),
     })
 }
 

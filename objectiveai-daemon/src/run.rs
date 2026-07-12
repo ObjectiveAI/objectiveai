@@ -83,6 +83,8 @@ struct EnvConfigBuilder {
     daemon_port: Option<u16>,
     #[envconfig(from = "SECRET")]
     daemon_secret: Option<String>,
+    #[envconfig(from = "SIGNATURE")]
+    daemon_signature: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -107,6 +109,7 @@ impl EnvConfigBuilder {
             daemon_address: self.daemon_address,
             daemon_port: self.daemon_port,
             daemon_secret: self.daemon_secret,
+            daemon_signature: self.daemon_signature,
         }
     }
 }
@@ -128,6 +131,7 @@ pub struct ConfigBuilder {
     pub daemon_address: Option<String>,
     pub daemon_port: Option<u16>,
     pub daemon_secret: Option<String>,
+    pub daemon_signature: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -169,6 +173,7 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| "127.0.0.1".to_string()),
             daemon_port: self.daemon_port.unwrap_or(0),
             daemon_secret: self.daemon_secret,
+            daemon_signature: self.daemon_signature,
         }
     }
 }
@@ -214,6 +219,26 @@ pub struct Config {
     /// must carry a valid `sha256=<hex(SHA256(secret))>` signature; when
     /// `None`, the server is open.
     pub daemon_secret: Option<String>,
+    /// Optional PRE-DERIVED client signature for this daemon's WebSocket
+    /// server (bare `SIGNATURE`) — what the daemon hands to the clients
+    /// it spawns (viewer, laboratory host). When unset it is derived
+    /// from `SECRET` (`sha256=<hex(SHA256(secret))>`); setting it
+    /// directly supports deployments where the spawner knows the
+    /// signature without holding the secret.
+    pub daemon_signature: Option<String>,
+}
+
+impl Config {
+    /// The signature clients of THIS daemon should present: the bare
+    /// `SIGNATURE` env when set, else derived one-way from the bare
+    /// `SECRET`, else `None` (open server — no auth to present).
+    pub fn client_signature(&self) -> Option<String> {
+        self.daemon_signature.clone().or_else(|| {
+            self.daemon_secret
+                .as_deref()
+                .map(crate::websockets::daemon_auth::derive_signature)
+        })
+    }
 }
 
 /// What [`run`] yields, mirroring the two SDK root dispatch entry

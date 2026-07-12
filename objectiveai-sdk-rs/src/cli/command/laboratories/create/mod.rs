@@ -28,6 +28,12 @@ pub struct Request {
     /// Default working directory new agents start in; defaults to `/`.
     #[serde(default = "default_cwd")]
     pub cwd: String,
+    /// The EXACT machine id (as `laboratories list` reports it) whose
+    /// laboratory host should own the container. `None` ⇒ the current
+    /// machine (the daemon's own).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -118,7 +124,7 @@ impl CommandRequest for Request {
     }
 }
 
-/// Echo of the created laboratory.
+/// Echo of the created laboratory, from the owning host's reply.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.laboratories.create.Response")]
 pub struct Response {
@@ -127,6 +133,16 @@ pub struct Response {
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
     pub cwd: String,
+    /// Unix seconds when the container was created, from podman's own
+    /// record on the owning host. `None` when the host didn't report
+    /// it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub created_at: Option<i64>,
+    /// The machine whose laboratory host owns the container.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<crate::machine::MachineIdentity>,
 }
 
 #[derive(clap::Args)]
@@ -155,6 +171,10 @@ pub struct Args {
     /// Default working directory new agents start in; defaults to `/`.
     #[arg(long)]
     pub cwd: Option<String>,
+    /// The EXACT machine id (from `laboratories list`) whose host
+    /// should own the container; defaults to the current machine.
+    #[arg(long)]
+    pub machine: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -219,6 +239,7 @@ impl TryFrom<Args> for Request {
             mounts,
             env,
             cwd,
+            machine: args.machine,
             base: args.base.into(),
         })
     }

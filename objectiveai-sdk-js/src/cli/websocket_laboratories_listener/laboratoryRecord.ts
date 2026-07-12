@@ -3,18 +3,18 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "../command/laboratories/create/envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "../command/laboratories/create/mount";
-import { CliCommandLaboratoriesListSourceSchema } from "../command/laboratories/list/source";
+import { MachineMachineIdentitySchema } from "../../machine/machineIdentity";
 import { CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema } from "./laboratoryAttachment";
 
 export const CliWebsocketLaboratoriesListenerLaboratoryRecordSchema = z.object({
   attachments: z.array(CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema).default([]).describe("Every attachment row targeting this laboratory, oldest first."),
-  connected: z.boolean().describe("Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now."),
+  connected: z.boolean().describe("Whether the serving host's `/laboratory` connection is live\nright now."),
   created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the identity source\ndidn't report it (or the laboratory is known only through\nattachment rows).").meta({ omitempty: true }).optional(),
   cwd: z.string().nullable().meta({ omitempty: true }).optional(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema).default([]),
   id: z.string().describe("Raw (state-agnostic) laboratory id."),
   image: z.string().nullable().meta({ omitempty: true }).optional(),
+  machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory —\n`None` when no connected host serves it.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema).default([]),
-  source: CliCommandLaboratoriesListSourceSchema.nullable().describe("Where this laboratory lives relative to this machine + state —\n`None` when it is neither connected nor in the local scan.").meta({ omitempty: true }).optional(),
-}).describe("One laboratory's full record. Identity fields are present when the\nlaboratory is connected to the daemon or found by the local scan;\na laboratory known ONLY through attachment rows (or not at all)\nzero-fills them — `source: None` marks \"not present anywhere\",\nmirroring the agents `get_exact` zero-fill convention.").meta({ title: "cli.websocket_laboratories_listener.LaboratoryRecord" });
+}).describe("One laboratory's full record. Identity fields are present when a\nconnected laboratory HOST serves the laboratory; a laboratory known\nONLY through attachment rows (or not at all) zero-fills them —\n`machine: None` marks \"not served anywhere\", mirroring the agents\n`get_exact` zero-fill convention. There is no local-vs-remote\nsplit — machine identity is the only provenance.").meta({ title: "cli.websocket_laboratories_listener.LaboratoryRecord" });
 export type CliWebsocketLaboratoriesListenerLaboratoryRecord = z.infer<typeof CliWebsocketLaboratoriesListenerLaboratoryRecordSchema>;

@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "../command/laboratories/create/envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "../command/laboratories/create/mount";
-import { CliCommandLaboratoriesListSourceSchema } from "../command/laboratories/list/source";
+import { MachineMachineIdentitySchema } from "../../machine/machineIdentity";
 
 export const CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema = z.object({
-  connected: z.boolean().describe("Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now."),
-  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the manager/scan didn't\nreport it.").meta({ omitempty: true }).optional(),
+  connected: z.boolean().describe("Whether the serving host's `/laboratory` connection is live\nright now."),
+  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.").meta({ omitempty: true }).optional(),
   cwd: z.string(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string().describe("Raw (state-agnostic) laboratory id."),
   image: z.string(),
+  machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
-  source: CliCommandLaboratoriesListSourceSchema.describe("Where this laboratory lives relative to this machine + state —\nthe same RAW-id classification as the unary `laboratories\nlist`."),
-}).describe("One laboratory on the `/laboratories/list` stream: its spec, where\nit lives relative to this machine + state, and whether it is\nconnected to the daemon right now.").meta({ title: "cli.websocket_laboratories_list_listener.LaboratoryStatus" });
+}).describe("One laboratory on the `/laboratories/list` stream: its spec, the\nmachine whose host serves it, and whether that host is connected\nright now. There is no local-vs-remote split — machine identity is\nthe only provenance.").meta({ title: "cli.websocket_laboratories_list_listener.LaboratoryStatus" });
 export type CliWebsocketLaboratoriesListListenerLaboratoryStatus = z.infer<typeof CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema>;

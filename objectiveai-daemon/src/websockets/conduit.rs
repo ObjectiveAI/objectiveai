@@ -371,6 +371,21 @@ impl McpHandler for ConduitMcpHandler {
                     result: server_response::LaboratoryTransferAck {},
                 })
             }
+            // Host-level laboratory ops (create/delete) ride ONLY the
+            // daemon→host `/laboratory` channel — never the API reverse
+            // channel. Reaching here is a protocol violation.
+            server_request::Payload::LaboratoryCreate(_) => {
+                server_response::Payload::LaboratoryCreate(rpc_err(
+                    -32601,
+                    "the conduit does not serve laboratory create".to_string(),
+                ))
+            }
+            server_request::Payload::LaboratoryDelete(_) => {
+                server_response::Payload::LaboratoryDelete(rpc_err(
+                    -32601,
+                    "the conduit does not serve laboratory delete".to_string(),
+                ))
+            }
         };
 
         server_response::Response { id, payload }

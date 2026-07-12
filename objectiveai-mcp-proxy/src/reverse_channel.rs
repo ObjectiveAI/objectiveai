@@ -1033,5 +1033,9 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::LaboratoryImportWrite(_) => "laboratory_import_write",
         P::LaboratoryImportEnd(_) => "laboratory_import_end",
         P::LaboratoryImportAbort(_) => "laboratory_import_abort",
+        // Host-level ops — daemon↔host `/laboratory` channel only;
+        // never expected on the reverse channel.
+        P::LaboratoryCreate(_) => "laboratory_create",
+        P::LaboratoryDelete(_) => "laboratory_delete",
     }
 }

@@ -13,6 +13,9 @@ export const CliCommandLaboratoriesCreateRequestSchema = z.object({
   image: z.string(),
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
   kind: CliCommandLaboratoriesCreateKindSchema,
+  machine: z.string().nullable().describe("The EXACT machine id (as `laboratories list` reports it) whose
+laboratory host should own the container. `None` ⇒ the current
+machine (the daemon's own).").meta({ omitempty: true }).optional(),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
   path_type: CliCommandLaboratoriesCreatePathSchema,

@@ -2,32 +2,31 @@ import cn from "classnames";
 import type { DaemonConnection } from "../lib/daemon";
 import { useAgo } from "../hooks/useAgo";
 import { useLaboratoriesList } from "../hooks/useLaboratoriesList";
-import { useViewerLaboratories } from "../hooks/useViewerLaboratories";
+import { useMachineIdentity } from "../hooks/useMachineIdentity";
 import {
-  mergeLaboratories,
+  classifyLaboratories,
   type DisplayLaboratory,
   type ViewerSource,
 } from "../lib/laboratories";
 import { LogoMark } from "./shared/Logo";
 
 /**
- * The `laboratories` home pane: the live union of the daemon's
- * `/laboratories/list` stream and the viewer machine's own podman
- * scan, each laboratory classified `local` / `daemon` / `remote`
- * (see [`mergeLaboratories`]). All laboratory state lives HERE —
- * unshared with the agents tab. `active` gates the local scan's
- * polling to when this tab is focused.
+ * The `laboratories` home pane: the daemon's `/laboratories/list`
+ * stream (the host registry — the whole laboratory universe), each
+ * laboratory classified `local` / `remote` by comparing its serving
+ * host's machine identity against this machine's (see
+ * [`classifyLaboratories`]). All laboratory state lives HERE —
+ * unshared with the agents tab.
  */
 export function LaboratoriesPane({
   connection,
-  active,
 }: {
   connection: DaemonConnection | null;
   active: boolean;
 }) {
   const daemon = useLaboratoriesList(connection);
-  const viewer = useViewerLaboratories(active);
-  const laboratories = mergeLaboratories(daemon, viewer);
+  const machine = useMachineIdentity();
+  const laboratories = classifyLaboratories(daemon, machine);
 
   if (laboratories.length === 0) {
     return (
@@ -82,7 +81,6 @@ const SOURCE_CLASSES: Record<ViewerSource, string> = {
     "bg-copper-warm/10",
     "text-copper-bright",
   ),
-  daemon: cn("border-copper-mid/70", "bg-copper-warm/10", "text-copper-mid"),
   remote: cn("border-info-mid/40", "bg-info-mid/10", "text-info-mid"),
 };
 
@@ -143,6 +141,11 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
             "text-xs",
             SOURCE_CLASSES[lab.source],
           )}
+          title={
+            lab.machine
+              ? `${lab.machine.hostname ?? lab.machine.id} (${lab.machine.os})`
+              : undefined
+          }
         >
           {lab.source}
         </span>

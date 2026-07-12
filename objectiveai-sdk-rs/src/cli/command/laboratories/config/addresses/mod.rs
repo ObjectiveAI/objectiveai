@@ -146,7 +146,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
     E::Error,
 > {
-    use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
             Request::Add(req) => {

@@ -1,17 +1,16 @@
 import type { LaboratoryStatus } from "../hooks/useLaboratoriesList";
-import type { ViewerLaboratory } from "../hooks/useViewerLaboratories";
+import type { MachineIdentity } from "../hooks/useMachineIdentity";
 
-/** The VIEWER's 3-way provenance — a refinement of the daemon's
- * 2-way `source` by one extra fact, the viewer machine's own scan:
+/** The VIEWER's 2-way provenance, by MACHINE IDENTITY (there is no
+ * scan and no daemon-side local/remote — machine identity is the only
+ * provenance):
  *
- * - `local`  — the id is in the VIEWER's scan (pure set membership;
- *              no machine-identity logic).
- * - `daemon` — not on the viewer machine, but local to the DAEMON's
- *              machine (its item says `source: "local"`). Empty by
- *              construction when viewer and daemon share a machine.
- * - `remote` — everything else.
+ * - `local`  — the laboratory's serving host runs on THIS machine
+ *              (`machine.id` equals the viewer's own machine id).
+ * - `remote` — everything else, including items whose machine is
+ *              unknown (identity unresolved ⇒ never guess local).
  */
-export type ViewerSource = "local" | "daemon" | "remote";
+export type ViewerSource = "local" | "remote";
 
 /** One laboratory as the laboratories page displays it. */
 export interface DisplayLaboratory {
@@ -24,51 +23,36 @@ export interface DisplayLaboratory {
    * source didn't report it. */
   createdAt: number | null;
   source: ViewerSource;
+  /** The machine whose host serves this laboratory — display
+   * metadata (hostname, os) for the card; `null` when unreported. */
+  machine: MachineIdentity | null;
   connected: boolean;
 }
 
 /**
- * The display union: every daemon-listed laboratory (reclassified by
- * viewer-scan membership) plus viewer-scan laboratories the daemon
- * doesn't know (created locally, never connected) — those are
- * `local`, not connected, identity from the scan. Sorted by id.
+ * The display list: every daemon-listed laboratory, classified by
+ * comparing its serving host's `machine.id` against the viewer's own
+ * machine identity. The registry is the whole universe — hosts
+ * announce their full set and notify on every change, so there are no
+ * scan-only extras to merge. Sorted by id.
  */
-export function mergeLaboratories(
+export function classifyLaboratories(
   daemon: LaboratoryStatus[],
-  viewer: ViewerLaboratory[],
+  machine: MachineIdentity | null,
 ): DisplayLaboratory[] {
-  const viewerIds = new Set(viewer.map((lab) => lab.id));
-  const daemonIds = new Set(daemon.map((lab) => lab.id));
-  const out: DisplayLaboratory[] = [];
-  for (const lab of daemon) {
-    const source: ViewerSource = viewerIds.has(lab.id)
-      ? "local"
-      : lab.source === "local"
-        ? "daemon"
-        : "remote";
-    out.push({
-      id: lab.id,
-      image: lab.image,
-      mounts: lab.mounts,
-      env: lab.env,
-      cwd: lab.cwd,
-      createdAt: lab.created_at ?? null,
-      source,
-      connected: lab.connected,
-    });
-  }
-  for (const lab of viewer) {
-    if (daemonIds.has(lab.id)) continue;
-    out.push({
-      id: lab.id,
-      image: lab.image,
-      mounts: lab.mounts,
-      env: lab.env.map(([key, value]) => ({ key, value })),
-      cwd: lab.cwd,
-      createdAt: lab.created_at ?? null,
-      source: "local",
-      connected: false,
-    });
-  }
+  const out: DisplayLaboratory[] = daemon.map((lab) => ({
+    id: lab.id,
+    image: lab.image,
+    mounts: lab.mounts,
+    env: lab.env,
+    cwd: lab.cwd,
+    createdAt: lab.created_at ?? null,
+    source:
+      machine !== null && lab.machine?.id === machine.id
+        ? "local"
+        : "remote",
+    machine: lab.machine ?? null,
+    connected: lab.connected,
+  }));
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }

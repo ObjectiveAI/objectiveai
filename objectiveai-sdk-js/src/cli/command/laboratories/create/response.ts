@@ -3,12 +3,17 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "./envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "./mount";
+import { MachineMachineIdentitySchema } from "../../../../machine/machineIdentity";
 
 export const CliCommandLaboratoriesCreateResponseSchema = z.object({
+  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the container was created, from podman's own
+record on the owning host. `None` when the host didn't report
+it.").meta({ omitempty: true }).optional(),
   cwd: z.string(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string(),
   image: z.string(),
+  machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host owns the container.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
-}).describe("Echo of the created laboratory.").meta({ title: "cli.command.laboratories.create.Response" });
+}).describe("Echo of the created laboratory, from the owning host's reply.").meta({ title: "cli.command.laboratories.create.Response" });
 export type CliCommandLaboratoriesCreateResponse = z.infer<typeof CliCommandLaboratoriesCreateResponseSchema>;

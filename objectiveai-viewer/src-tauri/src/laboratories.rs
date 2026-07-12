@@ -1,31 +1,27 @@
-//! Laboratory Tauri commands: create / list / connect on the VIEWER's
-//! machine — the #252 groundwork. Mirrors the CLI handlers: all podman
-//! work happens inside the `objectiveai-laboratory` binary; the shell
-//! only runs it as a subprocess.
+//! Laboratory Tauri commands: the machine-identity bridge and the
+//! host spawner — everything else about laboratories reaches JS
+//! through the daemon (the WebSocketExecutor and the
+//! `/laboratories/*` streams), which is the ONLY laboratory data
+//! path now that the `objectiveai-laboratory` binary is a pure
+//! WebSocket host with no subcommands.
 //!
-//! - `laboratories_create` runs `create` to completion (container +
-//!   injected MCP binary, NOT started; hard error if the id exists).
-//! - `laboratories_list` runs `list` to completion and returns the
-//!   viewer machine's local scan. The daemon's merged view is already
-//!   reachable from JS through the WebSocketExecutor, so this command
-//!   adds exactly the capability JS cannot have.
-//! - `laboratories_connect` takes the laboratory id; the target is
-//!   implicit — always the viewer's own daemon (address + signature
-//!   from the managed [`crate::run::WebSocketConfig`]). Spawns the
-//!   resident manager DETACHED via the SDK's lock-published
-//!   discipline — idempotent per (id, address), so an
-//!   already-connected laboratory is a no-op. Readiness is lock
-//!   publication (the viewer cannot reach a remote daemon's
-//!   laboratories socket; managers retry their dials forever).
-//!
-//! NOT wired into the JS/UI yet.
+//! - `machine_identity` returns THIS machine's
+//!   [`objectiveai_sdk::machine::MachineIdentity`] — what JS compares
+//!   against a laboratory's `machine.id` to classify "on this
+//!   machine" (the old podman-scan membership test is gone with the
+//!   scan itself; machine identity is the only provenance).
+//! - `laboratories_spawn_host` starts THIS machine's resident
+//!   laboratory HOST (one per (machine, state), serving ALL of its
+//!   laboratories), dialing the viewer's own daemon (address +
+//!   signature from the managed [`crate::run::WebSocketConfig`]).
+//!   Idempotent via the single `laboratories` lock in
+//!   `<state>/locks` — an already-running host is a no-op. Readiness
+//!   is lock publication (the host retries its dial forever).
 
 use std::path::PathBuf;
 
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{connect_lock_key, Identify};
-
 /// The laboratory commands' environment: the layout root and state
-/// name the subprocesses target. Managed by [`crate::run::serve`].
+/// name the host subprocess targets. Managed by [`crate::run::serve`].
 pub struct LabEnv {
     pub objectiveai_dir: PathBuf,
     pub state: String,
@@ -41,113 +37,38 @@ impl LabEnv {
     }
 }
 
-#[derive(serde::Deserialize)]
-pub struct Mount {
-    pub host: String,
-    pub container: String,
-}
-
-#[derive(serde::Deserialize)]
-pub struct EnvVar {
-    pub key: String,
-    pub value: String,
-}
-
-/// Create the laboratory container on this machine (waited; not
-/// started; errors if the id already exists).
+/// THIS machine's identity — the stable hashed id JS compares against
+/// a laboratory's `machine.id`, plus the os/hostname display metadata.
 #[tauri::command]
-pub(crate) async fn laboratories_create(
+pub(crate) fn machine_identity(
     env: tauri::State<'_, LabEnv>,
-    id: String,
-    image: String,
-    mounts: Vec<Mount>,
-    env_vars: Vec<EnvVar>,
-    cwd: String,
-) -> Result<(), String> {
-    let mut cmd = tokio::process::Command::new(env.binary());
-    cmd.arg("create")
-        .arg("--id")
-        .arg(&id)
-        .arg("--image")
-        .arg(&image)
-        .arg("--cwd")
-        .arg(&cwd)
-        .arg("--objectiveai-dir")
-        .arg(&env.objectiveai_dir)
-        .arg("--objectiveai-state")
-        .arg(&env.state);
-    for mount in &mounts {
-        cmd.arg("--mount")
-            .arg(format!("{}:{}", mount.host, mount.container));
-    }
-    for var in &env_vars {
-        cmd.arg("--env").arg(format!("{}={}", var.key, var.value));
-    }
-    let output = cmd
-        .output()
-        .await
-        .map_err(|e| format!("spawn objectiveai-laboratory create: {e}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "objectiveai-laboratory create: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    Ok(())
+) -> objectiveai_sdk::machine::MachineIdentity {
+    objectiveai_sdk::machine::machine_identity(&env.objectiveai_dir)
 }
 
-/// The viewer machine's laboratories (running or not), from the local
-/// podman label scan.
+/// Spawn (or find already-published) THIS machine's resident
+/// laboratory HOST, dialing the viewer's own daemon. The target
+/// address + signature are implicit — always the viewer's own (the
+/// managed [`crate::run::WebSocketConfig`]). Idempotent via the single
+/// `laboratories` lock: an already-running host is a no-op. Resolves
+/// to nothing.
 #[tauri::command]
-pub(crate) async fn laboratories_list(
-    env: tauri::State<'_, LabEnv>,
-) -> Result<Vec<Identify>, String> {
-    local_scan(&env).await
-}
-
-/// Run the manager binary's `list` and parse the identity array.
-async fn local_scan(env: &LabEnv) -> Result<Vec<Identify>, String> {
-    let output = tokio::process::Command::new(env.binary())
-        .arg("list")
-        .arg("--objectiveai-dir")
-        .arg(&env.objectiveai_dir)
-        .arg("--objectiveai-state")
-        .arg(&env.state)
-        .output()
-        .await
-        .map_err(|e| format!("spawn objectiveai-laboratory list: {e}"))?;
-    if !output.status.success() {
-        return Err(format!(
-            "objectiveai-laboratory list: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        ));
-    }
-    serde_json::from_slice(&output.stdout)
-        .map_err(|e| format!("parse objectiveai-laboratory list output: {e}"))
-}
-
-/// Connect the SPECIFIED laboratory on this machine to the viewer's
-/// daemon. Only the id travels; the target address + signature are
-/// implicit — always the viewer's own (the managed
-/// [`crate::run::WebSocketConfig`]). Idempotent per (id, address) via
-/// the lock-publication discipline: an already-connected laboratory
-/// is a no-op. Resolves to nothing.
-#[tauri::command]
-pub(crate) async fn laboratories_connect(
+pub(crate) async fn laboratories_spawn_host(
     env: tauri::State<'_, LabEnv>,
     ws: tauri::State<'_, crate::run::WebSocketConfig>,
-    id: String,
 ) -> Result<(), String> {
-    connect_one(&env, &id, &ws.address, ws.signature.as_deref())
+    spawn_host(&env, &ws.address, ws.signature.as_deref())
         .await
-        .map_err(|e| format!("laboratory '{id}': {e}"))
+        .map_err(|e| format!("laboratory host: {e}"))
 }
 
-/// Spawn (or find already-published) the detached manager for one
-/// laboratory against `address`.
-async fn connect_one(
+/// The spawn itself: `--address <daemon>` under the single per-state
+/// `laboratories` lock — no subcommand, the binary IS the host.
+/// Everything rides argv — the host binary reads NO environment
+/// variables, by design; the signature is the repeatable
+/// `--signature ADDRESS=SIGNATURE` form.
+async fn spawn_host(
     env: &LabEnv,
-    id: &str,
     address: &str,
     signature: Option<&str>,
 ) -> Result<(), String> {
@@ -155,35 +76,22 @@ async fn connect_one(
         .objectiveai_dir
         .join("state")
         .join(&env.state)
-        .join("locks")
-        .join("laboratories");
-    let lock_key = connect_lock_key(id, address);
+        .join("locks");
 
     objectiveai_sdk::lockfile::spawn_until_published(
         &env.binary(),
         &lock_dir,
-        &lock_key,
+        "laboratories",
         |cmd| {
-            cmd.arg("connect")
-                .arg("--id")
-                .arg(id)
-                .arg("--address")
-                .arg(address)
-                .arg("--objectiveai-dir")
+            cmd.arg("--address").arg(address);
+            if let Some(signature) = signature {
+                cmd.arg("--signature").arg(format!("{address}={signature}"));
+            }
+            cmd.arg("--objectiveai-dir")
                 .arg(&env.objectiveai_dir)
                 .arg("--objectiveai-state")
                 .arg(&env.state)
                 .arg("--suppress-output");
-            // The signature travels by ENV VAR only; cleared when
-            // absent so the child can't inherit a stale one.
-            match signature {
-                Some(s) => {
-                    cmd.env("DAEMON_SIGNATURE", s);
-                }
-                None => {
-                    cmd.env_remove("DAEMON_SIGNATURE");
-                }
-            }
         },
     )
     .await

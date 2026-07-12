@@ -4,9 +4,10 @@
  * `cli::websocket_laboratories_list_listener::WebSocketLaboratoriesListListener`,
  * identical in construction and semantics.
  *
- * Each item is one laboratory's spec plus its `source` (local/remote
- * provenance, the unary `laboratories list` rules) and a live
- * `connected` flag from the daemon's `/laboratory` registry. The
+ * Each item is one laboratory's spec plus the `machine` whose host
+ * serves it (there is no local-vs-remote split — machine identity is
+ * the only provenance) and a live `connected` flag from the daemon's
+ * `/laboratory` registry. The
  * listener folds events into a self-updating `id → status` map: a
  * `snapshot` replaces the whole set, `upserted` replaces one
  * laboratory by id (introducing it if unseen), `removed` drops one.
@@ -49,7 +50,7 @@ export interface WebSocketLaboratoriesListListenerOptions {
  *   "ws://127.0.0.1:49152/laboratories/list",
  *   { signature, onChange: (laboratories) => render(laboratories) },
  * );
- * listener.laboratories(); // [{ id, image, ..., source, connected }, ...]
+ * listener.laboratories(); // [{ id, image, ..., machine, connected }, ...]
  * await listener.subscribe(); // resolves on the next change
  * ```
  */

@@ -4,8 +4,8 @@
  * `cli::websocket_laboratories_listener::WebSocketLaboratoriesListener`,
  * identical in construction and semantics.
  *
- * One laboratory's full record: its spec (when connected or in the
- * machine's local scan; zero-filled otherwise), `source`/`connected`
+ * One laboratory's full record: its spec (when a connected host
+ * serves it; zero-filled otherwise), `machine`/`connected`
  * state, and EVERY attachment row targeting it (the AIHs and tags it
  * is attached to). Frames are always full-value record replaces —
  * the first is the connect-time snapshot; each later one supersedes

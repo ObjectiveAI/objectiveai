@@ -1,19 +1,15 @@
 //! The daemon's live laboratories endpoints: `/laboratories/list`
-//! (every laboratory — the `laboratories list` merge as a stream) and
+//! (every laboratory served by a connected host, as a stream) and
 //! `/laboratories/{*id}` (one laboratory's full record, attachments
 //! included).
 //!
 //! State sources, coalesced into one [`LabsChange`] feed:
-//! - the CONNECTED set — [`LaboratoryRegistry`] events (a manager
-//!   connected / disconnected on `/laboratory`);
-//! - the LOCAL set — the machine's state-scoped container scan, via
-//!   the `objectiveai-laboratory list` subprocess (the same reader the
-//!   unary `laboratories list` uses). It is NOT cached and NOT polled:
-//!   every response (re)build scans podman on-demand, so a `list`
-//!   subprocess fires exactly when a frame is built — on connect and on
-//!   a registry connect/disconnect for the list, plus attachment
-//!   changes for the per-id record. (Caching this scan is a deferred
-//!   perf optimization.);
+//! - the REGISTRY — [`LaboratoryRegistry`] events (a host connected or
+//!   disconnected, a laboratory was created or deleted on a connected
+//!   host). The registry IS the laboratory set: hosts announce their
+//!   full list on connect and notify on every change, so there is no
+//!   scan, no poll, and no local-vs-remote split — machine identity is
+//!   the only provenance;
 //! - ATTACHMENTS — a dedicated `laboratory_attachments_changed`
 //!   watcher with NO payload filtering (unlike `ActiveAgents`' agent
 //!   watcher, which drops GROUPED-tag payloads — the per-lab record
@@ -23,10 +19,9 @@
 //! what they last sent — events carry no payloads worth trusting, and
 //! a lagged subscriber self-heals on its next rebuild.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
 use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Mount};
-use objectiveai_sdk::cli::command::laboratories::list::Source;
 use objectiveai_sdk::cli::websocket_laboratories_list_listener::{
     LaboratoryEvent, LaboratoryStatus,
 };
@@ -34,6 +29,7 @@ use objectiveai_sdk::cli::websocket_laboratories_listener::{
     LaboratoryAttachment, LaboratoryInstanceEvent, LaboratoryRecord,
 };
 use objectiveai_sdk::client_objectiveai_mcp::laboratory::Identify;
+use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::broadcast;
 
 use crate::websockets::websocket_laboratory::LaboratoryRegistry;
@@ -42,20 +38,16 @@ use crate::websockets::websocket_laboratory::LaboratoryRegistry;
 /// consumer rebuilds from truth.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum LabsChange {
-    /// The connected set changed (a manager connected/disconnected).
+    /// The registry changed (a host connected/disconnected, or a
+    /// laboratory was created/deleted on a connected host).
     Registry,
     /// A `laboratory_attachments` row was written or removed
     /// (any laboratory, any target).
     Attachments,
-    /// The machine's LOCAL laboratory set changed — a container was
-    /// created or deleted (signalled over `laboratories.sock` by the
-    /// CLI's `create`/`delete`, since podman has no event source).
-    LocalChanged,
 }
 
-/// The live-laboratories hub: the connected registry + the coalesced
-/// change feed, shared by both routes. The local podman scan is NOT
-/// cached — each response build scans on-demand.
+/// The live-laboratories hub: the host registry + the coalesced change
+/// feed, shared by both routes.
 #[derive(Clone)]
 pub(crate) struct LaboratoriesHub {
     registry: LaboratoryRegistry,
@@ -76,23 +68,15 @@ impl LaboratoriesHub {
         self.changes.subscribe()
     }
 
-    /// Signal that the machine's local laboratory set changed (a
-    /// container create/delete). Best-effort — no subscriber is fine.
-    /// Called by the `laboratories.sock` handler.
-    pub(crate) fn signal_local_changed(&self) {
-        let _ = self.changes.send(LabsChange::LocalChanged);
-    }
-
     /// Spawn the hub's resident tasks: the registry-event forwarder and
-    /// the attachments watcher. Called once at daemon boot. (No local
-    /// scanner — the scan is done on-demand per response build.)
+    /// the attachments watcher. Called once at daemon boot.
     pub(crate) fn spawn_tasks(&self) {
         tokio::spawn(self.clone().forward_registry_events());
         tokio::spawn(self.clone().watch_attachment_changes());
     }
 
-    /// Forward registry connect/disconnect events into the coalesced
-    /// change feed (which drives the pumps to rebuild + rescan).
+    /// Forward registry events into the coalesced change feed (which
+    /// drives the pumps to rebuild).
     async fn forward_registry_events(self) {
         let mut rx = self.registry.subscribe();
         loop {
@@ -138,60 +122,31 @@ impl LaboratoriesHub {
         }
     }
 
-    /// The full merged list — connected ∪ local scan, classified by
-    /// RAW id exactly like the unary `laboratories list` (connected
-    /// labs first: `source` local when the scan knows the id, remote
-    /// otherwise; then local labs with no live connection).
-    async fn merged_list(&self) -> Vec<LaboratoryStatus> {
-        let connected = self.registry.list();
-        // On-demand scan; a transient podman failure yields an empty
-        // local set (connected labs still list) — there is no cache to
-        // fall back on, by design.
-        let local = local_scan(&self.ctx).await.unwrap_or_default();
-        let local_ids: HashSet<&str> = local.iter().map(|l| l.id.as_str()).collect();
-        let connected_ids: HashSet<String> =
-            connected.iter().map(|l| l.id.clone()).collect();
-        let mut out = Vec::with_capacity(connected.len() + local.len());
-        for lab in connected {
-            let source = if local_ids.contains(lab.id.as_str()) {
-                Source::Local
-            } else {
-                Source::Remote
-            };
-            out.push(status_from_identify(lab, source, true));
-        }
-        for lab in local {
-            if !connected_ids.contains(&lab.id) {
-                out.push(status_from_identify(lab, Source::Local, false));
-            }
-        }
-        out
+    /// The full list — the registry snapshot, one item per laboratory
+    /// served by a connected host. Everything listed is connected by
+    /// construction (the registry IS the live connections).
+    async fn list(&self) -> Vec<LaboratoryStatus> {
+        self.registry
+            .list()
+            .await
+            .into_iter()
+            .map(|(machine, identify)| status_from_identify(identify, machine))
+            .collect()
     }
 
-    /// One laboratory's full record: identity from the registry
-    /// (connected) or an on-demand local scan, zero-filled when absent
-    /// from both (`source: None` — attachment rows can outlive their
+    /// One laboratory's full record: identity + machine from the
+    /// registry when a connected host serves it, zero-filled otherwise
+    /// (`machine: None` — attachment rows can outlive their
     /// laboratory); attachments from the DB. `None` when the DB is
     /// unavailable (the frame is skipped; a later change retries).
     async fn build_record(&self, id: &str) -> Option<LaboratoryRecord> {
-        let connected_identity =
-            self.registry.list().into_iter().find(|lab| lab.id == id);
-        let connected = connected_identity.is_some();
-        // On-demand scan (empty on failure — no cache).
-        let local_identity = local_scan(&self.ctx)
+        let identity = self
+            .registry
+            .list()
             .await
-            .unwrap_or_default()
             .into_iter()
-            .find(|lab| lab.id == id);
-        let locally_present = local_identity.is_some();
-        let source = if locally_present {
-            Some(Source::Local)
-        } else if connected {
-            Some(Source::Remote)
-        } else {
-            None
-        };
-        let identity = connected_identity.or(local_identity);
+            .find(|(_, lab)| lab.id == id);
+        let connected = identity.is_some();
 
         let pool = self.ctx.db_client().await.ok()?;
         let rows =
@@ -217,8 +172,8 @@ impl LaboratoriesHub {
             })
             .collect();
 
-        let (image, mounts, env, cwd, created_at) = match identity {
-            Some(identify) => (
+        let (image, mounts, env, cwd, created_at, machine) = match identity {
+            Some((machine, identify)) => (
                 Some(identify.image),
                 identify
                     .mounts
@@ -235,8 +190,9 @@ impl LaboratoriesHub {
                     .collect(),
                 Some(identify.cwd),
                 identify.created_at,
+                Some(machine),
             ),
-            None => (None, Vec::new(), Vec::new(), None, None),
+            None => (None, Vec::new(), Vec::new(), None, None, None),
         };
         Some(LaboratoryRecord {
             id: id.to_string(),
@@ -245,19 +201,15 @@ impl LaboratoriesHub {
             env,
             cwd,
             created_at,
-            source,
+            machine,
             connected,
             attachments,
         })
     }
 }
 
-/// [`Identify`] → one list item.
-fn status_from_identify(
-    lab: Identify,
-    source: Source,
-    connected: bool,
-) -> LaboratoryStatus {
+/// [`Identify`] + its serving machine → one list item.
+fn status_from_identify(lab: Identify, machine: MachineIdentity) -> LaboratoryStatus {
     LaboratoryStatus {
         id: lab.id,
         image: lab.image,
@@ -276,40 +228,9 @@ fn status_from_identify(
             .collect(),
         cwd: lab.cwd,
         created_at: lab.created_at,
-        source,
-        connected,
+        machine: Some(machine),
+        connected: true,
     }
-}
-
-/// The local machine's laboratories via the manager binary's `list`
-/// subcommand — the same reader as the unary `laboratories list`
-/// (`command::laboratories::list::local_laboratories`); a missing
-/// binary is an empty set (remote-only install).
-async fn local_scan(
-    ctx: &crate::context::Context,
-) -> Result<Vec<Identify>, ()> {
-    let exe = ctx.filesystem.bin_dir().join(if cfg!(windows) {
-        "objectiveai-laboratory.exe"
-    } else {
-        "objectiveai-laboratory"
-    });
-    let output = match tokio::process::Command::new(&exe)
-        .arg("list")
-        .arg("--objectiveai-dir")
-        .arg(ctx.filesystem.dir())
-        .arg("--objectiveai-state")
-        .arg(ctx.filesystem.state())
-        .output()
-        .await
-    {
-        Ok(output) => output,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(_) => return Err(()),
-    };
-    if !output.status.success() {
-        return Err(());
-    }
-    serde_json::from_slice(&output.stdout).map_err(|_| ())
 }
 
 // ── the two routes ──────────────────────────────────────────────────
@@ -344,7 +265,7 @@ async fn laboratories_list_pump(
     let mut rx = hub.subscribe();
 
     let mut last: BTreeMap<String, LaboratoryStatus> = hub
-        .merged_list()
+        .list()
         .await
         .into_iter()
         .map(|lab| (lab.id.clone(), lab))
@@ -364,12 +285,12 @@ async fn laboratories_list_pump(
                     // Attachment changes don't ride the list; identity
                     // and connected-ness are its whole payload.
                     Ok(LabsChange::Attachments) => continue,
-                    Ok(LabsChange::Registry | LabsChange::LocalChanged)
+                    Ok(LabsChange::Registry)
                     | Err(broadcast::error::RecvError::Lagged(_)) => {}
                     Err(broadcast::error::RecvError::Closed) => break,
                 }
                 let next: BTreeMap<String, LaboratoryStatus> = hub
-                    .merged_list()
+                    .list()
                     .await
                     .into_iter()
                     .map(|lab| (lab.id.clone(), lab))
@@ -424,10 +345,10 @@ pub(crate) async fn laboratory_instance_handler(
     })
 }
 
-/// Send the current record, then rebuild on EVERY change (registry,
-/// local scan, attachments — all three can alter it) and send only
-/// when the record actually differs. A DB outage skips the frame; the
-/// next change retries.
+/// Send the current record, then rebuild on EVERY change (registry and
+/// attachments both can alter it) and send only when the record
+/// actually differs. A DB outage skips the frame; the next change
+/// retries.
 async fn laboratory_instance_pump(
     mut socket: axum::extract::ws::WebSocket,
     hub: LaboratoriesHub,

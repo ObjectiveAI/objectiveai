@@ -1,9 +1,16 @@
-//! `laboratories` — top-level CLI dispatch for laboratory containers (podman
-//! containers the conduit dials as client-side MCP servers). `create`
-//! creates + starts a laboratory container; `list` reads them back from
-//! podman; `attach`/`detach` record/remove a laboratory id on an agent
-//! target (a tag, or an instance hierarchy) in the CLI's database — read
-//! attachments back via `agents instances get` (the `laboratories` field).
+//! `laboratories` — top-level CLI dispatch for laboratory containers
+//! (podman containers the conduit dials as client-side MCP servers).
+//! `spawn`/`kill` manage the machine's resident laboratory HOST (one
+//! process per (machine, state), serving ALL of its laboratories over
+//! `/laboratory` connections to every configured daemon); `config`
+//! holds its dial list (`addresses`, each with an optional signature)
+//! and the `local` toggle. `create`/`delete` forward over the owning
+//! host's WS — podman runs host-side, wherever that is. `list` streams
+//! the daemon's registry (hosts announce + notify; nothing scans).
+//! `attach`/`detach` record/remove a laboratory id on an agent target
+//! (a tag, or an instance hierarchy) in the CLI's database — read
+//! attachments back via `agents instances get` (the `laboratories`
+//! field).
 
 use std::pin::Pin;
 
@@ -16,11 +23,13 @@ use crate::db::laboratory_attachments::Target;
 use crate::error::Error;
 
 pub mod attach;
-pub mod connect;
+pub mod config;
 pub mod create;
 pub mod delete;
 pub mod detach;
+pub mod kill;
 pub mod list;
+pub mod spawn;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -56,17 +65,33 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = detach::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::DetachResponseSchema(value)))
         }
-        Request::Connect(req) => {
-            let value = connect::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Connect(value)))
+        Request::Config(req) => {
+            let inner = config::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
         }
-        Request::ConnectRequestSchema(req) => {
-            let value = connect::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::ConnectRequestSchema(value)))
+        Request::Kill(req) => {
+            let value = kill::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Kill(value)))
         }
-        Request::ConnectResponseSchema(req) => {
-            let value = connect::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::ConnectResponseSchema(value)))
+        Request::KillRequestSchema(req) => {
+            let value = kill::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::KillRequestSchema(value)))
+        }
+        Request::KillResponseSchema(req) => {
+            let value = kill::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::KillResponseSchema(value)))
+        }
+        Request::Spawn(req) => {
+            let value = spawn::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Spawn(value)))
+        }
+        Request::SpawnRequestSchema(req) => {
+            let value = spawn::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::SpawnRequestSchema(value)))
+        }
+        Request::SpawnResponseSchema(req) => {
+            let value = spawn::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::SpawnResponseSchema(value)))
         }
         Request::Create(req) => {
             let value = create::execute(ctx, req).await?;
@@ -108,20 +133,58 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(stream)
 }
 
-
-/// Best-effort: tell a running daemon the machine's LOCAL laboratory
-/// set changed (a container was created or deleted) so its
-/// `/laboratories/*` streams rebuild + rescan. Shared by `create` +
-/// `delete`. If no daemon is up the socket connect fails and this is a
-/// silent no-op (nothing is watching, and this NEVER spawns a daemon
-/// or DB). Podman has no event source, so this poke is the only signal.
-pub(super) async fn signal_local_changed(ctx: &Context) {
-    // In-process: poke the resident hub directly (was the
-    // laboratories.sock `LocalChanged`). No resident hub (not the daemon)
-    // → silent no-op, as before.
-    if let Some(hubs) = ctx.resident_hubs() {
-        hubs.labs_hub.signal_local_changed();
+/// Resolve `--machine` to the machine id whose CONNECTED host will
+/// serve the request, auto-spawning the local host when the target is
+/// this machine and no host is connected yet. Shared by `create`
+/// (delete routes by laboratory id instead).
+///
+/// - `None` ⇒ the current machine (the daemon's own machine id).
+/// - Target connected ⇒ done.
+/// - Target is THIS machine but unconnected ⇒ `laboratories spawn`
+///   in-process (which errors when `laboratories config local` is
+///   false — a local host that never dials this daemon can't serve
+///   it) and wait for it to register.
+/// - Any other unconnected machine ⇒ error (this daemon cannot spawn
+///   a host elsewhere; the remote machine must run `laboratories
+///   spawn` pointing here).
+pub(super) async fn resolve_machine(
+    ctx: &Context,
+    machine: Option<String>,
+) -> Result<String, Error> {
+    let local_machine = objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
+    let target = machine.unwrap_or_else(|| local_machine.clone());
+    let connected = ctx
+        .resident_hubs()
+        .is_some_and(|hubs| hubs.laboratories.has_machine(&target));
+    if !connected {
+        if target == local_machine {
+            // `spawn::spawn` waits for the local host to appear in the
+            // registry (or fails fast), so the caller can forward
+            // immediately after.
+            spawn::spawn(ctx).await?;
+        } else {
+            return Err(Error::Laboratory(format!(
+                "no laboratory host connected for machine '{target}' — run \
+                 `laboratories spawn` on that machine with this daemon's address configured"
+            )));
+        }
     }
+    Ok(target)
+}
+
+/// Best-effort local-host ensure for id-routed commands (`delete`,
+/// `list`): spawn THIS machine's host if it isn't connected. Errors
+/// propagate (`delete` surfaces them; `list` drops them) — including
+/// the `laboratories config local: false` refusal.
+pub(super) async fn ensure_local_host(ctx: &Context) -> Result<(), Error> {
+    let local_machine = objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
+    let connected = ctx
+        .resident_hubs()
+        .is_some_and(|hubs| hubs.laboratories.has_machine(&local_machine));
+    if !connected {
+        spawn::spawn(ctx).await?;
+    }
+    Ok(())
 }
 
 /// Resolve the agent target to its DB key. Shared by `attach` +
