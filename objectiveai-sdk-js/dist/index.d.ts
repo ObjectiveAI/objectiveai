@@ -2804,6 +2804,8 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsSchema: z.ZodObj
     continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratories: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodIntersection<z.ZodObject<{
         id: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         type: z.ZodLiteral<"client">;
     }, z.core.$strip>, z.ZodObject<{}, z.core.$strip>>>>>;
     messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
@@ -3210,6 +3212,11 @@ declare const AgentCompletionsResponseStreamingAgentCompletionChunkSchema: z.Zod
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -3279,6 +3286,11 @@ declare const AgentCompletionsResponseStreamingAgentCompletionChunkSchema: z.Zod
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type AgentCompletionsResponseStreamingAgentCompletionChunk = z.infer<typeof AgentCompletionsResponseStreamingAgentCompletionChunkSchema>;
@@ -3385,6 +3397,11 @@ declare const AgentCompletionsResponseStreamingAssistantResponseChunkSchema: z.Z
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type AgentCompletionsResponseStreamingAssistantResponseChunk = z.infer<typeof AgentCompletionsResponseStreamingAssistantResponseChunkSchema>;
@@ -3491,6 +3508,11 @@ declare const AgentCompletionsResponseStreamingMessageChunkSchema: z.ZodUnion<re
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>, z.ZodObject<{
     content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -3672,6 +3694,11 @@ declare const AgentCompletionsResponseUnaryAgentCompletionSchema: z.ZodObject<{
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -3741,6 +3768,11 @@ declare const AgentCompletionsResponseUnaryAgentCompletionSchema: z.ZodObject<{
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type AgentCompletionsResponseUnaryAgentCompletion = z.infer<typeof AgentCompletionsResponseUnaryAgentCompletionSchema>;
@@ -3851,6 +3883,11 @@ declare const AgentCompletionsResponseUnaryAssistantResponseSchema: z.ZodObject<
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type AgentCompletionsResponseUnaryAssistantResponse = z.infer<typeof AgentCompletionsResponseUnaryAssistantResponseSchema>;
@@ -3955,6 +3992,11 @@ declare const AgentCompletionsResponseUnaryMessageSchema: z.ZodUnion<readonly [z
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
     content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -4123,6 +4165,13 @@ declare const AgentCompletionsResponseTopLogprobSchema: z.ZodObject<{
 }, z.core.$strip>;
 type AgentCompletionsResponseTopLogprob = z.infer<typeof AgentCompletionsResponseTopLogprobSchema>;
 
+declare const AgentCompletionsResponseUpstreamDurationMsSchema: z.ZodObject<{
+    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type AgentCompletionsResponseUpstreamDurationMs = z.infer<typeof AgentCompletionsResponseUpstreamDurationMsSchema>;
+
 declare const AgentCompletionsResponseUpstreamUsageSchema: z.ZodObject<{
     completion_tokens: z.ZodNumber;
     completion_tokens_details: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -4147,6 +4196,11 @@ declare const AgentCompletionsResponseUpstreamUsageSchema: z.ZodObject<{
     }, z.core.$strip>>>;
     total_cost: z.ZodNumber;
     total_tokens: z.ZodNumber;
+    upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+        claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 type AgentCompletionsResponseUpstreamUsage = z.infer<typeof AgentCompletionsResponseUpstreamUsageSchema>;
 
@@ -4172,6 +4226,11 @@ declare const AgentCompletionsResponseUsageSchema: z.ZodObject<{
     }, z.core.$strip>>>;
     total_cost: z.ZodNumber;
     total_tokens: z.ZodNumber;
+    upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+        claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    }, z.core.$strip>>;
 }, z.core.$strip>;
 type AgentCompletionsResponseUsage = z.infer<typeof AgentCompletionsResponseUsageSchema>;
 
@@ -4186,6 +4245,11 @@ declare function agentCompletionsResponseLogprobsMerged(a: AgentCompletionsRespo
 declare function agentCompletionsResponseUsageMerged(a: AgentCompletionsResponseUsage, b: AgentCompletionsResponseUsage): [AgentCompletionsResponseUsage, boolean];
 
 declare function agentCompletionsResponseUpstreamUsageMerged(a: AgentCompletionsResponseUpstreamUsage, b: AgentCompletionsResponseUpstreamUsage): [AgentCompletionsResponseUpstreamUsage, boolean];
+
+/** The TS mirror of the Rust `UpstreamDurationMs::push`: per-field
+ * sums across turns, fallbacks, and parallel agents. A field is
+ * absent when that upstream was never used. */
+declare function agentCompletionsResponseUpstreamDurationMsMerged(a: AgentCompletionsResponseUpstreamDurationMs, b: AgentCompletionsResponseUpstreamDurationMs): [AgentCompletionsResponseUpstreamDurationMs, boolean];
 
 /**
  * A readable stream wrapper for Server-Sent Events (SSE).
@@ -4233,6 +4297,7 @@ declare const ObjectiveAIOptionsSchema: z$1.ZodObject<{
     xGithubAuthorization: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
     xOpenrouterAuthorization: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
     xMcpAuthorization: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodRecord<z$1.ZodString, z$1.ZodString>>>;
+    xMcpCallTimeout: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodNumber>>;
     xViewerSignature: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
     xViewerAddress: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
     agentId: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
@@ -4258,6 +4323,7 @@ declare class ObjectiveAI {
     readonly xGithubAuthorization: string | undefined;
     readonly xOpenrouterAuthorization: string | undefined;
     readonly xMcpAuthorization: Record<string, string> | undefined;
+    readonly xMcpCallTimeout: number | undefined;
     readonly xViewerSignature: string | undefined;
     readonly xViewerAddress: string | undefined;
     readonly agentId: string | undefined;
@@ -5411,6 +5477,8 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema:
     continuation: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
     laboratories: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodIntersection<z$1.ZodObject<{
         id: z$1.ZodString;
+        machine: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
+        machine_state: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
         type: z$1.ZodLiteral<"client">;
     }, z$1.core.$strip>, z$1.ZodObject<{}, z$1.core.$strip>>>>>;
     messages: z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodObject<{
@@ -6702,6 +6770,8 @@ declare const AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema: z$1
     continuation: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
     laboratories: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodArray<z$1.ZodIntersection<z$1.ZodObject<{
         id: z$1.ZodString;
+        machine: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
+        machine_state: z$1.ZodOptional<z$1.ZodNullable<z$1.ZodString>>;
         type: z$1.ZodLiteral<"client">;
     }, z$1.core.$strip>, z$1.ZodObject<{}, z$1.core.$strip>>>>>;
     messages: z$1.ZodArray<z$1.ZodUnion<readonly [z$1.ZodIntersection<z$1.ZodObject<{
@@ -32552,7 +32622,7 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -32563,19 +32633,19 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -32586,13 +32656,59 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
@@ -39193,6 +39309,8 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/attach">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -40329,27 +40447,123 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     path_type: z.ZodLiteral<"laboratories/attach/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>, z.ZodObject<{
-    address: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    id: z.ZodString;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect/request_schema">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect/response_schema">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodBoolean;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>]>, z.ZodObject<{
     cwd: z.ZodDefault<z.ZodString>;
     env: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -40361,6 +40575,8 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     kind: z.ZodObject<{
         by: z.ZodLiteral<"client">;
     }, z.core.$strip>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mounts: z.ZodArray<z.ZodObject<{
         container: z.ZodString;
@@ -40382,8 +40598,34 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    id: z.ZodString;
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    kind: z.ZodObject<{
+        by: z.ZodLiteral<"client">;
+    }, z.core.$strip>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/detach">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -41522,6 +41764,28 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     kind: z.ZodObject<{
         by: z.ZodLiteral<"client">;
     }, z.core.$strip>;
@@ -41539,6 +41803,24 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/list/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
@@ -45876,6 +46158,8 @@ declare const CliCommandAgentsInstancesListResponseItemSchema: z.ZodObject<{
         attached_at: z.ZodString;
         attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         id: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.core.$strip>>>>;
     last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     logged: z.ZodNumber;
@@ -47411,6 +47695,8 @@ declare const CliCommandAgentsLogsOpenResponseSchema: z.ZodUnion<readonly [z.Zod
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratories: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodIntersection<z.ZodObject<{
             id: z.ZodString;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             type: z.ZodLiteral<"client">;
         }, z.core.$strip>, z.ZodObject<{}, z.core.$strip>>>>>;
         messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
@@ -52218,8 +52504,11 @@ declare const McpListServersResultSchema: z.ZodObject<{
         }, z.core.$strip>;
         laboratory: z.ZodOptional<z.ZodNullable<z.ZodIntersection<z.ZodObject<{
             id: z.ZodString;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             type: z.ZodLiteral<"client">;
         }, z.core.$strip>, z.ZodObject<{}, z.core.$strip>>>>;
+        laboratory_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         name: z.ZodString;
         plugin: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             mcp: z.ZodString;
@@ -56505,6 +56794,11 @@ declare const CliCommandAgentsSpawnResponseItemSchema: z.ZodUnion<readonly [z.Zo
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -56574,6 +56868,11 @@ declare const CliCommandAgentsSpawnResponseItemSchema: z.ZodUnion<readonly [z.Zo
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>, z.ZodString]>;
 type CliCommandAgentsSpawnResponseItem = z.infer<typeof CliCommandAgentsSpawnResponseItemSchema>;
@@ -63292,10 +63591,10 @@ type CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution = {
 /** `/listen` mirror of `api config mcp_authorization`'s request aggregate: one member per child listener execution. */
 type CliCommandApiConfigMcpAuthorizationListenerExecution = CliCommandApiConfigMcpAuthorizationAddListenerExecution | CliCommandApiConfigMcpAuthorizationAddRequestSchemaListenerExecution | CliCommandApiConfigMcpAuthorizationAddResponseSchemaListenerExecution | CliCommandApiConfigMcpAuthorizationDelListenerExecution | CliCommandApiConfigMcpAuthorizationDelRequestSchemaListenerExecution | CliCommandApiConfigMcpAuthorizationDelResponseSchemaListenerExecution | CliCommandApiConfigMcpAuthorizationGetListenerExecution | CliCommandApiConfigMcpAuthorizationGetRequestSchemaListenerExecution | CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution;
 
-declare const CliCommandApiConfigMcpTimeoutMsGetRequestSchema: z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsGetRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -63304,56 +63603,56 @@ declare const CliCommandApiConfigMcpTimeoutMsGetRequestSchema: z.ZodObject<{
     }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsGetRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsGetRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetRequestSchema>;
 
-declare const CliCommandApiConfigMcpTimeoutMsGetResponseSchema: z.ZodObject<{
-    mcp_timeout_ms: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+declare const CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema: z.ZodObject<{
+    mcp_call_timeout_ms: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsGetResponse = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetResponseSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsGetResponse = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_timeout_ms get`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandApiConfigMcpTimeoutMsGetListenerExecution = {
-    request: CliCommandApiConfigMcpTimeoutMsGetRequest;
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpCallTimeoutMsGetListenerExecution = {
+    request: CliCommandApiConfigMcpCallTimeoutMsGetRequest;
     agentArguments: CliCommandAgentArguments;
-    response: Promise<CliError | CliCommandApiConfigMcpTimeoutMsGetResponse>;
+    response: Promise<CliError | CliCommandApiConfigMcpCallTimeoutMsGetResponse>;
 };
 
-declare const CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_timeout_ms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaListenerExecution = {
-    request: CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest;
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_timeout_ms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaListenerExecution = {
-    request: CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest;
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandApiConfigMcpTimeoutMsSetRequestSchema: z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -63362,49 +63661,163 @@ declare const CliCommandApiConfigMcpTimeoutMsSetRequestSchema: z.ZodObject<{
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     value: z.ZodString;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsSetRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsSetRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_timeout_ms set`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandApiConfigMcpTimeoutMsSetListenerExecution = {
-    request: CliCommandApiConfigMcpTimeoutMsSetRequest;
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpCallTimeoutMsSetListenerExecution = {
+    request: CliCommandApiConfigMcpCallTimeoutMsSetRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | CliCommandOk>;
 };
 
-declare const CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_timeout_ms set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaListenerExecution = {
-    request: CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest;
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_timeout_ms set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaListenerExecution = {
-    request: CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest;
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | JsonValue>;
 };
 
-/** `/listen` mirror of `api config mcp_timeout_ms`'s request aggregate: one member per child listener execution. */
-type CliCommandApiConfigMcpTimeoutMsListenerExecution = CliCommandApiConfigMcpTimeoutMsGetListenerExecution | CliCommandApiConfigMcpTimeoutMsGetRequestSchemaListenerExecution | CliCommandApiConfigMcpTimeoutMsGetResponseSchemaListenerExecution | CliCommandApiConfigMcpTimeoutMsSetListenerExecution | CliCommandApiConfigMcpTimeoutMsSetRequestSchemaListenerExecution | CliCommandApiConfigMcpTimeoutMsSetResponseSchemaListenerExecution;
+/** `/listen` mirror of `api config mcp_call_timeout_ms`'s request aggregate: one member per child listener execution. */
+type CliCommandApiConfigMcpCallTimeoutMsListenerExecution = CliCommandApiConfigMcpCallTimeoutMsGetListenerExecution | CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaListenerExecution | CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaListenerExecution | CliCommandApiConfigMcpCallTimeoutMsSetListenerExecution | CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaListenerExecution | CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaListenerExecution;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsGetRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchema>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema: z.ZodObject<{
+    mcp_connect_timeout_ms: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsGetResponse = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema>;
+
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpConnectTimeoutMsGetListenerExecution = {
+    request: CliCommandApiConfigMcpConnectTimeoutMsGetRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandApiConfigMcpConnectTimeoutMsGetResponse>;
+};
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodString;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsSetRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema>;
+
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpConnectTimeoutMsSetListenerExecution = {
+    request: CliCommandApiConfigMcpConnectTimeoutMsSetRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandOk>;
+};
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaListenerExecution = {
+    request: CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+/** `/listen` mirror of `api config mcp_connect_timeout_ms`'s request aggregate: one member per child listener execution. */
+type CliCommandApiConfigMcpConnectTimeoutMsListenerExecution = CliCommandApiConfigMcpConnectTimeoutMsGetListenerExecution | CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaListenerExecution | CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaListenerExecution | CliCommandApiConfigMcpConnectTimeoutMsSetListenerExecution | CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaListenerExecution | CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaListenerExecution;
 
 declare const CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -63863,7 +64276,7 @@ type CliCommandApiConfigXTitleSetResponseSchemaListenerExecution = {
 type CliCommandApiConfigXTitleListenerExecution = CliCommandApiConfigXTitleGetListenerExecution | CliCommandApiConfigXTitleGetRequestSchemaListenerExecution | CliCommandApiConfigXTitleGetResponseSchemaListenerExecution | CliCommandApiConfigXTitleSetListenerExecution | CliCommandApiConfigXTitleSetRequestSchemaListenerExecution | CliCommandApiConfigXTitleSetResponseSchemaListenerExecution;
 
 /** `/listen` mirror of `api config`'s request aggregate: one member per child listener execution. */
-type CliCommandApiConfigListenerExecution = CliCommandApiConfigGetListenerExecution | CliCommandApiConfigGetRequestSchemaListenerExecution | CliCommandApiConfigGetResponseSchemaListenerExecution | CliCommandApiConfigAddressListenerExecution | CliCommandApiConfigObjectiveaiAuthorizationListenerExecution | CliCommandApiConfigOpenrouterAuthorizationListenerExecution | CliCommandApiConfigGithubAuthorizationListenerExecution | CliCommandApiConfigMcpAuthorizationListenerExecution | CliCommandApiConfigMcpTimeoutMsListenerExecution | CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution | CliCommandApiConfigUserAgentListenerExecution | CliCommandApiConfigHttpRefererListenerExecution | CliCommandApiConfigXTitleListenerExecution | CliCommandApiConfigCommitAuthorNameListenerExecution | CliCommandApiConfigCommitAuthorEmailListenerExecution;
+type CliCommandApiConfigListenerExecution = CliCommandApiConfigGetListenerExecution | CliCommandApiConfigGetRequestSchemaListenerExecution | CliCommandApiConfigGetResponseSchemaListenerExecution | CliCommandApiConfigAddressListenerExecution | CliCommandApiConfigObjectiveaiAuthorizationListenerExecution | CliCommandApiConfigOpenrouterAuthorizationListenerExecution | CliCommandApiConfigGithubAuthorizationListenerExecution | CliCommandApiConfigMcpAuthorizationListenerExecution | CliCommandApiConfigMcpCallTimeoutMsListenerExecution | CliCommandApiConfigMcpConnectTimeoutMsListenerExecution | CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution | CliCommandApiConfigUserAgentListenerExecution | CliCommandApiConfigHttpRefererListenerExecution | CliCommandApiConfigXTitleListenerExecution | CliCommandApiConfigCommitAuthorNameListenerExecution | CliCommandApiConfigCommitAuthorEmailListenerExecution;
 
 declare const CliCommandApiKillRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -66518,6 +66931,11 @@ declare const CliCommandFunctionsExecuteStandardResponseItemSchema: z.ZodUnion<r
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -66587,6 +67005,11 @@ declare const CliCommandFunctionsExecuteStandardResponseItemSchema: z.ZodUnion<r
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>>;
     tasks: z.ZodArray<z.ZodType<FunctionsExecutionsResponseStreamingTaskChunk, unknown, z.core.$ZodTypeInternals<FunctionsExecutionsResponseStreamingTaskChunk, unknown>>>;
@@ -66613,6 +67036,11 @@ declare const CliCommandFunctionsExecuteStandardResponseItemSchema: z.ZodUnion<r
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>, z.ZodString]>;
 type CliCommandFunctionsExecuteStandardResponseItem = z.infer<typeof CliCommandFunctionsExecuteStandardResponseItemSchema>;
@@ -68401,6 +68829,11 @@ declare const CliCommandFunctionsExecuteSwissSystemResponseItemSchema: z.ZodUnio
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -68470,6 +68903,11 @@ declare const CliCommandFunctionsExecuteSwissSystemResponseItemSchema: z.ZodUnio
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>>;
     tasks: z.ZodArray<z.ZodType<FunctionsExecutionsResponseStreamingTaskChunk, unknown, z.core.$ZodTypeInternals<FunctionsExecutionsResponseStreamingTaskChunk, unknown>>>;
@@ -68496,6 +68934,11 @@ declare const CliCommandFunctionsExecuteSwissSystemResponseItemSchema: z.ZodUnio
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>, z.ZodString]>;
 type CliCommandFunctionsExecuteSwissSystemResponseItem = z.infer<typeof CliCommandFunctionsExecuteSwissSystemResponseItemSchema>;
@@ -71648,6 +72091,8 @@ type CliCommandKillAllResponseSchemaListenerExecution = {
 declare const CliCommandLaboratoriesAttachRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/attach">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -72777,6 +73222,8 @@ type CliCommandLaboratoriesAttachRequest = z.infer<typeof CliCommandLaboratories
 
 declare const CliCommandLaboratoriesAttachResponseSchema: z.ZodObject<{
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type CliCommandLaboratoriesAttachResponse = z.infer<typeof CliCommandLaboratoriesAttachResponseSchema>;
 
@@ -72819,61 +73266,290 @@ type CliCommandLaboratoriesAttachResponseSchemaListenerExecution = {
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandLaboratoriesConnectRequestSchema: z.ZodObject<{
-    address: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    id: z.ZodString;
+declare const CliCommandLaboratoriesConfigAddressesAddRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>;
-type CliCommandLaboratoriesConnectRequest = z.infer<typeof CliCommandLaboratoriesConnectRequestSchema>;
+type CliCommandLaboratoriesConfigAddressesAddRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchema>;
 
-declare const CliCommandLaboratoriesConnectResponseSchema: z.ZodObject<{
-    address: z.ZodString;
-    id: z.ZodString;
-}, z.core.$strip>;
-type CliCommandLaboratoriesConnectResponse = z.infer<typeof CliCommandLaboratoriesConnectResponseSchema>;
-
-/** One `/listen` broadcast run of `laboratories connect`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandLaboratoriesConnectListenerExecution = {
-    request: CliCommandLaboratoriesConnectRequest;
+/** One `/listen` broadcast run of `laboratories config addresses add`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesAddListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesAddRequest;
     agentArguments: CliCommandAgentArguments;
-    response: Promise<CliError | CliCommandLaboratoriesConnectResponse>;
+    response: Promise<CliError | CliCommandOk>;
 };
 
-declare const CliCommandLaboratoriesConnectRequestSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect/request_schema">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandLaboratoriesConnectRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConnectRequestSchemaRequestSchema>;
+type CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories connect request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandLaboratoriesConnectRequestSchemaListenerExecution = {
-    request: CliCommandLaboratoriesConnectRequestSchemaRequest;
+/** One `/listen` broadcast run of `laboratories config addresses add request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesAddRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandLaboratoriesConnectResponseSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect/response_schema">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandLaboratoriesConnectResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConnectResponseSchemaRequestSchema>;
+type CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories connect response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandLaboratoriesConnectResponseSchemaListenerExecution = {
-    request: CliCommandLaboratoriesConnectResponseSchemaRequest;
+/** One `/listen` broadcast run of `laboratories config addresses add response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesAddResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest;
     agentArguments: CliCommandAgentArguments;
     response: Promise<CliError | JsonValue>;
 };
+
+declare const CliCommandLaboratoriesConfigAddressesDelRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesDelRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config addresses del`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesDelListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesDelRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandOk>;
+};
+
+declare const CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config addresses del request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesDelRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config addresses del response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesDelResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesConfigAddressesGetRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesGetRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetRequestSchema>;
+
+declare const CliCommandLaboratoriesConfigAddressesGetResponseSchema: z.ZodObject<{
+    addresses: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodString>>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesGetResponse = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetResponseSchema>;
+
+/** One `/listen` broadcast run of `laboratories config addresses get`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesGetListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesGetRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandLaboratoriesConfigAddressesGetResponse>;
+};
+
+declare const CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config addresses get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesGetRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config addresses get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigAddressesGetResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+/** `/listen` mirror of `laboratories config addresses`'s request aggregate: one member per child listener execution. */
+type CliCommandLaboratoriesConfigAddressesListenerExecution = CliCommandLaboratoriesConfigAddressesAddListenerExecution | CliCommandLaboratoriesConfigAddressesAddRequestSchemaListenerExecution | CliCommandLaboratoriesConfigAddressesAddResponseSchemaListenerExecution | CliCommandLaboratoriesConfigAddressesDelListenerExecution | CliCommandLaboratoriesConfigAddressesDelRequestSchemaListenerExecution | CliCommandLaboratoriesConfigAddressesDelResponseSchemaListenerExecution | CliCommandLaboratoriesConfigAddressesGetListenerExecution | CliCommandLaboratoriesConfigAddressesGetRequestSchemaListenerExecution | CliCommandLaboratoriesConfigAddressesGetResponseSchemaListenerExecution;
+
+declare const CliCommandLaboratoriesConfigLocalGetRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalGetRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalGetRequestSchema>;
+
+declare const CliCommandLaboratoriesConfigLocalGetResponseSchema: z.ZodObject<{
+    local: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalGetResponse = z.infer<typeof CliCommandLaboratoriesConfigLocalGetResponseSchema>;
+
+/** One `/listen` broadcast run of `laboratories config local get`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigLocalGetListenerExecution = {
+    request: CliCommandLaboratoriesConfigLocalGetRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandLaboratoriesConfigLocalGetResponse>;
+};
+
+declare const CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config local get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigLocalGetRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config local get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigLocalGetResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesConfigLocalSetRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodBoolean;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalSetRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalSetRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config local set`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigLocalSetListenerExecution = {
+    request: CliCommandLaboratoriesConfigLocalSetRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandOk>;
+};
+
+declare const CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config local set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigLocalSetRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories config local set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesConfigLocalSetResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+/** `/listen` mirror of `laboratories config local`'s request aggregate: one member per child listener execution. */
+type CliCommandLaboratoriesConfigLocalListenerExecution = CliCommandLaboratoriesConfigLocalGetListenerExecution | CliCommandLaboratoriesConfigLocalGetRequestSchemaListenerExecution | CliCommandLaboratoriesConfigLocalGetResponseSchemaListenerExecution | CliCommandLaboratoriesConfigLocalSetListenerExecution | CliCommandLaboratoriesConfigLocalSetRequestSchemaListenerExecution | CliCommandLaboratoriesConfigLocalSetResponseSchemaListenerExecution;
+
+/** `/listen` mirror of `laboratories config`'s request aggregate: one member per child listener execution. */
+type CliCommandLaboratoriesConfigListenerExecution = CliCommandLaboratoriesConfigAddressesListenerExecution | CliCommandLaboratoriesConfigLocalListenerExecution;
 
 declare const CliCommandLaboratoriesCreateRequestSchema: z.ZodObject<{
     cwd: z.ZodDefault<z.ZodString>;
@@ -72887,6 +73563,8 @@ declare const CliCommandLaboratoriesCreateRequestSchema: z.ZodObject<{
     kind: z.ZodObject<{
         by: z.ZodLiteral<"client">;
     }, z.core.$strip>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mounts: z.ZodArray<z.ZodObject<{
         container: z.ZodString;
@@ -72899,6 +73577,7 @@ declare const CliCommandLaboratoriesCreateRequestSchema: z.ZodObject<{
 type CliCommandLaboratoriesCreateRequest = z.infer<typeof CliCommandLaboratoriesCreateRequestSchema>;
 
 declare const CliCommandLaboratoriesCreateResponseSchema: z.ZodObject<{
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     cwd: z.ZodString;
     env: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -72906,6 +73585,12 @@ declare const CliCommandLaboratoriesCreateResponseSchema: z.ZodObject<{
     }, z.core.$strip>>;
     id: z.ZodString;
     image: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        os: z.ZodString;
+    }, z.core.$strip>>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mounts: z.ZodArray<z.ZodObject<{
         container: z.ZodString;
         host: z.ZodString;
@@ -72952,9 +73637,70 @@ type CliCommandLaboratoriesCreateResponseSchemaListenerExecution = {
     response: Promise<CliError | JsonValue>;
 };
 
+declare const CliCommandLaboratoriesDeleteRequestSchema: z.ZodObject<{
+    id: z.ZodString;
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    kind: z.ZodObject<{
+        by: z.ZodLiteral<"client">;
+    }, z.core.$strip>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesDeleteRequest = z.infer<typeof CliCommandLaboratoriesDeleteRequestSchema>;
+
+declare const CliCommandLaboratoriesDeleteResponseSchema: z.ZodObject<{
+    id: z.ZodString;
+}, z.core.$strip>;
+type CliCommandLaboratoriesDeleteResponse = z.infer<typeof CliCommandLaboratoriesDeleteResponseSchema>;
+
+/** One `/listen` broadcast run of `laboratories delete`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesDeleteListenerExecution = {
+    request: CliCommandLaboratoriesDeleteRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandLaboratoriesDeleteResponse>;
+};
+
+declare const CliCommandLaboratoriesDeleteRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesDeleteRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesDeleteRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories delete request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesDeleteRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesDeleteRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesDeleteResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesDeleteResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesDeleteResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories delete response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesDeleteResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesDeleteResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
 declare const CliCommandLaboratoriesDetachRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/detach">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -74084,6 +74830,8 @@ type CliCommandLaboratoriesDetachRequest = z.infer<typeof CliCommandLaboratories
 
 declare const CliCommandLaboratoriesDetachResponseSchema: z.ZodObject<{
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type CliCommandLaboratoriesDetachResponse = z.infer<typeof CliCommandLaboratoriesDetachResponseSchema>;
 
@@ -74126,6 +74874,63 @@ type CliCommandLaboratoriesDetachResponseSchemaListenerExecution = {
     response: Promise<CliError | JsonValue>;
 };
 
+declare const CliCommandLaboratoriesKillRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesKillRequest = z.infer<typeof CliCommandLaboratoriesKillRequestSchema>;
+
+declare const CliCommandLaboratoriesKillResponseSchema: z.ZodObject<{
+    killed: z.ZodNumber;
+}, z.core.$strip>;
+type CliCommandLaboratoriesKillResponse = z.infer<typeof CliCommandLaboratoriesKillResponseSchema>;
+
+/** One `/listen` broadcast run of `laboratories kill`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesKillListenerExecution = {
+    request: CliCommandLaboratoriesKillRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandLaboratoriesKillResponse>;
+};
+
+declare const CliCommandLaboratoriesKillRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesKillRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesKillRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories kill request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesKillRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesKillRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesKillResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesKillResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesKillResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories kill response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesKillResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesKillResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
 declare const CliCommandLaboratoriesListRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     kind: z.ZodObject<{
@@ -74139,6 +74944,7 @@ declare const CliCommandLaboratoriesListRequestSchema: z.ZodObject<{
 type CliCommandLaboratoriesListRequest = z.infer<typeof CliCommandLaboratoriesListRequestSchema>;
 
 declare const CliCommandLaboratoriesListResponseItemSchema: z.ZodObject<{
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     cwd: z.ZodString;
     env: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -74146,11 +74952,16 @@ declare const CliCommandLaboratoriesListResponseItemSchema: z.ZodObject<{
     }, z.core.$strip>>;
     id: z.ZodString;
     image: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        os: z.ZodString;
+    }, z.core.$strip>>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mounts: z.ZodArray<z.ZodObject<{
         container: z.ZodString;
         host: z.ZodString;
     }, z.core.$strip>>;
-    source: z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>;
 }, z.core.$strip>;
 type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;
 
@@ -74193,8 +75004,61 @@ type CliCommandLaboratoriesListResponseSchemaListenerExecution = {
     response: Promise<CliError | JsonValue>;
 };
 
+declare const CliCommandLaboratoriesSpawnRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesSpawnRequest = z.infer<typeof CliCommandLaboratoriesSpawnRequestSchema>;
+
+declare const CliCommandLaboratoriesSpawnResponseSchema: z.ZodObject<{
+    addresses: z.ZodArray<z.ZodString>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesSpawnResponse = z.infer<typeof CliCommandLaboratoriesSpawnResponseSchema>;
+
+/** One `/listen` broadcast run of `laboratories spawn`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesSpawnListenerExecution = {
+    request: CliCommandLaboratoriesSpawnRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | CliCommandLaboratoriesSpawnResponse>;
+};
+
+declare const CliCommandLaboratoriesSpawnRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesSpawnRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesSpawnRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories spawn request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesSpawnRequestSchemaListenerExecution = {
+    request: CliCommandLaboratoriesSpawnRequestSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandLaboratoriesSpawnResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandLaboratoriesSpawnResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesSpawnResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `laboratories spawn response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+type CliCommandLaboratoriesSpawnResponseSchemaListenerExecution = {
+    request: CliCommandLaboratoriesSpawnResponseSchemaRequest;
+    agentArguments: CliCommandAgentArguments;
+    response: Promise<CliError | JsonValue>;
+};
+
 /** `/listen` mirror of `laboratories`'s request aggregate: one member per child listener execution. */
-type CliCommandLaboratoriesListenerExecution = CliCommandLaboratoriesAttachListenerExecution | CliCommandLaboratoriesAttachRequestSchemaListenerExecution | CliCommandLaboratoriesAttachResponseSchemaListenerExecution | CliCommandLaboratoriesConnectListenerExecution | CliCommandLaboratoriesConnectRequestSchemaListenerExecution | CliCommandLaboratoriesConnectResponseSchemaListenerExecution | CliCommandLaboratoriesCreateListenerExecution | CliCommandLaboratoriesCreateRequestSchemaListenerExecution | CliCommandLaboratoriesCreateResponseSchemaListenerExecution | CliCommandLaboratoriesDetachListenerExecution | CliCommandLaboratoriesDetachRequestSchemaListenerExecution | CliCommandLaboratoriesDetachResponseSchemaListenerExecution | CliCommandLaboratoriesListListenerExecution | CliCommandLaboratoriesListRequestSchemaListenerExecution | CliCommandLaboratoriesListResponseSchemaListenerExecution;
+type CliCommandLaboratoriesListenerExecution = CliCommandLaboratoriesAttachListenerExecution | CliCommandLaboratoriesAttachRequestSchemaListenerExecution | CliCommandLaboratoriesAttachResponseSchemaListenerExecution | CliCommandLaboratoriesConfigListenerExecution | CliCommandLaboratoriesKillListenerExecution | CliCommandLaboratoriesKillRequestSchemaListenerExecution | CliCommandLaboratoriesKillResponseSchemaListenerExecution | CliCommandLaboratoriesSpawnListenerExecution | CliCommandLaboratoriesSpawnRequestSchemaListenerExecution | CliCommandLaboratoriesSpawnResponseSchemaListenerExecution | CliCommandLaboratoriesCreateListenerExecution | CliCommandLaboratoriesCreateRequestSchemaListenerExecution | CliCommandLaboratoriesCreateResponseSchemaListenerExecution | CliCommandLaboratoriesDeleteListenerExecution | CliCommandLaboratoriesDeleteRequestSchemaListenerExecution | CliCommandLaboratoriesDeleteResponseSchemaListenerExecution | CliCommandLaboratoriesDetachListenerExecution | CliCommandLaboratoriesDetachRequestSchemaListenerExecution | CliCommandLaboratoriesDetachResponseSchemaListenerExecution | CliCommandLaboratoriesListListenerExecution | CliCommandLaboratoriesListRequestSchemaListenerExecution | CliCommandLaboratoriesListResponseSchemaListenerExecution;
 
 declare const CliCommandMcpConfigAddressGetRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -77042,6 +77906,8 @@ declare const CliCommandAgentsInstancesListLaboratoryAttachmentSchema: z.ZodObje
     attached_at: z.ZodString;
     attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type CliCommandAgentsInstancesListLaboratoryAttachment = z.infer<typeof CliCommandAgentsInstancesListLaboratoryAttachmentSchema>;
 
@@ -94869,82 +95735,82 @@ declare const CliCommandApiConfigMcpAuthorizationRequestSchema: z.ZodUnion<reado
 }, z.core.$strip>]>;
 type CliCommandApiConfigMcpAuthorizationRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationRequestSchema>;
 
-declare const CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema: z.ZodLiteral<"api/config/mcp_timeout_ms/get/request_schema">;
-type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPath = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema>;
+declare const CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPathSchema: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/request_schema">;
+type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPath = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPathSchema>;
 
-/** `api config mcp_timeout_ms get request_schema execute` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `api config mcp_timeout_ms get request_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, "path_type">, transform: {
+/** `api config mcp_call_timeout_ms get request_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_call_timeout_ms get request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema: z.ZodLiteral<"api/config/mcp_timeout_ms/get/response_schema">;
-type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPath = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema>;
+declare const CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPathSchema: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/response_schema">;
+type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPath = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPathSchema>;
 
-/** `api config mcp_timeout_ms get response_schema execute` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `api config mcp_timeout_ms get response_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, "path_type">, transform: {
+/** `api config mcp_call_timeout_ms get response_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_call_timeout_ms get response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandApiConfigMcpTimeoutMsGetPathSchema: z.ZodLiteral<"api/config/mcp_timeout_ms/get">;
-type CliCommandApiConfigMcpTimeoutMsGetPath = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetPathSchema>;
+declare const CliCommandApiConfigMcpCallTimeoutMsGetPathSchema: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get">;
+type CliCommandApiConfigMcpCallTimeoutMsGetPath = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetPathSchema>;
 
-/** `api config mcp_timeout_ms get execute` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigMcpTimeoutMsGetResponse>;
-/** `api config mcp_timeout_ms get execute_transform` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequest, "path_type">, transform: {
+/** `api config mcp_call_timeout_ms get execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigMcpCallTimeoutMsGetResponse>;
+/** `api config mcp_call_timeout_ms get execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsGetRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema: z.ZodLiteral<"api/config/mcp_timeout_ms/set/request_schema">;
-type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPath = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema>;
+declare const CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPathSchema: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/request_schema">;
+type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPath = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPathSchema>;
 
-/** `api config mcp_timeout_ms set request_schema execute` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `api config mcp_timeout_ms set request_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest, "path_type">, transform: {
+/** `api config mcp_call_timeout_ms set request_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_call_timeout_ms set request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema: z.ZodLiteral<"api/config/mcp_timeout_ms/set/response_schema">;
-type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPath = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema>;
+declare const CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPathSchema: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/response_schema">;
+type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPath = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPathSchema>;
 
-/** `api config mcp_timeout_ms set response_schema execute` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `api config mcp_timeout_ms set response_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest, "path_type">, transform: {
+/** `api config mcp_call_timeout_ms set response_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_call_timeout_ms set response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandApiConfigMcpTimeoutMsSetPathSchema: z.ZodLiteral<"api/config/mcp_timeout_ms/set">;
-type CliCommandApiConfigMcpTimeoutMsSetPath = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetPathSchema>;
+declare const CliCommandApiConfigMcpCallTimeoutMsSetPathSchema: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set">;
+type CliCommandApiConfigMcpCallTimeoutMsSetPath = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetPathSchema>;
 
-/** `api config mcp_timeout_ms set execute` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsSetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsSetRequest, "path_type">): Promise<CliError | CliCommandOk>;
-/** `api config mcp_timeout_ms set execute_transform` — unary; first stream item, rest discarded. */
-declare function apiConfigMcpTimeoutMsSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsSetRequest, "path_type">, transform: {
+/** `api config mcp_call_timeout_ms set execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsSetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsSetRequest, "path_type">): Promise<CliError | CliCommandOk>;
+/** `api config mcp_call_timeout_ms set execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpCallTimeoutMsSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpCallTimeoutMsSetRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandApiConfigMcpTimeoutMsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+declare const CliCommandApiConfigMcpCallTimeoutMsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -94955,19 +95821,19 @@ declare const CliCommandApiConfigMcpTimeoutMsRequestSchema: z.ZodUnion<readonly 
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -94978,17 +95844,138 @@ declare const CliCommandApiConfigMcpTimeoutMsRequestSchema: z.ZodUnion<readonly 
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>]>;
-type CliCommandApiConfigMcpTimeoutMsRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsRequestSchema>;
+type CliCommandApiConfigMcpCallTimeoutMsRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsRequestSchema>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPathSchema: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/request_schema">;
+type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPath = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPathSchema>;
+
+/** `api config mcp_connect_timeout_ms get request_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_connect_timeout_ms get request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPathSchema: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/response_schema">;
+type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPath = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPathSchema>;
+
+/** `api config mcp_connect_timeout_ms get response_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_connect_timeout_ms get response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsGetPathSchema: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get">;
+type CliCommandApiConfigMcpConnectTimeoutMsGetPath = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetPathSchema>;
+
+/** `api config mcp_connect_timeout_ms get execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigMcpConnectTimeoutMsGetResponse>;
+/** `api config mcp_connect_timeout_ms get execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsGetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPathSchema: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/request_schema">;
+type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPath = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPathSchema>;
+
+/** `api config mcp_connect_timeout_ms set request_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_connect_timeout_ms set request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPathSchema: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/response_schema">;
+type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPath = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPathSchema>;
+
+/** `api config mcp_connect_timeout_ms set response_schema execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `api config mcp_connect_timeout_ms set response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsSetPathSchema: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set">;
+type CliCommandApiConfigMcpConnectTimeoutMsSetPath = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetPathSchema>;
+
+/** `api config mcp_connect_timeout_ms set execute` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsSetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsSetRequest, "path_type">): Promise<CliError | CliCommandOk>;
+/** `api config mcp_connect_timeout_ms set execute_transform` — unary; first stream item, rest discarded. */
+declare function apiConfigMcpConnectTimeoutMsSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpConnectTimeoutMsSetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandApiConfigMcpConnectTimeoutMsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>;
+type CliCommandApiConfigMcpConnectTimeoutMsRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsRequestSchema>;
 
 declare const CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema: z.ZodLiteral<"api/config/objectiveai_authorization/get/request_schema">;
 type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema>;
@@ -95754,7 +96741,7 @@ declare const CliCommandApiConfigRequestSchema: z.ZodUnion<readonly [z.ZodObject
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -95765,19 +96752,19 @@ declare const CliCommandApiConfigRequestSchema: z.ZodUnion<readonly [z.ZodObject
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -95788,13 +96775,59 @@ declare const CliCommandApiConfigRequestSchema: z.ZodUnion<readonly [z.ZodObject
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
@@ -96428,7 +97461,7 @@ declare const CliCommandApiRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readon
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -96439,19 +97472,19 @@ declare const CliCommandApiRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readon
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/get/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/get/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     scope: z.ZodEnum<{
         global: "global";
@@ -96462,13 +97495,59 @@ declare const CliCommandApiRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readon
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/request_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"api/config/mcp_timeout_ms/set/response_schema">;
+    path_type: z.ZodLiteral<"api/config/mcp_call_timeout_ms/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"api/config/mcp_connect_timeout_ms/set/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
@@ -113037,41 +114116,426 @@ declare function laboratoriesAttachExecuteTransform(executor: CommandExecutor, r
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandLaboratoriesConnectRequestSchemaPathSchema: z.ZodLiteral<"laboratories/connect/request_schema">;
-type CliCommandLaboratoriesConnectRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesConnectRequestSchemaPathSchema>;
+declare const CliCommandLaboratoriesConfigAddressesAddRequestSchemaPathSchema: z.ZodLiteral<"laboratories/config/addresses/add/request_schema">;
+type CliCommandLaboratoriesConfigAddressesAddRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchemaPathSchema>;
 
-/** `laboratories connect request_schema execute` — unary; first stream item, rest discarded. */
-declare function laboratoriesConnectRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConnectRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `laboratories connect request_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function laboratoriesConnectRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConnectRequestSchemaRequest, "path_type">, transform: {
+/** `laboratories config addresses add request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesAddRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config addresses add request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesAddRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandLaboratoriesConnectResponseSchemaPathSchema: z.ZodLiteral<"laboratories/connect/response_schema">;
-type CliCommandLaboratoriesConnectResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesConnectResponseSchemaPathSchema>;
+declare const CliCommandLaboratoriesConfigAddressesAddResponseSchemaPathSchema: z.ZodLiteral<"laboratories/config/addresses/add/response_schema">;
+type CliCommandLaboratoriesConfigAddressesAddResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddResponseSchemaPathSchema>;
 
-/** `laboratories connect response_schema execute` — unary; first stream item, rest discarded. */
-declare function laboratoriesConnectResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConnectResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `laboratories connect response_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function laboratoriesConnectResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConnectResponseSchemaRequest, "path_type">, transform: {
+/** `laboratories config addresses add response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesAddResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config addresses add response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesAddResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandLaboratoriesConnectPathSchema: z.ZodLiteral<"laboratories/connect">;
-type CliCommandLaboratoriesConnectPath = z.infer<typeof CliCommandLaboratoriesConnectPathSchema>;
+declare const CliCommandLaboratoriesConfigAddressesAddPathSchema: z.ZodLiteral<"laboratories/config/addresses/add">;
+type CliCommandLaboratoriesConfigAddressesAddPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddPathSchema>;
 
-/** `laboratories connect execute` — unary; first stream item, rest discarded. */
-declare function laboratoriesConnectExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConnectRequest, "path_type">): Promise<CliError | CliCommandLaboratoriesConnectResponse>;
-/** `laboratories connect execute_transform` — unary; first stream item, rest discarded. */
-declare function laboratoriesConnectExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConnectRequest, "path_type">, transform: {
+/** `laboratories config addresses add execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesAddExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesAddRequest, "path_type">): Promise<CliError | CliCommandOk>;
+/** `laboratories config addresses add execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesAddExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesAddRequest, "path_type">, transform: {
     jq: string;
 } | {
     python: string;
 }): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesDelRequestSchemaPathSchema: z.ZodLiteral<"laboratories/config/addresses/del/request_schema">;
+type CliCommandLaboratoriesConfigAddressesDelRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelRequestSchemaPathSchema>;
+
+/** `laboratories config addresses del request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesDelRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config addresses del request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesDelRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesDelResponseSchemaPathSchema: z.ZodLiteral<"laboratories/config/addresses/del/response_schema">;
+type CliCommandLaboratoriesConfigAddressesDelResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelResponseSchemaPathSchema>;
+
+/** `laboratories config addresses del response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesDelResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config addresses del response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesDelResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesDelPathSchema: z.ZodLiteral<"laboratories/config/addresses/del">;
+type CliCommandLaboratoriesConfigAddressesDelPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelPathSchema>;
+
+/** `laboratories config addresses del execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesDelExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesDelRequest, "path_type">): Promise<CliError | CliCommandOk>;
+/** `laboratories config addresses del execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesDelExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesDelRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesGetRequestSchemaPathSchema: z.ZodLiteral<"laboratories/config/addresses/get/request_schema">;
+type CliCommandLaboratoriesConfigAddressesGetRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetRequestSchemaPathSchema>;
+
+/** `laboratories config addresses get request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config addresses get request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesGetResponseSchemaPathSchema: z.ZodLiteral<"laboratories/config/addresses/get/response_schema">;
+type CliCommandLaboratoriesConfigAddressesGetResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetResponseSchemaPathSchema>;
+
+/** `laboratories config addresses get response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config addresses get response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesGetPathSchema: z.ZodLiteral<"laboratories/config/addresses/get">;
+type CliCommandLaboratoriesConfigAddressesGetPath = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetPathSchema>;
+
+/** `laboratories config addresses get execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesGetExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesGetRequest, "path_type">): Promise<CliError | CliCommandLaboratoriesConfigAddressesGetResponse>;
+/** `laboratories config addresses get execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigAddressesGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigAddressesGetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigAddressesRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodDefault<z.ZodString>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>;
+type CliCommandLaboratoriesConfigAddressesRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesRequestSchema>;
+
+declare const CliCommandLaboratoriesConfigLocalGetRequestSchemaPathSchema: z.ZodLiteral<"laboratories/config/local/get/request_schema">;
+type CliCommandLaboratoriesConfigLocalGetRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigLocalGetRequestSchemaPathSchema>;
+
+/** `laboratories config local get request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config local get request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigLocalGetResponseSchemaPathSchema: z.ZodLiteral<"laboratories/config/local/get/response_schema">;
+type CliCommandLaboratoriesConfigLocalGetResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigLocalGetResponseSchemaPathSchema>;
+
+/** `laboratories config local get response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config local get response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigLocalGetPathSchema: z.ZodLiteral<"laboratories/config/local/get">;
+type CliCommandLaboratoriesConfigLocalGetPath = z.infer<typeof CliCommandLaboratoriesConfigLocalGetPathSchema>;
+
+/** `laboratories config local get execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalGetExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalGetRequest, "path_type">): Promise<CliError | CliCommandLaboratoriesConfigLocalGetResponse>;
+/** `laboratories config local get execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalGetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigLocalSetRequestSchemaPathSchema: z.ZodLiteral<"laboratories/config/local/set/request_schema">;
+type CliCommandLaboratoriesConfigLocalSetRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigLocalSetRequestSchemaPathSchema>;
+
+/** `laboratories config local set request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config local set request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigLocalSetResponseSchemaPathSchema: z.ZodLiteral<"laboratories/config/local/set/response_schema">;
+type CliCommandLaboratoriesConfigLocalSetResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesConfigLocalSetResponseSchemaPathSchema>;
+
+/** `laboratories config local set response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories config local set response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigLocalSetPathSchema: z.ZodLiteral<"laboratories/config/local/set">;
+type CliCommandLaboratoriesConfigLocalSetPath = z.infer<typeof CliCommandLaboratoriesConfigLocalSetPathSchema>;
+
+/** `laboratories config local set execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalSetExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalSetRequest, "path_type">): Promise<CliError | CliCommandOk>;
+/** `laboratories config local set execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesConfigLocalSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesConfigLocalSetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesConfigLocalRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodBoolean;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>;
+type CliCommandLaboratoriesConfigLocalRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalRequestSchema>;
+
+declare const CliCommandLaboratoriesConfigRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodDefault<z.ZodString>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodBoolean;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>]>;
+type CliCommandLaboratoriesConfigRequest = z.infer<typeof CliCommandLaboratoriesConfigRequestSchema>;
 
 declare const CliCommandLaboratoriesCreateRequestSchemaPathSchema: z.ZodLiteral<"laboratories/create/request_schema">;
 type CliCommandLaboratoriesCreateRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesCreateRequestSchemaPathSchema>;
@@ -113126,6 +114590,47 @@ declare function laboratoriesCreateExecuteTransform(executor: CommandExecutor, r
     python: string;
 }): Promise<CliError | JsonValue>;
 
+declare const CliCommandLaboratoriesDeleteRequestSchemaPathSchema: z.ZodLiteral<"laboratories/delete/request_schema">;
+type CliCommandLaboratoriesDeleteRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesDeleteRequestSchemaPathSchema>;
+
+/** `laboratories delete request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesDeleteRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesDeleteRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories delete request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesDeleteRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesDeleteRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesDeleteResponseSchemaPathSchema: z.ZodLiteral<"laboratories/delete/response_schema">;
+type CliCommandLaboratoriesDeleteResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesDeleteResponseSchemaPathSchema>;
+
+/** `laboratories delete response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesDeleteResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesDeleteResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories delete response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesDeleteResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesDeleteResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesDeleteKindSchema: z.ZodObject<{
+    by: z.ZodLiteral<"client">;
+}, z.core.$strip>;
+type CliCommandLaboratoriesDeleteKind = z.infer<typeof CliCommandLaboratoriesDeleteKindSchema>;
+
+declare const CliCommandLaboratoriesDeletePathSchema: z.ZodLiteral<"laboratories/delete">;
+type CliCommandLaboratoriesDeletePath = z.infer<typeof CliCommandLaboratoriesDeletePathSchema>;
+
+/** `laboratories delete execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesDeleteExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesDeleteRequest, "path_type">): Promise<CliError | CliCommandLaboratoriesDeleteResponse>;
+/** `laboratories delete execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesDeleteExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesDeleteRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
 declare const CliCommandLaboratoriesDetachRequestSchemaPathSchema: z.ZodLiteral<"laboratories/detach/request_schema">;
 type CliCommandLaboratoriesDetachRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesDetachRequestSchemaPathSchema>;
 
@@ -113162,6 +114667,42 @@ declare function laboratoriesDetachExecuteTransform(executor: CommandExecutor, r
     python: string;
 }): Promise<CliError | JsonValue>;
 
+declare const CliCommandLaboratoriesKillRequestSchemaPathSchema: z.ZodLiteral<"laboratories/kill/request_schema">;
+type CliCommandLaboratoriesKillRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesKillRequestSchemaPathSchema>;
+
+/** `laboratories kill request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesKillRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesKillRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories kill request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesKillRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesKillRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesKillResponseSchemaPathSchema: z.ZodLiteral<"laboratories/kill/response_schema">;
+type CliCommandLaboratoriesKillResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesKillResponseSchemaPathSchema>;
+
+/** `laboratories kill response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesKillResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesKillResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories kill response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesKillResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesKillResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesKillPathSchema: z.ZodLiteral<"laboratories/kill">;
+type CliCommandLaboratoriesKillPath = z.infer<typeof CliCommandLaboratoriesKillPathSchema>;
+
+/** `laboratories kill execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesKillExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesKillRequest, "path_type">): Promise<CliError | CliCommandLaboratoriesKillResponse>;
+/** `laboratories kill execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesKillExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesKillRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
 declare const CliCommandLaboratoriesListRequestSchemaPathSchema: z.ZodLiteral<"laboratories/list/request_schema">;
 type CliCommandLaboratoriesListRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesListRequestSchemaPathSchema>;
 
@@ -113189,9 +114730,6 @@ declare function laboratoriesListResponseSchemaExecuteTransform(executor: Comman
 declare const CliCommandLaboratoriesListPathSchema: z.ZodLiteral<"laboratories/list">;
 type CliCommandLaboratoriesListPath = z.infer<typeof CliCommandLaboratoriesListPathSchema>;
 
-declare const CliCommandLaboratoriesListSourceSchema: z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>;
-type CliCommandLaboratoriesListSource = z.infer<typeof CliCommandLaboratoriesListSourceSchema>;
-
 /** `laboratories list execute` — streaming; mirror of the Rust fn of the same path. */
 declare function laboratoriesListExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesListRequest, "path_type">): CliStream<CliError | CliCommandLaboratoriesListResponseItem>;
 /** `laboratories list execute_transform` — streaming; mirror of the Rust fn of the same path. */
@@ -113201,9 +114739,47 @@ declare function laboratoriesListExecuteTransform(executor: CommandExecutor, req
     python: string;
 }): CliStream<CliError | JsonValue>;
 
+declare const CliCommandLaboratoriesSpawnRequestSchemaPathSchema: z.ZodLiteral<"laboratories/spawn/request_schema">;
+type CliCommandLaboratoriesSpawnRequestSchemaPath = z.infer<typeof CliCommandLaboratoriesSpawnRequestSchemaPathSchema>;
+
+/** `laboratories spawn request_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesSpawnRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesSpawnRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories spawn request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesSpawnRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesSpawnRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesSpawnResponseSchemaPathSchema: z.ZodLiteral<"laboratories/spawn/response_schema">;
+type CliCommandLaboratoriesSpawnResponseSchemaPath = z.infer<typeof CliCommandLaboratoriesSpawnResponseSchemaPathSchema>;
+
+/** `laboratories spawn response_schema execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesSpawnResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesSpawnResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `laboratories spawn response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesSpawnResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesSpawnResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandLaboratoriesSpawnPathSchema: z.ZodLiteral<"laboratories/spawn">;
+type CliCommandLaboratoriesSpawnPath = z.infer<typeof CliCommandLaboratoriesSpawnPathSchema>;
+
+/** `laboratories spawn execute` — unary; first stream item, rest discarded. */
+declare function laboratoriesSpawnExecute(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesSpawnRequest, "path_type">): Promise<CliError | CliCommandLaboratoriesSpawnResponse>;
+/** `laboratories spawn execute_transform` — unary; first stream item, rest discarded. */
+declare function laboratoriesSpawnExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandLaboratoriesSpawnRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
 declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/attach">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -114340,27 +115916,123 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
     path_type: z.ZodLiteral<"laboratories/attach/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodDefault<z.ZodString>;
 }, z.core.$strip>, z.ZodObject<{
-    address: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    id: z.ZodString;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect/request_schema">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/add/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    key: z.ZodString;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"laboratories/connect/response_schema">;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/del/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/addresses/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+        final: "final";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    value: z.ZodBoolean;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/config/local/set/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>]>]>, z.ZodObject<{
     cwd: z.ZodDefault<z.ZodString>;
     env: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -114372,6 +116044,8 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
     kind: z.ZodObject<{
         by: z.ZodLiteral<"client">;
     }, z.core.$strip>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     mounts: z.ZodArray<z.ZodObject<{
         container: z.ZodString;
@@ -114393,8 +116067,34 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    id: z.ZodString;
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    kind: z.ZodObject<{
+        by: z.ZodLiteral<"client">;
+    }, z.core.$strip>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/delete/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     laboratory_id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/detach">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -115533,6 +117233,28 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    scope: z.ZodEnum<{
+        global: "global";
+        state: "state";
+    }>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/kill/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     kind: z.ZodObject<{
         by: z.ZodLiteral<"client">;
     }, z.core.$strip>;
@@ -115550,6 +117272,24 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"laboratories/list/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>, z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"laboratories/spawn/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>]>;
@@ -120058,6 +121798,8 @@ declare const CliWebsocketAgentsInstancesListenerAgentInstanceEventSchema: z.Zod
             attached_at: z.ZodString;
             attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             id: z.ZodString;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         }, z.core.$strip>>>;
         last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         logged: z.ZodNumber;
@@ -120077,6 +121819,8 @@ declare const CliWebsocketAgentsInstancesListenerAgentRecordSchema: z.ZodObject<
         attached_at: z.ZodString;
         attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         id: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.core.$strip>>>;
     last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     logged: z.ZodNumber;
@@ -120141,6 +121885,8 @@ declare const CliWebsocketAgentsInstancesListenerAttachedLaboratorySchema: z.Zod
     attached_at: z.ZodString;
     attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type CliWebsocketAgentsInstancesListenerAttachedLaboratory = z.infer<typeof CliWebsocketAgentsInstancesListenerAttachedLaboratorySchema>;
 
@@ -120615,6 +122361,7 @@ type CliWebsocketAgentsInstancesListenerVectorRequestChoicePart = z.infer<typeof
 declare const CliWebsocketLaboratoriesListListenerLaboratoryEventSchema: z.ZodUnion<readonly [z.ZodObject<{
     laboratories: z.ZodArray<z.ZodObject<{
         connected: z.ZodBoolean;
+        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         cwd: z.ZodString;
         env: z.ZodArray<z.ZodObject<{
             key: z.ZodString;
@@ -120622,16 +122369,22 @@ declare const CliWebsocketLaboratoriesListListenerLaboratoryEventSchema: z.ZodUn
         }, z.core.$strip>>;
         id: z.ZodString;
         image: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            os: z.ZodString;
+        }, z.core.$strip>>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         mounts: z.ZodArray<z.ZodObject<{
             container: z.ZodString;
             host: z.ZodString;
         }, z.core.$strip>>;
-        source: z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>;
     }, z.core.$strip>>;
     type: z.ZodLiteral<"snapshot">;
 }, z.core.$strip>, z.ZodObject<{
     laboratory: z.ZodObject<{
         connected: z.ZodBoolean;
+        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         cwd: z.ZodString;
         env: z.ZodArray<z.ZodObject<{
             key: z.ZodString;
@@ -120639,21 +122392,29 @@ declare const CliWebsocketLaboratoriesListListenerLaboratoryEventSchema: z.ZodUn
         }, z.core.$strip>>;
         id: z.ZodString;
         image: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            os: z.ZodString;
+        }, z.core.$strip>>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         mounts: z.ZodArray<z.ZodObject<{
             container: z.ZodString;
             host: z.ZodString;
         }, z.core.$strip>>;
-        source: z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>;
     }, z.core.$strip>;
     type: z.ZodLiteral<"upserted">;
 }, z.core.$strip>, z.ZodObject<{
     id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     type: z.ZodLiteral<"removed">;
 }, z.core.$strip>]>;
 type CliWebsocketLaboratoriesListListenerLaboratoryEvent = z.infer<typeof CliWebsocketLaboratoriesListListenerLaboratoryEventSchema>;
 
 declare const CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema: z.ZodObject<{
     connected: z.ZodBoolean;
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     cwd: z.ZodString;
     env: z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -120661,11 +122422,16 @@ declare const CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema: z.ZodO
     }, z.core.$strip>>;
     id: z.ZodString;
     image: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        os: z.ZodString;
+    }, z.core.$strip>>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mounts: z.ZodArray<z.ZodObject<{
         container: z.ZodString;
         host: z.ZodString;
     }, z.core.$strip>>;
-    source: z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>;
 }, z.core.$strip>;
 type CliWebsocketLaboratoriesListListenerLaboratoryStatus = z.infer<typeof CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema>;
 
@@ -120673,10 +122439,14 @@ declare const CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema: z.ZodU
     agent_instance_hierarchy: z.ZodString;
     attached_at: z.ZodNumber;
     attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     type: z.ZodLiteral<"aih">;
 }, z.core.$strip>, z.ZodObject<{
     attached_at: z.ZodNumber;
     attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     tag: z.ZodString;
     type: z.ZodLiteral<"tag">;
 }, z.core.$strip>]>;
@@ -120688,14 +122458,19 @@ declare const CliWebsocketLaboratoriesListenerLaboratoryInstanceEventSchema: z.Z
             agent_instance_hierarchy: z.ZodString;
             attached_at: z.ZodNumber;
             attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             type: z.ZodLiteral<"aih">;
         }, z.core.$strip>, z.ZodObject<{
             attached_at: z.ZodNumber;
             attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
             tag: z.ZodString;
             type: z.ZodLiteral<"tag">;
         }, z.core.$strip>]>>>;
         connected: z.ZodBoolean;
+        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         cwd: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         env: z.ZodDefault<z.ZodArray<z.ZodObject<{
             key: z.ZodString;
@@ -120703,11 +122478,16 @@ declare const CliWebsocketLaboratoriesListenerLaboratoryInstanceEventSchema: z.Z
         }, z.core.$strip>>>;
         id: z.ZodString;
         image: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            os: z.ZodString;
+        }, z.core.$strip>>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         mounts: z.ZodDefault<z.ZodArray<z.ZodObject<{
             container: z.ZodString;
             host: z.ZodString;
         }, z.core.$strip>>>;
-        source: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>>>;
     }, z.core.$strip>;
     type: z.ZodLiteral<"laboratory">;
 }, z.core.$strip>;
@@ -120718,14 +122498,19 @@ declare const CliWebsocketLaboratoriesListenerLaboratoryRecordSchema: z.ZodObjec
         agent_instance_hierarchy: z.ZodString;
         attached_at: z.ZodNumber;
         attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         type: z.ZodLiteral<"aih">;
     }, z.core.$strip>, z.ZodObject<{
         attached_at: z.ZodNumber;
         attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         tag: z.ZodString;
         type: z.ZodLiteral<"tag">;
     }, z.core.$strip>]>>>;
     connected: z.ZodBoolean;
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     cwd: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     env: z.ZodDefault<z.ZodArray<z.ZodObject<{
         key: z.ZodString;
@@ -120733,11 +122518,16 @@ declare const CliWebsocketLaboratoriesListenerLaboratoryRecordSchema: z.ZodObjec
     }, z.core.$strip>>>;
     id: z.ZodString;
     image: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        os: z.ZodString;
+    }, z.core.$strip>>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mounts: z.ZodDefault<z.ZodArray<z.ZodObject<{
         container: z.ZodString;
         host: z.ZodString;
     }, z.core.$strip>>>;
-    source: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"local">, z.ZodLiteral<"remote">]>>>;
 }, z.core.$strip>;
 type CliWebsocketLaboratoriesListenerLaboratoryRecord = z.infer<typeof CliWebsocketLaboratoriesListenerLaboratoryRecordSchema>;
 
@@ -120942,9 +122732,10 @@ declare class WebSocketAgentsInstancesListener {
  * `cli::websocket_laboratories_list_listener::WebSocketLaboratoriesListListener`,
  * identical in construction and semantics.
  *
- * Each item is one laboratory's spec plus its `source` (local/remote
- * provenance, the unary `laboratories list` rules) and a live
- * `connected` flag from the daemon's `/laboratory` registry. The
+ * Each item is one laboratory's spec plus the `machine` whose host
+ * serves it (there is no local-vs-remote split — machine identity is
+ * the only provenance) and a live `connected` flag from the daemon's
+ * `/laboratory` registry. The
  * listener folds events into a self-updating `id → status` map: a
  * `snapshot` replaces the whole set, `upserted` replaces one
  * laboratory by id (introducing it if unseen), `removed` drops one.
@@ -120970,19 +122761,6 @@ interface WebSocketLaboratoriesListListenerOptions {
      * {@link WebSocketLaboratoriesListListener.laboratories}. */
     onChange?: (laboratories: LaboratoryStatus[]) => void;
 }
-/**
- * The materialized `/laboratories/list` view — construct via
- * {@link WebSocketLaboratoriesListListener.connect}.
- *
- * ```ts
- * const listener = await WebSocketLaboratoriesListListener.connect(
- *   "ws://127.0.0.1:49152/laboratories/list",
- *   { signature, onChange: (laboratories) => render(laboratories) },
- * );
- * listener.laboratories(); // [{ id, image, ..., source, connected }, ...]
- * await listener.subscribe(); // resolves on the next change
- * ```
- */
 declare class WebSocketLaboratoriesListListener {
     #private;
     private constructor();
@@ -121016,8 +122794,8 @@ declare class WebSocketLaboratoriesListListener {
  * `cli::websocket_laboratories_listener::WebSocketLaboratoriesListener`,
  * identical in construction and semantics.
  *
- * One laboratory's full record: its spec (when connected or in the
- * machine's local scan; zero-filled otherwise), `source`/`connected`
+ * One laboratory's full record: its spec (when a connected host
+ * serves it; zero-filled otherwise), `machine`/`connected`
  * state, and EVERY attachment row targeting it (the AIHs and tags it
  * is attached to). Frames are always full-value record replaces —
  * the first is the connect-time snapshot; each later one supersedes
@@ -126218,6 +127996,11 @@ declare const FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema: z
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -126287,6 +128070,11 @@ declare const FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema: z
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type FunctionsExecutionsResponseStreamingReasoningSummaryChunk = z.infer<typeof FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema>;
@@ -127538,6 +129326,11 @@ declare const FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchem
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -127608,6 +129401,11 @@ declare const FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchem
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
     created: z.ZodNumber;
@@ -127804,6 +129602,11 @@ declare const FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchem
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
     votes: z.ZodArray<z.ZodObject<{
         agent_full_id: z.ZodString;
@@ -127994,6 +129797,11 @@ declare const FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema: 
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -128063,6 +129871,11 @@ declare const FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema: 
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>>;
     tasks: z.ZodArray<z.ZodType<FunctionsExecutionsResponseStreamingTaskChunk, unknown, z.core.$ZodTypeInternals<FunctionsExecutionsResponseStreamingTaskChunk, unknown>>>;
@@ -128089,6 +129902,11 @@ declare const FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema: 
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type FunctionsExecutionsResponseStreamingFunctionExecutionChunk = z.infer<typeof FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema>;
@@ -128261,6 +130079,11 @@ declare const FunctionsExecutionsResponseUnaryReasoningSummarySchema: z.ZodObjec
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -128330,6 +130153,11 @@ declare const FunctionsExecutionsResponseUnaryReasoningSummarySchema: z.ZodObjec
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type FunctionsExecutionsResponseUnaryReasoningSummary = z.infer<typeof FunctionsExecutionsResponseUnaryReasoningSummarySchema>;
@@ -129579,6 +131407,11 @@ declare const FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema: z.ZodO
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -129649,6 +131482,11 @@ declare const FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema: z.ZodO
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>>;
     created: z.ZodNumber;
@@ -129845,6 +131683,11 @@ declare const FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema: z.ZodO
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
     votes: z.ZodArray<z.ZodObject<{
         agent_full_id: z.ZodString;
@@ -130033,6 +131876,11 @@ declare const FunctionsExecutionsResponseUnaryFunctionExecutionSchema: z.ZodObje
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -130102,6 +131950,11 @@ declare const FunctionsExecutionsResponseUnaryFunctionExecutionSchema: z.ZodObje
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>>>;
     tasks: z.ZodArray<z.ZodType<FunctionsExecutionsResponseUnaryTask, unknown, z.core.$ZodTypeInternals<FunctionsExecutionsResponseUnaryTask, unknown>>>;
@@ -130128,6 +131981,11 @@ declare const FunctionsExecutionsResponseUnaryFunctionExecutionSchema: z.ZodObje
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type FunctionsExecutionsResponseUnaryFunctionExecution = z.infer<typeof FunctionsExecutionsResponseUnaryFunctionExecutionSchema>;
@@ -133084,6 +134942,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionExecutionChu
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -133153,6 +135016,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionExecutionChu
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>>;
     retry: z.ZodNumber;
@@ -133180,6 +135048,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionExecutionChu
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk = z.infer<typeof FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema>;
@@ -134490,6 +136363,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionProfileCompu
                     }, z.core.$strip>>>;
                     total_cost: z.ZodNumber;
                     total_tokens: z.ZodNumber;
+                    upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                        claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                        codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                        openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    }, z.core.$strip>>;
                 }, z.core.$strip>>>;
             }, z.core.$strip>, z.ZodObject<{
                 content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -134559,6 +136437,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionProfileCompu
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>>>;
         retry: z.ZodNumber;
@@ -134586,6 +136469,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionProfileCompu
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
     executions_errors: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -134635,6 +136523,11 @@ declare const FunctionsProfilesComputationsResponseStreamingFunctionProfileCompu
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk = z.infer<typeof FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema>;
@@ -134821,6 +136714,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionProfileComputati
                     }, z.core.$strip>>>;
                     total_cost: z.ZodNumber;
                     total_tokens: z.ZodNumber;
+                    upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                        claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                        codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                        openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    }, z.core.$strip>>;
                 }, z.core.$strip>;
             }, z.core.$strip>, z.ZodObject<{
                 content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -134890,6 +136788,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionProfileComputati
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>;
         }, z.core.$strip>>>;
         retry: z.ZodNumber;
@@ -134917,6 +136820,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionProfileComputati
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>>;
     executions_errors: z.ZodBoolean;
@@ -134966,6 +136874,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionProfileComputati
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation = z.infer<typeof FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema>;
@@ -135148,6 +137061,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema:
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -135217,6 +137135,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema:
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>>>;
     retry: z.ZodNumber;
@@ -135244,6 +137167,11 @@ declare const FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema:
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type FunctionsProfilesComputationsResponseUnaryFunctionExecution = z.infer<typeof FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema>;
@@ -153036,6 +154964,8 @@ declare function wasmFunctionsAlphaCheckBranchVectorFunction(fn: FunctionsAlphaV
 
 declare const LaboratoriesClientLaboratorySchema: z.ZodObject<{
     id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     type: z.ZodLiteral<"client">;
 }, z.core.$strip>;
 type LaboratoriesClientLaboratory = z.infer<typeof LaboratoriesClientLaboratorySchema>;
@@ -153045,9 +154975,18 @@ type LaboratoriesClientLaboratoryType = z.infer<typeof LaboratoriesClientLaborat
 
 declare const LaboratoriesLaboratorySchema: z.ZodIntersection<z.ZodObject<{
     id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     type: z.ZodLiteral<"client">;
 }, z.core.$strip>, z.ZodObject<{}, z.core.$strip>>;
 type LaboratoriesLaboratory = z.infer<typeof LaboratoriesLaboratorySchema>;
+
+declare const MachineMachineIdentitySchema: z.ZodObject<{
+    hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    id: z.ZodString;
+    os: z.ZodString;
+}, z.core.$strip>;
+type MachineMachineIdentity = z.infer<typeof MachineMachineIdentitySchema>;
 
 declare const McpResourceListResourcesRequestSchema: z.ZodObject<{
     cursor: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -153499,8 +155438,11 @@ declare const McpServerSchema: z.ZodObject<{
     }, z.core.$strip>;
     laboratory: z.ZodOptional<z.ZodNullable<z.ZodIntersection<z.ZodObject<{
         id: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         type: z.ZodLiteral<"client">;
     }, z.core.$strip>, z.ZodObject<{}, z.core.$strip>>>>;
+    laboratory_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     name: z.ZodString;
     plugin: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         mcp: z.ZodString;
@@ -170520,6 +172462,11 @@ declare const VectorCompletionsResponseStreamingAgentCompletionChunkSchema: z.Zo
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -170590,6 +172537,11 @@ declare const VectorCompletionsResponseStreamingAgentCompletionChunkSchema: z.Zo
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
 }, z.core.$strip>;
 type VectorCompletionsResponseStreamingAgentCompletionChunk = z.infer<typeof VectorCompletionsResponseStreamingAgentCompletionChunkSchema>;
@@ -171832,6 +173784,11 @@ declare const VectorCompletionsResponseStreamingVectorCompletionChunkSchema: z.Z
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>>>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -171902,6 +173859,11 @@ declare const VectorCompletionsResponseStreamingVectorCompletionChunkSchema: z.Z
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>>>;
     }, z.core.$strip>>;
     created: z.ZodNumber;
@@ -171931,6 +173893,11 @@ declare const VectorCompletionsResponseStreamingVectorCompletionChunkSchema: z.Z
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>>>;
     votes: z.ZodArray<z.ZodObject<{
         agent_full_id: z.ZodString;
@@ -173176,6 +175143,11 @@ declare const VectorCompletionsResponseUnaryVectorCompletionSchema: z.ZodObject<
                 }, z.core.$strip>>>;
                 total_cost: z.ZodNumber;
                 total_tokens: z.ZodNumber;
+                upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                    claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                    openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                }, z.core.$strip>>;
             }, z.core.$strip>;
         }, z.core.$strip>, z.ZodObject<{
             content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -173246,6 +175218,11 @@ declare const VectorCompletionsResponseUnaryVectorCompletionSchema: z.ZodObject<
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>>;
     created: z.ZodNumber;
@@ -173275,6 +175252,11 @@ declare const VectorCompletionsResponseUnaryVectorCompletionSchema: z.ZodObject<
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
     votes: z.ZodArray<z.ZodObject<{
         agent_full_id: z.ZodString;
@@ -174520,6 +176502,11 @@ declare const VectorCompletionsResponseUnaryAgentCompletionSchema: z.ZodObject<{
             }, z.core.$strip>>>;
             total_cost: z.ZodNumber;
             total_tokens: z.ZodNumber;
+            upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+                claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+                openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            }, z.core.$strip>>;
         }, z.core.$strip>;
     }, z.core.$strip>, z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
@@ -174590,6 +176577,11 @@ declare const VectorCompletionsResponseUnaryAgentCompletionSchema: z.ZodObject<{
         }, z.core.$strip>>>;
         total_cost: z.ZodNumber;
         total_tokens: z.ZodNumber;
+        upstream_duration_ms: z.ZodDefault<z.ZodObject<{
+            claude_agent_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            codex_sdk: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+            openrouter: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        }, z.core.$strip>>;
     }, z.core.$strip>;
 }, z.core.$strip>;
 type VectorCompletionsResponseUnaryAgentCompletion = z.infer<typeof VectorCompletionsResponseUnaryAgentCompletionSchema>;
@@ -177336,4 +179328,4 @@ declare function merge<T extends {}>(a: T | null | undefined, b: T | null | unde
 declare function mergedString(a: string, b: string): [string, boolean];
 declare function mergedNumberArray(a: number[], b: number[]): [number[], boolean];
 
-export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentClientObjectiveaiMcp, type AgentClientObjectiveaiMcpEntry, AgentClientObjectiveaiMcpEntrySchema, type AgentClientObjectiveaiMcpHeaders, AgentClientObjectiveaiMcpHeadersSchema, type AgentClientObjectiveaiMcpPluginEntry, AgentClientObjectiveaiMcpPluginEntrySchema, type AgentClientObjectiveaiMcpPluginMcpServer, AgentClientObjectiveaiMcpPluginMcpServerSchema, AgentClientObjectiveaiMcpSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessagePipeAck, AgentCompletionsMessagePipeAckSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageToolResponseMetadata, AgentCompletionsMessageToolResponseMetadataSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockCall, AgentMockCallSchema, type AgentMockCallToolCall, AgentMockCallToolCallSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContextCompression, AgentOpenrouterContextCompressionSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterSystemPrompt, type AgentOpenrouterSystemPromptRole, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentUpstream, AgentUpstreamSchema, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, BinaryCommandExecutor, type BinaryCommandExecutorOptions, CLI_COMMAND_LISTENER_EXECUTION_MODES, type CliCommandAgentArguments, CliCommandAgentArgumentsSchema, type CliCommandAgentsAgentRef, CliCommandAgentsAgentRefSchema, type CliCommandAgentsAgentSelector, CliCommandAgentsAgentSelectorSchema, type CliCommandAgentsEnqueueListenerExecution, type CliCommandAgentsEnqueuePath, CliCommandAgentsEnqueuePathSchema, type CliCommandAgentsEnqueueRequest, CliCommandAgentsEnqueueRequestSchema, type CliCommandAgentsEnqueueRequestSchemaListenerExecution, type CliCommandAgentsEnqueueRequestSchemaPath, CliCommandAgentsEnqueueRequestSchemaPathSchema, type CliCommandAgentsEnqueueRequestSchemaRequest, CliCommandAgentsEnqueueRequestSchemaRequestSchema, type CliCommandAgentsEnqueueResponse, CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponseSchemaListenerExecution, type CliCommandAgentsEnqueueResponseSchemaPath, CliCommandAgentsEnqueueResponseSchemaPathSchema, type CliCommandAgentsEnqueueResponseSchemaRequest, CliCommandAgentsEnqueueResponseSchemaRequestSchema, type CliCommandAgentsGetListenerExecution, type CliCommandAgentsGetPath, CliCommandAgentsGetPathSchema, type CliCommandAgentsGetRequest, CliCommandAgentsGetRequestSchema, type CliCommandAgentsGetRequestSchemaListenerExecution, type CliCommandAgentsGetRequestSchemaPath, CliCommandAgentsGetRequestSchemaPathSchema, type CliCommandAgentsGetRequestSchemaRequest, CliCommandAgentsGetRequestSchemaRequestSchema, type CliCommandAgentsGetResponse, CliCommandAgentsGetResponseSchema, type CliCommandAgentsGetResponseSchemaListenerExecution, type CliCommandAgentsGetResponseSchemaPath, CliCommandAgentsGetResponseSchemaPathSchema, type CliCommandAgentsGetResponseSchemaRequest, CliCommandAgentsGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesGetListenerExecution, type CliCommandAgentsInstancesGetPath, CliCommandAgentsInstancesGetPathSchema, type CliCommandAgentsInstancesGetRequest, CliCommandAgentsInstancesGetRequestSchema, type CliCommandAgentsInstancesGetRequestSchemaListenerExecution, type CliCommandAgentsInstancesGetRequestSchemaPath, CliCommandAgentsInstancesGetRequestSchemaPathSchema, type CliCommandAgentsInstancesGetRequestSchemaRequest, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, type CliCommandAgentsInstancesGetResponseSchemaListenerExecution, type CliCommandAgentsInstancesGetResponseSchemaPath, CliCommandAgentsInstancesGetResponseSchemaPathSchema, type CliCommandAgentsInstancesGetResponseSchemaRequest, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesListLaboratoryAttachment, CliCommandAgentsInstancesListLaboratoryAttachmentSchema, type CliCommandAgentsInstancesListListenerExecution, type CliCommandAgentsInstancesListPath, CliCommandAgentsInstancesListPathSchema, type CliCommandAgentsInstancesListRequest, CliCommandAgentsInstancesListRequestSchema, type CliCommandAgentsInstancesListRequestSchemaListenerExecution, type CliCommandAgentsInstancesListRequestSchemaPath, CliCommandAgentsInstancesListRequestSchemaPathSchema, type CliCommandAgentsInstancesListRequestSchemaRequest, CliCommandAgentsInstancesListRequestSchemaRequestSchema, type CliCommandAgentsInstancesListResponseItem, CliCommandAgentsInstancesListResponseItemSchema, type CliCommandAgentsInstancesListResponseSchemaListenerExecution, type CliCommandAgentsInstancesListResponseSchemaPath, CliCommandAgentsInstancesListResponseSchemaPathSchema, type CliCommandAgentsInstancesListResponseSchemaRequest, CliCommandAgentsInstancesListResponseSchemaRequestSchema, type CliCommandAgentsInstancesListenerExecution, type CliCommandAgentsInstancesRequest, CliCommandAgentsInstancesRequestSchema, type CliCommandAgentsListListenerExecution, type CliCommandAgentsListPath, CliCommandAgentsListPathSchema, type CliCommandAgentsListRequest, CliCommandAgentsListRequestSchema, type CliCommandAgentsListRequestSchemaListenerExecution, type CliCommandAgentsListRequestSchemaPath, CliCommandAgentsListRequestSchemaPathSchema, type CliCommandAgentsListRequestSchemaRequest, CliCommandAgentsListRequestSchemaRequestSchema, type CliCommandAgentsListResponseSchemaListenerExecution, type CliCommandAgentsListResponseSchemaPath, CliCommandAgentsListResponseSchemaPathSchema, type CliCommandAgentsListResponseSchemaRequest, CliCommandAgentsListResponseSchemaRequestSchema, type CliCommandAgentsListenerExecution, type CliCommandAgentsLogsListAssistantResponsePart, CliCommandAgentsLogsListAssistantResponsePartSchema, type CliCommandAgentsLogsListClientNotificationPart, CliCommandAgentsLogsListClientNotificationPartSchema, type CliCommandAgentsLogsListClientNotificationPartType, CliCommandAgentsLogsListClientNotificationPartTypeSchema, type CliCommandAgentsLogsListListenerExecution, type CliCommandAgentsLogsListPath, CliCommandAgentsLogsListPathSchema, type CliCommandAgentsLogsListRequest, type CliCommandAgentsLogsListRequestMessageUserPart, CliCommandAgentsLogsListRequestMessageUserPartSchema, type CliCommandAgentsLogsListRequestMessageUserPartType, CliCommandAgentsLogsListRequestMessageUserPartTypeSchema, CliCommandAgentsLogsListRequestSchema, type CliCommandAgentsLogsListRequestSchemaListenerExecution, type CliCommandAgentsLogsListRequestSchemaPath, CliCommandAgentsLogsListRequestSchemaPathSchema, type CliCommandAgentsLogsListRequestSchemaRequest, CliCommandAgentsLogsListRequestSchemaRequestSchema, type CliCommandAgentsLogsListResponseItem, CliCommandAgentsLogsListResponseItemSchema, type CliCommandAgentsLogsListResponseSchemaListenerExecution, type CliCommandAgentsLogsListResponseSchemaPath, CliCommandAgentsLogsListResponseSchemaPathSchema, type CliCommandAgentsLogsListResponseSchemaRequest, CliCommandAgentsLogsListResponseSchemaRequestSchema, type CliCommandAgentsLogsListTarget, CliCommandAgentsLogsListTargetSchema, type CliCommandAgentsLogsListToolResponsePart, CliCommandAgentsLogsListToolResponsePartSchema, type CliCommandAgentsLogsListToolResponsePartType, CliCommandAgentsLogsListToolResponsePartTypeSchema, type CliCommandAgentsLogsListVectorRequestChoice, type CliCommandAgentsLogsListVectorRequestChoicePart, CliCommandAgentsLogsListVectorRequestChoicePartSchema, type CliCommandAgentsLogsListVectorRequestChoicePartType, CliCommandAgentsLogsListVectorRequestChoicePartTypeSchema, CliCommandAgentsLogsListVectorRequestChoiceSchema, type CliCommandAgentsLogsListenerExecution, type CliCommandAgentsLogsOpenListenerExecution, type CliCommandAgentsLogsOpenPath, CliCommandAgentsLogsOpenPathSchema, type CliCommandAgentsLogsOpenRequest, CliCommandAgentsLogsOpenRequestSchema, type CliCommandAgentsLogsOpenRequestSchemaListenerExecution, type CliCommandAgentsLogsOpenRequestSchemaPath, CliCommandAgentsLogsOpenRequestSchemaPathSchema, type CliCommandAgentsLogsOpenRequestSchemaRequest, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, type CliCommandAgentsLogsOpenResponse, CliCommandAgentsLogsOpenResponseSchema, type CliCommandAgentsLogsOpenResponseSchemaListenerExecution, type CliCommandAgentsLogsOpenResponseSchemaPath, CliCommandAgentsLogsOpenResponseSchemaPathSchema, type CliCommandAgentsLogsOpenResponseSchemaRequest, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, type CliCommandAgentsLogsRequest, CliCommandAgentsLogsRequestSchema, type CliCommandAgentsLogsSubscribeAgentsInactiveTag, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsSubscribeKindFilter, CliCommandAgentsLogsSubscribeKindFilterSchema, type CliCommandAgentsLogsSubscribeListenerExecution, type CliCommandAgentsLogsSubscribePath, CliCommandAgentsLogsSubscribePathSchema, type CliCommandAgentsLogsSubscribeRequest, CliCommandAgentsLogsSubscribeRequestSchema, type CliCommandAgentsLogsSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsSubscribeRequestSchemaPath, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsSubscribeRequestSchemaRequest, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsSubscribeResponseItem, CliCommandAgentsLogsSubscribeResponseItemSchema, type CliCommandAgentsLogsSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsSubscribeResponseSchemaPath, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsSubscribeResponseSchemaRequest, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetListenerExecution, type CliCommandAgentsLogsTokenUsageGetPath, CliCommandAgentsLogsTokenUsageGetPathSchema, type CliCommandAgentsLogsTokenUsageGetRequest, CliCommandAgentsLogsTokenUsageGetRequestSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetRequestSchemaPath, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetResponse, CliCommandAgentsLogsTokenUsageGetResponseSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetResponseSchemaPath, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageListenerExecution, type CliCommandAgentsLogsTokenUsageRequest, CliCommandAgentsLogsTokenUsageRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTag, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsTokenUsageSubscribeListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribePath, CliCommandAgentsLogsTokenUsageSubscribePathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseItem, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, type CliCommandAgentsMcpListenerExecution, type CliCommandAgentsMcpRequest, CliCommandAgentsMcpRequestSchema, type CliCommandAgentsMcpResourcesListListenerExecution, type CliCommandAgentsMcpResourcesListPath, CliCommandAgentsMcpResourcesListPathSchema, type CliCommandAgentsMcpResourcesListRequest, CliCommandAgentsMcpResourcesListRequestSchema, type CliCommandAgentsMcpResourcesListRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesListRequestSchemaPath, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesListRequestSchemaRequest, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesListResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesListResponseSchemaPath, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesListResponseSchemaRequest, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesListenerExecution, type CliCommandAgentsMcpResourcesReadListenerExecution, type CliCommandAgentsMcpResourcesReadPath, CliCommandAgentsMcpResourcesReadPathSchema, type CliCommandAgentsMcpResourcesReadRequest, CliCommandAgentsMcpResourcesReadRequestSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadRequestSchemaPath, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaRequest, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadResponseSchemaPath, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaRequest, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesRequest, CliCommandAgentsMcpResourcesRequestSchema, type CliCommandAgentsMcpServersListListenerExecution, type CliCommandAgentsMcpServersListPath, CliCommandAgentsMcpServersListPathSchema, type CliCommandAgentsMcpServersListRequest, CliCommandAgentsMcpServersListRequestSchema, type CliCommandAgentsMcpServersListRequestSchemaListenerExecution, type CliCommandAgentsMcpServersListRequestSchemaPath, CliCommandAgentsMcpServersListRequestSchemaPathSchema, type CliCommandAgentsMcpServersListRequestSchemaRequest, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, type CliCommandAgentsMcpServersListResponseSchemaListenerExecution, type CliCommandAgentsMcpServersListResponseSchemaPath, CliCommandAgentsMcpServersListResponseSchemaPathSchema, type CliCommandAgentsMcpServersListResponseSchemaRequest, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, type CliCommandAgentsMcpServersListenerExecution, type CliCommandAgentsMcpServersRequest, CliCommandAgentsMcpServersRequestSchema, type CliCommandAgentsMcpToolsCallListenerExecution, type CliCommandAgentsMcpToolsCallPath, CliCommandAgentsMcpToolsCallPathSchema, type CliCommandAgentsMcpToolsCallRequest, CliCommandAgentsMcpToolsCallRequestSchema, type CliCommandAgentsMcpToolsCallRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsCallRequestSchemaPath, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, type CliCommandAgentsMcpToolsCallRequestSchemaRequest, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsCallResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsCallResponseSchemaPath, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, type CliCommandAgentsMcpToolsCallResponseSchemaRequest, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListListenerExecution, type CliCommandAgentsMcpToolsListPath, CliCommandAgentsMcpToolsListPathSchema, type CliCommandAgentsMcpToolsListRequest, CliCommandAgentsMcpToolsListRequestSchema, type CliCommandAgentsMcpToolsListRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsListRequestSchemaPath, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, type CliCommandAgentsMcpToolsListRequestSchemaRequest, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsListResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsListResponseSchemaPath, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, type CliCommandAgentsMcpToolsListResponseSchemaRequest, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListenerExecution, type CliCommandAgentsMcpToolsRequest, CliCommandAgentsMcpToolsRequestSchema, type CliCommandAgentsMessageListenerExecution, type CliCommandAgentsMessagePath, CliCommandAgentsMessagePathSchema, type CliCommandAgentsMessageRequest, type CliCommandAgentsMessageRequestDangerousAdvanced, CliCommandAgentsMessageRequestDangerousAdvancedSchema, type CliCommandAgentsMessageRequestMessage, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, type CliCommandAgentsMessageRequestSchemaListenerExecution, type CliCommandAgentsMessageRequestSchemaPath, CliCommandAgentsMessageRequestSchemaPathSchema, type CliCommandAgentsMessageRequestSchemaRequest, CliCommandAgentsMessageRequestSchemaRequestSchema, type CliCommandAgentsMessageResponse, CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponseSchemaListenerExecution, type CliCommandAgentsMessageResponseSchemaPath, CliCommandAgentsMessageResponseSchemaPathSchema, type CliCommandAgentsMessageResponseSchemaRequest, CliCommandAgentsMessageResponseSchemaRequestSchema, type CliCommandAgentsPublishListenerExecution, type CliCommandAgentsPublishPath, CliCommandAgentsPublishPathSchema, type CliCommandAgentsPublishRequest, type CliCommandAgentsPublishRequestBody, CliCommandAgentsPublishRequestBodySchema, type CliCommandAgentsPublishRequestPublishMessage, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, type CliCommandAgentsPublishRequestSchemaListenerExecution, type CliCommandAgentsPublishRequestSchemaPath, CliCommandAgentsPublishRequestSchemaPathSchema, type CliCommandAgentsPublishRequestSchemaRequest, CliCommandAgentsPublishRequestSchemaRequestSchema, type CliCommandAgentsPublishResponse, CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponseSchemaListenerExecution, type CliCommandAgentsPublishResponseSchemaPath, CliCommandAgentsPublishResponseSchemaPathSchema, type CliCommandAgentsPublishResponseSchemaRequest, CliCommandAgentsPublishResponseSchemaRequestSchema, type CliCommandAgentsQueueDeleteListenerExecution, type CliCommandAgentsQueueDeletePath, CliCommandAgentsQueueDeletePathSchema, type CliCommandAgentsQueueDeleteRequest, CliCommandAgentsQueueDeleteRequestSchema, type CliCommandAgentsQueueDeleteRequestSchemaListenerExecution, type CliCommandAgentsQueueDeleteRequestSchemaPath, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, type CliCommandAgentsQueueDeleteRequestSchemaRequest, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, type CliCommandAgentsQueueDeleteResponse, CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponseSchemaListenerExecution, type CliCommandAgentsQueueDeleteResponseSchemaPath, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, type CliCommandAgentsQueueDeleteResponseSchemaRequest, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverAgentActiveResponseItem, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, type CliCommandAgentsQueueDeliverAgentActiveType, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, type CliCommandAgentsQueueDeliverAgentSpawnedResponseItem, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverAgentSpawnedType, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, type CliCommandAgentsQueueDeliverAllAgentsActive, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, type CliCommandAgentsQueueDeliverListenerExecution, type CliCommandAgentsQueueDeliverPath, CliCommandAgentsQueueDeliverPathSchema, type CliCommandAgentsQueueDeliverRequest, type CliCommandAgentsQueueDeliverRequestDangerousAdvanced, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, type CliCommandAgentsQueueDeliverRequestSchemaListenerExecution, type CliCommandAgentsQueueDeliverRequestSchemaPath, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, type CliCommandAgentsQueueDeliverRequestSchemaRequest, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, type CliCommandAgentsQueueDeliverResponseItem, CliCommandAgentsQueueDeliverResponseItemSchema, type CliCommandAgentsQueueDeliverResponseSchemaListenerExecution, type CliCommandAgentsQueueDeliverResponseSchemaPath, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, type CliCommandAgentsQueueDeliverResponseSchemaRequest, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverTagActiveResponseItem, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, type CliCommandAgentsQueueDeliverTagActiveType, CliCommandAgentsQueueDeliverTagActiveTypeSchema, type CliCommandAgentsQueueDeliverTagSpawnedResponseItem, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverTagSpawnedType, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, type CliCommandAgentsQueueDeliverValueResponseItem, CliCommandAgentsQueueDeliverValueResponseItemSchema, type CliCommandAgentsQueueListListenerExecution, type CliCommandAgentsQueueListPath, CliCommandAgentsQueueListPathSchema, type CliCommandAgentsQueueListQueuePart, CliCommandAgentsQueueListQueuePartSchema, type CliCommandAgentsQueueListRequest, CliCommandAgentsQueueListRequestSchema, type CliCommandAgentsQueueListRequestSchemaListenerExecution, type CliCommandAgentsQueueListRequestSchemaPath, CliCommandAgentsQueueListRequestSchemaPathSchema, type CliCommandAgentsQueueListRequestSchemaRequest, CliCommandAgentsQueueListRequestSchemaRequestSchema, type CliCommandAgentsQueueListResponseItem, CliCommandAgentsQueueListResponseItemSchema, type CliCommandAgentsQueueListResponseSchemaListenerExecution, type CliCommandAgentsQueueListResponseSchemaPath, CliCommandAgentsQueueListResponseSchemaPathSchema, type CliCommandAgentsQueueListResponseSchemaRequest, CliCommandAgentsQueueListResponseSchemaRequestSchema, type CliCommandAgentsQueueListenerExecution, type CliCommandAgentsQueueOpenListenerExecution, type CliCommandAgentsQueueOpenPath, CliCommandAgentsQueueOpenPathSchema, type CliCommandAgentsQueueOpenRequest, CliCommandAgentsQueueOpenRequestSchema, type CliCommandAgentsQueueOpenRequestSchemaListenerExecution, type CliCommandAgentsQueueOpenRequestSchemaPath, CliCommandAgentsQueueOpenRequestSchemaPathSchema, type CliCommandAgentsQueueOpenRequestSchemaRequest, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, type CliCommandAgentsQueueOpenResponseSchemaListenerExecution, type CliCommandAgentsQueueOpenResponseSchemaPath, CliCommandAgentsQueueOpenResponseSchemaPathSchema, type CliCommandAgentsQueueOpenResponseSchemaRequest, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, type CliCommandAgentsQueueRequest, CliCommandAgentsQueueRequestSchema, type CliCommandAgentsRequest, CliCommandAgentsRequestSchema, type CliCommandAgentsSpawnListenerExecution, type CliCommandAgentsSpawnListenerExecutionStreaming, type CliCommandAgentsSpawnListenerExecutionVariant, type CliCommandAgentsSpawnPath, CliCommandAgentsSpawnPathSchema, type CliCommandAgentsSpawnRequest, type CliCommandAgentsSpawnRequestDangerousAdvanced, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, type CliCommandAgentsSpawnRequestSchemaListenerExecution, type CliCommandAgentsSpawnRequestSchemaPath, CliCommandAgentsSpawnRequestSchemaPathSchema, type CliCommandAgentsSpawnRequestSchemaRequest, CliCommandAgentsSpawnRequestSchemaRequestSchema, type CliCommandAgentsSpawnResponseItem, CliCommandAgentsSpawnResponseItemSchema, type CliCommandAgentsSpawnResponseSchemaListenerExecution, type CliCommandAgentsSpawnResponseSchemaPath, CliCommandAgentsSpawnResponseSchemaPathSchema, type CliCommandAgentsSpawnResponseSchemaRequest, CliCommandAgentsSpawnResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyAgentTagResolution, CliCommandAgentsTagsApplyAgentTagResolutionSchema, type CliCommandAgentsTagsApplyListenerExecution, type CliCommandAgentsTagsApplyPath, CliCommandAgentsTagsApplyPathSchema, type CliCommandAgentsTagsApplyRequest, CliCommandAgentsTagsApplyRequestSchema, type CliCommandAgentsTagsApplyRequestSchemaListenerExecution, type CliCommandAgentsTagsApplyRequestSchemaPath, CliCommandAgentsTagsApplyRequestSchemaPathSchema, type CliCommandAgentsTagsApplyRequestSchemaRequest, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, type CliCommandAgentsTagsApplyResponse, CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponseSchemaListenerExecution, type CliCommandAgentsTagsApplyResponseSchemaPath, CliCommandAgentsTagsApplyResponseSchemaPathSchema, type CliCommandAgentsTagsApplyResponseSchemaRequest, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyTarget, CliCommandAgentsTagsApplyTargetSchema, type CliCommandAgentsTagsListenerExecution, type CliCommandAgentsTagsLookupListenerExecution, type CliCommandAgentsTagsLookupLookupState, CliCommandAgentsTagsLookupLookupStateSchema, type CliCommandAgentsTagsLookupPath, CliCommandAgentsTagsLookupPathSchema, type CliCommandAgentsTagsLookupRequest, CliCommandAgentsTagsLookupRequestSchema, type CliCommandAgentsTagsLookupRequestSchemaListenerExecution, type CliCommandAgentsTagsLookupRequestSchemaPath, CliCommandAgentsTagsLookupRequestSchemaPathSchema, type CliCommandAgentsTagsLookupRequestSchemaRequest, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, type CliCommandAgentsTagsLookupResponse, CliCommandAgentsTagsLookupResponseSchema, type CliCommandAgentsTagsLookupResponseSchemaListenerExecution, type CliCommandAgentsTagsLookupResponseSchemaPath, CliCommandAgentsTagsLookupResponseSchemaPathSchema, type CliCommandAgentsTagsLookupResponseSchemaRequest, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, type CliCommandAgentsTagsRequest, CliCommandAgentsTagsRequestSchema, type CliCommandAgentsWaitListenerExecution, type CliCommandAgentsWaitPath, CliCommandAgentsWaitPathSchema, type CliCommandAgentsWaitRequest, CliCommandAgentsWaitRequestSchema, type CliCommandAgentsWaitRequestSchemaListenerExecution, type CliCommandAgentsWaitRequestSchemaPath, CliCommandAgentsWaitRequestSchemaPathSchema, type CliCommandAgentsWaitRequestSchemaRequest, CliCommandAgentsWaitRequestSchemaRequestSchema, type CliCommandAgentsWaitResponseSchemaListenerExecution, type CliCommandAgentsWaitResponseSchemaPath, CliCommandAgentsWaitResponseSchemaPathSchema, type CliCommandAgentsWaitResponseSchemaRequest, CliCommandAgentsWaitResponseSchemaRequestSchema, type CliCommandApiConfigAddressGetListenerExecution, type CliCommandApiConfigAddressGetPath, CliCommandApiConfigAddressGetPathSchema, type CliCommandApiConfigAddressGetRequest, CliCommandApiConfigAddressGetRequestSchema, type CliCommandApiConfigAddressGetRequestSchemaListenerExecution, type CliCommandApiConfigAddressGetRequestSchemaPath, CliCommandApiConfigAddressGetRequestSchemaPathSchema, type CliCommandApiConfigAddressGetRequestSchemaRequest, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, type CliCommandApiConfigAddressGetResponse, CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponseSchemaListenerExecution, type CliCommandApiConfigAddressGetResponseSchemaPath, CliCommandApiConfigAddressGetResponseSchemaPathSchema, type CliCommandApiConfigAddressGetResponseSchemaRequest, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, type CliCommandApiConfigAddressListenerExecution, type CliCommandApiConfigAddressRequest, CliCommandApiConfigAddressRequestSchema, type CliCommandApiConfigAddressSetListenerExecution, type CliCommandApiConfigAddressSetPath, CliCommandApiConfigAddressSetPathSchema, type CliCommandApiConfigAddressSetRequest, CliCommandApiConfigAddressSetRequestSchema, type CliCommandApiConfigAddressSetRequestSchemaListenerExecution, type CliCommandApiConfigAddressSetRequestSchemaPath, CliCommandApiConfigAddressSetRequestSchemaPathSchema, type CliCommandApiConfigAddressSetRequestSchemaRequest, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, type CliCommandApiConfigAddressSetResponseSchemaListenerExecution, type CliCommandApiConfigAddressSetResponseSchemaPath, CliCommandApiConfigAddressSetResponseSchemaPathSchema, type CliCommandApiConfigAddressSetResponseSchemaRequest, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetPath, CliCommandApiConfigCommitAuthorEmailGetPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailListenerExecution, type CliCommandApiConfigCommitAuthorEmailRequest, CliCommandApiConfigCommitAuthorEmailRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetPath, CliCommandApiConfigCommitAuthorEmailSetPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetListenerExecution, type CliCommandApiConfigCommitAuthorNameGetPath, CliCommandApiConfigCommitAuthorNameGetPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetResponse, CliCommandApiConfigCommitAuthorNameGetResponseSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameListenerExecution, type CliCommandApiConfigCommitAuthorNameRequest, CliCommandApiConfigCommitAuthorNameRequestSchema, type CliCommandApiConfigCommitAuthorNameSetListenerExecution, type CliCommandApiConfigCommitAuthorNameSetPath, CliCommandApiConfigCommitAuthorNameSetPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, type CliCommandApiConfigGetListenerExecution, type CliCommandApiConfigGetPath, CliCommandApiConfigGetPathSchema, type CliCommandApiConfigGetRequest, CliCommandApiConfigGetRequestSchema, type CliCommandApiConfigGetRequestSchemaListenerExecution, type CliCommandApiConfigGetRequestSchemaPath, CliCommandApiConfigGetRequestSchemaPathSchema, type CliCommandApiConfigGetRequestSchemaRequest, CliCommandApiConfigGetRequestSchemaRequestSchema, type CliCommandApiConfigGetResponse, CliCommandApiConfigGetResponseSchema, type CliCommandApiConfigGetResponseSchemaListenerExecution, type CliCommandApiConfigGetResponseSchemaPath, CliCommandApiConfigGetResponseSchemaPathSchema, type CliCommandApiConfigGetResponseSchemaRequest, CliCommandApiConfigGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetListenerExecution, type CliCommandApiConfigGithubAuthorizationGetPath, CliCommandApiConfigGithubAuthorizationGetPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetResponse, CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationListenerExecution, type CliCommandApiConfigGithubAuthorizationRequest, CliCommandApiConfigGithubAuthorizationRequestSchema, type CliCommandApiConfigGithubAuthorizationSetListenerExecution, type CliCommandApiConfigGithubAuthorizationSetPath, CliCommandApiConfigGithubAuthorizationSetPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetListenerExecution, type CliCommandApiConfigHttpRefererGetPath, CliCommandApiConfigHttpRefererGetPathSchema, type CliCommandApiConfigHttpRefererGetRequest, CliCommandApiConfigHttpRefererGetRequestSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetRequestSchemaPath, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaRequest, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetResponse, CliCommandApiConfigHttpRefererGetResponseSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetResponseSchemaPath, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaRequest, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererListenerExecution, type CliCommandApiConfigHttpRefererRequest, CliCommandApiConfigHttpRefererRequestSchema, type CliCommandApiConfigHttpRefererSetListenerExecution, type CliCommandApiConfigHttpRefererSetPath, CliCommandApiConfigHttpRefererSetPathSchema, type CliCommandApiConfigHttpRefererSetRequest, CliCommandApiConfigHttpRefererSetRequestSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetRequestSchemaPath, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaRequest, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetResponseSchemaPath, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaRequest, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, type CliCommandApiConfigListenerExecution, type CliCommandApiConfigMcpAuthorizationAddListenerExecution, type CliCommandApiConfigMcpAuthorizationAddPath, CliCommandApiConfigMcpAuthorizationAddPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaPath, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaPath, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelListenerExecution, type CliCommandApiConfigMcpAuthorizationDelPath, CliCommandApiConfigMcpAuthorizationDelPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaPath, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaPath, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetListenerExecution, type CliCommandApiConfigMcpAuthorizationGetPath, CliCommandApiConfigMcpAuthorizationGetPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaPath, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetResponse, CliCommandApiConfigMcpAuthorizationGetResponseSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaPath, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationListenerExecution, type CliCommandApiConfigMcpAuthorizationRequest, CliCommandApiConfigMcpAuthorizationRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpTimeoutMsGetPath, CliCommandApiConfigMcpTimeoutMsGetPathSchema, type CliCommandApiConfigMcpTimeoutMsGetRequest, CliCommandApiConfigMcpTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetResponse, CliCommandApiConfigMcpTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsListenerExecution, type CliCommandApiConfigMcpTimeoutMsRequest, CliCommandApiConfigMcpTimeoutMsRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpTimeoutMsSetPath, CliCommandApiConfigMcpTimeoutMsSetPathSchema, type CliCommandApiConfigMcpTimeoutMsSetRequest, CliCommandApiConfigMcpTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetPath, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationRequest, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetPath, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetPath, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationRequest, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetPath, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigRequest, CliCommandApiConfigRequestSchema, type CliCommandApiConfigUserAgentGetListenerExecution, type CliCommandApiConfigUserAgentGetPath, CliCommandApiConfigUserAgentGetPathSchema, type CliCommandApiConfigUserAgentGetRequest, CliCommandApiConfigUserAgentGetRequestSchema, type CliCommandApiConfigUserAgentGetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentGetRequestSchemaPath, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentGetRequestSchemaRequest, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentGetResponse, CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentGetResponseSchemaPath, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentGetResponseSchemaRequest, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentListenerExecution, type CliCommandApiConfigUserAgentRequest, CliCommandApiConfigUserAgentRequestSchema, type CliCommandApiConfigUserAgentSetListenerExecution, type CliCommandApiConfigUserAgentSetPath, CliCommandApiConfigUserAgentSetPathSchema, type CliCommandApiConfigUserAgentSetRequest, CliCommandApiConfigUserAgentSetRequestSchema, type CliCommandApiConfigUserAgentSetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentSetRequestSchemaPath, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentSetRequestSchemaRequest, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentSetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentSetResponseSchemaPath, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentSetResponseSchemaRequest, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleGetListenerExecution, type CliCommandApiConfigXTitleGetPath, CliCommandApiConfigXTitleGetPathSchema, type CliCommandApiConfigXTitleGetRequest, CliCommandApiConfigXTitleGetRequestSchema, type CliCommandApiConfigXTitleGetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleGetRequestSchemaPath, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, type CliCommandApiConfigXTitleGetRequestSchemaRequest, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleGetResponse, CliCommandApiConfigXTitleGetResponseSchema, type CliCommandApiConfigXTitleGetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleGetResponseSchemaPath, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, type CliCommandApiConfigXTitleGetResponseSchemaRequest, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleListenerExecution, type CliCommandApiConfigXTitleRequest, CliCommandApiConfigXTitleRequestSchema, type CliCommandApiConfigXTitleSetListenerExecution, type CliCommandApiConfigXTitleSetPath, CliCommandApiConfigXTitleSetPathSchema, type CliCommandApiConfigXTitleSetRequest, CliCommandApiConfigXTitleSetRequestSchema, type CliCommandApiConfigXTitleSetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleSetRequestSchemaPath, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, type CliCommandApiConfigXTitleSetRequestSchemaRequest, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleSetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleSetResponseSchemaPath, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, type CliCommandApiConfigXTitleSetResponseSchemaRequest, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, type CliCommandApiKillListenerExecution, type CliCommandApiKillPath, CliCommandApiKillPathSchema, type CliCommandApiKillRequest, CliCommandApiKillRequestSchema, type CliCommandApiKillRequestSchemaListenerExecution, type CliCommandApiKillRequestSchemaPath, CliCommandApiKillRequestSchemaPathSchema, type CliCommandApiKillRequestSchemaRequest, CliCommandApiKillRequestSchemaRequestSchema, type CliCommandApiKillResponse, CliCommandApiKillResponseSchema, type CliCommandApiKillResponseSchemaListenerExecution, type CliCommandApiKillResponseSchemaPath, CliCommandApiKillResponseSchemaPathSchema, type CliCommandApiKillResponseSchemaRequest, CliCommandApiKillResponseSchemaRequestSchema, type CliCommandApiListenerExecution, type CliCommandApiRequest, CliCommandApiRequestSchema, type CliCommandApiSpawnListenerExecution, type CliCommandApiSpawnPath, CliCommandApiSpawnPathSchema, type CliCommandApiSpawnRequest, CliCommandApiSpawnRequestSchema, type CliCommandApiSpawnRequestSchemaListenerExecution, type CliCommandApiSpawnRequestSchemaPath, CliCommandApiSpawnRequestSchemaPathSchema, type CliCommandApiSpawnRequestSchemaRequest, CliCommandApiSpawnRequestSchemaRequestSchema, type CliCommandApiSpawnResponse, CliCommandApiSpawnResponseSchema, type CliCommandApiSpawnResponseSchemaListenerExecution, type CliCommandApiSpawnResponseSchemaPath, CliCommandApiSpawnResponseSchemaPathSchema, type CliCommandApiSpawnResponseSchemaRequest, CliCommandApiSpawnResponseSchemaRequestSchema, type CliCommandCommandExecutorAuthEnvelope, CliCommandCommandExecutorAuthEnvelopeSchema, type CliCommandCommandExecutorExecuteEnvelope, CliCommandCommandExecutorExecuteEnvelopeSchema, type CliCommandDaemonKillListenerExecution, type CliCommandDaemonKillPath, CliCommandDaemonKillPathSchema, type CliCommandDaemonKillRequest, CliCommandDaemonKillRequestSchema, type CliCommandDaemonKillRequestSchemaListenerExecution, type CliCommandDaemonKillRequestSchemaPath, CliCommandDaemonKillRequestSchemaPathSchema, type CliCommandDaemonKillRequestSchemaRequest, CliCommandDaemonKillRequestSchemaRequestSchema, type CliCommandDaemonKillResponse, CliCommandDaemonKillResponseSchema, type CliCommandDaemonKillResponseSchemaListenerExecution, type CliCommandDaemonKillResponseSchemaPath, CliCommandDaemonKillResponseSchemaPathSchema, type CliCommandDaemonKillResponseSchemaRequest, CliCommandDaemonKillResponseSchemaRequestSchema, type CliCommandDaemonListenerExecution, type CliCommandDaemonRequest, CliCommandDaemonRequestSchema, type CliCommandDaemonSpawnListenerExecution, type CliCommandDaemonSpawnPath, CliCommandDaemonSpawnPathSchema, type CliCommandDaemonSpawnRequest, type CliCommandDaemonSpawnRequestDangerousAdvanced, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, type CliCommandDaemonSpawnRequestSchemaListenerExecution, type CliCommandDaemonSpawnRequestSchemaPath, CliCommandDaemonSpawnRequestSchemaPathSchema, type CliCommandDaemonSpawnRequestSchemaRequest, CliCommandDaemonSpawnRequestSchemaRequestSchema, type CliCommandDaemonSpawnResponseItem, CliCommandDaemonSpawnResponseItemSchema, type CliCommandDaemonSpawnResponseSchemaListenerExecution, type CliCommandDaemonSpawnResponseSchemaPath, CliCommandDaemonSpawnResponseSchemaPathSchema, type CliCommandDaemonSpawnResponseSchemaRequest, CliCommandDaemonSpawnResponseSchemaRequestSchema, type CliCommandDbConfigAddressGetListenerExecution, type CliCommandDbConfigAddressGetPath, CliCommandDbConfigAddressGetPathSchema, type CliCommandDbConfigAddressGetRequest, CliCommandDbConfigAddressGetRequestSchema, type CliCommandDbConfigAddressGetRequestSchemaListenerExecution, type CliCommandDbConfigAddressGetRequestSchemaPath, CliCommandDbConfigAddressGetRequestSchemaPathSchema, type CliCommandDbConfigAddressGetRequestSchemaRequest, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, type CliCommandDbConfigAddressGetResponse, CliCommandDbConfigAddressGetResponseSchema, type CliCommandDbConfigAddressGetResponseSchemaListenerExecution, type CliCommandDbConfigAddressGetResponseSchemaPath, CliCommandDbConfigAddressGetResponseSchemaPathSchema, type CliCommandDbConfigAddressGetResponseSchemaRequest, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, type CliCommandDbConfigAddressListenerExecution, type CliCommandDbConfigAddressRequest, CliCommandDbConfigAddressRequestSchema, type CliCommandDbConfigAddressSetListenerExecution, type CliCommandDbConfigAddressSetPath, CliCommandDbConfigAddressSetPathSchema, type CliCommandDbConfigAddressSetRequest, CliCommandDbConfigAddressSetRequestSchema, type CliCommandDbConfigAddressSetRequestSchemaListenerExecution, type CliCommandDbConfigAddressSetRequestSchemaPath, CliCommandDbConfigAddressSetRequestSchemaPathSchema, type CliCommandDbConfigAddressSetRequestSchemaRequest, CliCommandDbConfigAddressSetRequestSchemaRequestSchema, type CliCommandDbConfigAddressSetResponseSchemaListenerExecution, type CliCommandDbConfigAddressSetResponseSchemaPath, CliCommandDbConfigAddressSetResponseSchemaPathSchema, type CliCommandDbConfigAddressSetResponseSchemaRequest, CliCommandDbConfigAddressSetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseGetListenerExecution, type CliCommandDbConfigDatabaseGetPath, CliCommandDbConfigDatabaseGetPathSchema, type CliCommandDbConfigDatabaseGetRequest, CliCommandDbConfigDatabaseGetRequestSchema, type CliCommandDbConfigDatabaseGetRequestSchemaListenerExecution, type CliCommandDbConfigDatabaseGetRequestSchemaPath, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseGetRequestSchemaRequest, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseGetResponse, CliCommandDbConfigDatabaseGetResponseSchema, type CliCommandDbConfigDatabaseGetResponseSchemaListenerExecution, type CliCommandDbConfigDatabaseGetResponseSchemaPath, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseGetResponseSchemaRequest, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseListenerExecution, type CliCommandDbConfigDatabaseRequest, CliCommandDbConfigDatabaseRequestSchema, type CliCommandDbConfigDatabaseSetListenerExecution, type CliCommandDbConfigDatabaseSetPath, CliCommandDbConfigDatabaseSetPathSchema, type CliCommandDbConfigDatabaseSetRequest, CliCommandDbConfigDatabaseSetRequestSchema, type CliCommandDbConfigDatabaseSetRequestSchemaListenerExecution, type CliCommandDbConfigDatabaseSetRequestSchemaPath, CliCommandDbConfigDatabaseSetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseSetRequestSchemaRequest, CliCommandDbConfigDatabaseSetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseSetResponseSchemaListenerExecution, type CliCommandDbConfigDatabaseSetResponseSchemaPath, CliCommandDbConfigDatabaseSetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseSetResponseSchemaRequest, CliCommandDbConfigDatabaseSetResponseSchemaRequestSchema, type CliCommandDbConfigGetListenerExecution, type CliCommandDbConfigGetPath, CliCommandDbConfigGetPathSchema, type CliCommandDbConfigGetRequest, CliCommandDbConfigGetRequestSchema, type CliCommandDbConfigGetRequestSchemaListenerExecution, type CliCommandDbConfigGetRequestSchemaPath, CliCommandDbConfigGetRequestSchemaPathSchema, type CliCommandDbConfigGetRequestSchemaRequest, CliCommandDbConfigGetRequestSchemaRequestSchema, type CliCommandDbConfigGetResponse, CliCommandDbConfigGetResponseSchema, type CliCommandDbConfigGetResponseSchemaListenerExecution, type CliCommandDbConfigGetResponseSchemaPath, CliCommandDbConfigGetResponseSchemaPathSchema, type CliCommandDbConfigGetResponseSchemaRequest, CliCommandDbConfigGetResponseSchemaRequestSchema, type CliCommandDbConfigListenerExecution, type CliCommandDbConfigPasswordGetListenerExecution, type CliCommandDbConfigPasswordGetPath, CliCommandDbConfigPasswordGetPathSchema, type CliCommandDbConfigPasswordGetRequest, CliCommandDbConfigPasswordGetRequestSchema, type CliCommandDbConfigPasswordGetRequestSchemaListenerExecution, type CliCommandDbConfigPasswordGetRequestSchemaPath, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, type CliCommandDbConfigPasswordGetRequestSchemaRequest, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordGetResponse, CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponseSchemaListenerExecution, type CliCommandDbConfigPasswordGetResponseSchemaPath, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, type CliCommandDbConfigPasswordGetResponseSchemaRequest, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordListenerExecution, type CliCommandDbConfigPasswordRequest, CliCommandDbConfigPasswordRequestSchema, type CliCommandDbConfigPasswordSetListenerExecution, type CliCommandDbConfigPasswordSetPath, CliCommandDbConfigPasswordSetPathSchema, type CliCommandDbConfigPasswordSetRequest, CliCommandDbConfigPasswordSetRequestSchema, type CliCommandDbConfigPasswordSetRequestSchemaListenerExecution, type CliCommandDbConfigPasswordSetRequestSchemaPath, CliCommandDbConfigPasswordSetRequestSchemaPathSchema, type CliCommandDbConfigPasswordSetRequestSchemaRequest, CliCommandDbConfigPasswordSetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordSetResponseSchemaListenerExecution, type CliCommandDbConfigPasswordSetResponseSchemaPath, CliCommandDbConfigPasswordSetResponseSchemaPathSchema, type CliCommandDbConfigPasswordSetResponseSchemaRequest, CliCommandDbConfigPasswordSetResponseSchemaRequestSchema, type CliCommandDbConfigRequest, CliCommandDbConfigRequestSchema, type CliCommandDbConfigUserGetListenerExecution, type CliCommandDbConfigUserGetPath, CliCommandDbConfigUserGetPathSchema, type CliCommandDbConfigUserGetRequest, CliCommandDbConfigUserGetRequestSchema, type CliCommandDbConfigUserGetRequestSchemaListenerExecution, type CliCommandDbConfigUserGetRequestSchemaPath, CliCommandDbConfigUserGetRequestSchemaPathSchema, type CliCommandDbConfigUserGetRequestSchemaRequest, CliCommandDbConfigUserGetRequestSchemaRequestSchema, type CliCommandDbConfigUserGetResponse, CliCommandDbConfigUserGetResponseSchema, type CliCommandDbConfigUserGetResponseSchemaListenerExecution, type CliCommandDbConfigUserGetResponseSchemaPath, CliCommandDbConfigUserGetResponseSchemaPathSchema, type CliCommandDbConfigUserGetResponseSchemaRequest, CliCommandDbConfigUserGetResponseSchemaRequestSchema, type CliCommandDbConfigUserListenerExecution, type CliCommandDbConfigUserRequest, CliCommandDbConfigUserRequestSchema, type CliCommandDbConfigUserSetListenerExecution, type CliCommandDbConfigUserSetPath, CliCommandDbConfigUserSetPathSchema, type CliCommandDbConfigUserSetRequest, CliCommandDbConfigUserSetRequestSchema, type CliCommandDbConfigUserSetRequestSchemaListenerExecution, type CliCommandDbConfigUserSetRequestSchemaPath, CliCommandDbConfigUserSetRequestSchemaPathSchema, type CliCommandDbConfigUserSetRequestSchemaRequest, CliCommandDbConfigUserSetRequestSchemaRequestSchema, type CliCommandDbConfigUserSetResponseSchemaListenerExecution, type CliCommandDbConfigUserSetResponseSchemaPath, CliCommandDbConfigUserSetResponseSchemaPathSchema, type CliCommandDbConfigUserSetResponseSchemaRequest, CliCommandDbConfigUserSetResponseSchemaRequestSchema, type CliCommandDbKillListenerExecution, type CliCommandDbKillPath, CliCommandDbKillPathSchema, type CliCommandDbKillRequest, CliCommandDbKillRequestSchema, type CliCommandDbKillRequestSchemaListenerExecution, type CliCommandDbKillRequestSchemaPath, CliCommandDbKillRequestSchemaPathSchema, type CliCommandDbKillRequestSchemaRequest, CliCommandDbKillRequestSchemaRequestSchema, type CliCommandDbKillResponse, CliCommandDbKillResponseSchema, type CliCommandDbKillResponseSchemaListenerExecution, type CliCommandDbKillResponseSchemaPath, CliCommandDbKillResponseSchemaPathSchema, type CliCommandDbKillResponseSchemaRequest, CliCommandDbKillResponseSchemaRequestSchema, type CliCommandDbListenerExecution, type CliCommandDbQueryColumn, CliCommandDbQueryColumnSchema, type CliCommandDbQueryListenerExecution, type CliCommandDbQueryPath, CliCommandDbQueryPathSchema, type CliCommandDbQueryRequest, CliCommandDbQueryRequestSchema, type CliCommandDbQueryRequestSchemaListenerExecution, type CliCommandDbQueryRequestSchemaPath, CliCommandDbQueryRequestSchemaPathSchema, type CliCommandDbQueryRequestSchemaRequest, CliCommandDbQueryRequestSchemaRequestSchema, type CliCommandDbQueryResponse, CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponseSchemaListenerExecution, type CliCommandDbQueryResponseSchemaPath, CliCommandDbQueryResponseSchemaPathSchema, type CliCommandDbQueryResponseSchemaRequest, CliCommandDbQueryResponseSchemaRequestSchema, type CliCommandDbRequest, CliCommandDbRequestSchema, type CliCommandDbSpawnListenerExecution, type CliCommandDbSpawnPath, CliCommandDbSpawnPathSchema, type CliCommandDbSpawnRequest, CliCommandDbSpawnRequestSchema, type CliCommandDbSpawnRequestSchemaListenerExecution, type CliCommandDbSpawnRequestSchemaPath, CliCommandDbSpawnRequestSchemaPathSchema, type CliCommandDbSpawnRequestSchemaRequest, CliCommandDbSpawnRequestSchemaRequestSchema, type CliCommandDbSpawnResponse, CliCommandDbSpawnResponseSchema, type CliCommandDbSpawnResponseSchemaListenerExecution, type CliCommandDbSpawnResponseSchemaPath, CliCommandDbSpawnResponseSchemaPathSchema, type CliCommandDbSpawnResponseSchemaRequest, CliCommandDbSpawnResponseSchemaRequestSchema, type CliCommandFunctionsExecuteFunctionSpec, CliCommandFunctionsExecuteFunctionSpecSchema, type CliCommandFunctionsExecuteListenerExecution, type CliCommandFunctionsExecuteProfileSpec, CliCommandFunctionsExecuteProfileSpecSchema, type CliCommandFunctionsExecuteRequest, CliCommandFunctionsExecuteRequestSchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchy, CliCommandFunctionsExecuteStandardAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchyType, CliCommandFunctionsExecuteStandardAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteStandardListenerExecution, type CliCommandFunctionsExecuteStandardListenerExecutionStreaming, type CliCommandFunctionsExecuteStandardListenerExecutionVariant, type CliCommandFunctionsExecuteStandardPath, CliCommandFunctionsExecuteStandardPathSchema, type CliCommandFunctionsExecuteStandardRequest, type CliCommandFunctionsExecuteStandardRequestDangerousAdvanced, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteStandardRequestInput, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, type CliCommandFunctionsExecuteStandardRequestSchemaListenerExecution, type CliCommandFunctionsExecuteStandardRequestSchemaPath, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, type CliCommandFunctionsExecuteStandardRequestSchemaRequest, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, type CliCommandFunctionsExecuteStandardResponseItem, CliCommandFunctionsExecuteStandardResponseItemSchema, type CliCommandFunctionsExecuteStandardResponseSchemaListenerExecution, type CliCommandFunctionsExecuteStandardResponseSchemaPath, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, type CliCommandFunctionsExecuteStandardResponseSchemaRequest, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchy, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyType, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteSwissSystemListenerExecution, type CliCommandFunctionsExecuteSwissSystemListenerExecutionStreaming, type CliCommandFunctionsExecuteSwissSystemListenerExecutionVariant, type CliCommandFunctionsExecuteSwissSystemPath, CliCommandFunctionsExecuteSwissSystemPathSchema, type CliCommandFunctionsExecuteSwissSystemRequest, type CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvanced, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteSwissSystemRequestInput, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemRequestSchemaPath, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemResponseItem, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemResponseSchemaPath, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, type CliCommandFunctionsGetListenerExecution, type CliCommandFunctionsGetPath, CliCommandFunctionsGetPathSchema, type CliCommandFunctionsGetRequest, CliCommandFunctionsGetRequestSchema, type CliCommandFunctionsGetRequestSchemaListenerExecution, type CliCommandFunctionsGetRequestSchemaPath, CliCommandFunctionsGetRequestSchemaPathSchema, type CliCommandFunctionsGetRequestSchemaRequest, CliCommandFunctionsGetRequestSchemaRequestSchema, type CliCommandFunctionsGetResponse, CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponseSchemaListenerExecution, type CliCommandFunctionsGetResponseSchemaPath, CliCommandFunctionsGetResponseSchemaPathSchema, type CliCommandFunctionsGetResponseSchemaRequest, CliCommandFunctionsGetResponseSchemaRequestSchema, type CliCommandFunctionsListListenerExecution, type CliCommandFunctionsListPath, CliCommandFunctionsListPathSchema, type CliCommandFunctionsListRequest, CliCommandFunctionsListRequestSchema, type CliCommandFunctionsListRequestSchemaListenerExecution, type CliCommandFunctionsListRequestSchemaPath, CliCommandFunctionsListRequestSchemaPathSchema, type CliCommandFunctionsListRequestSchemaRequest, CliCommandFunctionsListRequestSchemaRequestSchema, type CliCommandFunctionsListResponse, CliCommandFunctionsListResponseSchema, type CliCommandFunctionsListResponseSchemaListenerExecution, type CliCommandFunctionsListResponseSchemaPath, CliCommandFunctionsListResponseSchemaPathSchema, type CliCommandFunctionsListResponseSchemaRequest, CliCommandFunctionsListResponseSchemaRequestSchema, type CliCommandFunctionsListenerExecution, type CliCommandFunctionsProfilesGetListenerExecution, type CliCommandFunctionsProfilesGetPath, CliCommandFunctionsProfilesGetPathSchema, type CliCommandFunctionsProfilesGetRequest, CliCommandFunctionsProfilesGetRequestSchema, type CliCommandFunctionsProfilesGetRequestSchemaListenerExecution, type CliCommandFunctionsProfilesGetRequestSchemaPath, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, type CliCommandFunctionsProfilesGetRequestSchemaRequest, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, type CliCommandFunctionsProfilesGetResponse, CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponseSchemaListenerExecution, type CliCommandFunctionsProfilesGetResponseSchemaPath, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, type CliCommandFunctionsProfilesGetResponseSchemaRequest, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListListenerExecution, type CliCommandFunctionsProfilesListPath, CliCommandFunctionsProfilesListPathSchema, type CliCommandFunctionsProfilesListRequest, CliCommandFunctionsProfilesListRequestSchema, type CliCommandFunctionsProfilesListRequestSchemaListenerExecution, type CliCommandFunctionsProfilesListRequestSchemaPath, CliCommandFunctionsProfilesListRequestSchemaPathSchema, type CliCommandFunctionsProfilesListRequestSchemaRequest, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, type CliCommandFunctionsProfilesListResponse, CliCommandFunctionsProfilesListResponseSchema, type CliCommandFunctionsProfilesListResponseSchemaListenerExecution, type CliCommandFunctionsProfilesListResponseSchemaPath, CliCommandFunctionsProfilesListResponseSchemaPathSchema, type CliCommandFunctionsProfilesListResponseSchemaRequest, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListenerExecution, type CliCommandFunctionsProfilesPublishListenerExecution, type CliCommandFunctionsProfilesPublishPath, CliCommandFunctionsProfilesPublishPathSchema, type CliCommandFunctionsProfilesPublishRequest, type CliCommandFunctionsProfilesPublishRequestBody, CliCommandFunctionsProfilesPublishRequestBodySchema, type CliCommandFunctionsProfilesPublishRequestPublishMessage, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, type CliCommandFunctionsProfilesPublishRequestSchemaListenerExecution, type CliCommandFunctionsProfilesPublishRequestSchemaPath, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, type CliCommandFunctionsProfilesPublishRequestSchemaRequest, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, type CliCommandFunctionsProfilesPublishResponse, CliCommandFunctionsProfilesPublishResponseSchema, type CliCommandFunctionsProfilesPublishResponseSchemaListenerExecution, type CliCommandFunctionsProfilesPublishResponseSchemaPath, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, type CliCommandFunctionsProfilesPublishResponseSchemaRequest, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, type CliCommandFunctionsProfilesRequest, CliCommandFunctionsProfilesRequestSchema, type CliCommandFunctionsPublishListenerExecution, type CliCommandFunctionsPublishPath, CliCommandFunctionsPublishPathSchema, type CliCommandFunctionsPublishRequest, type CliCommandFunctionsPublishRequestBody, CliCommandFunctionsPublishRequestBodySchema, type CliCommandFunctionsPublishRequestPublishMessage, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, type CliCommandFunctionsPublishRequestSchemaListenerExecution, type CliCommandFunctionsPublishRequestSchemaPath, CliCommandFunctionsPublishRequestSchemaPathSchema, type CliCommandFunctionsPublishRequestSchemaRequest, CliCommandFunctionsPublishRequestSchemaRequestSchema, type CliCommandFunctionsPublishResponse, CliCommandFunctionsPublishResponseSchema, type CliCommandFunctionsPublishResponseSchemaListenerExecution, type CliCommandFunctionsPublishResponseSchemaPath, CliCommandFunctionsPublishResponseSchemaPathSchema, type CliCommandFunctionsPublishResponseSchemaRequest, CliCommandFunctionsPublishResponseSchemaRequestSchema, type CliCommandFunctionsRequest, CliCommandFunctionsRequestSchema, type CliCommandGetScope, CliCommandGetScopeSchema, type CliCommandKillAllListenerExecution, type CliCommandKillAllPath, CliCommandKillAllPathSchema, type CliCommandKillAllRequest, CliCommandKillAllRequestSchema, type CliCommandKillAllRequestSchemaListenerExecution, type CliCommandKillAllRequestSchemaPath, CliCommandKillAllRequestSchemaPathSchema, type CliCommandKillAllRequestSchemaRequest, CliCommandKillAllRequestSchemaRequestSchema, type CliCommandKillAllResponse, CliCommandKillAllResponseSchema, type CliCommandKillAllResponseSchemaListenerExecution, type CliCommandKillAllResponseSchemaPath, CliCommandKillAllResponseSchemaPathSchema, type CliCommandKillAllResponseSchemaRequest, CliCommandKillAllResponseSchemaRequestSchema, type CliCommandLaboratoriesAttachListenerExecution, type CliCommandLaboratoriesAttachPath, CliCommandLaboratoriesAttachPathSchema, type CliCommandLaboratoriesAttachRequest, CliCommandLaboratoriesAttachRequestSchema, type CliCommandLaboratoriesAttachRequestSchemaListenerExecution, type CliCommandLaboratoriesAttachRequestSchemaPath, CliCommandLaboratoriesAttachRequestSchemaPathSchema, type CliCommandLaboratoriesAttachRequestSchemaRequest, CliCommandLaboratoriesAttachRequestSchemaRequestSchema, type CliCommandLaboratoriesAttachResponse, CliCommandLaboratoriesAttachResponseSchema, type CliCommandLaboratoriesAttachResponseSchemaListenerExecution, type CliCommandLaboratoriesAttachResponseSchemaPath, CliCommandLaboratoriesAttachResponseSchemaPathSchema, type CliCommandLaboratoriesAttachResponseSchemaRequest, CliCommandLaboratoriesAttachResponseSchemaRequestSchema, type CliCommandLaboratoriesConnectListenerExecution, type CliCommandLaboratoriesConnectPath, CliCommandLaboratoriesConnectPathSchema, type CliCommandLaboratoriesConnectRequest, CliCommandLaboratoriesConnectRequestSchema, type CliCommandLaboratoriesConnectRequestSchemaListenerExecution, type CliCommandLaboratoriesConnectRequestSchemaPath, CliCommandLaboratoriesConnectRequestSchemaPathSchema, type CliCommandLaboratoriesConnectRequestSchemaRequest, CliCommandLaboratoriesConnectRequestSchemaRequestSchema, type CliCommandLaboratoriesConnectResponse, CliCommandLaboratoriesConnectResponseSchema, type CliCommandLaboratoriesConnectResponseSchemaListenerExecution, type CliCommandLaboratoriesConnectResponseSchemaPath, CliCommandLaboratoriesConnectResponseSchemaPathSchema, type CliCommandLaboratoriesConnectResponseSchemaRequest, CliCommandLaboratoriesConnectResponseSchemaRequestSchema, type CliCommandLaboratoriesCreateEnvVar, CliCommandLaboratoriesCreateEnvVarSchema, type CliCommandLaboratoriesCreateKind, CliCommandLaboratoriesCreateKindSchema, type CliCommandLaboratoriesCreateListenerExecution, type CliCommandLaboratoriesCreateMount, CliCommandLaboratoriesCreateMountSchema, type CliCommandLaboratoriesCreatePath, CliCommandLaboratoriesCreatePathSchema, type CliCommandLaboratoriesCreateRequest, CliCommandLaboratoriesCreateRequestSchema, type CliCommandLaboratoriesCreateRequestSchemaListenerExecution, type CliCommandLaboratoriesCreateRequestSchemaPath, CliCommandLaboratoriesCreateRequestSchemaPathSchema, type CliCommandLaboratoriesCreateRequestSchemaRequest, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, type CliCommandLaboratoriesCreateResponse, CliCommandLaboratoriesCreateResponseSchema, type CliCommandLaboratoriesCreateResponseSchemaListenerExecution, type CliCommandLaboratoriesCreateResponseSchemaPath, CliCommandLaboratoriesCreateResponseSchemaPathSchema, type CliCommandLaboratoriesCreateResponseSchemaRequest, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, type CliCommandLaboratoriesDetachListenerExecution, type CliCommandLaboratoriesDetachPath, CliCommandLaboratoriesDetachPathSchema, type CliCommandLaboratoriesDetachRequest, CliCommandLaboratoriesDetachRequestSchema, type CliCommandLaboratoriesDetachRequestSchemaListenerExecution, type CliCommandLaboratoriesDetachRequestSchemaPath, CliCommandLaboratoriesDetachRequestSchemaPathSchema, type CliCommandLaboratoriesDetachRequestSchemaRequest, CliCommandLaboratoriesDetachRequestSchemaRequestSchema, type CliCommandLaboratoriesDetachResponse, CliCommandLaboratoriesDetachResponseSchema, type CliCommandLaboratoriesDetachResponseSchemaListenerExecution, type CliCommandLaboratoriesDetachResponseSchemaPath, CliCommandLaboratoriesDetachResponseSchemaPathSchema, type CliCommandLaboratoriesDetachResponseSchemaRequest, CliCommandLaboratoriesDetachResponseSchemaRequestSchema, type CliCommandLaboratoriesListListenerExecution, type CliCommandLaboratoriesListPath, CliCommandLaboratoriesListPathSchema, type CliCommandLaboratoriesListRequest, CliCommandLaboratoriesListRequestSchema, type CliCommandLaboratoriesListRequestSchemaListenerExecution, type CliCommandLaboratoriesListRequestSchemaPath, CliCommandLaboratoriesListRequestSchemaPathSchema, type CliCommandLaboratoriesListRequestSchemaRequest, CliCommandLaboratoriesListRequestSchemaRequestSchema, type CliCommandLaboratoriesListResponseItem, CliCommandLaboratoriesListResponseItemSchema, type CliCommandLaboratoriesListResponseSchemaListenerExecution, type CliCommandLaboratoriesListResponseSchemaPath, CliCommandLaboratoriesListResponseSchemaPathSchema, type CliCommandLaboratoriesListResponseSchemaRequest, CliCommandLaboratoriesListResponseSchemaRequestSchema, type CliCommandLaboratoriesListSource, CliCommandLaboratoriesListSourceSchema, type CliCommandLaboratoriesListenerExecution, type CliCommandLaboratoriesRequest, CliCommandLaboratoriesRequestSchema, type CliCommandListenerExecution, type CliCommandMcpConfigAddressGetListenerExecution, type CliCommandMcpConfigAddressGetPath, CliCommandMcpConfigAddressGetPathSchema, type CliCommandMcpConfigAddressGetRequest, CliCommandMcpConfigAddressGetRequestSchema, type CliCommandMcpConfigAddressGetRequestSchemaListenerExecution, type CliCommandMcpConfigAddressGetRequestSchemaPath, CliCommandMcpConfigAddressGetRequestSchemaPathSchema, type CliCommandMcpConfigAddressGetRequestSchemaRequest, CliCommandMcpConfigAddressGetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressGetResponse, CliCommandMcpConfigAddressGetResponseSchema, type CliCommandMcpConfigAddressGetResponseSchemaListenerExecution, type CliCommandMcpConfigAddressGetResponseSchemaPath, CliCommandMcpConfigAddressGetResponseSchemaPathSchema, type CliCommandMcpConfigAddressGetResponseSchemaRequest, CliCommandMcpConfigAddressGetResponseSchemaRequestSchema, type CliCommandMcpConfigAddressListenerExecution, type CliCommandMcpConfigAddressRequest, CliCommandMcpConfigAddressRequestSchema, type CliCommandMcpConfigAddressSetListenerExecution, type CliCommandMcpConfigAddressSetPath, CliCommandMcpConfigAddressSetPathSchema, type CliCommandMcpConfigAddressSetRequest, CliCommandMcpConfigAddressSetRequestSchema, type CliCommandMcpConfigAddressSetRequestSchemaListenerExecution, type CliCommandMcpConfigAddressSetRequestSchemaPath, CliCommandMcpConfigAddressSetRequestSchemaPathSchema, type CliCommandMcpConfigAddressSetRequestSchemaRequest, CliCommandMcpConfigAddressSetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressSetResponseSchemaListenerExecution, type CliCommandMcpConfigAddressSetResponseSchemaPath, CliCommandMcpConfigAddressSetResponseSchemaPathSchema, type CliCommandMcpConfigAddressSetResponseSchemaRequest, CliCommandMcpConfigAddressSetResponseSchemaRequestSchema, type CliCommandMcpConfigGetListenerExecution, type CliCommandMcpConfigGetPath, CliCommandMcpConfigGetPathSchema, type CliCommandMcpConfigGetRequest, CliCommandMcpConfigGetRequestSchema, type CliCommandMcpConfigGetRequestSchemaListenerExecution, type CliCommandMcpConfigGetRequestSchemaPath, CliCommandMcpConfigGetRequestSchemaPathSchema, type CliCommandMcpConfigGetRequestSchemaRequest, CliCommandMcpConfigGetRequestSchemaRequestSchema, type CliCommandMcpConfigGetResponse, CliCommandMcpConfigGetResponseSchema, type CliCommandMcpConfigGetResponseSchemaListenerExecution, type CliCommandMcpConfigGetResponseSchemaPath, CliCommandMcpConfigGetResponseSchemaPathSchema, type CliCommandMcpConfigGetResponseSchemaRequest, CliCommandMcpConfigGetResponseSchemaRequestSchema, type CliCommandMcpConfigListenerExecution, type CliCommandMcpConfigPortGetListenerExecution, type CliCommandMcpConfigPortGetPath, CliCommandMcpConfigPortGetPathSchema, type CliCommandMcpConfigPortGetRequest, CliCommandMcpConfigPortGetRequestSchema, type CliCommandMcpConfigPortGetRequestSchemaListenerExecution, type CliCommandMcpConfigPortGetRequestSchemaPath, CliCommandMcpConfigPortGetRequestSchemaPathSchema, type CliCommandMcpConfigPortGetRequestSchemaRequest, CliCommandMcpConfigPortGetRequestSchemaRequestSchema, type CliCommandMcpConfigPortGetResponse, CliCommandMcpConfigPortGetResponseSchema, type CliCommandMcpConfigPortGetResponseSchemaListenerExecution, type CliCommandMcpConfigPortGetResponseSchemaPath, CliCommandMcpConfigPortGetResponseSchemaPathSchema, type CliCommandMcpConfigPortGetResponseSchemaRequest, CliCommandMcpConfigPortGetResponseSchemaRequestSchema, type CliCommandMcpConfigPortListenerExecution, type CliCommandMcpConfigPortRequest, CliCommandMcpConfigPortRequestSchema, type CliCommandMcpConfigPortSetListenerExecution, type CliCommandMcpConfigPortSetPath, CliCommandMcpConfigPortSetPathSchema, type CliCommandMcpConfigPortSetRequest, CliCommandMcpConfigPortSetRequestSchema, type CliCommandMcpConfigPortSetRequestSchemaListenerExecution, type CliCommandMcpConfigPortSetRequestSchemaPath, CliCommandMcpConfigPortSetRequestSchemaPathSchema, type CliCommandMcpConfigPortSetRequestSchemaRequest, CliCommandMcpConfigPortSetRequestSchemaRequestSchema, type CliCommandMcpConfigPortSetResponseSchemaListenerExecution, type CliCommandMcpConfigPortSetResponseSchemaPath, CliCommandMcpConfigPortSetResponseSchemaPathSchema, type CliCommandMcpConfigPortSetResponseSchemaRequest, CliCommandMcpConfigPortSetResponseSchemaRequestSchema, type CliCommandMcpConfigRequest, CliCommandMcpConfigRequestSchema, type CliCommandMcpKillListenerExecution, type CliCommandMcpKillPath, CliCommandMcpKillPathSchema, type CliCommandMcpKillRequest, CliCommandMcpKillRequestSchema, type CliCommandMcpKillRequestSchemaListenerExecution, type CliCommandMcpKillRequestSchemaPath, CliCommandMcpKillRequestSchemaPathSchema, type CliCommandMcpKillRequestSchemaRequest, CliCommandMcpKillRequestSchemaRequestSchema, type CliCommandMcpKillResponse, CliCommandMcpKillResponseSchema, type CliCommandMcpKillResponseSchemaListenerExecution, type CliCommandMcpKillResponseSchemaPath, CliCommandMcpKillResponseSchemaPathSchema, type CliCommandMcpKillResponseSchemaRequest, CliCommandMcpKillResponseSchemaRequestSchema, type CliCommandMcpListenerExecution, type CliCommandMcpRequest, CliCommandMcpRequestSchema, type CliCommandMcpSpawnListenerExecution, type CliCommandMcpSpawnPath, CliCommandMcpSpawnPathSchema, type CliCommandMcpSpawnRequest, CliCommandMcpSpawnRequestSchema, type CliCommandMcpSpawnRequestSchemaListenerExecution, type CliCommandMcpSpawnRequestSchemaPath, CliCommandMcpSpawnRequestSchemaPathSchema, type CliCommandMcpSpawnRequestSchemaRequest, CliCommandMcpSpawnRequestSchemaRequestSchema, type CliCommandMcpSpawnResponse, CliCommandMcpSpawnResponseSchema, type CliCommandMcpSpawnResponseSchemaListenerExecution, type CliCommandMcpSpawnResponseSchemaPath, CliCommandMcpSpawnResponseSchemaPathSchema, type CliCommandMcpSpawnResponseSchemaRequest, CliCommandMcpSpawnResponseSchemaRequestSchema, type CliCommandOk, CliCommandOkSchema, type CliCommandPluginsGetListenerExecution, type CliCommandPluginsGetPath, CliCommandPluginsGetPathSchema, type CliCommandPluginsGetRequest, CliCommandPluginsGetRequestSchema, type CliCommandPluginsGetRequestSchemaListenerExecution, type CliCommandPluginsGetRequestSchemaPath, CliCommandPluginsGetRequestSchemaPathSchema, type CliCommandPluginsGetRequestSchemaRequest, CliCommandPluginsGetRequestSchemaRequestSchema, type CliCommandPluginsGetResponseManifest, CliCommandPluginsGetResponseManifestSchema, type CliCommandPluginsGetResponseMcpServer, CliCommandPluginsGetResponseMcpServerSchema, type CliCommandPluginsGetResponseSchemaListenerExecution, type CliCommandPluginsGetResponseSchemaPath, CliCommandPluginsGetResponseSchemaPathSchema, type CliCommandPluginsGetResponseSchemaRequest, CliCommandPluginsGetResponseSchemaRequestSchema, type CliCommandPluginsInstallFilesystemListenerExecution, type CliCommandPluginsInstallFilesystemPath, CliCommandPluginsInstallFilesystemPathSchema, type CliCommandPluginsInstallFilesystemRequest, CliCommandPluginsInstallFilesystemRequestSchema, type CliCommandPluginsInstallFilesystemRequestSchemaListenerExecution, type CliCommandPluginsInstallFilesystemRequestSchemaPath, CliCommandPluginsInstallFilesystemRequestSchemaPathSchema, type CliCommandPluginsInstallFilesystemRequestSchemaRequest, CliCommandPluginsInstallFilesystemRequestSchemaRequestSchema, type CliCommandPluginsInstallFilesystemResponse, CliCommandPluginsInstallFilesystemResponseSchema, type CliCommandPluginsInstallFilesystemResponseSchemaListenerExecution, type CliCommandPluginsInstallFilesystemResponseSchemaPath, CliCommandPluginsInstallFilesystemResponseSchemaPathSchema, type CliCommandPluginsInstallFilesystemResponseSchemaRequest, CliCommandPluginsInstallFilesystemResponseSchemaRequestSchema, type CliCommandPluginsInstallGithubListenerExecution, type CliCommandPluginsInstallGithubPath, CliCommandPluginsInstallGithubPathSchema, type CliCommandPluginsInstallGithubRequest, CliCommandPluginsInstallGithubRequestSchema, type CliCommandPluginsInstallGithubRequestSchemaListenerExecution, type CliCommandPluginsInstallGithubRequestSchemaPath, CliCommandPluginsInstallGithubRequestSchemaPathSchema, type CliCommandPluginsInstallGithubRequestSchemaRequest, CliCommandPluginsInstallGithubRequestSchemaRequestSchema, type CliCommandPluginsInstallGithubResponse, CliCommandPluginsInstallGithubResponseSchema, type CliCommandPluginsInstallGithubResponseSchemaListenerExecution, type CliCommandPluginsInstallGithubResponseSchemaPath, CliCommandPluginsInstallGithubResponseSchemaPathSchema, type CliCommandPluginsInstallGithubResponseSchemaRequest, CliCommandPluginsInstallGithubResponseSchemaRequestSchema, type CliCommandPluginsInstallListenerExecution, type CliCommandPluginsInstallRequest, CliCommandPluginsInstallRequestSchema, type CliCommandPluginsListListenerExecution, type CliCommandPluginsListPath, CliCommandPluginsListPathSchema, type CliCommandPluginsListRequest, CliCommandPluginsListRequestSchema, type CliCommandPluginsListRequestSchemaListenerExecution, type CliCommandPluginsListRequestSchemaPath, CliCommandPluginsListRequestSchemaPathSchema, type CliCommandPluginsListRequestSchemaRequest, CliCommandPluginsListRequestSchemaRequestSchema, type CliCommandPluginsListResponseSchemaListenerExecution, type CliCommandPluginsListResponseSchemaPath, CliCommandPluginsListResponseSchemaPathSchema, type CliCommandPluginsListResponseSchemaRequest, CliCommandPluginsListResponseSchemaRequestSchema, type CliCommandPluginsListenerExecution, type CliCommandPluginsLogsListListenerExecution, type CliCommandPluginsLogsListPath, CliCommandPluginsLogsListPathSchema, type CliCommandPluginsLogsListRequest, CliCommandPluginsLogsListRequestSchema, type CliCommandPluginsLogsListRequestSchemaListenerExecution, type CliCommandPluginsLogsListRequestSchemaPath, CliCommandPluginsLogsListRequestSchemaPathSchema, type CliCommandPluginsLogsListRequestSchemaRequest, CliCommandPluginsLogsListRequestSchemaRequestSchema, type CliCommandPluginsLogsListResponseItem, CliCommandPluginsLogsListResponseItemSchema, type CliCommandPluginsLogsListResponseSchemaListenerExecution, type CliCommandPluginsLogsListResponseSchemaPath, CliCommandPluginsLogsListResponseSchemaPathSchema, type CliCommandPluginsLogsListResponseSchemaRequest, CliCommandPluginsLogsListResponseSchemaRequestSchema, type CliCommandPluginsLogsListenerExecution, type CliCommandPluginsLogsRequest, CliCommandPluginsLogsRequestSchema, type CliCommandPluginsRequest, CliCommandPluginsRequestSchema, type CliCommandPluginsRunListenerExecution, type CliCommandPluginsRunMcp, CliCommandPluginsRunMcpSchema, type CliCommandPluginsRunMcpType, CliCommandPluginsRunMcpTypeSchema, type CliCommandPluginsRunPath, CliCommandPluginsRunPathSchema, type CliCommandPluginsRunRequest, CliCommandPluginsRunRequestSchema, type CliCommandPluginsRunRequestSchemaListenerExecution, type CliCommandPluginsRunRequestSchemaPath, CliCommandPluginsRunRequestSchemaPathSchema, type CliCommandPluginsRunRequestSchemaRequest, CliCommandPluginsRunRequestSchemaRequestSchema, type CliCommandPluginsRunResponseItem, CliCommandPluginsRunResponseItemSchema, type CliCommandPluginsRunResponseSchemaListenerExecution, type CliCommandPluginsRunResponseSchemaPath, CliCommandPluginsRunResponseSchemaPathSchema, type CliCommandPluginsRunResponseSchemaRequest, CliCommandPluginsRunResponseSchemaRequestSchema, type CliCommandPythonListenerExecution, type CliCommandPythonPath, CliCommandPythonPathSchema, type CliCommandPythonRequest, CliCommandPythonRequestSchema, type CliCommandPythonRequestSchemaListenerExecution, type CliCommandPythonRequestSchemaPath, CliCommandPythonRequestSchemaPathSchema, type CliCommandPythonRequestSchemaRequest, CliCommandPythonRequestSchemaRequestSchema, type CliCommandPythonResponseSchemaListenerExecution, type CliCommandPythonResponseSchemaPath, CliCommandPythonResponseSchemaPathSchema, type CliCommandPythonResponseSchemaRequest, CliCommandPythonResponseSchemaRequestSchema, type CliCommandRequest, type CliCommandRequestBase, CliCommandRequestBaseSchema, CliCommandRequestSchema, type CliCommandSetScope, CliCommandSetScopeSchema, type CliCommandSwarmsGetListenerExecution, type CliCommandSwarmsGetPath, CliCommandSwarmsGetPathSchema, type CliCommandSwarmsGetRequest, CliCommandSwarmsGetRequestSchema, type CliCommandSwarmsGetRequestSchemaListenerExecution, type CliCommandSwarmsGetRequestSchemaPath, CliCommandSwarmsGetRequestSchemaPathSchema, type CliCommandSwarmsGetRequestSchemaRequest, CliCommandSwarmsGetRequestSchemaRequestSchema, type CliCommandSwarmsGetResponse, CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponseSchemaListenerExecution, type CliCommandSwarmsGetResponseSchemaPath, CliCommandSwarmsGetResponseSchemaPathSchema, type CliCommandSwarmsGetResponseSchemaRequest, CliCommandSwarmsGetResponseSchemaRequestSchema, type CliCommandSwarmsListListenerExecution, type CliCommandSwarmsListPath, CliCommandSwarmsListPathSchema, type CliCommandSwarmsListRequest, CliCommandSwarmsListRequestSchema, type CliCommandSwarmsListRequestSchemaListenerExecution, type CliCommandSwarmsListRequestSchemaPath, CliCommandSwarmsListRequestSchemaPathSchema, type CliCommandSwarmsListRequestSchemaRequest, CliCommandSwarmsListRequestSchemaRequestSchema, type CliCommandSwarmsListResponse, CliCommandSwarmsListResponseSchema, type CliCommandSwarmsListResponseSchemaListenerExecution, type CliCommandSwarmsListResponseSchemaPath, CliCommandSwarmsListResponseSchemaPathSchema, type CliCommandSwarmsListResponseSchemaRequest, CliCommandSwarmsListResponseSchemaRequestSchema, type CliCommandSwarmsListenerExecution, type CliCommandSwarmsPublishListenerExecution, type CliCommandSwarmsPublishPath, CliCommandSwarmsPublishPathSchema, type CliCommandSwarmsPublishRequest, type CliCommandSwarmsPublishRequestBody, CliCommandSwarmsPublishRequestBodySchema, type CliCommandSwarmsPublishRequestPublishMessage, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, type CliCommandSwarmsPublishRequestSchemaListenerExecution, type CliCommandSwarmsPublishRequestSchemaPath, CliCommandSwarmsPublishRequestSchemaPathSchema, type CliCommandSwarmsPublishRequestSchemaRequest, CliCommandSwarmsPublishRequestSchemaRequestSchema, type CliCommandSwarmsPublishResponse, CliCommandSwarmsPublishResponseSchema, type CliCommandSwarmsPublishResponseSchemaListenerExecution, type CliCommandSwarmsPublishResponseSchemaPath, CliCommandSwarmsPublishResponseSchemaPathSchema, type CliCommandSwarmsPublishResponseSchemaRequest, CliCommandSwarmsPublishResponseSchemaRequestSchema, type CliCommandSwarmsRequest, CliCommandSwarmsRequestSchema, type CliCommandToolsGetExec, CliCommandToolsGetExecSchema, type CliCommandToolsGetListenerExecution, type CliCommandToolsGetPath, CliCommandToolsGetPathSchema, type CliCommandToolsGetRequest, CliCommandToolsGetRequestSchema, type CliCommandToolsGetRequestSchemaListenerExecution, type CliCommandToolsGetRequestSchemaPath, CliCommandToolsGetRequestSchemaPathSchema, type CliCommandToolsGetRequestSchemaRequest, CliCommandToolsGetRequestSchemaRequestSchema, type CliCommandToolsGetResponseManifest, CliCommandToolsGetResponseManifestSchema, type CliCommandToolsGetResponseSchemaListenerExecution, type CliCommandToolsGetResponseSchemaPath, CliCommandToolsGetResponseSchemaPathSchema, type CliCommandToolsGetResponseSchemaRequest, CliCommandToolsGetResponseSchemaRequestSchema, type CliCommandToolsInstallFilesystemListenerExecution, type CliCommandToolsInstallFilesystemPath, CliCommandToolsInstallFilesystemPathSchema, type CliCommandToolsInstallFilesystemRequest, CliCommandToolsInstallFilesystemRequestSchema, type CliCommandToolsInstallFilesystemRequestSchemaListenerExecution, type CliCommandToolsInstallFilesystemRequestSchemaPath, CliCommandToolsInstallFilesystemRequestSchemaPathSchema, type CliCommandToolsInstallFilesystemRequestSchemaRequest, CliCommandToolsInstallFilesystemRequestSchemaRequestSchema, type CliCommandToolsInstallFilesystemResponse, CliCommandToolsInstallFilesystemResponseSchema, type CliCommandToolsInstallFilesystemResponseSchemaListenerExecution, type CliCommandToolsInstallFilesystemResponseSchemaPath, CliCommandToolsInstallFilesystemResponseSchemaPathSchema, type CliCommandToolsInstallFilesystemResponseSchemaRequest, CliCommandToolsInstallFilesystemResponseSchemaRequestSchema, type CliCommandToolsInstallGithubListenerExecution, type CliCommandToolsInstallGithubPath, CliCommandToolsInstallGithubPathSchema, type CliCommandToolsInstallGithubRequest, CliCommandToolsInstallGithubRequestSchema, type CliCommandToolsInstallGithubRequestSchemaListenerExecution, type CliCommandToolsInstallGithubRequestSchemaPath, CliCommandToolsInstallGithubRequestSchemaPathSchema, type CliCommandToolsInstallGithubRequestSchemaRequest, CliCommandToolsInstallGithubRequestSchemaRequestSchema, type CliCommandToolsInstallGithubResponse, CliCommandToolsInstallGithubResponseSchema, type CliCommandToolsInstallGithubResponseSchemaListenerExecution, type CliCommandToolsInstallGithubResponseSchemaPath, CliCommandToolsInstallGithubResponseSchemaPathSchema, type CliCommandToolsInstallGithubResponseSchemaRequest, CliCommandToolsInstallGithubResponseSchemaRequestSchema, type CliCommandToolsInstallListenerExecution, type CliCommandToolsInstallRequest, CliCommandToolsInstallRequestSchema, type CliCommandToolsListListenerExecution, type CliCommandToolsListPath, CliCommandToolsListPathSchema, type CliCommandToolsListRequest, CliCommandToolsListRequestSchema, type CliCommandToolsListRequestSchemaListenerExecution, type CliCommandToolsListRequestSchemaPath, CliCommandToolsListRequestSchemaPathSchema, type CliCommandToolsListRequestSchemaRequest, CliCommandToolsListRequestSchemaRequestSchema, type CliCommandToolsListResponseSchemaListenerExecution, type CliCommandToolsListResponseSchemaPath, CliCommandToolsListResponseSchemaPathSchema, type CliCommandToolsListResponseSchemaRequest, CliCommandToolsListResponseSchemaRequestSchema, type CliCommandToolsListenerExecution, type CliCommandToolsRequest, CliCommandToolsRequestSchema, type CliCommandToolsRunListenerExecution, type CliCommandToolsRunPath, CliCommandToolsRunPathSchema, type CliCommandToolsRunRequest, CliCommandToolsRunRequestSchema, type CliCommandToolsRunRequestSchemaListenerExecution, type CliCommandToolsRunRequestSchemaPath, CliCommandToolsRunRequestSchemaPathSchema, type CliCommandToolsRunRequestSchemaRequest, CliCommandToolsRunRequestSchemaRequestSchema, type CliCommandToolsRunResponseItem, CliCommandToolsRunResponseItemSchema, type CliCommandToolsRunResponseSchemaListenerExecution, type CliCommandToolsRunResponseSchemaPath, CliCommandToolsRunResponseSchemaPathSchema, type CliCommandToolsRunResponseSchemaRequest, CliCommandToolsRunResponseSchemaRequestSchema, type CliCommandUpdateListenerExecution, type CliCommandUpdatePath, CliCommandUpdatePathSchema, type CliCommandUpdateRequest, CliCommandUpdateRequestSchema, type CliCommandUpdateRequestSchemaListenerExecution, type CliCommandUpdateRequestSchemaPath, CliCommandUpdateRequestSchemaPathSchema, type CliCommandUpdateRequestSchemaRequest, CliCommandUpdateRequestSchemaRequestSchema, type CliCommandUpdateResponse, type CliCommandUpdateResponseItem, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, type CliCommandUpdateResponseSchemaListenerExecution, type CliCommandUpdateResponseSchemaPath, CliCommandUpdateResponseSchemaPathSchema, type CliCommandUpdateResponseSchemaRequest, CliCommandUpdateResponseSchemaRequestSchema, type CliCommandUpdateResponseSkipReason, CliCommandUpdateResponseSkipReasonSchema, type CliCommandViewerGenerateSecretSignaturePairListenerExecution, type CliCommandViewerGenerateSecretSignaturePairPath, CliCommandViewerGenerateSecretSignaturePairPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaListenerExecution, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaPath, CliCommandViewerGenerateSecretSignaturePairRequestSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequestSchema, type CliCommandViewerGenerateSecretSignaturePairResponse, CliCommandViewerGenerateSecretSignaturePairResponseSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaListenerExecution, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaPath, CliCommandViewerGenerateSecretSignaturePairResponseSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest, CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequestSchema, type CliCommandViewerKillListenerExecution, type CliCommandViewerKillPath, CliCommandViewerKillPathSchema, type CliCommandViewerKillRequest, CliCommandViewerKillRequestSchema, type CliCommandViewerKillRequestSchemaListenerExecution, type CliCommandViewerKillRequestSchemaPath, CliCommandViewerKillRequestSchemaPathSchema, type CliCommandViewerKillRequestSchemaRequest, CliCommandViewerKillRequestSchemaRequestSchema, type CliCommandViewerKillResponse, CliCommandViewerKillResponseSchema, type CliCommandViewerKillResponseSchemaListenerExecution, type CliCommandViewerKillResponseSchemaPath, CliCommandViewerKillResponseSchemaPathSchema, type CliCommandViewerKillResponseSchemaRequest, CliCommandViewerKillResponseSchemaRequestSchema, type CliCommandViewerListenerExecution, type CliCommandViewerRequest, CliCommandViewerRequestSchema, type CliCommandViewerSpawnListenerExecution, type CliCommandViewerSpawnPath, CliCommandViewerSpawnPathSchema, type CliCommandViewerSpawnRequest, CliCommandViewerSpawnRequestSchema, type CliCommandViewerSpawnRequestSchemaListenerExecution, type CliCommandViewerSpawnRequestSchemaPath, CliCommandViewerSpawnRequestSchemaPathSchema, type CliCommandViewerSpawnRequestSchemaRequest, CliCommandViewerSpawnRequestSchemaRequestSchema, type CliCommandViewerSpawnResponse, CliCommandViewerSpawnResponseSchema, type CliCommandViewerSpawnResponseSchemaListenerExecution, type CliCommandViewerSpawnResponseSchemaPath, CliCommandViewerSpawnResponseSchemaPathSchema, type CliCommandViewerSpawnResponseSchemaRequest, CliCommandViewerSpawnResponseSchemaRequestSchema, type CliError, CliErrorSchema, type CliErrorType, CliErrorTypeSchema, type CliLevel, CliLevelSchema, type CliPluginsCommand, CliPluginsCommandSchema, type CliPluginsCommandType, CliPluginsCommandTypeSchema, type CliPluginsOutput, CliPluginsOutputSchema, CliStream, type CliWebsocketAgentsInstancesListListenerAgentEvent, CliWebsocketAgentsInstancesListListenerAgentEventSchema, type CliWebsocketAgentsInstancesListListenerAgentStatus, CliWebsocketAgentsInstancesListListenerAgentStatusSchema, type CliWebsocketAgentsInstancesListenerAgentInstanceEvent, CliWebsocketAgentsInstancesListenerAgentInstanceEventSchema, type CliWebsocketAgentsInstancesListenerAgentRecord, CliWebsocketAgentsInstancesListenerAgentRecordSchema, type CliWebsocketAgentsInstancesListenerAssistantResponsePart, CliWebsocketAgentsInstancesListenerAssistantResponsePartSchema, type CliWebsocketAgentsInstancesListenerAttachedLaboratory, CliWebsocketAgentsInstancesListenerAttachedLaboratorySchema, type CliWebsocketAgentsInstancesListenerClientNotificationPart, CliWebsocketAgentsInstancesListenerClientNotificationPartSchema, type CliWebsocketAgentsInstancesListenerConversationBlock, CliWebsocketAgentsInstancesListenerConversationBlockSchema, type CliWebsocketAgentsInstancesListenerPartContent, CliWebsocketAgentsInstancesListenerPartContentSchema, type CliWebsocketAgentsInstancesListenerRequestMessageUserPart, CliWebsocketAgentsInstancesListenerRequestMessageUserPartSchema, type CliWebsocketAgentsInstancesListenerToolResponsePart, CliWebsocketAgentsInstancesListenerToolResponsePartSchema, type CliWebsocketAgentsInstancesListenerVectorRequestChoice, type CliWebsocketAgentsInstancesListenerVectorRequestChoicePart, CliWebsocketAgentsInstancesListenerVectorRequestChoicePartSchema, CliWebsocketAgentsInstancesListenerVectorRequestChoiceSchema, type CliWebsocketLaboratoriesListListenerLaboratoryEvent, CliWebsocketLaboratoriesListListenerLaboratoryEventSchema, type CliWebsocketLaboratoriesListListenerLaboratoryStatus, CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema, type CliWebsocketLaboratoriesListenerLaboratoryAttachment, CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema, type CliWebsocketLaboratoriesListenerLaboratoryInstanceEvent, CliWebsocketLaboratoriesListenerLaboratoryInstanceEventSchema, type CliWebsocketLaboratoriesListenerLaboratoryRecord, CliWebsocketLaboratoriesListenerLaboratoryRecordSchema, type CliWebsocketListenerListenerEnd, CliWebsocketListenerListenerEndSchema, type CommandExecutor, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type LaboratoriesClientLaboratory, LaboratoriesClientLaboratorySchema, type LaboratoriesClientLaboratoryType, LaboratoriesClientLaboratoryTypeSchema, type LaboratoriesLaboratory, LaboratoriesLaboratorySchema, type McpCompletionsCapability, McpCompletionsCapabilitySchema, type McpImplementation, McpImplementationSchema, type McpInitializeResult, McpInitializeResultSchema, type McpListServersResult, McpListServersResultSchema, type McpLoggingCapability, McpLoggingCapabilitySchema, type McpPlugin, McpPluginSchema, type McpPromptsCapability, McpPromptsCapabilitySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceListResourcesResult, McpResourceListResourcesResultSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpResourceReadResourceResult, McpResourceReadResourceResultSchema, type McpResourceResource, McpResourceResourceSchema, type McpResourcesCapability, McpResourcesCapabilitySchema, type McpServer, type McpServerCapabilities, McpServerCapabilitiesSchema, McpServerSchema, type McpSharedAnnotations, McpSharedAnnotationsSchema, type McpSharedBlobResourceContents, McpSharedBlobResourceContentsSchema, type McpSharedIcon, McpSharedIconSchema, type McpSharedIconTheme, McpSharedIconThemeSchema, type McpSharedResourceContents, McpSharedResourceContentsSchema, type McpSharedResourceContentsUnion, McpSharedResourceContentsUnionSchema, type McpSharedRole, McpSharedRoleSchema, type McpSharedTextResourceContents, McpSharedTextResourceContentsSchema, type McpTasksCancelCapability, McpTasksCancelCapabilitySchema, type McpTasksCapability, McpTasksCapabilitySchema, type McpTasksListCapability, McpTasksListCapabilitySchema, type McpTasksRequestsCapability, McpTasksRequestsCapabilitySchema, type McpTasksToolsCallCapability, McpTasksToolsCallCapabilitySchema, type McpTasksToolsCapability, McpTasksToolsCapabilitySchema, type McpToolAudioContent, McpToolAudioContentSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolCallToolResult, McpToolCallToolResultSchema, type McpToolContentBlock, McpToolContentBlockSchema, type McpToolEmbeddedResource, McpToolEmbeddedResourceSchema, type McpToolImageContent, McpToolImageContentSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolListToolsResult, McpToolListToolsResultSchema, type McpToolResourceLink, McpToolResourceLinkSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, type McpToolTaskSupport, McpToolTaskSupportSchema, type McpToolTextContent, McpToolTextContentSchema, type McpToolTool, type McpToolToolAnnotations, McpToolToolAnnotationsSchema, type McpToolToolExecution, McpToolToolExecutionSchema, McpToolToolSchema, type McpToolToolSchemaObject, McpToolToolSchemaObjectSchema, type McpToolToolSchemaType, McpToolToolSchemaTypeSchema, type McpToolsCapability, McpToolsCapabilitySchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, PluginCommandExecutor, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, ResponseItemStream, Stream, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, WebSocketAgentsInstancesListListener, type WebSocketAgentsInstancesListListenerOptions, WebSocketAgentsInstancesListener, type WebSocketAgentsInstancesListenerOptions, WebSocketExecutor, type WebSocketExecutorOptions, WebSocketLaboratoriesListListener, type WebSocketLaboratoriesListListenerOptions, WebSocketLaboratoriesListener, type WebSocketLaboratoriesListenerOptions, WebSocketListener, type WebSocketListenerOptions, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecute, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecute, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecute, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecute, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecute, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsGetExecute, apiConfigMcpTimeoutMsGetExecuteTransform, apiConfigMcpTimeoutMsGetRequestSchemaExecute, apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsGetResponseSchemaExecute, apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsSetExecute, apiConfigMcpTimeoutMsSetExecuteTransform, apiConfigMcpTimeoutMsSetRequestSchemaExecute, apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsSetResponseSchemaExecute, apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, apiKillExecute, apiKillExecuteTransform, apiKillRequestSchemaExecute, apiKillRequestSchemaExecuteTransform, apiKillResponseSchemaExecute, apiKillResponseSchemaExecuteTransform, apiSpawnExecute, apiSpawnExecuteTransform, apiSpawnRequestSchemaExecute, apiSpawnRequestSchemaExecuteTransform, apiSpawnResponseSchemaExecute, apiSpawnResponseSchemaExecuteTransform, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigAddressSetExecute, dbConfigAddressSetExecuteTransform, dbConfigAddressSetRequestSchemaExecute, dbConfigAddressSetRequestSchemaExecuteTransform, dbConfigAddressSetResponseSchemaExecute, dbConfigAddressSetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigDatabaseSetExecute, dbConfigDatabaseSetExecuteTransform, dbConfigDatabaseSetRequestSchemaExecute, dbConfigDatabaseSetRequestSchemaExecuteTransform, dbConfigDatabaseSetResponseSchemaExecute, dbConfigDatabaseSetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigPasswordSetExecute, dbConfigPasswordSetExecuteTransform, dbConfigPasswordSetRequestSchemaExecute, dbConfigPasswordSetRequestSchemaExecuteTransform, dbConfigPasswordSetResponseSchemaExecute, dbConfigPasswordSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbConfigUserSetExecute, dbConfigUserSetExecuteTransform, dbConfigUserSetRequestSchemaExecute, dbConfigUserSetRequestSchemaExecuteTransform, dbConfigUserSetResponseSchemaExecute, dbConfigUserSetResponseSchemaExecuteTransform, dbKillExecute, dbKillExecuteTransform, dbKillRequestSchemaExecute, dbKillRequestSchemaExecuteTransform, dbKillResponseSchemaExecute, dbKillResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, dbSpawnExecute, dbSpawnExecuteTransform, dbSpawnRequestSchemaExecute, dbSpawnRequestSchemaExecuteTransform, dbSpawnResponseSchemaExecute, dbSpawnResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, killAllExecute, killAllExecuteTransform, killAllRequestSchemaExecute, killAllRequestSchemaExecuteTransform, killAllResponseSchemaExecute, killAllResponseSchemaExecuteTransform, laboratoriesAttachExecute, laboratoriesAttachExecuteTransform, laboratoriesAttachRequestSchemaExecute, laboratoriesAttachRequestSchemaExecuteTransform, laboratoriesAttachResponseSchemaExecute, laboratoriesAttachResponseSchemaExecuteTransform, laboratoriesConnectExecute, laboratoriesConnectExecuteTransform, laboratoriesConnectRequestSchemaExecute, laboratoriesConnectRequestSchemaExecuteTransform, laboratoriesConnectResponseSchemaExecute, laboratoriesConnectResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesDetachExecute, laboratoriesDetachExecuteTransform, laboratoriesDetachRequestSchemaExecute, laboratoriesDetachRequestSchemaExecuteTransform, laboratoriesDetachResponseSchemaExecute, laboratoriesDetachResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, mcpConfigAddressGetExecute, mcpConfigAddressGetExecuteTransform, mcpConfigAddressGetRequestSchemaExecute, mcpConfigAddressGetRequestSchemaExecuteTransform, mcpConfigAddressGetResponseSchemaExecute, mcpConfigAddressGetResponseSchemaExecuteTransform, mcpConfigAddressSetExecute, mcpConfigAddressSetExecuteTransform, mcpConfigAddressSetRequestSchemaExecute, mcpConfigAddressSetRequestSchemaExecuteTransform, mcpConfigAddressSetResponseSchemaExecute, mcpConfigAddressSetResponseSchemaExecuteTransform, mcpConfigGetExecute, mcpConfigGetExecuteTransform, mcpConfigGetRequestSchemaExecute, mcpConfigGetRequestSchemaExecuteTransform, mcpConfigGetResponseSchemaExecute, mcpConfigGetResponseSchemaExecuteTransform, mcpConfigPortGetExecute, mcpConfigPortGetExecuteTransform, mcpConfigPortGetRequestSchemaExecute, mcpConfigPortGetRequestSchemaExecuteTransform, mcpConfigPortGetResponseSchemaExecute, mcpConfigPortGetResponseSchemaExecuteTransform, mcpConfigPortSetExecute, mcpConfigPortSetExecuteTransform, mcpConfigPortSetRequestSchemaExecute, mcpConfigPortSetRequestSchemaExecuteTransform, mcpConfigPortSetResponseSchemaExecute, mcpConfigPortSetResponseSchemaExecuteTransform, mcpKillExecute, mcpKillExecuteTransform, mcpKillRequestSchemaExecute, mcpKillRequestSchemaExecuteTransform, mcpKillResponseSchemaExecute, mcpKillResponseSchemaExecuteTransform, mcpSpawnExecute, mcpSpawnExecuteTransform, mcpSpawnRequestSchemaExecute, mcpSpawnRequestSchemaExecuteTransform, mcpSpawnResponseSchemaExecute, mcpSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, pluginsGetExecute, pluginsGetExecuteTransform, pluginsGetRequestSchemaExecute, pluginsGetRequestSchemaExecuteTransform, pluginsGetResponseSchemaExecute, pluginsGetResponseSchemaExecuteTransform, pluginsInstallFilesystemExecute, pluginsInstallFilesystemExecuteTransform, pluginsInstallFilesystemRequestSchemaExecute, pluginsInstallFilesystemRequestSchemaExecuteTransform, pluginsInstallFilesystemResponseSchemaExecute, pluginsInstallFilesystemResponseSchemaExecuteTransform, pluginsInstallGithubExecute, pluginsInstallGithubExecuteTransform, pluginsInstallGithubRequestSchemaExecute, pluginsInstallGithubRequestSchemaExecuteTransform, pluginsInstallGithubResponseSchemaExecute, pluginsInstallGithubResponseSchemaExecuteTransform, pluginsListExecute, pluginsListExecuteTransform, pluginsListRequestSchemaExecute, pluginsListRequestSchemaExecuteTransform, pluginsListResponseSchemaExecute, pluginsListResponseSchemaExecuteTransform, pluginsLogsListExecute, pluginsLogsListExecuteTransform, pluginsLogsListRequestSchemaExecute, pluginsLogsListRequestSchemaExecuteTransform, pluginsLogsListResponseSchemaExecute, pluginsLogsListResponseSchemaExecuteTransform, pluginsRunExecute, pluginsRunExecuteTransform, pluginsRunRequestSchemaExecute, pluginsRunRequestSchemaExecuteTransform, pluginsRunResponseSchemaExecute, pluginsRunResponseSchemaExecuteTransform, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, toolsGetExecute, toolsGetExecuteTransform, toolsGetRequestSchemaExecute, toolsGetRequestSchemaExecuteTransform, toolsGetResponseSchemaExecute, toolsGetResponseSchemaExecuteTransform, toolsInstallFilesystemExecute, toolsInstallFilesystemExecuteTransform, toolsInstallFilesystemRequestSchemaExecute, toolsInstallFilesystemRequestSchemaExecuteTransform, toolsInstallFilesystemResponseSchemaExecute, toolsInstallFilesystemResponseSchemaExecuteTransform, toolsInstallGithubExecute, toolsInstallGithubExecuteTransform, toolsInstallGithubRequestSchemaExecute, toolsInstallGithubRequestSchemaExecuteTransform, toolsInstallGithubResponseSchemaExecute, toolsInstallGithubResponseSchemaExecuteTransform, toolsListExecute, toolsListExecuteTransform, toolsListRequestSchemaExecute, toolsListRequestSchemaExecuteTransform, toolsListResponseSchemaExecute, toolsListResponseSchemaExecuteTransform, toolsRunExecute, toolsRunExecuteTransform, toolsRunRequestSchemaExecute, toolsRunRequestSchemaExecuteTransform, toolsRunResponseSchemaExecute, toolsRunResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerGenerateSecretSignaturePairExecute, viewerGenerateSecretSignaturePairExecuteTransform, viewerGenerateSecretSignaturePairRequestSchemaExecute, viewerGenerateSecretSignaturePairRequestSchemaExecuteTransform, viewerGenerateSecretSignaturePairResponseSchemaExecute, viewerGenerateSecretSignaturePairResponseSchemaExecuteTransform, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };
+export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentClientObjectiveaiMcp, type AgentClientObjectiveaiMcpEntry, AgentClientObjectiveaiMcpEntrySchema, type AgentClientObjectiveaiMcpHeaders, AgentClientObjectiveaiMcpHeadersSchema, type AgentClientObjectiveaiMcpPluginEntry, AgentClientObjectiveaiMcpPluginEntrySchema, type AgentClientObjectiveaiMcpPluginMcpServer, AgentClientObjectiveaiMcpPluginMcpServerSchema, AgentClientObjectiveaiMcpSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessagePipeAck, AgentCompletionsMessagePipeAckSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageToolResponseMetadata, AgentCompletionsMessageToolResponseMetadataSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamDurationMs, AgentCompletionsResponseUpstreamDurationMsSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockCall, AgentMockCallSchema, type AgentMockCallToolCall, AgentMockCallToolCallSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContextCompression, AgentOpenrouterContextCompressionSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterSystemPrompt, type AgentOpenrouterSystemPromptRole, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentUpstream, AgentUpstreamSchema, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, BinaryCommandExecutor, type BinaryCommandExecutorOptions, CLI_COMMAND_LISTENER_EXECUTION_MODES, type CliCommandAgentArguments, CliCommandAgentArgumentsSchema, type CliCommandAgentsAgentRef, CliCommandAgentsAgentRefSchema, type CliCommandAgentsAgentSelector, CliCommandAgentsAgentSelectorSchema, type CliCommandAgentsEnqueueListenerExecution, type CliCommandAgentsEnqueuePath, CliCommandAgentsEnqueuePathSchema, type CliCommandAgentsEnqueueRequest, CliCommandAgentsEnqueueRequestSchema, type CliCommandAgentsEnqueueRequestSchemaListenerExecution, type CliCommandAgentsEnqueueRequestSchemaPath, CliCommandAgentsEnqueueRequestSchemaPathSchema, type CliCommandAgentsEnqueueRequestSchemaRequest, CliCommandAgentsEnqueueRequestSchemaRequestSchema, type CliCommandAgentsEnqueueResponse, CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponseSchemaListenerExecution, type CliCommandAgentsEnqueueResponseSchemaPath, CliCommandAgentsEnqueueResponseSchemaPathSchema, type CliCommandAgentsEnqueueResponseSchemaRequest, CliCommandAgentsEnqueueResponseSchemaRequestSchema, type CliCommandAgentsGetListenerExecution, type CliCommandAgentsGetPath, CliCommandAgentsGetPathSchema, type CliCommandAgentsGetRequest, CliCommandAgentsGetRequestSchema, type CliCommandAgentsGetRequestSchemaListenerExecution, type CliCommandAgentsGetRequestSchemaPath, CliCommandAgentsGetRequestSchemaPathSchema, type CliCommandAgentsGetRequestSchemaRequest, CliCommandAgentsGetRequestSchemaRequestSchema, type CliCommandAgentsGetResponse, CliCommandAgentsGetResponseSchema, type CliCommandAgentsGetResponseSchemaListenerExecution, type CliCommandAgentsGetResponseSchemaPath, CliCommandAgentsGetResponseSchemaPathSchema, type CliCommandAgentsGetResponseSchemaRequest, CliCommandAgentsGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesGetListenerExecution, type CliCommandAgentsInstancesGetPath, CliCommandAgentsInstancesGetPathSchema, type CliCommandAgentsInstancesGetRequest, CliCommandAgentsInstancesGetRequestSchema, type CliCommandAgentsInstancesGetRequestSchemaListenerExecution, type CliCommandAgentsInstancesGetRequestSchemaPath, CliCommandAgentsInstancesGetRequestSchemaPathSchema, type CliCommandAgentsInstancesGetRequestSchemaRequest, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, type CliCommandAgentsInstancesGetResponseSchemaListenerExecution, type CliCommandAgentsInstancesGetResponseSchemaPath, CliCommandAgentsInstancesGetResponseSchemaPathSchema, type CliCommandAgentsInstancesGetResponseSchemaRequest, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesListLaboratoryAttachment, CliCommandAgentsInstancesListLaboratoryAttachmentSchema, type CliCommandAgentsInstancesListListenerExecution, type CliCommandAgentsInstancesListPath, CliCommandAgentsInstancesListPathSchema, type CliCommandAgentsInstancesListRequest, CliCommandAgentsInstancesListRequestSchema, type CliCommandAgentsInstancesListRequestSchemaListenerExecution, type CliCommandAgentsInstancesListRequestSchemaPath, CliCommandAgentsInstancesListRequestSchemaPathSchema, type CliCommandAgentsInstancesListRequestSchemaRequest, CliCommandAgentsInstancesListRequestSchemaRequestSchema, type CliCommandAgentsInstancesListResponseItem, CliCommandAgentsInstancesListResponseItemSchema, type CliCommandAgentsInstancesListResponseSchemaListenerExecution, type CliCommandAgentsInstancesListResponseSchemaPath, CliCommandAgentsInstancesListResponseSchemaPathSchema, type CliCommandAgentsInstancesListResponseSchemaRequest, CliCommandAgentsInstancesListResponseSchemaRequestSchema, type CliCommandAgentsInstancesListenerExecution, type CliCommandAgentsInstancesRequest, CliCommandAgentsInstancesRequestSchema, type CliCommandAgentsListListenerExecution, type CliCommandAgentsListPath, CliCommandAgentsListPathSchema, type CliCommandAgentsListRequest, CliCommandAgentsListRequestSchema, type CliCommandAgentsListRequestSchemaListenerExecution, type CliCommandAgentsListRequestSchemaPath, CliCommandAgentsListRequestSchemaPathSchema, type CliCommandAgentsListRequestSchemaRequest, CliCommandAgentsListRequestSchemaRequestSchema, type CliCommandAgentsListResponseSchemaListenerExecution, type CliCommandAgentsListResponseSchemaPath, CliCommandAgentsListResponseSchemaPathSchema, type CliCommandAgentsListResponseSchemaRequest, CliCommandAgentsListResponseSchemaRequestSchema, type CliCommandAgentsListenerExecution, type CliCommandAgentsLogsListAssistantResponsePart, CliCommandAgentsLogsListAssistantResponsePartSchema, type CliCommandAgentsLogsListClientNotificationPart, CliCommandAgentsLogsListClientNotificationPartSchema, type CliCommandAgentsLogsListClientNotificationPartType, CliCommandAgentsLogsListClientNotificationPartTypeSchema, type CliCommandAgentsLogsListListenerExecution, type CliCommandAgentsLogsListPath, CliCommandAgentsLogsListPathSchema, type CliCommandAgentsLogsListRequest, type CliCommandAgentsLogsListRequestMessageUserPart, CliCommandAgentsLogsListRequestMessageUserPartSchema, type CliCommandAgentsLogsListRequestMessageUserPartType, CliCommandAgentsLogsListRequestMessageUserPartTypeSchema, CliCommandAgentsLogsListRequestSchema, type CliCommandAgentsLogsListRequestSchemaListenerExecution, type CliCommandAgentsLogsListRequestSchemaPath, CliCommandAgentsLogsListRequestSchemaPathSchema, type CliCommandAgentsLogsListRequestSchemaRequest, CliCommandAgentsLogsListRequestSchemaRequestSchema, type CliCommandAgentsLogsListResponseItem, CliCommandAgentsLogsListResponseItemSchema, type CliCommandAgentsLogsListResponseSchemaListenerExecution, type CliCommandAgentsLogsListResponseSchemaPath, CliCommandAgentsLogsListResponseSchemaPathSchema, type CliCommandAgentsLogsListResponseSchemaRequest, CliCommandAgentsLogsListResponseSchemaRequestSchema, type CliCommandAgentsLogsListTarget, CliCommandAgentsLogsListTargetSchema, type CliCommandAgentsLogsListToolResponsePart, CliCommandAgentsLogsListToolResponsePartSchema, type CliCommandAgentsLogsListToolResponsePartType, CliCommandAgentsLogsListToolResponsePartTypeSchema, type CliCommandAgentsLogsListVectorRequestChoice, type CliCommandAgentsLogsListVectorRequestChoicePart, CliCommandAgentsLogsListVectorRequestChoicePartSchema, type CliCommandAgentsLogsListVectorRequestChoicePartType, CliCommandAgentsLogsListVectorRequestChoicePartTypeSchema, CliCommandAgentsLogsListVectorRequestChoiceSchema, type CliCommandAgentsLogsListenerExecution, type CliCommandAgentsLogsOpenListenerExecution, type CliCommandAgentsLogsOpenPath, CliCommandAgentsLogsOpenPathSchema, type CliCommandAgentsLogsOpenRequest, CliCommandAgentsLogsOpenRequestSchema, type CliCommandAgentsLogsOpenRequestSchemaListenerExecution, type CliCommandAgentsLogsOpenRequestSchemaPath, CliCommandAgentsLogsOpenRequestSchemaPathSchema, type CliCommandAgentsLogsOpenRequestSchemaRequest, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, type CliCommandAgentsLogsOpenResponse, CliCommandAgentsLogsOpenResponseSchema, type CliCommandAgentsLogsOpenResponseSchemaListenerExecution, type CliCommandAgentsLogsOpenResponseSchemaPath, CliCommandAgentsLogsOpenResponseSchemaPathSchema, type CliCommandAgentsLogsOpenResponseSchemaRequest, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, type CliCommandAgentsLogsRequest, CliCommandAgentsLogsRequestSchema, type CliCommandAgentsLogsSubscribeAgentsInactiveTag, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsSubscribeKindFilter, CliCommandAgentsLogsSubscribeKindFilterSchema, type CliCommandAgentsLogsSubscribeListenerExecution, type CliCommandAgentsLogsSubscribePath, CliCommandAgentsLogsSubscribePathSchema, type CliCommandAgentsLogsSubscribeRequest, CliCommandAgentsLogsSubscribeRequestSchema, type CliCommandAgentsLogsSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsSubscribeRequestSchemaPath, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsSubscribeRequestSchemaRequest, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsSubscribeResponseItem, CliCommandAgentsLogsSubscribeResponseItemSchema, type CliCommandAgentsLogsSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsSubscribeResponseSchemaPath, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsSubscribeResponseSchemaRequest, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetListenerExecution, type CliCommandAgentsLogsTokenUsageGetPath, CliCommandAgentsLogsTokenUsageGetPathSchema, type CliCommandAgentsLogsTokenUsageGetRequest, CliCommandAgentsLogsTokenUsageGetRequestSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetRequestSchemaPath, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetResponse, CliCommandAgentsLogsTokenUsageGetResponseSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetResponseSchemaPath, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageListenerExecution, type CliCommandAgentsLogsTokenUsageRequest, CliCommandAgentsLogsTokenUsageRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTag, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsTokenUsageSubscribeListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribePath, CliCommandAgentsLogsTokenUsageSubscribePathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseItem, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, type CliCommandAgentsMcpListenerExecution, type CliCommandAgentsMcpRequest, CliCommandAgentsMcpRequestSchema, type CliCommandAgentsMcpResourcesListListenerExecution, type CliCommandAgentsMcpResourcesListPath, CliCommandAgentsMcpResourcesListPathSchema, type CliCommandAgentsMcpResourcesListRequest, CliCommandAgentsMcpResourcesListRequestSchema, type CliCommandAgentsMcpResourcesListRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesListRequestSchemaPath, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesListRequestSchemaRequest, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesListResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesListResponseSchemaPath, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesListResponseSchemaRequest, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesListenerExecution, type CliCommandAgentsMcpResourcesReadListenerExecution, type CliCommandAgentsMcpResourcesReadPath, CliCommandAgentsMcpResourcesReadPathSchema, type CliCommandAgentsMcpResourcesReadRequest, CliCommandAgentsMcpResourcesReadRequestSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadRequestSchemaPath, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaRequest, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadResponseSchemaPath, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaRequest, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesRequest, CliCommandAgentsMcpResourcesRequestSchema, type CliCommandAgentsMcpServersListListenerExecution, type CliCommandAgentsMcpServersListPath, CliCommandAgentsMcpServersListPathSchema, type CliCommandAgentsMcpServersListRequest, CliCommandAgentsMcpServersListRequestSchema, type CliCommandAgentsMcpServersListRequestSchemaListenerExecution, type CliCommandAgentsMcpServersListRequestSchemaPath, CliCommandAgentsMcpServersListRequestSchemaPathSchema, type CliCommandAgentsMcpServersListRequestSchemaRequest, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, type CliCommandAgentsMcpServersListResponseSchemaListenerExecution, type CliCommandAgentsMcpServersListResponseSchemaPath, CliCommandAgentsMcpServersListResponseSchemaPathSchema, type CliCommandAgentsMcpServersListResponseSchemaRequest, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, type CliCommandAgentsMcpServersListenerExecution, type CliCommandAgentsMcpServersRequest, CliCommandAgentsMcpServersRequestSchema, type CliCommandAgentsMcpToolsCallListenerExecution, type CliCommandAgentsMcpToolsCallPath, CliCommandAgentsMcpToolsCallPathSchema, type CliCommandAgentsMcpToolsCallRequest, CliCommandAgentsMcpToolsCallRequestSchema, type CliCommandAgentsMcpToolsCallRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsCallRequestSchemaPath, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, type CliCommandAgentsMcpToolsCallRequestSchemaRequest, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsCallResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsCallResponseSchemaPath, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, type CliCommandAgentsMcpToolsCallResponseSchemaRequest, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListListenerExecution, type CliCommandAgentsMcpToolsListPath, CliCommandAgentsMcpToolsListPathSchema, type CliCommandAgentsMcpToolsListRequest, CliCommandAgentsMcpToolsListRequestSchema, type CliCommandAgentsMcpToolsListRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsListRequestSchemaPath, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, type CliCommandAgentsMcpToolsListRequestSchemaRequest, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsListResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsListResponseSchemaPath, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, type CliCommandAgentsMcpToolsListResponseSchemaRequest, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListenerExecution, type CliCommandAgentsMcpToolsRequest, CliCommandAgentsMcpToolsRequestSchema, type CliCommandAgentsMessageListenerExecution, type CliCommandAgentsMessagePath, CliCommandAgentsMessagePathSchema, type CliCommandAgentsMessageRequest, type CliCommandAgentsMessageRequestDangerousAdvanced, CliCommandAgentsMessageRequestDangerousAdvancedSchema, type CliCommandAgentsMessageRequestMessage, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, type CliCommandAgentsMessageRequestSchemaListenerExecution, type CliCommandAgentsMessageRequestSchemaPath, CliCommandAgentsMessageRequestSchemaPathSchema, type CliCommandAgentsMessageRequestSchemaRequest, CliCommandAgentsMessageRequestSchemaRequestSchema, type CliCommandAgentsMessageResponse, CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponseSchemaListenerExecution, type CliCommandAgentsMessageResponseSchemaPath, CliCommandAgentsMessageResponseSchemaPathSchema, type CliCommandAgentsMessageResponseSchemaRequest, CliCommandAgentsMessageResponseSchemaRequestSchema, type CliCommandAgentsPublishListenerExecution, type CliCommandAgentsPublishPath, CliCommandAgentsPublishPathSchema, type CliCommandAgentsPublishRequest, type CliCommandAgentsPublishRequestBody, CliCommandAgentsPublishRequestBodySchema, type CliCommandAgentsPublishRequestPublishMessage, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, type CliCommandAgentsPublishRequestSchemaListenerExecution, type CliCommandAgentsPublishRequestSchemaPath, CliCommandAgentsPublishRequestSchemaPathSchema, type CliCommandAgentsPublishRequestSchemaRequest, CliCommandAgentsPublishRequestSchemaRequestSchema, type CliCommandAgentsPublishResponse, CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponseSchemaListenerExecution, type CliCommandAgentsPublishResponseSchemaPath, CliCommandAgentsPublishResponseSchemaPathSchema, type CliCommandAgentsPublishResponseSchemaRequest, CliCommandAgentsPublishResponseSchemaRequestSchema, type CliCommandAgentsQueueDeleteListenerExecution, type CliCommandAgentsQueueDeletePath, CliCommandAgentsQueueDeletePathSchema, type CliCommandAgentsQueueDeleteRequest, CliCommandAgentsQueueDeleteRequestSchema, type CliCommandAgentsQueueDeleteRequestSchemaListenerExecution, type CliCommandAgentsQueueDeleteRequestSchemaPath, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, type CliCommandAgentsQueueDeleteRequestSchemaRequest, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, type CliCommandAgentsQueueDeleteResponse, CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponseSchemaListenerExecution, type CliCommandAgentsQueueDeleteResponseSchemaPath, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, type CliCommandAgentsQueueDeleteResponseSchemaRequest, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverAgentActiveResponseItem, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, type CliCommandAgentsQueueDeliverAgentActiveType, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, type CliCommandAgentsQueueDeliverAgentSpawnedResponseItem, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverAgentSpawnedType, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, type CliCommandAgentsQueueDeliverAllAgentsActive, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, type CliCommandAgentsQueueDeliverListenerExecution, type CliCommandAgentsQueueDeliverPath, CliCommandAgentsQueueDeliverPathSchema, type CliCommandAgentsQueueDeliverRequest, type CliCommandAgentsQueueDeliverRequestDangerousAdvanced, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, type CliCommandAgentsQueueDeliverRequestSchemaListenerExecution, type CliCommandAgentsQueueDeliverRequestSchemaPath, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, type CliCommandAgentsQueueDeliverRequestSchemaRequest, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, type CliCommandAgentsQueueDeliverResponseItem, CliCommandAgentsQueueDeliverResponseItemSchema, type CliCommandAgentsQueueDeliverResponseSchemaListenerExecution, type CliCommandAgentsQueueDeliverResponseSchemaPath, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, type CliCommandAgentsQueueDeliverResponseSchemaRequest, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverTagActiveResponseItem, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, type CliCommandAgentsQueueDeliverTagActiveType, CliCommandAgentsQueueDeliverTagActiveTypeSchema, type CliCommandAgentsQueueDeliverTagSpawnedResponseItem, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverTagSpawnedType, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, type CliCommandAgentsQueueDeliverValueResponseItem, CliCommandAgentsQueueDeliverValueResponseItemSchema, type CliCommandAgentsQueueListListenerExecution, type CliCommandAgentsQueueListPath, CliCommandAgentsQueueListPathSchema, type CliCommandAgentsQueueListQueuePart, CliCommandAgentsQueueListQueuePartSchema, type CliCommandAgentsQueueListRequest, CliCommandAgentsQueueListRequestSchema, type CliCommandAgentsQueueListRequestSchemaListenerExecution, type CliCommandAgentsQueueListRequestSchemaPath, CliCommandAgentsQueueListRequestSchemaPathSchema, type CliCommandAgentsQueueListRequestSchemaRequest, CliCommandAgentsQueueListRequestSchemaRequestSchema, type CliCommandAgentsQueueListResponseItem, CliCommandAgentsQueueListResponseItemSchema, type CliCommandAgentsQueueListResponseSchemaListenerExecution, type CliCommandAgentsQueueListResponseSchemaPath, CliCommandAgentsQueueListResponseSchemaPathSchema, type CliCommandAgentsQueueListResponseSchemaRequest, CliCommandAgentsQueueListResponseSchemaRequestSchema, type CliCommandAgentsQueueListenerExecution, type CliCommandAgentsQueueOpenListenerExecution, type CliCommandAgentsQueueOpenPath, CliCommandAgentsQueueOpenPathSchema, type CliCommandAgentsQueueOpenRequest, CliCommandAgentsQueueOpenRequestSchema, type CliCommandAgentsQueueOpenRequestSchemaListenerExecution, type CliCommandAgentsQueueOpenRequestSchemaPath, CliCommandAgentsQueueOpenRequestSchemaPathSchema, type CliCommandAgentsQueueOpenRequestSchemaRequest, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, type CliCommandAgentsQueueOpenResponseSchemaListenerExecution, type CliCommandAgentsQueueOpenResponseSchemaPath, CliCommandAgentsQueueOpenResponseSchemaPathSchema, type CliCommandAgentsQueueOpenResponseSchemaRequest, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, type CliCommandAgentsQueueRequest, CliCommandAgentsQueueRequestSchema, type CliCommandAgentsRequest, CliCommandAgentsRequestSchema, type CliCommandAgentsSpawnListenerExecution, type CliCommandAgentsSpawnListenerExecutionStreaming, type CliCommandAgentsSpawnListenerExecutionVariant, type CliCommandAgentsSpawnPath, CliCommandAgentsSpawnPathSchema, type CliCommandAgentsSpawnRequest, type CliCommandAgentsSpawnRequestDangerousAdvanced, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, type CliCommandAgentsSpawnRequestSchemaListenerExecution, type CliCommandAgentsSpawnRequestSchemaPath, CliCommandAgentsSpawnRequestSchemaPathSchema, type CliCommandAgentsSpawnRequestSchemaRequest, CliCommandAgentsSpawnRequestSchemaRequestSchema, type CliCommandAgentsSpawnResponseItem, CliCommandAgentsSpawnResponseItemSchema, type CliCommandAgentsSpawnResponseSchemaListenerExecution, type CliCommandAgentsSpawnResponseSchemaPath, CliCommandAgentsSpawnResponseSchemaPathSchema, type CliCommandAgentsSpawnResponseSchemaRequest, CliCommandAgentsSpawnResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyAgentTagResolution, CliCommandAgentsTagsApplyAgentTagResolutionSchema, type CliCommandAgentsTagsApplyListenerExecution, type CliCommandAgentsTagsApplyPath, CliCommandAgentsTagsApplyPathSchema, type CliCommandAgentsTagsApplyRequest, CliCommandAgentsTagsApplyRequestSchema, type CliCommandAgentsTagsApplyRequestSchemaListenerExecution, type CliCommandAgentsTagsApplyRequestSchemaPath, CliCommandAgentsTagsApplyRequestSchemaPathSchema, type CliCommandAgentsTagsApplyRequestSchemaRequest, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, type CliCommandAgentsTagsApplyResponse, CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponseSchemaListenerExecution, type CliCommandAgentsTagsApplyResponseSchemaPath, CliCommandAgentsTagsApplyResponseSchemaPathSchema, type CliCommandAgentsTagsApplyResponseSchemaRequest, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyTarget, CliCommandAgentsTagsApplyTargetSchema, type CliCommandAgentsTagsListenerExecution, type CliCommandAgentsTagsLookupListenerExecution, type CliCommandAgentsTagsLookupLookupState, CliCommandAgentsTagsLookupLookupStateSchema, type CliCommandAgentsTagsLookupPath, CliCommandAgentsTagsLookupPathSchema, type CliCommandAgentsTagsLookupRequest, CliCommandAgentsTagsLookupRequestSchema, type CliCommandAgentsTagsLookupRequestSchemaListenerExecution, type CliCommandAgentsTagsLookupRequestSchemaPath, CliCommandAgentsTagsLookupRequestSchemaPathSchema, type CliCommandAgentsTagsLookupRequestSchemaRequest, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, type CliCommandAgentsTagsLookupResponse, CliCommandAgentsTagsLookupResponseSchema, type CliCommandAgentsTagsLookupResponseSchemaListenerExecution, type CliCommandAgentsTagsLookupResponseSchemaPath, CliCommandAgentsTagsLookupResponseSchemaPathSchema, type CliCommandAgentsTagsLookupResponseSchemaRequest, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, type CliCommandAgentsTagsRequest, CliCommandAgentsTagsRequestSchema, type CliCommandAgentsWaitListenerExecution, type CliCommandAgentsWaitPath, CliCommandAgentsWaitPathSchema, type CliCommandAgentsWaitRequest, CliCommandAgentsWaitRequestSchema, type CliCommandAgentsWaitRequestSchemaListenerExecution, type CliCommandAgentsWaitRequestSchemaPath, CliCommandAgentsWaitRequestSchemaPathSchema, type CliCommandAgentsWaitRequestSchemaRequest, CliCommandAgentsWaitRequestSchemaRequestSchema, type CliCommandAgentsWaitResponseSchemaListenerExecution, type CliCommandAgentsWaitResponseSchemaPath, CliCommandAgentsWaitResponseSchemaPathSchema, type CliCommandAgentsWaitResponseSchemaRequest, CliCommandAgentsWaitResponseSchemaRequestSchema, type CliCommandApiConfigAddressGetListenerExecution, type CliCommandApiConfigAddressGetPath, CliCommandApiConfigAddressGetPathSchema, type CliCommandApiConfigAddressGetRequest, CliCommandApiConfigAddressGetRequestSchema, type CliCommandApiConfigAddressGetRequestSchemaListenerExecution, type CliCommandApiConfigAddressGetRequestSchemaPath, CliCommandApiConfigAddressGetRequestSchemaPathSchema, type CliCommandApiConfigAddressGetRequestSchemaRequest, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, type CliCommandApiConfigAddressGetResponse, CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponseSchemaListenerExecution, type CliCommandApiConfigAddressGetResponseSchemaPath, CliCommandApiConfigAddressGetResponseSchemaPathSchema, type CliCommandApiConfigAddressGetResponseSchemaRequest, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, type CliCommandApiConfigAddressListenerExecution, type CliCommandApiConfigAddressRequest, CliCommandApiConfigAddressRequestSchema, type CliCommandApiConfigAddressSetListenerExecution, type CliCommandApiConfigAddressSetPath, CliCommandApiConfigAddressSetPathSchema, type CliCommandApiConfigAddressSetRequest, CliCommandApiConfigAddressSetRequestSchema, type CliCommandApiConfigAddressSetRequestSchemaListenerExecution, type CliCommandApiConfigAddressSetRequestSchemaPath, CliCommandApiConfigAddressSetRequestSchemaPathSchema, type CliCommandApiConfigAddressSetRequestSchemaRequest, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, type CliCommandApiConfigAddressSetResponseSchemaListenerExecution, type CliCommandApiConfigAddressSetResponseSchemaPath, CliCommandApiConfigAddressSetResponseSchemaPathSchema, type CliCommandApiConfigAddressSetResponseSchemaRequest, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetPath, CliCommandApiConfigCommitAuthorEmailGetPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailListenerExecution, type CliCommandApiConfigCommitAuthorEmailRequest, CliCommandApiConfigCommitAuthorEmailRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetPath, CliCommandApiConfigCommitAuthorEmailSetPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetListenerExecution, type CliCommandApiConfigCommitAuthorNameGetPath, CliCommandApiConfigCommitAuthorNameGetPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetResponse, CliCommandApiConfigCommitAuthorNameGetResponseSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameListenerExecution, type CliCommandApiConfigCommitAuthorNameRequest, CliCommandApiConfigCommitAuthorNameRequestSchema, type CliCommandApiConfigCommitAuthorNameSetListenerExecution, type CliCommandApiConfigCommitAuthorNameSetPath, CliCommandApiConfigCommitAuthorNameSetPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, type CliCommandApiConfigGetListenerExecution, type CliCommandApiConfigGetPath, CliCommandApiConfigGetPathSchema, type CliCommandApiConfigGetRequest, CliCommandApiConfigGetRequestSchema, type CliCommandApiConfigGetRequestSchemaListenerExecution, type CliCommandApiConfigGetRequestSchemaPath, CliCommandApiConfigGetRequestSchemaPathSchema, type CliCommandApiConfigGetRequestSchemaRequest, CliCommandApiConfigGetRequestSchemaRequestSchema, type CliCommandApiConfigGetResponse, CliCommandApiConfigGetResponseSchema, type CliCommandApiConfigGetResponseSchemaListenerExecution, type CliCommandApiConfigGetResponseSchemaPath, CliCommandApiConfigGetResponseSchemaPathSchema, type CliCommandApiConfigGetResponseSchemaRequest, CliCommandApiConfigGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetListenerExecution, type CliCommandApiConfigGithubAuthorizationGetPath, CliCommandApiConfigGithubAuthorizationGetPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetResponse, CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationListenerExecution, type CliCommandApiConfigGithubAuthorizationRequest, CliCommandApiConfigGithubAuthorizationRequestSchema, type CliCommandApiConfigGithubAuthorizationSetListenerExecution, type CliCommandApiConfigGithubAuthorizationSetPath, CliCommandApiConfigGithubAuthorizationSetPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetListenerExecution, type CliCommandApiConfigHttpRefererGetPath, CliCommandApiConfigHttpRefererGetPathSchema, type CliCommandApiConfigHttpRefererGetRequest, CliCommandApiConfigHttpRefererGetRequestSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetRequestSchemaPath, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaRequest, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetResponse, CliCommandApiConfigHttpRefererGetResponseSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetResponseSchemaPath, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaRequest, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererListenerExecution, type CliCommandApiConfigHttpRefererRequest, CliCommandApiConfigHttpRefererRequestSchema, type CliCommandApiConfigHttpRefererSetListenerExecution, type CliCommandApiConfigHttpRefererSetPath, CliCommandApiConfigHttpRefererSetPathSchema, type CliCommandApiConfigHttpRefererSetRequest, CliCommandApiConfigHttpRefererSetRequestSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetRequestSchemaPath, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaRequest, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetResponseSchemaPath, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaRequest, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, type CliCommandApiConfigListenerExecution, type CliCommandApiConfigMcpAuthorizationAddListenerExecution, type CliCommandApiConfigMcpAuthorizationAddPath, CliCommandApiConfigMcpAuthorizationAddPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaPath, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaPath, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelListenerExecution, type CliCommandApiConfigMcpAuthorizationDelPath, CliCommandApiConfigMcpAuthorizationDelPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaPath, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaPath, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetListenerExecution, type CliCommandApiConfigMcpAuthorizationGetPath, CliCommandApiConfigMcpAuthorizationGetPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaPath, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetResponse, CliCommandApiConfigMcpAuthorizationGetResponseSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaPath, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationListenerExecution, type CliCommandApiConfigMcpAuthorizationRequest, CliCommandApiConfigMcpAuthorizationRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetPath, CliCommandApiConfigMcpCallTimeoutMsGetPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequest, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponse, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsRequest, CliCommandApiConfigMcpCallTimeoutMsRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetPath, CliCommandApiConfigMcpCallTimeoutMsSetPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequest, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetPath, CliCommandApiConfigMcpConnectTimeoutMsGetPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequest, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponse, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsRequest, CliCommandApiConfigMcpConnectTimeoutMsRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetPath, CliCommandApiConfigMcpConnectTimeoutMsSetPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequest, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetPath, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationRequest, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetPath, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetPath, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationRequest, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetPath, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigRequest, CliCommandApiConfigRequestSchema, type CliCommandApiConfigUserAgentGetListenerExecution, type CliCommandApiConfigUserAgentGetPath, CliCommandApiConfigUserAgentGetPathSchema, type CliCommandApiConfigUserAgentGetRequest, CliCommandApiConfigUserAgentGetRequestSchema, type CliCommandApiConfigUserAgentGetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentGetRequestSchemaPath, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentGetRequestSchemaRequest, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentGetResponse, CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentGetResponseSchemaPath, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentGetResponseSchemaRequest, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentListenerExecution, type CliCommandApiConfigUserAgentRequest, CliCommandApiConfigUserAgentRequestSchema, type CliCommandApiConfigUserAgentSetListenerExecution, type CliCommandApiConfigUserAgentSetPath, CliCommandApiConfigUserAgentSetPathSchema, type CliCommandApiConfigUserAgentSetRequest, CliCommandApiConfigUserAgentSetRequestSchema, type CliCommandApiConfigUserAgentSetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentSetRequestSchemaPath, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentSetRequestSchemaRequest, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentSetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentSetResponseSchemaPath, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentSetResponseSchemaRequest, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleGetListenerExecution, type CliCommandApiConfigXTitleGetPath, CliCommandApiConfigXTitleGetPathSchema, type CliCommandApiConfigXTitleGetRequest, CliCommandApiConfigXTitleGetRequestSchema, type CliCommandApiConfigXTitleGetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleGetRequestSchemaPath, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, type CliCommandApiConfigXTitleGetRequestSchemaRequest, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleGetResponse, CliCommandApiConfigXTitleGetResponseSchema, type CliCommandApiConfigXTitleGetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleGetResponseSchemaPath, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, type CliCommandApiConfigXTitleGetResponseSchemaRequest, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleListenerExecution, type CliCommandApiConfigXTitleRequest, CliCommandApiConfigXTitleRequestSchema, type CliCommandApiConfigXTitleSetListenerExecution, type CliCommandApiConfigXTitleSetPath, CliCommandApiConfigXTitleSetPathSchema, type CliCommandApiConfigXTitleSetRequest, CliCommandApiConfigXTitleSetRequestSchema, type CliCommandApiConfigXTitleSetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleSetRequestSchemaPath, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, type CliCommandApiConfigXTitleSetRequestSchemaRequest, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleSetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleSetResponseSchemaPath, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, type CliCommandApiConfigXTitleSetResponseSchemaRequest, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, type CliCommandApiKillListenerExecution, type CliCommandApiKillPath, CliCommandApiKillPathSchema, type CliCommandApiKillRequest, CliCommandApiKillRequestSchema, type CliCommandApiKillRequestSchemaListenerExecution, type CliCommandApiKillRequestSchemaPath, CliCommandApiKillRequestSchemaPathSchema, type CliCommandApiKillRequestSchemaRequest, CliCommandApiKillRequestSchemaRequestSchema, type CliCommandApiKillResponse, CliCommandApiKillResponseSchema, type CliCommandApiKillResponseSchemaListenerExecution, type CliCommandApiKillResponseSchemaPath, CliCommandApiKillResponseSchemaPathSchema, type CliCommandApiKillResponseSchemaRequest, CliCommandApiKillResponseSchemaRequestSchema, type CliCommandApiListenerExecution, type CliCommandApiRequest, CliCommandApiRequestSchema, type CliCommandApiSpawnListenerExecution, type CliCommandApiSpawnPath, CliCommandApiSpawnPathSchema, type CliCommandApiSpawnRequest, CliCommandApiSpawnRequestSchema, type CliCommandApiSpawnRequestSchemaListenerExecution, type CliCommandApiSpawnRequestSchemaPath, CliCommandApiSpawnRequestSchemaPathSchema, type CliCommandApiSpawnRequestSchemaRequest, CliCommandApiSpawnRequestSchemaRequestSchema, type CliCommandApiSpawnResponse, CliCommandApiSpawnResponseSchema, type CliCommandApiSpawnResponseSchemaListenerExecution, type CliCommandApiSpawnResponseSchemaPath, CliCommandApiSpawnResponseSchemaPathSchema, type CliCommandApiSpawnResponseSchemaRequest, CliCommandApiSpawnResponseSchemaRequestSchema, type CliCommandCommandExecutorAuthEnvelope, CliCommandCommandExecutorAuthEnvelopeSchema, type CliCommandCommandExecutorExecuteEnvelope, CliCommandCommandExecutorExecuteEnvelopeSchema, type CliCommandDaemonKillListenerExecution, type CliCommandDaemonKillPath, CliCommandDaemonKillPathSchema, type CliCommandDaemonKillRequest, CliCommandDaemonKillRequestSchema, type CliCommandDaemonKillRequestSchemaListenerExecution, type CliCommandDaemonKillRequestSchemaPath, CliCommandDaemonKillRequestSchemaPathSchema, type CliCommandDaemonKillRequestSchemaRequest, CliCommandDaemonKillRequestSchemaRequestSchema, type CliCommandDaemonKillResponse, CliCommandDaemonKillResponseSchema, type CliCommandDaemonKillResponseSchemaListenerExecution, type CliCommandDaemonKillResponseSchemaPath, CliCommandDaemonKillResponseSchemaPathSchema, type CliCommandDaemonKillResponseSchemaRequest, CliCommandDaemonKillResponseSchemaRequestSchema, type CliCommandDaemonListenerExecution, type CliCommandDaemonRequest, CliCommandDaemonRequestSchema, type CliCommandDaemonSpawnListenerExecution, type CliCommandDaemonSpawnPath, CliCommandDaemonSpawnPathSchema, type CliCommandDaemonSpawnRequest, type CliCommandDaemonSpawnRequestDangerousAdvanced, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, type CliCommandDaemonSpawnRequestSchemaListenerExecution, type CliCommandDaemonSpawnRequestSchemaPath, CliCommandDaemonSpawnRequestSchemaPathSchema, type CliCommandDaemonSpawnRequestSchemaRequest, CliCommandDaemonSpawnRequestSchemaRequestSchema, type CliCommandDaemonSpawnResponseItem, CliCommandDaemonSpawnResponseItemSchema, type CliCommandDaemonSpawnResponseSchemaListenerExecution, type CliCommandDaemonSpawnResponseSchemaPath, CliCommandDaemonSpawnResponseSchemaPathSchema, type CliCommandDaemonSpawnResponseSchemaRequest, CliCommandDaemonSpawnResponseSchemaRequestSchema, type CliCommandDbConfigAddressGetListenerExecution, type CliCommandDbConfigAddressGetPath, CliCommandDbConfigAddressGetPathSchema, type CliCommandDbConfigAddressGetRequest, CliCommandDbConfigAddressGetRequestSchema, type CliCommandDbConfigAddressGetRequestSchemaListenerExecution, type CliCommandDbConfigAddressGetRequestSchemaPath, CliCommandDbConfigAddressGetRequestSchemaPathSchema, type CliCommandDbConfigAddressGetRequestSchemaRequest, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, type CliCommandDbConfigAddressGetResponse, CliCommandDbConfigAddressGetResponseSchema, type CliCommandDbConfigAddressGetResponseSchemaListenerExecution, type CliCommandDbConfigAddressGetResponseSchemaPath, CliCommandDbConfigAddressGetResponseSchemaPathSchema, type CliCommandDbConfigAddressGetResponseSchemaRequest, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, type CliCommandDbConfigAddressListenerExecution, type CliCommandDbConfigAddressRequest, CliCommandDbConfigAddressRequestSchema, type CliCommandDbConfigAddressSetListenerExecution, type CliCommandDbConfigAddressSetPath, CliCommandDbConfigAddressSetPathSchema, type CliCommandDbConfigAddressSetRequest, CliCommandDbConfigAddressSetRequestSchema, type CliCommandDbConfigAddressSetRequestSchemaListenerExecution, type CliCommandDbConfigAddressSetRequestSchemaPath, CliCommandDbConfigAddressSetRequestSchemaPathSchema, type CliCommandDbConfigAddressSetRequestSchemaRequest, CliCommandDbConfigAddressSetRequestSchemaRequestSchema, type CliCommandDbConfigAddressSetResponseSchemaListenerExecution, type CliCommandDbConfigAddressSetResponseSchemaPath, CliCommandDbConfigAddressSetResponseSchemaPathSchema, type CliCommandDbConfigAddressSetResponseSchemaRequest, CliCommandDbConfigAddressSetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseGetListenerExecution, type CliCommandDbConfigDatabaseGetPath, CliCommandDbConfigDatabaseGetPathSchema, type CliCommandDbConfigDatabaseGetRequest, CliCommandDbConfigDatabaseGetRequestSchema, type CliCommandDbConfigDatabaseGetRequestSchemaListenerExecution, type CliCommandDbConfigDatabaseGetRequestSchemaPath, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseGetRequestSchemaRequest, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseGetResponse, CliCommandDbConfigDatabaseGetResponseSchema, type CliCommandDbConfigDatabaseGetResponseSchemaListenerExecution, type CliCommandDbConfigDatabaseGetResponseSchemaPath, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseGetResponseSchemaRequest, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseListenerExecution, type CliCommandDbConfigDatabaseRequest, CliCommandDbConfigDatabaseRequestSchema, type CliCommandDbConfigDatabaseSetListenerExecution, type CliCommandDbConfigDatabaseSetPath, CliCommandDbConfigDatabaseSetPathSchema, type CliCommandDbConfigDatabaseSetRequest, CliCommandDbConfigDatabaseSetRequestSchema, type CliCommandDbConfigDatabaseSetRequestSchemaListenerExecution, type CliCommandDbConfigDatabaseSetRequestSchemaPath, CliCommandDbConfigDatabaseSetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseSetRequestSchemaRequest, CliCommandDbConfigDatabaseSetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseSetResponseSchemaListenerExecution, type CliCommandDbConfigDatabaseSetResponseSchemaPath, CliCommandDbConfigDatabaseSetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseSetResponseSchemaRequest, CliCommandDbConfigDatabaseSetResponseSchemaRequestSchema, type CliCommandDbConfigGetListenerExecution, type CliCommandDbConfigGetPath, CliCommandDbConfigGetPathSchema, type CliCommandDbConfigGetRequest, CliCommandDbConfigGetRequestSchema, type CliCommandDbConfigGetRequestSchemaListenerExecution, type CliCommandDbConfigGetRequestSchemaPath, CliCommandDbConfigGetRequestSchemaPathSchema, type CliCommandDbConfigGetRequestSchemaRequest, CliCommandDbConfigGetRequestSchemaRequestSchema, type CliCommandDbConfigGetResponse, CliCommandDbConfigGetResponseSchema, type CliCommandDbConfigGetResponseSchemaListenerExecution, type CliCommandDbConfigGetResponseSchemaPath, CliCommandDbConfigGetResponseSchemaPathSchema, type CliCommandDbConfigGetResponseSchemaRequest, CliCommandDbConfigGetResponseSchemaRequestSchema, type CliCommandDbConfigListenerExecution, type CliCommandDbConfigPasswordGetListenerExecution, type CliCommandDbConfigPasswordGetPath, CliCommandDbConfigPasswordGetPathSchema, type CliCommandDbConfigPasswordGetRequest, CliCommandDbConfigPasswordGetRequestSchema, type CliCommandDbConfigPasswordGetRequestSchemaListenerExecution, type CliCommandDbConfigPasswordGetRequestSchemaPath, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, type CliCommandDbConfigPasswordGetRequestSchemaRequest, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordGetResponse, CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponseSchemaListenerExecution, type CliCommandDbConfigPasswordGetResponseSchemaPath, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, type CliCommandDbConfigPasswordGetResponseSchemaRequest, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordListenerExecution, type CliCommandDbConfigPasswordRequest, CliCommandDbConfigPasswordRequestSchema, type CliCommandDbConfigPasswordSetListenerExecution, type CliCommandDbConfigPasswordSetPath, CliCommandDbConfigPasswordSetPathSchema, type CliCommandDbConfigPasswordSetRequest, CliCommandDbConfigPasswordSetRequestSchema, type CliCommandDbConfigPasswordSetRequestSchemaListenerExecution, type CliCommandDbConfigPasswordSetRequestSchemaPath, CliCommandDbConfigPasswordSetRequestSchemaPathSchema, type CliCommandDbConfigPasswordSetRequestSchemaRequest, CliCommandDbConfigPasswordSetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordSetResponseSchemaListenerExecution, type CliCommandDbConfigPasswordSetResponseSchemaPath, CliCommandDbConfigPasswordSetResponseSchemaPathSchema, type CliCommandDbConfigPasswordSetResponseSchemaRequest, CliCommandDbConfigPasswordSetResponseSchemaRequestSchema, type CliCommandDbConfigRequest, CliCommandDbConfigRequestSchema, type CliCommandDbConfigUserGetListenerExecution, type CliCommandDbConfigUserGetPath, CliCommandDbConfigUserGetPathSchema, type CliCommandDbConfigUserGetRequest, CliCommandDbConfigUserGetRequestSchema, type CliCommandDbConfigUserGetRequestSchemaListenerExecution, type CliCommandDbConfigUserGetRequestSchemaPath, CliCommandDbConfigUserGetRequestSchemaPathSchema, type CliCommandDbConfigUserGetRequestSchemaRequest, CliCommandDbConfigUserGetRequestSchemaRequestSchema, type CliCommandDbConfigUserGetResponse, CliCommandDbConfigUserGetResponseSchema, type CliCommandDbConfigUserGetResponseSchemaListenerExecution, type CliCommandDbConfigUserGetResponseSchemaPath, CliCommandDbConfigUserGetResponseSchemaPathSchema, type CliCommandDbConfigUserGetResponseSchemaRequest, CliCommandDbConfigUserGetResponseSchemaRequestSchema, type CliCommandDbConfigUserListenerExecution, type CliCommandDbConfigUserRequest, CliCommandDbConfigUserRequestSchema, type CliCommandDbConfigUserSetListenerExecution, type CliCommandDbConfigUserSetPath, CliCommandDbConfigUserSetPathSchema, type CliCommandDbConfigUserSetRequest, CliCommandDbConfigUserSetRequestSchema, type CliCommandDbConfigUserSetRequestSchemaListenerExecution, type CliCommandDbConfigUserSetRequestSchemaPath, CliCommandDbConfigUserSetRequestSchemaPathSchema, type CliCommandDbConfigUserSetRequestSchemaRequest, CliCommandDbConfigUserSetRequestSchemaRequestSchema, type CliCommandDbConfigUserSetResponseSchemaListenerExecution, type CliCommandDbConfigUserSetResponseSchemaPath, CliCommandDbConfigUserSetResponseSchemaPathSchema, type CliCommandDbConfigUserSetResponseSchemaRequest, CliCommandDbConfigUserSetResponseSchemaRequestSchema, type CliCommandDbKillListenerExecution, type CliCommandDbKillPath, CliCommandDbKillPathSchema, type CliCommandDbKillRequest, CliCommandDbKillRequestSchema, type CliCommandDbKillRequestSchemaListenerExecution, type CliCommandDbKillRequestSchemaPath, CliCommandDbKillRequestSchemaPathSchema, type CliCommandDbKillRequestSchemaRequest, CliCommandDbKillRequestSchemaRequestSchema, type CliCommandDbKillResponse, CliCommandDbKillResponseSchema, type CliCommandDbKillResponseSchemaListenerExecution, type CliCommandDbKillResponseSchemaPath, CliCommandDbKillResponseSchemaPathSchema, type CliCommandDbKillResponseSchemaRequest, CliCommandDbKillResponseSchemaRequestSchema, type CliCommandDbListenerExecution, type CliCommandDbQueryColumn, CliCommandDbQueryColumnSchema, type CliCommandDbQueryListenerExecution, type CliCommandDbQueryPath, CliCommandDbQueryPathSchema, type CliCommandDbQueryRequest, CliCommandDbQueryRequestSchema, type CliCommandDbQueryRequestSchemaListenerExecution, type CliCommandDbQueryRequestSchemaPath, CliCommandDbQueryRequestSchemaPathSchema, type CliCommandDbQueryRequestSchemaRequest, CliCommandDbQueryRequestSchemaRequestSchema, type CliCommandDbQueryResponse, CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponseSchemaListenerExecution, type CliCommandDbQueryResponseSchemaPath, CliCommandDbQueryResponseSchemaPathSchema, type CliCommandDbQueryResponseSchemaRequest, CliCommandDbQueryResponseSchemaRequestSchema, type CliCommandDbRequest, CliCommandDbRequestSchema, type CliCommandDbSpawnListenerExecution, type CliCommandDbSpawnPath, CliCommandDbSpawnPathSchema, type CliCommandDbSpawnRequest, CliCommandDbSpawnRequestSchema, type CliCommandDbSpawnRequestSchemaListenerExecution, type CliCommandDbSpawnRequestSchemaPath, CliCommandDbSpawnRequestSchemaPathSchema, type CliCommandDbSpawnRequestSchemaRequest, CliCommandDbSpawnRequestSchemaRequestSchema, type CliCommandDbSpawnResponse, CliCommandDbSpawnResponseSchema, type CliCommandDbSpawnResponseSchemaListenerExecution, type CliCommandDbSpawnResponseSchemaPath, CliCommandDbSpawnResponseSchemaPathSchema, type CliCommandDbSpawnResponseSchemaRequest, CliCommandDbSpawnResponseSchemaRequestSchema, type CliCommandFunctionsExecuteFunctionSpec, CliCommandFunctionsExecuteFunctionSpecSchema, type CliCommandFunctionsExecuteListenerExecution, type CliCommandFunctionsExecuteProfileSpec, CliCommandFunctionsExecuteProfileSpecSchema, type CliCommandFunctionsExecuteRequest, CliCommandFunctionsExecuteRequestSchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchy, CliCommandFunctionsExecuteStandardAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchyType, CliCommandFunctionsExecuteStandardAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteStandardListenerExecution, type CliCommandFunctionsExecuteStandardListenerExecutionStreaming, type CliCommandFunctionsExecuteStandardListenerExecutionVariant, type CliCommandFunctionsExecuteStandardPath, CliCommandFunctionsExecuteStandardPathSchema, type CliCommandFunctionsExecuteStandardRequest, type CliCommandFunctionsExecuteStandardRequestDangerousAdvanced, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteStandardRequestInput, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, type CliCommandFunctionsExecuteStandardRequestSchemaListenerExecution, type CliCommandFunctionsExecuteStandardRequestSchemaPath, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, type CliCommandFunctionsExecuteStandardRequestSchemaRequest, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, type CliCommandFunctionsExecuteStandardResponseItem, CliCommandFunctionsExecuteStandardResponseItemSchema, type CliCommandFunctionsExecuteStandardResponseSchemaListenerExecution, type CliCommandFunctionsExecuteStandardResponseSchemaPath, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, type CliCommandFunctionsExecuteStandardResponseSchemaRequest, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchy, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyType, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteSwissSystemListenerExecution, type CliCommandFunctionsExecuteSwissSystemListenerExecutionStreaming, type CliCommandFunctionsExecuteSwissSystemListenerExecutionVariant, type CliCommandFunctionsExecuteSwissSystemPath, CliCommandFunctionsExecuteSwissSystemPathSchema, type CliCommandFunctionsExecuteSwissSystemRequest, type CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvanced, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteSwissSystemRequestInput, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemRequestSchemaPath, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemResponseItem, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemResponseSchemaPath, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, type CliCommandFunctionsGetListenerExecution, type CliCommandFunctionsGetPath, CliCommandFunctionsGetPathSchema, type CliCommandFunctionsGetRequest, CliCommandFunctionsGetRequestSchema, type CliCommandFunctionsGetRequestSchemaListenerExecution, type CliCommandFunctionsGetRequestSchemaPath, CliCommandFunctionsGetRequestSchemaPathSchema, type CliCommandFunctionsGetRequestSchemaRequest, CliCommandFunctionsGetRequestSchemaRequestSchema, type CliCommandFunctionsGetResponse, CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponseSchemaListenerExecution, type CliCommandFunctionsGetResponseSchemaPath, CliCommandFunctionsGetResponseSchemaPathSchema, type CliCommandFunctionsGetResponseSchemaRequest, CliCommandFunctionsGetResponseSchemaRequestSchema, type CliCommandFunctionsListListenerExecution, type CliCommandFunctionsListPath, CliCommandFunctionsListPathSchema, type CliCommandFunctionsListRequest, CliCommandFunctionsListRequestSchema, type CliCommandFunctionsListRequestSchemaListenerExecution, type CliCommandFunctionsListRequestSchemaPath, CliCommandFunctionsListRequestSchemaPathSchema, type CliCommandFunctionsListRequestSchemaRequest, CliCommandFunctionsListRequestSchemaRequestSchema, type CliCommandFunctionsListResponse, CliCommandFunctionsListResponseSchema, type CliCommandFunctionsListResponseSchemaListenerExecution, type CliCommandFunctionsListResponseSchemaPath, CliCommandFunctionsListResponseSchemaPathSchema, type CliCommandFunctionsListResponseSchemaRequest, CliCommandFunctionsListResponseSchemaRequestSchema, type CliCommandFunctionsListenerExecution, type CliCommandFunctionsProfilesGetListenerExecution, type CliCommandFunctionsProfilesGetPath, CliCommandFunctionsProfilesGetPathSchema, type CliCommandFunctionsProfilesGetRequest, CliCommandFunctionsProfilesGetRequestSchema, type CliCommandFunctionsProfilesGetRequestSchemaListenerExecution, type CliCommandFunctionsProfilesGetRequestSchemaPath, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, type CliCommandFunctionsProfilesGetRequestSchemaRequest, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, type CliCommandFunctionsProfilesGetResponse, CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponseSchemaListenerExecution, type CliCommandFunctionsProfilesGetResponseSchemaPath, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, type CliCommandFunctionsProfilesGetResponseSchemaRequest, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListListenerExecution, type CliCommandFunctionsProfilesListPath, CliCommandFunctionsProfilesListPathSchema, type CliCommandFunctionsProfilesListRequest, CliCommandFunctionsProfilesListRequestSchema, type CliCommandFunctionsProfilesListRequestSchemaListenerExecution, type CliCommandFunctionsProfilesListRequestSchemaPath, CliCommandFunctionsProfilesListRequestSchemaPathSchema, type CliCommandFunctionsProfilesListRequestSchemaRequest, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, type CliCommandFunctionsProfilesListResponse, CliCommandFunctionsProfilesListResponseSchema, type CliCommandFunctionsProfilesListResponseSchemaListenerExecution, type CliCommandFunctionsProfilesListResponseSchemaPath, CliCommandFunctionsProfilesListResponseSchemaPathSchema, type CliCommandFunctionsProfilesListResponseSchemaRequest, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListenerExecution, type CliCommandFunctionsProfilesPublishListenerExecution, type CliCommandFunctionsProfilesPublishPath, CliCommandFunctionsProfilesPublishPathSchema, type CliCommandFunctionsProfilesPublishRequest, type CliCommandFunctionsProfilesPublishRequestBody, CliCommandFunctionsProfilesPublishRequestBodySchema, type CliCommandFunctionsProfilesPublishRequestPublishMessage, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, type CliCommandFunctionsProfilesPublishRequestSchemaListenerExecution, type CliCommandFunctionsProfilesPublishRequestSchemaPath, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, type CliCommandFunctionsProfilesPublishRequestSchemaRequest, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, type CliCommandFunctionsProfilesPublishResponse, CliCommandFunctionsProfilesPublishResponseSchema, type CliCommandFunctionsProfilesPublishResponseSchemaListenerExecution, type CliCommandFunctionsProfilesPublishResponseSchemaPath, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, type CliCommandFunctionsProfilesPublishResponseSchemaRequest, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, type CliCommandFunctionsProfilesRequest, CliCommandFunctionsProfilesRequestSchema, type CliCommandFunctionsPublishListenerExecution, type CliCommandFunctionsPublishPath, CliCommandFunctionsPublishPathSchema, type CliCommandFunctionsPublishRequest, type CliCommandFunctionsPublishRequestBody, CliCommandFunctionsPublishRequestBodySchema, type CliCommandFunctionsPublishRequestPublishMessage, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, type CliCommandFunctionsPublishRequestSchemaListenerExecution, type CliCommandFunctionsPublishRequestSchemaPath, CliCommandFunctionsPublishRequestSchemaPathSchema, type CliCommandFunctionsPublishRequestSchemaRequest, CliCommandFunctionsPublishRequestSchemaRequestSchema, type CliCommandFunctionsPublishResponse, CliCommandFunctionsPublishResponseSchema, type CliCommandFunctionsPublishResponseSchemaListenerExecution, type CliCommandFunctionsPublishResponseSchemaPath, CliCommandFunctionsPublishResponseSchemaPathSchema, type CliCommandFunctionsPublishResponseSchemaRequest, CliCommandFunctionsPublishResponseSchemaRequestSchema, type CliCommandFunctionsRequest, CliCommandFunctionsRequestSchema, type CliCommandGetScope, CliCommandGetScopeSchema, type CliCommandKillAllListenerExecution, type CliCommandKillAllPath, CliCommandKillAllPathSchema, type CliCommandKillAllRequest, CliCommandKillAllRequestSchema, type CliCommandKillAllRequestSchemaListenerExecution, type CliCommandKillAllRequestSchemaPath, CliCommandKillAllRequestSchemaPathSchema, type CliCommandKillAllRequestSchemaRequest, CliCommandKillAllRequestSchemaRequestSchema, type CliCommandKillAllResponse, CliCommandKillAllResponseSchema, type CliCommandKillAllResponseSchemaListenerExecution, type CliCommandKillAllResponseSchemaPath, CliCommandKillAllResponseSchemaPathSchema, type CliCommandKillAllResponseSchemaRequest, CliCommandKillAllResponseSchemaRequestSchema, type CliCommandLaboratoriesAttachListenerExecution, type CliCommandLaboratoriesAttachPath, CliCommandLaboratoriesAttachPathSchema, type CliCommandLaboratoriesAttachRequest, CliCommandLaboratoriesAttachRequestSchema, type CliCommandLaboratoriesAttachRequestSchemaListenerExecution, type CliCommandLaboratoriesAttachRequestSchemaPath, CliCommandLaboratoriesAttachRequestSchemaPathSchema, type CliCommandLaboratoriesAttachRequestSchemaRequest, CliCommandLaboratoriesAttachRequestSchemaRequestSchema, type CliCommandLaboratoriesAttachResponse, CliCommandLaboratoriesAttachResponseSchema, type CliCommandLaboratoriesAttachResponseSchemaListenerExecution, type CliCommandLaboratoriesAttachResponseSchemaPath, CliCommandLaboratoriesAttachResponseSchemaPathSchema, type CliCommandLaboratoriesAttachResponseSchemaRequest, CliCommandLaboratoriesAttachResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesAddListenerExecution, type CliCommandLaboratoriesConfigAddressesAddPath, CliCommandLaboratoriesConfigAddressesAddPathSchema, type CliCommandLaboratoriesConfigAddressesAddRequest, CliCommandLaboratoriesConfigAddressesAddRequestSchema, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaPath, CliCommandLaboratoriesConfigAddressesAddRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaPath, CliCommandLaboratoriesConfigAddressesAddResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesDelListenerExecution, type CliCommandLaboratoriesConfigAddressesDelPath, CliCommandLaboratoriesConfigAddressesDelPathSchema, type CliCommandLaboratoriesConfigAddressesDelRequest, CliCommandLaboratoriesConfigAddressesDelRequestSchema, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaPath, CliCommandLaboratoriesConfigAddressesDelRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaPath, CliCommandLaboratoriesConfigAddressesDelResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesGetListenerExecution, type CliCommandLaboratoriesConfigAddressesGetPath, CliCommandLaboratoriesConfigAddressesGetPathSchema, type CliCommandLaboratoriesConfigAddressesGetRequest, CliCommandLaboratoriesConfigAddressesGetRequestSchema, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaPath, CliCommandLaboratoriesConfigAddressesGetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesGetResponse, CliCommandLaboratoriesConfigAddressesGetResponseSchema, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaPath, CliCommandLaboratoriesConfigAddressesGetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesListenerExecution, type CliCommandLaboratoriesConfigAddressesRequest, CliCommandLaboratoriesConfigAddressesRequestSchema, type CliCommandLaboratoriesConfigListenerExecution, type CliCommandLaboratoriesConfigLocalGetListenerExecution, type CliCommandLaboratoriesConfigLocalGetPath, CliCommandLaboratoriesConfigLocalGetPathSchema, type CliCommandLaboratoriesConfigLocalGetRequest, CliCommandLaboratoriesConfigLocalGetRequestSchema, type CliCommandLaboratoriesConfigLocalGetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalGetRequestSchemaPath, CliCommandLaboratoriesConfigLocalGetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest, CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalGetResponse, CliCommandLaboratoriesConfigLocalGetResponseSchema, type CliCommandLaboratoriesConfigLocalGetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalGetResponseSchemaPath, CliCommandLaboratoriesConfigLocalGetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest, CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalListenerExecution, type CliCommandLaboratoriesConfigLocalRequest, CliCommandLaboratoriesConfigLocalRequestSchema, type CliCommandLaboratoriesConfigLocalSetListenerExecution, type CliCommandLaboratoriesConfigLocalSetPath, CliCommandLaboratoriesConfigLocalSetPathSchema, type CliCommandLaboratoriesConfigLocalSetRequest, CliCommandLaboratoriesConfigLocalSetRequestSchema, type CliCommandLaboratoriesConfigLocalSetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalSetRequestSchemaPath, CliCommandLaboratoriesConfigLocalSetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest, CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalSetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalSetResponseSchemaPath, CliCommandLaboratoriesConfigLocalSetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest, CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigRequest, CliCommandLaboratoriesConfigRequestSchema, type CliCommandLaboratoriesCreateEnvVar, CliCommandLaboratoriesCreateEnvVarSchema, type CliCommandLaboratoriesCreateKind, CliCommandLaboratoriesCreateKindSchema, type CliCommandLaboratoriesCreateListenerExecution, type CliCommandLaboratoriesCreateMount, CliCommandLaboratoriesCreateMountSchema, type CliCommandLaboratoriesCreatePath, CliCommandLaboratoriesCreatePathSchema, type CliCommandLaboratoriesCreateRequest, CliCommandLaboratoriesCreateRequestSchema, type CliCommandLaboratoriesCreateRequestSchemaListenerExecution, type CliCommandLaboratoriesCreateRequestSchemaPath, CliCommandLaboratoriesCreateRequestSchemaPathSchema, type CliCommandLaboratoriesCreateRequestSchemaRequest, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, type CliCommandLaboratoriesCreateResponse, CliCommandLaboratoriesCreateResponseSchema, type CliCommandLaboratoriesCreateResponseSchemaListenerExecution, type CliCommandLaboratoriesCreateResponseSchemaPath, CliCommandLaboratoriesCreateResponseSchemaPathSchema, type CliCommandLaboratoriesCreateResponseSchemaRequest, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, type CliCommandLaboratoriesDeleteKind, CliCommandLaboratoriesDeleteKindSchema, type CliCommandLaboratoriesDeleteListenerExecution, type CliCommandLaboratoriesDeletePath, CliCommandLaboratoriesDeletePathSchema, type CliCommandLaboratoriesDeleteRequest, CliCommandLaboratoriesDeleteRequestSchema, type CliCommandLaboratoriesDeleteRequestSchemaListenerExecution, type CliCommandLaboratoriesDeleteRequestSchemaPath, CliCommandLaboratoriesDeleteRequestSchemaPathSchema, type CliCommandLaboratoriesDeleteRequestSchemaRequest, CliCommandLaboratoriesDeleteRequestSchemaRequestSchema, type CliCommandLaboratoriesDeleteResponse, CliCommandLaboratoriesDeleteResponseSchema, type CliCommandLaboratoriesDeleteResponseSchemaListenerExecution, type CliCommandLaboratoriesDeleteResponseSchemaPath, CliCommandLaboratoriesDeleteResponseSchemaPathSchema, type CliCommandLaboratoriesDeleteResponseSchemaRequest, CliCommandLaboratoriesDeleteResponseSchemaRequestSchema, type CliCommandLaboratoriesDetachListenerExecution, type CliCommandLaboratoriesDetachPath, CliCommandLaboratoriesDetachPathSchema, type CliCommandLaboratoriesDetachRequest, CliCommandLaboratoriesDetachRequestSchema, type CliCommandLaboratoriesDetachRequestSchemaListenerExecution, type CliCommandLaboratoriesDetachRequestSchemaPath, CliCommandLaboratoriesDetachRequestSchemaPathSchema, type CliCommandLaboratoriesDetachRequestSchemaRequest, CliCommandLaboratoriesDetachRequestSchemaRequestSchema, type CliCommandLaboratoriesDetachResponse, CliCommandLaboratoriesDetachResponseSchema, type CliCommandLaboratoriesDetachResponseSchemaListenerExecution, type CliCommandLaboratoriesDetachResponseSchemaPath, CliCommandLaboratoriesDetachResponseSchemaPathSchema, type CliCommandLaboratoriesDetachResponseSchemaRequest, CliCommandLaboratoriesDetachResponseSchemaRequestSchema, type CliCommandLaboratoriesKillListenerExecution, type CliCommandLaboratoriesKillPath, CliCommandLaboratoriesKillPathSchema, type CliCommandLaboratoriesKillRequest, CliCommandLaboratoriesKillRequestSchema, type CliCommandLaboratoriesKillRequestSchemaListenerExecution, type CliCommandLaboratoriesKillRequestSchemaPath, CliCommandLaboratoriesKillRequestSchemaPathSchema, type CliCommandLaboratoriesKillRequestSchemaRequest, CliCommandLaboratoriesKillRequestSchemaRequestSchema, type CliCommandLaboratoriesKillResponse, CliCommandLaboratoriesKillResponseSchema, type CliCommandLaboratoriesKillResponseSchemaListenerExecution, type CliCommandLaboratoriesKillResponseSchemaPath, CliCommandLaboratoriesKillResponseSchemaPathSchema, type CliCommandLaboratoriesKillResponseSchemaRequest, CliCommandLaboratoriesKillResponseSchemaRequestSchema, type CliCommandLaboratoriesListListenerExecution, type CliCommandLaboratoriesListPath, CliCommandLaboratoriesListPathSchema, type CliCommandLaboratoriesListRequest, CliCommandLaboratoriesListRequestSchema, type CliCommandLaboratoriesListRequestSchemaListenerExecution, type CliCommandLaboratoriesListRequestSchemaPath, CliCommandLaboratoriesListRequestSchemaPathSchema, type CliCommandLaboratoriesListRequestSchemaRequest, CliCommandLaboratoriesListRequestSchemaRequestSchema, type CliCommandLaboratoriesListResponseItem, CliCommandLaboratoriesListResponseItemSchema, type CliCommandLaboratoriesListResponseSchemaListenerExecution, type CliCommandLaboratoriesListResponseSchemaPath, CliCommandLaboratoriesListResponseSchemaPathSchema, type CliCommandLaboratoriesListResponseSchemaRequest, CliCommandLaboratoriesListResponseSchemaRequestSchema, type CliCommandLaboratoriesListenerExecution, type CliCommandLaboratoriesRequest, CliCommandLaboratoriesRequestSchema, type CliCommandLaboratoriesSpawnListenerExecution, type CliCommandLaboratoriesSpawnPath, CliCommandLaboratoriesSpawnPathSchema, type CliCommandLaboratoriesSpawnRequest, CliCommandLaboratoriesSpawnRequestSchema, type CliCommandLaboratoriesSpawnRequestSchemaListenerExecution, type CliCommandLaboratoriesSpawnRequestSchemaPath, CliCommandLaboratoriesSpawnRequestSchemaPathSchema, type CliCommandLaboratoriesSpawnRequestSchemaRequest, CliCommandLaboratoriesSpawnRequestSchemaRequestSchema, type CliCommandLaboratoriesSpawnResponse, CliCommandLaboratoriesSpawnResponseSchema, type CliCommandLaboratoriesSpawnResponseSchemaListenerExecution, type CliCommandLaboratoriesSpawnResponseSchemaPath, CliCommandLaboratoriesSpawnResponseSchemaPathSchema, type CliCommandLaboratoriesSpawnResponseSchemaRequest, CliCommandLaboratoriesSpawnResponseSchemaRequestSchema, type CliCommandListenerExecution, type CliCommandMcpConfigAddressGetListenerExecution, type CliCommandMcpConfigAddressGetPath, CliCommandMcpConfigAddressGetPathSchema, type CliCommandMcpConfigAddressGetRequest, CliCommandMcpConfigAddressGetRequestSchema, type CliCommandMcpConfigAddressGetRequestSchemaListenerExecution, type CliCommandMcpConfigAddressGetRequestSchemaPath, CliCommandMcpConfigAddressGetRequestSchemaPathSchema, type CliCommandMcpConfigAddressGetRequestSchemaRequest, CliCommandMcpConfigAddressGetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressGetResponse, CliCommandMcpConfigAddressGetResponseSchema, type CliCommandMcpConfigAddressGetResponseSchemaListenerExecution, type CliCommandMcpConfigAddressGetResponseSchemaPath, CliCommandMcpConfigAddressGetResponseSchemaPathSchema, type CliCommandMcpConfigAddressGetResponseSchemaRequest, CliCommandMcpConfigAddressGetResponseSchemaRequestSchema, type CliCommandMcpConfigAddressListenerExecution, type CliCommandMcpConfigAddressRequest, CliCommandMcpConfigAddressRequestSchema, type CliCommandMcpConfigAddressSetListenerExecution, type CliCommandMcpConfigAddressSetPath, CliCommandMcpConfigAddressSetPathSchema, type CliCommandMcpConfigAddressSetRequest, CliCommandMcpConfigAddressSetRequestSchema, type CliCommandMcpConfigAddressSetRequestSchemaListenerExecution, type CliCommandMcpConfigAddressSetRequestSchemaPath, CliCommandMcpConfigAddressSetRequestSchemaPathSchema, type CliCommandMcpConfigAddressSetRequestSchemaRequest, CliCommandMcpConfigAddressSetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressSetResponseSchemaListenerExecution, type CliCommandMcpConfigAddressSetResponseSchemaPath, CliCommandMcpConfigAddressSetResponseSchemaPathSchema, type CliCommandMcpConfigAddressSetResponseSchemaRequest, CliCommandMcpConfigAddressSetResponseSchemaRequestSchema, type CliCommandMcpConfigGetListenerExecution, type CliCommandMcpConfigGetPath, CliCommandMcpConfigGetPathSchema, type CliCommandMcpConfigGetRequest, CliCommandMcpConfigGetRequestSchema, type CliCommandMcpConfigGetRequestSchemaListenerExecution, type CliCommandMcpConfigGetRequestSchemaPath, CliCommandMcpConfigGetRequestSchemaPathSchema, type CliCommandMcpConfigGetRequestSchemaRequest, CliCommandMcpConfigGetRequestSchemaRequestSchema, type CliCommandMcpConfigGetResponse, CliCommandMcpConfigGetResponseSchema, type CliCommandMcpConfigGetResponseSchemaListenerExecution, type CliCommandMcpConfigGetResponseSchemaPath, CliCommandMcpConfigGetResponseSchemaPathSchema, type CliCommandMcpConfigGetResponseSchemaRequest, CliCommandMcpConfigGetResponseSchemaRequestSchema, type CliCommandMcpConfigListenerExecution, type CliCommandMcpConfigPortGetListenerExecution, type CliCommandMcpConfigPortGetPath, CliCommandMcpConfigPortGetPathSchema, type CliCommandMcpConfigPortGetRequest, CliCommandMcpConfigPortGetRequestSchema, type CliCommandMcpConfigPortGetRequestSchemaListenerExecution, type CliCommandMcpConfigPortGetRequestSchemaPath, CliCommandMcpConfigPortGetRequestSchemaPathSchema, type CliCommandMcpConfigPortGetRequestSchemaRequest, CliCommandMcpConfigPortGetRequestSchemaRequestSchema, type CliCommandMcpConfigPortGetResponse, CliCommandMcpConfigPortGetResponseSchema, type CliCommandMcpConfigPortGetResponseSchemaListenerExecution, type CliCommandMcpConfigPortGetResponseSchemaPath, CliCommandMcpConfigPortGetResponseSchemaPathSchema, type CliCommandMcpConfigPortGetResponseSchemaRequest, CliCommandMcpConfigPortGetResponseSchemaRequestSchema, type CliCommandMcpConfigPortListenerExecution, type CliCommandMcpConfigPortRequest, CliCommandMcpConfigPortRequestSchema, type CliCommandMcpConfigPortSetListenerExecution, type CliCommandMcpConfigPortSetPath, CliCommandMcpConfigPortSetPathSchema, type CliCommandMcpConfigPortSetRequest, CliCommandMcpConfigPortSetRequestSchema, type CliCommandMcpConfigPortSetRequestSchemaListenerExecution, type CliCommandMcpConfigPortSetRequestSchemaPath, CliCommandMcpConfigPortSetRequestSchemaPathSchema, type CliCommandMcpConfigPortSetRequestSchemaRequest, CliCommandMcpConfigPortSetRequestSchemaRequestSchema, type CliCommandMcpConfigPortSetResponseSchemaListenerExecution, type CliCommandMcpConfigPortSetResponseSchemaPath, CliCommandMcpConfigPortSetResponseSchemaPathSchema, type CliCommandMcpConfigPortSetResponseSchemaRequest, CliCommandMcpConfigPortSetResponseSchemaRequestSchema, type CliCommandMcpConfigRequest, CliCommandMcpConfigRequestSchema, type CliCommandMcpKillListenerExecution, type CliCommandMcpKillPath, CliCommandMcpKillPathSchema, type CliCommandMcpKillRequest, CliCommandMcpKillRequestSchema, type CliCommandMcpKillRequestSchemaListenerExecution, type CliCommandMcpKillRequestSchemaPath, CliCommandMcpKillRequestSchemaPathSchema, type CliCommandMcpKillRequestSchemaRequest, CliCommandMcpKillRequestSchemaRequestSchema, type CliCommandMcpKillResponse, CliCommandMcpKillResponseSchema, type CliCommandMcpKillResponseSchemaListenerExecution, type CliCommandMcpKillResponseSchemaPath, CliCommandMcpKillResponseSchemaPathSchema, type CliCommandMcpKillResponseSchemaRequest, CliCommandMcpKillResponseSchemaRequestSchema, type CliCommandMcpListenerExecution, type CliCommandMcpRequest, CliCommandMcpRequestSchema, type CliCommandMcpSpawnListenerExecution, type CliCommandMcpSpawnPath, CliCommandMcpSpawnPathSchema, type CliCommandMcpSpawnRequest, CliCommandMcpSpawnRequestSchema, type CliCommandMcpSpawnRequestSchemaListenerExecution, type CliCommandMcpSpawnRequestSchemaPath, CliCommandMcpSpawnRequestSchemaPathSchema, type CliCommandMcpSpawnRequestSchemaRequest, CliCommandMcpSpawnRequestSchemaRequestSchema, type CliCommandMcpSpawnResponse, CliCommandMcpSpawnResponseSchema, type CliCommandMcpSpawnResponseSchemaListenerExecution, type CliCommandMcpSpawnResponseSchemaPath, CliCommandMcpSpawnResponseSchemaPathSchema, type CliCommandMcpSpawnResponseSchemaRequest, CliCommandMcpSpawnResponseSchemaRequestSchema, type CliCommandOk, CliCommandOkSchema, type CliCommandPluginsGetListenerExecution, type CliCommandPluginsGetPath, CliCommandPluginsGetPathSchema, type CliCommandPluginsGetRequest, CliCommandPluginsGetRequestSchema, type CliCommandPluginsGetRequestSchemaListenerExecution, type CliCommandPluginsGetRequestSchemaPath, CliCommandPluginsGetRequestSchemaPathSchema, type CliCommandPluginsGetRequestSchemaRequest, CliCommandPluginsGetRequestSchemaRequestSchema, type CliCommandPluginsGetResponseManifest, CliCommandPluginsGetResponseManifestSchema, type CliCommandPluginsGetResponseMcpServer, CliCommandPluginsGetResponseMcpServerSchema, type CliCommandPluginsGetResponseSchemaListenerExecution, type CliCommandPluginsGetResponseSchemaPath, CliCommandPluginsGetResponseSchemaPathSchema, type CliCommandPluginsGetResponseSchemaRequest, CliCommandPluginsGetResponseSchemaRequestSchema, type CliCommandPluginsInstallFilesystemListenerExecution, type CliCommandPluginsInstallFilesystemPath, CliCommandPluginsInstallFilesystemPathSchema, type CliCommandPluginsInstallFilesystemRequest, CliCommandPluginsInstallFilesystemRequestSchema, type CliCommandPluginsInstallFilesystemRequestSchemaListenerExecution, type CliCommandPluginsInstallFilesystemRequestSchemaPath, CliCommandPluginsInstallFilesystemRequestSchemaPathSchema, type CliCommandPluginsInstallFilesystemRequestSchemaRequest, CliCommandPluginsInstallFilesystemRequestSchemaRequestSchema, type CliCommandPluginsInstallFilesystemResponse, CliCommandPluginsInstallFilesystemResponseSchema, type CliCommandPluginsInstallFilesystemResponseSchemaListenerExecution, type CliCommandPluginsInstallFilesystemResponseSchemaPath, CliCommandPluginsInstallFilesystemResponseSchemaPathSchema, type CliCommandPluginsInstallFilesystemResponseSchemaRequest, CliCommandPluginsInstallFilesystemResponseSchemaRequestSchema, type CliCommandPluginsInstallGithubListenerExecution, type CliCommandPluginsInstallGithubPath, CliCommandPluginsInstallGithubPathSchema, type CliCommandPluginsInstallGithubRequest, CliCommandPluginsInstallGithubRequestSchema, type CliCommandPluginsInstallGithubRequestSchemaListenerExecution, type CliCommandPluginsInstallGithubRequestSchemaPath, CliCommandPluginsInstallGithubRequestSchemaPathSchema, type CliCommandPluginsInstallGithubRequestSchemaRequest, CliCommandPluginsInstallGithubRequestSchemaRequestSchema, type CliCommandPluginsInstallGithubResponse, CliCommandPluginsInstallGithubResponseSchema, type CliCommandPluginsInstallGithubResponseSchemaListenerExecution, type CliCommandPluginsInstallGithubResponseSchemaPath, CliCommandPluginsInstallGithubResponseSchemaPathSchema, type CliCommandPluginsInstallGithubResponseSchemaRequest, CliCommandPluginsInstallGithubResponseSchemaRequestSchema, type CliCommandPluginsInstallListenerExecution, type CliCommandPluginsInstallRequest, CliCommandPluginsInstallRequestSchema, type CliCommandPluginsListListenerExecution, type CliCommandPluginsListPath, CliCommandPluginsListPathSchema, type CliCommandPluginsListRequest, CliCommandPluginsListRequestSchema, type CliCommandPluginsListRequestSchemaListenerExecution, type CliCommandPluginsListRequestSchemaPath, CliCommandPluginsListRequestSchemaPathSchema, type CliCommandPluginsListRequestSchemaRequest, CliCommandPluginsListRequestSchemaRequestSchema, type CliCommandPluginsListResponseSchemaListenerExecution, type CliCommandPluginsListResponseSchemaPath, CliCommandPluginsListResponseSchemaPathSchema, type CliCommandPluginsListResponseSchemaRequest, CliCommandPluginsListResponseSchemaRequestSchema, type CliCommandPluginsListenerExecution, type CliCommandPluginsLogsListListenerExecution, type CliCommandPluginsLogsListPath, CliCommandPluginsLogsListPathSchema, type CliCommandPluginsLogsListRequest, CliCommandPluginsLogsListRequestSchema, type CliCommandPluginsLogsListRequestSchemaListenerExecution, type CliCommandPluginsLogsListRequestSchemaPath, CliCommandPluginsLogsListRequestSchemaPathSchema, type CliCommandPluginsLogsListRequestSchemaRequest, CliCommandPluginsLogsListRequestSchemaRequestSchema, type CliCommandPluginsLogsListResponseItem, CliCommandPluginsLogsListResponseItemSchema, type CliCommandPluginsLogsListResponseSchemaListenerExecution, type CliCommandPluginsLogsListResponseSchemaPath, CliCommandPluginsLogsListResponseSchemaPathSchema, type CliCommandPluginsLogsListResponseSchemaRequest, CliCommandPluginsLogsListResponseSchemaRequestSchema, type CliCommandPluginsLogsListenerExecution, type CliCommandPluginsLogsRequest, CliCommandPluginsLogsRequestSchema, type CliCommandPluginsRequest, CliCommandPluginsRequestSchema, type CliCommandPluginsRunListenerExecution, type CliCommandPluginsRunMcp, CliCommandPluginsRunMcpSchema, type CliCommandPluginsRunMcpType, CliCommandPluginsRunMcpTypeSchema, type CliCommandPluginsRunPath, CliCommandPluginsRunPathSchema, type CliCommandPluginsRunRequest, CliCommandPluginsRunRequestSchema, type CliCommandPluginsRunRequestSchemaListenerExecution, type CliCommandPluginsRunRequestSchemaPath, CliCommandPluginsRunRequestSchemaPathSchema, type CliCommandPluginsRunRequestSchemaRequest, CliCommandPluginsRunRequestSchemaRequestSchema, type CliCommandPluginsRunResponseItem, CliCommandPluginsRunResponseItemSchema, type CliCommandPluginsRunResponseSchemaListenerExecution, type CliCommandPluginsRunResponseSchemaPath, CliCommandPluginsRunResponseSchemaPathSchema, type CliCommandPluginsRunResponseSchemaRequest, CliCommandPluginsRunResponseSchemaRequestSchema, type CliCommandPythonListenerExecution, type CliCommandPythonPath, CliCommandPythonPathSchema, type CliCommandPythonRequest, CliCommandPythonRequestSchema, type CliCommandPythonRequestSchemaListenerExecution, type CliCommandPythonRequestSchemaPath, CliCommandPythonRequestSchemaPathSchema, type CliCommandPythonRequestSchemaRequest, CliCommandPythonRequestSchemaRequestSchema, type CliCommandPythonResponseSchemaListenerExecution, type CliCommandPythonResponseSchemaPath, CliCommandPythonResponseSchemaPathSchema, type CliCommandPythonResponseSchemaRequest, CliCommandPythonResponseSchemaRequestSchema, type CliCommandRequest, type CliCommandRequestBase, CliCommandRequestBaseSchema, CliCommandRequestSchema, type CliCommandSetScope, CliCommandSetScopeSchema, type CliCommandSwarmsGetListenerExecution, type CliCommandSwarmsGetPath, CliCommandSwarmsGetPathSchema, type CliCommandSwarmsGetRequest, CliCommandSwarmsGetRequestSchema, type CliCommandSwarmsGetRequestSchemaListenerExecution, type CliCommandSwarmsGetRequestSchemaPath, CliCommandSwarmsGetRequestSchemaPathSchema, type CliCommandSwarmsGetRequestSchemaRequest, CliCommandSwarmsGetRequestSchemaRequestSchema, type CliCommandSwarmsGetResponse, CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponseSchemaListenerExecution, type CliCommandSwarmsGetResponseSchemaPath, CliCommandSwarmsGetResponseSchemaPathSchema, type CliCommandSwarmsGetResponseSchemaRequest, CliCommandSwarmsGetResponseSchemaRequestSchema, type CliCommandSwarmsListListenerExecution, type CliCommandSwarmsListPath, CliCommandSwarmsListPathSchema, type CliCommandSwarmsListRequest, CliCommandSwarmsListRequestSchema, type CliCommandSwarmsListRequestSchemaListenerExecution, type CliCommandSwarmsListRequestSchemaPath, CliCommandSwarmsListRequestSchemaPathSchema, type CliCommandSwarmsListRequestSchemaRequest, CliCommandSwarmsListRequestSchemaRequestSchema, type CliCommandSwarmsListResponse, CliCommandSwarmsListResponseSchema, type CliCommandSwarmsListResponseSchemaListenerExecution, type CliCommandSwarmsListResponseSchemaPath, CliCommandSwarmsListResponseSchemaPathSchema, type CliCommandSwarmsListResponseSchemaRequest, CliCommandSwarmsListResponseSchemaRequestSchema, type CliCommandSwarmsListenerExecution, type CliCommandSwarmsPublishListenerExecution, type CliCommandSwarmsPublishPath, CliCommandSwarmsPublishPathSchema, type CliCommandSwarmsPublishRequest, type CliCommandSwarmsPublishRequestBody, CliCommandSwarmsPublishRequestBodySchema, type CliCommandSwarmsPublishRequestPublishMessage, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, type CliCommandSwarmsPublishRequestSchemaListenerExecution, type CliCommandSwarmsPublishRequestSchemaPath, CliCommandSwarmsPublishRequestSchemaPathSchema, type CliCommandSwarmsPublishRequestSchemaRequest, CliCommandSwarmsPublishRequestSchemaRequestSchema, type CliCommandSwarmsPublishResponse, CliCommandSwarmsPublishResponseSchema, type CliCommandSwarmsPublishResponseSchemaListenerExecution, type CliCommandSwarmsPublishResponseSchemaPath, CliCommandSwarmsPublishResponseSchemaPathSchema, type CliCommandSwarmsPublishResponseSchemaRequest, CliCommandSwarmsPublishResponseSchemaRequestSchema, type CliCommandSwarmsRequest, CliCommandSwarmsRequestSchema, type CliCommandToolsGetExec, CliCommandToolsGetExecSchema, type CliCommandToolsGetListenerExecution, type CliCommandToolsGetPath, CliCommandToolsGetPathSchema, type CliCommandToolsGetRequest, CliCommandToolsGetRequestSchema, type CliCommandToolsGetRequestSchemaListenerExecution, type CliCommandToolsGetRequestSchemaPath, CliCommandToolsGetRequestSchemaPathSchema, type CliCommandToolsGetRequestSchemaRequest, CliCommandToolsGetRequestSchemaRequestSchema, type CliCommandToolsGetResponseManifest, CliCommandToolsGetResponseManifestSchema, type CliCommandToolsGetResponseSchemaListenerExecution, type CliCommandToolsGetResponseSchemaPath, CliCommandToolsGetResponseSchemaPathSchema, type CliCommandToolsGetResponseSchemaRequest, CliCommandToolsGetResponseSchemaRequestSchema, type CliCommandToolsInstallFilesystemListenerExecution, type CliCommandToolsInstallFilesystemPath, CliCommandToolsInstallFilesystemPathSchema, type CliCommandToolsInstallFilesystemRequest, CliCommandToolsInstallFilesystemRequestSchema, type CliCommandToolsInstallFilesystemRequestSchemaListenerExecution, type CliCommandToolsInstallFilesystemRequestSchemaPath, CliCommandToolsInstallFilesystemRequestSchemaPathSchema, type CliCommandToolsInstallFilesystemRequestSchemaRequest, CliCommandToolsInstallFilesystemRequestSchemaRequestSchema, type CliCommandToolsInstallFilesystemResponse, CliCommandToolsInstallFilesystemResponseSchema, type CliCommandToolsInstallFilesystemResponseSchemaListenerExecution, type CliCommandToolsInstallFilesystemResponseSchemaPath, CliCommandToolsInstallFilesystemResponseSchemaPathSchema, type CliCommandToolsInstallFilesystemResponseSchemaRequest, CliCommandToolsInstallFilesystemResponseSchemaRequestSchema, type CliCommandToolsInstallGithubListenerExecution, type CliCommandToolsInstallGithubPath, CliCommandToolsInstallGithubPathSchema, type CliCommandToolsInstallGithubRequest, CliCommandToolsInstallGithubRequestSchema, type CliCommandToolsInstallGithubRequestSchemaListenerExecution, type CliCommandToolsInstallGithubRequestSchemaPath, CliCommandToolsInstallGithubRequestSchemaPathSchema, type CliCommandToolsInstallGithubRequestSchemaRequest, CliCommandToolsInstallGithubRequestSchemaRequestSchema, type CliCommandToolsInstallGithubResponse, CliCommandToolsInstallGithubResponseSchema, type CliCommandToolsInstallGithubResponseSchemaListenerExecution, type CliCommandToolsInstallGithubResponseSchemaPath, CliCommandToolsInstallGithubResponseSchemaPathSchema, type CliCommandToolsInstallGithubResponseSchemaRequest, CliCommandToolsInstallGithubResponseSchemaRequestSchema, type CliCommandToolsInstallListenerExecution, type CliCommandToolsInstallRequest, CliCommandToolsInstallRequestSchema, type CliCommandToolsListListenerExecution, type CliCommandToolsListPath, CliCommandToolsListPathSchema, type CliCommandToolsListRequest, CliCommandToolsListRequestSchema, type CliCommandToolsListRequestSchemaListenerExecution, type CliCommandToolsListRequestSchemaPath, CliCommandToolsListRequestSchemaPathSchema, type CliCommandToolsListRequestSchemaRequest, CliCommandToolsListRequestSchemaRequestSchema, type CliCommandToolsListResponseSchemaListenerExecution, type CliCommandToolsListResponseSchemaPath, CliCommandToolsListResponseSchemaPathSchema, type CliCommandToolsListResponseSchemaRequest, CliCommandToolsListResponseSchemaRequestSchema, type CliCommandToolsListenerExecution, type CliCommandToolsRequest, CliCommandToolsRequestSchema, type CliCommandToolsRunListenerExecution, type CliCommandToolsRunPath, CliCommandToolsRunPathSchema, type CliCommandToolsRunRequest, CliCommandToolsRunRequestSchema, type CliCommandToolsRunRequestSchemaListenerExecution, type CliCommandToolsRunRequestSchemaPath, CliCommandToolsRunRequestSchemaPathSchema, type CliCommandToolsRunRequestSchemaRequest, CliCommandToolsRunRequestSchemaRequestSchema, type CliCommandToolsRunResponseItem, CliCommandToolsRunResponseItemSchema, type CliCommandToolsRunResponseSchemaListenerExecution, type CliCommandToolsRunResponseSchemaPath, CliCommandToolsRunResponseSchemaPathSchema, type CliCommandToolsRunResponseSchemaRequest, CliCommandToolsRunResponseSchemaRequestSchema, type CliCommandUpdateListenerExecution, type CliCommandUpdatePath, CliCommandUpdatePathSchema, type CliCommandUpdateRequest, CliCommandUpdateRequestSchema, type CliCommandUpdateRequestSchemaListenerExecution, type CliCommandUpdateRequestSchemaPath, CliCommandUpdateRequestSchemaPathSchema, type CliCommandUpdateRequestSchemaRequest, CliCommandUpdateRequestSchemaRequestSchema, type CliCommandUpdateResponse, type CliCommandUpdateResponseItem, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, type CliCommandUpdateResponseSchemaListenerExecution, type CliCommandUpdateResponseSchemaPath, CliCommandUpdateResponseSchemaPathSchema, type CliCommandUpdateResponseSchemaRequest, CliCommandUpdateResponseSchemaRequestSchema, type CliCommandUpdateResponseSkipReason, CliCommandUpdateResponseSkipReasonSchema, type CliCommandViewerGenerateSecretSignaturePairListenerExecution, type CliCommandViewerGenerateSecretSignaturePairPath, CliCommandViewerGenerateSecretSignaturePairPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaListenerExecution, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaPath, CliCommandViewerGenerateSecretSignaturePairRequestSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequestSchema, type CliCommandViewerGenerateSecretSignaturePairResponse, CliCommandViewerGenerateSecretSignaturePairResponseSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaListenerExecution, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaPath, CliCommandViewerGenerateSecretSignaturePairResponseSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest, CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequestSchema, type CliCommandViewerKillListenerExecution, type CliCommandViewerKillPath, CliCommandViewerKillPathSchema, type CliCommandViewerKillRequest, CliCommandViewerKillRequestSchema, type CliCommandViewerKillRequestSchemaListenerExecution, type CliCommandViewerKillRequestSchemaPath, CliCommandViewerKillRequestSchemaPathSchema, type CliCommandViewerKillRequestSchemaRequest, CliCommandViewerKillRequestSchemaRequestSchema, type CliCommandViewerKillResponse, CliCommandViewerKillResponseSchema, type CliCommandViewerKillResponseSchemaListenerExecution, type CliCommandViewerKillResponseSchemaPath, CliCommandViewerKillResponseSchemaPathSchema, type CliCommandViewerKillResponseSchemaRequest, CliCommandViewerKillResponseSchemaRequestSchema, type CliCommandViewerListenerExecution, type CliCommandViewerRequest, CliCommandViewerRequestSchema, type CliCommandViewerSpawnListenerExecution, type CliCommandViewerSpawnPath, CliCommandViewerSpawnPathSchema, type CliCommandViewerSpawnRequest, CliCommandViewerSpawnRequestSchema, type CliCommandViewerSpawnRequestSchemaListenerExecution, type CliCommandViewerSpawnRequestSchemaPath, CliCommandViewerSpawnRequestSchemaPathSchema, type CliCommandViewerSpawnRequestSchemaRequest, CliCommandViewerSpawnRequestSchemaRequestSchema, type CliCommandViewerSpawnResponse, CliCommandViewerSpawnResponseSchema, type CliCommandViewerSpawnResponseSchemaListenerExecution, type CliCommandViewerSpawnResponseSchemaPath, CliCommandViewerSpawnResponseSchemaPathSchema, type CliCommandViewerSpawnResponseSchemaRequest, CliCommandViewerSpawnResponseSchemaRequestSchema, type CliError, CliErrorSchema, type CliErrorType, CliErrorTypeSchema, type CliLevel, CliLevelSchema, type CliPluginsCommand, CliPluginsCommandSchema, type CliPluginsCommandType, CliPluginsCommandTypeSchema, type CliPluginsOutput, CliPluginsOutputSchema, CliStream, type CliWebsocketAgentsInstancesListListenerAgentEvent, CliWebsocketAgentsInstancesListListenerAgentEventSchema, type CliWebsocketAgentsInstancesListListenerAgentStatus, CliWebsocketAgentsInstancesListListenerAgentStatusSchema, type CliWebsocketAgentsInstancesListenerAgentInstanceEvent, CliWebsocketAgentsInstancesListenerAgentInstanceEventSchema, type CliWebsocketAgentsInstancesListenerAgentRecord, CliWebsocketAgentsInstancesListenerAgentRecordSchema, type CliWebsocketAgentsInstancesListenerAssistantResponsePart, CliWebsocketAgentsInstancesListenerAssistantResponsePartSchema, type CliWebsocketAgentsInstancesListenerAttachedLaboratory, CliWebsocketAgentsInstancesListenerAttachedLaboratorySchema, type CliWebsocketAgentsInstancesListenerClientNotificationPart, CliWebsocketAgentsInstancesListenerClientNotificationPartSchema, type CliWebsocketAgentsInstancesListenerConversationBlock, CliWebsocketAgentsInstancesListenerConversationBlockSchema, type CliWebsocketAgentsInstancesListenerPartContent, CliWebsocketAgentsInstancesListenerPartContentSchema, type CliWebsocketAgentsInstancesListenerRequestMessageUserPart, CliWebsocketAgentsInstancesListenerRequestMessageUserPartSchema, type CliWebsocketAgentsInstancesListenerToolResponsePart, CliWebsocketAgentsInstancesListenerToolResponsePartSchema, type CliWebsocketAgentsInstancesListenerVectorRequestChoice, type CliWebsocketAgentsInstancesListenerVectorRequestChoicePart, CliWebsocketAgentsInstancesListenerVectorRequestChoicePartSchema, CliWebsocketAgentsInstancesListenerVectorRequestChoiceSchema, type CliWebsocketLaboratoriesListListenerLaboratoryEvent, CliWebsocketLaboratoriesListListenerLaboratoryEventSchema, type CliWebsocketLaboratoriesListListenerLaboratoryStatus, CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema, type CliWebsocketLaboratoriesListenerLaboratoryAttachment, CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema, type CliWebsocketLaboratoriesListenerLaboratoryInstanceEvent, CliWebsocketLaboratoriesListenerLaboratoryInstanceEventSchema, type CliWebsocketLaboratoriesListenerLaboratoryRecord, CliWebsocketLaboratoriesListenerLaboratoryRecordSchema, type CliWebsocketListenerListenerEnd, CliWebsocketListenerListenerEndSchema, type CommandExecutor, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type LaboratoriesClientLaboratory, LaboratoriesClientLaboratorySchema, type LaboratoriesClientLaboratoryType, LaboratoriesClientLaboratoryTypeSchema, type LaboratoriesLaboratory, LaboratoriesLaboratorySchema, type MachineMachineIdentity, MachineMachineIdentitySchema, type McpCompletionsCapability, McpCompletionsCapabilitySchema, type McpImplementation, McpImplementationSchema, type McpInitializeResult, McpInitializeResultSchema, type McpListServersResult, McpListServersResultSchema, type McpLoggingCapability, McpLoggingCapabilitySchema, type McpPlugin, McpPluginSchema, type McpPromptsCapability, McpPromptsCapabilitySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceListResourcesResult, McpResourceListResourcesResultSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpResourceReadResourceResult, McpResourceReadResourceResultSchema, type McpResourceResource, McpResourceResourceSchema, type McpResourcesCapability, McpResourcesCapabilitySchema, type McpServer, type McpServerCapabilities, McpServerCapabilitiesSchema, McpServerSchema, type McpSharedAnnotations, McpSharedAnnotationsSchema, type McpSharedBlobResourceContents, McpSharedBlobResourceContentsSchema, type McpSharedIcon, McpSharedIconSchema, type McpSharedIconTheme, McpSharedIconThemeSchema, type McpSharedResourceContents, McpSharedResourceContentsSchema, type McpSharedResourceContentsUnion, McpSharedResourceContentsUnionSchema, type McpSharedRole, McpSharedRoleSchema, type McpSharedTextResourceContents, McpSharedTextResourceContentsSchema, type McpTasksCancelCapability, McpTasksCancelCapabilitySchema, type McpTasksCapability, McpTasksCapabilitySchema, type McpTasksListCapability, McpTasksListCapabilitySchema, type McpTasksRequestsCapability, McpTasksRequestsCapabilitySchema, type McpTasksToolsCallCapability, McpTasksToolsCallCapabilitySchema, type McpTasksToolsCapability, McpTasksToolsCapabilitySchema, type McpToolAudioContent, McpToolAudioContentSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolCallToolResult, McpToolCallToolResultSchema, type McpToolContentBlock, McpToolContentBlockSchema, type McpToolEmbeddedResource, McpToolEmbeddedResourceSchema, type McpToolImageContent, McpToolImageContentSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolListToolsResult, McpToolListToolsResultSchema, type McpToolResourceLink, McpToolResourceLinkSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, type McpToolTaskSupport, McpToolTaskSupportSchema, type McpToolTextContent, McpToolTextContentSchema, type McpToolTool, type McpToolToolAnnotations, McpToolToolAnnotationsSchema, type McpToolToolExecution, McpToolToolExecutionSchema, McpToolToolSchema, type McpToolToolSchemaObject, McpToolToolSchemaObjectSchema, type McpToolToolSchemaType, McpToolToolSchemaTypeSchema, type McpToolsCapability, McpToolsCapabilitySchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, PluginCommandExecutor, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, ResponseItemStream, Stream, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, WebSocketAgentsInstancesListListener, type WebSocketAgentsInstancesListListenerOptions, WebSocketAgentsInstancesListener, type WebSocketAgentsInstancesListenerOptions, WebSocketExecutor, type WebSocketExecutorOptions, WebSocketLaboratoriesListListener, type WebSocketLaboratoriesListListenerOptions, WebSocketLaboratoriesListener, type WebSocketLaboratoriesListenerOptions, WebSocketListener, type WebSocketListenerOptions, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamDurationMsMerged, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecute, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecute, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecute, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecute, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecute, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpCallTimeoutMsGetExecute, apiConfigMcpCallTimeoutMsGetExecuteTransform, apiConfigMcpCallTimeoutMsGetRequestSchemaExecute, apiConfigMcpCallTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpCallTimeoutMsGetResponseSchemaExecute, apiConfigMcpCallTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpCallTimeoutMsSetExecute, apiConfigMcpCallTimeoutMsSetExecuteTransform, apiConfigMcpCallTimeoutMsSetRequestSchemaExecute, apiConfigMcpCallTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpCallTimeoutMsSetResponseSchemaExecute, apiConfigMcpCallTimeoutMsSetResponseSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsGetExecute, apiConfigMcpConnectTimeoutMsGetExecuteTransform, apiConfigMcpConnectTimeoutMsGetRequestSchemaExecute, apiConfigMcpConnectTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsGetResponseSchemaExecute, apiConfigMcpConnectTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsSetExecute, apiConfigMcpConnectTimeoutMsSetExecuteTransform, apiConfigMcpConnectTimeoutMsSetRequestSchemaExecute, apiConfigMcpConnectTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsSetResponseSchemaExecute, apiConfigMcpConnectTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, apiKillExecute, apiKillExecuteTransform, apiKillRequestSchemaExecute, apiKillRequestSchemaExecuteTransform, apiKillResponseSchemaExecute, apiKillResponseSchemaExecuteTransform, apiSpawnExecute, apiSpawnExecuteTransform, apiSpawnRequestSchemaExecute, apiSpawnRequestSchemaExecuteTransform, apiSpawnResponseSchemaExecute, apiSpawnResponseSchemaExecuteTransform, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigAddressSetExecute, dbConfigAddressSetExecuteTransform, dbConfigAddressSetRequestSchemaExecute, dbConfigAddressSetRequestSchemaExecuteTransform, dbConfigAddressSetResponseSchemaExecute, dbConfigAddressSetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigDatabaseSetExecute, dbConfigDatabaseSetExecuteTransform, dbConfigDatabaseSetRequestSchemaExecute, dbConfigDatabaseSetRequestSchemaExecuteTransform, dbConfigDatabaseSetResponseSchemaExecute, dbConfigDatabaseSetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigPasswordSetExecute, dbConfigPasswordSetExecuteTransform, dbConfigPasswordSetRequestSchemaExecute, dbConfigPasswordSetRequestSchemaExecuteTransform, dbConfigPasswordSetResponseSchemaExecute, dbConfigPasswordSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbConfigUserSetExecute, dbConfigUserSetExecuteTransform, dbConfigUserSetRequestSchemaExecute, dbConfigUserSetRequestSchemaExecuteTransform, dbConfigUserSetResponseSchemaExecute, dbConfigUserSetResponseSchemaExecuteTransform, dbKillExecute, dbKillExecuteTransform, dbKillRequestSchemaExecute, dbKillRequestSchemaExecuteTransform, dbKillResponseSchemaExecute, dbKillResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, dbSpawnExecute, dbSpawnExecuteTransform, dbSpawnRequestSchemaExecute, dbSpawnRequestSchemaExecuteTransform, dbSpawnResponseSchemaExecute, dbSpawnResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, killAllExecute, killAllExecuteTransform, killAllRequestSchemaExecute, killAllRequestSchemaExecuteTransform, killAllResponseSchemaExecute, killAllResponseSchemaExecuteTransform, laboratoriesAttachExecute, laboratoriesAttachExecuteTransform, laboratoriesAttachRequestSchemaExecute, laboratoriesAttachRequestSchemaExecuteTransform, laboratoriesAttachResponseSchemaExecute, laboratoriesAttachResponseSchemaExecuteTransform, laboratoriesConfigAddressesAddExecute, laboratoriesConfigAddressesAddExecuteTransform, laboratoriesConfigAddressesAddRequestSchemaExecute, laboratoriesConfigAddressesAddRequestSchemaExecuteTransform, laboratoriesConfigAddressesAddResponseSchemaExecute, laboratoriesConfigAddressesAddResponseSchemaExecuteTransform, laboratoriesConfigAddressesDelExecute, laboratoriesConfigAddressesDelExecuteTransform, laboratoriesConfigAddressesDelRequestSchemaExecute, laboratoriesConfigAddressesDelRequestSchemaExecuteTransform, laboratoriesConfigAddressesDelResponseSchemaExecute, laboratoriesConfigAddressesDelResponseSchemaExecuteTransform, laboratoriesConfigAddressesGetExecute, laboratoriesConfigAddressesGetExecuteTransform, laboratoriesConfigAddressesGetRequestSchemaExecute, laboratoriesConfigAddressesGetRequestSchemaExecuteTransform, laboratoriesConfigAddressesGetResponseSchemaExecute, laboratoriesConfigAddressesGetResponseSchemaExecuteTransform, laboratoriesConfigLocalGetExecute, laboratoriesConfigLocalGetExecuteTransform, laboratoriesConfigLocalGetRequestSchemaExecute, laboratoriesConfigLocalGetRequestSchemaExecuteTransform, laboratoriesConfigLocalGetResponseSchemaExecute, laboratoriesConfigLocalGetResponseSchemaExecuteTransform, laboratoriesConfigLocalSetExecute, laboratoriesConfigLocalSetExecuteTransform, laboratoriesConfigLocalSetRequestSchemaExecute, laboratoriesConfigLocalSetRequestSchemaExecuteTransform, laboratoriesConfigLocalSetResponseSchemaExecute, laboratoriesConfigLocalSetResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesDeleteExecute, laboratoriesDeleteExecuteTransform, laboratoriesDeleteRequestSchemaExecute, laboratoriesDeleteRequestSchemaExecuteTransform, laboratoriesDeleteResponseSchemaExecute, laboratoriesDeleteResponseSchemaExecuteTransform, laboratoriesDetachExecute, laboratoriesDetachExecuteTransform, laboratoriesDetachRequestSchemaExecute, laboratoriesDetachRequestSchemaExecuteTransform, laboratoriesDetachResponseSchemaExecute, laboratoriesDetachResponseSchemaExecuteTransform, laboratoriesKillExecute, laboratoriesKillExecuteTransform, laboratoriesKillRequestSchemaExecute, laboratoriesKillRequestSchemaExecuteTransform, laboratoriesKillResponseSchemaExecute, laboratoriesKillResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, laboratoriesSpawnExecute, laboratoriesSpawnExecuteTransform, laboratoriesSpawnRequestSchemaExecute, laboratoriesSpawnRequestSchemaExecuteTransform, laboratoriesSpawnResponseSchemaExecute, laboratoriesSpawnResponseSchemaExecuteTransform, mcpConfigAddressGetExecute, mcpConfigAddressGetExecuteTransform, mcpConfigAddressGetRequestSchemaExecute, mcpConfigAddressGetRequestSchemaExecuteTransform, mcpConfigAddressGetResponseSchemaExecute, mcpConfigAddressGetResponseSchemaExecuteTransform, mcpConfigAddressSetExecute, mcpConfigAddressSetExecuteTransform, mcpConfigAddressSetRequestSchemaExecute, mcpConfigAddressSetRequestSchemaExecuteTransform, mcpConfigAddressSetResponseSchemaExecute, mcpConfigAddressSetResponseSchemaExecuteTransform, mcpConfigGetExecute, mcpConfigGetExecuteTransform, mcpConfigGetRequestSchemaExecute, mcpConfigGetRequestSchemaExecuteTransform, mcpConfigGetResponseSchemaExecute, mcpConfigGetResponseSchemaExecuteTransform, mcpConfigPortGetExecute, mcpConfigPortGetExecuteTransform, mcpConfigPortGetRequestSchemaExecute, mcpConfigPortGetRequestSchemaExecuteTransform, mcpConfigPortGetResponseSchemaExecute, mcpConfigPortGetResponseSchemaExecuteTransform, mcpConfigPortSetExecute, mcpConfigPortSetExecuteTransform, mcpConfigPortSetRequestSchemaExecute, mcpConfigPortSetRequestSchemaExecuteTransform, mcpConfigPortSetResponseSchemaExecute, mcpConfigPortSetResponseSchemaExecuteTransform, mcpKillExecute, mcpKillExecuteTransform, mcpKillRequestSchemaExecute, mcpKillRequestSchemaExecuteTransform, mcpKillResponseSchemaExecute, mcpKillResponseSchemaExecuteTransform, mcpSpawnExecute, mcpSpawnExecuteTransform, mcpSpawnRequestSchemaExecute, mcpSpawnRequestSchemaExecuteTransform, mcpSpawnResponseSchemaExecute, mcpSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, pluginsGetExecute, pluginsGetExecuteTransform, pluginsGetRequestSchemaExecute, pluginsGetRequestSchemaExecuteTransform, pluginsGetResponseSchemaExecute, pluginsGetResponseSchemaExecuteTransform, pluginsInstallFilesystemExecute, pluginsInstallFilesystemExecuteTransform, pluginsInstallFilesystemRequestSchemaExecute, pluginsInstallFilesystemRequestSchemaExecuteTransform, pluginsInstallFilesystemResponseSchemaExecute, pluginsInstallFilesystemResponseSchemaExecuteTransform, pluginsInstallGithubExecute, pluginsInstallGithubExecuteTransform, pluginsInstallGithubRequestSchemaExecute, pluginsInstallGithubRequestSchemaExecuteTransform, pluginsInstallGithubResponseSchemaExecute, pluginsInstallGithubResponseSchemaExecuteTransform, pluginsListExecute, pluginsListExecuteTransform, pluginsListRequestSchemaExecute, pluginsListRequestSchemaExecuteTransform, pluginsListResponseSchemaExecute, pluginsListResponseSchemaExecuteTransform, pluginsLogsListExecute, pluginsLogsListExecuteTransform, pluginsLogsListRequestSchemaExecute, pluginsLogsListRequestSchemaExecuteTransform, pluginsLogsListResponseSchemaExecute, pluginsLogsListResponseSchemaExecuteTransform, pluginsRunExecute, pluginsRunExecuteTransform, pluginsRunRequestSchemaExecute, pluginsRunRequestSchemaExecuteTransform, pluginsRunResponseSchemaExecute, pluginsRunResponseSchemaExecuteTransform, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, toolsGetExecute, toolsGetExecuteTransform, toolsGetRequestSchemaExecute, toolsGetRequestSchemaExecuteTransform, toolsGetResponseSchemaExecute, toolsGetResponseSchemaExecuteTransform, toolsInstallFilesystemExecute, toolsInstallFilesystemExecuteTransform, toolsInstallFilesystemRequestSchemaExecute, toolsInstallFilesystemRequestSchemaExecuteTransform, toolsInstallFilesystemResponseSchemaExecute, toolsInstallFilesystemResponseSchemaExecuteTransform, toolsInstallGithubExecute, toolsInstallGithubExecuteTransform, toolsInstallGithubRequestSchemaExecute, toolsInstallGithubRequestSchemaExecuteTransform, toolsInstallGithubResponseSchemaExecute, toolsInstallGithubResponseSchemaExecuteTransform, toolsListExecute, toolsListExecuteTransform, toolsListRequestSchemaExecute, toolsListRequestSchemaExecuteTransform, toolsListResponseSchemaExecute, toolsListResponseSchemaExecuteTransform, toolsRunExecute, toolsRunExecuteTransform, toolsRunRequestSchemaExecute, toolsRunRequestSchemaExecuteTransform, toolsRunResponseSchemaExecute, toolsRunResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerGenerateSecretSignaturePairExecute, viewerGenerateSecretSignaturePairExecuteTransform, viewerGenerateSecretSignaturePairRequestSchemaExecute, viewerGenerateSecretSignaturePairRequestSchemaExecuteTransform, viewerGenerateSecretSignaturePairResponseSchemaExecute, viewerGenerateSecretSignaturePairResponseSchemaExecuteTransform, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };

@@ -383,7 +383,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::laboratories::detach::request_schema::Request),
         schemars::schema_for!(crate::cli::command::laboratories::detach::response_schema::Path),
         schemars::schema_for!(crate::cli::command::laboratories::detach::response_schema::Request),
-        schemars::schema_for!(crate::cli::command::laboratories::Request),
         schemars::schema_for!(crate::cli::command::agents::list::Path),
         schemars::schema_for!(crate::cli::command::agents::list::Request),
         schemars::schema_for!(crate::cli::command::agents::list::request_schema::Path),

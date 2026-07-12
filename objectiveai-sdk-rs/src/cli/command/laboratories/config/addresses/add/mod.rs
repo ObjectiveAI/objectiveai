@@ -12,8 +12,10 @@ pub struct Request {
     /// The daemon `ws://` address the laboratory host should connect to.
     pub key: String,
     /// The signature to present at that address. Empty ⇒ dial
-    /// unauthenticated (the address's daemon must be open).
-    #[serde(default)]
+    /// unauthenticated (the address's daemon must be open). Always
+    /// sent explicitly — NO serde default: empty-string schema
+    /// defaults are banned (the json-schema builder asserts it), and
+    /// the CLI fills `""` itself when `--value` is omitted.
     pub value: String,
 }
 
