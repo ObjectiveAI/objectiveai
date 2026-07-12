@@ -12,6 +12,11 @@ import (
 type CliCommandLaboratoriesDetachResponse struct {
 	// The laboratory id that was detached from the target.
 	LaboratoryID string `json:"laboratory_id"`
+	// The machine id of the laboratory host the attachment row
+	// records (the provided pair, or the auto-filled local one).
+	Machine *string `json:"machine,omitempty"`
+	// The state the attachment row records, paired with `machine`.
+	MachineState *string `json:"machine_state,omitempty"`
 }
 
 func (CliCommandLaboratoriesDetachResponse) SchemaTitle() string { return "cli.command.laboratories.detach.Response" }

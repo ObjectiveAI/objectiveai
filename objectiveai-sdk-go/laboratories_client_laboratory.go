@@ -9,9 +9,19 @@ import (
 
 // A client-resolved laboratory: a client-side MCP server keyed by an
 // opaque `id`. Wire shape: `{"type":"client","id":"…"}`.
+//
+// Laboratory ids are only unique per (machine, state) — the same id
+// can exist on different laboratory hosts. `machine` + `machine_state`
+// pin THE laboratory this value means, so downstream routing (the
+// CLI conduit's `/laboratory` forward) is exact rather than
+// first-match-by-id. Absent pair ⇒ legacy id-only resolution.
 type LaboratoriesClientLaboratory struct {
 	// The opaque laboratory id.
 	ID string `json:"id"`
+	// The machine id of the laboratory host serving this laboratory.
+	Machine *string `json:"machine,omitempty"`
+	// The state (on that machine) the laboratory host serves.
+	MachineState *string `json:"machine_state,omitempty"`
 	// Discriminator — always `"client"`.
 	Type LaboratoriesClientLaboratoryType `json:"type"`
 }

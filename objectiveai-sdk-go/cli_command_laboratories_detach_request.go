@@ -12,6 +12,13 @@ type CliCommandLaboratoriesDetachRequest struct {
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
 	LaboratoryID string `json:"laboratory_id"`
+	// The EXACT machine id whose laboratory host serves the
+	// laboratory. Provided together with `machine_state` or not at
+	// all; neither ⇒ the current machine + the daemon's own state.
+	Machine *string `json:"machine,omitempty"`
+	// The state (on `machine`) whose laboratory host serves the
+	// laboratory. Paired with `machine` — both or neither.
+	MachineState *string `json:"machine_state,omitempty"`
 	// Response token budget, `>= 1` (`0` is rejected at parse
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.

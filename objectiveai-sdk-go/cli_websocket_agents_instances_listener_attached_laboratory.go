@@ -19,6 +19,12 @@ type CliWebsocketAgentsInstancesListenerAttachedLaboratory struct {
 	AttachedBy *string `json:"attached_by,omitempty"`
 	// The attached laboratory's id.
 	ID string `json:"id"`
+	// The machine id of the laboratory host the attachment row
+	// records — laboratory ids are only unique per (machine, state).
+	// `None` on rows predating machine tracking.
+	Machine *string `json:"machine,omitempty"`
+	// The state the attachment row records, paired with `machine`.
+	MachineState *string `json:"machine_state,omitempty"`
 }
 
 func (CliWebsocketAgentsInstancesListenerAttachedLaboratory) SchemaTitle() string { return "cli.websocket_agents_instances_listener.AttachedLaboratory" }

@@ -17,6 +17,14 @@ type CliCommandLaboratoriesCreateRequest struct {
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
 	Kind CliCommandLaboratoriesCreateKind `json:"kind"`
+	// The EXACT machine id (as `laboratories list` reports it) whose
+	// laboratory host should own the container. Provided together
+	// with `machine_state` or not at all; neither ⇒ the current
+	// machine + the daemon's own state.
+	Machine *string `json:"machine,omitempty"`
+	// The state (on `machine`) whose laboratory host should own the
+	// container. Paired with `machine` — both or neither.
+	MachineState *string `json:"machine_state,omitempty"`
 	// Response token budget, `>= 1` (`0` is rejected at parse
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.

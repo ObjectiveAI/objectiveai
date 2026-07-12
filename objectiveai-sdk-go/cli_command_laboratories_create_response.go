@@ -7,12 +7,21 @@ import (
 	"fmt"
 )
 
-// Echo of the created laboratory.
+// Echo of the created laboratory, from the owning host's reply.
 type CliCommandLaboratoriesCreateResponse struct {
+	// Unix seconds when the container was created, from podman's own
+	// record on the owning host. `None` when the host didn't report
+	// it.
+	CreatedAt *int64 `json:"created_at,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Cwd string `json:"cwd"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
 	Image string `json:"image"`
+	// The machine whose laboratory host owns the container.
+	Machine *MachineMachineIdentity `json:"machine,omitempty"`
+	// The state (on that machine) whose laboratory host owns the
+	// container.
+	MachineState *string `json:"machine_state,omitempty"`
 	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
 }
 

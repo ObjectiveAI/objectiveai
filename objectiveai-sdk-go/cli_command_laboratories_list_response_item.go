@@ -7,13 +7,23 @@ import (
 	"fmt"
 )
 
-// One laboratory container, reconstructed from its `objectiveai.laboratory`
-// label. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.
+// One laboratory served by a connected laboratory HOST. There is no
+// local-vs-remote split — machine identity is the only provenance,
+// the same logic regardless of where the host runs.
 type CliCommandLaboratoriesListResponseItem struct {
+	// Unix seconds when the laboratory container was created, from
+	// podman's container record. `None` when the host didn't report
+	// it.
+	CreatedAt *int64 `json:"created_at,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Cwd string `json:"cwd"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
 	Image string `json:"image"`
+	// The machine whose laboratory host serves this laboratory.
+	Machine *MachineMachineIdentity `json:"machine,omitempty"`
+	// The state (on that machine) the serving host serves —
+	// laboratory ids are only unique per (machine, state).
+	MachineState *string `json:"machine_state,omitempty"`
 	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
 }
 

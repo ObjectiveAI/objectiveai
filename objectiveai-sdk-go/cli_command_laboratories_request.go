@@ -11,15 +11,25 @@ type CliCommandLaboratoriesRequest struct {
 	Attach *CliCommandLaboratoriesAttachRequest 
 	AttachRequestSchema *CliCommandLaboratoriesAttachRequestSchemaRequest 
 	AttachResponseSchema *CliCommandLaboratoriesAttachResponseSchemaRequest 
+	Config *CliCommandLaboratoriesConfigRequest 
 	Create *CliCommandLaboratoriesCreateRequest 
 	CreateRequestSchema *CliCommandLaboratoriesCreateRequestSchemaRequest 
 	CreateResponseSchema *CliCommandLaboratoriesCreateResponseSchemaRequest 
+	Delete *CliCommandLaboratoriesDeleteRequest 
+	DeleteRequestSchema *CliCommandLaboratoriesDeleteRequestSchemaRequest 
+	DeleteResponseSchema *CliCommandLaboratoriesDeleteResponseSchemaRequest 
 	Detach *CliCommandLaboratoriesDetachRequest 
 	DetachRequestSchema *CliCommandLaboratoriesDetachRequestSchemaRequest 
 	DetachResponseSchema *CliCommandLaboratoriesDetachResponseSchemaRequest 
+	Kill *CliCommandLaboratoriesKillRequest 
+	KillRequestSchema *CliCommandLaboratoriesKillRequestSchemaRequest 
+	KillResponseSchema *CliCommandLaboratoriesKillResponseSchemaRequest 
 	List *CliCommandLaboratoriesListRequest 
 	ListRequestSchema *CliCommandLaboratoriesListRequestSchemaRequest 
 	ListResponseSchema *CliCommandLaboratoriesListResponseSchemaRequest 
+	Spawn *CliCommandLaboratoriesSpawnRequest 
+	SpawnRequestSchema *CliCommandLaboratoriesSpawnRequestSchemaRequest 
+	SpawnResponseSchema *CliCommandLaboratoriesSpawnResponseSchemaRequest 
 }
 
 func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
@@ -32,6 +42,9 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	if v.AttachResponseSchema != nil {
 		return json.Marshal(v.AttachResponseSchema)
 	}
+	if v.Config != nil {
+		return json.Marshal(v.Config)
+	}
 	if v.Create != nil {
 		return json.Marshal(v.Create)
 	}
@@ -40,6 +53,15 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.CreateResponseSchema != nil {
 		return json.Marshal(v.CreateResponseSchema)
+	}
+	if v.Delete != nil {
+		return json.Marshal(v.Delete)
+	}
+	if v.DeleteRequestSchema != nil {
+		return json.Marshal(v.DeleteRequestSchema)
+	}
+	if v.DeleteResponseSchema != nil {
+		return json.Marshal(v.DeleteResponseSchema)
 	}
 	if v.Detach != nil {
 		return json.Marshal(v.Detach)
@@ -50,6 +72,15 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	if v.DetachResponseSchema != nil {
 		return json.Marshal(v.DetachResponseSchema)
 	}
+	if v.Kill != nil {
+		return json.Marshal(v.Kill)
+	}
+	if v.KillRequestSchema != nil {
+		return json.Marshal(v.KillRequestSchema)
+	}
+	if v.KillResponseSchema != nil {
+		return json.Marshal(v.KillResponseSchema)
+	}
 	if v.List != nil {
 		return json.Marshal(v.List)
 	}
@@ -58,6 +89,15 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.ListResponseSchema != nil {
 		return json.Marshal(v.ListResponseSchema)
+	}
+	if v.Spawn != nil {
+		return json.Marshal(v.Spawn)
+	}
+	if v.SpawnRequestSchema != nil {
+		return json.Marshal(v.SpawnRequestSchema)
+	}
+	if v.SpawnResponseSchema != nil {
+		return json.Marshal(v.SpawnResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -90,6 +130,17 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandLaboratoriesRequest{}
 			candidate.AttachResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesConfigRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.Config = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -130,6 +181,39 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandLaboratoriesDeleteRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.Delete = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesDeleteRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.DeleteRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesDeleteResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.DeleteResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandLaboratoriesDetachRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandLaboratoriesRequest{}
@@ -156,6 +240,39 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandLaboratoriesRequest{}
 			candidate.DetachResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesKillRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.Kill = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesKillRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.KillRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesKillResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.KillResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -195,6 +312,39 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandLaboratoriesSpawnRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.Spawn = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesSpawnRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.SpawnRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesSpawnResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandLaboratoriesRequest{}
+			candidate.SpawnResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandLaboratoriesRequest")
 }
 
@@ -203,15 +353,25 @@ func (v CliCommandLaboratoriesRequest) Validate() error {
 	if v.Attach != nil { count++ }
 	if v.AttachRequestSchema != nil { count++ }
 	if v.AttachResponseSchema != nil { count++ }
+	if v.Config != nil { count++ }
 	if v.Create != nil { count++ }
 	if v.CreateRequestSchema != nil { count++ }
 	if v.CreateResponseSchema != nil { count++ }
+	if v.Delete != nil { count++ }
+	if v.DeleteRequestSchema != nil { count++ }
+	if v.DeleteResponseSchema != nil { count++ }
 	if v.Detach != nil { count++ }
 	if v.DetachRequestSchema != nil { count++ }
 	if v.DetachResponseSchema != nil { count++ }
+	if v.Kill != nil { count++ }
+	if v.KillRequestSchema != nil { count++ }
+	if v.KillResponseSchema != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }
+	if v.Spawn != nil { count++ }
+	if v.SpawnRequestSchema != nil { count++ }
+	if v.SpawnResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandLaboratoriesRequest: exactly one variant must be set, got %d", count)
 	}
