@@ -436,11 +436,7 @@ function AgentNode({
             {/* ATTACHED laboratories only — the active set is
                 deliberately not shown here (yet). */}
             {agent.attached_laboratories.map((lab) => (
-              <BadgeRow key={lab.id} badge="laboratory">
-                <span data-laboratory={lab.id} className={cn("text-[#c3bfbb]")}>
-                  {lab.id}
-                </span>
-              </BadgeRow>
+              <AttachedLaboratoryBadge key={lab.id} lab={lab} />
             ))}
           </>
         )}
@@ -700,6 +696,32 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
 
 /** The remote variants of the definition union. */
 type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
+
+/** One attached-laboratory row: the lab id plus a live "ago" for when
+ * the attachment was made (`attached_at`, RFC3339). A component per
+ * row because `useAgo` is a hook (can't run inside the map). */
+function AttachedLaboratoryBadge({
+  lab,
+}: {
+  lab: { id: string; attached_at: string };
+}) {
+  const attachedAgo = useAgo(lab.attached_at);
+  return (
+    <BadgeRow badge="laboratory">
+      <span data-laboratory={lab.id} className={cn("text-[#c3bfbb]")}>
+        {lab.id}
+      </span>
+      {attachedAgo !== "" && (
+        <span
+          data-attached-ago
+          className={cn("text-xs", "text-info-mid", "tabular-nums")}
+        >
+          {attachedAgo}
+        </span>
+      )}
+    </BadgeRow>
+  );
+}
 
 /** The uniform badge-plus-value row every definition-ish line uses:
  * a copper badge chip naming the KIND (`instance` / `tag` / `client` /

@@ -1,5 +1,6 @@
 import cn from "classnames";
 import type { DaemonConnection } from "../lib/daemon";
+import { useAgo } from "../hooks/useAgo";
 import { useLaboratoriesList } from "../hooks/useLaboratoriesList";
 import { useViewerLaboratories } from "../hooks/useViewerLaboratories";
 import {
@@ -86,6 +87,11 @@ const SOURCE_CLASSES: Record<ViewerSource, string> = {
 };
 
 function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
+  // "" when createdAt is absent — formatAgo renders nothing for
+  // unparsable input, so the row simply doesn't appear.
+  const createdAgo = useAgo(
+    lab.createdAt != null ? new Date(lab.createdAt * 1000).toISOString() : "",
+  );
   return (
     <div
       data-laboratory={lab.id}
@@ -181,6 +187,21 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
           </div>
         )}
       </div>
+
+      {/* When the container was created — the tree's footer styling. */}
+      {createdAgo !== "" && (
+        <span
+          data-created-ago
+          className={cn(
+            "self-end",
+            "text-xs",
+            "text-info-mid",
+            "tabular-nums",
+          )}
+        >
+          created {createdAgo}
+        </span>
+      )}
     </div>
   );
 }

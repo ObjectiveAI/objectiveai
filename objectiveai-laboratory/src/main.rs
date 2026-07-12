@@ -225,6 +225,7 @@ fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Identify {
             .collect(),
         env: lab.env.into_iter().map(|(k, v)| [k, v]).collect(),
         cwd: lab.cwd,
+        created_at: lab.created_at,
     }
 }
 

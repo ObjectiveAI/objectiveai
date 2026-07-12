@@ -42,6 +42,12 @@ pub struct ResponseItem {
     pub mounts: Vec<super::create::Mount>,
     pub env: Vec<super::create::EnvVar>,
     pub cwd: String,
+    /// Unix seconds when the laboratory container was created, from
+    /// podman's container record. `None` when the manager/scan didn't
+    /// report it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub created_at: Option<i64>,
     /// Where this laboratory lives relative to this machine + state.
     pub source: Source,
 }

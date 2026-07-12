@@ -90,6 +90,7 @@ fn item_from_identify(
             .map(|[key, value]| EnvVar { key, value })
             .collect(),
         cwd: lab.cwd,
+        created_at: lab.created_at,
         source,
     }
 }

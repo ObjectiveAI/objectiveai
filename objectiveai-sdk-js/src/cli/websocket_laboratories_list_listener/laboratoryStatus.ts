@@ -7,6 +7,7 @@ import { CliCommandLaboratoriesListSourceSchema } from "../command/laboratories/
 
 export const CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema = z.object({
   connected: z.boolean().describe("Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now."),
+  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the manager/scan didn't\nreport it.").meta({ omitempty: true }).optional(),
   cwd: z.string(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string().describe("Raw (state-agnostic) laboratory id."),

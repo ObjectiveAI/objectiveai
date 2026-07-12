@@ -62,6 +62,10 @@ pub struct LaboratoryInfo {
     pub mounts: Vec<Mount>,
     pub env: Vec<(String, String)>,
     pub cwd: String,
+    /// Unix seconds when the container was created, from podman's own
+    /// container record (NOT the label). `None` when podman doesn't
+    /// report it in a recognizable shape.
+    pub created_at: Option<i64>,
 }
 
 /// The `objectiveai.laboratory` container label — the authoritative round-trip
@@ -412,7 +416,23 @@ pub async fn list(podman: &Podman, state: &str) -> Result<Vec<LaboratoryInfo>, E
                 .collect(),
             env: label.env.into_iter().map(|[k, v]| (k, v)).collect(),
             cwd: label.cwd,
+            created_at: created_at_from_container(elem),
         });
     }
     Ok(labs)
+}
+
+/// The container's creation time as unix seconds, tolerant of the two
+/// shapes `podman ps --format json` has shipped for `Created`: an
+/// integer of unix seconds, or an RFC3339 string. Anything else ⇒
+/// `None` — the field is best-effort display metadata, never an error.
+fn created_at_from_container(elem: &serde_json::Value) -> Option<i64> {
+    let created = elem.get("Created")?;
+    if let Some(secs) = created.as_i64() {
+        return Some(secs);
+    }
+    created
+        .as_str()
+        .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+        .map(|dt| dt.timestamp())
 }

@@ -9,6 +9,7 @@ import { CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema } from "./la
 export const CliWebsocketLaboratoriesListenerLaboratoryRecordSchema = z.object({
   attachments: z.array(CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema).default([]).describe("Every attachment row targeting this laboratory, oldest first."),
   connected: z.boolean().describe("Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now."),
+  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the identity source\ndidn't report it (or the laboratory is known only through\nattachment rows).").meta({ omitempty: true }).optional(),
   cwd: z.string().nullable().meta({ omitempty: true }).optional(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema).default([]),
   id: z.string().describe("Raw (state-agnostic) laboratory id."),

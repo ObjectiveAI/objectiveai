@@ -65,6 +65,13 @@ pub struct LaboratoryRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub cwd: Option<String>,
+    /// Unix seconds when the laboratory container was created, from
+    /// podman's container record. `None` when the identity source
+    /// didn't report it (or the laboratory is known only through
+    /// attachment rows).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub created_at: Option<i64>,
     /// Where this laboratory lives relative to this machine + state —
     /// `None` when it is neither connected nor in the local scan.
     #[serde(default, skip_serializing_if = "Option::is_none")]

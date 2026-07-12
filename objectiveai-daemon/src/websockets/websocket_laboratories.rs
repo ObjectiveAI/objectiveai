@@ -217,7 +217,7 @@ impl LaboratoriesHub {
             })
             .collect();
 
-        let (image, mounts, env, cwd) = match identity {
+        let (image, mounts, env, cwd, created_at) = match identity {
             Some(identify) => (
                 Some(identify.image),
                 identify
@@ -234,8 +234,9 @@ impl LaboratoriesHub {
                     .map(|[key, value]| EnvVar { key, value })
                     .collect(),
                 Some(identify.cwd),
+                identify.created_at,
             ),
-            None => (None, Vec::new(), Vec::new(), None),
+            None => (None, Vec::new(), Vec::new(), None, None),
         };
         Some(LaboratoryRecord {
             id: id.to_string(),
@@ -243,6 +244,7 @@ impl LaboratoriesHub {
             mounts,
             env,
             cwd,
+            created_at,
             source,
             connected,
             attachments,
@@ -273,6 +275,7 @@ fn status_from_identify(
             .map(|[key, value]| EnvVar { key, value })
             .collect(),
         cwd: lab.cwd,
+        created_at: lab.created_at,
         source,
         connected,
     }

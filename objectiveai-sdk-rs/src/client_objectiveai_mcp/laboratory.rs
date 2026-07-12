@@ -50,6 +50,12 @@ pub struct Identify {
     pub mounts: Vec<IdentifyMount>,
     pub env: Vec<[String; 2]>,
     pub cwd: String,
+    /// Unix seconds when the laboratory container was created, from
+    /// podman's own container record. Optional + defaulted so frames
+    /// from managers predating this field still parse.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub created_at: Option<i64>,
 }
 
 /// Daemon → manager over the `/laboratory` WS: one correlated request.

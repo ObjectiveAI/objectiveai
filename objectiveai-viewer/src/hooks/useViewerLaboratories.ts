@@ -12,6 +12,9 @@ export interface ViewerLaboratory {
   mounts: { host: string; container: string }[];
   env: [string, string][];
   cwd: string;
+  /** Unix seconds when the container was created — podman's own
+   * record; absent from scans by older laboratory binaries. */
+  created_at?: number | null;
 }
 
 /**

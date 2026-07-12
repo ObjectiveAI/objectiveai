@@ -20,6 +20,9 @@ export interface DisplayLaboratory {
   mounts: { host: string; container: string }[];
   env: { key: string; value: string }[];
   cwd: string;
+  /** Unix seconds when the container was created; `null` when the
+   * source didn't report it. */
+  createdAt: number | null;
   source: ViewerSource;
   connected: boolean;
 }
@@ -49,6 +52,7 @@ export function mergeLaboratories(
       mounts: lab.mounts,
       env: lab.env,
       cwd: lab.cwd,
+      createdAt: lab.created_at ?? null,
       source,
       connected: lab.connected,
     });
@@ -61,6 +65,7 @@ export function mergeLaboratories(
       mounts: lab.mounts,
       env: lab.env.map(([key, value]) => ({ key, value })),
       cwd: lab.cwd,
+      createdAt: lab.created_at ?? null,
       source: "local",
       connected: false,
     });

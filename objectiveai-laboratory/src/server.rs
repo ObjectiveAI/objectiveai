@@ -89,14 +89,14 @@ impl LabServer {
             "objectiveai-laboratory".to_string(),
             String::new(),
             String::new(),
-            Duration::from_secs(600),
+            Some(Duration::from_secs(600)),
             Duration::from_millis(100),
             Duration::from_millis(100),
             0.5,
             1.5,
             Duration::from_millis(1000),
             Duration::from_secs(600),
-            Duration::from_secs(600),
+            Some(Duration::from_secs(600)),
         );
         Self {
             base_url,
