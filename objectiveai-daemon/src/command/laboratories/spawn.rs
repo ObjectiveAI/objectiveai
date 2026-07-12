@@ -100,8 +100,13 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
             objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
         let deadline = std::time::Instant::now() + READY_TIMEOUT;
         loop {
+            // Readiness = OUR host — the exact (machine, OWN state)
+            // pair; a same-machine host of another state is somebody
+            // else's.
             if let Some(hubs) = ctx.resident_hubs()
-                && hubs.laboratories.has_machine(&machine_id)
+                && hubs
+                    .laboratories
+                    .has_host(&machine_id, ctx.filesystem.state())
             {
                 break;
             }

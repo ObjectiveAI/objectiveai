@@ -26,7 +26,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Kind::Client => {}
     }
 
-    let target = super::resolve_machine(ctx, request.machine.clone()).await?;
+    let (target, host_state) = super::resolve_host(ctx, request.machine.clone()).await?;
     let hubs = ctx
         .resident_hubs()
         .ok_or_else(|| Error::Laboratory("laboratories create requires the resident daemon".to_string()))?;
@@ -50,7 +50,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     );
     let response = hubs
         .laboratories
-        .forward_to_machine(&target, indexmap::IndexMap::new(), payload)
+        .forward_to_host(&target, &host_state, indexmap::IndexMap::new(), payload)
         .await
         .map_err(Error::Laboratory)?;
     let identify = match response {
@@ -84,7 +84,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             .collect(),
         cwd: identify.cwd,
         created_at: identify.created_at,
-        machine: hubs.laboratories.machine(&target),
+        machine: hubs.laboratories.machine(&target, &host_state),
     })
 }
 

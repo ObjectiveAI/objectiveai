@@ -6,9 +6,12 @@
 //! IN on `/laboratory`. The connection's wire order is load-bearing:
 //!
 //! 1. The FIRST text frame is the [`HostIdentify`] — who this HOST is:
-//!    its state (must match this daemon's, or the connection closes),
-//!    its machine identity, and the FULL set of laboratories it
-//!    serves. Identity always PRECEDES authorization on this endpoint.
+//!    its state, its machine identity, and the FULL set of
+//!    laboratories it serves. Identity always PRECEDES authorization
+//!    on this endpoint. ANY state is accepted — a host is one per
+//!    (machine, state) and that PAIR is its registry identity; the
+//!    state scopes the HOST's containers and locks on its own
+//!    machine, and a remote daemon's state name is unrelated to it.
 //! 2. The SECOND frame is the standard first-message `AuthEnvelope`
 //!    (verified by [`crate::websockets::daemon_auth::authenticate`],
 //!    demoted to second place here).
@@ -48,6 +51,10 @@ const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600)
 /// One connected laboratory host.
 struct HostConnection {
     machine: MachineIdentity,
+    /// The state this host serves ON ITS OWN MACHINE (its container
+    /// names and locks are scoped to it). Half of the host's registry
+    /// identity — two hosts on one machine (different states) coexist.
+    state: String,
     /// The laboratories this host serves RIGHT NOW: the HostIdentify
     /// announcement, kept current by created/deleted notifications.
     labs: RwLock<IndexMap<String, Identify>>,
@@ -82,11 +89,12 @@ pub enum LabRegistryChange {
 
 /// The connected-host registry, shared by the `/laboratory` route
 /// (writers) and the conduit + `laboratories` commands +
-/// `/laboratories/*` endpoints (readers). Keyed by machine id — one
-/// host per machine per state.
+/// `/laboratories/*` endpoints (readers). Keyed by `(machine id,
+/// state)` — a host's full identity; hosts of ANY state register, and
+/// two same-machine hosts (different states) coexist.
 #[derive(Clone)]
 pub struct LaboratoryRegistry {
-    hosts: Arc<DashMap<String, Arc<HostConnection>>>,
+    hosts: Arc<DashMap<(String, String), Arc<HostConnection>>>,
     /// Connected-set change feed. Send errors (no subscriber) are
     /// ignored — the feed is advisory.
     events: tokio::sync::broadcast::Sender<LabRegistryChange>,
@@ -124,25 +132,45 @@ impl LaboratoryRegistry {
         out
     }
 
-    /// Whether a host for this machine id is connected right now.
-    pub fn has_machine(&self, machine_id: &str) -> bool {
-        self.hosts.contains_key(machine_id)
+    /// Whether the exact host `(machine id, state)` is connected right
+    /// now.
+    pub fn has_host(&self, machine_id: &str, state: &str) -> bool {
+        self.hosts
+            .contains_key(&(machine_id.to_string(), state.to_string()))
     }
 
-    /// The identity of the connected host for this machine id.
-    pub fn machine(&self, machine_id: &str) -> Option<MachineIdentity> {
-        self.hosts.get(machine_id).map(|h| h.machine.clone())
+    /// Every connected host for this machine id, as `(state, machine
+    /// identity)` — the command layer applies its own preference rule
+    /// over them.
+    pub fn hosts_for_machine(&self, machine_id: &str) -> Vec<(String, MachineIdentity)> {
+        self.hosts
+            .iter()
+            .filter(|e| e.key().0 == machine_id)
+            .map(|e| (e.key().1.clone(), e.machine.clone()))
+            .collect()
     }
 
-    /// The machine id of the host serving this laboratory, if any —
-    /// derived from the per-host sets (truth), no separate index to
-    /// drift.
-    pub async fn machine_for_laboratory(&self, laboratory_id: &str) -> Option<String> {
+    /// The identity of the exact connected host `(machine id, state)`.
+    pub fn machine(&self, machine_id: &str, state: &str) -> Option<MachineIdentity> {
+        self.hosts
+            .get(&(machine_id.to_string(), state.to_string()))
+            .map(|h| h.machine.clone())
+    }
+
+    /// The `(machine id, state)` of the host serving this laboratory,
+    /// if any — derived from the per-host sets (truth), no separate
+    /// index to drift. First match wins: RAW laboratory ids should be
+    /// unique per machine (they are state-scoped host-side, so a
+    /// cross-state duplicate is possible but degenerate).
+    pub async fn host_for_laboratory(
+        &self,
+        laboratory_id: &str,
+    ) -> Option<(String, String)> {
         let hosts: Vec<Arc<HostConnection>> =
             self.hosts.iter().map(|e| Arc::clone(&e)).collect();
         for host in hosts {
             if host.labs.read().await.contains_key(laboratory_id) {
-                return Some(host.machine.id.clone());
+                return Some((host.machine.id.clone(), host.state.clone()));
             }
         }
         None
@@ -157,39 +185,53 @@ impl LaboratoryRegistry {
         headers: indexmap::IndexMap<String, String>,
         request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
     ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
-        let Some(machine_id) = self.machine_for_laboratory(laboratory_id).await else {
+        let Some((machine_id, state)) = self.host_for_laboratory(laboratory_id).await
+        else {
             return Err(format!(
                 "laboratory '{laboratory_id}' is not served by any connected host"
             ));
         };
-        self.forward_inner(&machine_id, Some(laboratory_id.to_string()), headers, request)
-            .await
+        self.forward_inner(
+            &machine_id,
+            &state,
+            Some(laboratory_id.to_string()),
+            headers,
+            request,
+        )
+        .await
     }
 
     /// Forward one HOST-LEVEL request (create — no laboratory to
-    /// address yet) to the machine's host and await its reply.
-    pub async fn forward_to_machine(
+    /// address yet) to the exact host `(machine id, state)` and await
+    /// its reply.
+    pub async fn forward_to_host(
         &self,
         machine_id: &str,
+        state: &str,
         headers: indexmap::IndexMap<String, String>,
         request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
     ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
-        self.forward_inner(machine_id, None, headers, request).await
+        self.forward_inner(machine_id, state, None, headers, request)
+            .await
     }
 
     async fn forward_inner(
         &self,
         machine_id: &str,
+        state: &str,
         laboratory_id: Option<String>,
         headers: indexmap::IndexMap<String, String>,
         request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
     ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
         // Clone the Arc out; never hold a map guard across an await.
-        let host = match self.hosts.get(machine_id) {
+        let host = match self
+            .hosts
+            .get(&(machine_id.to_string(), state.to_string()))
+        {
             Some(host) => Arc::clone(&host),
             None => {
                 return Err(format!(
-                    "no laboratory host connected for machine '{machine_id}'"
+                    "no laboratory host connected for machine '{machine_id}' state '{state}'"
                 ));
             }
         };
@@ -226,9 +268,9 @@ impl LaboratoryRegistry {
     }
 }
 
-/// `/laboratory`: upgrade, read the HostIdentify frame (rejecting a
-/// state mismatch), consume the auth preamble (strictly second),
-/// register, pump until disconnect.
+/// `/laboratory`: upgrade, read the HostIdentify frame, consume the
+/// auth preamble (strictly second), register under the host's
+/// `(machine, state)` identity, pump until disconnect.
 pub(crate) async fn laboratory_handler(
     axum::extract::State(state): axum::extract::State<
         crate::websockets::daemon_stream::DaemonWsState,
@@ -253,25 +295,23 @@ pub(crate) async fn laboratory_handler(
                 Some(Ok(_)) => continue,
             }
         };
-        // A host serving a DIFFERENT state has no business here — its
-        // container names, locks, and podman labels are all scoped to
-        // its own state. Close before authorization.
-        if identify.state != state.ctx.filesystem.state() {
-            let _ = socket.send(axum::extract::ws::Message::Close(None)).await;
-            return;
-        }
+        // NO state gate: the host's state scopes containers and locks
+        // on ITS machine — a remote daemon's own state name is
+        // unrelated. The (machine, state) pair is simply the host's
+        // registry identity.
         // 2. Authorization SECOND (the standard preamble, verbatim).
         if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
             .await
         {
             return;
         }
-        // 3. Register under the machine id. A live entry means either a
-        // stale duplicate (the host's `laboratories` lock should
-        // prevent one) or a reconnect racing its own predecessor's
-        // teardown — the NEW connection wins: displace the old entry
-        // (its pending waiters fail).
-        let machine_id = identify.machine.id.clone();
+        // 3. Register under (machine id, state). A live entry means
+        // either a stale duplicate (the host's `laboratories` lock
+        // should prevent one) or a reconnect racing its own
+        // predecessor's teardown — the NEW connection wins: displace
+        // the old entry (its pending waiters fail). Same-machine hosts
+        // of OTHER states are untouched.
+        let host_key = (identify.machine.id.clone(), identify.state.clone());
         let (tx, mut rx) = mpsc::unbounded_channel::<ChannelRequest>();
         let labs: IndexMap<String, Identify> = identify
             .laboratories
@@ -280,6 +320,7 @@ pub(crate) async fn laboratory_handler(
             .collect();
         let host = Arc::new(HostConnection {
             machine: identify.machine,
+            state: identify.state,
             labs: RwLock::new(labs),
             tx,
             pending: DashMap::new(),
@@ -287,11 +328,11 @@ pub(crate) async fn laboratory_handler(
         state
             .laboratories
             .hosts
-            .insert(machine_id.clone(), Arc::clone(&host));
+            .insert(host_key.clone(), Arc::clone(&host));
         let _ = state
             .laboratories
             .events
-            .send(LabRegistryChange::HostConnected(machine_id.clone()));
+            .send(LabRegistryChange::HostConnected(host_key.0.clone()));
 
         // Pump: outbound requests + inbound correlated replies and
         // uncorrelated notifications.
@@ -361,12 +402,12 @@ pub(crate) async fn laboratory_handler(
         let removed = state
             .laboratories
             .hosts
-            .remove_if(&machine_id, |_, current| Arc::ptr_eq(current, &host));
+            .remove_if(&host_key, |_, current| Arc::ptr_eq(current, &host));
         if removed.is_some() {
             let _ = state
                 .laboratories
                 .events
-                .send(LabRegistryChange::HostDisconnected(machine_id));
+                .send(LabRegistryChange::HostDisconnected(host_key.0));
         }
         // Dropping `host.pending` (last Arc) fails all in-flight waiters.
     })

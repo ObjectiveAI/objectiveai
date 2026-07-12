@@ -34,14 +34,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // (honoring `local: false` by erroring), then re-check.
     if hubs
         .laboratories
-        .machine_for_laboratory(&request.id)
+        .host_for_laboratory(&request.id)
         .await
         .is_none()
     {
         super::ensure_local_host(ctx).await?;
         if hubs
             .laboratories
-            .machine_for_laboratory(&request.id)
+            .host_for_laboratory(&request.id)
             .await
             .is_none()
         {
