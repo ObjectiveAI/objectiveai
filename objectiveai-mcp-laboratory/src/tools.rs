@@ -27,12 +27,14 @@ pub struct BashRequest {
 pub struct ObjectiveAiMcpLaboratory {
     pub tool_router: ToolRouter<Self>,
     shell_state: crate::bash::ShellState,
-    /// MCP server name reported in `get_info`: `oail-<RAW id>` — the
-    /// raw laboratory id parsed out of the COMPOSITE
-    /// `OBJECTIVEAI_LABORATORY_ID` (`{machine}/{state}/{id}`, state
-    /// and id base62-encoded), or `oail` when run standalone. The
-    /// server name feeds the proxy's tool-name prefix, which cannot
-    /// carry the composite (provider name limits).
+    /// MCP server name reported in `get_info`:
+    /// `oail-<base62(fnv1a32(OBJECTIVEAI_LABORATORY_ID))>` — a fixed
+    /// 11-char hash token (the env value is the COMPOSITE laboratory
+    /// id `{machine}/{state}/{id}`; the raw id has arbitrary
+    /// length/charset and the composite carries a 64-hex machine id,
+    /// so NEITHER can ride the server name: it feeds the proxy's
+    /// tool-name prefix, which is bound by provider tool-name
+    /// limits). `oail` when run standalone.
     server_name: String,
     /// The full composite laboratory id, verbatim from the env —
     /// surfaced via the server `instructions` so the assistant can
@@ -45,15 +47,18 @@ pub struct ObjectiveAiMcpLaboratory {
 impl ObjectiveAiMcpLaboratory {
     pub fn new(laboratory_id: Option<String>, default_cwd: std::path::PathBuf) -> Self {
         let (server_name, composite_id) = match laboratory_id {
-            Some(value) => match crate::composite::parse_composite_laboratory_id(&value) {
-                Some((_machine, _state, raw_id)) => {
-                    (format!("oail-{raw_id}"), Some(value))
-                }
-                // Tolerant legacy fallback: a container created before
-                // the composite era carries the raw id verbatim —
-                // exactly the old behavior, no composite to surface.
-                None => (format!("oail-{value}"), None),
-            },
+            Some(value) => {
+                // Hash whatever the env carries (the composite on
+                // every current container; a legacy raw id hashes the
+                // same way — uniformly name-safe either way). The
+                // composite is surfaced in instructions only when it
+                // actually parses.
+                let server_name = crate::composite::server_name(&value);
+                let composite_id =
+                    crate::composite::parse_composite_laboratory_id(&value)
+                        .map(|_| value);
+                (server_name, composite_id)
+            }
             None => ("oail".to_string(), None),
         };
         Self {

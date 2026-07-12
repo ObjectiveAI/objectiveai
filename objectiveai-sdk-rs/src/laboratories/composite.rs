@@ -83,7 +83,45 @@ fn base62_decode_str(s: &str) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
+/// 32-bit FNV-1a — tiny, dependency-free, and trivially mirrored in
+/// the in-container binary. Only used to derive short display-safe
+/// server names; NOT a security or content-addressing hash.
+fn fnv1a32(bytes: &[u8]) -> u32 {
+    let mut hash: u32 = 0x811c9dc5;
+    for byte in bytes {
+        hash ^= *byte as u32;
+        hash = hash.wrapping_mul(0x0100_0193);
+    }
+    hash
+}
+
+/// A u32 as exactly 6 base62 digits (62^6 > 2^32), zero-padded — the
+/// fixed-width, `[0-9A-Za-z]`-only token server names are built from.
+fn base62_encode_u32(mut value: u32) -> String {
+    let mut digits = [b'0'; 6];
+    for slot in digits.iter_mut().rev() {
+        *slot = ALPHABET[(value % 62) as usize];
+        value /= 62;
+    }
+    String::from_utf8(digits.to_vec()).expect("alphabet is ASCII")
+}
+
 impl ClientLaboratory {
+    /// The laboratory's MCP SERVER NAME — `oail-<base62(fnv1a32(composite))>`,
+    /// a fixed 11-char `[0-9A-Za-z-]` token. Server names feed the
+    /// proxy's tool-name prefix (`<name>_Bash`), which is bound by
+    /// provider tool-name limits (length + charset) — so the name is a
+    /// HASH of the [composite id](Self::composite_id), never the raw
+    /// id (arbitrary length/charset) and never the composite itself
+    /// (the 64-hex machine id alone busts the limits). `None` when the
+    /// marker predates machine tracking (no composite to hash). The
+    /// in-container binary computes the same name from its
+    /// `OBJECTIVEAI_LABORATORY_ID` env — keep the mirrors in sync.
+    pub fn server_name(&self) -> Option<String> {
+        self.composite_id()
+            .map(|composite| format!("oail-{}", base62_encode_u32(fnv1a32(composite.as_bytes()))))
+    }
+
     /// The assistant-facing composite id
     /// `{machineID}/{base62(state)}/{base62(laboratoryID)}` — `None`
     /// when the marker predates machine tracking (no pair to compose).
@@ -155,6 +193,31 @@ mod tests {
                 .unwrap_or_else(|| panic!("parses: {composite}"));
             assert_eq!(parsed, original, "roundtrip for {state:?}/{id:?}");
         }
+    }
+
+    #[test]
+    fn server_name_is_fixed_width_and_name_safe() {
+        // Arbitrary-length/charset raw ids all hash to the same shape.
+        for (state, id) in [
+            ("default", "my-lab"),
+            ("state/with/slashes", &"x".repeat(500) as &str),
+            ("ünïcodé 状態", "研究室/λ"),
+        ] {
+            let lab = marker("3fa8", state, id);
+            let name = lab.server_name().expect("pair present");
+            assert_eq!(name.len(), "oail-".len() + 6, "fixed width: {name}");
+            assert!(name.starts_with("oail-"));
+            assert!(
+                name["oail-".len()..].bytes().all(|b| b.is_ascii_alphanumeric()),
+                "hash token is [0-9A-Za-z]: {name}"
+            );
+            // Deterministic.
+            assert_eq!(lab.server_name(), Some(name));
+        }
+        // Pair-less markers have no composite to hash.
+        let mut lab = marker("m", "s", "i");
+        lab.machine = None;
+        assert_eq!(lab.server_name(), None);
     }
 
     #[test]

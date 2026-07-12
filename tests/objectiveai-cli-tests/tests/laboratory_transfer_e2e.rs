@@ -14,9 +14,11 @@
 //!   5. Assert the tool-response text shows the transfer succeeded and
 //!      lab b now has the file.
 //!
-//! A laboratory's server is named `oail-<id>`; the proxy routing prefix is
-//! that verbatim (no `_`/`.` to normalize when the id has none), so the
-//! aggregated bash tool is `oail-<id>_Bash`. `laboratory_transfer` takes
+//! A laboratory's server is named `oail-<base62(fnv1a32(composite))>`
+//! (a fixed hash token — the raw id has arbitrary length/charset and
+//! cannot ride tool names); the proxy routing prefix is that verbatim,
+//! so the aggregated bash tool is `<server-name>_Bash`
+//! ([`ClientLaboratory::server_name`]). `laboratory_transfer` takes
 //! laboratory ids for source/destination.
 
 mod cli_test_util;
@@ -104,7 +106,7 @@ async fn create_lab(executor: &Exec, id: &str) {
 /// `{machine}/{base62(state)}/{base62(id)}` for a lab on THIS
 /// machine + this test's state (where every default-pair create
 /// lands).
-fn composite_id(lab: &str) -> String {
+fn lab_marker(lab: &str) -> objectiveai_sdk::laboratories::ClientLaboratory {
     use objectiveai_sdk::laboratories::{ClientLaboratory, ClientLaboratoryType};
     ClientLaboratory {
         r#type: ClientLaboratoryType::Client,
@@ -114,8 +116,16 @@ fn composite_id(lab: &str) -> String {
         )),
         machine_state: Some(cli_test_util::test_state_name()),
     }
-    .composite_id()
-    .expect("machine + state present")
+}
+
+fn composite_id(lab: &str) -> String {
+    lab_marker(lab).composite_id().expect("machine + state present")
+}
+
+/// The lab's MCP server name — `oail-<hash of the composite>`; its
+/// `Bash` tool is `<server_name>_Bash`.
+fn server_name(lab: &str) -> String {
+    lab_marker(lab).server_name().expect("machine + state present")
 }
 
 async fn attach_lab(executor: &Exec, tag: &str, lab: &str) {
@@ -170,8 +180,8 @@ async fn transfer_between_two_laboratories() {
     create_lab(&executor, &lab_b).await;
 
     // Deterministic agent script: write in a -> transfer a->b -> read in b.
-    let bash_a = format!("oail-{lab_a}_Bash");
-    let bash_b = format!("oail-{lab_b}_Bash");
+    let bash_a = format!("{}_Bash", server_name(&lab_a));
+    let bash_b = format!("{}_Bash", server_name(&lab_b));
     let write_args =
         serde_json::to_string(&json!({ "command": "mkdir -p /work && printf hi > /work/x" }))
             .unwrap();
@@ -290,7 +300,7 @@ async fn servers_list_and_name_filter() {
     create_lab(&executor, &lab_b).await;
 
     let tools_named_args =
-        serde_json::to_string(&json!({ "name": format!("oail-{lab_a}") })).unwrap();
+        serde_json::to_string(&json!({ "name": server_name(&lab_a) })).unwrap();
     let agent_spec = serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
         json!({
             "upstream": "mock",
@@ -374,11 +384,11 @@ async fn servers_list_and_name_filter() {
     // tools --name scopes to lab a's Bash tool; lab b's prefix is absent
     // from the filtered listing.
     assert!(
-        results.contains(&format!("oail-{lab_a}")) && results.contains("Bash"),
+        results.contains(&server_name(&lab_a)) && results.contains("Bash"),
         "tools --name should include lab a's Bash tool; got: {results}"
     );
     assert!(
-        !results.contains(&format!("oail-{lab_b}_Bash")),
+        !results.contains(&format!("{}_Bash", server_name(&lab_b))),
         "tools --name <lab a> must not include lab b's tools; got: {results}"
     );
 }
@@ -464,8 +474,8 @@ async fn transfer_directory_between_laboratories() {
     create_lab(&executor, &lab_a).await;
     create_lab(&executor, &lab_b).await;
 
-    let bash_a = format!("oail-{lab_a}_Bash");
-    let bash_b = format!("oail-{lab_b}_Bash");
+    let bash_a = format!("{}_Bash", server_name(&lab_a));
+    let bash_b = format!("{}_Bash", server_name(&lab_b));
     let write_args = serde_json::to_string(&json!({
         "command": "mkdir -p /work/d/sub && printf a > /work/d/f1 && printf b > /work/d/sub/f2"
     }))

@@ -162,7 +162,20 @@ async fn tool_result_texts(executor: &Exec, response_id: &str) -> Vec<String> {
 
 /// Build a one-turn agent that calls the lab's `Bash` tool with `command`.
 fn bash_agent(lab_id: &str, command: &str) -> serde_json::Value {
-    let bash_tool = format!("oail-{lab_id}_Bash");
+    let bash_tool = {
+        use objectiveai_sdk::laboratories::{ClientLaboratory, ClientLaboratoryType};
+        let server_name = ClientLaboratory {
+            r#type: ClientLaboratoryType::Client,
+            id: lab_id.to_string(),
+            machine: Some(objectiveai_sdk::machine::machine_id(
+                &cli_test_util::objectiveai_dir(),
+            )),
+            machine_state: Some(cli_test_util::test_state_name()),
+        }
+        .server_name()
+        .expect("machine + state present");
+        format!("{server_name}_Bash")
+    };
     let args = serde_json::to_string(&json!({ "command": command })).unwrap();
     json!({
         "upstream": "mock",

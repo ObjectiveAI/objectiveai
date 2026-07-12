@@ -153,11 +153,12 @@ pub async fn create(
     create_cmd.arg("-e").arg(format!("PORT={LAB_PORT}"));
     // The laboratory's COMPOSITE id `{machine}/{base62(state)}/{base62(id)}`
     // — the assistant-facing full identity (ids are only unique per
-    // (machine, state)). The in-container MCP parses the raw id back out
-    // for its `oail-<id>` server name and surfaces the composite verbatim
-    // in its instructions. Baked into the container config at create time
-    // → static and persists across restarts. Appended after the user's
-    // env so it wins.
+    // (machine, state)). The in-container MCP hashes it into its
+    // `oail-<base62(fnv1a32(composite))>` server name (tool-name-safe
+    // whatever the raw id looks like) and surfaces the composite
+    // verbatim in its instructions. Baked into the container config at
+    // create time → static and persists across restarts. Appended
+    // after the user's env so it wins.
     let composite = objectiveai_sdk::laboratories::ClientLaboratory {
         r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
         id: id.to_string(),

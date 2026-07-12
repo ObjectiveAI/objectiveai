@@ -64,3 +64,34 @@ pub fn parse_composite_laboratory_id(s: &str) -> Option<(String, String, String)
         base62_decode_str(id)?,
     ))
 }
+
+/// 32-bit FNV-1a — mirrors the SDK's server-name hash exactly.
+fn fnv1a32(bytes: &[u8]) -> u32 {
+    let mut hash: u32 = 0x811c9dc5;
+    for byte in bytes {
+        hash ^= *byte as u32;
+        hash = hash.wrapping_mul(0x0100_0193);
+    }
+    hash
+}
+
+/// A u32 as exactly 6 base62 digits (62^6 > 2^32), zero-padded.
+fn base62_encode_u32(mut value: u32) -> String {
+    let mut digits = [b'0'; 6];
+    for slot in digits.iter_mut().rev() {
+        *slot = ALPHABET[(value % 62) as usize];
+        value /= 62;
+    }
+    String::from_utf8(digits.to_vec()).expect("alphabet is ASCII")
+}
+
+/// The MCP SERVER NAME for this laboratory —
+/// `oail-<base62(fnv1a32(env value))>`, a fixed 11-char
+/// `[0-9A-Za-z-]` token (mirrors
+/// `ClientLaboratory::server_name` in the SDK, which hashes the same
+/// composite string). Server names feed the proxy's tool-name prefix,
+/// which is bound by provider tool-name limits — a hash is always
+/// safe regardless of the raw id's length or charset.
+pub fn server_name(env_value: &str) -> String {
+    format!("oail-{}", base62_encode_u32(fnv1a32(env_value.as_bytes())))
+}
