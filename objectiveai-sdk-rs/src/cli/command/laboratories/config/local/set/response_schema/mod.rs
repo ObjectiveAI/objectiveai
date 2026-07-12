@@ -1,7 +1,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.connect.request_schema.Request")]
+#[schemars(rename = "cli.command.laboratories.config.local.set.response_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
@@ -9,17 +9,17 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.connect.request_schema.Path")]
+#[schemars(rename = "cli.command.laboratories.config.local.set.response_schema.Path")]
 pub enum Path {
-    #[serde(rename = "laboratories/connect/request_schema")]
-    LaboratoriesConnectRequestSchema,
+    #[serde(rename = "laboratories/config/local/set/response_schema")]
+    LaboratoriesConfigLocalSetResponseSchema,
 }
-
 #[derive(clap::Args)]
 pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
+
 
 impl CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
@@ -36,10 +36,7 @@ pub type Response = crate::cli::command::ResponseSchema;
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self {
-            path_type: Path::LaboratoriesConnectRequestSchema,
-            base: args.base.into(),
-        })
+        Ok(Self { path_type: Path::LaboratoriesConfigLocalSetResponseSchema, base: args.base.into() })
     }
 }
 
@@ -47,6 +44,7 @@ impl TryFrom<Args> for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
+
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<Response, E::Error> {
     request.base.clear_transform();
@@ -58,13 +56,14 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     transform: crate::cli::command::Transform,
+
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<serde_json::Value, E::Error> {
     request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
 
-/// One `/listen` broadcast run of `laboratories connect request_schema`: the actual
+/// One `/listen` broadcast run of `laboratories config local set response_schema`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].

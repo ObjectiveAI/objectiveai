@@ -129,6 +129,17 @@ pub enum Payload {
     /// [`super::super::server_request::Payload::LaboratoryImportAbort`].
     #[schemars(title = "LaboratoryImportAbort")]
     LaboratoryImportAbort(JsonRpcResult<LaboratoryTransferAck>),
+
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryCreate`] —
+    /// the created laboratory's spec, echoed by the host. Rides ONLY
+    /// the `/laboratory` channel.
+    #[schemars(title = "LaboratoryCreate")]
+    LaboratoryCreate(JsonRpcResult<super::super::laboratory::Identify>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryDelete`].
+    #[schemars(title = "LaboratoryDelete")]
+    LaboratoryDelete(JsonRpcResult<LaboratoryTransferAck>),
 }
 
 impl Payload {
@@ -152,7 +163,9 @@ impl Payload {
             | Payload::LaboratoryImportBegin(_)
             | Payload::LaboratoryImportWrite(_)
             | Payload::LaboratoryImportEnd(_)
-            | Payload::LaboratoryImportAbort(_) => None,
+            | Payload::LaboratoryImportAbort(_)
+            | Payload::LaboratoryCreate(_)
+            | Payload::LaboratoryDelete(_) => None,
         }
     }
 }

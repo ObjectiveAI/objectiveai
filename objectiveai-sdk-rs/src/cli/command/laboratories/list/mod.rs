@@ -32,8 +32,9 @@ impl CommandRequest for Request {
     }
 }
 
-/// One laboratory container, reconstructed from its `objectiveai.laboratory`
-/// label. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.
+/// One laboratory served by a connected laboratory HOST. There is no
+/// local-vs-remote split — machine identity is the only provenance,
+/// the same logic regardless of where the host runs.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.laboratories.list.ResponseItem")]
 pub struct ResponseItem {
@@ -43,30 +44,15 @@ pub struct ResponseItem {
     pub env: Vec<super::create::EnvVar>,
     pub cwd: String,
     /// Unix seconds when the laboratory container was created, from
-    /// podman's container record. `None` when the manager/scan didn't
-    /// report it.
+    /// podman's container record. `None` when the host didn't report
+    /// it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub created_at: Option<i64>,
-    /// Where this laboratory lives relative to this machine + state.
-    pub source: Source,
-}
-
-/// Where a listed laboratory lives. Classification is by the RAW
-/// laboratory id: ids found by the local machine's state-scoped
-/// container scan are `Local` (connected or not); ids present ONLY as
-/// live `/laboratory` connections are `Remote` — including a
-/// laboratory running on this machine under a DIFFERENT state.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
-)]
-#[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.command.laboratories.list.Source")]
-pub enum Source {
-    #[schemars(title = "Local")]
-    Local,
-    #[schemars(title = "Remote")]
-    Remote,
+    /// The machine whose laboratory host serves this laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<crate::machine::MachineIdentity>,
 }
 
 #[derive(clap::Args)]

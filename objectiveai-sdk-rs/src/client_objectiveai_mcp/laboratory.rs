@@ -1,24 +1,31 @@
-//! Laboratory-manager channel envelopes.
+//! Laboratory-host channel envelopes.
 //!
-//! A laboratory is managed by a standalone `objectiveai-laboratory`
-//! process that dials OUT to the daemon's `/laboratory` WebSocket.
+//! Every machine runs ONE resident `objectiveai-laboratory` HOST
+//! process per state, serving ALL of that machine's laboratories. The
+//! host dials OUT to each configured daemon's `/laboratory` WebSocket.
 //! The wire there is:
 //!
-//! 1. **[`Identify`]** — the FIRST text frame, before any
-//!    authorization: who this laboratory is (id + container spec).
+//! 1. **[`HostIdentify`]** — the FIRST text frame, before any
+//!    authorization: the host's state, its [machine
+//!    identity](crate::machine::MachineIdentity), and the FULL list of
+//!    laboratories it serves (one [`Identify`] each).
 //! 2. The standard `AuthEnvelope` (`{"signature": …}`) — authorization
 //!    strictly FOLLOWS identity.
 //! 3. Then a correlated request/response protocol: the daemon sends
 //!    [`ChannelRequest`]s (the [`super::server_request::Payload`]
-//!    vocabulary, verbatim) and the manager answers with
-//!    [`ChannelResponse`]s.
+//!    vocabulary, verbatim, with `laboratory_id` addressing the lab)
+//!    and the host answers with [`ChannelResponse`]s — plus
+//!    uncorrelated host→daemon [`HostNotification`]s whenever the
+//!    host's laboratory set changes (create/delete), so every
+//!    connected daemon's view stays current without scanning.
 //!
-//! The daemon reaches connected laboratories in-process: the conduit and
-//! the `laboratories` commands call the resident laboratory registry
+//! The daemon reaches laboratories in-process: the conduit and the
+//! `laboratories` commands call the resident laboratory registry
 //! directly (`LaboratoryRegistry::forward` / `::list`), which forwards
-//! over the `/laboratory` WS and correlates the reply. Local and remote
-//! laboratories are therefore one code path: whatever dialed
-//! `/laboratory` serves the traffic, wherever it runs.
+//! over the owning host's `/laboratory` WS and correlates the reply.
+//! There is no local-vs-remote split: whichever host serves the
+//! laboratory serves the traffic, one code path, wherever it runs —
+//! machine identity is the only provenance.
 
 use indexmap::IndexMap;
 use schemars::JsonSchema;
@@ -32,19 +39,15 @@ pub struct IdentifyMount {
     pub container: String,
 }
 
-/// The `/laboratory` connection's FIRST frame: who this laboratory is.
-/// Sent BEFORE the `AuthEnvelope` — identity always precedes
-/// authorization. Mirrors the `laboratories create` spec so
-/// `laboratories list` can echo it verbatim.
+/// One laboratory's spec, as carried by [`HostIdentify`] and by
+/// [`HostNotification::LaboratoryCreated`]. Mirrors the `laboratories
+/// create` spec so `laboratories list` can echo it verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.laboratory.Identify")]
 pub struct Identify {
     /// The RAW, state-agnostic laboratory id — never prefixed or
-    /// namespaced (the manager's state scopes its container NAME and
-    /// its `<state>/locks/laboratories/<id>` lock, but the identity on
-    /// this wire is the bare id). Local-vs-remote classification in
-    /// `laboratories list` compares exactly this value against the
-    /// local machine's state-scoped container scan.
+    /// namespaced (the host's state scopes its container NAMEs, but
+    /// the identity on this wire is the bare id).
     pub id: String,
     pub image: String,
     pub mounts: Vec<IdentifyMount>,
@@ -52,29 +55,53 @@ pub struct Identify {
     pub cwd: String,
     /// Unix seconds when the laboratory container was created, from
     /// podman's own container record. Optional + defaulted so frames
-    /// from managers predating this field still parse.
+    /// from hosts predating this field still parse.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub created_at: Option<i64>,
 }
 
-/// Daemon → manager over the `/laboratory` WS: one correlated request.
-/// `payload` is the reverse-attach vocabulary verbatim — the manager
-/// is a mini-conduit for its one laboratory.
+/// The `/laboratory` connection's FIRST frame: who this HOST is. Sent
+/// BEFORE the `AuthEnvelope` — identity always precedes authorization.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.laboratory.HostIdentify")]
+pub struct HostIdentify {
+    /// The state this host serves (its podman container names and
+    /// locks are scoped to it). The daemon rejects hosts identifying a
+    /// state other than its own.
+    pub state: String,
+    /// The machine this host runs on — the stable hashed id is the
+    /// only provenance a laboratory has (there is no local-vs-remote).
+    pub machine: crate::machine::MachineIdentity,
+    /// EVERY laboratory this host serves right now, the full set. A
+    /// reconnect re-sends the current set; later changes arrive as
+    /// [`HostNotification`]s.
+    pub laboratories: Vec<Identify>,
+}
+
+/// Daemon → host over the `/laboratory` WS: one correlated request.
+/// `payload` is the reverse-attach vocabulary verbatim — the host is a
+/// mini-conduit for all of its machine's laboratories.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.laboratory.ChannelRequest")]
 pub struct ChannelRequest {
     /// Correlation id, minted by the daemon; echoed by the response.
     pub id: String,
+    /// The laboratory this request addresses. `None` only for ops that
+    /// are host-level rather than lab-level. The daemon stamps it in
+    /// `LaboratoryRegistry::forward`; the host demuxes on it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub laboratory_id: Option<String>,
     /// The originating request's headers (e.g.
-    /// `X-OBJECTIVEAI-RESPONSE-ID`, which keys the manager's per-session
+    /// `X-OBJECTIVEAI-RESPONSE-ID`, which keys the host's per-session
     /// MCP connections).
     pub headers: IndexMap<String, String>,
     #[serde(flatten)]
     pub payload: super::server_request::Payload,
 }
 
-/// Manager → daemon: the reply to a [`ChannelRequest`], correlated by
+/// Host → daemon: the reply to a [`ChannelRequest`], correlated by
 /// `id`.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.laboratory.ChannelResponse")]
@@ -84,37 +111,18 @@ pub struct ChannelResponse {
     pub payload: super::server_response::Payload,
 }
 
-/// The manager's connection-lock key for `(id, address)`:
-/// `<id>.<base62(xxh3_128(address))>`. One manager per laboratory per
-/// daemon address, enforced by the state's lockfile dir — the address
-/// folds to a fixed 22-char base62 token (the agent-id encoding, see
-/// `agent::claude_agent_sdk`) so any `ws://` URL is filesystem-safe,
-/// and base62 contains no `.`, so the key is unambiguous. Shared by
-/// the manager (acquire) and the CLI (spawn-until-published), so the
-/// two sides can never disagree on the key.
-pub fn connect_lock_key(id: &str, address: &str) -> String {
-    let mut hasher = twox_hash::XxHash3_128::with_seed(0);
-    hasher.write(address.as_bytes());
-    let token = format!("{:0>22}", base62::encode(hasher.finish_128()));
-    format!("{id}.{token}")
-}
-
-/// Invert [`connect_lock_key`]'s SHAPE: split a lock key into
-/// `(id, token)` iff it ends with `.` + exactly 22 base62 characters
-/// (the fixed-length address token — base62 contains no `.`).
-/// Returns `None` for anything else, notably the bare-id GUARD keys
-/// that share the locks directory. One pathological ambiguity exists
-/// by construction — a lab id literally ending in `.` + 22 base62
-/// chars parses as another lab's connection key — and its failure
-/// direction is conservative (the cleaner under-stops); ids in
-/// practice never look like that.
-pub fn parse_connect_lock_key(key: &str) -> Option<(&str, &str)> {
-    let (id, token) = key.rsplit_once('.')?;
-    if id.is_empty()
-        || token.len() != 22
-        || !token.bytes().all(|b| b.is_ascii_alphanumeric())
-    {
-        return None;
-    }
-    Some((id, token))
+/// Host → daemon, UNCORRELATED: the host's laboratory set changed. The
+/// daemon's pump tries [`ChannelResponse`] first (it has `id`), then
+/// this — notifications never carry a correlation id. Sent to EVERY
+/// daemon the host is connected to, so all views stay current.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.laboratory.HostNotification")]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum HostNotification {
+    /// A laboratory was created on this host.
+    #[schemars(title = "LaboratoryCreated")]
+    LaboratoryCreated { laboratory: Identify },
+    /// A laboratory was deleted from this host.
+    #[schemars(title = "LaboratoryDeleted")]
+    LaboratoryDeleted { id: String },
 }

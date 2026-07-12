@@ -7,7 +7,6 @@
 //! is the snapshot, every later frame supersedes it wholesale.
 
 use crate::cli::command::laboratories::create::{EnvVar, Mount};
-use crate::cli::command::laboratories::list::Source;
 
 /// One attachment row targeting this laboratory: the agent target it
 /// is attached to — an AIH or a tag, exactly one (the DB row's
@@ -43,11 +42,12 @@ pub enum LaboratoryAttachment {
     },
 }
 
-/// One laboratory's full record. Identity fields are present when the
-/// laboratory is connected to the daemon or found by the local scan;
-/// a laboratory known ONLY through attachment rows (or not at all)
-/// zero-fills them — `source: None` marks "not present anywhere",
-/// mirroring the agents `get_exact` zero-fill convention.
+/// One laboratory's full record. Identity fields are present when a
+/// connected laboratory HOST serves the laboratory; a laboratory known
+/// ONLY through attachment rows (or not at all) zero-fills them —
+/// `machine: None` marks "not served anywhere", mirroring the agents
+/// `get_exact` zero-fill convention. There is no local-vs-remote
+/// split — machine identity is the only provenance.
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
@@ -72,13 +72,13 @@ pub struct LaboratoryRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub created_at: Option<i64>,
-    /// Where this laboratory lives relative to this machine + state —
-    /// `None` when it is neither connected nor in the local scan.
+    /// The machine whose laboratory host serves this laboratory —
+    /// `None` when no connected host serves it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub source: Option<Source>,
-    /// Whether a live `/laboratory` manager connection for this id is
-    /// registered with the daemon right now.
+    pub machine: Option<crate::machine::MachineIdentity>,
+    /// Whether the serving host's `/laboratory` connection is live
+    /// right now.
     pub connected: bool,
     /// Every attachment row targeting this laboratory, oldest first.
     #[serde(default)]

@@ -127,6 +127,21 @@ pub enum Payload {
     /// laboratory's unpack fail, so nothing partial is kept silently.
     #[schemars(title = "LaboratoryImportAbort")]
     LaboratoryImportAbort(LaboratoryImportAbortRequest),
+
+    /// Create a laboratory on the receiving HOST (podman create + MCP
+    /// binary injection, container NOT started). Rides ONLY the
+    /// `/laboratory` channel — daemon → host — never the API reverse
+    /// channel. The host replies with the created spec and broadcasts
+    /// a `laboratory_created` notification to every daemon it is
+    /// connected to.
+    #[schemars(title = "LaboratoryCreate")]
+    LaboratoryCreate(LaboratoryCreateRequest),
+    /// Delete a laboratory from the receiving HOST (`podman rm -f`;
+    /// missing container is not an error). Same channel scope as
+    /// [`Payload::LaboratoryCreate`]; the host broadcasts a
+    /// `laboratory_deleted` notification.
+    #[schemars(title = "LaboratoryDelete")]
+    LaboratoryDelete(LaboratoryDeleteRequest),
 }
 
 impl Payload {
@@ -150,7 +165,9 @@ impl Payload {
             | Payload::LaboratoryImportBegin(_)
             | Payload::LaboratoryImportWrite(_)
             | Payload::LaboratoryImportEnd(_)
-            | Payload::LaboratoryImportAbort(_) => None,
+            | Payload::LaboratoryImportAbort(_)
+            | Payload::LaboratoryCreate(_)
+            | Payload::LaboratoryDelete(_) => None,
         }
     }
 }
@@ -236,6 +253,27 @@ pub struct LaboratoryImportWriteRequest {
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportEndRequest")]
 pub struct LaboratoryImportEndRequest {
     pub transfer_id: String,
+}
+
+/// Parameters for [`Payload::LaboratoryCreate`] — the `laboratories
+/// create` spec, forwarded to the host that will own the container.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryCreateRequest")]
+pub struct LaboratoryCreateRequest {
+    pub id: String,
+    pub image: String,
+    /// Bind mounts as `[host, container]` pairs.
+    pub mounts: Vec<[String; 2]>,
+    /// Environment as `[key, value]` pairs.
+    pub env: Vec<[String; 2]>,
+    pub cwd: String,
+}
+
+/// Parameters for [`Payload::LaboratoryDelete`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryDeleteRequest")]
+pub struct LaboratoryDeleteRequest {
+    pub id: String,
 }
 
 /// Parameters for [`Payload::LaboratoryImportAbort`].

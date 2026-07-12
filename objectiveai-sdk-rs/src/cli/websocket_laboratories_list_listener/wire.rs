@@ -8,11 +8,11 @@
 //! [`super::super::websocket_laboratories_listener`] types.
 
 use crate::cli::command::laboratories::create::{EnvVar, Mount};
-use crate::cli::command::laboratories::list::Source;
 
-/// One laboratory on the `/laboratories/list` stream: its spec, where
-/// it lives relative to this machine + state, and whether it is
-/// connected to the daemon right now.
+/// One laboratory on the `/laboratories/list` stream: its spec, the
+/// machine whose host serves it, and whether that host is connected
+/// right now. There is no local-vs-remote split — machine identity is
+/// the only provenance.
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
@@ -25,17 +25,17 @@ pub struct LaboratoryStatus {
     pub env: Vec<EnvVar>,
     pub cwd: String,
     /// Unix seconds when the laboratory container was created, from
-    /// podman's container record. `None` when the manager/scan didn't
-    /// report it.
+    /// podman's container record. `None` when the host didn't report
+    /// it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub created_at: Option<i64>,
-    /// Where this laboratory lives relative to this machine + state —
-    /// the same RAW-id classification as the unary `laboratories
-    /// list`.
-    pub source: Source,
-    /// Whether a live `/laboratory` manager connection for this id is
-    /// registered with the daemon right now.
+    /// The machine whose laboratory host serves this laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<crate::machine::MachineIdentity>,
+    /// Whether the serving host's `/laboratory` connection is live
+    /// right now.
     pub connected: bool,
 }
 

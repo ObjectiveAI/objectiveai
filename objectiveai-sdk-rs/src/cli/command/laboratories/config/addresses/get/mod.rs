@@ -1,32 +1,21 @@
-//! `laboratories connect` — spawn the resident manager that connects a
-//! CREATED laboratory to a daemon: the local one by default, or any
-//! remote daemon via `--address`. The manager holds the per-state
-//! `(id, address)` connection lock, starts the container, and serves
-//! MCP + transfer traffic over the daemon's `/laboratory` route until
-//! killed (stopping the container on graceful shutdown).
+//! `laboratories config addresses get` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.connect.Request")]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.laboratories.config.addresses.get.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// The laboratory id (must already be created).
-    pub id: String,
-    /// The daemon `ws://` base address to connect to. `None` = the
-    /// LOCAL daemon (ensured + resolved by the CLI).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub address: Option<String>,
+    pub scope: crate::cli::command::GetScope,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.connect.Path")]
+#[schemars(rename = "cli.command.laboratories.config.addresses.get.Path")]
 pub enum Path {
-    #[serde(rename = "laboratories/connect")]
-    LaboratoriesConnect,
+    #[serde(rename = "laboratories/config/addresses/get")]
+    LaboratoriesConfigAddressesGet,
 }
 
 impl CommandRequest for Request {
@@ -39,27 +28,25 @@ impl CommandRequest for Request {
     }
 }
 
-/// Confirmation — the manager is spawned (and, for a local daemon,
-/// CONNECTED). Echoes the id and the RESOLVED daemon address.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.connect.Response")]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.laboratories.config.addresses.get.Response")]
 pub struct Response {
-    pub id: String,
-    /// The daemon address the manager dials (the local daemon's
-    /// published `ws://` URL when the request left `address` unset).
-    pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub addresses: Option<indexmap::IndexMap<String, String>>,
 }
 
 #[derive(clap::Args)]
-#[command(group(clap::ArgGroup::new("id_required").required(true).args(["id"])))]
 pub struct Args {
-    /// The laboratory id (must already be created).
+    /// Read the global config layer.
     #[arg(long)]
-    pub id: Option<String>,
-    /// Daemon `ws://` base address to connect to; omit for the local
-    /// daemon.
+    pub global: bool,
+    /// Read the state config layer.
     #[arg(long)]
-    pub address: Option<String>,
+    pub state: bool,
+    /// Read the final merged config view.
+    #[arg(long)]
+    pub r#final: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -84,16 +71,21 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let id = args.id.ok_or_else(|| {
-            crate::cli::command::FromArgsError::path_parse(
-                "id",
-                "--id is required".to_string(),
-            )
-        })?;
-        Ok(Self {
-            path_type: Path::LaboratoriesConnect,
-            id,
-            address: args.address,
+        let scope = match (args.global, args.state, args.r#final) {
+            (true, false, false) => crate::cli::command::GetScope::Global,
+            (false, true, false) => crate::cli::command::GetScope::State,
+            (false, false, true) => crate::cli::command::GetScope::Final,
+            _ => {
+                return Err(crate::cli::command::FromArgsError {
+                    field: "scope",
+                    source: crate::cli::command::FromArgsErrorSource::Plain(
+                        "exactly one of --global, --state, --final is required".to_string(),
+                    ),
+                });
+            }
+        };
+        Ok(Self { path_type: Path::LaboratoriesConfigAddressesGet,
+            scope,
             base: args.base.into(),
         })
     }
@@ -103,8 +95,9 @@ impl TryFrom<Args> for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
-) -> Result<Response, E::Error> {
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<Response, E::Error> {
     request.base.clear_transform();
     executor.execute_one(request, agent_arguments).await
 }
@@ -114,8 +107,9 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     transform: crate::cli::command::Transform,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
-) -> Result<serde_json::Value, E::Error> {
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<serde_json::Value, E::Error> {
     request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
@@ -131,7 +125,7 @@ pub mod request_schema;
 
 pub mod response_schema;
 
-/// One `/listen` broadcast run of `laboratories connect`: the actual
+/// One `/listen` broadcast run of `laboratories config addresses get`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].

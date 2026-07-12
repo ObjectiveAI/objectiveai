@@ -2666,6 +2666,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hostname"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "617aaa3557aef3810a6369d0a99fac8a080891b68bd9f9812a1eeda0c0730cbd"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4434,6 +4445,8 @@ dependencies = [
  "futures",
  "futures-util",
  "getrandom 0.3.4",
+ "hex",
+ "hostname",
  "humantime",
  "indexmap 2.14.0",
  "jmespath",
@@ -4453,6 +4466,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "sha2",
  "starlark",
  "syn 2.0.117",
  "tempfile",

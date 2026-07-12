@@ -182,23 +182,131 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::laboratories::attach::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::AttachResponseSchema(execution)), feed))
         }
-        "laboratories/connect" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::connect::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::connect::Response>(path_type);
-            let execution = crate::cli::command::laboratories::connect::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Connect(execution)), feed))
+        "laboratories/config/addresses/add" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::add::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::add::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::add::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::Add(execution)))), feed))
         }
-        "laboratories/connect/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::connect::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::connect::request_schema::Response>(path_type);
-            let execution = crate::cli::command::laboratories::connect::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::ConnectRequestSchema(execution)), feed))
+        "laboratories/config/addresses/add/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::add::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::add::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::add::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::AddRequestSchema(execution)))), feed))
         }
-        "laboratories/connect/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::connect::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::connect::response_schema::Response>(path_type);
-            let execution = crate::cli::command::laboratories::connect::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::ConnectResponseSchema(execution)), feed))
+        "laboratories/config/addresses/add/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::add::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::add::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::add::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::AddResponseSchema(execution)))), feed))
+        }
+        "laboratories/config/addresses/del" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::del::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::del::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::del::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::Del(execution)))), feed))
+        }
+        "laboratories/config/addresses/del/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::del::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::del::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::del::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::DelRequestSchema(execution)))), feed))
+        }
+        "laboratories/config/addresses/del/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::del::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::del::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::del::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::DelResponseSchema(execution)))), feed))
+        }
+        "laboratories/config/addresses/get" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::get::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::get::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::get::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::Get(execution)))), feed))
+        }
+        "laboratories/config/addresses/get/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::get::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::get::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::get::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::GetRequestSchema(execution)))), feed))
+        }
+        "laboratories/config/addresses/get/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::addresses::get::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::addresses::get::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::addresses::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Addresses(crate::cli::command::laboratories::config::addresses::ListenerExecution::GetResponseSchema(execution)))), feed))
+        }
+        "laboratories/config/local/get" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::local::get::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::local::get::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::local::get::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::Get(execution)))), feed))
+        }
+        "laboratories/config/local/get/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::local::get::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::local::get::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::local::get::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::GetRequestSchema(execution)))), feed))
+        }
+        "laboratories/config/local/get/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::local::get::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::local::get::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::local::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::GetResponseSchema(execution)))), feed))
+        }
+        "laboratories/config/local/set" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::local::set::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::local::set::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::local::set::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::Set(execution)))), feed))
+        }
+        "laboratories/config/local/set/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::local::set::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::local::set::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::local::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::SetRequestSchema(execution)))), feed))
+        }
+        "laboratories/config/local/set/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::config::local::set::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::config::local::set::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::config::local::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::SetResponseSchema(execution)))), feed))
+        }
+        "laboratories/kill" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::Response>(path_type);
+            let execution = crate::cli::command::laboratories::kill::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Kill(execution)), feed))
+        }
+        "laboratories/kill/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::kill::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::KillRequestSchema(execution)), feed))
+        }
+        "laboratories/kill/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::kill::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::KillResponseSchema(execution)), feed))
+        }
+        "laboratories/spawn" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::Response>(path_type);
+            let execution = crate::cli::command::laboratories::spawn::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Spawn(execution)), feed))
+        }
+        "laboratories/spawn/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::spawn::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::SpawnRequestSchema(execution)), feed))
+        }
+        "laboratories/spawn/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::spawn::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::SpawnResponseSchema(execution)), feed))
         }
         "laboratories/detach" => {
             let parsed = serde_json::from_str::<crate::cli::command::laboratories::detach::Request>(request.get()).ok()?;

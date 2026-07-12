@@ -26,7 +26,7 @@ mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio
 cli = ["mcp", "dep:clap", "dep:humantime"]
 cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs", "dep:tokio-tungstenite"]
 cli-listener = ["cli", "dep:tokio", "dep:futures", "dep:tokio-tungstenite"]
-lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys", "dep:dashmap"]
+lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys", "dep:dashmap", "dep:hostname"]
 subprocess-reaper = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
@@ -43,6 +43,9 @@ base64 = { version = "0.22.1" }
 chrono = { version = "=0.4.39", features = ["serde"] }
 uuid = { version = "1.22.0", features = ["v4", "serde"] }
 json-escape = { version = "0.3.1" }
+sha2 = { version = "0.10.9" }
+hex = { version = "0.4.3" }
+hostname = { version = "0.4", optional = true }
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"], optional = true }
 reqwest-eventsource = { version = "0.6.0", optional = true }
 eventsource-stream = { version = "0.2.3", optional = true }
@@ -81,7 +84,7 @@ wiremock = "0.6"
 nix = { version = "0.29", features = ["fs", "inotify", "event"], optional = true }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_Threading", "Win32_System_RestartManager", "Win32_System_JobObjects", "Win32_System_IO"], optional = true }
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_Threading", "Win32_System_RestartManager", "Win32_System_JobObjects", "Win32_System_IO", "Win32_System_Registry"], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 uuid = { version = "1.22.0", features = ["v4", "serde", "js"] }
