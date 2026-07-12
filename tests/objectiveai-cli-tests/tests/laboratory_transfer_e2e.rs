@@ -40,9 +40,6 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
 };
-use objectiveai_sdk::cli::command::laboratories::connect::{
-    Path as ConnectPath, Request as ConnectReq, Response as ConnectResp,
-};
 use objectiveai_sdk::cli::command::laboratories::create::{
     Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
@@ -75,6 +72,10 @@ impl Drop for PluginGuard {
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
 
+/// Create a laboratory. Creation runs on this machine's laboratory
+/// HOST (auto-spawned by the daemon when absent) and announces the lab
+/// to the registry — no separate connect step exists; the container
+/// starts lazily on its first routed op.
 async fn create_lab(executor: &Exec, id: &str) {
     let created: CreateResp = cli_test_util::execute_one(
         executor,
@@ -90,22 +91,12 @@ async fn create_lab(executor: &Exec, id: &str) {
             // absent from the base image) would fail before any command;
             // the scripts `mkdir -p` their own work dirs.
             cwd: "/".to_string(),
+            machine: None,
             base: Default::default(),
         },
     )
     .await;
     assert_eq!(created.id, id);
-    let connected: ConnectResp = cli_test_util::execute_one(
-        executor,
-        ConnectReq {
-            path_type: ConnectPath::LaboratoriesConnect,
-            id: id.to_string(),
-            address: None,
-            base: Default::default(),
-        },
-    )
-    .await;
-    assert_eq!(connected.id, id);
 }
 
 async fn attach_lab(executor: &Exec, tag: &str, lab: &str) {

@@ -20,9 +20,6 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
 };
-use objectiveai_sdk::cli::command::laboratories::connect::{
-    Path as ConnectPath, Request as ConnectReq, Response as ConnectResp,
-};
 use objectiveai_sdk::cli::command::laboratories::create::{
     EnvVar, Kind, Mount, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
@@ -39,7 +36,11 @@ fn nanos() -> u128 {
         .as_nanos()
 }
 
-/// Create a laboratory with explicit mounts/env/cwd.
+/// Create a laboratory with explicit mounts/env/cwd. Creation runs on
+/// this machine's laboratory HOST (auto-spawned by the daemon when
+/// absent) and announces the lab to the registry — no separate
+/// connect step exists; the container starts lazily on its first
+/// routed op.
 async fn create_lab(
     executor: &Exec,
     id: &str,
@@ -57,22 +58,12 @@ async fn create_lab(
             mounts,
             env,
             cwd: cwd.to_string(),
+            machine: None,
             base: Default::default(),
         },
     )
     .await;
     assert_eq!(created.id, id);
-    let connected: ConnectResp = cli_test_util::execute_one(
-        executor,
-        ConnectReq {
-            path_type: ConnectPath::LaboratoriesConnect,
-            id: id.to_string(),
-            address: None,
-            base: Default::default(),
-        },
-    )
-    .await;
-    assert_eq!(connected.id, id);
 }
 
 /// Apply `tag` carrying `agent_json` (a GROUPED mock agent), attach `labs`

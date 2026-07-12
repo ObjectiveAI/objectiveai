@@ -9,7 +9,7 @@ use objectiveai_sdk::cli::command::laboratories::create::{
     EnvVar, Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
 use objectiveai_sdk::cli::command::laboratories::list::{
-    Path as ListPath, Request as ListReq, ResponseItem as ListItem, Source,
+    Path as ListPath, Request as ListReq, ResponseItem as ListItem,
 };
 
 /// Expect a duplicate `create` for `id` to fail with "already exists".
@@ -26,6 +26,7 @@ async fn expect_create_err(executor: &cli_test_util::HangPreventingBinaryCommand
                 mounts: Vec::new(),
                 env: Vec::new(),
                 cwd: "/work".to_string(),
+                machine: None,
                 base: Default::default(),
             },
             None,
@@ -72,6 +73,7 @@ async fn create_then_list_round_trips_the_spec() {
                 value: "bar".to_string(),
             }],
             cwd: "/work".to_string(),
+            machine: None,
             base: Default::default(),
         },
     )
@@ -95,10 +97,16 @@ async fn create_then_list_round_trips_the_spec() {
         .unwrap_or_else(|| panic!("created lab {id} not in list: {:?}", labs.iter().map(|l| &l.id).collect::<Vec<_>>()));
     assert_eq!(found.image, BASE_IMAGE);
     assert_eq!(found.cwd, "/work");
+    // A laboratory created with no --machine lands on THIS machine's
+    // host — the item's machine identity must match the one the
+    // daemon computes for this machine (there is no local-vs-remote;
+    // machine identity is the only provenance).
+    let local_machine =
+        objectiveai_sdk::machine::machine_id(&cli_test_util::objectiveai_dir());
     assert_eq!(
-        found.source,
-        Source::Local,
-        "a laboratory created on this machine + state must be local"
+        found.machine.as_ref().map(|m| m.id.as_str()),
+        Some(local_machine.as_str()),
+        "a laboratory created on this machine + state must be served by this machine's host"
     );
 
     // A second create for the same id must fail loudly.
