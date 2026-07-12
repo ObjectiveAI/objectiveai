@@ -20,7 +20,9 @@ pub struct Client {
     /// Referer header value.
     pub http_referer: String,
     /// Timeout for the initial connection (initialize request).
-    pub connect_timeout: Duration,
+    /// `None` = no timeout — the caller waits as long as the upstream
+    /// takes (e.g. the daemon, which never bounds its own MCP calls).
+    pub connect_timeout: Option<Duration>,
 
     /// Current backoff interval for retry logic.
     pub backoff_current_interval: Duration,
@@ -35,7 +37,20 @@ pub struct Client {
     /// Maximum total time to spend on retries.
     pub backoff_max_elapsed_time: Duration,
     /// Timeout for individual RPC calls after connection is established.
-    pub call_timeout: Duration,
+    /// `None` = no timeout (see [`Client::connect_timeout`]).
+    pub call_timeout: Option<Duration>,
+}
+
+/// Apply an optional per-request timeout to a builder: `None` leaves the
+/// request unbounded (reqwest applies no default request timeout).
+pub(crate) fn apply_timeout(
+    request: reqwest::RequestBuilder,
+    timeout: Option<Duration>,
+) -> reqwest::RequestBuilder {
+    match timeout {
+        Some(timeout) => request.timeout(timeout),
+        None => request,
+    }
 }
 
 impl Client {
@@ -45,14 +60,14 @@ impl Client {
         user_agent: String,
         x_title: String,
         http_referer: String,
-        connect_timeout: Duration,
+        connect_timeout: Option<Duration>,
         backoff_current_interval: Duration,
         backoff_initial_interval: Duration,
         backoff_randomization_factor: f64,
         backoff_multiplier: f64,
         backoff_max_interval: Duration,
         backoff_max_elapsed_time: Duration,
-        call_timeout: Duration,
+        call_timeout: Option<Duration>,
     ) -> Self {
         Self {
             http_client,
@@ -200,11 +215,11 @@ impl Client {
         headers: Option<IndexMap<String, String>>,
     ) -> Result<(), super::Error> {
         let headers = self.headers(headers);
-        let mut request = self
-            .http_client
-            .delete(&url)
-            .timeout(self.call_timeout)
-            .header("Mcp-Session-Id", &session_id);
+        let mut request = apply_timeout(
+            self.http_client.delete(&url),
+            self.call_timeout,
+        )
+        .header("Mcp-Session-Id", &session_id);
         for (name, value) in &headers {
             // Explicit `session_id` arg always wins.
             if name.eq_ignore_ascii_case("Mcp-Session-Id") {
@@ -256,13 +271,13 @@ impl Client {
             }
         });
 
-        let mut request = self
-            .http_client
-            .post(url)
-            .timeout(self.connect_timeout)
-            .header("Content-Type", "application/json")
-            .header("Accept", "text/event-stream, application/json")
-            .json(&init_request);
+        let mut request = apply_timeout(
+            self.http_client.post(url),
+            self.connect_timeout,
+        )
+        .header("Content-Type", "application/json")
+        .header("Accept", "text/event-stream, application/json")
+        .json(&init_request);
 
         for (name, value) in headers {
             request = request.header(name, value);
@@ -399,12 +414,12 @@ impl Client {
             "method": "notifications/initialized",
             "params": {},
         });
-        let mut notify_request = self
-            .http_client
-            .post(url)
-            .timeout(self.call_timeout)
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json, text/event-stream");
+        let mut notify_request = apply_timeout(
+            self.http_client.post(url),
+            self.call_timeout,
+        )
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json, text/event-stream");
         for (name, value) in headers {
             notify_request = notify_request.header(name, value);
         }
@@ -440,11 +455,11 @@ impl Client {
         // inspection only gates whether we open this stream; the
         // `Connection` itself is naive about capabilities.
         let initial_sse_lines: Option<super::LinesStream> = if needs_sse {
-            let mut get_request = self
-                .http_client
-                .get(url)
-                .timeout(self.connect_timeout)
-                .header("Accept", "text/event-stream");
+            let mut get_request = apply_timeout(
+                self.http_client.get(url),
+                self.connect_timeout,
+            )
+            .header("Accept", "text/event-stream");
             for (name, value) in headers {
                 get_request = get_request.header(name, value);
             }

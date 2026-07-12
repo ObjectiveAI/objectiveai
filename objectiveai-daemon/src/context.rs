@@ -230,13 +230,12 @@ impl Context {
         Ok(build_http_client(&self.config, &mut config, address))
     }
 
-    /// Effective MCP timeout (ms), used as BOTH the connect and per-call
-    /// timeout for every MCP client this CLI drives (its streaming
-    /// conduit). The merged (`--final`) `api.mcp_timeout_ms` config value,
-    /// or the canonical default (1_800_000ms / 30 min) when unset.
-    pub async fn resolve_mcp_timeout_ms(&self) -> Result<u64, crate::error::Error> {
-        Ok(self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(1_800_000))
-    }
+    // NOTE: the daemon deliberately has NO `resolve_mcp_timeout_ms`
+    // resolver for its own MCP clients — it never bounds its own MCP
+    // calls (connect + per-call timeouts are `None`; it waits forever).
+    // Only the API applies timeouts. `resolve_mcp_timeout_ms_opt` below
+    // survives solely to project the user's `api.mcp_timeout_ms` config
+    // onto a SPAWNED API server.
 
     /// Effective backoff max-elapsed-time (ms) — the retry budget for the
     /// CLI's own MCP client. The merged `api.backoff_max_elapsed_time_ms`

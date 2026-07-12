@@ -148,30 +148,30 @@ impl ConduitMcpHandler {
         mcp_server: crate::websockets::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
         agent_tag: Option<String>,
-        mcp_timeout_ms: u64,
         backoff_max_elapsed_time_ms: u64,
     ) -> Self {
         let http = reqwest::Client::builder()
             .build()
             .expect("reqwest::Client::build is infallible without rustls toggles");
-        // The CLI's single MCP client uses the two configured values:
-        // `mcp_timeout_ms` for BOTH the connect + per-call timeout, and
-        // `backoff_max_elapsed_time_ms` for the retry budget. The other
-        // exponential-backoff knobs are fixed defaults matching the
+        // The daemon NEVER bounds its own MCP calls — connect + per-call
+        // timeouts are `None` (wait forever); only the API applies
+        // timeouts anywhere. `backoff_max_elapsed_time_ms` still caps the
+        // RETRY budget (give-up-on-errors, not a per-call deadline). The
+        // other exponential-backoff knobs are fixed defaults matching the
         // api/proxy (100ms / 100ms / 0.5 / 1.5 / 1000ms).
         let client = objectiveai_sdk::mcp::Client::new(
             http,
             "objectiveai-cli-stream-conduit".to_string(),
             String::new(),
             String::new(),
-            Duration::from_millis(mcp_timeout_ms),
+            None,
             Duration::from_millis(100),
             Duration::from_millis(100),
             0.5,
             1.5,
             Duration::from_millis(1000),
             Duration::from_millis(backoff_max_elapsed_time_ms),
-            Duration::from_millis(mcp_timeout_ms),
+            None,
         );
         Self {
             inner: Arc::new(Inner {

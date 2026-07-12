@@ -140,12 +140,11 @@ impl Connection {
         // 2. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
         //    request-stamp shape: header loop first, explicit
         //    `Mcp-Session-Id` always wins.
-        let request = self
-            .inner
-            .http_client
-            .delete(&self.inner.url)
-            .timeout(self.inner.call_timeout)
-            .headers(self.inner.build_request_headers(None, None).await);
+        let request = super::apply_timeout(
+            self.inner.http_client.delete(&self.inner.url),
+            self.inner.call_timeout,
+        )
+        .headers(self.inner.build_request_headers(None, None).await);
         let response = request.send().await.map_err(|source| {
             super::Error::Request {
                 url: self.inner.url.clone(),
@@ -185,7 +184,7 @@ impl Connection {
         backoff_multiplier: f64,
         backoff_max_interval: Duration,
         backoff_max_elapsed_time: Duration,
-        call_timeout: Duration,
+        call_timeout: Option<Duration>,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
     ) -> Self {
@@ -365,7 +364,8 @@ pub struct ConnectionInner {
     pub backoff_multiplier: f64,
     pub backoff_max_interval: Duration,
     pub backoff_max_elapsed_time: Duration,
-    pub call_timeout: Duration,
+    /// Per-RPC timeout; `None` = no timeout (wait forever).
+    pub call_timeout: Option<Duration>,
 
     /// The server's capabilities and info from the initialize response.
     pub initialize_result: super::initialize_result::InitializeResult,
@@ -474,7 +474,7 @@ impl ConnectionInner {
             backoff_multiplier: 1.5,
             backoff_max_interval: Duration::from_secs(60),
             backoff_max_elapsed_time: Duration::from_secs(900),
-            call_timeout: Duration::from_secs(30),
+            call_timeout: Some(Duration::from_secs(30)),
             initialize_result: super::initialize_result::InitializeResult {
                 protocol_version: "2025-03-26".into(),
                 capabilities,
@@ -522,7 +522,7 @@ impl ConnectionInner {
         backoff_multiplier: f64,
         backoff_max_interval: Duration,
         backoff_max_elapsed_time: Duration,
-        call_timeout: Duration,
+        call_timeout: Option<Duration>,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
     ) -> Arc<Self> {
@@ -655,11 +655,10 @@ impl ConnectionInner {
         }
     }
 
-    /// Builds a POST request with all required headers and the call timeout.
+    /// Builds a POST request with all required headers and the call
+    /// timeout (when one is configured).
     async fn post(&self) -> reqwest::RequestBuilder {
-        self.http_client
-            .post(&self.url)
-            .timeout(self.call_timeout)
+        super::apply_timeout(self.http_client.post(&self.url), self.call_timeout)
             .headers(
                 self.build_request_headers(
                     Some("application/json"),

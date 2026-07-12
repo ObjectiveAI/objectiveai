@@ -500,23 +500,19 @@ pub(crate) fn run_multi_pass(
         // the caller only sees the Id after at least one log row
         // has been persisted.
         let mut id_emitted = false;
-        // Resolve the MCP client tuning once for the whole spawn; every
-        // pass's conduit reuses these (cheap to pass per pass).
-        let tuning = async {
-            Ok::<_, Error>((
-                ctx.resolve_mcp_timeout_ms().await?,
-                ctx.resolve_backoff_max_elapsed_time_ms().await?,
-            ))
-        }
-        .await;
-        let (mcp_timeout_ms, backoff_max_elapsed_time_ms) = match tuning {
-            Ok(tuning) => tuning,
-            Err(e) => {
-                note_error(&ctx, &conversation_tee, registry.aih(), None, &e).await;
-                Err(e)?;
-                unreachable!("Err(e)? diverges");
-            }
-        };
+        // Resolve the MCP retry budget once for the whole spawn; every
+        // pass's conduit reuses it (cheap to pass per pass). No MCP
+        // timeout — the daemon never bounds its own MCP calls.
+        let backoff_max_elapsed_time_ms =
+            match ctx.resolve_backoff_max_elapsed_time_ms().await {
+                Ok(v) => v,
+                Err(e) => {
+                    note_error(&ctx, &conversation_tee, registry.aih(), None, &e)
+                        .await;
+                    Err(e)?;
+                    unreachable!("Err(e)? diverges");
+                }
+            };
         // Track the most recent response id seen on the wire — the id
         // logged errors attach to once a stream has existed.
         let mut last_response_id: Option<String> = None;
@@ -532,7 +528,6 @@ pub(crate) fn run_multi_pass(
                     mcp_server,
                     ctx.clone(),
                     agent_tag.clone(),
-                    mcp_timeout_ms,
                     backoff_max_elapsed_time_ms,
                 );
             // Spawn.rs doesn't need the primary-id ready signal —

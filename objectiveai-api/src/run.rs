@@ -409,14 +409,14 @@ pub async fn setup(
         user_agent.clone(),
         x_title.clone(),
         http_referer.clone(),
-        std::time::Duration::from_millis(mcp_connect_timeout),
+        Some(std::time::Duration::from_millis(mcp_connect_timeout)),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         BACKOFF_RANDOMIZATION_FACTOR,
         BACKOFF_MULTIPLIER,
         std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         std::time::Duration::from_millis(mcp_backoff_max_elapsed_time),
-        std::time::Duration::from_millis(mcp_call_timeout),
+        Some(std::time::Duration::from_millis(mcp_call_timeout)),
     ));
 
     // Lazy in-process mcp-proxy. Each per-agent MCP connection goes

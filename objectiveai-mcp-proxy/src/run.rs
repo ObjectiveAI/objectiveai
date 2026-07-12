@@ -208,14 +208,14 @@ pub async fn setup(
         user_agent,
         x_title,
         http_referer,
-        Duration::from_millis(mcp_connect_timeout),
+        Some(Duration::from_millis(mcp_connect_timeout)),
         Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         BACKOFF_RANDOMIZATION_FACTOR,
         BACKOFF_MULTIPLIER,
         Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         Duration::from_millis(mcp_backoff_max_elapsed_time),
-        Duration::from_millis(mcp_call_timeout),
+        Some(Duration::from_millis(mcp_call_timeout)),
     );
 
     let sessions = Arc::new(SessionManager::new());

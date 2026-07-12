@@ -303,14 +303,14 @@ static MCP_CLIENT: LazyLock<Arc<objectiveai_sdk::mcp::Client>> = LazyLock::new(|
         String::new(),
         String::new(),
         String::new(),
-        Duration::from_millis(MCP_CONNECT_TIMEOUT_MS),
+        Some(Duration::from_millis(MCP_CONNECT_TIMEOUT_MS)),
         Duration::from_millis(MCP_BACKOFF_CURRENT_INTERVAL_MS),
         Duration::from_millis(MCP_BACKOFF_INITIAL_INTERVAL_MS),
         MCP_BACKOFF_RANDOMIZATION_FACTOR,
         MCP_BACKOFF_MULTIPLIER,
         Duration::from_millis(MCP_BACKOFF_MAX_INTERVAL_MS),
         Duration::from_millis(MCP_BACKOFF_MAX_ELAPSED_TIME_MS),
-        Duration::from_millis(MCP_CALL_TIMEOUT_MS),
+        Some(Duration::from_millis(MCP_CALL_TIMEOUT_MS)),
     ))
 });
 
