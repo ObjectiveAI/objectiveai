@@ -294,12 +294,23 @@ impl Session {
         let mut servers: Vec<Server> = self
             .connections
             .iter()
-            .map(|(prefix, up)| Server {
-                name: prefix.clone(),
-                url: up.url().to_string(),
-                initialize_result: up.initialize_result().clone(),
-                laboratory: up.laboratory(),
-                plugin: up.plugin(),
+            .map(|(prefix, up)| {
+                let laboratory = up.laboratory();
+                // The assistant-facing composite id — what
+                // `laboratory_transfer` takes. `None` for markers
+                // predating machine tracking (nothing to compose).
+                let laboratory_id = laboratory.as_ref().and_then(|lab| {
+                    let Laboratory::Client(c) = lab;
+                    c.composite_id()
+                });
+                Server {
+                    name: prefix.clone(),
+                    url: up.url().to_string(),
+                    initialize_result: up.initialize_result().clone(),
+                    laboratory,
+                    laboratory_id,
+                    plugin: up.plugin(),
+                }
             })
             .collect();
         servers.sort_by(|a, b| a.name.cmp(&b.name));
@@ -402,22 +413,26 @@ impl Session {
             .count()
     }
 
-    /// Find the upstream that IS the laboratory with this id (matched on
-    /// the typed laboratory id, never a routing prefix / name; ids are
-    /// unique WITHIN a session — spawn dedups by id). Returns the
-    /// upstream and its typed marker, whose (machine, machine_state)
-    /// pair pins the exact host for downstream routing.
-    fn find_laboratory(&self, id: &str) -> Option<(&Upstream, ClientLaboratory)> {
+    /// Find the upstream that IS the laboratory `target` — matched on
+    /// the FULL identity (id + machine + machine_state; laboratory ids
+    /// are only unique per (machine, state)), never a routing prefix,
+    /// a name, or a bare id. Returns the upstream and its typed
+    /// marker, whose (machine, machine_state) pair pins the exact
+    /// host for downstream routing.
+    fn find_laboratory(&self, target: &ClientLaboratory) -> Option<(&Upstream, ClientLaboratory)> {
         self.connections.values().find_map(|u| match u.laboratory() {
-            Some(Laboratory::Client(c)) if c.id == id => Some((u, c)),
+            Some(Laboratory::Client(c)) if c == *target => Some((u, c)),
             _ => None,
         })
     }
 
     /// Handle the proxy-native `laboratory_transfer` tool: copy a
     /// file/folder from one laboratory to another. Source/destination
-    /// are identified by laboratory **id** (the `laboratory.id` from
-    /// `agents mcp servers list`), resolved against the typed markers.
+    /// are the COMPOSITE `{machineID}/{state}/{laboratoryID}` full
+    /// identity (the `laboratory_id` from `agents mcp servers list`),
+    /// REQUIRED: laboratory ids are only unique per (machine, state),
+    /// so a bare id is ambiguous and rejected. Resolved against the
+    /// typed markers on all three fields.
     /// The byte movement is a PROXY-SIDE SPLICE of two completely
     /// independent conduit operations — an export pulled chunk-by-chunk
     /// from the source's channel and an import pushed chunk-by-chunk to
@@ -447,10 +462,31 @@ impl Session {
                 );
             }
         };
-        if source == destination {
+        // The composite is REQUIRED: `{machineID}/{state}/{labID}`
+        // with the state and laboratory id base62-encoded — the full
+        // identity, since laboratory ids are only unique per
+        // (machine, state). Malformed args (a bare id included) fail
+        // here with the expected shape.
+        let composite_error = |which: &str, value: &str| {
+            transfer_error(format!(
+                "{which} '{value}' is not a composite laboratory id — expected \
+                 `{{machineID}}/{{state}}/{{laboratoryID}}` (state and laboratory id \
+                 base62-encoded), exactly as `laboratory_id` from \
+                 `agents mcp servers list` reports it"
+            ))
+        };
+        let Some(source_target) = ClientLaboratory::from_composite_id(source) else {
+            return composite_error("source", source);
+        };
+        let Some(dest_target) = ClientLaboratory::from_composite_id(destination) else {
+            return composite_error("destination", destination);
+        };
+        // Compare the PARSED identities (canonical), not the raw arg
+        // strings.
+        if source_target == dest_target {
             return transfer_error("source and destination must be different laboratories");
         }
-        let (source_channel, source_marker) = match self.find_laboratory(source) {
+        let (source_channel, source_marker) = match self.find_laboratory(&source_target) {
             Some((u, marker)) => match u.reverse_channel() {
                 Some(c) => (c, marker),
                 None => return transfer_error("source laboratory has no reverse channel"),
@@ -459,7 +495,7 @@ impl Session {
                 return transfer_error(format!("no laboratory with id '{source}' in this session"));
             }
         };
-        let (dest_channel, dest_marker) = match self.find_laboratory(destination) {
+        let (dest_channel, dest_marker) = match self.find_laboratory(&dest_target) {
             Some((u, marker)) => match u.reverse_channel() {
                 Some(c) => (c, marker),
                 None => return transfer_error("destination laboratory has no reverse channel"),
@@ -472,12 +508,14 @@ impl Session {
         };
 
         // Begin both halves; a failure on either aborts the survivor.
-        // Each Begin carries its marker's (machine, machine_state)
-        // pair — laboratory ids are only unique per (machine, state),
-        // so the conduit forwards each half to the exact host.
+        // Each Begin carries the matched marker's RAW id + its
+        // (machine, machine_state) pair — laboratory ids are only
+        // unique per (machine, state), so the conduit forwards each
+        // half to the exact host. NEVER the composite arg string: the
+        // wire's laboratory_id is the raw id everywhere.
         let export_id = match source_channel
             .laboratory_export_begin(
-                source.to_string(),
+                source_marker.id.clone(),
                 source_marker.machine,
                 source_marker.machine_state,
                 source_path.to_string(),
@@ -489,7 +527,7 @@ impl Session {
         };
         let import_id = match dest_channel
             .laboratory_import_begin(
-                destination.to_string(),
+                dest_marker.id.clone(),
                 dest_marker.machine,
                 dest_marker.machine_state,
                 destination_path.to_string(),
@@ -579,7 +617,10 @@ fn prefix_name(server_name: &str, name: &str) -> String {
 
 /// The proxy-native `laboratory_transfer` tool definition, injected into
 /// `tools/list` when a session has 2+ laboratories. Source/destination are
-/// laboratory ids (from `agents mcp servers list`).
+/// COMPOSITE laboratory ids `{machineID}/{state}/{laboratoryID}` — the
+/// `laboratory_id` from `agents mcp servers list`, also stated in each
+/// laboratory server's instructions. Quoted verbatim, never constructed
+/// by hand (the state and laboratory id segments are base62-encoded).
 fn laboratory_transfer_tool() -> Tool {
     fn string_prop(description: &str) -> serde_json::Value {
         serde_json::json!({ "type": "string", "description": description })
@@ -588,8 +629,9 @@ fn laboratory_transfer_tool() -> Tool {
     properties.insert(
         "source".to_string(),
         string_prop(
-            "Laboratory id of the source (the `laboratory.id` from \
-             `agents mcp servers list`).",
+            "The source laboratory's full id — the `laboratory_id` from \
+             `agents mcp servers list` (`{machine}/{state}/{id}`), quoted \
+             verbatim.",
         ),
     );
     properties.insert(
@@ -598,7 +640,10 @@ fn laboratory_transfer_tool() -> Tool {
     );
     properties.insert(
         "destination".to_string(),
-        string_prop("Laboratory id of the destination."),
+        string_prop(
+            "The destination laboratory's full id — same form as `source`, \
+             quoted verbatim.",
+        ),
     );
     properties.insert(
         "destination_path".to_string(),
@@ -612,7 +657,9 @@ fn laboratory_transfer_tool() -> Tool {
         title: Some("Laboratory Transfer".to_string()),
         description: Some(
             "Copy a file or folder from one laboratory to another (streamed). \
-             Identify the laboratories by their id from `agents mcp servers list`."
+             Identify the laboratories by their FULL `laboratory_id` from \
+             `agents mcp servers list` (`{machine}/{state}/{id}` — also stated \
+             in each laboratory server's instructions), quoted verbatim."
                 .to_string(),
         ),
         icons: None,

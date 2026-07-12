@@ -100,6 +100,24 @@ async fn create_lab(executor: &Exec, id: &str) {
     assert_eq!(created.id, id);
 }
 
+/// The COMPOSITE laboratory id the assistant must quote —
+/// `{machine}/{base62(state)}/{base62(id)}` for a lab on THIS
+/// machine + this test's state (where every default-pair create
+/// lands).
+fn composite_id(lab: &str) -> String {
+    use objectiveai_sdk::laboratories::{ClientLaboratory, ClientLaboratoryType};
+    ClientLaboratory {
+        r#type: ClientLaboratoryType::Client,
+        id: lab.to_string(),
+        machine: Some(objectiveai_sdk::machine::machine_id(
+            &cli_test_util::objectiveai_dir(),
+        )),
+        machine_state: Some(cli_test_util::test_state_name()),
+    }
+    .composite_id()
+    .expect("machine + state present")
+}
+
 async fn attach_lab(executor: &Exec, tag: &str, lab: &str) {
     let _: AttachResp = cli_test_util::execute_one(
         executor,
@@ -158,9 +176,9 @@ async fn transfer_between_two_laboratories() {
         serde_json::to_string(&json!({ "command": "mkdir -p /work && printf hi > /work/x" }))
             .unwrap();
     let transfer_args = serde_json::to_string(&json!({
-        "source": lab_a,
+        "source": composite_id(&lab_a),
         "source_path": "/work/x",
-        "destination": lab_b,
+        "destination": composite_id(&lab_b),
         "destination_path": "/work",
     }))
     .unwrap();
@@ -453,8 +471,8 @@ async fn transfer_directory_between_laboratories() {
     }))
     .unwrap();
     let transfer_args = serde_json::to_string(&json!({
-        "source": lab_a, "source_path": "/work/d",
-        "destination": lab_b, "destination_path": "/work",
+        "source": composite_id(&lab_a), "source_path": "/work/d",
+        "destination": composite_id(&lab_b), "destination_path": "/work",
     }))
     .unwrap();
     // Concatenate both files with a separator so the result is distinctive.
@@ -502,10 +520,20 @@ async fn transfer_unknown_laboratory_is_error() {
     create_lab(&executor, &lab_a).await;
     create_lab(&executor, &lab_b).await;
 
-    let transfer_args = serde_json::to_string(&json!({
+    // Turn 1: a WELL-FORMED composite that matches nothing (this
+    // machine + state, nonexistent raw id) — the resolve failure.
+    // Turn 2: a MALFORMED bare id — the composite-format rejection.
+    let unknown_args = serde_json::to_string(&json!({
+        "source": composite_id("does-not-exist"),
+        "source_path": "/work/x",
+        "destination": composite_id(&lab_b),
+        "destination_path": "/work",
+    }))
+    .unwrap();
+    let malformed_args = serde_json::to_string(&json!({
         "source": "does-not-exist",
         "source_path": "/work/x",
-        "destination": lab_b,
+        "destination": composite_id(&lab_b),
         "destination_path": "/work",
     }))
     .unwrap();
@@ -514,7 +542,8 @@ async fn transfer_unknown_laboratory_is_error() {
         "output_mode": "instruction",
         "instruction": "done",
         "calls": [
-            { "tool_calls": [{ "name": "laboratory_transfer", "arguments": transfer_args }], "content": "" }
+            { "tool_calls": [{ "name": "laboratory_transfer", "arguments": unknown_args }], "content": "" },
+            { "tool_calls": [{ "name": "laboratory_transfer", "arguments": malformed_args }], "content": "" }
         ]
     });
     let rid = spawn_lab_session(&executor, &tag, agent_json, &[&lab_a, &lab_b]).await;
@@ -523,6 +552,10 @@ async fn transfer_unknown_laboratory_is_error() {
     assert!(
         results.contains("no laboratory"),
         "unknown source laboratory should error; got: {results}"
+    );
+    assert!(
+        results.contains("not a composite laboratory id"),
+        "a bare id must be rejected with the composite-format error; got: {results}"
     );
 }
 

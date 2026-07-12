@@ -106,6 +106,7 @@ struct LabelMount {
 pub async fn create(
     podman: &Podman,
     state: &str,
+    machine_id: &str,
     laboratory_binary: &Path,
     id: &str,
     image: &str,
@@ -150,12 +151,24 @@ pub async fn create(
     }
     // Force the MCP's bind port; appended after the user's env so it wins.
     create_cmd.arg("-e").arg(format!("PORT={LAB_PORT}"));
-    // The laboratory id, so the in-container MCP names itself `oail-<id>`.
-    // Baked into the container config at create time → static and persists
-    // across restarts. Appended after the user's env so it wins.
+    // The laboratory's COMPOSITE id `{machine}/{base62(state)}/{base62(id)}`
+    // — the assistant-facing full identity (ids are only unique per
+    // (machine, state)). The in-container MCP parses the raw id back out
+    // for its `oail-<id>` server name and surfaces the composite verbatim
+    // in its instructions. Baked into the container config at create time
+    // → static and persists across restarts. Appended after the user's
+    // env so it wins.
+    let composite = objectiveai_sdk::laboratories::ClientLaboratory {
+        r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
+        id: id.to_string(),
+        machine: Some(machine_id.to_string()),
+        machine_state: Some(state.to_string()),
+    }
+    .composite_id()
+    .expect("machine + state are always present here");
     create_cmd
         .arg("-e")
-        .arg(format!("OBJECTIVEAI_LABORATORY_ID={id}"));
+        .arg(format!("OBJECTIVEAI_LABORATORY_ID={composite}"));
     // The default working directory new agents start in. Appended after the
     // user's env so it wins.
     create_cmd

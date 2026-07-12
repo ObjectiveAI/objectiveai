@@ -5,6 +5,7 @@
 //! wrapper that reads `Config` from the environment and calls [`run`].
 
 mod bash;
+mod composite;
 mod run;
 mod tools;
 mod transfer;

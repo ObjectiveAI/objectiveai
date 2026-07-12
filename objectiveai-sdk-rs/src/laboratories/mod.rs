@@ -11,6 +11,8 @@
 //! json-schema coverage test derives the `laboratories.` title prefix from
 //! the directory — matching these types' `#[schemars(rename = "laboratories.…")]`.
 
+mod composite;
 mod laboratories;
 
+pub use composite::*;
 pub use laboratories::*;

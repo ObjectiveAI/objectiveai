@@ -216,6 +216,7 @@ impl HostServer {
         if let Err(e) = podman::laboratory::create(
             &self.podman,
             &self.state,
+            &self.machine.id,
             &laboratory_binary,
             &req.id,
             &req.image,

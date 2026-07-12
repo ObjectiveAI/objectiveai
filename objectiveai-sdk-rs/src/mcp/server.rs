@@ -31,6 +31,15 @@ pub struct Server {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub laboratory: Option<crate::laboratories::Laboratory>,
+    /// The laboratory's ASSISTANT-FACING composite id —
+    /// `{machineID}/{base62(state)}/{base62(laboratoryID)}`
+    /// ([`ClientLaboratory::composite_id`](crate::laboratories::ClientLaboratory::composite_id)),
+    /// what `laboratory_transfer` takes as `source`/`destination`.
+    /// Present exactly when `laboratory` is (and its marker carries
+    /// the machine pair).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub laboratory_id: Option<String>,
     /// Set only when this upstream is a plugin-hosted MCP server. Other
     /// servers (plain HTTP, the primary `objectiveai` MCP, laboratories)
     /// leave this `None`.
