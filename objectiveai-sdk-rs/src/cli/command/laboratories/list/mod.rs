@@ -53,6 +53,11 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub machine: Option<crate::machine::MachineIdentity>,
+    /// The state (on that machine) the serving host serves —
+    /// laboratory ids are only unique per (machine, state).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 #[derive(clap::Args)]

@@ -12,6 +12,17 @@ pub struct Request {
     pub path_type: Path,
     pub kind: Kind,
     pub id: String,
+    /// The EXACT machine id whose laboratory host owns the container.
+    /// Provided together with `machine_state` or not at all; neither ⇒
+    /// the current machine + the daemon's own state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state (on `machine`) whose laboratory host owns the
+    /// container. Paired with `machine` — both or neither.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -67,6 +78,15 @@ pub struct Args {
     /// Laboratory id — names the per-state container.
     #[arg(long)]
     pub id: Option<String>,
+    /// The EXACT machine id whose host owns the container. Requires
+    /// `--machine-state`; neither ⇒ the current machine + the daemon's
+    /// own state.
+    #[arg(long, requires = "machine_state")]
+    pub machine: Option<String>,
+    /// The state (on `--machine`) whose host owns the container.
+    /// Requires `--machine` — both or neither.
+    #[arg(long, requires = "machine")]
+    pub machine_state: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -100,10 +120,20 @@ impl TryFrom<Args> for Request {
                 "--client is required".to_string(),
             ));
         }
+        // Both-or-neither, re-validated beyond clap's mutual
+        // `requires` (which only runs for argv-built requests).
+        if args.machine.is_some() != args.machine_state.is_some() {
+            return Err(crate::cli::command::FromArgsError::path_parse(
+                "machine",
+                "--machine and --machine-state must be provided together".to_string(),
+            ));
+        }
         Ok(Self {
             path_type: Path::LaboratoriesDelete,
             kind: Kind::Client,
             id,
+            machine: args.machine,
+            machine_state: args.machine_state,
             base: args.base.into(),
         })
     }

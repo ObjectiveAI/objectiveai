@@ -213,6 +213,15 @@ pub struct DropRequest {
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryExportBeginRequest")]
 pub struct LaboratoryExportBeginRequest {
     pub laboratory_id: String,
+    /// The exact laboratory host: machine id + its state. Laboratory
+    /// ids are only unique per (machine, state); an absent pair falls
+    /// back to first-match-by-id routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     pub path: String,
 }
 
@@ -236,6 +245,15 @@ pub struct LaboratoryExportAbortRequest {
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportBeginRequest")]
 pub struct LaboratoryImportBeginRequest {
     pub laboratory_id: String,
+    /// The exact laboratory host: machine id + its state. Laboratory
+    /// ids are only unique per (machine, state); an absent pair falls
+    /// back to first-match-by-id routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     pub path: String,
 }
 

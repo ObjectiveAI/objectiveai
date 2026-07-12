@@ -32,6 +32,12 @@ pub enum Laboratory {
 
 /// A client-resolved laboratory: a client-side MCP server keyed by an
 /// opaque `id`. Wire shape: `{"type":"client","id":"…"}`.
+///
+/// Laboratory ids are only unique per (machine, state) — the same id
+/// can exist on different laboratory hosts. `machine` + `machine_state`
+/// pin THE laboratory this value means, so downstream routing (the
+/// CLI conduit's `/laboratory` forward) is exact rather than
+/// first-match-by-id. Absent pair ⇒ legacy id-only resolution.
 #[derive(
     Debug,
     Clone,
@@ -48,6 +54,14 @@ pub struct ClientLaboratory {
     pub r#type: ClientLaboratoryType,
     /// The opaque laboratory id.
     pub id: String,
+    /// The machine id of the laboratory host serving this laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state (on that machine) the laboratory host serves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 /// Discriminator for [`ClientLaboratory`]. Ser/de's to the static string

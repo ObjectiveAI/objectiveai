@@ -27,6 +27,16 @@ pub enum LaboratoryAttachment {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         attached_by: Option<String>,
+        /// The machine id the attachment row records (laboratory ids
+        /// are only unique per (machine, state)); `None` on rows
+        /// predating machine tracking.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine: Option<String>,
+        /// The state the attachment row records, paired with `machine`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine_state: Option<String>,
     },
     /// Attached to a tag (BOUND or GROUPED — the row targets the tag
     /// itself, wherever it points).
@@ -39,6 +49,16 @@ pub enum LaboratoryAttachment {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         attached_by: Option<String>,
+        /// The machine id the attachment row records (laboratory ids
+        /// are only unique per (machine, state)); `None` on rows
+        /// predating machine tracking.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine: Option<String>,
+        /// The state the attachment row records, paired with `machine`.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine_state: Option<String>,
     },
 }
 
@@ -77,6 +97,11 @@ pub struct LaboratoryRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub machine: Option<crate::machine::MachineIdentity>,
+    /// The state (on that machine) the serving host serves —
+    /// laboratory ids are only unique per (machine, state).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     /// Whether the serving host's `/laboratory` connection is live
     /// right now.
     pub connected: bool,

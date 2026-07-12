@@ -34,6 +34,13 @@ pub struct LaboratoryStatus {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub machine: Option<crate::machine::MachineIdentity>,
+    /// The state (on that machine) the serving host serves —
+    /// laboratory ids are only unique per (machine, state), so the
+    /// stream may legitimately carry several same-id items that
+    /// differ here.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     /// Whether the serving host's `/laboratory` connection is live
     /// right now.
     pub connected: bool,
@@ -58,8 +65,18 @@ pub enum LaboratoryEvent {
     /// its identity re-announced. Full-value replace by `id`.
     #[schemars(title = "Upserted")]
     Upserted { laboratory: LaboratoryStatus },
-    /// A laboratory vanished from BOTH halves — no live connection
-    /// and absent from the local scan.
+    /// A laboratory vanished — deleted, or its serving host
+    /// disconnected. Laboratory ids are only unique per (machine,
+    /// state), so the pair disambiguates WHICH same-id laboratory
+    /// left; an absent pair removes by bare id (legacy daemons).
     #[schemars(title = "Removed")]
-    Removed { id: String },
+    Removed {
+        id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine_state: Option<String>,
+    },
 }

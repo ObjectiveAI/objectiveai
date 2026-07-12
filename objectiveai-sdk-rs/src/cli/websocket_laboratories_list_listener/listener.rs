@@ -54,7 +54,9 @@ pub enum Error {
 /// The shared inner state, held by both the listener handle and its
 /// pump task.
 struct Shared {
-    /// `id → status`. A `BTreeMap` so iteration (snapshots, the
+    /// `(machine, state, id) fold key → status` (see [`fold_key`] —
+    /// laboratory ids are only unique per (machine, state)). A
+    /// `BTreeMap` so iteration (snapshots, the
     /// callback) is sorted by id.
     state: Mutex<BTreeMap<String, LaboratoryStatus>>,
     /// A monotonically-bumped change counter. Each applied event bumps
@@ -69,7 +71,9 @@ struct Shared {
 
 impl Shared {
     fn statuses(state: &BTreeMap<String, LaboratoryStatus>) -> Vec<LaboratoryStatus> {
-        state.values().cloned().collect()
+        let mut statuses: Vec<LaboratoryStatus> = state.values().cloned().collect();
+        statuses.sort_by(|a, b| a.id.cmp(&b.id));
+        statuses
     }
 }
 
@@ -194,22 +198,49 @@ impl Drop for WebSocketLaboratoriesListListener {
     }
 }
 
+/// The fold key: laboratory ids are only unique per (machine, state),
+/// so the map keys on the full `(machine id, machine state, id)`
+/// triple — same-id laboratories from different hosts coexist. Empty
+/// segments when the daemon didn't report the pair.
+fn fold_key(
+    id: &str,
+    machine: Option<&str>,
+    machine_state: Option<&str>,
+) -> String {
+    format!(
+        "{}\n{}\n{}",
+        machine.unwrap_or(""),
+        machine_state.unwrap_or(""),
+        id
+    )
+}
+
 /// Fold one event into the map. `Snapshot` replaces; `Upserted`
-/// replaces one laboratory by id (introducing it if unseen);
-/// `Removed` drops one.
+/// replaces one laboratory by its (machine, state, id) key
+/// (introducing it if unseen); `Removed` drops one by the same key.
 fn apply_event(state: &mut BTreeMap<String, LaboratoryStatus>, event: LaboratoryEvent) {
     match event {
         LaboratoryEvent::Snapshot { laboratories } => {
             state.clear();
             for laboratory in laboratories {
-                state.insert(laboratory.id.clone(), laboratory);
+                let key = fold_key(
+                    &laboratory.id,
+                    laboratory.machine.as_ref().map(|m| m.id.as_str()),
+                    laboratory.machine_state.as_deref(),
+                );
+                state.insert(key, laboratory);
             }
         }
         LaboratoryEvent::Upserted { laboratory } => {
-            state.insert(laboratory.id.clone(), laboratory);
+            let key = fold_key(
+                &laboratory.id,
+                laboratory.machine.as_ref().map(|m| m.id.as_str()),
+                laboratory.machine_state.as_deref(),
+            );
+            state.insert(key, laboratory);
         }
-        LaboratoryEvent::Removed { id } => {
-            state.remove(&id);
+        LaboratoryEvent::Removed { id, machine, machine_state } => {
+            state.remove(&fold_key(&id, machine.as_deref(), machine_state.as_deref()));
         }
     }
 }

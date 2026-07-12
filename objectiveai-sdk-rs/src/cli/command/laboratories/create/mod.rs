@@ -29,11 +29,17 @@ pub struct Request {
     #[serde(default = "default_cwd")]
     pub cwd: String,
     /// The EXACT machine id (as `laboratories list` reports it) whose
-    /// laboratory host should own the container. `None` ⇒ the current
-    /// machine (the daemon's own).
+    /// laboratory host should own the container. Provided together
+    /// with `machine_state` or not at all; neither ⇒ the current
+    /// machine + the daemon's own state.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub machine: Option<String>,
+    /// The state (on `machine`) whose laboratory host should own the
+    /// container. Paired with `machine` — both or neither.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -143,6 +149,11 @@ pub struct Response {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub machine: Option<crate::machine::MachineIdentity>,
+    /// The state (on that machine) whose laboratory host owns the
+    /// container.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -172,9 +183,14 @@ pub struct Args {
     #[arg(long)]
     pub cwd: Option<String>,
     /// The EXACT machine id (from `laboratories list`) whose host
-    /// should own the container; defaults to the current machine.
-    #[arg(long)]
+    /// should own the container. Requires `--machine-state`; neither ⇒
+    /// the current machine + the daemon's own state.
+    #[arg(long, requires = "machine_state")]
     pub machine: Option<String>,
+    /// The state (on `--machine`) whose host should own the container.
+    /// Requires `--machine` — both or neither.
+    #[arg(long, requires = "machine")]
+    pub machine_state: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -231,6 +247,14 @@ impl TryFrom<Args> for Request {
             })
             .collect::<Result<Vec<_>, _>>()?;
         let cwd = args.cwd.unwrap_or_else(default_cwd);
+        // Both-or-neither, re-validated beyond clap's mutual
+        // `requires` (which only runs for argv-built requests).
+        if args.machine.is_some() != args.machine_state.is_some() {
+            return Err(crate::cli::command::FromArgsError::path_parse(
+                "machine",
+                "--machine and --machine-state must be provided together".to_string(),
+            ));
+        }
         Ok(Self {
             path_type: Path::LaboratoriesCreate,
             kind: Kind::Client,
@@ -240,6 +264,7 @@ impl TryFrom<Args> for Request {
             env,
             cwd,
             machine: args.machine,
+            machine_state: args.machine_state,
             base: args.base.into(),
         })
     }

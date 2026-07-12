@@ -12,6 +12,17 @@ pub struct Request {
     pub path_type: Path,
     pub selector: AgentSelector,
     pub laboratory_id: String,
+    /// The EXACT machine id whose laboratory host serves the
+    /// laboratory. Provided together with `machine_state` or not at
+    /// all; neither ⇒ the current machine + the daemon's own state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state (on `machine`) whose laboratory host serves the
+    /// laboratory. Paired with `machine` — both or neither.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -40,6 +51,15 @@ impl CommandRequest for Request {
 pub struct Response {
     /// The laboratory id that was detached from the target.
     pub laboratory_id: String,
+    /// The machine id of the laboratory host the attachment row
+    /// records (the provided pair, or the auto-filled local one).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state the attachment row records, paired with `machine`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -50,6 +70,15 @@ pub struct Args {
     /// Laboratory id to detach from the target agent.
     #[arg(long)]
     pub laboratory_id: Option<String>,
+    /// The EXACT machine id whose host serves the laboratory.
+    /// Requires `--machine-state`; neither ⇒ the current machine +
+    /// the daemon's own state.
+    #[arg(long, requires = "machine_state")]
+    pub machine: Option<String>,
+    /// The state (on `--machine`) whose host serves the laboratory.
+    /// Requires `--machine` — both or neither.
+    #[arg(long, requires = "machine")]
+    pub machine_state: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -81,10 +110,20 @@ impl TryFrom<Args> for Request {
                 "--laboratory-id is required".to_string(),
             )
         })?;
+        // Both-or-neither, re-validated beyond clap's mutual
+        // `requires` (which only runs for argv-built requests).
+        if args.machine.is_some() != args.machine_state.is_some() {
+            return Err(crate::cli::command::FromArgsError::path_parse(
+                "machine",
+                "--machine and --machine-state must be provided together".to_string(),
+            ));
+        }
         Ok(Self {
             path_type: Path::LaboratoriesDetach,
             selector,
             laboratory_id,
+            machine: args.machine,
+            machine_state: args.machine_state,
             base: args.base.into(),
         })
     }

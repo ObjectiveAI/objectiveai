@@ -86,6 +86,16 @@ pub struct AttachedLaboratory {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub attached_by: Option<String>,
+    /// The machine id of the laboratory host the attachment row
+    /// records — laboratory ids are only unique per (machine, state).
+    /// `None` on rows predating machine tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state the attachment row records, paired with `machine`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 /// One part's opened content — what `agents logs read id` would return

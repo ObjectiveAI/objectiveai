@@ -44,7 +44,19 @@ pub enum McpKind {
     },
 
     /// A laboratory-hosted MCP server, identified by an opaque `id`.
-    /// Mirrors the proxy URL `ws://laboratory/{id}`.
+    /// Mirrors the proxy URL `ws://laboratory/{id}`. Laboratory ids
+    /// are only unique per (machine, state); `machine` +
+    /// `machine_state` pin the exact laboratory host so the CLI
+    /// conduit forwards precisely — an absent pair falls back to
+    /// legacy first-match-by-id resolution.
     #[schemars(title = "Laboratory")]
-    Laboratory { id: String },
+    Laboratory {
+        id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine_state: Option<String>,
+    },
 }
