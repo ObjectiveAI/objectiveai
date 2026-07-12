@@ -1,7 +1,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.response_schema.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_call_timeout_ms.set.request_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
@@ -9,10 +9,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.response_schema.Path")]
+#[schemars(rename = "cli.command.api.config.mcp_call_timeout_ms.set.request_schema.Path")]
 pub enum Path {
-    #[serde(rename = "api/config/mcp_timeout_ms/get/response_schema")]
-    ApiConfigMcpTimeoutMsGetResponseSchema,
+    #[serde(rename = "api/config/mcp_call_timeout_ms/set/request_schema")]
+    ApiConfigMcpCallTimeoutMsSetRequestSchema,
 }
 #[derive(clap::Args)]
 pub struct Args {
@@ -36,7 +36,7 @@ pub type Response = crate::cli::command::ResponseSchema;
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ApiConfigMcpTimeoutMsGetResponseSchema, base: args.base.into() })
+        Ok(Self { path_type: Path::ApiConfigMcpCallTimeoutMsSetRequestSchema, base: args.base.into() })
     }
 }
 
@@ -63,7 +63,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor.execute_one(request, agent_arguments).await
 }
 
-/// One `/listen` broadcast run of `api config mcp_timeout_ms get response_schema`: the actual
+/// One `/listen` broadcast run of `api config mcp_call_timeout_ms set request_schema`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].

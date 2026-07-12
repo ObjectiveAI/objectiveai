@@ -1,9 +1,9 @@
-//! `config api mcp-timeout-ms` sub-tier.
+//! `config api mcp-connect-timeout-ms` sub-tier.
 
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::api::config::mcp_timeout_ms::{Request, Response};
+use objectiveai_sdk::cli::command::api::config::mcp_connect_timeout_ms::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;

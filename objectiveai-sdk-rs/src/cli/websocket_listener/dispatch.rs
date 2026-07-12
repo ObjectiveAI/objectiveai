@@ -891,41 +891,77 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::api::config::mcp_authorization::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpAuthorization(crate::cli::command::api::config::mcp_authorization::ListenerExecution::GetResponseSchema(execution)))), feed))
         }
-        "api/config/mcp_timeout_ms/get" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_timeout_ms::get::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_timeout_ms::get::Response>(path_type);
-            let execution = crate::cli::command::api::config::mcp_timeout_ms::get::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpTimeoutMs(crate::cli::command::api::config::mcp_timeout_ms::ListenerExecution::Get(execution)))), feed))
+        "api/config/mcp_call_timeout_ms/get" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_call_timeout_ms::get::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_call_timeout_ms::get::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_call_timeout_ms::get::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpCallTimeoutMs(crate::cli::command::api::config::mcp_call_timeout_ms::ListenerExecution::Get(execution)))), feed))
         }
-        "api/config/mcp_timeout_ms/get/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_timeout_ms::get::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_timeout_ms::get::request_schema::Response>(path_type);
-            let execution = crate::cli::command::api::config::mcp_timeout_ms::get::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpTimeoutMs(crate::cli::command::api::config::mcp_timeout_ms::ListenerExecution::GetRequestSchema(execution)))), feed))
+        "api/config/mcp_call_timeout_ms/get/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_call_timeout_ms::get::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_call_timeout_ms::get::request_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_call_timeout_ms::get::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpCallTimeoutMs(crate::cli::command::api::config::mcp_call_timeout_ms::ListenerExecution::GetRequestSchema(execution)))), feed))
         }
-        "api/config/mcp_timeout_ms/get/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_timeout_ms::get::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_timeout_ms::get::response_schema::Response>(path_type);
-            let execution = crate::cli::command::api::config::mcp_timeout_ms::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpTimeoutMs(crate::cli::command::api::config::mcp_timeout_ms::ListenerExecution::GetResponseSchema(execution)))), feed))
+        "api/config/mcp_call_timeout_ms/get/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_call_timeout_ms::get::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_call_timeout_ms::get::response_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_call_timeout_ms::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpCallTimeoutMs(crate::cli::command::api::config::mcp_call_timeout_ms::ListenerExecution::GetResponseSchema(execution)))), feed))
         }
-        "api/config/mcp_timeout_ms/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_timeout_ms::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_timeout_ms::set::Response>(path_type);
-            let execution = crate::cli::command::api::config::mcp_timeout_ms::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpTimeoutMs(crate::cli::command::api::config::mcp_timeout_ms::ListenerExecution::Set(execution)))), feed))
+        "api/config/mcp_call_timeout_ms/set" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_call_timeout_ms::set::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_call_timeout_ms::set::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_call_timeout_ms::set::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpCallTimeoutMs(crate::cli::command::api::config::mcp_call_timeout_ms::ListenerExecution::Set(execution)))), feed))
         }
-        "api/config/mcp_timeout_ms/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_timeout_ms::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_timeout_ms::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::api::config::mcp_timeout_ms::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpTimeoutMs(crate::cli::command::api::config::mcp_timeout_ms::ListenerExecution::SetRequestSchema(execution)))), feed))
+        "api/config/mcp_call_timeout_ms/set/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_call_timeout_ms::set::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_call_timeout_ms::set::request_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_call_timeout_ms::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpCallTimeoutMs(crate::cli::command::api::config::mcp_call_timeout_ms::ListenerExecution::SetRequestSchema(execution)))), feed))
         }
-        "api/config/mcp_timeout_ms/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_timeout_ms::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_timeout_ms::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::api::config::mcp_timeout_ms::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpTimeoutMs(crate::cli::command::api::config::mcp_timeout_ms::ListenerExecution::SetResponseSchema(execution)))), feed))
+        "api/config/mcp_call_timeout_ms/set/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_call_timeout_ms::set::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_call_timeout_ms::set::response_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_call_timeout_ms::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpCallTimeoutMs(crate::cli::command::api::config::mcp_call_timeout_ms::ListenerExecution::SetResponseSchema(execution)))), feed))
+        }
+        "api/config/mcp_connect_timeout_ms/get" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_connect_timeout_ms::get::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_connect_timeout_ms::get::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_connect_timeout_ms::get::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpConnectTimeoutMs(crate::cli::command::api::config::mcp_connect_timeout_ms::ListenerExecution::Get(execution)))), feed))
+        }
+        "api/config/mcp_connect_timeout_ms/get/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_connect_timeout_ms::get::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_connect_timeout_ms::get::request_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_connect_timeout_ms::get::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpConnectTimeoutMs(crate::cli::command::api::config::mcp_connect_timeout_ms::ListenerExecution::GetRequestSchema(execution)))), feed))
+        }
+        "api/config/mcp_connect_timeout_ms/get/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_connect_timeout_ms::get::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_connect_timeout_ms::get::response_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_connect_timeout_ms::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpConnectTimeoutMs(crate::cli::command::api::config::mcp_connect_timeout_ms::ListenerExecution::GetResponseSchema(execution)))), feed))
+        }
+        "api/config/mcp_connect_timeout_ms/set" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_connect_timeout_ms::set::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_connect_timeout_ms::set::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_connect_timeout_ms::set::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpConnectTimeoutMs(crate::cli::command::api::config::mcp_connect_timeout_ms::ListenerExecution::Set(execution)))), feed))
+        }
+        "api/config/mcp_connect_timeout_ms/set/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_connect_timeout_ms::set::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_connect_timeout_ms::set::request_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_connect_timeout_ms::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpConnectTimeoutMs(crate::cli::command::api::config::mcp_connect_timeout_ms::ListenerExecution::SetRequestSchema(execution)))), feed))
+        }
+        "api/config/mcp_connect_timeout_ms/set/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::api::config::mcp_connect_timeout_ms::set::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::api::config::mcp_connect_timeout_ms::set::response_schema::Response>(path_type);
+            let execution = crate::cli::command::api::config::mcp_connect_timeout_ms::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::McpConnectTimeoutMs(crate::cli::command::api::config::mcp_connect_timeout_ms::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
         "api/config/objectiveai_authorization/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::api::config::objectiveai_authorization::get::Request>(request.get()).ok()?;

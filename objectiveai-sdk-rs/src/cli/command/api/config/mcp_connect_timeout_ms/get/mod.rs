@@ -1,24 +1,21 @@
-//! `config api mcp-timeout-ms set` — async handler stub.
+//! `config api mcp-connect-timeout-ms get` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.set.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_connect_timeout_ms.get.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub scope: crate::cli::command::GetScope,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
-    pub scope: crate::cli::command::SetScope,
-    /// The new MCP timeout in milliseconds, as a decimal integer string.
-    /// Carried verbatim here; the cli handler parses it to a `u64`.
-    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.set.Path")]
+#[schemars(rename = "cli.command.api.config.mcp_connect_timeout_ms.get.Path")]
 pub enum Path {
-    #[serde(rename = "api/config/mcp_timeout_ms/set")]
-    ApiConfigMcpTimeoutMsSet,
+    #[serde(rename = "api/config/mcp_connect_timeout_ms/get")]
+    ApiConfigMcpConnectTimeoutMsGet,
 }
 
 impl CommandRequest for Request {
@@ -31,22 +28,27 @@ impl CommandRequest for Request {
     }
 }
 
-pub type Response = crate::cli::command::Ok;
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.api.config.mcp_connect_timeout_ms.get.Response")]
+pub struct Response {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_connect_timeout_ms: Option<u64>,
+}
 
 #[derive(clap::Args)]
-#[command(group(clap::ArgGroup::new("value_required").required(true).args(["value"])))]
 pub struct Args {
-    /// Mutate the global config layer.
+    /// Read the global config layer.
     #[arg(long)]
     pub global: bool,
-    /// Mutate the state config layer.
+    /// Read the state config layer.
     #[arg(long)]
     pub state: bool,
+    /// Read the final merged config view.
+    #[arg(long)]
+    pub r#final: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
-    /// New MCP timeout in milliseconds (a decimal integer).
-    #[arg(long)]
-    pub value: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -69,27 +71,22 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let scope = match (args.global, args.state) {
-            (true, false) => crate::cli::command::SetScope::Global,
-            (false, true) => crate::cli::command::SetScope::State,
+        let scope = match (args.global, args.state, args.r#final) {
+            (true, false, false) => crate::cli::command::GetScope::Global,
+            (false, true, false) => crate::cli::command::GetScope::State,
+            (false, false, true) => crate::cli::command::GetScope::Final,
             _ => {
                 return Err(crate::cli::command::FromArgsError {
                     field: "scope",
                     source: crate::cli::command::FromArgsErrorSource::Plain(
-                        "exactly one of --global, --state is required".to_string(),
+                        "exactly one of --global, --state, --final is required".to_string(),
                     ),
                 });
             }
         };
-        Ok(Self {
-            base: args.base.into(), path_type: Path::ApiConfigMcpTimeoutMsSet,
+        Ok(Self { path_type: Path::ApiConfigMcpConnectTimeoutMsGet,
             scope,
-            value: args.value.ok_or_else(|| {
-                crate::cli::command::FromArgsError::path_parse(
-                    "value",
-                    "--value is required".to_string(),
-                )
-            })?,
+            base: args.base.into(),
         })
     }
 }
@@ -97,30 +94,38 @@ impl TryFrom<Args> for Request {
 #[cfg(feature = "cli-executor")]
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
-    request: Request,
+    mut request: Request,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
+    request.base.clear_transform();
     executor.execute_one(request, agent_arguments).await
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    mut request: Request,
+    transform: crate::cli::command::Transform,
+
+        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    ) -> Result<serde_json::Value, E::Error> {
+    request.base.set_transform(transform);
+    executor.execute_one(request, agent_arguments).await
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
 }
 
 pub mod request_schema;
 
 pub mod response_schema;
 
-#[cfg(feature = "cli-executor")]
-pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
-    executor: &E,
-    request: Request,
-    _transform: crate::cli::command::Transform,
-
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
-    ) -> Result<serde_json::Value, E::Error> {
-    let resp: Response = executor.execute_one(request, agent_arguments).await?;
-    Ok(serde_json::to_value(resp).expect("Response serializes"))
-}
-
-/// One `/listen` broadcast run of `api config mcp_timeout_ms set`: the actual
+/// One `/listen` broadcast run of `api config mcp_connect_timeout_ms get`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].

@@ -1,9 +1,9 @@
-//! `config api mcp-timeout-ms get` — async handler stub.
+//! `config api mcp-call-timeout-ms get` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_call_timeout_ms.get.Request")]
 pub struct Request {
     pub path_type: Path,
     pub scope: crate::cli::command::GetScope,
@@ -12,10 +12,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.Path")]
+#[schemars(rename = "cli.command.api.config.mcp_call_timeout_ms.get.Path")]
 pub enum Path {
-    #[serde(rename = "api/config/mcp_timeout_ms/get")]
-    ApiConfigMcpTimeoutMsGet,
+    #[serde(rename = "api/config/mcp_call_timeout_ms/get")]
+    ApiConfigMcpCallTimeoutMsGet,
 }
 
 impl CommandRequest for Request {
@@ -29,11 +29,11 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.Response")]
+#[schemars(rename = "cli.command.api.config.mcp_call_timeout_ms.get.Response")]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub mcp_timeout_ms: Option<u64>,
+    pub mcp_call_timeout_ms: Option<u64>,
 }
 
 #[derive(clap::Args)]
@@ -84,7 +84,7 @@ impl TryFrom<Args> for Request {
                 });
             }
         };
-        Ok(Self { path_type: Path::ApiConfigMcpTimeoutMsGet,
+        Ok(Self { path_type: Path::ApiConfigMcpCallTimeoutMsGet,
             scope,
             base: args.base.into(),
         })
@@ -125,7 +125,7 @@ pub mod request_schema;
 
 pub mod response_schema;
 
-/// One `/listen` broadcast run of `api config mcp_timeout_ms get`: the actual
+/// One `/listen` broadcast run of `api config mcp_call_timeout_ms get`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::websocket_listener`].

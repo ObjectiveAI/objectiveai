@@ -70,16 +70,20 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.bin_dir().join("locks");
 
-    // Project the one configured api knob onto the spawned api's env —
-    // ONLY when the user explicitly set it (the keys are scrubbed above,
-    // so when unset the api resolves them itself from
+    // Project the configured api knobs onto the spawned api's env —
+    // each ONLY when the user explicitly set it (the keys are scrubbed
+    // above, so when unset the api resolves them itself from
     // `<OBJECTIVEAI_DIR>/.env` then its built-in default):
+    //   • `api.mcp_connect_timeout_ms` → MCP_CONNECT_TIMEOUT (the
+    //     initialize-handshake bound; the api forwards it to the proxy
+    //     it hosts).
     //   • `api.backoff_max_elapsed_time_ms` → EVERY backoff max-elapsed
     //     env the api has (agent-completions, mcp, github).
-    // NOTE: `api.mcp_timeout_ms` is no longer projected here at all — it
-    // is the per-request `X-MCP-CALL-TIMEOUT` header the daemon's OWN
-    // HTTP client sends (see `context::build_http_client`). The api's
-    // `MCP_CONNECT_TIMEOUT` env is purely the api operator's to set.
+    // NOTE: the CALL budget is deliberately NOT an env — it is the
+    // per-request `X-MCP-CALL-TIMEOUT` header the daemon's OWN HTTP
+    // client sends from `api.mcp_call_timeout_ms` (see
+    // `context::build_http_client`).
+    let connect_ms = ctx.resolve_mcp_connect_timeout_ms_opt().await?;
     let backoff_ms = ctx.resolve_backoff_max_elapsed_time_ms_opt().await?;
 
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
@@ -88,6 +92,9 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
         }
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("SUPPRESS_OUTPUT", "true");
+        if let Some(connect_ms) = connect_ms {
+            cmd.env("MCP_CONNECT_TIMEOUT", connect_ms.to_string());
+        }
         if let Some(backoff_ms) = backoff_ms {
             let v = backoff_ms.to_string();
             cmd.env("AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME", &v)

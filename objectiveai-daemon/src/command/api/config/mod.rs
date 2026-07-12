@@ -16,7 +16,8 @@ pub mod get;
 pub mod github_authorization;
 pub mod http_referer;
 pub mod mcp_authorization;
-pub mod mcp_timeout_ms;
+pub mod mcp_call_timeout_ms;
+pub mod mcp_connect_timeout_ms;
 pub mod objectiveai_authorization;
 pub mod openrouter_authorization;
 pub mod user_agent;
@@ -64,9 +65,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = mcp_authorization::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(Response::McpAuthorization)))
         }
-        Request::McpTimeoutMs(req) => {
-            let inner = mcp_timeout_ms::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::McpTimeoutMs)))
+        Request::McpCallTimeoutMs(req) => {
+            let inner = mcp_call_timeout_ms::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(Response::McpCallTimeoutMs)))
+        }
+        Request::McpConnectTimeoutMs(req) => {
+            let inner = mcp_connect_timeout_ms::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(Response::McpConnectTimeoutMs)))
         }
         Request::BackoffMaxElapsedTimeMs(req) => {
             let inner = backoff_max_elapsed_time_ms::execute(ctx, req).await?;

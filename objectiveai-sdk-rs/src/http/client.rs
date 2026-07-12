@@ -214,7 +214,7 @@ impl HttpClient {
                 },
             ),
             // Deliberately no env fallback: the caller (e.g. the daemon,
-            // from its `api.mcp_timeout_ms` config) supplies it or not.
+            // from its `api.mcp_call_timeout_ms` config) supplies it or not.
             mcp_call_timeout_ms,
         }
     }

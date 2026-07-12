@@ -233,8 +233,24 @@ impl Context {
     // NOTE: the daemon deliberately has NO MCP-timeout resolver for its
     // own MCP clients — it never bounds its own MCP calls (connect +
     // per-call timeouts are `None`; it waits forever). The user's
-    // `api.mcp_timeout_ms` config is consumed by `build_http_client`
-    // below as the per-request `X-MCP-CALL-TIMEOUT` header instead.
+    // `api.mcp_call_timeout_ms` config is consumed by
+    // `build_http_client` below as the per-request `X-MCP-CALL-TIMEOUT`
+    // header; `api.mcp_connect_timeout_ms` is projected onto a spawned
+    // API's `MCP_CONNECT_TIMEOUT` env (see `resolve_mcp_connect_timeout_ms_opt`).
+
+    /// The configured `api.mcp_connect_timeout_ms`, or `None` when unset
+    /// — the api spawn projects it onto the spawned server's
+    /// `MCP_CONNECT_TIMEOUT` env ONLY when the user explicitly set it,
+    /// so an unset knob lets the api resolve its own default.
+    pub async fn resolve_mcp_connect_timeout_ms_opt(
+        &self,
+    ) -> Result<Option<u64>, crate::error::Error> {
+        let mut config = self
+            .filesystem
+            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .await?;
+        Ok(config.api().get_mcp_connect_timeout_ms())
+    }
 
     /// Effective backoff max-elapsed-time (ms) — the retry budget for the
     /// CLI's own MCP client. The merged `api.backoff_max_elapsed_time_ms`
@@ -417,9 +433,10 @@ fn build_http_client(
     let mcp_session_id = cli_config.mcp_session_id.clone();
 
     // The per-request MCP CALL budget the API applies on our behalf,
-    // sent as `X-MCP-CALL-TIMEOUT`. Sourced from `api.mcp_timeout_ms`;
-    // unset ⇒ no header ⇒ the API applies NO call timeout.
-    let mcp_call_timeout_ms = config.api().get_mcp_timeout_ms();
+    // sent as `X-MCP-CALL-TIMEOUT`. Sourced from
+    // `api.mcp_call_timeout_ms`; unset ⇒ no header ⇒ the API applies NO
+    // call timeout.
+    let mcp_call_timeout_ms = config.api().get_mcp_call_timeout_ms();
 
     HttpClient::new(
         reqwest::Client::new(),

@@ -47,7 +47,16 @@ pub struct ApiConfig {
     /// daemon's own MCP calls are always unbounded regardless.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub mcp_timeout_ms: Option<u64>,
+    pub mcp_call_timeout_ms: Option<u64>,
+    /// MCP CONNECT timeout override, in milliseconds, projected onto a
+    /// daemon-spawned API's `MCP_CONNECT_TIMEOUT` env (which the API
+    /// also forwards to the proxy it hosts). Bounds the initialize
+    /// handshake of HTTP MCP upstreams — never the per-call budget
+    /// (that's `mcp_call_timeout_ms`). `None` ⇒ the API resolves its
+    /// own default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_connect_timeout_ms: Option<u64>,
     /// Backoff max-elapsed-time override, in milliseconds. One value,
     /// fanned out to EVERY backoff retry policy of the spawned API
     /// (`AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME`,
@@ -73,7 +82,8 @@ impl ApiConfig {
             && self.x_title.is_none()
             && self.commit_author_name.is_none()
             && self.commit_author_email.is_none()
-            && self.mcp_timeout_ms.is_none()
+            && self.mcp_call_timeout_ms.is_none()
+            && self.mcp_connect_timeout_ms.is_none()
             && self.backoff_max_elapsed_time_ms.is_none()
     }
 
@@ -167,11 +177,17 @@ impl ApiConfig {
         self.commit_author_email = Some(value.into());
     }
 
-    pub fn get_mcp_timeout_ms(&self) -> Option<u64> {
-        self.mcp_timeout_ms
+    pub fn get_mcp_call_timeout_ms(&self) -> Option<u64> {
+        self.mcp_call_timeout_ms
     }
-    pub fn set_mcp_timeout_ms(&mut self, value: u64) {
-        self.mcp_timeout_ms = Some(value);
+    pub fn set_mcp_call_timeout_ms(&mut self, value: u64) {
+        self.mcp_call_timeout_ms = Some(value);
+    }
+    pub fn get_mcp_connect_timeout_ms(&self) -> Option<u64> {
+        self.mcp_connect_timeout_ms
+    }
+    pub fn set_mcp_connect_timeout_ms(&mut self, value: u64) {
+        self.mcp_connect_timeout_ms = Some(value);
     }
 
     pub fn get_backoff_max_elapsed_time_ms(&self) -> Option<u64> {
