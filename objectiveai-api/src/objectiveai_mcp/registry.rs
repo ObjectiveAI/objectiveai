@@ -42,24 +42,18 @@ pub struct ReverseChannel {
     pub pending: PendingRequests,
 }
 
-/// Server-level config the `_ws` handlers consult when wiring up a
-/// reverse-attach. Just the round-trip budget (from
-/// `Config.reverse_channel_timeout`); stamped onto every
-/// [`ReverseAttachHandle`] so the agent client's message-queue reads
-/// share the configured value with the MCP forward path.
-#[derive(Clone)]
-pub struct ReverseAttachConfig {
-    pub reverse_channel_timeout: std::time::Duration,
-}
-
 /// Arc-shareable handle the agent client + retrieval use to reach the
 /// current WS [`ReverseChannel`] from inside the swarm-iteration site.
 /// `Arc` clones may outlive the owning [`ReverseAttachGuard`] (e.g. a
 /// background task holding a copy of the ctx) — sends over a closed WS
 /// just fail harmlessly.
+///
+/// There is deliberately NO round-trip budget here: the API waits
+/// forever on the CLI client for its own requests. A parked await
+/// resolves when the reply arrives or errors when its oneshot sender
+/// drops at WS teardown.
 pub struct ReverseAttachHandle {
     channel: ReverseChannel,
-    reverse_channel_timeout: std::time::Duration,
 }
 
 impl std::fmt::Debug for ReverseAttachHandle {
@@ -75,11 +69,6 @@ impl ReverseAttachHandle {
     pub fn channel(&self) -> &ReverseChannel {
         &self.channel
     }
-
-    /// Budget for one round-trip over this reverse channel.
-    pub fn reverse_channel_timeout(&self) -> std::time::Duration {
-        self.reverse_channel_timeout
-    }
 }
 
 /// RAII guard for one CLI WS upgrade. Owns the shared handle; the
@@ -89,14 +78,9 @@ pub struct ReverseAttachGuard {
 }
 
 impl ReverseAttachGuard {
-    pub fn new(
-        sink: SharedSink,
-        pending: PendingRequests,
-        reverse_channel_timeout: std::time::Duration,
-    ) -> Self {
+    pub fn new(sink: SharedSink, pending: PendingRequests) -> Self {
         let handle = Arc::new(ReverseAttachHandle {
             channel: ReverseChannel { sink, pending },
-            reverse_channel_timeout,
         });
         Self { handle }
     }

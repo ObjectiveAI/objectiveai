@@ -1836,11 +1836,6 @@ fn extract_callable_tool_calls(
     callable
 }
 
-// The time budget for one `read_message_queue` round-trip over the
-// WS reverse-attach is the shared configured reverse-channel budget,
-// carried by the handle itself —
-// `ReverseAttachHandle::reverse_channel_timeout`.
-
 /// Issue a `ReadMessageQueue` server-request over the WS reverse-
 /// attach and return the joined `(rich_content, ids)` payload.
 ///
@@ -1848,9 +1843,12 @@ fn extract_callable_tool_calls(
 /// (with `"\n\n"` separators between entries) and returns the
 /// content-id refs (id + kind) for every consumed
 /// `message_queue_contents` row. The envelope carries no
-/// `mcp_kind` and the headers map is empty. Failures (channel
-/// closed, dropped, timed out, or CLI-side JSON-RPC error) collapse
-/// to [`super::Error::MessageQueueRead`].
+/// `mcp_kind` and the headers map is empty. NO deadline: the API
+/// waits forever on the CLI client for its own requests — the await
+/// resolves when the reply arrives or errors when the WS drops (the
+/// recv loop's teardown drops the pending oneshot). Failures (channel
+/// closed, dropped, or CLI-side JSON-RPC error) collapse to
+/// [`super::Error::MessageQueueRead`].
 async fn read_message_queue_via_ws(
     handle: &std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: &str,
@@ -1872,16 +1870,11 @@ async fn read_message_queue_via_ws(
     let rx = crate::objectiveai_mcp::send_server_request(&rc.sink, &rc.pending, request)
         .await
         .map_err(|()| super::Error::MessageQueueRead("reverse channel closed".to_string()))?;
-    let response = match tokio::time::timeout(handle.reverse_channel_timeout(), rx).await {
-        Ok(Ok(response)) => response,
-        Ok(Err(_)) => {
-            return Err(super::Error::MessageQueueRead(
-                "reverse channel dropped before reply".to_string(),
-            ));
-        }
+    let response = match rx.await {
+        Ok(response) => response,
         Err(_) => {
             return Err(super::Error::MessageQueueRead(
-                "reverse channel timed out".to_string(),
+                "reverse channel dropped before reply".to_string(),
             ));
         }
     };

@@ -38,12 +38,12 @@ pub struct ApiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub commit_author_email: Option<String>,
-    /// MCP timeout override, in milliseconds. One value, used as BOTH the
-    /// connect timeout and the per-call timeout of every MCP client this
-    /// CLI drives (its streaming conduit) and projected onto the spawned
-    /// API's `MCP_CONNECT_TIMEOUT` + `MCP_CALL_TIMEOUT` env (which in turn
-    /// drive the proxy it spawns). `None` ⇒ the canonical default
-    /// (60000ms).
+    /// MCP CONNECT timeout override, in milliseconds, projected onto the
+    /// spawned API's `MCP_CONNECT_TIMEOUT` env. That is the only MCP
+    /// timeout left to configure: the daemon's own MCP calls and the
+    /// API's per-call MCP waits are unbounded (wait forever), and the
+    /// proxy keeps its own crate-internal call-timeout default. `None`
+    /// ⇒ the API resolves its own default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub mcp_timeout_ms: Option<u64>,

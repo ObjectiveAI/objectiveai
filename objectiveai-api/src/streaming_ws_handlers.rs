@@ -62,7 +62,6 @@ pub(crate) async fn create_agent_completion_ws(
             impl agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -93,10 +92,12 @@ pub(crate) async fn create_agent_completion_ws(
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
-        let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        // The proxy's reverse channel keeps its per-op budget (fixed
+        // const); the API's OWN server_requests wait forever on the CLI.
+        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
+            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
+        );
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -186,7 +187,6 @@ pub(crate) async fn create_vector_completion_ws<
     _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -244,10 +244,12 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
-        let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        // The proxy's reverse channel keeps its per-op budget (fixed
+        // const); the API's OWN server_requests wait forever on the CLI.
+        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
+            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
+        );
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -322,7 +324,6 @@ pub(crate) async fn execute_function_ws<
     _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -382,10 +383,12 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
-        let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        // The proxy's reverse channel keeps its per-op budget (fixed
+        // const); the API's OWN server_requests wait forever on the CLI.
+        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
+            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
+        );
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -449,7 +452,6 @@ pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NRG, NRF,
     _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -491,10 +493,12 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
-        let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        // The proxy's reverse channel keeps its per-op budget (fixed
+        // const); the API's OWN server_requests wait forever on the CLI.
+        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
+            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
+        );
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -561,7 +565,6 @@ pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
     _agent_completions_client: Arc<
         agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -603,10 +606,12 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
-        let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        // The proxy's reverse channel keeps its per-op budget (fixed
+        // const); the API's OWN server_requests wait forever on the CLI.
+        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
+            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
+        );
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())

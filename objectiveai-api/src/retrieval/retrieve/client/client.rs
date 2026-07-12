@@ -45,6 +45,9 @@ fn protocol_kind(kind: crate::retrieval::Kind) -> retrieve::Kind {
 
 /// Send a resolution request down the reverse channel and await the
 /// typed reply. Fails when there is no websocket reverse-attach.
+/// NO deadline: the API waits forever on the CLI client for its own
+/// requests — the await resolves when the reply arrives or errors
+/// when the WS drops.
 async fn send_retrieve<CTXEXT>(
     ctx: &ctx::Context<CTXEXT>,
     request: retrieve::Request,
@@ -62,12 +65,11 @@ async fn send_retrieve<CTXEXT>(
     let rx = crate::objectiveai_mcp::send_server_request(&rc.sink, &rc.pending, request)
         .await
         .map_err(|()| reverse_error("reverse channel closed"))?;
-    let response = match tokio::time::timeout(handle.reverse_channel_timeout(), rx).await {
-        Ok(Ok(response)) => response,
-        Ok(Err(_)) => {
+    let response = match rx.await {
+        Ok(response) => response,
+        Err(_) => {
             return Err(reverse_error("reverse channel dropped before reply"));
         }
-        Err(_) => return Err(reverse_error("reverse channel timed out")),
     };
     match response.payload {
         server_response::Payload::Retrieve(server_response::JsonRpcResult::Ok { result }) => {

@@ -49,8 +49,6 @@ const API_CONFIG_ENV: &[&str] = &[
     "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT",
     "AGENT_COMPLETIONS_OTHER_CHUNK_TIMEOUT",
     "MCP_CONNECT_TIMEOUT",
-    "MCP_CALL_TIMEOUT",
-    "REVERSE_CHANNEL_TIMEOUT",
     "MCP_ENCRYPTION_KEY",
     "OBJECTIVEAI_STATE",
     "MOCK_DELAY_MS",
@@ -76,9 +74,10 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // each ONLY when the user explicitly set it (the keys are scrubbed
     // above, so when unset the api resolves them itself from
     // `<OBJECTIVEAI_DIR>/.env` then its built-in default):
-    //   • `api.mcp_timeout_ms` → MCP_CONNECT_TIMEOUT + MCP_CALL_TIMEOUT
-    //     (the api forwards both to the proxy it spawns, so they drive
-    //     every server-side MCP connection too).
+    //   • `api.mcp_timeout_ms` → MCP_CONNECT_TIMEOUT only. The api no
+    //     longer has a per-call MCP timeout (`MCP_CALL_TIMEOUT` env is
+    //     gone; the api's own MCP calls wait forever, and the proxy it
+    //     hosts keeps its own crate-internal call-timeout default).
     //   • `api.backoff_max_elapsed_time_ms` → EVERY backoff max-elapsed
     //     env the api has (agent-completions, mcp, github).
     // See `Context::resolve_mcp_timeout_ms_opt` /
@@ -93,9 +92,7 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("SUPPRESS_OUTPUT", "true");
         if let Some(timeout_ms) = timeout_ms {
-            let v = timeout_ms.to_string();
-            cmd.env("MCP_CONNECT_TIMEOUT", &v)
-                .env("MCP_CALL_TIMEOUT", &v);
+            cmd.env("MCP_CONNECT_TIMEOUT", timeout_ms.to_string());
         }
         if let Some(backoff_ms) = backoff_ms {
             let v = backoff_ms.to_string();
