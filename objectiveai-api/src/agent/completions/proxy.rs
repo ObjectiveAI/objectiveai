@@ -78,16 +78,24 @@ impl ProxyFactory {
     /// for WS-attached requests) lets `ws://` upstreams speak the
     /// reverse-channel protocol directly; `queue_delegate` is this
     /// request's delegate, passed into the proxy.
+    ///
+    /// `mcp_call_timeout_ms` is the request's `X-MCP-CALL-TIMEOUT`
+    /// header value: the per-MCP-CALL budget this proxy applies (HTTP
+    /// and ws:// upstreams alike). It overrides the BUILT config —
+    /// post-`build()` — because the builder folds `None` back to the
+    /// standalone default, and here `None` must mean NO call timeout.
     pub async fn boot(
         &self,
         reverse_channel: Option<objectiveai_mcp_proxy::ReverseChannel>,
         queue_delegate: Arc<super::queue_delegate::ApiQueueDelegate>,
+        mcp_call_timeout_ms: Option<u64>,
     ) -> std::io::Result<Arc<ProxyHandle>> {
         let mut builder = (self.config_builder_fn)();
         builder.address = Some("127.0.0.1".into());
         builder.port = Some(0);
         builder.suppress_output = Some(true);
-        let config = builder.build();
+        let mut config = builder.build();
+        config.mcp_call_timeout = mcp_call_timeout_ms;
 
         let cancel = CancellationToken::new();
         let token = cancel.clone();

@@ -60,6 +60,7 @@ class ObjectiveAI:
         x_github_authorization: str | None = None,
         x_openrouter_authorization: str | None = None,
         x_mcp_authorization: dict[str, str] | None = None,
+        x_mcp_call_timeout: int | None = None,
         x_viewer_signature: str | None = None,
         x_viewer_address: str | None = None,
         agent_id: str | None = None,
@@ -92,6 +93,10 @@ class ObjectiveAI:
                     self.x_mcp_authorization = None
             else:
                 self.x_mcp_authorization = None
+        # Option-only (no env fallback), mirroring the Rust SDK client.
+        # Integer milliseconds; None => no header => the API applies NO
+        # MCP call timeout.
+        self.x_mcp_call_timeout = x_mcp_call_timeout
         self.x_viewer_signature = x_viewer_signature or os.environ.get("VIEWER_SIGNATURE")
         self.x_viewer_address = x_viewer_address or os.environ.get("VIEWER_ADDRESS")
         self.agent_id = agent_id or os.environ.get("OBJECTIVEAI_AGENT_ID")
@@ -119,6 +124,8 @@ class ObjectiveAI:
         if self.x_mcp_authorization:
             import json
             headers["X-MCP-AUTHORIZATION"] = json.dumps(self.x_mcp_authorization)
+        if self.x_mcp_call_timeout is not None:
+            headers["X-MCP-CALL-TIMEOUT"] = str(self.x_mcp_call_timeout)
         if self.x_viewer_signature:
             headers["X-VIEWER-SIGNATURE"] = self.x_viewer_signature
         if self.x_viewer_address:

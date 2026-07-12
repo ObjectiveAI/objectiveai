@@ -46,8 +46,8 @@ pub struct Context<CTXEXT> {
     /// Multiplier applied to costs for this request.
     pub cost_multiplier: rust_decimal::Decimal,
     /// Per-1-SECOND cost of OpenRouter upstream wall time
-    /// (`usage.upstream_duration_ms.openrouter`); same math and rules as
-    /// [`Self::duration_cost`].
+    /// (`usage.upstream_duration_ms.openrouter`), charged raw (no
+    /// `cost_multiplier`), BYOK included.
     pub openrouter_duration_cost: rust_decimal::Decimal,
     /// Per-1-SECOND cost of Claude Agent SDK upstream wall time
     /// (`usage.upstream_duration_ms.claude_agent_sdk`).
@@ -65,6 +65,11 @@ pub struct Context<CTXEXT> {
     github_authorization: Option<Arc<String>>,
     /// Per-request MCP authorization headers.
     mcp_authorization: Option<Arc<HashMap<String, String>>>,
+    /// Per-request MCP CALL budget (`X-MCP-CALL-TIMEOUT`, integer ms):
+    /// applied to every MCP call the request's proxy makes (HTTP and
+    /// ws:// upstreams alike). Absent or unparseable ⇒ `None` ⇒ NO call
+    /// timeout. Never applies to connects or laboratory transfers.
+    mcp_call_timeout_ms: Option<u64>,
     /// Per-request caller-supplied agent id (`X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`).
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
@@ -186,6 +191,7 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
             openrouter_authorization: self.openrouter_authorization.clone(),
             github_authorization: self.github_authorization.clone(),
             mcp_authorization: self.mcp_authorization.clone(),
+            mcp_call_timeout_ms: self.mcp_call_timeout_ms,
             agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
             reverse_attach: self.reverse_attach.clone(),
             reverse_channel: self.reverse_channel.clone(),
@@ -256,6 +262,14 @@ impl<CTXEXT> Context<CTXEXT> {
             .and_then(|s| serde_json::from_str::<HashMap<String, String>>(s).ok())
             .map(Arc::new);
 
+        // Absent OR unparseable ⇒ None ⇒ no MCP call timeout — the
+        // `.ok()` chain gives the parse-failure fallback for free.
+        let mcp_call_timeout_ms = headers
+            .get("X-MCP-CALL-TIMEOUT")
+            .or_else(|| headers.get("MCP-CALL-TIMEOUT"))
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.trim().parse::<u64>().ok());
+
         let agent_instance_hierarchy = headers
             .get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY")
             .or_else(|| headers.get("OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
@@ -272,6 +286,7 @@ impl<CTXEXT> Context<CTXEXT> {
             openrouter_authorization,
             github_authorization,
             mcp_authorization,
+            mcp_call_timeout_ms,
             objectiveai_authorization,
             agent_instance_hierarchy,
             reverse_attach: None,
@@ -304,6 +319,13 @@ impl<CTXEXT> Context<CTXEXT> {
     /// agent id we forward to the MCP proxy.
     pub fn agent_instance_hierarchy(&self) -> Option<&str> {
         self.agent_instance_hierarchy.as_deref().map(|s| s.as_str())
+    }
+
+    /// The per-request MCP CALL budget from `X-MCP-CALL-TIMEOUT`
+    /// (integer ms). `None` (absent or unparseable) ⇒ the proxy applies
+    /// NO call timeout.
+    pub fn mcp_call_timeout_ms(&self) -> Option<u64> {
+        self.mcp_call_timeout_ms
     }
 
     /// Returns the shared reverse-attach handle for registering

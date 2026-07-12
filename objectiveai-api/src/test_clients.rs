@@ -276,7 +276,7 @@ static AGENT_RETRIEVE_ROUTER: LazyLock<Arc<AgentRetrieveRouter>> = LazyLock::new
 // performance regression (a >60s `list_tools` against the local
 // mock would still surface).
 const MCP_CONNECT_TIMEOUT_MS: u64 = 30_000;
-const MCP_CALL_TIMEOUT_MS: u64 = 60_000;
+pub(crate) const MCP_CALL_TIMEOUT_MS: u64 = 60_000;
 const MCP_BACKOFF_CURRENT_INTERVAL_MS: u64 = 100;
 const MCP_BACKOFF_INITIAL_INTERVAL_MS: u64 = 100;
 const MCP_BACKOFF_RANDOMIZATION_FACTOR: f64 = 0.5;

@@ -53,9 +53,12 @@ struct Inner {
     /// each request onto the shared WS sink.
     tx: mpsc::UnboundedSender<ServerRequest>,
     /// Outstanding requests awaiting their `server_response`, by id.
+    /// There is NO channel-level round-trip budget: each op passes its
+    /// own `Option<Duration>` to [`ReverseChannel::request`] — ws-MCP
+    /// calls use the per-request `X-MCP-CALL-TIMEOUT` value, connects
+    /// use the connect timeout, and laboratory transfers + drops run
+    /// timeout-free.
     pending: DashMap<String, oneshot::Sender<ServerResponse>>,
-    /// Per-upstream round-trip budget.
-    timeout: Duration,
     /// list-changed callbacks per upstream `McpKind`: `(tools, resources)`.
     /// Fired when a matching `client_request::McpListChanged` arrives.
     list_changed: DashMap<McpKind, (Option<ListChangedCb>, Option<ListChangedCb>)>,
@@ -80,12 +83,11 @@ impl std::fmt::Debug for ReverseChannel {
 impl ReverseChannel {
     /// Build a channel. Returns the channel plus the receiver the API
     /// drains (serializing each `server_request` onto the shared WS sink).
-    pub fn new(timeout: Duration) -> (Self, mpsc::UnboundedReceiver<ServerRequest>) {
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<ServerRequest>) {
         let (tx, rx) = mpsc::unbounded_channel();
         let inner = Inner {
             tx,
             pending: DashMap::new(),
-            timeout,
             list_changed: DashMap::new(),
             sessions: OnceLock::new(),
         };
@@ -123,12 +125,17 @@ impl ReverseChannel {
     }
 
     /// Emit a `server_request` and await its matching `server_response`,
-    /// bounded by the configured timeout. `id` is minted here; the API's
-    /// recv loop routes the reply back via [`Self::deliver_response`].
+    /// bounded by the CALLER-supplied per-op `timeout` — `None` awaits
+    /// with no deadline (resolves on reply, errors on channel drop).
+    /// ws-MCP ops pass the per-request call timeout, connects pass the
+    /// connect timeout, laboratory transfers and drops pass `None`.
+    /// `id` is minted here; the API's recv loop routes the reply back
+    /// via [`Self::deliver_response`].
     async fn request(
         &self,
         payload: server_request::Payload,
         headers: IndexMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<ServerResponse, McpError> {
         let id = uuid::Uuid::new_v4().to_string();
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -142,15 +149,24 @@ impl ReverseChannel {
             self.0.pending.remove(&id);
             return Err(transport_error("reverse channel closed before send"));
         }
-        match tokio::time::timeout(self.0.timeout, resp_rx).await {
-            Ok(Ok(response)) => Ok(response),
-            Ok(Err(_)) => {
-                self.0.pending.remove(&id);
-                Err(transport_error("reverse channel dropped before response"))
-            }
+        let received = match timeout {
+            Some(timeout) => match tokio::time::timeout(timeout, resp_rx).await
+            {
+                Ok(received) => received,
+                Err(_) => {
+                    self.0.pending.remove(&id);
+                    return Err(transport_error(
+                        "reverse channel timed out waiting for response",
+                    ));
+                }
+            },
+            None => resp_rx.await,
+        };
+        match received {
+            Ok(response) => Ok(response),
             Err(_) => {
                 self.0.pending.remove(&id);
-                Err(transport_error("reverse channel timed out waiting for response"))
+                Err(transport_error("reverse channel dropped before response"))
             }
         }
     }
@@ -164,14 +180,16 @@ impl ReverseChannel {
             .request(
                 server_request::Payload::Drop(server_request::DropRequest { response_id }),
                 IndexMap::new(),
+                None,
             )
             .await;
     }
 
     /// `LaboratoryExportBegin`: start an export on the conduit and get
     /// its transfer id. Each transfer op below is ONE id-correlated
-    /// request/response exchange — the per-op timeout applies per
-    /// chunk, so long transfers never race a single global budget.
+    /// request/response exchange awaited WITHOUT a deadline — laboratory
+    /// transfers are timeout-free unconditionally (never bounded by the
+    /// per-request MCP call timeout).
     pub async fn laboratory_export_begin(
         &self,
         laboratory_id: String,
@@ -183,6 +201,7 @@ impl ReverseChannel {
                     server_request::LaboratoryExportBeginRequest { laboratory_id, path },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await?;
         match response.payload {
@@ -209,6 +228,7 @@ impl ReverseChannel {
                     server_request::LaboratoryExportReadRequest { transfer_id },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await?;
         match response.payload {
@@ -231,6 +251,7 @@ impl ReverseChannel {
                     server_request::LaboratoryExportAbortRequest { transfer_id },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await;
     }
@@ -248,6 +269,7 @@ impl ReverseChannel {
                     server_request::LaboratoryImportBeginRequest { laboratory_id, path },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await?;
         match response.payload {
@@ -275,6 +297,7 @@ impl ReverseChannel {
                     server_request::LaboratoryImportWriteRequest { transfer_id, data },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await?;
         match response.payload {
@@ -300,6 +323,7 @@ impl ReverseChannel {
                     server_request::LaboratoryImportEndRequest { transfer_id },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await?;
         match response.payload {
@@ -322,6 +346,7 @@ impl ReverseChannel {
                     server_request::LaboratoryImportAbortRequest { transfer_id },
                 ),
                 IndexMap::new(),
+                None,
             )
             .await;
     }
@@ -461,6 +486,11 @@ impl ReverseChannel {
 pub struct WsUpstream {
     channel: ReverseChannel,
     mcp_kind: McpKind,
+    /// Per-MCP-CALL budget for this upstream's reverse-channel ops
+    /// (from the request's `X-MCP-CALL-TIMEOUT` via the proxy config).
+    /// `None` ⇒ calls wait forever. Never applied to the connect
+    /// (`initialize`) — that uses the connect timeout.
+    call_timeout: Option<Duration>,
     /// The `ws://…` URL this upstream was dialed with (used for filtering).
     pub url: String,
     /// Upstream `Mcp-Session-Id` returned by the CLI on `initialize`.
@@ -548,6 +578,7 @@ impl WsUpstream {
                     params: ListToolsRequest { cursor: None },
                 },
                 headers,
+                self.call_timeout,
             )
             .await
             .map_err(Arc::new)?;
@@ -575,6 +606,7 @@ impl WsUpstream {
                     params: ListResourcesRequest { cursor: None },
                 },
                 headers,
+                self.call_timeout,
             )
             .await
             .map_err(Arc::new)?;
@@ -599,6 +631,7 @@ impl WsUpstream {
                     params: params.clone(),
                 },
                 headers,
+                self.call_timeout,
             )
             .await?;
         match response.payload {
@@ -619,6 +652,7 @@ impl WsUpstream {
                     },
                 },
                 headers,
+                self.call_timeout,
             )
             .await?;
         match response.payload {
@@ -636,6 +670,7 @@ impl WsUpstream {
                     mcp_kind: self.mcp_kind.clone(),
                 },
                 headers,
+                self.call_timeout,
             )
             .await?;
         match response.payload {
@@ -874,6 +909,10 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
 /// request — the session-global transient identity headers, plus (on
 /// resume) the upstream `Mcp-Session-Id` and any auth. `args` carries
 /// plugin init arguments (empty for `objectiveai`).
+///
+/// `connect_timeout` bounds the `initialize` round-trip (the per-request
+/// call timeout NEVER applies to connects); `call_timeout` is stored on
+/// the [`WsUpstream`] for every later op.
 pub async fn connect_ws(
     channel: ReverseChannel,
     url: String,
@@ -881,6 +920,8 @@ pub async fn connect_ws(
     args: IndexMap<String, Option<String>>,
     mut headers: IndexMap<String, String>,
     laboratory: Option<objectiveai_sdk::laboratories::Laboratory>,
+    connect_timeout: Option<Duration>,
+    call_timeout: Option<Duration>,
 ) -> Result<WsUpstream, McpError> {
     let response = channel
         .request(
@@ -889,6 +930,7 @@ pub async fn connect_ws(
                 params: InitializeRequest { args },
             },
             headers.clone(),
+            connect_timeout,
         )
         .await?;
     let reply = match response.payload {
@@ -909,6 +951,7 @@ pub async fn connect_ws(
     Ok(WsUpstream {
         channel,
         mcp_kind,
+        call_timeout,
         url,
         session_id,
         server_name,

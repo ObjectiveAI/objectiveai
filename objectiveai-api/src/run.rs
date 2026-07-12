@@ -454,8 +454,10 @@ pub async fn setup(
         objectiveai_mcp_proxy::ConfigBuilder {
             logs_dir: proxy_logs_dir.clone(),
             mcp_connect_timeout: Some(mcp_connect_timeout),
-            // Not env-configurable anymore: the proxy keeps its own
-            // crate-internal default call timeout.
+            // Recipe value is irrelevant on this path: `ProxyFactory::boot`
+            // overrides the BUILT config's call timeout per request with
+            // the `X-MCP-CALL-TIMEOUT` header value (absent ⇒ None ⇒ no
+            // call timeout).
             mcp_call_timeout: None,
             mcp_backoff_max_elapsed_time: Some(mcp_backoff_max_elapsed_time),
             mcp_encryption_key: Some(proxy_encryption_key),

@@ -93,11 +93,13 @@ pub(crate) async fn create_agent_completion_ws(
             sink.clone(),
             pending.clone(),
         );
-        // The proxy's reverse channel keeps its per-op budget (fixed
-        // const); the API's OWN server_requests wait forever on the CLI.
-        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
-            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
-        );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -245,11 +247,13 @@ where
             sink.clone(),
             pending.clone(),
         );
-        // The proxy's reverse channel keeps its per-op budget (fixed
-        // const); the API's OWN server_requests wait forever on the CLI.
-        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
-            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
-        );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -384,11 +388,13 @@ where
             sink.clone(),
             pending.clone(),
         );
-        // The proxy's reverse channel keeps its per-op budget (fixed
-        // const); the API's OWN server_requests wait forever on the CLI.
-        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
-            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
-        );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -494,11 +500,13 @@ where
             sink.clone(),
             pending.clone(),
         );
-        // The proxy's reverse channel keeps its per-op budget (fixed
-        // const); the API's OWN server_requests wait forever on the CLI.
-        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
-            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
-        );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -607,11 +615,13 @@ where
             sink.clone(),
             pending.clone(),
         );
-        // The proxy's reverse channel keeps its per-op budget (fixed
-        // const); the API's OWN server_requests wait forever on the CLI.
-        let (reverse_channel, reverse_req_rx) = objectiveai_mcp_proxy::ReverseChannel::new(
-            streaming_ws::REVERSE_CHANNEL_TIMEOUT,
-        );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())

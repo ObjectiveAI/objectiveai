@@ -230,12 +230,11 @@ impl Context {
         Ok(build_http_client(&self.config, &mut config, address))
     }
 
-    // NOTE: the daemon deliberately has NO `resolve_mcp_timeout_ms`
-    // resolver for its own MCP clients — it never bounds its own MCP
-    // calls (connect + per-call timeouts are `None`; it waits forever).
-    // Only the API applies timeouts. `resolve_mcp_timeout_ms_opt` below
-    // survives solely to project the user's `api.mcp_timeout_ms` config
-    // onto a SPAWNED API server.
+    // NOTE: the daemon deliberately has NO MCP-timeout resolver for its
+    // own MCP clients — it never bounds its own MCP calls (connect +
+    // per-call timeouts are `None`; it waits forever). The user's
+    // `api.mcp_timeout_ms` config is consumed by `build_http_client`
+    // below as the per-request `X-MCP-CALL-TIMEOUT` header instead.
 
     /// Effective backoff max-elapsed-time (ms) — the retry budget for the
     /// CLI's own MCP client. The merged `api.backoff_max_elapsed_time_ms`
@@ -256,27 +255,6 @@ impl Context {
             .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
             .await?;
         Ok(config.api().get_backoff_max_elapsed_time_ms())
-    }
-
-    /// The configured `api.mcp_timeout_ms`, or `None` when unset.
-    ///
-    /// The api spawn uses this to project the `MCP_*` timeout env onto
-    /// the spawned (machine-wide, shared) server ONLY when the user
-    /// explicitly set a timeout. Leaving it unset lets the api resolve it
-    /// itself — `<OBJECTIVEAI_DIR>/.env`, then its built-in default. That
-    /// fallback is behaviorally identical to passing the canonical
-    /// default in production, and it's what the test `.env` (which sets
-    /// `MCP_BACKOFF_*=0` to fast-fail real MCP errors instead of masking
-    /// them with retry storms) relies on: unconditionally setting the
-    /// default here would clobber that `0` on the shared api.
-    pub async fn resolve_mcp_timeout_ms_opt(
-        &self,
-    ) -> Result<Option<u64>, crate::error::Error> {
-        let mut config = self
-            .filesystem
-            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
-            .await?;
-        Ok(config.api().get_mcp_timeout_ms())
     }
 
     /// The db pool, connected on first use and memoized — the
@@ -438,6 +416,11 @@ fn build_http_client(
     let agent_instance_hierarchy = Some(cli_config.agent_instance_hierarchy.clone());
     let mcp_session_id = cli_config.mcp_session_id.clone();
 
+    // The per-request MCP CALL budget the API applies on our behalf,
+    // sent as `X-MCP-CALL-TIMEOUT`. Sourced from `api.mcp_timeout_ms`;
+    // unset ⇒ no header ⇒ the API applies NO call timeout.
+    let mcp_call_timeout_ms = config.api().get_mcp_timeout_ms();
+
     HttpClient::new(
         reqwest::Client::new(),
         Some(address),
@@ -450,6 +433,7 @@ fn build_http_client(
         x_mcp_authorization,
         agent_instance_hierarchy,
         mcp_session_id,
+        mcp_call_timeout_ms,
     )
 }
 

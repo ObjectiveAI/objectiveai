@@ -53,14 +53,6 @@ pub use crate::objectiveai_mcp::{
     new_pending_requests,
 };
 
-/// Per-op budget the in-process mcp-proxy's
-/// [`objectiveai_mcp_proxy::ReverseChannel`] applies to ITS
-/// reverse-channel requests — the proxy keeps its timeouts. Fixed, not
-/// env-configurable. The API's OWN server_requests (message-queue
-/// reads, retrieval) carry NO deadline and wait forever on the CLI.
-pub(crate) const REVERSE_CHANNEL_TIMEOUT: std::time::Duration =
-    std::time::Duration::from_millis(1_800_000);
-
 /// Transport the client wants. Inferred from the request itself: an
 /// `Upgrade: websocket` header → [`Transport::WebSocket`], anything
 /// else → [`Transport::Sse`]. The SSE handler covers both

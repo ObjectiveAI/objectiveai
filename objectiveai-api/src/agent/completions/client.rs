@@ -497,9 +497,14 @@ where
             let factory = self.proxy_spawner.clone();
             let reverse_channel = ctx.reverse_channel().cloned();
             let queue_delegate = ctx.queue_delegate();
+            // Per-request MCP CALL budget from `X-MCP-CALL-TIMEOUT`
+            // (None = no header = no call timeout).
+            let mcp_call_timeout_ms = ctx.mcp_call_timeout_ms();
             ctx.proxy_cell()
                 .get_or_try_init(|| async move {
-                    factory.boot(reverse_channel, queue_delegate).await
+                    factory
+                        .boot(reverse_channel, queue_delegate, mcp_call_timeout_ms)
+                        .await
                 })
                 .await
                 .map(Arc::clone)

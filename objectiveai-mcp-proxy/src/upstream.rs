@@ -225,6 +225,10 @@ async fn connect_upstream(
             .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-ARGUMENTS"))
             .and_then(|(_, v)| serde_json::from_str(v).ok())
             .unwrap_or_default();
+        // Timeouts come from the per-request proxy config via the SDK
+        // client: the connect timeout bounds the `initialize`, the call
+        // timeout (per-request `X-MCP-CALL-TIMEOUT`; `None` = unbounded)
+        // bounds every later op.
         let upstream = crate::reverse_channel::connect_ws(
             channel,
             url.to_string(),
@@ -232,6 +236,8 @@ async fn connect_upstream(
             args,
             headers,
             laboratory,
+            client.connect_timeout,
+            client.call_timeout,
         )
         .await
         .map_err(|source| BadInit::UpstreamConnectFailed {
