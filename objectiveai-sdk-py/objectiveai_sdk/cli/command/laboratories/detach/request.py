@@ -12,6 +12,8 @@ class Request(BaseModel):
 
     jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
     laboratory_id: str
+    machine: Optional[str] = Field(None, description="The EXACT machine id whose laboratory host serves the\nlaboratory. Provided together with `machine_state` or not at\nall; neither ⇒ the current machine + the daemon's own state.", json_schema_extra={'omitempty': True})
+    machine_state: Optional[str] = Field(None, description='The state (on `machine`) whose laboratory host serves the\nlaboratory. Paired with `machine` — both or neither.', json_schema_extra={'omitempty': True})
     max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
     python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')

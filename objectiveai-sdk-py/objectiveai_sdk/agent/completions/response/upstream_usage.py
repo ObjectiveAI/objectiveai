@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.response.completion_tokens_details import CompletionTokensDetails
 from objectiveai_sdk.agent.completions.response.cost_details import CostDetails
 from objectiveai_sdk.agent.completions.response.prompt_tokens_details import PromptTokensDetails
+from objectiveai_sdk.agent.completions.response.upstream_duration_ms import UpstreamDurationMs
 
 
 class UpstreamUsage(BaseModel):
@@ -25,4 +26,5 @@ It includes upstream-specific fields like `cost_multiplier` and `is_byok`."""
     prompt_tokens_details: Optional[PromptTokensDetails] = Field(None, description='Detailed breakdown of prompt tokens.', json_schema_extra={'omitempty': True})
     total_cost: float = Field(..., description="Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged.", ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     total_tokens: int = Field(..., description='Total tokens (prompt + completion).', ge=0, le=18446744073709551615)
+    upstream_duration_ms: UpstreamDurationMs = Field({}, description='Wall-clock milliseconds this upstream spent producing the\nresponse, measured create→finish by the upstream client itself\nand stamped on its own field of the terminal usage chunk.')
 

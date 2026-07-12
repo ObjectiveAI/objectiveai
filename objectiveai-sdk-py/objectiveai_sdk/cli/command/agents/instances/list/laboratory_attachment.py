@@ -13,4 +13,6 @@ class LaboratoryAttachment(BaseModel):
     attached_at: str = Field(..., description='RFC3339 — when it was attached.')
     attached_by: Optional[str] = Field(None, description='The AIH that ran the attach. `None` on attachments predating\nattacher tracking.', json_schema_extra={'omitempty': True})
     id: str = Field(..., description="The attached laboratory's id.")
+    machine: Optional[str] = Field(None, description='The machine id of the laboratory host the attachment row\nrecords — laboratory ids are only unique per (machine, state).\n`None` on rows predating machine tracking.', json_schema_extra={'omitempty': True})
+    machine_state: Optional[str] = Field(None, description='The state the attachment row records, paired with `machine`.', json_schema_extra={'omitempty': True})
 
