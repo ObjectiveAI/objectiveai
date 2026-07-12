@@ -17,5 +17,5 @@ class Request(BaseModel):
     python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
     scope: SetScope
     timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
-    value: str = Field('', description="The signature to present at that address. Empty ⇒ dial\nunauthenticated (the address's daemon must be open).")
+    value: str = Field(..., description='The signature to present at that address. Empty ⇒ dial\nunauthenticated (the address\'s daemon must be open). Always\nsent explicitly — NO serde default: empty-string schema\ndefaults are banned (the json-schema builder asserts it), and\nthe CLI fills `""` itself when `--value` is omitted.')
 
