@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AgentCompletionsResponseCompletionTokensDetailsSchema } from "./completionTokensDetails";
 import { AgentCompletionsResponseCostDetailsSchema } from "./costDetails";
 import { AgentCompletionsResponsePromptTokensDetailsSchema } from "./promptTokensDetails";
+import { AgentCompletionsResponseUpstreamDurationMsSchema } from "./upstreamDurationMs";
 
 export const AgentCompletionsResponseUpstreamUsageSchema = z.object({
   completion_tokens: z.number().int().min(0).max(18446744073709552000).describe("Number of tokens in the completion."),
@@ -16,5 +17,6 @@ export const AgentCompletionsResponseUpstreamUsageSchema = z.object({
   prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Detailed breakdown of prompt tokens.").meta({ omitempty: true }).optional(),
   total_cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged."),
   total_tokens: z.number().int().min(0).max(18446744073709552000).describe("Total tokens (prompt + completion)."),
+  upstream_duration_ms: AgentCompletionsResponseUpstreamDurationMsSchema.default({}).describe("Wall-clock milliseconds this upstream spent producing the\nresponse, measured create→finish by the upstream client itself\nand stamped on its own field of the terminal usage chunk."),
 }).describe("Token usage and cost information from an upstream provider.\n\nThis is the per-assistant-response usage yielded by upstream clients.\nIt includes upstream-specific fields like `cost_multiplier` and `is_byok`.").meta({ title: "agent.completions.response.UpstreamUsage" });
 export type AgentCompletionsResponseUpstreamUsage = z.infer<typeof AgentCompletionsResponseUpstreamUsageSchema>;

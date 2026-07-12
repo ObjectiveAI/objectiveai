@@ -12,5 +12,6 @@ export * from "./promptTokensDetails";
 export * from "./toolResponse";
 export * from "./toolRole";
 export * from "./topLogprob";
+export * from "./upstreamDurationMs";
 export * from "./upstreamUsage";
 export * from "./usage";

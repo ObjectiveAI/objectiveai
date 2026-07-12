@@ -6,14 +6,14 @@ export const CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema = z.unio
   agent_instance_hierarchy: z.string(),
   attached_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("Unix seconds when the attachment row was created."),
   attached_by: z.string().nullable().describe("The AIH that performed the attach, when recorded.").meta({ omitempty: true }).optional(),
-  machine: z.string().nullable().describe("The machine id of the laboratory host (laboratory ids are only\nunique per (machine, state)).").meta({ omitempty: true }).optional(),
-  machine_state: z.string().nullable().describe("The state the laboratory host serves, paired with `machine`.").meta({ omitempty: true }).optional(),
+  machine: z.string().nullable().describe("The machine id the attachment row records (laboratory ids\nare only unique per (machine, state)); `None` on rows\npredating machine tracking.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state the attachment row records, paired with `machine`.").meta({ omitempty: true }).optional(),
   type: z.literal("aih"),
 }).describe("Attached directly to an agent instance hierarchy.").meta({"variantTitle":"Aih"}), z.object({
   attached_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("Unix seconds when the attachment row was created."),
   attached_by: z.string().nullable().describe("The AIH that performed the attach, when recorded.").meta({ omitempty: true }).optional(),
-  machine: z.string().nullable().describe("The machine id of the laboratory host (laboratory ids are only\nunique per (machine, state)).").meta({ omitempty: true }).optional(),
-  machine_state: z.string().nullable().describe("The state the laboratory host serves, paired with `machine`.").meta({ omitempty: true }).optional(),
+  machine: z.string().nullable().describe("The machine id the attachment row records (laboratory ids\nare only unique per (machine, state)); `None` on rows\npredating machine tracking.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state the attachment row records, paired with `machine`.").meta({ omitempty: true }).optional(),
   tag: z.string(),
   type: z.literal("tag"),
 }).describe("Attached to a tag (BOUND or GROUPED — the row targets the tag\nitself, wherever it points).").meta({"variantTitle":"Tag"})]).describe("One attachment row targeting this laboratory: the agent target it\nis attached to — an AIH or a tag, exactly one (the DB row's\nCHECK-exclusive pair) — plus when and by whom.").meta({ title: "cli.websocket_laboratories_listener.LaboratoryAttachment" });

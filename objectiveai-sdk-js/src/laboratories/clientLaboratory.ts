@@ -5,8 +5,8 @@ import { LaboratoriesClientLaboratoryTypeSchema } from "./clientLaboratoryType";
 
 export const LaboratoriesClientLaboratorySchema = z.object({
   id: z.string().describe("The opaque laboratory id."),
-  machine: z.string().nullable().describe("The machine id of the laboratory host — laboratory ids are only\nunique per (machine, state).").meta({ omitempty: true }).optional(),
-  machine_state: z.string().nullable().describe("The state the laboratory host serves, paired with `machine`.").meta({ omitempty: true }).optional(),
+  machine: z.string().nullable().describe("The machine id of the laboratory host serving this laboratory.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state (on that machine) the laboratory host serves.").meta({ omitempty: true }).optional(),
   type: LaboratoriesClientLaboratoryTypeSchema.describe("Discriminator — always `\"client\"`."),
-}).describe("A client-resolved laboratory: a client-side MCP server keyed by an\nopaque `id`. Wire shape: `{\"type\":\"client\",\"id\":\"…\"}`.").meta({ title: "laboratories.ClientLaboratory" });
+}).describe("A client-resolved laboratory: a client-side MCP server keyed by an\nopaque `id`. Wire shape: `{\"type\":\"client\",\"id\":\"…\"}`.\n\nLaboratory ids are only unique per (machine, state) — the same id\ncan exist on different laboratory hosts. `machine` + `machine_state`\npin THE laboratory this value means, so downstream routing (the\nCLI conduit's `/laboratory` forward) is exact rather than\nfirst-match-by-id. Absent pair ⇒ legacy id-only resolution.").meta({ title: "laboratories.ClientLaboratory" });
 export type LaboratoriesClientLaboratory = z.infer<typeof LaboratoriesClientLaboratorySchema>;

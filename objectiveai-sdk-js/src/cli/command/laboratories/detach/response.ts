@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const CliCommandLaboratoriesDetachResponseSchema = z.object({
   laboratory_id: z.string().describe("The laboratory id that was detached from the target."),
-  machine: z.string().nullable().describe("The machine id the attachment row records (the provided pair,\nor the auto-filled local one).").meta({ omitempty: true }).optional(),
+  machine: z.string().nullable().describe("The machine id of the laboratory host the attachment row\nrecords (the provided pair, or the auto-filled local one).").meta({ omitempty: true }).optional(),
   machine_state: z.string().nullable().describe("The state the attachment row records, paired with `machine`.").meta({ omitempty: true }).optional(),
 }).describe("Confirmation — detach succeeded; echoes the laboratory id that was\ndetached.").meta({ title: "cli.command.laboratories.detach.Response" });
 export type CliCommandLaboratoriesDetachResponse = z.infer<typeof CliCommandLaboratoriesDetachResponseSchema>;

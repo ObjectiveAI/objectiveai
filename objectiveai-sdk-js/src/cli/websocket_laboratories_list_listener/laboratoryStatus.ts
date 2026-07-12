@@ -13,7 +13,7 @@ export const CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema = z.obje
   id: z.string().describe("Raw (state-agnostic) laboratory id."),
   image: z.string(),
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
-  machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves\n(laboratory ids are only unique per (machine, state)).").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state), so the\nstream may legitimately carry several same-id items that\ndiffer here.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
 }).describe("One laboratory on the `/laboratories/list` stream: its spec, the\nmachine whose host serves it, and whether that host is connected\nright now. There is no local-vs-remote split — machine identity is\nthe only provenance.").meta({ title: "cli.websocket_laboratories_list_listener.LaboratoryStatus" });
 export type CliWebsocketLaboratoriesListListenerLaboratoryStatus = z.infer<typeof CliWebsocketLaboratoriesListListenerLaboratoryStatusSchema>;

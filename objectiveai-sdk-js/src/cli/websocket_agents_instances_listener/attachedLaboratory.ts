@@ -6,7 +6,7 @@ export const CliWebsocketAgentsInstancesListenerAttachedLaboratorySchema = z.obj
   attached_at: z.string().describe("RFC3339 — when it was attached."),
   attached_by: z.string().nullable().describe("The AIH that ran the attach. `None` on attachments predating\nattacher tracking.").meta({ omitempty: true }).optional(),
   id: z.string().describe("The attached laboratory's id."),
-  machine: z.string().nullable().describe("The machine id of the laboratory host — laboratory ids are only\nunique per (machine, state).").meta({ omitempty: true }).optional(),
-  machine_state: z.string().nullable().describe("The state the laboratory host serves, paired with `machine`.").meta({ omitempty: true }).optional(),
+  machine: z.string().nullable().describe("The machine id of the laboratory host the attachment row\nrecords — laboratory ids are only unique per (machine, state).\n`None` on rows predating machine tracking.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state the attachment row records, paired with `machine`.").meta({ omitempty: true }).optional(),
 }).describe("One laboratory attachment on the agent, as carried by\n[`AgentRecord::attached_laboratories`]. Mirrors `agents instances\nget`'s attachment shape (listener-local — this wire is a mirror,\nnot a re-export).").meta({ title: "cli.websocket_agents_instances_listener.AttachedLaboratory" });
 export type CliWebsocketAgentsInstancesListenerAttachedLaboratory = z.infer<typeof CliWebsocketAgentsInstancesListenerAttachedLaboratorySchema>;
