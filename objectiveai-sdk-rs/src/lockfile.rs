@@ -900,7 +900,9 @@ impl std::error::Error for SpawnPublishError {}
 /// 2. Otherwise spawn `exe` (caller's `configure` sets args/env; the
 ///    child inherits the parent environment): null stdin,
 ///    piped-and-drained stdout/stderr (a child that dies before
-///    publishing reports its own output in the error), detached from
+///    publishing reports its own output in the error; the drains are
+///    dropped the moment the lock publishes, closing both pipes — a
+///    published server must never write to its std handles), detached from
 ///    the console on Windows (`CREATE_NO_WINDOW | DETACHED_PROCESS`),
 ///    `kill_on_drop` false so the child outlives the caller.
 /// 3. Race [`wait_read`] against the child's exit. Published ⇒ return
@@ -1007,6 +1009,20 @@ pub async fn spawn_until_published(
             };
         }
     };
+
+    // The lock is published — the server is up and this process is
+    // done with its pipes. Abort the drain tasks: their capture exists
+    // only for the exited-before-publishing error report, and letting
+    // them run on would accumulate everything the server ever writes
+    // into buffers nobody reads, for the whole lifetime of a resident
+    // spawner (the CLI daemon). Aborting drops the pipe read ends, so
+    // the server's stdout/stderr are DEAD from here on: a later write
+    // fails, and a `println!` would panic it. That is the standing
+    // convention anyway — detached servers must not write to their std
+    // handles after publishing; anything observable goes through their
+    // published channel or the DB.
+    stdout_task.abort();
+    stderr_task.abort();
 
     // Child drops without killing (kill_on_drop false): detached.
     drop(child);
