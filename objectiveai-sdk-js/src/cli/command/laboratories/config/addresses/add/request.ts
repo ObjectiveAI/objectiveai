@@ -12,6 +12,6 @@ export const CliCommandLaboratoriesConfigAddressesAddRequestSchema = z.object({
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   scope: CliCommandSetScopeSchema,
   timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
-  value: z.string().default("").describe("The signature to present at that address. Empty ⇒ dial\nunauthenticated (the address's daemon must be open)."),
+  value: z.string().describe("The signature to present at that address. Empty ⇒ dial\nunauthenticated (the address's daemon must be open). Always\nsent explicitly — NO serde default: empty-string schema\ndefaults are banned (the json-schema builder asserts it), and\nthe CLI fills `\"\"` itself when `--value` is omitted."),
 }).meta({ title: "cli.command.laboratories.config.addresses.add.Request" });
 export type CliCommandLaboratoriesConfigAddressesAddRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchema>;
