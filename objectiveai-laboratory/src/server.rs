@@ -1,7 +1,10 @@
-//! The manager's request server — a mini-conduit for ONE laboratory.
+//! The per-laboratory request server — a mini-conduit for ONE
+//! laboratory.
 //!
-//! Every [`ChannelRequest`] arriving over the daemon `/laboratory` WS
-//! lands here. MCP ops run against the container's MCP server on its
+//! Every laboratory-scoped [`ChannelRequest`] arriving over a daemon
+//! `/laboratory` WS lands here, after the
+//! [`HostServer`](crate::host::HostServer) demuxes it by
+//! `laboratory_id`. MCP ops run against the container's MCP server on its
 //! published loopback port through per-response-id
 //! [`objectiveai_sdk::mcp::Connection`]s (the same registry shape the
 //! CLI conduit keeps for plugins, scoped to one laboratory); the
@@ -106,9 +109,11 @@ impl LabServer {
         }
     }
 
-    /// Serve one request; the reply echoes the correlation id.
+    /// Serve one request; the reply echoes the correlation id. The
+    /// host has already demuxed on `laboratory_id` — this server IS
+    /// that laboratory's.
     pub async fn handle(self: &Arc<Self>, request: ChannelRequest) -> ChannelResponse {
-        let ChannelRequest { id, headers, payload } = request;
+        let ChannelRequest { id, headers, payload, .. } = request;
         let payload = match payload {
             server_request::Payload::Initialize { mcp_kind, params: _ } => {
                 self.initialize(mcp_kind, &headers).await
@@ -176,6 +181,20 @@ impl LabServer {
                 -32601,
                 "laboratory manager does not serve retrieve".into(),
             )),
+            // Host-level ops — answered by the HostServer BEFORE the
+            // per-lab demux; reaching here is a routing bug.
+            server_request::Payload::LaboratoryCreate(_) => {
+                server_response::Payload::LaboratoryCreate(rpc_err(
+                    -32601,
+                    "laboratory server does not serve create (host-level op)".into(),
+                ))
+            }
+            server_request::Payload::LaboratoryDelete(_) => {
+                server_response::Payload::LaboratoryDelete(rpc_err(
+                    -32601,
+                    "laboratory server does not serve delete (host-level op)".into(),
+                ))
+            }
         };
         ChannelResponse { id, payload }
     }

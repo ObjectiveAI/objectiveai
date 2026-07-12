@@ -1,31 +1,36 @@
-//! `objectiveai-laboratory` — the laboratory manager binary.
+//! `objectiveai-laboratory` — the laboratory host binary.
 //!
-//! Three subcommands:
+//! Subcommands:
 //!
+//! - **`host`** — THE resident laboratory host for this (machine,
+//!   state): hold the single `laboratories` lock in `<state>/locks`
+//!   (one host per state, however many daemon connections it keeps),
+//!   stop any containers a hard-killed predecessor leaked, then dial
+//!   `<address>/laboratory` for EVERY `--address` — HostIdentify
+//!   first (state + machine identity + the full laboratory set),
+//!   authorize second — serving MCP + transfer + create/delete
+//!   requests for ALL of the state's laboratories until killed.
+//!   Containers start lazily on their first routed op; on graceful
+//!   shutdown every container the host started is STOPPED (never
+//!   removed).
 //! - **`create`** — create the laboratory container (podman create +
 //!   inject the MCP binary; NOT started) and exit. Errors if the id
 //!   already exists in this state. Pure and daemonless: no lock, no
-//!   WebSocket, no signature.
-//! - **`connect`** — the resident manager for one `(id, address)`
-//!   pair: rebuild the lab's identity from its container label, hold
-//!   the `<state>/locks/laboratories/<id>.<base62(xxh3(address))>`
-//!   lock (one manager per laboratory per daemon; simultaneous
-//!   connects to the same pair resolve to exactly one winner), start
-//!   the container, and dial `<address>/laboratory` — IDENTIFY first,
-//!   authorize second — serving MCP + transfer requests until killed.
-//!   On graceful shutdown the container is STOPPED (never removed).
-//!   The same laboratory may be connected to several daemons at once,
-//!   one manager process per address.
+//!   WebSocket, no signature. (Daemons don't shell to this anymore —
+//!   they forward `LaboratoryCreate` over the host's WS — but it
+//!   remains as local tooling.)
 //! - **`list`** — print the state's laboratory containers (running or
 //!   not) as a JSON array of identity objects on stdout.
+//! - **`delete`** — force-remove the laboratory container and exit.
 //!
-//! Everything is a clap argument except the authorization signature,
-//! which arrives via the `DAEMON_SIGNATURE` environment variable (the
-//! same consumer-side convention the viewer uses) so it never appears
-//! in a process listing.
+//! Everything is a clap argument except the authorization signatures,
+//! which arrive via the `DAEMON_SIGNATURES` environment variable — a
+//! JSON map of daemon address → signature, holding only the addresses
+//! that have one — so they never appear in a process listing.
 
 mod channel;
 mod cleaner;
+mod host;
 mod podman;
 mod server;
 
@@ -33,9 +38,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
-    connect_lock_key, Identify, IdentifyMount,
-};
+use objectiveai_sdk::client_objectiveai_mcp::laboratory::{Identify, IdentifyMount};
 
 #[derive(Parser)]
 #[command(name = "objectiveai-laboratory", version)]
@@ -43,9 +46,9 @@ enum Command {
     /// Create the laboratory container (not started); errors if the id
     /// already exists in this state.
     Create(CreateArgs),
-    /// Run the resident manager: connect a CREATED laboratory to a
-    /// daemon (until killed).
-    Connect(ConnectArgs),
+    /// Run the resident laboratory host: serve ALL of this state's
+    /// laboratories to every given daemon address (until killed).
+    Host(HostArgs),
     /// Print the state's laboratory containers (running or not) as a
     /// JSON array of identity objects on stdout.
     List(ListArgs),
@@ -81,14 +84,12 @@ struct CreateArgs {
 }
 
 #[derive(clap::Args)]
-struct ConnectArgs {
-    /// The laboratory id (must already be created).
-    #[arg(long)]
-    id: String,
-    /// The daemon's `ws://` base address to connect to (its
-    /// `/laboratory` route is appended).
-    #[arg(long)]
-    address: String,
+struct HostArgs {
+    /// A daemon `ws://` base address to connect to (its `/laboratory`
+    /// route is appended). Repeatable — one resident connection per
+    /// address.
+    #[arg(long = "address")]
+    addresses: Vec<String>,
     /// ObjectiveAI home; defaults to `~/.objectiveai`.
     #[arg(long)]
     objectiveai_dir: Option<PathBuf>,
@@ -134,11 +135,11 @@ fn resolve_objectiveai_dir(dir: &Option<PathBuf>) -> PathBuf {
 
 #[tokio::main]
 async fn main() {
-    // Load a `.env` if present BEFORE reading DAEMON_SIGNATURE.
+    // Load a `.env` if present BEFORE reading DAEMON_SIGNATURES.
     let _ = dotenv::dotenv();
     match Command::parse() {
         Command::Create(args) => create(args).await,
-        Command::Connect(args) => connect(args).await,
+        Command::Host(args) => run_host(args).await,
         Command::List(args) => list(args).await,
         Command::Delete(args) => delete(args).await,
     }
@@ -211,7 +212,7 @@ async fn list(args: ListArgs) {
     }
 }
 
-fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Identify {
+pub(crate) fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Identify {
     Identify {
         id: lab.id,
         image: lab.image,
@@ -241,151 +242,88 @@ async fn delete(args: DeleteArgs) {
     }
 }
 
-/// `connect`: the resident manager for one `(id, address)` pair.
-async fn connect(args: ConnectArgs) {
-    let signature = std::env::var("DAEMON_SIGNATURE").ok();
+/// `host`: THE resident laboratory host for this (machine, state).
+async fn run_host(args: HostArgs) {
+    // Per-address signatures ride ONE env var (never argv): a JSON map
+    // address → signature, holding only the addresses that HAVE one.
+    let signatures: std::collections::HashMap<String, String> =
+        std::env::var("DAEMON_SIGNATURES")
+            .ok()
+            .and_then(|raw| serde_json::from_str(&raw).ok())
+            .unwrap_or_default();
+
+    // A host with nothing to dial is a caller bug (`laboratories
+    // spawn` always passes at least one address) — fail loudly rather
+    // than idle as an unreachable singleton.
+    if args.addresses.is_empty() {
+        eprintln!("no --address given — the host needs at least one daemon to serve");
+        std::process::exit(1);
+    }
 
     let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
     let bin_dir = objectiveai_dir.join("bin");
-    let state_dir = objectiveai_dir
+    let lock_dir = objectiveai_dir
         .join("state")
-        .join(&args.objectiveai_state);
-    let podman = podman::Podman::new(bin_dir.clone());
+        .join(&args.objectiveai_state)
+        .join("locks");
 
-    // ── Identity from the container label (create is a prerequisite) ─
-    let labs = match podman::laboratory::list(&podman, &args.objectiveai_state).await {
-        Ok(labs) => labs,
-        Err(e) => {
-            eprintln!("read laboratories: {e}");
-            std::process::exit(1);
-        }
-    };
-    let Some(info) = labs.into_iter().find(|l| l.id == args.id) else {
+    // ── THE single host lock ─────────────────────────────────────
+    // One laboratory host per state, however many daemon connections
+    // it keeps: claim key `laboratories` in `<state>/locks` — exactly
+    // what the daemon spawner's `spawn_until_lock_published` probes.
+    // The host is a WS client (no listener), so the content is a plain
+    // readiness marker, not a URL. Simultaneous spawns race this
+    // try_acquire and exactly one wins (the loser's spawner re-probes
+    // the published lock — the api/mcp/viewer spawn discipline).
+    let Some(claim) = objectiveai_sdk::lockfile::try_acquire(
+        &lock_dir,
+        "laboratories",
+        "ready",
+    )
+    .await
+    else {
         eprintln!(
-            "laboratory '{}' is not created — run `laboratories create` first",
-            args.id
+            "another laboratory host already holds the `laboratories` lock for this state — exiting"
         );
         std::process::exit(1);
     };
-    let identify = identify_from_info(info);
 
-    // ── The (id, address) connection lock, under the id GUARD ────
-    // Guard first (BLOCKING, bare id — no url hash): the cleaner holds
-    // this same guard around its check-locks-then-stop window, so a
-    // connect can never slip its lock acquisition between a cleaner's
-    // "no locks held" observation and its `podman stop`. Released
-    // explicitly the moment the connection lock is held — a manager
-    // past the guard is always visible to the cleaner's veto check.
-    let lock_dir = state_dir.join("locks").join("laboratories");
-    let guard = match objectiveai_sdk::lockfile::wait_acquire(
-        &lock_dir,
-        &args.id,
-        &format!("guard pid {}", std::process::id()),
-    )
-    .await
-    {
-        Ok(guard) => guard,
-        Err(e) => {
-            eprintln!("laboratory '{}' guard lock: {e}", args.id);
-            std::process::exit(1);
-        }
-    };
-    // One manager per laboratory per daemon address; simultaneous
-    // connects to the same pair race this try_acquire and exactly one
-    // wins (the loser's spawner re-probes the published lock — the
-    // api/db/mcp spawn discipline).
-    let lock_key = connect_lock_key(&args.id, &args.address);
-    let claim = match objectiveai_sdk::lockfile::try_acquire(
-        &lock_dir,
-        &lock_key,
-        &format!("manager pid {}", std::process::id()),
-    )
-    .await
-    {
-        Some(claim) => {
-            if let Err(e) = guard.release() {
-                eprintln!("laboratory '{}' guard release: {e}", args.id);
-                let _ = claim.release();
-                std::process::exit(1);
-            }
-            claim
-        }
-        None => {
-            let _ = guard.release();
-            eprintln!(
-                "laboratory '{}' is already connected to {} (its lock is held) — exiting",
-                args.id, args.address
-            );
-            std::process::exit(1);
-        }
-    };
+    // ── Identity + the shared host server ────────────────────────
+    let machine = objectiveai_sdk::machine::machine_identity(&objectiveai_dir);
+    let server = Arc::new(host::HostServer::new(
+        bin_dir.clone(),
+        args.objectiveai_state.clone(),
+        machine,
+    ));
 
-    // ── Container up (start-not-create; a stopped container resumes) ─
-    if let Err(e) =
-        podman::laboratory::start(&podman, &args.objectiveai_state, &args.id).await
-    {
-        eprintln!("start laboratory '{}': {e}", args.id);
-        let _ = claim.release();
-        std::process::exit(1);
-    }
-    let port = match podman::laboratory::host_port(
-        &podman,
-        &args.objectiveai_state,
-        &args.id,
-    )
-    .await
-    {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("laboratory '{}' port: {e}", args.id);
-            // We just started it — don't leak a running container.
-            let _ =
-                podman::laboratory::stop(&podman, &args.objectiveai_state, &args.id).await;
-            let _ = claim.release();
-            std::process::exit(1);
-        }
-    };
-    if !args.suppress_output {
-        eprintln!("laboratory '{}' on 127.0.0.1:{port} → {}", args.id, args.address);
-    }
+    // Stop leaked containers BEFORE serving: the host starts containers
+    // strictly lazily, so nothing races this sweep until a channel is
+    // up (see the cleaner's module docs).
+    cleaner::sweep(bin_dir, args.objectiveai_state.clone()).await;
 
-    // ── Serve until killed ───────────────────────────────────────
-    let server = Arc::new(server::LabServer::new(format!("http://127.0.0.1:{port}")));
-
-    // Serve until a graceful-shutdown signal, then STOP (never remove)
-    // the container: it and its filesystem survive for the next
-    // manager to `start` again. A hard kill skips this — the container
-    // then keeps running until someone stops it.
-    let cleaner_bin_dir = bin_dir.clone();
-    let cleaner_state = args.objectiveai_state.clone();
-    let cleaner_lock_dir = lock_dir.clone();
-    let on_first_connect: Box<dyn FnOnce() + Send> = Box::new(move || {
-        tokio::spawn(cleaner::sweep(
-            cleaner_bin_dir,
-            cleaner_state,
-            cleaner_lock_dir,
-        ));
-    });
-    tokio::select! {
-        _ = channel::run(
-            args.address.clone(),
-            identify,
-            signature,
-            server,
+    // ── Serve every address until killed ─────────────────────────
+    // One reconnect-forever channel per daemon address, all sharing
+    // the one host server. On graceful shutdown every container the
+    // host started is STOPPED (never removed): they and their
+    // filesystems survive for the next host to `start` again. A hard
+    // kill skips this — the next host's sweep stops them instead.
+    let channels = futures::future::join_all(args.addresses.iter().map(|address| {
+        channel::run(
+            address.clone(),
+            signatures.get(address).cloned(),
+            Arc::clone(&server),
             args.suppress_output,
-            on_first_connect,
-        ) => {}
+        )
+    }));
+    tokio::select! {
+        _ = channels => {}
         _ = shutdown_signal() => {
             if !args.suppress_output {
-                eprintln!("shutting down: stopping laboratory '{}'", args.id);
+                eprintln!("shutting down: stopping started laboratories");
             }
         }
     }
-    if let Err(e) =
-        podman::laboratory::stop(&podman, &args.objectiveai_state, &args.id).await
-    {
-        eprintln!("stop laboratory '{}': {e}", args.id);
-    }
+    server.stop_started().await;
     let _ = claim.release();
 }
 
