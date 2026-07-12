@@ -933,6 +933,21 @@ pub async fn spawn_until_published(
     }
     configure(&mut cmd);
 
+    // Windows: a child created with piped stdio runs under
+    // `bInheritHandles=TRUE`, which copies EVERY inheritable handle in
+    // THIS process into it — including our own std handles, not just
+    // the three pipes prepared for the child. When this process was
+    // itself spawned with piped stdio (a test harness / `BinaryExecutor`
+    // tailing our stdout), the detached long-lived server would keep
+    // that pipe's write end open after we exit, so whoever tails us
+    // never sees EOF and waits forever. Clear `HANDLE_FLAG_INHERIT` on
+    // our std handles before the spawn: it keeps them out of the child
+    // without affecting our own use of them, and `Stdio::inherit`
+    // children elsewhere are unaffected (std re-duplicates the handle
+    // inheritable at spawn time).
+    #[cfg(windows)]
+    disinherit_std_handles();
+
     let mut child = cmd.spawn().map_err(SpawnPublishError::Spawn)?;
 
     // Drain both pipes from the moment of spawn: a failing child can
@@ -997,6 +1012,39 @@ pub async fn spawn_until_published(
     drop(child);
 
     Ok(listening)
+}
+
+/// Clear `HANDLE_FLAG_INHERIT` on this process's std handles so a
+/// child spawned with `bInheritHandles=TRUE` (any piped-stdio spawn)
+/// does not receive duplicated copies of them. Idempotent and
+/// best-effort: a pseudo/closed std handle that can't be updated has
+/// nothing to leak. The flag only governs inheritance — our own reads
+/// and writes through these handles are unaffected.
+#[cfg(windows)]
+fn disinherit_std_handles() {
+    use std::os::windows::io::AsRawHandle;
+
+    const HANDLE_FLAG_INHERIT: u32 = 0x1;
+    // kernel32 is always linked on Windows targets; no #[link] needed.
+    unsafe extern "system" {
+        fn SetHandleInformation(
+            h_object: *mut std::ffi::c_void,
+            dw_mask: u32,
+            dw_flags: u32,
+        ) -> i32;
+    }
+
+    for handle in [
+        std::io::stdin().as_raw_handle(),
+        std::io::stdout().as_raw_handle(),
+        std::io::stderr().as_raw_handle(),
+    ] {
+        if !handle.is_null() {
+            unsafe {
+                SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+            }
+        }
+    }
 }
 
 /// Invert [`filename_escape`]: `%XX` → byte, everything else verbatim.
