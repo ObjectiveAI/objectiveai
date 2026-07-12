@@ -40458,7 +40458,7 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         state: "state";
     }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    value: z.ZodDefault<z.ZodString>;
+    value: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73277,7 +73277,7 @@ declare const CliCommandLaboratoriesConfigAddressesAddRequestSchema: z.ZodObject
         state: "state";
     }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    value: z.ZodDefault<z.ZodString>;
+    value: z.ZodString;
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesAddRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchema>;
 
@@ -114235,7 +114235,7 @@ declare const CliCommandLaboratoriesConfigAddressesRequestSchema: z.ZodUnion<rea
         state: "state";
     }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    value: z.ZodDefault<z.ZodString>;
+    value: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -114429,7 +114429,7 @@ declare const CliCommandLaboratoriesConfigRequestSchema: z.ZodUnion<readonly [z.
         state: "state";
     }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    value: z.ZodDefault<z.ZodString>;
+    value: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -115927,7 +115927,7 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
         state: "state";
     }>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    value: z.ZodDefault<z.ZodString>;
+    value: z.ZodString;
 }, z.core.$strip>, z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
