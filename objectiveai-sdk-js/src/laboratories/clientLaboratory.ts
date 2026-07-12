@@ -5,6 +5,8 @@ import { LaboratoriesClientLaboratoryTypeSchema } from "./clientLaboratoryType";
 
 export const LaboratoriesClientLaboratorySchema = z.object({
   id: z.string().describe("The opaque laboratory id."),
+  machine: z.string().nullable().describe("The machine id of the laboratory host — laboratory ids are only\nunique per (machine, state).").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state the laboratory host serves, paired with `machine`.").meta({ omitempty: true }).optional(),
   type: LaboratoriesClientLaboratoryTypeSchema.describe("Discriminator — always `\"client\"`."),
 }).describe("A client-resolved laboratory: a client-side MCP server keyed by an\nopaque `id`. Wire shape: `{\"type\":\"client\",\"id\":\"…\"}`.").meta({ title: "laboratories.ClientLaboratory" });
 export type LaboratoriesClientLaboratory = z.infer<typeof LaboratoriesClientLaboratorySchema>;

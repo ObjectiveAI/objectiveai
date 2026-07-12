@@ -92,6 +92,7 @@ async fn create_lab(executor: &Exec, id: &str) {
             // the scripts `mkdir -p` their own work dirs.
             cwd: "/".to_string(),
             machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -108,6 +109,8 @@ async fn attach_lab(executor: &Exec, tag: &str, lab: &str) {
                 agent_tag: tag.to_string(),
             },
             laboratory_id: lab.to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -607,6 +610,8 @@ async fn detach_lab(executor: &Exec, tag: &str, lab: &str) {
                 agent_tag: tag.to_string(),
             },
             laboratory_id: lab.to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )

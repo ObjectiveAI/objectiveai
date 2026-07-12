@@ -4,5 +4,7 @@ import { z } from "zod";
 
 export const CliCommandLaboratoriesAttachResponseSchema = z.object({
   laboratory_id: z.string().describe("The laboratory id that was attached to the target."),
+  machine: z.string().nullable().describe("The machine id the attachment row records (the provided pair,\nor the auto-filled local one).").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state the attachment row records, paired with `machine`.").meta({ omitempty: true }).optional(),
 }).describe("Confirmation — attach succeeded; echoes the laboratory id that was\nattached.").meta({ title: "cli.command.laboratories.attach.Response" });
 export type CliCommandLaboratoriesAttachResponse = z.infer<typeof CliCommandLaboratoriesAttachResponseSchema>;

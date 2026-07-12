@@ -302,6 +302,8 @@ async fn agent_instance_stream_snapshot_and_live() {
                 agent_instance: instance,
             },
             laboratory_id: lab.clone(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )

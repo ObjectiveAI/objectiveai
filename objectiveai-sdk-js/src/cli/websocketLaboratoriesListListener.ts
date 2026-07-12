@@ -54,10 +54,23 @@ export interface WebSocketLaboratoriesListListenerOptions {
  * await listener.subscribe(); // resolves on the next change
  * ```
  */
+/** The fold key: the full `(machine, state, id)` laboratory identity
+ * (ids are only unique per (machine, state)). Empty segments when the
+ * daemon didn't report the pair. */
+function foldKey(
+  id: string,
+  machine?: string | null,
+  machineState?: string | null,
+): string {
+  return `${machine ?? ""}\n${machineState ?? ""}\n${id}`;
+}
+
 export class WebSocketLaboratoriesListListener {
   #ws: WebSocket;
   #closed = false;
-  /** `id → status`. */
+  /** `(machine, state, id) fold key → status` — laboratory ids are
+   * only unique per (machine, state), so same-id items from different
+   * hosts coexist. */
   #state = new Map<string, LaboratoryStatus>();
   #onChange?: (laboratories: LaboratoryStatus[]) => void;
   /** Resolvers for the in-flight {@link subscribe} promises. */
@@ -139,9 +152,9 @@ export class WebSocketLaboratoriesListListener {
 
   /** Snapshot the current laboratory set, sorted by `id`. */
   laboratories(): LaboratoryStatus[] {
-    return [...this.#state.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([, laboratory]) => laboratory);
+    return [...this.#state.values()].sort((a, b) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+    );
   }
 
   /** Resolves on the next change applied to the state. A fresh call
@@ -171,14 +184,28 @@ export class WebSocketLaboratoriesListListener {
       case "snapshot":
         this.#state.clear();
         for (const laboratory of event.laboratories) {
-          this.#state.set(laboratory.id, laboratory);
+          this.#state.set(
+            foldKey(
+              laboratory.id,
+              laboratory.machine?.id,
+              laboratory.machine_state,
+            ),
+            laboratory,
+          );
         }
         return true;
       case "upserted":
-        this.#state.set(event.laboratory.id, event.laboratory);
+        this.#state.set(
+          foldKey(
+            event.laboratory.id,
+            event.laboratory.machine?.id,
+            event.laboratory.machine_state,
+          ),
+          event.laboratory,
+        );
         return true;
       case "removed":
-        this.#state.delete(event.id);
+        this.#state.delete(foldKey(event.id, event.machine, event.machine_state));
         return true;
       default:
         return false;

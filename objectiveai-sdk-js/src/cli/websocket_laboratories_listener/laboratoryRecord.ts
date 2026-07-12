@@ -15,6 +15,7 @@ export const CliWebsocketLaboratoriesListenerLaboratoryRecordSchema = z.object({
   id: z.string().describe("Raw (state-agnostic) laboratory id."),
   image: z.string().nullable().meta({ omitempty: true }).optional(),
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory —\n`None` when no connected host serves it.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves\n(laboratory ids are only unique per (machine, state)).").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema).default([]),
 }).describe("One laboratory's full record. Identity fields are present when a\nconnected laboratory HOST serves the laboratory; a laboratory known\nONLY through attachment rows (or not at all) zero-fills them —\n`machine: None` marks \"not served anywhere\", mirroring the agents\n`get_exact` zero-fill convention. There is no local-vs-remote\nsplit — machine identity is the only provenance.").meta({ title: "cli.websocket_laboratories_listener.LaboratoryRecord" });
 export type CliWebsocketLaboratoriesListenerLaboratoryRecord = z.infer<typeof CliWebsocketLaboratoriesListenerLaboratoryRecordSchema>;

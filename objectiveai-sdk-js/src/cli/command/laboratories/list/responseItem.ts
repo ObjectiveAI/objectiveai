@@ -12,6 +12,7 @@ export const CliCommandLaboratoriesListResponseItemSchema = z.object({
   id: z.string(),
   image: z.string(),
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves\n(laboratory ids are only unique per (machine, state)).").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
 }).describe("One laboratory served by a connected laboratory HOST. There is no\nlocal-vs-remote split — machine identity is the only provenance,\nthe same logic regardless of where the host runs.").meta({ title: "cli.command.laboratories.list.ResponseItem" });
 export type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;

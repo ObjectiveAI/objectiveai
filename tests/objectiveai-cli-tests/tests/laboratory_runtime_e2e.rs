@@ -59,6 +59,7 @@ async fn create_lab(
             env,
             cwd: cwd.to_string(),
             machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -99,6 +100,8 @@ async fn spawn_lab_session(
                     agent_tag: tag.to_string(),
                 },
                 laboratory_id: lab.to_string(),
+                machine: None,
+                machine_state: None,
                 base: Default::default(),
             },
         )

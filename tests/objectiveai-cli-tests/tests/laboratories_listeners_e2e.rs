@@ -86,7 +86,10 @@ fn nanos() -> u128 {
         .as_nanos()
 }
 
-async fn create_lab(executor: &Exec, id: &str) {
+/// Create a laboratory on the given host — `pair` = the explicit
+/// `--machine`/`--machine-state` target, `None` = the executor
+/// daemon's own (local machine, own state).
+async fn create_lab_on(executor: &Exec, id: &str, pair: Option<(&str, &str)>) {
     let created: CreateResp = cli_test_util::execute_one(
         executor,
         CreateReq {
@@ -97,7 +100,8 @@ async fn create_lab(executor: &Exec, id: &str) {
             mounts: Vec::new(),
             env: Vec::new(),
             cwd: "/".to_string(),
-            machine: None,
+            machine: pair.map(|(machine, _)| machine.to_string()),
+            machine_state: pair.map(|(_, machine_state)| machine_state.to_string()),
             base: Default::default(),
         },
     )
@@ -105,18 +109,28 @@ async fn create_lab(executor: &Exec, id: &str) {
     assert_eq!(created.id, id);
 }
 
-async fn delete_lab(executor: &Exec, id: &str) {
+async fn create_lab(executor: &Exec, id: &str) {
+    create_lab_on(executor, id, None).await;
+}
+
+async fn delete_lab_on(executor: &Exec, id: &str, pair: Option<(&str, &str)>) {
     let deleted: DeleteResp = cli_test_util::execute_one(
         executor,
         DeleteReq {
             path_type: DeletePath::LaboratoriesDelete,
             kind: DeleteKind::Client,
             id: id.to_string(),
+            machine: pair.map(|(machine, _)| machine.to_string()),
+            machine_state: pair.map(|(_, machine_state)| machine_state.to_string()),
             base: Default::default(),
         },
     )
     .await;
     assert_eq!(deleted.id, id);
+}
+
+async fn delete_lab(executor: &Exec, id: &str) {
+    delete_lab_on(executor, id, None).await;
 }
 
 /// This machine's stable hashed id — what every listed laboratory's
@@ -172,6 +186,8 @@ async fn laboratories_list_and_record_streams() {
             path_type: AttachPath::LaboratoriesAttach,
             selector: AgentSelector::Tag { agent_tag: tag.clone() },
             laboratory_id: id.clone(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -324,12 +340,14 @@ async fn laboratories_cross_daemon_propagation() {
         });
     }
 
-    // Create via daemon B ("from a different remote") — no --machine:
-    // daemon B resolves the UNIQUE connected host for this machine
-    // (state A's host; daemon B has none of its own state) and
-    // forwards there. BOTH daemons must see the new laboratory.
+    // Create via daemon B ("from a different remote") with the
+    // EXPLICIT --machine/--machine-state pair addressing state A's
+    // host (the naive default would be daemon B's own (machine,
+    // state B) and auto-spawn a second host). BOTH daemons must see
+    // the new laboratory — the create rides daemon B's connection to
+    // the shared host, the update fans out to daemon A.
     let lab2 = format!("e2e-xdaemon-lab2-{}", nanos());
-    create_lab(&exec_b, &lab2).await;
+    create_lab_on(&exec_b, &lab2, Some((machine_id.as_str(), state_a.as_str()))).await;
     for (name, list) in [("A", &list_a), ("B", &list_b)] {
         wait_for!(format!("lab2 on daemon {name}'s list stream"), {
             list.laboratories().await.iter().any(|l| l.id == lab2 && l.connected)
@@ -351,9 +369,10 @@ async fn laboratories_cross_daemon_propagation() {
         "daemon A's unary list must include the lab created via daemon B"
     );
 
-    // Delete via daemon B (routed by lab id to the serving host) →
-    // gone from BOTH streams; then lab1 via daemon A likewise.
-    delete_lab(&exec_b, &lab2).await;
+    // Delete via daemon B (the explicit pair addresses state A's
+    // host) → gone from BOTH streams; then lab1 via daemon A (its own
+    // default pair) likewise.
+    delete_lab_on(&exec_b, &lab2, Some((machine_id.as_str(), state_a.as_str()))).await;
     for (name, list) in [("A", &list_a), ("B", &list_b)] {
         wait_for!(format!("lab2 removed from daemon {name}'s list stream"), {
             !list.laboratories().await.iter().any(|l| l.id == lab2)
@@ -378,6 +397,96 @@ async fn laboratories_cross_daemon_propagation() {
         },
     )
     .await;
+    let _ = exec_b
+        .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
+            objectiveai_sdk::cli::command::daemon::kill::Request {
+                path_type: objectiveai_sdk::cli::command::daemon::kill::Path::DaemonKill,
+                base: Default::default(),
+            },
+            None,
+        )
+        .await;
+}
+
+/// The SAME laboratory id on TWO hosts (one machine, two states —
+/// each daemon's default pair targets its own host): the second
+/// create must NOT error (ids are only unique per (machine, state);
+/// there is no cross-host duplicate check), each daemon's list stream
+/// shows ITS copy with its own `machine_state`, and a default-pair
+/// delete removes ONLY that host's copy.
+#[tokio::test(flavor = "multi_thread")]
+async fn duplicate_ids_across_hosts() {
+    let _base = cli_test_util::test_base_dir();
+    let state_a = cli_test_util::test_state_name();
+    let state_b = format!("{state_a}-b");
+    let exec_a = cli_test_util::executor().await;
+    let exec_b = cli_test_util::executor_for_state(&state_b).await;
+
+    let addr_a = cli_test_util::daemon_ws_address(&exec_a, &state_a).await;
+    let addr_b = cli_test_util::daemon_ws_address(&exec_b, &state_b).await;
+
+    let list_a = WebSocketLaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
+        .connect()
+        .await
+        .expect("connect daemon A /laboratories/list");
+    let list_b = WebSocketLaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
+        .connect()
+        .await
+        .expect("connect daemon B /laboratories/list");
+
+    // One id, two hosts: each create's default pair targets that
+    // daemon's OWN (machine, state) host — the hosts are independent
+    // (state A's dials only daemon A, state B's only daemon B), so
+    // the second create lands on a DIFFERENT laboratory daemon and
+    // must not collide.
+    let dup = format!("e2e-dup-id-{}", nanos());
+    create_lab(&exec_a, &dup).await;
+    create_lab(&exec_b, &dup).await;
+
+    wait_for!("dup id on daemon A with state A", {
+        list_a.laboratories().await.iter().any(|l| {
+            l.id == dup && l.machine_state.as_deref() == Some(state_a.as_str())
+        })
+    });
+    wait_for!("dup id on daemon B with state B", {
+        list_b.laboratories().await.iter().any(|l| {
+            l.id == dup && l.machine_state.as_deref() == Some(state_b.as_str())
+        })
+    });
+
+    // Default-pair delete via daemon B removes ONLY its host's copy;
+    // daemon A's copy survives.
+    delete_lab(&exec_b, &dup).await;
+    wait_for!("dup id gone from daemon B", {
+        !list_b.laboratories().await.iter().any(|l| l.id == dup)
+    });
+    assert!(
+        list_a
+            .laboratories()
+            .await
+            .iter()
+            .any(|l| l.id == dup
+                && l.machine_state.as_deref() == Some(state_a.as_str())),
+        "daemon A's same-id laboratory must survive daemon B's delete"
+    );
+    delete_lab(&exec_a, &dup).await;
+    wait_for!("dup id gone from daemon A", {
+        !list_a.laboratories().await.iter().any(|l| l.id == dup)
+    });
+
+    // Teardown: both hosts + daemon B (state A's daemon stays, like
+    // every other test).
+    for exec in [&exec_a, &exec_b] {
+        let _: LabKillResp = cli_test_util::execute_one(
+            exec,
+            LabKillReq {
+                path_type: LabKillPath::LaboratoriesKill,
+                scope: SetScope::State,
+                base: Default::default(),
+            },
+        )
+        .await;
+    }
     let _ = exec_b
         .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
             objectiveai_sdk::cli::command::daemon::kill::Request {

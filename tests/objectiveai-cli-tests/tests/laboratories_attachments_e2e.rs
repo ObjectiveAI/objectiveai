@@ -44,6 +44,8 @@ async fn attach(executor: &Exec, selector: AgentSelector, lab: &str) {
             path_type: AttachPath::LaboratoriesAttach,
             selector,
             laboratory_id: lab.to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -57,6 +59,8 @@ async fn detach(executor: &Exec, selector: AgentSelector, lab: &str) {
             path_type: DetachPath::LaboratoriesDetach,
             selector,
             laboratory_id: lab.to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -157,6 +161,8 @@ async fn attach_duplicate_and_detach_missing_error() {
             path_type: AttachPath::LaboratoriesAttach,
             selector: instance("inst"),
             laboratory_id: "lab-dup".to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
         "already attached",
@@ -169,6 +175,8 @@ async fn attach_duplicate_and_detach_missing_error() {
             path_type: DetachPath::LaboratoriesDetach,
             selector: instance("inst"),
             laboratory_id: "never-attached".to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
         "is not attached",
@@ -201,6 +209,8 @@ async fn ref_target_is_rejected() {
             path_type: AttachPath::LaboratoriesAttach,
             selector: ref_selector(),
             laboratory_id: "lab-x".to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
         "agent ref",
@@ -213,11 +223,80 @@ async fn ref_target_is_rejected() {
             path_type: DetachPath::LaboratoriesDetach,
             selector: ref_selector(),
             laboratory_id: "lab-x".to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
         "agent ref",
     )
     .await;
+}
+
+/// The SAME laboratory id from TWO different hosts (explicit
+/// `machine`/`machine_state` pairs) attaches TWICE to one target —
+/// laboratory ids are only unique per (machine, state), and the
+/// unique index keys on the FULL identity. Each copy detaches
+/// individually by its exact pair; only the exact same identity
+/// re-attached is a duplicate.
+#[tokio::test(flavor = "multi_thread")]
+async fn same_id_from_two_hosts_attaches_twice() {
+    let _base = cli_test_util::test_base_dir();
+    let executor = cli_test_util::executor().await;
+
+    let attach_on = |machine: &str, machine_state: &str| AttachReq {
+        path_type: AttachPath::LaboratoriesAttach,
+        selector: instance("dup-inst"),
+        laboratory_id: "dup-lab".to_string(),
+        machine: Some(machine.to_string()),
+        machine_state: Some(machine_state.to_string()),
+        base: Default::default(),
+    };
+    let detach_on = |machine: &str, machine_state: &str| DetachReq {
+        path_type: DetachPath::LaboratoriesDetach,
+        selector: instance("dup-inst"),
+        laboratory_id: "dup-lab".to_string(),
+        machine: Some(machine.to_string()),
+        machine_state: Some(machine_state.to_string()),
+        base: Default::default(),
+    };
+
+    let _: AttachResp =
+        cli_test_util::execute_one(&executor, attach_on("machine-x", "state-x")).await;
+    // Same id, DIFFERENT host — a distinct laboratory, not a duplicate.
+    let _: AttachResp =
+        cli_test_util::execute_one(&executor, attach_on("machine-y", "state-y")).await;
+    // The exact same identity again IS a duplicate.
+    expect_err_containing::<AttachReq, AttachResp>(
+        &executor,
+        attach_on("machine-x", "state-x"),
+        "already attached",
+    )
+    .await;
+
+    // The EFFECTIVE readback (`agents instances get` — what the next
+    // spawn pass dials) dedups by BARE id: an agent addresses at most
+    // one laboratory per id, earliest attachment winning. Both rows
+    // exist in the DB (the duplicate error above proved x's row, and
+    // y's detach below proves y's), but the effective set shows ONE.
+    let labs = get_labs(&executor, "dup-inst").await;
+    assert_eq!(labs.len(), 1, "effective set dedups by bare id: {labs:?}");
+    assert_eq!(labs[0].id, "dup-lab");
+    assert_eq!(
+        labs[0].machine.as_deref(),
+        Some("machine-x"),
+        "earliest attachment wins the effective slot"
+    );
+
+    // Detach by exact pair, one at a time: dropping x's row surfaces
+    // y's in the effective set.
+    let _: DetachResp =
+        cli_test_util::execute_one(&executor, detach_on("machine-x", "state-x")).await;
+    let labs = get_labs(&executor, "dup-inst").await;
+    assert_eq!(labs.len(), 1);
+    assert_eq!(labs[0].machine.as_deref(), Some("machine-y"));
+    let _: DetachResp =
+        cli_test_util::execute_one(&executor, detach_on("machine-y", "state-y")).await;
+    assert!(get_labs(&executor, "dup-inst").await.is_empty());
 }
 
 /// Attach to a GROUPED tag target (exercises the tag-resolution path).
@@ -263,6 +342,8 @@ async fn attach_to_tag() {
             path_type: AttachPath::LaboratoriesAttach,
             selector: tag(),
             laboratory_id: "lab-on-tag".to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
         "already attached",
@@ -276,6 +357,8 @@ async fn attach_to_tag() {
             path_type: DetachPath::LaboratoriesDetach,
             selector: tag(),
             laboratory_id: "lab-on-tag".to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
         "is not attached",

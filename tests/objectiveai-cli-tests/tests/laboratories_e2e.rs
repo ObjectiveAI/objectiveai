@@ -27,6 +27,7 @@ async fn expect_create_err(executor: &cli_test_util::HangPreventingBinaryCommand
                 env: Vec::new(),
                 cwd: "/work".to_string(),
                 machine: None,
+                machine_state: None,
                 base: Default::default(),
             },
             None,
@@ -74,6 +75,7 @@ async fn create_then_list_round_trips_the_spec() {
             }],
             cwd: "/work".to_string(),
             machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )

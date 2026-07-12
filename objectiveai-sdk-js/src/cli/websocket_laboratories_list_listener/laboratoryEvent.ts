@@ -11,6 +11,8 @@ export const CliWebsocketLaboratoriesListListenerLaboratoryEventSchema = z.union
   type: z.literal("upserted"),
 }).describe("A laboratory appeared or changed — connected, disconnected\n(but still locally present), entered the local scan, or had\nits identity re-announced. Full-value replace by `id`.").meta({"variantTitle":"Upserted"}), z.object({
   id: z.string(),
+  machine: z.string().nullable().describe("The machine id of the vanished laboratory's host (a bare id is\nambiguous when another host serves the same id).").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state of the vanished laboratory's host, paired with\n`machine`.").meta({ omitempty: true }).optional(),
   type: z.literal("removed"),
 }).describe("A laboratory vanished from BOTH halves — no live connection\nand absent from the local scan.").meta({"variantTitle":"Removed"})]).describe("One event on the `/laboratories/list` stream. The first is always\na [`Snapshot`](LaboratoryEvent::Snapshot); every later one upserts\nor removes a single laboratory as the connected set or the local\nscan changes.").meta({ title: "cli.websocket_laboratories_list_listener.LaboratoryEvent" });
 export type CliWebsocketLaboratoriesListListenerLaboratoryEvent = z.infer<typeof CliWebsocketLaboratoriesListListenerLaboratoryEventSchema>;
