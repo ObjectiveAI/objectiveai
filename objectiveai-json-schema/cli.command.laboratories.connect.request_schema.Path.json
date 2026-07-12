@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.laboratories.connect.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "laboratories/connect/request_schema"
-  ]
-}

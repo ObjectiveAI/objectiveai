@@ -16,6 +16,30 @@
     "laboratory_id": {
       "type": "string"
     },
+    "machine": {
+      "description": "The EXACT machine id whose laboratory host serves the\nlaboratory. Provided together with `machine_state` or not at\nall; neither ⇒ the current machine + the daemon's own state.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on `machine`) whose laboratory host serves the\nlaboratory. Paired with `machine` — both or neither.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "max_tokens": {
       "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
       "anyOf": [

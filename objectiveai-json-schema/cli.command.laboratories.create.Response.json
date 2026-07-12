@@ -1,8 +1,22 @@
 {
   "title": "cli.command.laboratories.create.Response",
-  "description": "Echo of the created laboratory.",
+  "description": "Echo of the created laboratory, from the owning host's reply.",
   "type": "object",
   "properties": {
+    "created_at": {
+      "description": "Unix seconds when the container was created, from podman's own\nrecord on the owning host. `None` when the host didn't report\nit.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "cwd": {
       "type": "string"
     },
@@ -17,6 +31,30 @@
     },
     "image": {
       "type": "string"
+    },
+    "machine": {
+      "description": "The machine whose laboratory host owns the container.",
+      "anyOf": [
+        {
+          "$ref": "machine.MachineIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on that machine) whose laboratory host owns the\ncontainer.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "mounts": {
       "type": "array",

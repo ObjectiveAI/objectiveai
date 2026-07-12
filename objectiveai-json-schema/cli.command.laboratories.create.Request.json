@@ -33,6 +33,30 @@
     "kind": {
       "$ref": "cli.command.laboratories.create.Kind"
     },
+    "machine": {
+      "description": "The EXACT machine id (as `laboratories list` reports it) whose\nlaboratory host should own the container. Provided together\nwith `machine_state` or not at all; neither ⇒ the current\nmachine + the daemon's own state.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on `machine`) whose laboratory host should own the\ncontainer. Paired with `machine` — both or neither.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "max_tokens": {
       "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
       "anyOf": [

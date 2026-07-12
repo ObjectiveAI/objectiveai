@@ -14,16 +14,8 @@
       "$ref": "cli.command.laboratories.attach.response_schema.Request"
     },
     {
-      "title": "Connect",
-      "$ref": "cli.command.laboratories.connect.Request"
-    },
-    {
-      "title": "ConnectRequestSchema",
-      "$ref": "cli.command.laboratories.connect.request_schema.Request"
-    },
-    {
-      "title": "ConnectResponseSchema",
-      "$ref": "cli.command.laboratories.connect.response_schema.Request"
+      "title": "Config",
+      "$ref": "cli.command.laboratories.config.Request"
     },
     {
       "title": "Create",
@@ -38,6 +30,18 @@
       "$ref": "cli.command.laboratories.create.response_schema.Request"
     },
     {
+      "title": "Delete",
+      "$ref": "cli.command.laboratories.delete.Request"
+    },
+    {
+      "title": "DeleteRequestSchema",
+      "$ref": "cli.command.laboratories.delete.request_schema.Request"
+    },
+    {
+      "title": "DeleteResponseSchema",
+      "$ref": "cli.command.laboratories.delete.response_schema.Request"
+    },
+    {
       "title": "Detach",
       "$ref": "cli.command.laboratories.detach.Request"
     },
@@ -50,6 +54,18 @@
       "$ref": "cli.command.laboratories.detach.response_schema.Request"
     },
     {
+      "title": "Kill",
+      "$ref": "cli.command.laboratories.kill.Request"
+    },
+    {
+      "title": "KillRequestSchema",
+      "$ref": "cli.command.laboratories.kill.request_schema.Request"
+    },
+    {
+      "title": "KillResponseSchema",
+      "$ref": "cli.command.laboratories.kill.response_schema.Request"
+    },
+    {
       "title": "List",
       "$ref": "cli.command.laboratories.list.Request"
     },
@@ -60,6 +76,18 @@
     {
       "title": "ListResponseSchema",
       "$ref": "cli.command.laboratories.list.response_schema.Request"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.laboratories.spawn.Request"
+    },
+    {
+      "title": "SpawnRequestSchema",
+      "$ref": "cli.command.laboratories.spawn.request_schema.Request"
+    },
+    {
+      "title": "SpawnResponseSchema",
+      "$ref": "cli.command.laboratories.spawn.response_schema.Request"
     }
   ]
 }

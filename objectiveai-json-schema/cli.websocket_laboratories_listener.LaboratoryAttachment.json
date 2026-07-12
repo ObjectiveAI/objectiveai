@@ -28,6 +28,30 @@
           ],
           "omitempty": true
         },
+        "machine": {
+          "description": "The machine id the attachment row records (laboratory ids\nare only unique per (machine, state)); `None` on rows\npredating machine tracking.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "machine_state": {
+          "description": "The state the attachment row records, paired with `machine`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
         "type": {
           "type": "string",
           "enum": [
@@ -49,6 +73,30 @@
         },
         "attached_by": {
           "description": "The AIH that performed the attach, when recorded.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "machine": {
+          "description": "The machine id the attachment row records (laboratory ids\nare only unique per (machine, state)); `None` on rows\npredating machine tracking.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "machine_state": {
+          "description": "The state the attachment row records, paired with `machine`.",
           "anyOf": [
             {
               "type": "string"

@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.api.config.mcp_connect_timeout_ms.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.set.response_schema.Request"
+    }
+  ]
+}

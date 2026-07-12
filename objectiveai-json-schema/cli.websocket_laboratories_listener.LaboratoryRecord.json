@@ -1,6 +1,6 @@
 {
   "title": "cli.websocket_laboratories_listener.LaboratoryRecord",
-  "description": "One laboratory's full record. Identity fields are present when the\nlaboratory is connected to the daemon or found by the local scan;\na laboratory known ONLY through attachment rows (or not at all)\nzero-fills them — `source: None` marks \"not present anywhere\",\nmirroring the agents `get_exact` zero-fill convention.",
+  "description": "One laboratory's full record. Identity fields are present when a\nconnected laboratory HOST serves the laboratory; a laboratory known\nONLY through attachment rows (or not at all) zero-fills them —\n`machine: None` marks \"not served anywhere\", mirroring the agents\n`get_exact` zero-fill convention. There is no local-vs-remote\nsplit — machine identity is the only provenance.",
   "type": "object",
   "properties": {
     "attachments": {
@@ -12,8 +12,22 @@
       "default": []
     },
     "connected": {
-      "description": "Whether a live `/laboratory` manager connection for this id is\nregistered with the daemon right now.",
+      "description": "Whether the serving host's `/laboratory` connection is live\nright now.",
       "type": "boolean"
+    },
+    "created_at": {
+      "description": "Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the identity source\ndidn't report it (or the laboratory is known only through\nattachment rows).",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "cwd": {
       "anyOf": [
@@ -48,24 +62,36 @@
       ],
       "omitempty": true
     },
-    "mounts": {
-      "type": "array",
-      "items": {
-        "$ref": "cli.command.laboratories.create.Mount"
-      },
-      "default": []
-    },
-    "source": {
-      "description": "Where this laboratory lives relative to this machine + state —\n`None` when it is neither connected nor in the local scan.",
+    "machine": {
+      "description": "The machine whose laboratory host serves this laboratory —\n`None` when no connected host serves it.",
       "anyOf": [
         {
-          "$ref": "cli.command.laboratories.list.Source"
+          "$ref": "machine.MachineIdentity"
         },
         {
           "type": "null"
         }
       ],
       "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.Mount"
+      },
+      "default": []
     }
   }
 }

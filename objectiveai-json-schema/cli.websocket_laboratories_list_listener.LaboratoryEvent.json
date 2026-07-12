@@ -39,11 +39,33 @@
     },
     {
       "title": "Removed",
-      "description": "A laboratory vanished from BOTH halves — no live connection\nand absent from the local scan.",
+      "description": "A laboratory vanished — deleted, or its serving host\ndisconnected. Laboratory ids are only unique per (machine,\nstate), so the pair disambiguates WHICH same-id laboratory\nleft; an absent pair removes by bare id (legacy daemons).",
       "type": "object",
       "properties": {
         "id": {
           "type": "string"
+        },
+        "machine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "machine_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
         },
         "type": {
           "type": "string",

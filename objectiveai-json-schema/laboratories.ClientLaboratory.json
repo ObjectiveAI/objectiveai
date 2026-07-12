@@ -1,11 +1,35 @@
 {
   "title": "laboratories.ClientLaboratory",
-  "description": "A client-resolved laboratory: a client-side MCP server keyed by an\nopaque `id`. Wire shape: `{\"type\":\"client\",\"id\":\"…\"}`.",
+  "description": "A client-resolved laboratory: a client-side MCP server keyed by an\nopaque `id`. Wire shape: `{\"type\":\"client\",\"id\":\"…\"}`.\n\nLaboratory ids are only unique per (machine, state) — the same id\ncan exist on different laboratory hosts. `machine` + `machine_state`\npin THE laboratory this value means, so downstream routing (the\nCLI conduit's `/laboratory` forward) is exact rather than\nfirst-match-by-id. Absent pair ⇒ legacy id-only resolution.",
   "type": "object",
   "properties": {
     "id": {
       "description": "The opaque laboratory id.",
       "type": "string"
+    },
+    "machine": {
+      "description": "The machine id of the laboratory host serving this laboratory.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on that machine) the laboratory host serves.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "type": {
       "description": "Discriminator — always `\"client\"`.",
