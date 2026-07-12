@@ -63,9 +63,8 @@
       "omitempty": true
     },
     "value": {
-      "description": "The signature to present at that address. Empty ⇒ dial\nunauthenticated (the address's daemon must be open).",
-      "type": "string",
-      "default": ""
+      "description": "The signature to present at that address. Empty ⇒ dial\nunauthenticated (the address's daemon must be open). Always\nsent explicitly — NO serde default: empty-string schema\ndefaults are banned (the json-schema builder asserts it), and\nthe CLI fills `\"\"` itself when `--value` is omitted.",
+      "type": "string"
     }
   }
 }
