@@ -61,8 +61,24 @@ impl ObjectiveAiMcpLaboratory {
             }
             None => ("oail".to_string(), None),
         };
+        let mut tool_router = Self::tool_router();
+        // Stamp the laboratory's FULL id into the Bash tool's
+        // description — descriptions are value-carrying (no provider
+        // name limits), so the composite rides verbatim; the static
+        // attribute text stays as the standalone/legacy fallback.
+        if let Some(composite) = &composite_id {
+            if let Some(route) = tool_router.map.get_mut("Bash") {
+                route.attr.description = Some(
+                    format!(
+                        "Executes a given command on laboratory {composite} and \
+                         returns its output."
+                    )
+                    .into(),
+                );
+            }
+        }
         Self {
-            tool_router: Self::tool_router(),
+            tool_router,
             shell_state: crate::bash::ShellState::new(default_cwd),
             server_name,
             composite_id,
