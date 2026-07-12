@@ -117,17 +117,73 @@ pub fn test_base_dir() -> PathBuf {
 /// through the cli's lazy spawn flows. (Kept `async` so call sites
 /// read naturally alongside the awaits that follow.)
 pub async fn executor() -> HangPreventingBinaryCommandExecutor {
-    let state = test_state_name();
+    executor_for_state(&test_state_name()).await
+}
+
+/// An executor for an EXPLICIT state — how a test drives a SECOND
+/// daemon alongside its default one (per-state daemon locks make them
+/// independent singletons). Name extra states off the test's own
+/// (e.g. `format!("{}-b", test_state_name())`) so `test-cleanup.sh`
+/// sweeps them with everything else under `state/`.
+pub async fn executor_for_state(state: &str) -> HangPreventingBinaryCommandExecutor {
     // Create this test's state dir + sync the snapshot env (side effects).
     // The hang watchdog watches the whole objectiveai dir, not just this.
     let _ = test_base_dir();
+    std::fs::create_dir_all(objectiveai_dir().join("state").join(state))
+        .expect("create state dir");
     let exec = BinaryExecutor::from_path(cli_binary())
         .env(
             "OBJECTIVEAI_DIR",
             objectiveai_dir().to_string_lossy().into_owned(),
         )
-        .env("OBJECTIVEAI_STATE", state);
+        .env("OBJECTIVEAI_STATE", state.to_string());
     HangPreventingBinaryCommandExecutor::new(exec, objectiveai_dir())
+}
+
+/// Ensure `state`'s resident daemon is up (idempotent `daemon spawn`
+/// through `executor`) and return its published `ws://` connect URL —
+/// read from the daemon's singleton lockfile, exactly how the CLI
+/// itself discovers it. Read-only: tests never write config or locks
+/// directly.
+pub async fn daemon_ws_address<E>(executor: &E, state: &str) -> String
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    use objectiveai_sdk::cli::command::daemon::spawn::{
+        Path as DaemonSpawnPath, Request as DaemonSpawnRequest,
+        ResponseItem as DaemonSpawnItem,
+    };
+    let items: Vec<DaemonSpawnItem> = collect_stream(
+        executor,
+        DaemonSpawnRequest {
+            path_type: DaemonSpawnPath::DaemonSpawn,
+            dangerous_advanced: None,
+            base: Default::default(),
+        },
+    )
+    .await;
+    assert!(
+        items.iter().any(|item| item.ok),
+        "daemon spawn for state '{state}' did not acknowledge"
+    );
+    let lock_dir = objectiveai_dir().join("state").join(state).join("locks");
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    loop {
+        if let Ok(Some(url)) = objectiveai_sdk::lockfile::try_read(
+            &lock_dir,
+            objectiveai_daemon::command::daemon::DAEMON_LOCK_KEY,
+        )
+        .await
+        {
+            return url;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "daemon for state '{state}' never published its ws:// lock"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
 }
 
 /// Run the leaf's streaming `execute` and collect every `ResponseItem`
