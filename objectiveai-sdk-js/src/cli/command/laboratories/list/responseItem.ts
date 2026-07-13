@@ -3,14 +3,16 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "../create/envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "../create/mount";
+import { LaboratoriesLaboratoryImageSchema } from "../../../../laboratories/laboratoryImage";
 import { MachineMachineIdentitySchema } from "../../../../machine/machineIdentity";
 
 export const CliCommandLaboratoriesListResponseItemSchema = z.object({
+  agent_full_id: z.string().nullable().describe("For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.").meta({ omitempty: true }).optional(),
   created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.").meta({ omitempty: true }).optional(),
   cwd: z.string(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string(),
-  image: z.string(),
+  image: LaboratoriesLaboratoryImageSchema,
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
   machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),

@@ -10,7 +10,7 @@ export const CliCommandAgentsMcpResourcesReadRequestSchema = z.object({
   params: McpResourceReadResourceRequestParamsSchema,
   path_type: CliCommandAgentsMcpResourcesReadPathSchema,
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
-  response_id: z.string(),
+  response_id: z.string().nullable().describe("Objectiveai response id of the live agent to address. `None` ⇒\nresolved from the caller's contextual agent arguments\n(`OBJECTIVEAI_RESPONSE_ID`); an error if absent there too.").meta({ omitempty: true }).optional(),
   timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.agents.mcp.resources.read.Request" });
 export type CliCommandAgentsMcpResourcesReadRequest = z.infer<typeof CliCommandAgentsMcpResourcesReadRequestSchema>;

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "./envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "./mount";
+import { LaboratoriesLaboratoryImageSchema } from "../../../../laboratories/laboratoryImage";
 import { MachineMachineIdentitySchema } from "../../../../machine/machineIdentity";
 
 export const CliCommandLaboratoriesCreateResponseSchema = z.object({
@@ -10,7 +11,7 @@ export const CliCommandLaboratoriesCreateResponseSchema = z.object({
   cwd: z.string(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string(),
-  image: z.string(),
+  image: LaboratoriesLaboratoryImageSchema,
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host owns the container.").meta({ omitempty: true }).optional(),
   machine_state: z.string().nullable().describe("The state (on that machine) whose laboratory host owns the\ncontainer.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),

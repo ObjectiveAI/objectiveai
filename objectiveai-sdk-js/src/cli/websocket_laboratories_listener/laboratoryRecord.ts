@@ -4,16 +4,18 @@ import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "../command/laboratories/create/envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "../command/laboratories/create/mount";
 import { CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema } from "./laboratoryAttachment";
+import { LaboratoriesLaboratoryImageSchema } from "../../laboratories/laboratoryImage";
 import { MachineMachineIdentitySchema } from "../../machine/machineIdentity";
 
 export const CliWebsocketLaboratoriesListenerLaboratoryRecordSchema = z.object({
+  agent_full_id: z.string().nullable().describe("For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.").meta({ omitempty: true }).optional(),
   attachments: z.array(CliWebsocketLaboratoriesListenerLaboratoryAttachmentSchema).default([]).describe("Every attachment row targeting this laboratory, oldest first."),
   connected: z.boolean().describe("Whether the serving host's `/laboratory` connection is live\nright now."),
   created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the identity source\ndidn't report it (or the laboratory is known only through\nattachment rows).").meta({ omitempty: true }).optional(),
   cwd: z.string().nullable().meta({ omitempty: true }).optional(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema).default([]),
   id: z.string().describe("Raw (state-agnostic) laboratory id."),
-  image: z.string().nullable().meta({ omitempty: true }).optional(),
+  image: LaboratoriesLaboratoryImageSchema.nullable().meta({ omitempty: true }).optional(),
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory —\n`None` when no connected host serves it.").meta({ omitempty: true }).optional(),
   machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema).default([]),
