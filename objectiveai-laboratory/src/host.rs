@@ -23,7 +23,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{
+use objectiveai_sdk::laboratories::daemon::{
     ChannelRequest, ChannelResponse, HostIdentify, HostNotification, Identify, IdentifyMount,
 };
 use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;

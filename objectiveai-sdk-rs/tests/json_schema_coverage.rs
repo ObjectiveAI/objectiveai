@@ -40,6 +40,7 @@ fn module_prefix(path: &str) -> String {
 fn is_skipped_module(relative: &str) -> bool {
     relative.starts_with("src/mcp/")
         || relative.starts_with("src/client_objectiveai_mcp/")
+        || relative.starts_with("src/laboratories/daemon/")
 }
 
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {

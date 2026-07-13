@@ -134,12 +134,14 @@ pub enum Payload {
     /// channel. The host replies with the created spec and broadcasts
     /// a `laboratory_created` notification to every daemon it is
     /// connected to.
+    #[cfg(feature = "laboratory-daemon")]
     #[schemars(title = "LaboratoryCreate")]
     LaboratoryCreate(LaboratoryCreateRequest),
     /// Delete a laboratory from the receiving HOST (`podman rm -f`;
     /// missing container is not an error). Same channel scope as
     /// [`Payload::LaboratoryCreate`]; the host broadcasts a
     /// `laboratory_deleted` notification.
+    #[cfg(feature = "laboratory-daemon")]
     #[schemars(title = "LaboratoryDelete")]
     LaboratoryDelete(LaboratoryDeleteRequest),
 }
@@ -166,8 +168,9 @@ impl Payload {
             | Payload::LaboratoryImportWrite(_)
             | Payload::LaboratoryImportEnd(_)
             | Payload::LaboratoryImportAbort(_)
-            | Payload::LaboratoryCreate(_)
-            | Payload::LaboratoryDelete(_) => None,
+            => None,
+            #[cfg(feature = "laboratory-daemon")]
+            Payload::LaboratoryCreate(_) | Payload::LaboratoryDelete(_) => None,
         }
     }
 }
@@ -275,6 +278,7 @@ pub struct LaboratoryImportEndRequest {
 
 /// Parameters for [`Payload::LaboratoryCreate`] — the `laboratories
 /// create` spec, forwarded to the host that will own the container.
+#[cfg(feature = "laboratory-daemon")]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryCreateRequest")]
 pub struct LaboratoryCreateRequest {
@@ -288,6 +292,7 @@ pub struct LaboratoryCreateRequest {
 }
 
 /// Parameters for [`Payload::LaboratoryDelete`].
+#[cfg(feature = "laboratory-daemon")]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryDeleteRequest")]
 pub struct LaboratoryDeleteRequest {

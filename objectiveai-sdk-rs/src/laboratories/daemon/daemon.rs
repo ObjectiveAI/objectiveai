@@ -12,7 +12,7 @@
 //! 2. The standard `AuthEnvelope` (`{"signature": …}`) — authorization
 //!    strictly FOLLOWS identity.
 //! 3. Then a correlated request/response protocol: the daemon sends
-//!    [`ChannelRequest`]s (the [`super::server_request::Payload`]
+//!    [`ChannelRequest`]s (the [`crate::client_objectiveai_mcp::server_request::Payload`]
 //!    vocabulary, verbatim, with `laboratory_id` addressing the lab)
 //!    and the host answers with [`ChannelResponse`]s — plus
 //!    uncorrelated host→daemon [`HostNotification`]s whenever the
@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 
 /// One bind mount in a laboratory's identity.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.IdentifyMount")]
+#[schemars(rename = "laboratories.daemon.IdentifyMount")]
 pub struct IdentifyMount {
     pub host: String,
     pub container: String,
@@ -43,7 +43,7 @@ pub struct IdentifyMount {
 /// [`HostNotification::LaboratoryCreated`]. Mirrors the `laboratories
 /// create` spec so `laboratories list` can echo it verbatim.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.Identify")]
+#[schemars(rename = "laboratories.daemon.Identify")]
 pub struct Identify {
     /// The RAW, state-agnostic laboratory id — never prefixed or
     /// namespaced (the host's state scopes its container NAMEs, but
@@ -64,7 +64,7 @@ pub struct Identify {
 /// The `/laboratory` connection's FIRST frame: who this HOST is. Sent
 /// BEFORE the `AuthEnvelope` — identity always precedes authorization.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.HostIdentify")]
+#[schemars(rename = "laboratories.daemon.HostIdentify")]
 pub struct HostIdentify {
     /// The state this host serves (its podman container names and
     /// locks are scoped to it). The daemon rejects hosts identifying a
@@ -89,7 +89,7 @@ pub struct HostIdentify {
 /// serialization emits the duplicate key, deserialization rejects it,
 /// and the frame is silently dropped as forward-compat skip.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.ChannelRequest")]
+#[schemars(rename = "laboratories.daemon.ChannelRequest")]
 pub struct ChannelRequest {
     /// Correlation id, minted by the daemon; echoed by the response.
     pub id: String,
@@ -103,17 +103,17 @@ pub struct ChannelRequest {
     /// `X-OBJECTIVEAI-RESPONSE-ID`, which keys the host's per-session
     /// MCP connections).
     pub headers: IndexMap<String, String>,
-    pub payload: super::server_request::Payload,
+    pub payload: crate::client_objectiveai_mcp::server_request::Payload,
 }
 
 /// Host → daemon: the reply to a [`ChannelRequest`], correlated by
 /// `id`. `payload` nested for the same collision reason as
 /// [`ChannelRequest`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.ChannelResponse")]
+#[schemars(rename = "laboratories.daemon.ChannelResponse")]
 pub struct ChannelResponse {
     pub id: String,
-    pub payload: super::server_response::Payload,
+    pub payload: crate::client_objectiveai_mcp::server_response::Payload,
 }
 
 /// Host → daemon, UNCORRELATED: the host's laboratory set changed. The
@@ -121,7 +121,7 @@ pub struct ChannelResponse {
 /// this — notifications never carry a correlation id. Sent to EVERY
 /// daemon the host is connected to, so all views stay current.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.laboratory.HostNotification")]
+#[schemars(rename = "laboratories.daemon.HostNotification")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HostNotification {
     /// A laboratory was created on this host.

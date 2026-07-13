@@ -28,7 +28,7 @@ use objectiveai_sdk::cli::websocket_laboratories_list_listener::{
 use objectiveai_sdk::cli::websocket_laboratories_listener::{
     LaboratoryAttachment, LaboratoryInstanceEvent, LaboratoryRecord,
 };
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::Identify;
+use objectiveai_sdk::laboratories::daemon::Identify;
 use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::broadcast;
 

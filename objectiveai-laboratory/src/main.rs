@@ -29,7 +29,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{Identify, IdentifyMount};
+use objectiveai_sdk::laboratories::daemon::{Identify, IdentifyMount};
 
 #[derive(Parser)]
 #[command(name = "objectiveai-laboratory", version)]

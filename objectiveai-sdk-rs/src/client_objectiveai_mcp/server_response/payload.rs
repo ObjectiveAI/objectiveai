@@ -134,10 +134,12 @@ pub enum Payload {
     /// [`super::super::server_request::Payload::LaboratoryCreate`] —
     /// the created laboratory's spec, echoed by the host. Rides ONLY
     /// the `/laboratory` channel.
+    #[cfg(feature = "laboratory-daemon")]
     #[schemars(title = "LaboratoryCreate")]
-    LaboratoryCreate(JsonRpcResult<super::super::laboratory::Identify>),
+    LaboratoryCreate(JsonRpcResult<crate::laboratories::daemon::Identify>),
     /// Reply to
     /// [`super::super::server_request::Payload::LaboratoryDelete`].
+    #[cfg(feature = "laboratory-daemon")]
     #[schemars(title = "LaboratoryDelete")]
     LaboratoryDelete(JsonRpcResult<LaboratoryTransferAck>),
 }
@@ -163,9 +165,9 @@ impl Payload {
             | Payload::LaboratoryImportBegin(_)
             | Payload::LaboratoryImportWrite(_)
             | Payload::LaboratoryImportEnd(_)
-            | Payload::LaboratoryImportAbort(_)
-            | Payload::LaboratoryCreate(_)
-            | Payload::LaboratoryDelete(_) => None,
+            | Payload::LaboratoryImportAbort(_) => None,
+            #[cfg(feature = "laboratory-daemon")]
+            Payload::LaboratoryCreate(_) | Payload::LaboratoryDelete(_) => None,
         }
     }
 }

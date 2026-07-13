@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use indexmap::IndexMap;
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::{ChannelRequest, ChannelResponse};
+use objectiveai_sdk::laboratories::daemon::{ChannelRequest, ChannelResponse};
 use objectiveai_sdk::client_objectiveai_mcp::server_request;
 use objectiveai_sdk::client_objectiveai_mcp::server_response::{self, JsonRpcResult};
 use objectiveai_sdk::client_objectiveai_mcp::McpKind;

@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
-use objectiveai_sdk::client_objectiveai_mcp::laboratory::ChannelRequest;
+use objectiveai_sdk::laboratories::daemon::ChannelRequest;
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::host::HostServer;
