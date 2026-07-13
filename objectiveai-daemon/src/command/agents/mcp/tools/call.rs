@@ -10,9 +10,23 @@ use crate::error::Error;
 use crate::websockets::mcp_listener::{SocketRequest, SocketResponse, call_notifier};
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    // `response_id` may be omitted: fall back to the invoking agent's
+    // own response id from the contextual agent arguments
+    // (`OBJECTIVEAI_RESPONSE_ID`, applied to `ctx.config` per request —
+    // unary and WebSocket alike).
+    let Some(response_id) = request
+        .response_id
+        .clone()
+        .or_else(|| ctx.config.response_id.clone())
+    else {
+        return Err(Error::Instance(
+            "no response_id given and none in the contextual agent arguments"
+                .to_string(),
+        ));
+    };
     let socket_request = SocketRequest::CallTool(request.params);
     let response: SocketResponse<Response> =
-        call_notifier(ctx, &request.response_id, &socket_request)
+        call_notifier(ctx, &response_id, &socket_request)
             .await
             .map_err(|e| Error::Instance(format!("mcp socket: {e}")))?;
     match response {

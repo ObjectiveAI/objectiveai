@@ -8,7 +8,12 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.mcp.tools.call.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub response_id: String,
+    /// Objectiveai response id of the live agent to address. `None` ⇒
+    /// resolved from the caller's contextual agent arguments
+    /// (`OBJECTIVEAI_RESPONSE_ID`); an error if absent there too.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
     pub params: crate::mcp::tool::CallToolRequestParams,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
@@ -34,11 +39,12 @@ impl CommandRequest for Request {
 pub type Response = crate::mcp::tool::CallToolResult;
 
 #[derive(clap::Args)]
-#[command(group(clap::ArgGroup::new("response_id_required").required(true).args(["response_id"])))]
 #[command(group(clap::ArgGroup::new("params_required").required(true).args(["params"])))]
 pub struct Args {
     /// Objectiveai response id of the live agent whose MCP aggregation
     /// to query (the socket at `<state>/socks/<response_id>.sock`).
+    /// Omit to use the invoking agent's own response id (from the
+    /// contextual agent arguments).
     #[arg(long)]
     pub response_id: Option<String>,
     /// MCP `CallToolRequestParams` as a JSON string, e.g.
@@ -69,12 +75,6 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let response_id = args.response_id.ok_or_else(|| {
-            crate::cli::command::FromArgsError::path_parse(
-                "response_id",
-                "--response-id is required".to_string(),
-            )
-        })?;
         let params = {
             let s = args.params.ok_or_else(|| {
                 crate::cli::command::FromArgsError::path_parse(
@@ -91,7 +91,7 @@ impl TryFrom<Args> for Request {
         };
         Ok(Self {
             path_type: Path::AgentsMcpToolsCall,
-            response_id,
+            response_id: args.response_id,
             params,
             base: args.base.into(),
         })

@@ -86,7 +86,7 @@ async fn op_call_tool(exec: &PluginExecutor, response_id: String, tool_name: &st
             .expect("call-tool params");
     let req = tools_call::Request {
         path_type: tools_call::Path::AgentsMcpToolsCall,
-        response_id,
+        response_id: Some(response_id),
         params,
         base: Default::default(),
     };
@@ -103,7 +103,7 @@ async fn op_list_tools(exec: &PluginExecutor, response_id: String) -> String {
         serde_json::from_value(serde_json::json!({})).expect("list-tools params");
     let req = tools_list::Request {
         path_type: tools_list::Path::AgentsMcpToolsList,
-        response_id,
+        response_id: Some(response_id),
         params,
         name: None,
         base: Default::default(),
@@ -121,7 +121,7 @@ async fn op_list_resources(exec: &PluginExecutor, response_id: String) -> String
         serde_json::from_value(serde_json::json!({})).expect("list-resources params");
     let req = resources_list::Request {
         path_type: resources_list::Path::AgentsMcpResourcesList,
-        response_id,
+        response_id: Some(response_id),
         params,
         name: None,
         base: Default::default(),
@@ -141,7 +141,7 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
         serde_json::from_value(serde_json::json!({})).expect("list-resources params");
     let lreq = resources_list::Request {
         path_type: resources_list::Path::AgentsMcpResourcesList,
-        response_id: response_id.clone(),
+        response_id: Some(response_id.clone()),
         params: lparams,
         name: None,
         base: Default::default(),
@@ -159,7 +159,7 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
         serde_json::from_value(serde_json::json!({ "uri": uri })).expect("read-resource params");
     let rreq = resources_read::Request {
         path_type: resources_read::Path::AgentsMcpResourcesRead,
-        response_id,
+        response_id: Some(response_id),
         params: rparams,
         base: Default::default(),
     };
@@ -174,7 +174,7 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
 async fn op_list_servers(exec: &PluginExecutor, response_id: String) -> String {
     let req = servers_list::Request {
         path_type: servers_list::Path::AgentsMcpServersList,
-        response_id,
+        response_id: Some(response_id),
         base: Default::default(),
     };
     match servers_list::execute(exec, req, None).await {
@@ -190,7 +190,7 @@ async fn op_tools_list_named(exec: &PluginExecutor, response_id: String, name: S
         serde_json::from_value(serde_json::json!({})).expect("list-tools params");
     let req = tools_list::Request {
         path_type: tools_list::Path::AgentsMcpToolsList,
-        response_id,
+        response_id: Some(response_id),
         params,
         name: Some(name),
         base: Default::default(),
