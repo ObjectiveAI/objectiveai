@@ -82,6 +82,12 @@ pub struct HostIdentify {
 /// Daemon → host over the `/laboratory` WS: one correlated request.
 /// `payload` is the reverse-attach vocabulary verbatim — the host is a
 /// mini-conduit for all of its machine's laboratories.
+///
+/// `payload` is NESTED, never flattened: several payload variants
+/// (e.g. `laboratory_create`) carry their own `id` field, which a
+/// flatten would collide with the envelope's correlation `id` —
+/// serialization emits the duplicate key, deserialization rejects it,
+/// and the frame is silently dropped as forward-compat skip.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.laboratory.ChannelRequest")]
 pub struct ChannelRequest {
@@ -97,17 +103,16 @@ pub struct ChannelRequest {
     /// `X-OBJECTIVEAI-RESPONSE-ID`, which keys the host's per-session
     /// MCP connections).
     pub headers: IndexMap<String, String>,
-    #[serde(flatten)]
     pub payload: super::server_request::Payload,
 }
 
 /// Host → daemon: the reply to a [`ChannelRequest`], correlated by
-/// `id`.
+/// `id`. `payload` nested for the same collision reason as
+/// [`ChannelRequest`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.laboratory.ChannelResponse")]
 pub struct ChannelResponse {
     pub id: String,
-    #[serde(flatten)]
     pub payload: super::server_response::Payload,
 }
 
