@@ -30,6 +30,11 @@ type AgentMockAgentBase struct {
 	// Probability (0-100) that the mock returns an error mid-stream.
 	// Requires `error` to be `Some(true)`.
 	ErrorProbability *uint32 `json:"error_probability,omitempty" validate:"omitempty,min=0,max=255"`
+	// Laboratories provisioned for the agent — each becomes a
+	// client-side laboratory MCP server whose id DERIVES from the
+	// agent's full id plus the spec (see
+	// [`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).
+	Laboratories *[]AgentLaboratory `json:"laboratories,omitempty"`
 	// MCP servers the agent can connect to.
 	MCPServers *[]AgentMcpServer `json:"mcp_servers,omitempty"`
 	// The output mode for vector completions. Ignored for agent completions.

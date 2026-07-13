@@ -15,6 +15,7 @@ type AgentInlineAgent struct {
 	ClaudeAgentSdk *AgentClaudeAgentSdkAgent 
 	CodexSdk *AgentCodexSdkAgent 
 	Mock *AgentMockAgent 
+	Script *AgentScriptAgent 
 }
 
 func (v AgentInlineAgent) MarshalJSON() ([]byte, error) {
@@ -29,6 +30,9 @@ func (v AgentInlineAgent) MarshalJSON() ([]byte, error) {
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
+	}
+	if v.Script != nil {
+		return json.Marshal(v.Script)
 	}
 	return []byte("null"), nil
 }
@@ -78,6 +82,17 @@ func (v *AgentInlineAgent) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try AgentScriptAgent
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentInlineAgent{}
+			candidate.Script = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of AgentInlineAgent")
 }
 
@@ -87,6 +102,7 @@ func (v AgentInlineAgent) Validate() error {
 	if v.ClaudeAgentSdk != nil { count++ }
 	if v.CodexSdk != nil { count++ }
 	if v.Mock != nil { count++ }
+	if v.Script != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentInlineAgent: exactly one variant must be set, got %d", count)
 	}

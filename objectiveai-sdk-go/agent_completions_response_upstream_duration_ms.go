@@ -15,6 +15,9 @@ type AgentCompletionsResponseUpstreamDurationMs struct {
 	CodexSDK *uint64 `json:"codex_sdk,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Milliseconds spent in the OpenRouter upstream.
 	Openrouter *uint64 `json:"openrouter,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
+	// Milliseconds spent in the Script upstream (client-side script
+	// execution over the reverse channel).
+	Script *uint64 `json:"script,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (AgentCompletionsResponseUpstreamDurationMs) SchemaTitle() string { return "agent.completions.response.UpstreamDurationMs" }

@@ -16,7 +16,7 @@ type CliCommandLaboratoriesCreateResponse struct {
 	Cwd string `json:"cwd"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
-	Image string `json:"image"`
+	Image LaboratoriesLaboratoryImage `json:"image"`
 	// The machine whose laboratory host owns the container.
 	Machine *MachineMachineIdentity `json:"machine,omitempty"`
 	// The state (on that machine) whose laboratory host owns the

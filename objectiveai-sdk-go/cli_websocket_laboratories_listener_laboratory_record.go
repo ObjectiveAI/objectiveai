@@ -14,6 +14,9 @@ import (
 // `get_exact` zero-fill convention. There is no local-vs-remote
 // split — machine identity is the only provenance.
 type CliWebsocketLaboratoriesListenerLaboratoryRecord struct {
+	// For agent laboratories: the full id of the agent the
+	// laboratory derives from. `None` for user-created laboratories.
+	AgentFullID *string `json:"agent_full_id,omitempty"`
 	// Every attachment row targeting this laboratory, oldest first.
 	Attachments []CliWebsocketLaboratoriesListenerLaboratoryAttachment `json:"attachments" default:"[]"`
 	// Whether the serving host's `/laboratory` connection is live
@@ -28,7 +31,7 @@ type CliWebsocketLaboratoriesListenerLaboratoryRecord struct {
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env" default:"[]"`
 	// Raw (state-agnostic) laboratory id.
 	ID string `json:"id"`
-	Image *string `json:"image,omitempty"`
+	Image *LaboratoriesLaboratoryImage `json:"image,omitempty"`
 	// The machine whose laboratory host serves this laboratory —
 	// `None` when no connected host serves it.
 	Machine *MachineMachineIdentity `json:"machine,omitempty"`

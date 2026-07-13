@@ -11,6 +11,9 @@ import (
 // local-vs-remote split — machine identity is the only provenance,
 // the same logic regardless of where the host runs.
 type CliCommandLaboratoriesListResponseItem struct {
+	// For agent laboratories: the full id of the agent the
+	// laboratory derives from. `None` for user-created laboratories.
+	AgentFullID *string `json:"agent_full_id,omitempty"`
 	// Unix seconds when the laboratory container was created, from
 	// podman's container record. `None` when the host didn't report
 	// it.
@@ -18,7 +21,7 @@ type CliCommandLaboratoriesListResponseItem struct {
 	Cwd string `json:"cwd"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
-	Image string `json:"image"`
+	Image LaboratoriesLaboratoryImage `json:"image"`
 	// The machine whose laboratory host serves this laboratory.
 	Machine *MachineMachineIdentity `json:"machine,omitempty"`
 	// The state (on that machine) the serving host serves —

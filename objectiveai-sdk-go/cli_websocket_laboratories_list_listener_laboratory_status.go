@@ -12,6 +12,9 @@ import (
 // right now. There is no local-vs-remote split — machine identity is
 // the only provenance.
 type CliWebsocketLaboratoriesListListenerLaboratoryStatus struct {
+	// For agent laboratories: the full id of the agent the
+	// laboratory derives from. `None` for user-created laboratories.
+	AgentFullID *string `json:"agent_full_id,omitempty"`
 	// Whether the serving host's `/laboratory` connection is live
 	// right now.
 	Connected bool `json:"connected"`
@@ -23,7 +26,7 @@ type CliWebsocketLaboratoriesListListenerLaboratoryStatus struct {
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	// Raw (state-agnostic) laboratory id.
 	ID string `json:"id"`
-	Image string `json:"image"`
+	Image LaboratoriesLaboratoryImage `json:"image"`
 	// The machine whose laboratory host serves this laboratory.
 	Machine *MachineMachineIdentity `json:"machine,omitempty"`
 	// The state (on that machine) the serving host serves —

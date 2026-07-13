@@ -12,7 +12,10 @@ type CliCommandLaboratoriesCreateRequest struct {
 	Cwd string `json:"cwd" default:"/"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
-	Image string `json:"image"`
+	// The base image, split (`registry` + `name` + tag XOR digest) —
+	// a joined reference string is never accepted, so unqualified
+	// short names are unrepresentable.
+	Image LaboratoriesLaboratoryImage `json:"image"`
 	// jq filter applied to the JSON output. Ignored when `python`
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
