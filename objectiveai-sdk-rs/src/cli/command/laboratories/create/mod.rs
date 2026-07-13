@@ -163,9 +163,7 @@ pub struct Response {
 #[command(
     group(clap::ArgGroup::new("side").required(true).args(["client"])),
     group(clap::ArgGroup::new("id_required").required(true).args(["id"])),
-    group(clap::ArgGroup::new("registry_required").required(true).args(["registry"])),
-    group(clap::ArgGroup::new("name_required").required(true).args(["name"])),
-    group(clap::ArgGroup::new("image_pin").required(true).args(["tag", "digest"])),
+    group(clap::ArgGroup::new("image_source").required(true).args(["registry", "image_inline"])),
 )]
 pub struct Args {
     /// Create a client-side laboratory (an MCP server the conduit dials).
@@ -178,18 +176,28 @@ pub struct Args {
     /// The image host — e.g. `docker.io`, `ghcr.io`,
     /// `registry.example.com:5000`. Must be unambiguously a registry
     /// (domain, host:port, or localhost) — short names are refused.
-    #[arg(long)]
+    /// Mutually exclusive with `--image-inline`.
+    #[arg(long, requires = "name")]
     pub registry: Option<String>,
-    /// The image repository path — e.g. `library/bash`.
-    #[arg(long)]
+    /// The image repository path — e.g. `library/bash`. Requires
+    /// `--registry`.
+    #[arg(long, requires = "registry")]
     pub name: Option<String>,
-    /// Image tag (mutually exclusive with `--digest`).
-    #[arg(long, conflicts_with = "digest")]
+    /// Image tag (mutually exclusive with `--digest`; requires
+    /// `--registry`).
+    #[arg(long, conflicts_with_all = ["digest", "image_inline"], requires = "registry")]
     pub tag: Option<String>,
     /// Image digest, `<algorithm>:<64 hex>` (mutually exclusive with
-    /// `--tag`).
-    #[arg(long)]
+    /// `--tag`; requires `--registry`).
+    #[arg(long, conflicts_with = "image_inline", requires = "registry")]
     pub digest: Option<String>,
+    /// The image spec INLINE, as a JSON string literal of
+    /// Containerfile content (quoted + escaped on the command line;
+    /// e.g. `--image-inline "\"FROM docker.io/library/bash:latest\n\""`).
+    /// The host builds it on every create against an empty context.
+    /// Mutually exclusive with the `--registry` family.
+    #[arg(long)]
+    pub image_inline: Option<String>,
     /// Repeatable `--mount host=…,container=…` bind mount.
     #[arg(long = "mount")]
     pub mounts: Vec<String>,
@@ -235,34 +243,65 @@ impl TryFrom<Args> for Request {
         let id = args.id.ok_or_else(|| {
             crate::cli::command::FromArgsError::path_parse("id", "--id is required".to_string())
         })?;
-        let registry = args.registry.ok_or_else(|| {
-            crate::cli::command::FromArgsError::path_parse(
-                "registry",
-                "--registry is required".to_string(),
-            )
-        })?;
-        let name = args.name.ok_or_else(|| {
-            crate::cli::command::FromArgsError::path_parse(
-                "name",
-                "--name is required".to_string(),
-            )
-        })?;
-        let pin = match (args.tag, args.digest) {
-            (Some(tag), None) => crate::laboratories::LaboratoryImagePin::Tag(tag),
-            (None, Some(digest)) => {
-                crate::laboratories::LaboratoryImagePin::Digest(digest)
+        // The image source: --image-inline XOR the --registry family.
+        // Clap enforces the coarse exclusivity; this is the friendly
+        // authoritative pass.
+        let image = match (args.image_inline, args.registry) {
+            (Some(inline_json), None) => {
+                // The ARGV value is a JSON string literal; the typed
+                // Request holds the PLAIN decoded Containerfile text.
+                let containerfile: String = serde_json::from_str(&inline_json)
+                    .map_err(|e| {
+                        crate::cli::command::FromArgsError::path_parse(
+                            "image-inline",
+                            format!(
+                                "--image-inline must be a JSON string literal \
+                                 (quoted + escaped): {e}"
+                            ),
+                        )
+                    })?;
+                crate::laboratories::LaboratoryImage::Inline(
+                    crate::laboratories::InlineLaboratoryImage { containerfile },
+                )
+            }
+            (None, Some(registry)) => {
+                let name = args.name.ok_or_else(|| {
+                    crate::cli::command::FromArgsError::path_parse(
+                        "name",
+                        "--name is required with --registry".to_string(),
+                    )
+                })?;
+                let pin = match (args.tag, args.digest) {
+                    (Some(tag), None) => {
+                        crate::laboratories::LaboratoryImagePin::Tag(tag)
+                    }
+                    (None, Some(digest)) => {
+                        crate::laboratories::LaboratoryImagePin::Digest(digest)
+                    }
+                    _ => {
+                        return Err(crate::cli::command::FromArgsError::path_parse(
+                            "image",
+                            "exactly one of --tag, --digest is required \
+                             with --registry"
+                                .to_string(),
+                        ));
+                    }
+                };
+                crate::laboratories::LaboratoryImage::Registry(
+                    crate::laboratories::RegistryLaboratoryImage {
+                        registry,
+                        name,
+                        pin,
+                    },
+                )
             }
             _ => {
                 return Err(crate::cli::command::FromArgsError::path_parse(
                     "image",
-                    "exactly one of --tag, --digest is required".to_string(),
+                    "exactly one of --image-inline, --registry is required"
+                        .to_string(),
                 ));
             }
-        };
-        let image = crate::laboratories::LaboratoryImage {
-            registry,
-            name,
-            pin,
         };
         if !args.client {
             return Err(crate::cli::command::FromArgsError::path_parse(

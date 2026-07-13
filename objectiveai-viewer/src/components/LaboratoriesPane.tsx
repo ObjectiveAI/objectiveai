@@ -1,7 +1,7 @@
 import cn from "classnames";
 import type { DaemonConnection } from "../lib/daemon";
 import { useAgo } from "../hooks/useAgo";
-import { useLaboratoriesList } from "../hooks/useLaboratoriesList";
+import { isInlineImage, useLaboratoriesList } from "../hooks/useLaboratoriesList";
 import { useMachineIdentity } from "../hooks/useMachineIdentity";
 import {
   classifyLaboratories,
@@ -153,13 +153,33 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
 
       {/* Spec detail. */}
       <div className={cn("flex", "flex-col", "gap-1", "text-xs", "text-[#c3bfbb]")}>
-        <DetailRow label="registry" value={lab.image.registry} />
-        <DetailRow label="name" value={lab.image.name} />
-        {lab.image.tag !== undefined && (
-          <DetailRow label="tag" value={lab.image.tag} />
-        )}
-        {lab.image.digest !== undefined && (
-          <DetailRow label="digest" value={lab.image.digest} />
+        {isInlineImage(lab.image) ? (
+          <div className={cn("flex", "flex-col", "gap-0.5")}>
+            <span className={cn("text-info-dim")}>containerfile</span>
+            <pre
+              className={cn(
+                "pl-2",
+                "whitespace-pre-wrap",
+                "break-all",
+                "font-mono",
+                "max-h-32",
+                "overflow-y-auto",
+              )}
+            >
+              {lab.image.containerfile}
+            </pre>
+          </div>
+        ) : (
+          <>
+            <DetailRow label="registry" value={lab.image.registry} />
+            <DetailRow label="name" value={lab.image.name} />
+            {lab.image.tag !== undefined && (
+              <DetailRow label="tag" value={lab.image.tag} />
+            )}
+            {lab.image.digest !== undefined && (
+              <DetailRow label="digest" value={lab.image.digest} />
+            )}
+          </>
         )}
         <DetailRow label="cwd" value={lab.cwd} />
         {lab.mounts.length > 0 && (

@@ -1,7 +1,10 @@
-//! The split laboratory image reference.
+//! The laboratory image spec — inline Containerfile or split
+//! registry reference.
 //!
-//! A laboratory's base image is ALWAYS carried as its parts —
-//! `registry` + `name` + (`tag` XOR `digest`) — everywhere: the CLI
+//! A laboratory's base image is either INLINE (Containerfile text the
+//! host builds with `podman build`, empty context) or a REGISTRY
+//! reference carried as its parts — `registry` + `name` + (`tag` XOR
+//! `digest`) — everywhere: the CLI
 //! command surface, the daemon↔host channel, container labels, list
 //! echoes. The fully-joined reference string
 //! (`registry/name:tag` / `registry/name@digest`) deliberately does
@@ -27,10 +30,74 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// One laboratory base image, split into its reference parts.
+/// One laboratory base image: inline Containerfile text, or a split
+/// registry reference. Untagged — the variants' keys are disjoint
+/// (`containerfile` vs `registry`/`name`), mirroring the agent
+/// inline-vs-remote idiom.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
 #[schemars(rename = "laboratories.LaboratoryImage")]
-pub struct LaboratoryImage {
+pub enum LaboratoryImage {
+    /// The image spec provided inline as Containerfile content. The
+    /// host builds it on EVERY create (podman's layer cache still
+    /// applies) against an empty context — `COPY`/`ADD` of local
+    /// files fails by construction.
+    #[schemars(title = "Inline")]
+    Inline(InlineLaboratoryImage),
+    /// A reference to an image hosted on a registry.
+    #[schemars(title = "Registry")]
+    Registry(RegistryLaboratoryImage),
+}
+
+impl LaboratoryImage {
+    /// Validate the spec. `Err` carries a human-readable reason.
+    pub fn validate(&self) -> Result<(), String> {
+        match self {
+            LaboratoryImage::Inline(inline) => inline.validate(),
+            LaboratoryImage::Registry(registry) => registry.validate(),
+        }
+    }
+}
+
+/// The Containerfile-embedded label rides `podman create`'s argv
+/// (Windows caps a command line at ~32K chars), so inline content is
+/// bounded to keep the worst-case-escaped label inside it.
+pub const MAX_CONTAINERFILE_BYTES: usize = 16 * 1024;
+
+/// An inline image spec: Containerfile/Dockerfile CONTENT, plain text.
+///
+/// The Containerfile's own `FROM` line is deliberately NOT validated
+/// for full qualification — the file is the user's content, and
+/// podman's build-time resolution rules apply to it verbatim.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.InlineLaboratoryImage")]
+pub struct InlineLaboratoryImage {
+    /// Containerfile content (plain text — never nested/escaped JSON).
+    pub containerfile: String,
+}
+
+impl InlineLaboratoryImage {
+    /// Non-empty and within [`MAX_CONTAINERFILE_BYTES`].
+    pub fn validate(&self) -> Result<(), String> {
+        if self.containerfile.trim().is_empty() {
+            return Err("containerfile must not be empty".to_string());
+        }
+        if self.containerfile.len() > MAX_CONTAINERFILE_BYTES {
+            return Err(format!(
+                "containerfile is {} bytes; max {MAX_CONTAINERFILE_BYTES} \
+                 (it rides the container label on podman's argv)",
+                self.containerfile.len()
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// One registry-hosted laboratory base image, split into its
+/// reference parts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.RegistryLaboratoryImage")]
+pub struct RegistryLaboratoryImage {
     /// The image host — e.g. `docker.io`, `ghcr.io`,
     /// `registry.example.com:5000`, `localhost:5000`. Required and
     /// validated to be unambiguously a registry, so short-name
@@ -57,7 +124,7 @@ pub enum LaboratoryImagePin {
     Digest(String),
 }
 
-impl LaboratoryImage {
+impl RegistryLaboratoryImage {
     /// Validate every part against the reference grammar. `Err`
     /// carries a human-readable reason naming the offending part.
     pub fn validate(&self) -> Result<(), String> {
@@ -174,11 +241,11 @@ mod tests {
     use super::*;
 
     fn image(registry: &str, name: &str, pin: LaboratoryImagePin) -> LaboratoryImage {
-        LaboratoryImage {
+        LaboratoryImage::Registry(RegistryLaboratoryImage {
             registry: registry.to_string(),
             name: name.to_string(),
             pin,
-        }
+        })
     }
 
     fn tag(t: &str) -> LaboratoryImagePin {
@@ -228,6 +295,36 @@ mod tests {
         .validate()
         .unwrap_err();
         image("docker.io:", "bash", tag("latest")).validate().unwrap_err();
+    }
+
+    #[test]
+    fn inline_validates_and_roundtrips() {
+        let inline = LaboratoryImage::Inline(InlineLaboratoryImage {
+            containerfile: "FROM docker.io/library/bash:latest\n".to_string(),
+        });
+        inline.validate().unwrap();
+        // Untagged: inline serializes to just {containerfile}, and the
+        // enum picks the right variant back.
+        let json = serde_json::to_value(&inline).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({ "containerfile": "FROM docker.io/library/bash:latest\n" })
+        );
+        assert_eq!(
+            serde_json::from_value::<LaboratoryImage>(json).unwrap(),
+            inline
+        );
+        // Empty and oversized are rejected.
+        LaboratoryImage::Inline(InlineLaboratoryImage {
+            containerfile: "  ".to_string(),
+        })
+        .validate()
+        .unwrap_err();
+        LaboratoryImage::Inline(InlineLaboratoryImage {
+            containerfile: "x".repeat(MAX_CONTAINERFILE_BYTES + 1),
+        })
+        .validate()
+        .unwrap_err();
     }
 
     #[test]

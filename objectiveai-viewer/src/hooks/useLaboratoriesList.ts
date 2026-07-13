@@ -6,14 +6,19 @@ import {
 import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
-/** A laboratory's base image, always split — `registry` + `name` +
- * (`tag` XOR `digest`). The joined reference string never exists
- * outside the laboratory daemon, so the viewer renders the parts. */
-export interface LaboratoryImage {
-  registry: string;
-  name: string;
-  tag?: string;
-  digest?: string;
+/** A laboratory's base image: an INLINE Containerfile spec, or a
+ * split registry reference (`registry` + `name` + tag XOR digest).
+ * A joined reference string never exists outside the laboratory
+ * daemon, so the viewer renders the parts. */
+export type LaboratoryImage =
+  | { containerfile: string }
+  | { registry: string; name: string; tag?: string; digest?: string };
+
+/** Narrow a LaboratoryImage to its inline form. */
+export function isInlineImage(
+  image: LaboratoryImage,
+): image is { containerfile: string } {
+  return "containerfile" in image;
 }
 
 /** One laboratory on the daemon's live list — the SDK wire type,

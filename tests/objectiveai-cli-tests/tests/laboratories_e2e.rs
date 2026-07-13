@@ -51,13 +51,15 @@ async fn expect_create_err(executor: &cli_test_util::HangPreventingBinaryCommand
 /// `docker.io/library/busybox:latest`, as parts (a joined reference string
 /// is unrepresentable in the API).
 fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
-    objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+        objectiveai_sdk::laboratories::RegistryLaboratoryImage {
         registry: "docker.io".to_string(),
         name: "library/busybox".to_string(),
-        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
-            "latest".to_string(),
-        ),
-    }
+            pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                "latest".to_string(),
+            ),
+        },
+    )
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -128,5 +130,64 @@ async fn create_then_list_round_trips_the_spec() {
         found.env.iter().any(|e| e.key == "FOO" && e.value == "bar"),
         "env not round-tripped: {:?}",
         found.env.iter().map(|e| (&e.key, &e.value)).collect::<Vec<_>>()
+    );
+}
+
+/// Inline image: create a laboratory from Containerfile TEXT (built by
+/// the host with an empty context) and assert the list echo returns
+/// the EXACT inline spec — inline labs show their inline image.
+#[tokio::test(flavor = "multi_thread")]
+async fn create_inline_image_round_trips_the_spec() {
+    let _base = cli_test_util::test_base_dir();
+    let executor = cli_test_util::executor().await;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let lab = format!("e2e-inline-{nanos}");
+    // Fully-qualified FROM so the build itself never short-name
+    // resolves; self-contained (empty build context).
+    let inline = objectiveai_sdk::laboratories::LaboratoryImage::Inline(
+        objectiveai_sdk::laboratories::InlineLaboratoryImage {
+            containerfile: "FROM docker.io/library/busybox:latest\nENV OAI_INLINE=1\n"
+                .to_string(),
+        },
+    );
+
+    let created: CreateResp = cli_test_util::execute_one(
+        &executor,
+        CreateReq {
+            path_type: CreatePath::LaboratoriesCreate,
+            kind: Kind::Client,
+            id: lab.clone(),
+            image: inline.clone(),
+            mounts: Vec::new(),
+            env: Vec::new(),
+            cwd: "/".to_string(),
+            machine: None,
+            machine_state: None,
+            base: Default::default(),
+        },
+    )
+    .await;
+    assert_eq!(created.id, lab);
+    assert_eq!(created.image, inline, "create echoes the inline spec");
+
+    let items: Vec<ListItem> = cli_test_util::collect_stream(
+        &executor,
+        ListReq {
+            path_type: ListPath::LaboratoriesList,
+            kind: Kind::Client,
+            base: Default::default(),
+        },
+    )
+    .await;
+    let found = items
+        .iter()
+        .find(|l| l.id == lab)
+        .expect("inline lab appears in the list");
+    assert_eq!(
+        found.image, inline,
+        "list echoes the inline image spec verbatim"
     );
 }

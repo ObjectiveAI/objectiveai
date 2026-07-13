@@ -54,12 +54,15 @@ fn default_cwd() -> String {
     "/".to_string()
 }
 
-/// Join a split [`LaboratoryImage`](objectiveai_sdk::laboratories::LaboratoryImage)
+/// Join a split
+/// [`RegistryLaboratoryImage`](objectiveai_sdk::laboratories::RegistryLaboratoryImage)
 /// into the reference string podman consumes — `registry/name:tag` or
 /// `registry/name@digest`. THE only place the joined form exists: the
 /// split shape is validated + fully qualified end to end, so podman
 /// never gets a short name to silently resolve against docker.io.
-fn image_reference(image: &objectiveai_sdk::laboratories::LaboratoryImage) -> String {
+fn registry_reference(
+    image: &objectiveai_sdk::laboratories::RegistryLaboratoryImage,
+) -> String {
     use objectiveai_sdk::laboratories::LaboratoryImagePin;
     match &image.pin {
         LaboratoryImagePin::Tag(tag) => {
@@ -69,6 +72,69 @@ fn image_reference(image: &objectiveai_sdk::laboratories::LaboratoryImage) -> St
             format!("{}/{}@{}", image.registry, image.name, digest)
         }
     }
+}
+
+/// FNV-1a64 over `(state, id)` — the stable local tag for a lab's
+/// inline-built image (`localhost/objectiveai-inline:<hex>`). Rebuilt
+/// (and the tag overwritten) on every create.
+fn inline_tag(state: &str, id: &str) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in state.as_bytes().iter().chain([0u8].iter()).chain(id.as_bytes()) {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("localhost/objectiveai-inline:{hash:016x}")
+}
+
+/// Build an inline Containerfile into a locally-tagged image and
+/// return the tag. The Containerfile is materialized into a scratch
+/// dir that doubles as the (otherwise empty) build context — `COPY`
+/// of local files fails by construction — and the dir is removed
+/// afterwards. Runs on EVERY create; podman's layer cache does the
+/// deduplication.
+async fn build_inline(
+    podman: &Podman,
+    state: &str,
+    id: &str,
+    containerfile: &str,
+) -> Result<String, Error> {
+    let exe = podman.executable().await?;
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let scratch = podman
+        .bin_dir()
+        .join("inline-build")
+        .join(format!("{nanos}"));
+    tokio::fs::create_dir_all(&scratch)
+        .await
+        .map_err(|e| Error(format!("inline build scratch dir: {e}")))?;
+    let containerfile_path = scratch.join("Containerfile");
+    let write = tokio::fs::write(&containerfile_path, containerfile).await;
+    if let Err(e) = write {
+        let _ = tokio::fs::remove_dir_all(&scratch).await;
+        return Err(Error(format!("write Containerfile: {e}")));
+    }
+    let tag = inline_tag(state, id);
+    let output = container_command(&exe)
+        .arg("build")
+        .arg("-f")
+        .arg(&containerfile_path)
+        .arg("-t")
+        .arg(&tag)
+        .arg(&scratch)
+        .output()
+        .await;
+    let _ = tokio::fs::remove_dir_all(&scratch).await;
+    let output = output.map_err(|e| Error(format!("podman build: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman build failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(tag)
 }
 
 /// A laboratory container as read back by [`list`], reconstructed from its
@@ -147,6 +213,17 @@ pub async fn create(
         env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
         cwd: cwd.to_string(),
     };
+    // Resolve what podman actually instantiates: a registry reference
+    // joined here (the only place it exists), or the locally-built
+    // tag of an inline Containerfile.
+    let podman_image = match image {
+        objectiveai_sdk::laboratories::LaboratoryImage::Registry(registry) => {
+            registry_reference(registry)
+        }
+        objectiveai_sdk::laboratories::LaboratoryImage::Inline(inline) => {
+            build_inline(podman, state, id, &inline.containerfile).await?
+        }
+    };
     let label_json = serde_json::to_string(&label)
         .map_err(|e| Error(format!("serialize laboratory label: {e}")))?;
 
@@ -207,7 +284,7 @@ pub async fn create(
         .arg(
             r#"["/bin/sh","-c","chmod +x /objectiveai-mcp-laboratory && exec /objectiveai-mcp-laboratory"]"#,
         )
-        .arg(image_reference(image));
+        .arg(podman_image);
     let output = create_cmd
         .output()
         .await

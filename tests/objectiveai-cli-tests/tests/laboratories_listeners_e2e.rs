@@ -60,13 +60,15 @@ type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
 /// `docker.io/library/busybox:latest`, as parts (a joined reference string
 /// is unrepresentable in the API).
 fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
-    objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+        objectiveai_sdk::laboratories::RegistryLaboratoryImage {
         registry: "docker.io".to_string(),
         name: "library/busybox".to_string(),
-        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
-            "latest".to_string(),
-        ),
-    }
+            pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                "latest".to_string(),
+            ),
+        },
+    )
 }
 
 /// Poll `$cond` (an `await`-ing bool expression re-evaluated each

@@ -60,13 +60,15 @@ use serde_json::json;
 /// `docker.io/library/bash:latest`, as parts (a joined reference string
 /// is unrepresentable in the API).
 fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
-    objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+        objectiveai_sdk::laboratories::RegistryLaboratoryImage {
         registry: "docker.io".to_string(),
         name: "library/bash".to_string(),
-        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
-            "latest".to_string(),
-        ),
-    }
+            pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                "latest".to_string(),
+            ),
+        },
+    )
 }
 
 /// RAII kill of the plugin process (PID read from `OAI_TEST_MCP_PID_FILE`)
