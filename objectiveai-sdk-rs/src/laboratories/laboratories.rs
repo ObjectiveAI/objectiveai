@@ -27,9 +27,11 @@ use serde::{Deserialize, Serialize};
 #[schemars(transform = crate::json_schema::ref_wrapper_object)]
 pub enum Laboratory {
     /// A client-resolved laboratory, identified by an opaque `id`.
+    #[schemars(title = "Client")]
     Client(ClientLaboratory),
     /// An agent-embedded laboratory: the spec rides the marker so the
     /// CLI conduit can materialize the laboratory on demand.
+    #[schemars(title = "Agent")]
     Agent(AgentLaboratory),
 }
 

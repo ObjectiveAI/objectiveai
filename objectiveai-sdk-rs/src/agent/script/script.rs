@@ -20,12 +20,19 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "agent.script.Script")]
 pub enum Script {
+    // NOTE: no variant-level `#[schemars(title = "...")]`. This is a
+    // single-variant enum, which schemars collapses to the lone
+    // variant's schema and HOISTS the variant title to the schema's
+    // top-level `title` — a title of "Python" makes the JS codegen
+    // route this type to `src/python.ts` and leaves every
+    // `agent.script.Script` reference dangling. Leaving it off lets
+    // the type's `rename` drive the title, matching
+    // `ClientLaboratoryType`.
     /// Python code executed on the client's embedded runtime — the
     /// SAME shared runtime the `python` command uses. The code
     /// receives the FULL conversation (a messages array, continuation
     /// included) as the `input` global and must output an array of
     /// [`OutputMessage`](super::OutputMessage)s (assistant/tool only).
-    #[schemars(title = "Python")]
     Python {
         /// The python source. Preserved verbatim — never normalized
         /// (whitespace is significant).

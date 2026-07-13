@@ -536,6 +536,7 @@ pub fn parse_request(args: &[String]) -> Result<Request, ParseError> {
 #[derive(clap::Parser)]
 #[command(
     name = "objectiveai",
+    version,
     args_conflicts_with_subcommands = true,
     arg_required_else_help = true
 )]
