@@ -104,10 +104,12 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub backoff_max_interval: Duration,
     /// Maximum total time to spend on retries.
     pub backoff_max_elapsed_time: Duration,
-    /// Maximum wait time for the first chunk in a streaming response.
+    /// Cancellation grace window while awaiting the first chunk of a
+    /// streaming response. NOT a timeout: absent cancellation the wait
+    /// is unbounded. A cancel that lands before this window elapses is
+    /// held; once it elapses, a prior or later cancel aborts the wait
+    /// immediately.
     pub first_chunk_timeout: Duration,
-    /// Maximum wait time between subsequent chunks in a streaming response.
-    pub other_chunk_timeout: Duration,
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
@@ -129,7 +131,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
         backoff_max_interval: Duration,
         backoff_max_elapsed_time: Duration,
         first_chunk_timeout: Duration,
-        other_chunk_timeout: Duration,
     ) -> Self {
         Self {
             mcp_client,
@@ -148,7 +149,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_interval,
             backoff_max_elapsed_time,
             first_chunk_timeout,
-            other_chunk_timeout,
             _marker: std::marker::PhantomData,
         }
     }
@@ -175,7 +175,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_interval: self.backoff_max_interval,
             backoff_max_elapsed_time: self.backoff_max_elapsed_time,
             first_chunk_timeout: self.first_chunk_timeout,
-            other_chunk_timeout: self.other_chunk_timeout,
             _marker: std::marker::PhantomData,
         }
     }
@@ -352,16 +351,6 @@ where
         > + Send,
         super::Error,
     > {
-
-        // Cancellation check closure factory — creates a new closure
-        // that shares the same underlying AtomicBool via ctx's Arc.
-        let make_is_cancelled = {
-            let ctx = ctx.clone();
-            move || {
-                let ctx = ctx.clone();
-                move || ctx.is_cancelled()
-            }
-        };
 
         // Parse request continuation from base64 string if provided.
         let request_continuation = match &params.continuation {
@@ -1017,7 +1006,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::Openrouter(&or_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1054,7 +1043,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::ClaudeAgentSdk(&cas_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1091,7 +1080,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1128,7 +1117,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::Mock(&mock_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1145,6 +1134,13 @@ where
                         }
                     };
                     errors.push(err);
+                    // Cancellation is terminal: a StreamCancelled from
+                    // the first-chunk grace-window race (or a cancel
+                    // observed alongside any other failure) must not
+                    // roll to the next BYOK attempt or agent candidate.
+                    if ctx.is_cancelled() {
+                        return Err(super::Error::StreamCancelled);
+                    }
                 }
             }
 
@@ -1154,6 +1150,11 @@ where
             }
             use backoff::backoff::Backoff;
             match backoff.next_backoff() {
+                // A cancel landing between rounds must not start
+                // another round of grace-window waits.
+                Some(_) if ctx.is_cancelled() => {
+                    return Err(super::Error::StreamCancelled);
+                }
                 Some(d) => tokio::time::sleep(d).await,
                 None => {
                     return Err(if errors.len() == 1 {
@@ -1168,10 +1169,19 @@ where
 
     /// Creates an upstream stream and runs the tool-calling loop.
     ///
-    /// 1. Calls `upstream.create()` with `first_chunk_timeout`.
+    /// 1. Awaits `upstream.create()`'s first chunk, racing it against
+    ///    cancellation gated by the `first_chunk_timeout` grace window:
+    ///    a cancel landing BEFORE the window elapses is held (the wait
+    ///    continues); once the window elapses, a prior or later cancel
+    ///    aborts the wait immediately with `Error::StreamCancelled`.
+    ///    Absent cancellation the wait is unbounded — the window alone
+    ///    never errors.
     /// 2. Returns a stream that yields chunks as they arrive, executes
     ///    callable tools (MCP), and re-invokes the upstream for each
     ///    continuation until no more callable tool calls remain.
+    ///    Mid-stream chunk waits are unbounded (no inter-chunk timeout);
+    ///    cancellation is observed between turns and stamped as a 499
+    ///    on the final chunk.
     /// 3. The final stream item is always `StreamItem::State(CONT)`.
     ///
     /// On success, takes ownership of `cont_items` (via `std::mem::take`).
@@ -1199,7 +1209,7 @@ where
         agent_base: objectiveai_sdk::agent::InlineAgentRef<'_>,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
         transform_messages: Option<&(dyn Fn(Vec<objectiveai_sdk::agent::completions::message::Message>) -> Vec<objectiveai_sdk::agent::completions::message::Message> + Send + Sync)>,
-        is_cancelled: impl Fn() -> bool + Send + Sync + 'static,
+        cancel_token: tokio_util::sync::CancellationToken,
         agent_instance_hierarchy_header: &str,
         agent_id: &str,
         agent_full_id: &str,
@@ -1389,11 +1399,29 @@ where
             agent_full_id,
             agent_remote,
         );
-        let initial_stream =
-            tokio::time::timeout(self.first_chunk_timeout, create_fut)
-                .await
-                .map_err(|_| super::Error::Timeout)?
-                .map_err(&map_upstream_err)?;
+        // --- Await the first chunk, racing against cancellation gated
+        // by the `first_chunk_timeout` grace window. The window alone
+        // never errors: absent cancellation the wait is unbounded. A
+        // cancel that lands BEFORE the window elapses does not abort
+        // the wait; once the window elapses, a prior cancel aborts
+        // immediately (`.cancelled()` on an already-cancelled token is
+        // instantly ready) and a later cancel aborts the moment it
+        // fires. `biased` prefers a first chunk that is ready in the
+        // same poll as the cancel — data beats cancellation. If the
+        // grace arm wins, dropping `create_fut` aborts the upstream
+        // request, exactly as the old `tokio::time::timeout` expiry
+        // did.
+        let initial_stream = {
+            let cancel_after_grace = async {
+                tokio::time::sleep(self.first_chunk_timeout).await;
+                cancel_token.cancelled().await;
+            };
+            tokio::select! {
+                biased;
+                created = create_fut => created.map_err(&map_upstream_err)?,
+                _ = cancel_after_grace => return Err(super::Error::StreamCancelled),
+            }
+        };
 
         // Resolve the proxy's tool name set once upfront. Used to
         // distinguish tool calls the orchestrator should dispatch
@@ -1412,7 +1440,6 @@ where
 
         // Success — take ownership of continuation items and build the stream.
         let mut continuation_items = std::mem::take(cont_items);
-        let other_chunk_timeout = self.other_chunk_timeout;
         let agent = agent.clone();
         let params = params.clone();
         let id = id.to_string();
@@ -1464,8 +1491,11 @@ where
                 > = None;
 
                 loop {
-                    match tokio::time::timeout(other_chunk_timeout, stream.next()).await {
-                        Ok(Some(super::StreamItem::Chunk(mut chunk))) => {
+                    // Mid-stream chunk waits are unbounded — there is
+                    // deliberately no inter-chunk timeout; the upstream
+                    // transport's own limits are the only bound.
+                    match stream.next().await {
+                        Some(super::StreamItem::Chunk(mut chunk)) => {
                             // Identity (`agent_instance_hierarchy`,
                             // `agent_id`, `agent_full_id`, `agent_remote`)
                             // is stamped at the upstream-client level
@@ -1521,15 +1551,11 @@ where
                                 yield super::StreamItem::Chunk(prev);
                             }
                         }
-                        Ok(Some(super::StreamItem::State(state))) => {
+                        Some(super::StreamItem::State(state)) => {
                             current_state = Some(state);
                             break;
                         }
-                        Ok(None) => break,
-                        Err(_) => {
-                            had_error = true;
-                            break;
-                        }
+                        None => break,
                     }
                 }
 
@@ -1558,7 +1584,7 @@ where
                     continuation_items.push(super::ContinuationItem::State(state));
                 }
 
-                if had_error || is_cancelled() {
+                if had_error || cancel_token.is_cancelled() {
                     break;
                 }
 
@@ -1765,7 +1791,7 @@ where
             let continuation_token = continuation_token.to_string();
 
             // Set cancellation error if the stream was cancelled.
-            if is_cancelled() && final_error.is_none() {
+            if cancel_token.is_cancelled() && final_error.is_none() {
                 final_error = Some(objectiveai_sdk::error::ResponseError::from(
                     &super::Error::StreamCancelled,
                 ));

@@ -79,8 +79,6 @@ struct EnvConfigBuilder {
     github_backoff_max_elapsed_time: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT")]
     agent_completions_first_chunk_timeout: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_OTHER_CHUNK_TIMEOUT")]
-    agent_completions_other_chunk_timeout: Option<u64>,
     #[envconfig(from = "MCP_CONNECT_TIMEOUT")]
     mcp_connect_timeout: Option<u64>,
     #[envconfig(from = "MCP_ENCRYPTION_KEY")]
@@ -132,7 +130,6 @@ impl EnvConfigBuilder {
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time,
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time,
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout,
-            agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
             mcp_connect_timeout: self.mcp_connect_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
             objectiveai_dir: self.objectiveai_dir,
@@ -171,7 +168,6 @@ pub struct ConfigBuilder {
     pub mcp_backoff_max_elapsed_time: Option<u64>,
     pub github_backoff_max_elapsed_time: Option<u64>,
     pub agent_completions_first_chunk_timeout: Option<u64>,
-    pub agent_completions_other_chunk_timeout: Option<u64>,
     pub mcp_connect_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
     pub objectiveai_dir: Option<String>,
@@ -224,7 +220,6 @@ impl ConfigBuilder {
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout.unwrap_or(60000),
-            agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(1_800_000),
             mcp_encryption_key: self.mcp_encryption_key,
             // Layout root (OBJECTIVEAI_DIR). Kept on Config for the
@@ -273,7 +268,6 @@ pub struct Config {
     pub mcp_backoff_max_elapsed_time: u64,
     pub github_backoff_max_elapsed_time: u64,
     pub agent_completions_first_chunk_timeout: u64,
-    pub agent_completions_other_chunk_timeout: u64,
     pub mcp_connect_timeout: u64,
     /// Base64-encoded 32-byte key. Forwarded to the spawned proxy as
     /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
@@ -319,7 +313,6 @@ pub async fn setup(
         mcp_backoff_max_elapsed_time,
         github_backoff_max_elapsed_time,
         agent_completions_first_chunk_timeout,
-        agent_completions_other_chunk_timeout,
         mcp_connect_timeout,
         mcp_encryption_key,
         objectiveai_dir,
@@ -493,7 +486,6 @@ pub async fn setup(
         std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         std::time::Duration::from_millis(agent_completions_backoff_max_elapsed_time),
         std::time::Duration::from_millis(agent_completions_first_chunk_timeout),
-        std::time::Duration::from_millis(agent_completions_other_chunk_timeout),
     ));
 
     // Single public listener. There is no loopback MCP listener: each

@@ -104,8 +104,12 @@ pub struct Context<CTXEXT> {
     github_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved MCP authorization (self + ext merged).
     mcp_authorization_cached: Arc<OnceCell<Option<Arc<HashMap<String, String>>>>>,
-    /// Cancellation signal — set to true when the client disconnects.
-    cancelled: Arc<std::sync::atomic::AtomicBool>,
+    /// Cancellation signal — cancelled when the client disconnects.
+    /// A `CancellationToken` rather than an `AtomicBool` so consumers
+    /// can both peek synchronously (`is_cancelled`) and await the
+    /// signal (`cancellation_token().cancelled()`); clones share one
+    /// linked state.
+    cancelled: tokio_util::sync::CancellationToken,
     /// Cache for agent fetches, keyed by RemotePath.
     agent_cache: Arc<
         DashMap<
@@ -213,12 +217,20 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
 impl<CTXEXT> Context<CTXEXT> {
     /// Returns whether this context has been cancelled.
     pub fn is_cancelled(&self) -> bool {
-        self.cancelled.load(std::sync::atomic::Ordering::Relaxed)
+        self.cancelled.is_cancelled()
     }
 
     /// Marks this context as cancelled.
     pub fn cancel(&self) {
-        self.cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.cancelled.cancel();
+    }
+
+    /// A clone of this request's cancellation token — the awaitable
+    /// side of [`Self::is_cancelled`] (`token.cancelled().await`
+    /// resolves when [`Self::cancel`] fires, immediately if it already
+    /// has). Clones are linked to the same state.
+    pub fn cancellation_token(&self) -> tokio_util::sync::CancellationToken {
+        self.cancelled.clone()
     }
 
     /// Creates a new context by extracting authorization headers from the request.
@@ -298,7 +310,7 @@ impl<CTXEXT> Context<CTXEXT> {
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
-            cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            cancelled: tokio_util::sync::CancellationToken::new(),
             swarm_cache: Arc::new(DashMap::new()),
             agent_cache: Arc::new(DashMap::new()),
             function_cache: Arc::new(DashMap::new()),

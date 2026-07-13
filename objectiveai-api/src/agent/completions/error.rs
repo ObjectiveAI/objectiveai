@@ -60,9 +60,6 @@ pub enum Error {
     #[error("all agents failed: {0:?}")]
     MultipleErrors(Vec<Error>),
 
-    #[error("timeout")]
-    Timeout,
-
     #[error("empty stream")]
     EmptyStream,
 
@@ -92,7 +89,6 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::MultipleErrors(errors) => {
                 errors.first().map(|e| e.status()).unwrap_or(500)
             }
-            Self::Timeout => 504,
             Self::EmptyStream => 502,
             Self::StreamCancelled => 499,
         }

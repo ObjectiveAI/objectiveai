@@ -365,7 +365,6 @@ static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
         Duration::ZERO,
         Duration::ZERO,
         Duration::from_secs(1800),
-        Duration::from_secs(1800),
     ))
 });
 
