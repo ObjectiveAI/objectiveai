@@ -59,6 +59,10 @@ impl InlineAgentBase {
         self.as_ref().mcp_servers()
     }
 
+    pub fn laboratories(&self) -> Option<&super::Laboratories> {
+        self.as_ref().laboratories()
+    }
+
     pub fn client_objectiveai_mcp(
         &self,
     ) -> Option<&super::ClientObjectiveaiMcp> {
@@ -142,6 +146,10 @@ impl RemoteAgentBase {
         self.inner.mcp_servers()
     }
 
+    pub fn laboratories(&self) -> Option<&super::Laboratories> {
+        self.inner.laboratories()
+    }
+
     pub fn client_objectiveai_mcp(
         &self,
     ) -> Option<&super::ClientObjectiveaiMcp> {
@@ -213,6 +221,13 @@ impl AgentBase {
         match self {
             AgentBase::Remote(r) => r.mcp_servers(),
             AgentBase::Inline(i) => i.mcp_servers(),
+        }
+    }
+
+    pub fn laboratories(&self) -> Option<&super::Laboratories> {
+        match self {
+            AgentBase::Remote(r) => r.laboratories(),
+            AgentBase::Inline(i) => i.laboratories(),
         }
     }
 
@@ -315,6 +330,15 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::CodexSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::Mock(b) => b.mcp_servers.as_ref(),
+        }
+    }
+
+    pub fn laboratories(&self) -> Option<&'a super::Laboratories> {
+        match self {
+            InlineAgentRef::Openrouter(b) => b.laboratories.as_ref(),
+            InlineAgentRef::ClaudeAgentSdk(b) => b.laboratories.as_ref(),
+            InlineAgentRef::CodexSdk(b) => b.laboratories.as_ref(),
+            InlineAgentRef::Mock(b) => b.laboratories.as_ref(),
         }
     }
 

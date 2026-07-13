@@ -262,6 +262,12 @@ pub struct CreateRequest {
     /// `[key, value]` environment pairs.
     pub env: Vec<[String; 2]>,
     pub cwd: String,
+    /// For agent laboratories: the full id of the agent the
+    /// laboratory derives from. `Some` ⇔ the id is under the reserved
+    /// `oai-agent-` prefix (the host enforces both directions).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_full_id: Option<String>,
 }
 
 /// Parameters for [`RequestPayload::Delete`].

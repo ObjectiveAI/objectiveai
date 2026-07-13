@@ -401,6 +401,9 @@ async fn record_active_laboratories(
         .iter()
         .map(|lab| match lab {
             objectiveai_sdk::laboratories::Laboratory::Client(client) => client.id.clone(),
+            // Attachment-derived sets only ever carry Client markers,
+            // but the active-set record keys by raw id either way.
+            objectiveai_sdk::laboratories::Laboratory::Agent(agent) => agent.id.clone(),
         })
         .collect();
     let pool = ctx.db_client().await?;

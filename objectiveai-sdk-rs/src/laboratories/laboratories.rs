@@ -28,6 +28,9 @@ use serde::{Deserialize, Serialize};
 pub enum Laboratory {
     /// A client-resolved laboratory, identified by an opaque `id`.
     Client(ClientLaboratory),
+    /// An agent-embedded laboratory: the spec rides the marker so the
+    /// CLI conduit can materialize the laboratory on demand.
+    Agent(AgentLaboratory),
 }
 
 /// A client-resolved laboratory: a client-side MCP server keyed by an
@@ -89,4 +92,60 @@ pub enum ClientLaboratoryType {
     // the type's `rename` drive the title, matching its siblings.
     /// Serializes to `"client"`.
     Client,
+}
+
+/// An agent-embedded laboratory: identified by its DERIVED id (the
+/// reserved `oai-agent-` namespace — see
+/// [`agent::laboratories::derived_id`](crate::agent::laboratories::derived_id)),
+/// carrying the source agent's full id and the embedded spec so the
+/// CLI conduit can create the laboratory on the spot when no connected
+/// host serves the id yet. No pinned (machine, state): an agent
+/// laboratory lives wherever the conduit finds — or creates — it.
+/// Wire shape:
+/// `{"type":"agent","id":"…","agent_full_id":"…","laboratory":{…}}`.
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(rename = "laboratories.AgentLaboratory")]
+pub struct AgentLaboratory {
+    /// Discriminator — always `"agent"`.
+    pub r#type: AgentLaboratoryType,
+    /// The derived laboratory id, under the reserved `oai-agent-`
+    /// prefix.
+    pub id: String,
+    /// The full id of the agent the laboratory derives from.
+    pub agent_full_id: String,
+    /// The embedded laboratory spec (image, env, cwd).
+    pub laboratory: crate::agent::Laboratory,
+}
+
+/// Discriminator for [`AgentLaboratory`]. Ser/de's to the static
+/// string `"agent"`.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "laboratories.AgentLaboratoryType")]
+pub enum AgentLaboratoryType {
+    // NOTE: no variant-level `#[schemars(title = "...")]` — the same
+    // single-variant-unit-enum title-hoisting hazard as
+    // [`ClientLaboratoryType`].
+    /// Serializes to `"agent"`.
+    Agent,
 }

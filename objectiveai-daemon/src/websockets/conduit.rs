@@ -663,21 +663,23 @@ impl ConduitMcpHandler {
     /// (laboratory ids are only unique per (machine, state); a
     /// pair-less target routes first-match-by-id).
     fn laboratory_target(&self, payload: &server_request::Payload) -> Option<LabTarget> {
-        if let Some(McpKind::Laboratory { id, machine, machine_state }) =
+        if let Some(McpKind::Laboratory { id, machine, machine_state, agent }) =
             payload.mcp_kind()
         {
-            return Some(LabTarget { id, machine, machine_state });
+            return Some(LabTarget { id, machine, machine_state, agent_seed: agent });
         }
         match payload {
             server_request::Payload::LaboratoryExportBegin(req) => Some(LabTarget {
                 id: req.laboratory_id.clone(),
                 machine: req.machine.clone(),
                 machine_state: req.machine_state.clone(),
+                agent_seed: None,
             }),
             server_request::Payload::LaboratoryImportBegin(req) => Some(LabTarget {
                 id: req.laboratory_id.clone(),
                 machine: req.machine.clone(),
                 machine_state: req.machine_state.clone(),
+                agent_seed: None,
             }),
             // Both endpoints share one host (equal (machine, state) by
             // construction) - route by the source pair, forward whole.
@@ -685,6 +687,7 @@ impl ConduitMcpHandler {
                 id: req.source_id.clone(),
                 machine: req.source_machine.clone(),
                 machine_state: req.source_machine_state.clone(),
+                agent_seed: None,
             }),
             server_request::Payload::LaboratoryExportRead(req) => self
                 .inner
@@ -721,7 +724,7 @@ impl ConduitMcpHandler {
     /// close it).
     async fn dispatch_laboratory_forward(
         &self,
-        target: LabTarget,
+        mut target: LabTarget,
         headers: &IndexMap<String, String>,
         payload: server_request::Payload,
     ) -> server_response::Payload {
@@ -748,6 +751,110 @@ impl ConduitMcpHandler {
                 "laboratory forward requires the resident daemon".to_string(),
             );
         };
+        // Agent-embedded laboratory: the lab need not pre-exist. On
+        // the session-opening Initialize, REUSE the derived id from
+        // whichever connected host already serves it; otherwise CREATE
+        // it on THIS machine's own-state host right now (no mounts —
+        // agent laboratories don't support them). Later ops carry the
+        // seed too but skip this block: they ride the registry's
+        // normal id routing.
+        if let Some(seed) = target.agent_seed.take() {
+            let is_initialize =
+                matches!(payload, server_request::Payload::Initialize { .. });
+            if is_initialize
+                && (target.machine.is_none() || target.machine_state.is_none())
+            {
+                match hubs.laboratories.host_for_laboratory(&target.id).await {
+                    Some((machine, machine_state)) => {
+                        target.machine = Some(machine);
+                        target.machine_state = Some(machine_state);
+                    }
+                    None => {
+                        if let Err(e) = crate::command::laboratories::ensure_local_host(
+                            &self.inner.ctx,
+                        )
+                        .await
+                        {
+                            return shape.error(
+                                -32603,
+                                format!(
+                                    "agent laboratory {}: local host: {e}",
+                                    target.id
+                                ),
+                            );
+                        }
+                        let machine = objectiveai_sdk::machine::machine_id(
+                            self.inner.ctx.filesystem.dir(),
+                        );
+                        let machine_state =
+                            self.inner.ctx.filesystem.state().to_string();
+                        let create = objectiveai_sdk::laboratories::daemon::RequestPayload::Create(
+                            objectiveai_sdk::laboratories::daemon::CreateRequest {
+                                id: target.id.clone(),
+                                image: seed.laboratory.image.clone(),
+                                mounts: Vec::new(),
+                                env: seed.laboratory.env.clone().unwrap_or_default(),
+                                cwd: seed
+                                    .laboratory
+                                    .cwd
+                                    .clone()
+                                    .unwrap_or_else(|| "/".to_string()),
+                                agent_full_id: Some(seed.agent_full_id.clone()),
+                            },
+                        );
+                        use objectiveai_sdk::laboratories::daemon::{
+                            JsonRpcResult as LabRpc, ResponsePayload as LabResp,
+                        };
+                        match hubs
+                            .laboratories
+                            .forward_to_host(
+                                &machine,
+                                &machine_state,
+                                indexmap::IndexMap::new(),
+                                create,
+                            )
+                            .await
+                        {
+                            Ok(LabResp::Create(LabRpc::Ok { .. })) => {}
+                            // A concurrent Initialize won the create
+                            // race — the lab exists, which is all this
+                            // needs.
+                            Ok(LabResp::Create(LabRpc::Err { message, .. }))
+                                if message.contains("already exists") => {}
+                            Ok(LabResp::Create(LabRpc::Err { message, .. })) => {
+                                return shape.error(
+                                    -32603,
+                                    format!(
+                                        "agent laboratory {}: create: {message}",
+                                        target.id
+                                    ),
+                                );
+                            }
+                            Ok(_) => {
+                                return shape.error(
+                                    -32603,
+                                    format!(
+                                        "agent laboratory {}: host answered create with an unexpected payload",
+                                        target.id
+                                    ),
+                                );
+                            }
+                            Err(message) => {
+                                return shape.error(
+                                    -32603,
+                                    format!(
+                                        "agent laboratory {}: create: {message}",
+                                        target.id
+                                    ),
+                                );
+                            }
+                        }
+                        target.machine = Some(machine);
+                        target.machine_state = Some(machine_state);
+                    }
+                }
+            }
+        }
         // TRANSLATE at the seam: the reverse channel and the host
         // channel are naive to each other; the conduit is the one
         // place an API-side op becomes a host-side op (and back).
@@ -1023,6 +1130,10 @@ struct LabTarget {
     id: String,
     machine: Option<String>,
     machine_state: Option<String>,
+    /// For agent-embedded laboratories: the create seed from the
+    /// McpKind. Consumed by the Initialize-time reuse-or-create in
+    /// `dispatch_laboratory_forward`; `None` on every other route.
+    agent_seed: Option<objectiveai_sdk::client_objectiveai_mcp::AgentLaboratorySeed>,
 }
 
 /// Enough of a request payload's shape to build a same-variant error

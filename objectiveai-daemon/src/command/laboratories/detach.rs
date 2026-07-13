@@ -12,6 +12,17 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    // Agent laboratories are never attached (see `attach`), so there is
+    // nothing to detach.
+    if request
+        .laboratory_id
+        .starts_with(objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX)
+    {
+        return Err(Error::Laboratory(
+            "agent laboratories are not detachable — they are provisioned              from the agent's own `laboratories` definition"
+                .to_string(),
+        ));
+    }
     let (machine, machine_state) =
         super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
     let target = super::resolve_target(ctx, &request.selector).await?;

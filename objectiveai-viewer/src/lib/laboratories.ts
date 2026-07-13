@@ -22,6 +22,9 @@ export interface DisplayLaboratory {
   /** Unix seconds when the container was created; `null` when the
    * source didn't report it. */
   createdAt: number | null;
+  /** For agent laboratories, the full id of the source agent; `null`
+   * for user-created laboratories. */
+  agentFullId: string | null;
   source: ViewerSource;
   /** The machine whose host serves this laboratory — display
    * metadata (hostname, os) for the card; `null` when unreported. */
@@ -47,6 +50,7 @@ export function classifyLaboratories(
     env: lab.env,
     cwd: lab.cwd,
     createdAt: lab.created_at ?? null,
+    agentFullId: lab.agent_full_id ?? null,
     source:
       machine !== null && lab.machine?.id === machine.id
         ? "local"

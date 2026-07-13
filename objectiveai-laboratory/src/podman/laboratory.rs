@@ -149,6 +149,9 @@ pub struct LaboratoryInfo {
     /// container record (NOT the label). `None` when podman doesn't
     /// report it in a recognizable shape.
     pub created_at: Option<i64>,
+    /// For agent laboratories: the full id of the agent the laboratory
+    /// derives from. `None` for user-created laboratories.
+    pub agent_full_id: Option<String>,
 }
 
 /// The `objectiveai.laboratory` container label — the authoritative round-trip
@@ -165,6 +168,10 @@ struct Label {
     /// containers created before this field round-trip in [`list`] as `/`.
     #[serde(default = "default_cwd")]
     cwd: String,
+    /// For agent laboratories: the full id of the agent the laboratory
+    /// derives from. Defaulted so pre-agent labels round-trip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agent_full_id: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -196,6 +203,7 @@ pub async fn create(
     mounts: &[Mount],
     env: &[(String, String)],
     cwd: &str,
+    agent_full_id: Option<&str>,
 ) -> Result<(), Error> {
     let exe = podman.executable().await?;
     let name = container_name(state, id);
@@ -212,6 +220,7 @@ pub async fn create(
             .collect(),
         env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
         cwd: cwd.to_string(),
+        agent_full_id: agent_full_id.map(str::to_string),
     };
     // Resolve what podman actually instantiates: a registry reference
     // joined here (the only place it exists), or the locally-built
@@ -532,6 +541,7 @@ pub async fn list(podman: &Podman, state: &str) -> Result<Vec<LaboratoryInfo>, E
             env: label.env.into_iter().map(|[k, v]| (k, v)).collect(),
             cwd: label.cwd,
             created_at: created_at_from_container(elem),
+            agent_full_id: label.agent_full_id,
         });
     }
     Ok(labs)

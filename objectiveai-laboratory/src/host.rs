@@ -216,6 +216,38 @@ impl HostServer {
         if let Err(message) = req.image.validate() {
             return rpc_err(-32602, format!("image: {message}"));
         }
+        // Reserved-prefix ⇔ agent provenance, BIDIRECTIONALLY: an
+        // `oai-agent-` id must carry its agent_full_id (only the CLI
+        // conduit's on-the-fly create does), and agent provenance must
+        // live under the reserved prefix. User creates pass neither —
+        // a manual create squatting on the namespace is rejected here
+        // authoritatively, whatever daemon sent it.
+        let agent_prefixed = req
+            .id
+            .starts_with(objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX);
+        match (agent_prefixed, req.agent_full_id.is_some()) {
+            (true, false) => {
+                return rpc_err(
+                    -32602,
+                    format!(
+                        "laboratory id '{}' uses the reserved agent-laboratory prefix '{}' but carries no agent_full_id",
+                        req.id,
+                        objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX,
+                    ),
+                );
+            }
+            (false, true) => {
+                return rpc_err(
+                    -32602,
+                    format!(
+                        "laboratory '{}' carries agent_full_id but its id is not under the reserved '{}' prefix",
+                        req.id,
+                        objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX,
+                    ),
+                );
+            }
+            _ => {}
+        }
         let mounts: Vec<podman::laboratory::Mount> = req
             .mounts
             .iter()
@@ -240,6 +272,7 @@ impl HostServer {
             &mounts,
             &env,
             &req.cwd,
+            req.agent_full_id.as_deref(),
         )
         .await
         {
@@ -275,6 +308,7 @@ impl HostServer {
             env: req.env.clone(),
             cwd: req.cwd.clone(),
             created_at: None,
+            agent_full_id: req.agent_full_id.clone(),
         });
         self.broadcast(&HostNotification::LaboratoryCreated {
             laboratory: identify.clone(),

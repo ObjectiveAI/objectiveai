@@ -195,7 +195,7 @@ pub(super) async fn ensure_host(
 /// `list`): spawn THIS machine's OWN-STATE host if it isn't connected.
 /// Errors propagate (`delete` surfaces them; `list` drops them) —
 /// including the `laboratories config local: false` refusal.
-pub(super) async fn ensure_local_host(ctx: &Context) -> Result<(), Error> {
+pub(crate) async fn ensure_local_host(ctx: &Context) -> Result<(), Error> {
     let local_machine = objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
     let connected = ctx.resident_hubs().is_some_and(|hubs| {
         hubs.laboratories

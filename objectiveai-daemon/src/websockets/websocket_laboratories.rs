@@ -191,30 +191,31 @@ impl LaboratoriesHub {
             })
             .collect();
 
-        let (image, mounts, env, cwd, created_at, machine, machine_state) = match identity
-        {
-            Some((machine, state, identify)) => (
-                Some(identify.image),
-                identify
-                    .mounts
-                    .into_iter()
-                    .map(|m| Mount {
-                        host: m.host,
-                        container: m.container,
-                    })
-                    .collect(),
-                identify
-                    .env
-                    .into_iter()
-                    .map(|[key, value]| EnvVar { key, value })
-                    .collect(),
-                Some(identify.cwd),
-                identify.created_at,
-                Some(machine),
-                Some(state),
-            ),
-            None => (None, Vec::new(), Vec::new(), None, None, None, None),
-        };
+        let (image, mounts, env, cwd, created_at, agent_full_id, machine, machine_state) =
+            match identity {
+                Some((machine, state, identify)) => (
+                    Some(identify.image),
+                    identify
+                        .mounts
+                        .into_iter()
+                        .map(|m| Mount {
+                            host: m.host,
+                            container: m.container,
+                        })
+                        .collect(),
+                    identify
+                        .env
+                        .into_iter()
+                        .map(|[key, value]| EnvVar { key, value })
+                        .collect(),
+                    Some(identify.cwd),
+                    identify.created_at,
+                    identify.agent_full_id,
+                    Some(machine),
+                    Some(state),
+                ),
+                None => (None, Vec::new(), Vec::new(), None, None, None, None, None),
+            };
         Some(LaboratoryRecord {
             id: id.to_string(),
             image,
@@ -222,6 +223,7 @@ impl LaboratoriesHub {
             env,
             cwd,
             created_at,
+            agent_full_id,
             machine,
             machine_state,
             connected,
@@ -254,6 +256,7 @@ fn status_from_identify(
             .collect(),
         cwd: lab.cwd,
         created_at: lab.created_at,
+        agent_full_id: lab.agent_full_id,
         machine: Some(machine),
         machine_state: Some(machine_state),
         connected: true,

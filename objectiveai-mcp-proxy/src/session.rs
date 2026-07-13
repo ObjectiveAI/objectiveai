@@ -300,9 +300,11 @@ impl Session {
                 // The assistant-facing composite id — what
                 // `laboratory_transfer` takes. `None` for markers
                 // predating machine tracking (nothing to compose).
-                let laboratory_id = laboratory.as_ref().and_then(|lab| {
-                    let Laboratory::Client(c) = lab;
-                    c.composite_id()
+                let laboratory_id = laboratory.as_ref().and_then(|lab| match lab {
+                    Laboratory::Client(c) => c.composite_id(),
+                    // Agent laboratories carry no (machine, state) —
+                    // nothing to compose; not transfer-addressable.
+                    Laboratory::Agent(_) => None,
                 });
                 Server {
                     name: prefix.clone(),
@@ -555,6 +557,16 @@ impl Session {
                         Err(e) => return transfer_error(format!("transfer failed: {e}")),
                     }
                 }
+            }
+            // `find_laboratory` matches only `Client` markers against the
+            // composite-id target, so an `Agent` marker can never reach
+            // this match today — this arm is the enum-totality floor. If
+            // it ever fires, report not-supported rather than guess an
+            // orchestration.
+            _ => {
+                return transfer_error(
+                    "laboratory_transfer does not support agent laboratories",
+                );
             }
         };
         transfer_text(format!(

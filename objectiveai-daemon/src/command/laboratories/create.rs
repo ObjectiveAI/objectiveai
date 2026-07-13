@@ -34,6 +34,21 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .validate()
         .map_err(|message| Error::Laboratory(format!("image: {message}")))?;
 
+    // The `oai-agent-` namespace is reserved: agent laboratories are
+    // derived from agent definitions and created by the conduit at
+    // MCP-initialize, never by `laboratories create`. (The host
+    // re-checks authoritatively.)
+    if request
+        .id
+        .starts_with(objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX)
+    {
+        return Err(Error::Laboratory(format!(
+            "laboratory id '{}' uses the reserved agent-laboratory prefix '{}'",
+            request.id,
+            objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX,
+        )));
+    }
+
     let (target, host_state) =
         super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
     super::ensure_host(ctx, &target, &host_state).await?;
@@ -56,6 +71,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 .map(|e| [e.key.clone(), e.value.clone()])
                 .collect(),
             cwd: request.cwd.clone(),
+            agent_full_id: None,
         },
     );
     let response = hubs

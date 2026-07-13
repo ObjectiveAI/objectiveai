@@ -204,6 +204,21 @@ async fn connect_upstream(
             // forwards to the exact host.
             machine: c.machine.clone(),
             machine_state: c.machine_state.clone(),
+            agent: None,
+        }),
+        // Agent-embedded laboratory: no pinned (machine, state) — the
+        // CLI conduit resolves (or creates) the laboratory from the
+        // seed at Initialize.
+        Some(Laboratory::Agent(a)) => Some(McpKind::Laboratory {
+            id: a.id.clone(),
+            machine: None,
+            machine_state: None,
+            agent: Some(
+                objectiveai_sdk::client_objectiveai_mcp::AgentLaboratorySeed {
+                    agent_full_id: a.agent_full_id.clone(),
+                    laboratory: a.laboratory.clone(),
+                },
+            ),
         }),
         None => crate::reverse_channel::parse_ws_mcp_kind(url),
     };

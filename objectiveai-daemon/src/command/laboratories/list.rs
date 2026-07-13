@@ -61,6 +61,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                     .collect(),
                 cwd: lab.cwd,
                 created_at: lab.created_at,
+                agent_full_id: lab.agent_full_id,
                 machine: Some(machine),
                 machine_state: Some(machine_state),
             });

@@ -59,6 +59,11 @@ pub struct Identify {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub created_at: Option<i64>,
+    /// For agent laboratories: the full id of the agent the
+    /// laboratory derives from. `None` for user-created laboratories.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_full_id: Option<String>,
 }
 
 /// The `/laboratory` connection's FIRST frame: who this HOST is. Sent

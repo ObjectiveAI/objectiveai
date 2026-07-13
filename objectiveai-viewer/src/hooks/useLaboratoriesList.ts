@@ -27,7 +27,12 @@ export function isInlineImage(
 export type LaboratoryStatus = Omit<
   CliWebsocketLaboratoriesListListenerLaboratoryStatus,
   "image"
-> & { image: LaboratoryImage };
+> & {
+  image: LaboratoryImage;
+  /** For agent laboratories, the full id of the source agent; absent
+   * for user-created laboratories. */
+  agent_full_id?: string | null;
+};
 
 /**
  * The daemon's live laboratories list (`/laboratories/list`): the

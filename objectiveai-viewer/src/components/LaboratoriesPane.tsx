@@ -182,6 +182,9 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
           </>
         )}
         <DetailRow label="cwd" value={lab.cwd} />
+        {lab.agentFullId !== null && (
+          <DetailRow label="agent" value={lab.agentFullId} />
+        )}
         {lab.mounts.length > 0 && (
           <div className={cn("flex", "flex-col", "gap-0.5")}>
             <span className={cn("text-info-dim")}>mounts</span>

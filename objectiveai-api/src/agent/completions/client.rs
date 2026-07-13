@@ -552,6 +552,7 @@ where
             .iter()
             .map(|agent| {
                 (agent.base().client_objectiveai_mcp().is_some()
+                    || agent.base().laboratories().is_some()
                     || has_laboratories)
                     && ctx.reverse_channel().is_some()
             })
@@ -668,13 +669,53 @@ where
                 if needs_reverse_attach {
                     if let Some(labs) = &params.laboratories {
                         for lab in labs {
-                            let objectiveai_sdk::laboratories::Laboratory::Client(c) = lab;
+                            let id = match lab {
+                                objectiveai_sdk::laboratories::Laboratory::Client(c) => &c.id,
+                                objectiveai_sdk::laboratories::Laboratory::Agent(a) => &a.id,
+                            };
                             let url = format!(
                                 "ws://laboratory/{}",
-                                percent_encode_segment(&c.id)
+                                percent_encode_segment(id)
                             );
                             client_mcp_synthetic_urls.push((url.clone(), None));
                             laboratories_by_url.insert(url, lab.clone());
+                        }
+                    }
+                }
+                // Agent-embedded laboratories: each spec on the ATTEMPTED
+                // agent becomes a laboratory upstream whose id DERIVES from
+                // the agent's full id plus the spec — no pre-existing lab,
+                // no pinned (machine, state). The typed `Agent` marker
+                // carries the spec so the CLI conduit can create the lab on
+                // the spot when no connected host serves the derived id.
+                // Deduped by URL (which embeds the id).
+                if needs_reverse_attach {
+                    if let Some(agent_labs) = agent.base().laboratories() {
+                        let agent_full_id = agent.id();
+                        for lab in agent_labs {
+                            let id = objectiveai_sdk::agent::laboratories::derived_id(
+                                agent_full_id,
+                                lab,
+                            );
+                            let url = format!(
+                                "ws://laboratory/{}",
+                                percent_encode_segment(&id)
+                            );
+                            if laboratories_by_url.contains_key(&url) {
+                                continue;
+                            }
+                            client_mcp_synthetic_urls.push((url.clone(), None));
+                            laboratories_by_url.insert(
+                                url,
+                                objectiveai_sdk::laboratories::Laboratory::Agent(
+                                    objectiveai_sdk::laboratories::AgentLaboratory {
+                                        r#type: objectiveai_sdk::laboratories::AgentLaboratoryType::Agent,
+                                        id,
+                                        agent_full_id: agent_full_id.to_string(),
+                                        laboratory: lab.clone(),
+                                    },
+                                ),
+                            );
                         }
                     }
                 }
@@ -957,6 +998,7 @@ where
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
                     || !extra_mcp_servers.is_empty()
                     || attempt.agent.base().client_objectiveai_mcp().is_some()
+                    || attempt.agent.base().laboratories().is_some()
                     || has_laboratories;
                 let mcp_connection: Option<objectiveai_sdk::mcp::Connection> =
                     attempt_connections[idx].clone();

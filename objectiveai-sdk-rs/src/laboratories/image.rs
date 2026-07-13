@@ -34,7 +34,19 @@ use serde::{Deserialize, Serialize};
 /// registry reference. Untagged — the variants' keys are disjoint
 /// (`containerfile` vs `registry`/`name`), mirroring the agent
 /// inline-vs-remote idiom.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[serde(untagged)]
 #[schemars(rename = "laboratories.LaboratoryImage")]
 pub enum LaboratoryImage {
@@ -69,7 +81,19 @@ pub const MAX_CONTAINERFILE_BYTES: usize = 16 * 1024;
 /// The Containerfile's own `FROM` line is deliberately NOT validated
 /// for full qualification — the file is the user's content, and
 /// podman's build-time resolution rules apply to it verbatim.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "laboratories.InlineLaboratoryImage")]
 pub struct InlineLaboratoryImage {
     /// Containerfile content (plain text — never nested/escaped JSON).
@@ -95,7 +119,19 @@ impl InlineLaboratoryImage {
 
 /// One registry-hosted laboratory base image, split into its
 /// reference parts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "laboratories.RegistryLaboratoryImage")]
 pub struct RegistryLaboratoryImage {
     /// The image host — e.g. `docker.io`, `ghcr.io`,
@@ -112,7 +148,19 @@ pub struct RegistryLaboratoryImage {
 
 /// The image's version pin: a floating `tag` or a content-addressed
 /// `digest` — mutually exclusive by construction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
 #[schemars(rename = "laboratories.LaboratoryImagePin")]
 #[serde(rename_all = "snake_case")]
 pub enum LaboratoryImagePin {
