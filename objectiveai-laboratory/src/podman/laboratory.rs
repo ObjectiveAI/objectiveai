@@ -54,11 +54,28 @@ fn default_cwd() -> String {
     "/".to_string()
 }
 
+/// Join a split [`LaboratoryImage`](objectiveai_sdk::laboratories::LaboratoryImage)
+/// into the reference string podman consumes — `registry/name:tag` or
+/// `registry/name@digest`. THE only place the joined form exists: the
+/// split shape is validated + fully qualified end to end, so podman
+/// never gets a short name to silently resolve against docker.io.
+fn image_reference(image: &objectiveai_sdk::laboratories::LaboratoryImage) -> String {
+    use objectiveai_sdk::laboratories::LaboratoryImagePin;
+    match &image.pin {
+        LaboratoryImagePin::Tag(tag) => {
+            format!("{}/{}:{}", image.registry, image.name, tag)
+        }
+        LaboratoryImagePin::Digest(digest) => {
+            format!("{}/{}@{}", image.registry, image.name, digest)
+        }
+    }
+}
+
 /// A laboratory container as read back by [`list`], reconstructed from its
 /// `objectiveai.laboratory` label. Mirrors the `create` echo.
 pub struct LaboratoryInfo {
     pub id: String,
-    pub image: String,
+    pub image: objectiveai_sdk::laboratories::LaboratoryImage,
     pub mounts: Vec<Mount>,
     pub env: Vec<(String, String)>,
     pub cwd: String,
@@ -75,7 +92,7 @@ pub struct LaboratoryInfo {
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Label {
     id: String,
-    image: String,
+    image: objectiveai_sdk::laboratories::LaboratoryImage,
     mounts: Vec<LabelMount>,
     env: Vec<[String; 2]>,
     /// Default working directory for new agents. `#[serde(default)]` so
@@ -109,7 +126,7 @@ pub async fn create(
     machine_id: &str,
     laboratory_binary: &Path,
     id: &str,
-    image: &str,
+    image: &objectiveai_sdk::laboratories::LaboratoryImage,
     mounts: &[Mount],
     env: &[(String, String)],
     cwd: &str,
@@ -119,7 +136,7 @@ pub async fn create(
 
     let label = Label {
         id: id.to_string(),
-        image: image.to_string(),
+        image: image.clone(),
         mounts: mounts
             .iter()
             .map(|m| LabelMount {
@@ -190,7 +207,7 @@ pub async fn create(
         .arg(
             r#"["/bin/sh","-c","chmod +x /objectiveai-mcp-laboratory && exec /objectiveai-mcp-laboratory"]"#,
         )
-        .arg(image);
+        .arg(image_reference(image));
     let output = create_cmd
         .output()
         .await
@@ -367,8 +384,12 @@ pub async fn list_running(podman: &Podman, state: &str) -> Result<Vec<String>, E
         else {
             continue;
         };
-        let label: Label = serde_json::from_str(label_str)
-            .map_err(|e| Error(format!("parse laboratory label: {e}")))?;
+        // An unparseable label means the container is NOT ours — a
+        // name/label coincidence from outside the objectiveai system
+        // (or a pre-split-image relic). Treat it as nonexistent.
+        let Ok(label) = serde_json::from_str::<Label>(label_str) else {
+            continue;
+        };
         ids.push(label.id);
     }
     Ok(ids)
@@ -415,8 +436,11 @@ pub async fn list(podman: &Podman, state: &str) -> Result<Vec<LaboratoryInfo>, E
         else {
             continue;
         };
-        let label: Label = serde_json::from_str(label_str)
-            .map_err(|e| Error(format!("parse laboratory label: {e}")))?;
+        // Same rule as above: unparseable label ⇒ external container,
+        // treat as nonexistent.
+        let Ok(label) = serde_json::from_str::<Label>(label_str) else {
+            continue;
+        };
         labs.push(LaboratoryInfo {
             id: label.id,
             image: label.image,

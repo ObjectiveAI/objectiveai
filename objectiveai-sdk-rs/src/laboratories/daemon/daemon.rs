@@ -49,7 +49,7 @@ pub struct Identify {
     /// namespaced (the host's state scopes its container NAMEs, but
     /// the identity on this wire is the bare id).
     pub id: String,
-    pub image: String,
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<IdentifyMount>,
     pub env: Vec<[String; 2]>,
     pub cwd: String,

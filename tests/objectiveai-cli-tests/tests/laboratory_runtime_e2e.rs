@@ -25,7 +25,18 @@ use objectiveai_sdk::cli::command::laboratories::create::{
 };
 use serde_json::json;
 
-const BASE_IMAGE: &str = "docker.io/library/bash:latest";
+/// The split base image every lab in this file uses —
+/// `docker.io/library/bash:latest`, as parts (a joined reference string
+/// is unrepresentable in the API).
+fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage {
+        registry: "docker.io".to_string(),
+        name: "library/bash".to_string(),
+        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+            "latest".to_string(),
+        ),
+    }
+}
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
 
@@ -54,7 +65,7 @@ async fn create_lab(
             path_type: CreatePath::LaboratoriesCreate,
             kind: Kind::Client,
             id: id.to_string(),
-            image: BASE_IMAGE.to_string(),
+            image: base_image(),
             mounts,
             env,
             cwd: cwd.to_string(),

@@ -6,10 +6,23 @@ import {
 import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
+/** A laboratory's base image, always split — `registry` + `name` +
+ * (`tag` XOR `digest`). The joined reference string never exists
+ * outside the laboratory daemon, so the viewer renders the parts. */
+export interface LaboratoryImage {
+  registry: string;
+  name: string;
+  tag?: string;
+  digest?: string;
+}
+
 /** One laboratory on the daemon's live list — the SDK wire type,
- * re-exported under the viewer's short name. */
-export type LaboratoryStatus =
-  CliWebsocketLaboratoriesListListenerLaboratoryStatus;
+ * re-exported under the viewer's short name. `image` is overridden to
+ * the split shape until the generated bindings regenerate. */
+export type LaboratoryStatus = Omit<
+  CliWebsocketLaboratoriesListListenerLaboratoryStatus,
+  "image"
+> & { image: LaboratoryImage };
 
 /**
  * The daemon's live laboratories list (`/laboratories/list`): the

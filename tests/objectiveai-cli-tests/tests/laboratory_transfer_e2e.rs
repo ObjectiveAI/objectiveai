@@ -56,7 +56,18 @@ use serde_json::json;
 
 /// A base image with `/bin/bash` + coreutils for the laboratory's `Bash`
 /// tool. The official `bash` image is Alpine-based (musl).
-const BASE_IMAGE: &str = "docker.io/library/bash:latest";
+/// The split base image every lab in this file uses —
+/// `docker.io/library/bash:latest`, as parts (a joined reference string
+/// is unrepresentable in the API).
+fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage {
+        registry: "docker.io".to_string(),
+        name: "library/bash".to_string(),
+        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+            "latest".to_string(),
+        ),
+    }
+}
 
 /// RAII kill of the plugin process (PID read from `OAI_TEST_MCP_PID_FILE`)
 /// on test drop — mirrors `plugin_mcp_self_call_e2e`.
@@ -92,7 +103,7 @@ async fn create_lab(executor: &Exec, id: &str) {
             path_type: CreatePath::LaboratoriesCreate,
             kind: Kind::Client,
             id: id.to_string(),
-            image: BASE_IMAGE.to_string(),
+            image: base_image(),
             mounts: Vec::new(),
             env: Vec::new(),
             // Default cwd `/` — it always exists. The lab's first bash

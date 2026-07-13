@@ -22,7 +22,10 @@ pub struct Request {
     pub path_type: Path,
     pub kind: Kind,
     pub id: String,
-    pub image: String,
+    /// The base image, split (`registry` + `name` + tag XOR digest) —
+    /// a joined reference string is never accepted, so unqualified
+    /// short names are unrepresentable.
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
     /// Default working directory new agents start in; defaults to `/`.
@@ -135,7 +138,7 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.laboratories.create.Response")]
 pub struct Response {
     pub id: String,
-    pub image: String,
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
     pub cwd: String,
@@ -160,7 +163,9 @@ pub struct Response {
 #[command(
     group(clap::ArgGroup::new("side").required(true).args(["client"])),
     group(clap::ArgGroup::new("id_required").required(true).args(["id"])),
-    group(clap::ArgGroup::new("image_required").required(true).args(["image"])),
+    group(clap::ArgGroup::new("registry_required").required(true).args(["registry"])),
+    group(clap::ArgGroup::new("name_required").required(true).args(["name"])),
+    group(clap::ArgGroup::new("image_pin").required(true).args(["tag", "digest"])),
 )]
 pub struct Args {
     /// Create a client-side laboratory (an MCP server the conduit dials).
@@ -170,9 +175,21 @@ pub struct Args {
     /// Laboratory id — names the per-state container.
     #[arg(long)]
     pub id: Option<String>,
-    /// Container image to base the laboratory on.
+    /// The image host — e.g. `docker.io`, `ghcr.io`,
+    /// `registry.example.com:5000`. Must be unambiguously a registry
+    /// (domain, host:port, or localhost) — short names are refused.
     #[arg(long)]
-    pub image: Option<String>,
+    pub registry: Option<String>,
+    /// The image repository path — e.g. `library/bash`.
+    #[arg(long)]
+    pub name: Option<String>,
+    /// Image tag (mutually exclusive with `--digest`).
+    #[arg(long, conflicts_with = "digest")]
+    pub tag: Option<String>,
+    /// Image digest, `<algorithm>:<64 hex>` (mutually exclusive with
+    /// `--tag`).
+    #[arg(long)]
+    pub digest: Option<String>,
     /// Repeatable `--mount host=…,container=…` bind mount.
     #[arg(long = "mount")]
     pub mounts: Vec<String>,
@@ -218,12 +235,35 @@ impl TryFrom<Args> for Request {
         let id = args.id.ok_or_else(|| {
             crate::cli::command::FromArgsError::path_parse("id", "--id is required".to_string())
         })?;
-        let image = args.image.ok_or_else(|| {
+        let registry = args.registry.ok_or_else(|| {
             crate::cli::command::FromArgsError::path_parse(
-                "image",
-                "--image is required".to_string(),
+                "registry",
+                "--registry is required".to_string(),
             )
         })?;
+        let name = args.name.ok_or_else(|| {
+            crate::cli::command::FromArgsError::path_parse(
+                "name",
+                "--name is required".to_string(),
+            )
+        })?;
+        let pin = match (args.tag, args.digest) {
+            (Some(tag), None) => crate::laboratories::LaboratoryImagePin::Tag(tag),
+            (None, Some(digest)) => {
+                crate::laboratories::LaboratoryImagePin::Digest(digest)
+            }
+            _ => {
+                return Err(crate::cli::command::FromArgsError::path_parse(
+                    "image",
+                    "exactly one of --tag, --digest is required".to_string(),
+                ));
+            }
+        };
+        let image = crate::laboratories::LaboratoryImage {
+            registry,
+            name,
+            pin,
+        };
         if !args.client {
             return Err(crate::cli::command::FromArgsError::path_parse(
                 "client",

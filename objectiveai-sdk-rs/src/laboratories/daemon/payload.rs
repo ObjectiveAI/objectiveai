@@ -254,7 +254,9 @@ pub struct LocalTransferResult {
 #[schemars(rename = "laboratories.daemon.CreateRequest")]
 pub struct CreateRequest {
     pub id: String,
-    pub image: String,
+    /// The base image, always split — the joined reference string is
+    /// constructed only inside the host's podman internals.
+    pub image: crate::laboratories::LaboratoryImage,
     /// `[host, container]` bind-mount pairs.
     pub mounts: Vec<[String; 2]>,
     /// `[key, value]` environment pairs.

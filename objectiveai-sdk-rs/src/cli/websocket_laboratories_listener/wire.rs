@@ -77,7 +77,7 @@ pub struct LaboratoryRecord {
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub image: Option<String>,
+    pub image: Option<crate::laboratories::LaboratoryImage>,
     #[serde(default)]
     pub mounts: Vec<Mount>,
     #[serde(default)]

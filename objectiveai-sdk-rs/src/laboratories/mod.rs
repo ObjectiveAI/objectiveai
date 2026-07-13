@@ -15,7 +15,9 @@
 pub mod daemon;
 
 mod composite;
+mod image;
 mod laboratories;
 
 pub use composite::*;
+pub use image::*;
 pub use laboratories::*;

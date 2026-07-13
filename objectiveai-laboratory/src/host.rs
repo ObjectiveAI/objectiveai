@@ -209,6 +209,13 @@ impl HostServer {
         &self,
         req: &CreateRequest,
     ) -> JsonRpcResult<Identify> {
+        // Authoritative image validation: any daemon can send this
+        // host anything, so the split reference is checked HERE (the
+        // CLI validates earlier only for friendlier errors). Fully
+        // qualified by construction — podman never short-name-resolves.
+        if let Err(message) = req.image.validate() {
+            return rpc_err(-32602, format!("image: {message}"));
+        }
         let mounts: Vec<podman::laboratory::Mount> = req
             .mounts
             .iter()

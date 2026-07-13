@@ -22,7 +22,7 @@ async fn expect_create_err(executor: &cli_test_util::HangPreventingBinaryCommand
                 path_type: CreatePath::LaboratoriesCreate,
                 kind: Kind::Client,
                 id: id.to_string(),
-                image: BASE_IMAGE.to_string(),
+                image: base_image(),
                 mounts: Vec::new(),
                 env: Vec::new(),
                 cwd: "/work".to_string(),
@@ -47,7 +47,18 @@ async fn expect_create_err(executor: &cli_test_util::HangPreventingBinaryCommand
 }
 
 /// A minimal, widely-available base image for the laboratory.
-const BASE_IMAGE: &str = "docker.io/library/busybox:latest";
+/// The split base image every lab in this file uses —
+/// `docker.io/library/busybox:latest`, as parts (a joined reference string
+/// is unrepresentable in the API).
+fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage {
+        registry: "docker.io".to_string(),
+        name: "library/busybox".to_string(),
+        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+            "latest".to_string(),
+        ),
+    }
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn create_then_list_round_trips_the_spec() {
@@ -67,7 +78,7 @@ async fn create_then_list_round_trips_the_spec() {
             path_type: CreatePath::LaboratoriesCreate,
             kind: Kind::Client,
             id: id.clone(),
-            image: BASE_IMAGE.to_string(),
+            image: base_image(),
             mounts: Vec::new(),
             env: vec![EnvVar {
                 key: "FOO".to_string(),
@@ -97,7 +108,7 @@ async fn create_then_list_round_trips_the_spec() {
         .iter()
         .find(|l| l.id == id)
         .unwrap_or_else(|| panic!("created lab {id} not in list: {:?}", labs.iter().map(|l| &l.id).collect::<Vec<_>>()));
-    assert_eq!(found.image, BASE_IMAGE);
+    assert_eq!(found.image, base_image());
     assert_eq!(found.cwd, "/work");
     // A laboratory created with no --machine lands on THIS machine's
     // host — the item's machine identity must match the one the

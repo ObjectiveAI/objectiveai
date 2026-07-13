@@ -262,6 +262,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::laboratories::ClientLaboratory),
         schemars::schema_for!(crate::laboratories::ClientLaboratoryType),
         schemars::schema_for!(crate::laboratories::Laboratory),
+        schemars::schema_for!(crate::laboratories::LaboratoryImage),
+        schemars::schema_for!(crate::laboratories::LaboratoryImagePin),
         schemars::schema_for!(crate::machine::MachineIdentity),
         schemars::schema_for!(crate::remote::Remote),
         schemars::schema_for!(crate::remote::RemotePath),

@@ -56,7 +56,18 @@ use objectiveai_sdk::cli::websocket_laboratories_listener::{
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
 
 /// A minimal, widely-available base image for the laboratory.
-const BASE_IMAGE: &str = "docker.io/library/busybox:latest";
+/// The split base image every lab in this file uses —
+/// `docker.io/library/busybox:latest`, as parts (a joined reference string
+/// is unrepresentable in the API).
+fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage {
+        registry: "docker.io".to_string(),
+        name: "library/busybox".to_string(),
+        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+            "latest".to_string(),
+        ),
+    }
+}
 
 /// Poll `$cond` (an `await`-ing bool expression re-evaluated each
 /// pass) until true, failing after a generous deadline. The hang
@@ -96,7 +107,7 @@ async fn create_lab_on(executor: &Exec, id: &str, pair: Option<(&str, &str)>) {
             path_type: CreatePath::LaboratoriesCreate,
             kind: Kind::Client,
             id: id.to_string(),
-            image: BASE_IMAGE.to_string(),
+            image: base_image(),
             mounts: Vec::new(),
             env: Vec::new(),
             cwd: "/".to_string(),
@@ -233,7 +244,7 @@ async fn laboratories_list_and_record_streams() {
         list.laboratories().await.iter().any(|l| {
             l.id == id
                 && l.connected
-                && l.image == BASE_IMAGE
+                && l.image == base_image()
                 && l.machine.as_ref().map(|m| m.id.as_str()) == Some(machine_id.as_str())
         })
     });
@@ -241,7 +252,7 @@ async fn laboratories_list_and_record_streams() {
         match record.laboratory().await {
             Some(rec) => {
                 rec.connected
-                    && rec.image.as_deref() == Some(BASE_IMAGE)
+                    && rec.image.as_ref() == Some(&base_image())
                     && rec.machine.as_ref().map(|m| m.id.as_str())
                         == Some(machine_id.as_str())
                     && rec.attachments.len() == 1

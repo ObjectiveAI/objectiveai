@@ -153,7 +153,14 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
 
       {/* Spec detail. */}
       <div className={cn("flex", "flex-col", "gap-1", "text-xs", "text-[#c3bfbb]")}>
-        <DetailRow label="image" value={lab.image} />
+        <DetailRow label="registry" value={lab.image.registry} />
+        <DetailRow label="name" value={lab.image.name} />
+        {lab.image.tag !== undefined && (
+          <DetailRow label="tag" value={lab.image.tag} />
+        )}
+        {lab.image.digest !== undefined && (
+          <DetailRow label="digest" value={lab.image.digest} />
+        )}
         <DetailRow label="cwd" value={lab.cwd} />
         {lab.mounts.length > 0 && (
           <div className={cn("flex", "flex-col", "gap-0.5")}>

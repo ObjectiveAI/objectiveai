@@ -1,4 +1,4 @@
-import type { LaboratoryStatus } from "../hooks/useLaboratoriesList";
+import type { LaboratoryImage, LaboratoryStatus } from "../hooks/useLaboratoriesList";
 import type { MachineIdentity } from "../hooks/useMachineIdentity";
 
 /** The VIEWER's 2-way provenance, by MACHINE IDENTITY (there is no
@@ -15,7 +15,7 @@ export type ViewerSource = "local" | "remote";
 /** One laboratory as the laboratories page displays it. */
 export interface DisplayLaboratory {
   id: string;
-  image: string;
+  image: LaboratoryImage;
   mounts: { host: string; container: string }[];
   env: { key: string; value: string }[];
   cwd: string;

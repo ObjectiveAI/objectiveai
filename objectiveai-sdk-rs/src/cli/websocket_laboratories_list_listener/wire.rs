@@ -20,7 +20,7 @@ use crate::cli::command::laboratories::create::{EnvVar, Mount};
 pub struct LaboratoryStatus {
     /// Raw (state-agnostic) laboratory id.
     pub id: String,
-    pub image: String,
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
     pub cwd: String,

@@ -28,6 +28,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         Kind::Client => {}
     }
 
+    // Early, friendly validation — the host re-checks authoritatively.
+    request
+        .image
+        .validate()
+        .map_err(|message| Error::Laboratory(format!("image: {message}")))?;
+
     let (target, host_state) =
         super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
     super::ensure_host(ctx, &target, &host_state).await?;

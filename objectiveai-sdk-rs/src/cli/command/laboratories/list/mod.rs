@@ -39,7 +39,7 @@ impl CommandRequest for Request {
 #[schemars(rename = "cli.command.laboratories.list.ResponseItem")]
 pub struct ResponseItem {
     pub id: String,
-    pub image: String,
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<super::create::Mount>,
     pub env: Vec<super::create::EnvVar>,
     pub cwd: String,
