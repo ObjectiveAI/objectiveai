@@ -172,9 +172,15 @@ async fn subscribe_wakes_on_change_while_locked() {
         &ctx.filesystem.state_dir(),
         aih,
     );
-    let claim = objectiveai_sdk::lockfile::wait_acquire(&lock_dir, &lock_key, "")
-        .await
-        .expect("acquire instance lock");
+    // Post-split, agent locks are the daemon's IN-PROCESS AgentLockMap
+    // (nothing on disk) — hold the in-process lock the subscribe's
+    // release arm actually watches.
+    let claim = objectiveai_daemon::command::agents::locks::wait_acquire(
+        ctx.agent_locks(),
+        &lock_dir,
+        &lock_key,
+    )
+    .await;
 
     update_agent_token_usage(&pool, aih, 10).await.unwrap(); // baseline
 
@@ -189,7 +195,7 @@ async fn subscribe_wakes_on_change_while_locked() {
     let tu = expect_item(&items);
     assert_eq!(tu.total_tokens, 77);
 
-    claim.release().expect("release instance lock");
+    claim.release();
 }
 
 /// When the instance lock drops with no pending token change, subscribe
@@ -203,9 +209,15 @@ async fn subscribe_agents_inactive_on_lock_release() {
         &ctx.filesystem.state_dir(),
         aih,
     );
-    let claim = objectiveai_sdk::lockfile::wait_acquire(&lock_dir, &lock_key, "")
-        .await
-        .expect("acquire instance lock");
+    // Post-split, agent locks are the daemon's IN-PROCESS AgentLockMap
+    // (nothing on disk) — hold the in-process lock the subscribe's
+    // release arm actually watches.
+    let claim = objectiveai_daemon::command::agents::locks::wait_acquire(
+        ctx.agent_locks(),
+        &lock_dir,
+        &lock_key,
+    )
+    .await;
 
     let sub_ctx = ctx.clone();
     let handle =
@@ -214,7 +226,7 @@ async fn subscribe_agents_inactive_on_lock_release() {
     // Let subscribe reach its blocking `wait_released`, then release with
     // no token change → it must resolve to agents_inactive.
     tokio::time::sleep(Duration::from_millis(150)).await;
-    claim.release().expect("release instance lock");
+    claim.release();
 
     let items = handle.await.expect("subscribe task join");
     assert_eq!(items.len(), 1);
