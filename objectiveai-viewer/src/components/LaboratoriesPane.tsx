@@ -173,10 +173,9 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
           <>
             <DetailRow label="registry" value={lab.image.registry} />
             <DetailRow label="name" value={lab.image.name} />
-            {lab.image.tag !== undefined && (
+            {"tag" in lab.image ? (
               <DetailRow label="tag" value={lab.image.tag} />
-            )}
-            {lab.image.digest !== undefined && (
+            ) : (
               <DetailRow label="digest" value={lab.image.digest} />
             )}
           </>

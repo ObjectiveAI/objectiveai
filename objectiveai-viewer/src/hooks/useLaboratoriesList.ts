@@ -2,37 +2,28 @@ import { useEffect, useState } from "react";
 import {
   WebSocketLaboratoriesListListener,
   type CliWebsocketLaboratoriesListListenerLaboratoryStatus,
+  type LaboratoriesInlineLaboratoryImage,
+  type LaboratoriesLaboratoryImage,
 } from "@objectiveai/sdk";
 import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
-/** A laboratory's base image: an INLINE Containerfile spec, or a
- * split registry reference (`registry` + `name` + tag XOR digest).
- * A joined reference string never exists outside the laboratory
- * daemon, so the viewer renders the parts. */
-export type LaboratoryImage =
-  | { containerfile: string }
-  | { registry: string; name: string; tag?: string; digest?: string };
+/** A laboratory's base image — the SDK wire type (an INLINE
+ * Containerfile spec, or a split registry reference), re-exported
+ * under the viewer's short name. */
+export type LaboratoryImage = LaboratoriesLaboratoryImage;
 
 /** Narrow a LaboratoryImage to its inline form. */
 export function isInlineImage(
   image: LaboratoryImage,
-): image is { containerfile: string } {
+): image is LaboratoriesInlineLaboratoryImage {
   return "containerfile" in image;
 }
 
 /** One laboratory on the daemon's live list — the SDK wire type,
- * re-exported under the viewer's short name. `image` is overridden to
- * the split shape until the generated bindings regenerate. */
-export type LaboratoryStatus = Omit<
-  CliWebsocketLaboratoriesListListenerLaboratoryStatus,
-  "image"
-> & {
-  image: LaboratoryImage;
-  /** For agent laboratories, the full id of the source agent; absent
-   * for user-created laboratories. */
-  agent_full_id?: string | null;
-};
+ * re-exported under the viewer's short name. */
+export type LaboratoryStatus =
+  CliWebsocketLaboratoriesListListenerLaboratoryStatus;
 
 /**
  * The daemon's live laboratories list (`/laboratories/list`): the
