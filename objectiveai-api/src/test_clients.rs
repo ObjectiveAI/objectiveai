@@ -154,6 +154,7 @@ pub(crate) type AgentClient = crate::agent::completions::Client<
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
+    crate::agent::completions::script::Client,
     StubRetrieveClient,
     StubRetrieveClient,
     crate::retrieval::retrieve::mock::MockClient,
@@ -166,6 +167,7 @@ pub(crate) type VectorClient = crate::vector::completions::Client<
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
+    crate::agent::completions::script::Client,
     StubRetrieveClient,
     StubRetrieveClient,
     crate::retrieval::retrieve::mock::MockClient,
@@ -179,6 +181,7 @@ pub(crate) type FunctionExecutionsClient = crate::functions::executions::Client<
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
+    crate::agent::completions::script::Client,
     StubAgentUsageHandler,
     StubVectorUsageHandler,
     StubRetrieveClient,
@@ -345,6 +348,9 @@ static UNIMPLEMENTED_CLAUDE_AGENT_SDK: LazyLock<Arc<UnimplementedUpstreamClient>
 static UNIMPLEMENTED_CODEX_SDK: LazyLock<Arc<UnimplementedUpstreamClient>> =
     LazyLock::new(|| Arc::new(UnimplementedUpstreamClient));
 
+static SCRIPT_UPSTREAM: LazyLock<Arc<crate::agent::completions::script::Client>> =
+    LazyLock::new(|| Arc::new(crate::agent::completions::script::Client));
+
 // --- the API client singletons, each constructed once, ever ---
 
 static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
@@ -358,6 +364,7 @@ static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
         UNIMPLEMENTED_CLAUDE_AGENT_SDK.clone(),
         UNIMPLEMENTED_CODEX_SDK.clone(),
         MOCK_UPSTREAM.clone(),
+        SCRIPT_UPSTREAM.clone(),
         Duration::ZERO,
         Duration::ZERO,
         0.0,

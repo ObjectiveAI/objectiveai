@@ -343,6 +343,9 @@ impl McpHandler for ConduitMcpHandler {
             server_request::Payload::Retrieve(req) => {
                 dispatch_retrieve(&self.inner, req).await
             }
+            server_request::Payload::Script(req) => {
+                dispatch_script(&self.inner, req).await
+            }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
             // Laboratory-addressed payloads are intercepted above when a
             // route exists; reaching one of these arms means the transfer
@@ -1577,6 +1580,59 @@ fn retrieve_client_fields(
 }
 
 /// A `Retrieve` reply carrying a JSON-RPC error.
+/// One script-execution error reply.
+fn script_err(message: impl Into<String>) -> server_response::Payload {
+    server_response::Payload::Script(JsonRpcResult::Err {
+        code: -32603,
+        message: message.into(),
+        data: None,
+    })
+}
+
+/// Run a SCRIPT agent's code in-process on the embedded runtime — the
+/// SAME shared `ctx.python()` the `python` command uses. The FULL
+/// conversation rides in as the script's `input` global; the script's
+/// output deserializes as the assistant/tool-only messages array. No
+/// timeout — the runtime's existing posture (the API side owns any
+/// deadline discipline).
+///
+/// The execution context carries the request's TYPED identity fields
+/// (the same application `dial_plugin_upstream` does from the MCP
+/// path's transient headers), so anything the script runs via
+/// `objectiveai.execute` uses the calling agent's identity — its
+/// response id, agent full id, lineage.
+async fn dispatch_script(
+    inner: &Arc<Inner>,
+    req: server_request::ScriptRequest,
+) -> server_response::Payload {
+    let mut exec_ctx = inner.ctx.clone();
+    exec_ctx.config.agent_instance_hierarchy = req.agent_instance_hierarchy.clone();
+    exec_ctx.config.agent_id = Some(req.agent_id.clone());
+    exec_ctx.config.agent_full_id = Some(req.agent_full_id.clone());
+    exec_ctx.config.agent_remote = req.agent_remote.clone();
+    exec_ctx.config.response_id = Some(req.response_id.clone());
+    exec_ctx.config.response_ids = req.response_ids.clone();
+    exec_ctx.reset_api_client();
+    let python = match exec_ctx.python().await {
+        Ok(python) => python,
+        Err(e) => return script_err(format!("python runtime: {e}")),
+    };
+    let objectiveai_sdk::agent::script::Script::Python { python: code } = &req.script;
+    let output: Option<Vec<objectiveai_sdk::agent::script::OutputMessage>> =
+        match python.exec_code(&exec_ctx, code, Some(&req.messages)).await {
+            Ok(output) => output,
+            Err(e) => return script_err(format!("script: {e}")),
+        };
+    let Some(messages) = output else {
+        return script_err(
+            "script produced no output — it must output a messages array              (assistant/tool roles only)",
+        );
+    };
+    server_response::Payload::Script(JsonRpcResult::Ok {
+        result: server_response::ScriptResult { messages },
+    })
+}
+
 fn retrieve_err(message: impl Into<String>) -> server_response::Payload {
     server_response::Payload::Retrieve(JsonRpcResult::Err {
         code: -32603,

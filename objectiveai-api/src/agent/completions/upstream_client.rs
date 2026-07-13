@@ -45,6 +45,11 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         // this connection (e.g. via `list_tools`); the orchestrator no
         // longer pre-resolves tool names or maps for the upstream.
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        // the per-request reverse-attach handle (the WS to the calling
+        // client), when one exists. Script agents run their code on
+        // the client over this channel; every other upstream ignores
+        // it.
+        reverse_attach: Option<std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         // a continuation from a previous agent completion
         // the upstream client can continue conversations from previous state
         // the agent may change
@@ -122,6 +127,7 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         _mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        _reverse_attach: Option<std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
         _byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,

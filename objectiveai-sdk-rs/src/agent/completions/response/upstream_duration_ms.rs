@@ -37,6 +37,12 @@ pub struct UpstreamDurationMs {
     #[schemars(extend("omitempty" = true))]
     #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
     pub codex_sdk: Option<u64>,
+    /// Milliseconds spent in the Script upstream (client-side script
+    /// execution over the reverse channel).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
+    pub script: Option<u64>,
 }
 
 impl UpstreamDurationMs {
@@ -46,6 +52,7 @@ impl UpstreamDurationMs {
         self.openrouter.is_some()
             || self.claude_agent_sdk.is_some()
             || self.codex_sdk.is_some()
+            || self.script.is_some()
     }
 
     /// Appends durations from another instance, summing per-field.
@@ -56,5 +63,6 @@ impl UpstreamDurationMs {
             &other.claude_agent_sdk,
         );
         util::push_option_u64(&mut self.codex_sdk, &other.codex_sdk);
+        util::push_option_u64(&mut self.script, &other.script);
     }
 }

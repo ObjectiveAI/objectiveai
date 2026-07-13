@@ -72,7 +72,7 @@ fn spawn_drop_losers(
 
 // ---------------------------------------------------------------------------
 
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> {
     /// MCP Client
     pub mcp_client: Arc<objectiveai_sdk::mcp::Client>,
     /// Lazy in-process mcp-proxy used for every per-agent MCP connection.
@@ -91,6 +91,8 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub codex_sdk: Arc<CODEXSDK>,
     /// Upstream client for Mock agents.
     pub mock: Arc<MOCK>,
+    /// Upstream client for Script agents.
+    pub script: Arc<SCRIPT>,
 
     /// Current backoff interval for retry logic.
     pub backoff_current_interval: Duration,
@@ -113,7 +115,7 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> {
     pub fn new(
         mcp_client: Arc<objectiveai_sdk::mcp::Client>,
         proxy_spawner: Arc<super::ProxyFactory>,
@@ -124,6 +126,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
         claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
         codex_sdk: Arc<CODEXSDK>,
         mock: Arc<MOCK>,
+        script: Arc<SCRIPT>,
         backoff_current_interval: Duration,
         backoff_initial_interval: Duration,
         backoff_randomization_factor: f64,
@@ -142,6 +145,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             claude_agent_sdk,
             codex_sdk,
             mock,
+            script,
             backoff_current_interval,
             backoff_initial_interval,
             backoff_randomization_factor,
@@ -154,8 +158,8 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
-    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> Clone
+    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG>
 {
     fn clone(&self) -> Self {
         Self {
@@ -168,6 +172,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             claude_agent_sdk: self.claude_agent_sdk.clone(),
             codex_sdk: self.codex_sdk.clone(),
             mock: self.mock.clone(),
+            script: self.script.clone(),
             backoff_current_interval: self.backoff_current_interval,
             backoff_initial_interval: self.backoff_initial_interval,
             backoff_randomization_factor: self.backoff_randomization_factor,
@@ -180,13 +185,14 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: super::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: super::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: super::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: super::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
+    SCRIPT: super::UpstreamClient<objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRM: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -205,6 +211,7 @@ where
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
                 MOCK::State,
+                SCRIPT::State,
             >,
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -244,6 +251,7 @@ where
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
                 MOCK::State,
+                SCRIPT::State,
             >,
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -258,6 +266,7 @@ where
                     CLAUDEAGENTSDK::State,
                     CODEXSDK::State,
                     MOCK::State,
+                    SCRIPT::State,
                 >,
             >,
         > + Send
@@ -327,6 +336,7 @@ where
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
                 MOCK::State,
+                SCRIPT::State,
             >,
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -346,6 +356,7 @@ where
                     CLAUDEAGENTSDK::State,
                     CODEXSDK::State,
                     MOCK::State,
+                    SCRIPT::State,
                 >,
             >,
         > + Send,
@@ -390,20 +401,24 @@ where
             mut cont_items_cas,
             mut cont_items_cdx,
             mut cont_items_mock,
+            mut cont_items_script,
         ) = match continuation {
             Some(super::Continuation::Openrouter { items, .. }) => {
-                (items, vec![], vec![], vec![])
+                (items, vec![], vec![], vec![], vec![])
             }
             Some(super::Continuation::ClaudeAgentSdk { items, .. }) => {
-                (vec![], items, vec![], vec![])
+                (vec![], items, vec![], vec![], vec![])
             }
             Some(super::Continuation::CodexSdk { items, .. }) => {
-                (vec![], vec![], items, vec![])
+                (vec![], vec![], items, vec![], vec![])
             }
             Some(super::Continuation::Mock { items, .. }) => {
-                (vec![], vec![], vec![], items)
+                (vec![], vec![], vec![], items, vec![])
             }
-            None => (vec![], vec![], vec![], vec![]),
+            Some(super::Continuation::Script { items, .. }) => {
+                (vec![], vec![], vec![], vec![], items)
+            }
+            None => (vec![], vec![], vec![], vec![], vec![]),
         };
 
         // 3. Always resolve agents from params.agent.
@@ -1174,6 +1189,43 @@ where
                                 Err(e) => e,
                             }
                         }
+                        objectiveai_sdk::agent::InlineAgent::Script(script_agent) => {
+                            let rc = match &request_continuation {
+                                Some(objectiveai_sdk::agent::Continuation::Script(c)) => Some(c),
+                                _ => None,
+                            };
+                            match self.run_agent_loop(
+                                self.script.clone(), script_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
+                                ctx.queue_delegate(),
+                                &mut cont_items_script, &attempt.id, created,
+                                *byok_attempt, ctx.cost_multiplier,
+                                ctx.script_duration_cost,
+                                {
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
+                                    move |items| super::Continuation::Script {
+                                        items, agent_instance_hierarchy,
+                                    }
+                                },
+                                |e| super::Error::UpstreamScript(Box::new(e)),
+                                objectiveai_sdk::agent::InlineAgentRef::Script(&script_agent.base),
+                                disable_tools.clone(),
+                                agent_transform,
+                                ctx.cancellation_token(),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
+                            ).await {
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
+                                Err(e) => e,
+                            }
+                        }
                     };
                     errors.push(err);
                     // Cancellation is terminal: a StreamCancelled from
@@ -1431,6 +1483,7 @@ where
             params,
             &messages,
             mcp_connection.clone(),
+            reverse_attach.clone(),
             cont_ref,
             byok,
             cost_multiplier,
@@ -1499,6 +1552,7 @@ where
         // state, so the queue rows re-issue on the next loop.
         let _delegate_guard = delegate_guard;
         let queue_delegate_for_stream = queue_delegate.clone();
+        let reverse_attach_for_stream = reverse_attach.clone();
 
         Ok(Box::pin(async_stream::stream! {
             let mut aggregate: Option<
@@ -1792,6 +1846,7 @@ where
                         &params,
                         &messages,
                         mcp_connection.clone(),
+                        reverse_attach_for_stream.clone(),
                         Some(&continuation_items),
                         byok.as_deref(),
                         cost_multiplier,

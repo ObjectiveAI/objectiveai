@@ -479,6 +479,7 @@ pub async fn setup(
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
         }),
+        Arc::new(agent::completions::script::Client),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         BACKOFF_RANDOMIZATION_FACTOR,
@@ -868,6 +869,11 @@ async fn create_agent_completion(
             > + Send
             + Sync
             + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+            > + Send
+            + Sync
+            + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt>
             + Send
             + Sync
@@ -970,6 +976,11 @@ async fn create_vector_completion(
             > + Send
             + Sync
             + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+            > + Send
+            + Sync
+            + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt>
             + Send
             + Sync
@@ -1050,6 +1061,11 @@ async fn execute_function(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
             > + Send
             + Sync
             + 'static,

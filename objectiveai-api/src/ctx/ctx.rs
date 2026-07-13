@@ -18,6 +18,9 @@ pub struct DurationCosts {
     pub claude_agent_sdk_duration_cost: rust_decimal::Decimal,
     /// Rate for Codex SDK upstream wall time.
     pub codex_sdk_duration_cost: rust_decimal::Decimal,
+    /// Rate for Script upstream wall time (client-side script
+    /// execution over the reverse channel).
+    pub script_duration_cost: rust_decimal::Decimal,
 }
 
 impl DurationCosts {
@@ -26,6 +29,7 @@ impl DurationCosts {
         openrouter_duration_cost: rust_decimal::Decimal::ZERO,
         claude_agent_sdk_duration_cost: rust_decimal::Decimal::ZERO,
         codex_sdk_duration_cost: rust_decimal::Decimal::ZERO,
+        script_duration_cost: rust_decimal::Decimal::ZERO,
     };
 }
 
@@ -55,6 +59,9 @@ pub struct Context<CTXEXT> {
     /// Per-1-SECOND cost of Codex SDK upstream wall time
     /// (`usage.upstream_duration_ms.codex_sdk`).
     pub codex_sdk_duration_cost: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of Script upstream wall time
+    /// (`usage.upstream_duration_ms.script`).
+    pub script_duration_cost: rust_decimal::Decimal,
     /// Whether to suppress output (eprintln, logging, etc).
     pub suppress_output: bool,
     /// Per-request ObjectiveAI authorization token.
@@ -190,6 +197,7 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
             openrouter_duration_cost: self.openrouter_duration_cost,
             claude_agent_sdk_duration_cost: self.claude_agent_sdk_duration_cost,
             codex_sdk_duration_cost: self.codex_sdk_duration_cost,
+            script_duration_cost: self.script_duration_cost,
             suppress_output: self.suppress_output,
             objectiveai_authorization: self.objectiveai_authorization.clone(),
             openrouter_authorization: self.openrouter_authorization.clone(),
@@ -294,6 +302,7 @@ impl<CTXEXT> Context<CTXEXT> {
             openrouter_duration_cost: duration_costs.openrouter_duration_cost,
             claude_agent_sdk_duration_cost: duration_costs.claude_agent_sdk_duration_cost,
             codex_sdk_duration_cost: duration_costs.codex_sdk_duration_cost,
+            script_duration_cost: duration_costs.script_duration_cost,
             suppress_output,
             openrouter_authorization,
             github_authorization,

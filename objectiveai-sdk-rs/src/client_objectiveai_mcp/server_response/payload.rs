@@ -92,6 +92,13 @@ pub enum Payload {
     #[schemars(title = "Retrieve")]
     Retrieve(JsonRpcResult<super::super::retrieve::Response>),
 
+    /// Reply to
+    /// [`super::super::server_request::Payload::Script`]. On success
+    /// carries the script's output messages (assistant/tool only); on
+    /// failure surfaces the execution error. Non-MCP — no `mcp_kind`.
+    #[schemars(title = "Script")]
+    Script(JsonRpcResult<ScriptResult>),
+
     /// Acknowledges
     /// [`super::super::server_request::Payload::Drop`]. Infallible — no
     /// `JsonRpcResult` wrapper; carries `dropped`: whether a bucket for
@@ -156,6 +163,7 @@ impl Payload {
             | Payload::SessionTerminate { mcp_kind, .. } => Some(mcp_kind.clone()),
             Payload::ReadMessageQueue(_)
             | Payload::Retrieve(_)
+            | Payload::Script(_)
             | Payload::Drop(_)
             | Payload::LaboratoryExportBegin(_)
             | Payload::LaboratoryExportRead(_)
@@ -302,4 +310,14 @@ pub enum JsonRpcResult<R> {
         #[schemars(extend("omitempty" = true))]
         data: Option<serde_json::Value>,
     },
+}
+
+/// Successful payload for [`Payload::Script`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.ScriptResult")]
+pub struct ScriptResult {
+    /// The script's output: the messages it appends to the
+    /// conversation. Assistant/tool roles only — a script never puts
+    /// words in the user's mouth.
+    pub messages: Vec<crate::agent::script::OutputMessage>,
 }

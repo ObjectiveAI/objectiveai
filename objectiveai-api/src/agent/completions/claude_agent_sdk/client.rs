@@ -189,6 +189,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
         params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        _reverse_attach: Option<std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,

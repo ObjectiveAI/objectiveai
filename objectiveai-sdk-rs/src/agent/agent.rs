@@ -29,6 +29,8 @@ pub enum InlineAgentBase {
     CodexSdk(super::codex_sdk::AgentBase),
     #[schemars(title = "Mock")]
     Mock(super::mock::AgentBase),
+    #[schemars(title = "Script")]
+    Script(super::script::AgentBase),
 }
 
 impl InlineAgentBase {
@@ -40,6 +42,7 @@ impl InlineAgentBase {
             }
             InlineAgentBase::CodexSdk(b) => InlineAgentRef::CodexSdk(b),
             InlineAgentBase::Mock(b) => InlineAgentRef::Mock(b),
+            InlineAgentBase::Script(b) => InlineAgentRef::Script(b),
         }
     }
 
@@ -75,6 +78,7 @@ impl InlineAgentBase {
             InlineAgentBase::ClaudeAgentSdk(b) => b.prepare(),
             InlineAgentBase::CodexSdk(b) => b.prepare(),
             InlineAgentBase::Mock(b) => b.prepare(),
+            InlineAgentBase::Script(b) => b.prepare(),
         }
     }
 
@@ -84,6 +88,7 @@ impl InlineAgentBase {
             InlineAgentBase::ClaudeAgentSdk(b) => b.validate(),
             InlineAgentBase::CodexSdk(b) => b.validate(),
             InlineAgentBase::Mock(b) => b.validate(),
+            InlineAgentBase::Script(b) => b.validate(),
         }
     }
 
@@ -93,6 +98,7 @@ impl InlineAgentBase {
             InlineAgentBase::ClaudeAgentSdk(b) => b.id(),
             InlineAgentBase::CodexSdk(b) => b.id(),
             InlineAgentBase::Mock(b) => b.id(),
+            InlineAgentBase::Script(b) => b.id(),
         }
     }
 
@@ -109,6 +115,9 @@ impl InlineAgentBase {
                 Ok(InlineAgent::CodexSdk(b.try_into()?))
             }
             InlineAgentBase::Mock(b) => Ok(InlineAgent::Mock(b.try_into()?)),
+            InlineAgentBase::Script(b) => {
+                Ok(InlineAgent::Script(b.try_into()?))
+            }
         }
     }
 }
@@ -279,6 +288,7 @@ pub enum InlineAgentRef<'a> {
     ClaudeAgentSdk(&'a super::claude_agent_sdk::AgentBase),
     CodexSdk(&'a super::codex_sdk::AgentBase),
     Mock(&'a super::mock::AgentBase),
+    Script(&'a super::script::AgentBase),
 }
 
 impl<'a> InlineAgentRef<'a> {
@@ -292,6 +302,7 @@ impl<'a> InlineAgentRef<'a> {
             }
             InlineAgentRef::CodexSdk(b) => InlineAgentBase::CodexSdk(b.clone()),
             InlineAgentRef::Mock(b) => InlineAgentBase::Mock(b.clone()),
+            InlineAgentRef::Script(b) => InlineAgentBase::Script(b.clone()),
         }
     }
 
@@ -301,6 +312,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => &b.model,
             InlineAgentRef::CodexSdk(b) => &b.model,
             InlineAgentRef::Mock(_) => super::mock::AgentBase::model(),
+            InlineAgentRef::Script(_) => super::script::AgentBase::model(),
         }
     }
 
@@ -312,6 +324,7 @@ impl<'a> InlineAgentRef<'a> {
             }
             InlineAgentRef::CodexSdk(_) => super::Upstream::CodexSdk,
             InlineAgentRef::Mock(_) => super::Upstream::Mock,
+            InlineAgentRef::Script(_) => super::Upstream::Script,
         }
     }
 
@@ -321,6 +334,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => b.output_mode.into(),
             InlineAgentRef::CodexSdk(b) => b.output_mode.into(),
             InlineAgentRef::Mock(b) => b.output_mode.into(),
+            InlineAgentRef::Script(b) => b.output_mode.into(),
         }
     }
 
@@ -330,6 +344,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::CodexSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::Mock(b) => b.mcp_servers.as_ref(),
+            InlineAgentRef::Script(b) => b.mcp_servers.as_ref(),
         }
     }
 
@@ -339,6 +354,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => b.laboratories.as_ref(),
             InlineAgentRef::CodexSdk(b) => b.laboratories.as_ref(),
             InlineAgentRef::Mock(b) => b.laboratories.as_ref(),
+            InlineAgentRef::Script(b) => b.laboratories.as_ref(),
         }
     }
 
@@ -352,6 +368,7 @@ impl<'a> InlineAgentRef<'a> {
             }
             InlineAgentRef::CodexSdk(b) => b.client_objectiveai_mcp.as_ref(),
             InlineAgentRef::Mock(b) => b.client_objectiveai_mcp.as_ref(),
+            InlineAgentRef::Script(b) => b.client_objectiveai_mcp.as_ref(),
         }
     }
 
@@ -361,6 +378,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(_) => None,
             InlineAgentRef::CodexSdk(_) => None,
             InlineAgentRef::Mock(b) => b.top_logprobs,
+            InlineAgentRef::Script(_) => None,
         }
     }
 
@@ -373,6 +391,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::ClaudeAgentSdk(b) => b.merged_messages(messages),
             InlineAgentRef::CodexSdk(b) => b.merged_messages(messages),
             InlineAgentRef::Mock(b) => b.merged_messages(messages),
+            InlineAgentRef::Script(b) => b.merged_messages(messages),
         }
     }
 }
@@ -394,6 +413,8 @@ pub enum InlineAgent {
     CodexSdk(super::codex_sdk::Agent),
     #[schemars(title = "Mock")]
     Mock(super::mock::Agent),
+    #[schemars(title = "Script")]
+    Script(super::script::Agent),
 }
 
 impl InlineAgent {
@@ -403,6 +424,7 @@ impl InlineAgent {
             InlineAgent::ClaudeAgentSdk(a) => &a.id,
             InlineAgent::CodexSdk(a) => &a.id,
             InlineAgent::Mock(a) => &a.id,
+            InlineAgent::Script(a) => &a.id,
         }
     }
 
@@ -414,6 +436,7 @@ impl InlineAgent {
             }
             InlineAgent::CodexSdk(a) => InlineAgentRef::CodexSdk(&a.base),
             InlineAgent::Mock(a) => InlineAgentRef::Mock(&a.base),
+            InlineAgent::Script(a) => InlineAgentRef::Script(&a.base),
         }
     }
 
@@ -425,6 +448,7 @@ impl InlineAgent {
             }
             InlineAgent::CodexSdk(a) => InlineAgentBase::CodexSdk(a.base),
             InlineAgent::Mock(a) => InlineAgentBase::Mock(a.base),
+            InlineAgent::Script(a) => InlineAgentBase::Script(a.base),
         }
     }
 

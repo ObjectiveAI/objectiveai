@@ -36,6 +36,7 @@ mod laboratory;
 mod mcp;
 pub mod mock;
 pub mod openrouter;
+pub mod script;
 mod output_mode;
 mod upstream;
 

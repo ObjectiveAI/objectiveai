@@ -80,6 +80,13 @@ pub enum Payload {
     #[schemars(title = "Retrieve")]
     Retrieve(super::super::retrieve::Request),
 
+    /// Run a SCRIPT agent's code on the client and return its output
+    /// messages. Non-MCP — no `mcp_kind`: the CLI executes the code
+    /// in-process on its embedded runtime (the same one the `python`
+    /// command uses), with the FULL conversation as the script input.
+    #[schemars(title = "Script")]
+    Script(ScriptRequest),
+
     /// Forceful bulk teardown of every upstream connection for one
     /// objectiveai response id. Non-MCP — no `mcp_kind` (it spans all
     /// kinds for that response id). The CLI removes the whole
@@ -162,6 +169,7 @@ impl Payload {
             | Payload::SessionTerminate { mcp_kind } => Some(mcp_kind.clone()),
             Payload::ReadMessageQueue(_)
             | Payload::Retrieve(_)
+            | Payload::Script(_)
             | Payload::Drop(_)
             | Payload::LaboratoryExportBegin(_)
             | Payload::LaboratoryExportRead(_)
@@ -354,4 +362,42 @@ pub struct InitializeRequest {
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     #[schemars(extend("omitempty" = true))]
     pub args: IndexMap<String, Option<String>>,
+}
+
+/// Parameters for [`Payload::Script`].
+///
+/// The identity fields mirror the MCP path's transient headers, but
+/// TYPED (the non-MCP convention — cf. [`ReadMessageQueueRequest`]'s
+/// `agent_instance_hierarchy`): the CLI applies them to the script's
+/// execution context, so anything the script runs via
+/// `objectiveai.execute` uses the calling agent's identity.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.ScriptRequest")]
+pub struct ScriptRequest {
+    /// The code to run — the agent's `type`-tagged script definition
+    /// (`{"type":"python","python":"…"}`).
+    pub script: crate::agent::script::Script,
+    /// The FULL conversation the script receives as its input: the
+    /// request messages plus everything the continuation carries, in
+    /// order.
+    pub messages: Vec<crate::agent::completions::message::Message>,
+    /// Full slash-separated lineage of the agent running this script.
+    pub agent_instance_hierarchy: String,
+    /// Leaf agent id of the attempt running this script.
+    pub agent_id: String,
+    /// WF-level id: the primary agent's id concatenated with all
+    /// fallback ids.
+    pub agent_full_id: String,
+    /// JSON-encoded `RemotePath` the agent was fetched from; `None`
+    /// when the agent was supplied inline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_remote: Option<String>,
+    /// The objectiveai response id of this agent run.
+    pub response_id: String,
+    /// The dash-joined sibling response-id group, when known. `None`
+    /// ⇒ the execution context carries no group.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_ids: Option<String>,
 }

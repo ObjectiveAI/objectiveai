@@ -56,6 +56,9 @@ pub(crate) async fn create_agent_completion_ws(
             impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send + Sync + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+            > + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -177,17 +180,17 @@ pub(crate) async fn create_agent_completion_ws(
 }
 
 pub(crate) async fn create_vector_completion_ws<
-    OR, CAG, CX, MK, RG, RF, RM, AU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, MK, SPT, RG, RF, RM, AU, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         vector::completions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, RG, RF, RM, AU,
+            OR, CAG, CX, MK, SPT, RG, RF, RM, AU,
             impl vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
@@ -206,6 +209,9 @@ where
     MK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         > + Send + Sync + 'static,
+    SPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+        > + Send + Sync + 'static,
     RG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     RF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     RM: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -221,6 +227,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -317,16 +326,16 @@ where
 }
 
 pub(crate) async fn execute_function_ws<
-    OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, MK, SPT, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         functions::executions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU,
+            OR, CAG, CX, MK, SPT, AU, VAU, RG, RF, RM, FAU,
         >,
     >,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
@@ -345,6 +354,9 @@ where
     MK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         > + Send + Sync + 'static,
+    SPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+        > + Send + Sync + 'static,
     AU: agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
     VAU: vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
     RG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -362,6 +374,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -453,10 +468,10 @@ where
     })
 }
 
-pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
+pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>(
     client: Arc<functions::profiles::computations::ObjectiveAiClient>,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
@@ -474,6 +489,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -568,10 +586,10 @@ where
     })
 }
 
-pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
+pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>(
     client: Arc<crate::error::Client>,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
@@ -589,6 +607,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
