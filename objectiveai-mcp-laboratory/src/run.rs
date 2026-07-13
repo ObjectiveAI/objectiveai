@@ -133,6 +133,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     let router = axum::Router::new()
         .route("/export", axum::routing::get(crate::transfer::export))
         .route("/import", axum::routing::post(crate::transfer::import))
+        .route("/filetree", axum::routing::get(crate::filetree::filetree))
         .fallback_service(service);
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
 

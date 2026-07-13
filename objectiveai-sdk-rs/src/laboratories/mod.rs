@@ -15,6 +15,7 @@
 pub mod daemon;
 
 mod composite;
+pub mod filetree;
 mod image;
 mod laboratories;
 

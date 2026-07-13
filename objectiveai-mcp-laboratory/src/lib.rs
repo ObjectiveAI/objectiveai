@@ -6,6 +6,7 @@
 
 mod bash;
 mod composite;
+mod filetree;
 mod run;
 mod tools;
 mod transfer;
