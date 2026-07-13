@@ -12,14 +12,14 @@
 //! the wake's whole life, and releases when it ends.
 //!
 //! The observable is the lock-driven `active` flag on the daemon's
-//! `/agents/instances/{aih}` status stream (the same signal
+//! `/agents/instances/list` status stream (the same signal
 //! `agents_listeners_e2e` pins for spawn): Activated fires on the
-//! family acquire, Deactivated on release. The discriminator is
-//! DURATION, not an instant: a healthy wake holds for its whole
-//! multi-second turn, so the active span between the recorded
-//! Activated → Deactivated edges spans well over [`MIN_HELD_STREAK`].
-//! If the wake ever dropped and re-acquired the family mid-life, the
-//! longest single span collapses to the blip and the assertion fails.
+//! family acquire, Deactivated on release. The discriminator is EDGE
+//! COUNT, not duration — a wake is one fast in-daemon mock turn (tens
+//! of milliseconds), so a healthy hold is exactly ONE Activated →
+//! Deactivated pair. If the wake ever dropped and re-acquired the
+//! family mid-life (the incident's failure mode), a second rising
+//! edge appears and the assertion fails.
 
 mod cli_test_util;
 
@@ -37,15 +37,9 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
-use objectiveai_sdk::cli::websocket_agents_instances_listener::WebSocketAgentsInstancesListener;
+use objectiveai_sdk::cli::websocket_agents_instances_list_listener::WebSocketAgentsInstancesListListener;
 
 const SEED: i64 = 42;
-
-/// The longest active span must last at least this long. Healthy: the
-/// wake holds the family for its whole turn (seconds). Broken
-/// hold-continuity: only sub-100ms acquire/release blips are ever
-/// observed.
-const MIN_HELD_STREAK: Duration = Duration::from_millis(500);
 
 /// Overall cap on the message wait — far beyond any healthy turn;
 /// the harness hang-watchdog backstops the whole test anyway.
@@ -108,23 +102,42 @@ async fn message_wake_child_holds_the_aih_lock() {
     cli_test_util::wait_for_agent(&executor, &aih).await;
 
     // ── 2. Watch the AIH's lock-driven active flag; idle now ─────
-    // Every applied status record is timestamped at receipt — the
-    // Activated → Deactivated edge pair measures the wake's hold.
+    // The LIST route ships typed Activated/Deactivated DELTAS (the
+    // instance route rebuilds its record from live state, which races
+    // a tens-of-milliseconds wake). Every applied delta fires
+    // `on_change` with the folded statuses — record our AIH's flag per
+    // event; the sequence of flags carries the edge structure.
     let addr = cli_test_util::daemon_ws_address(&executor, &state).await;
-    let transitions: Arc<Mutex<Vec<(Instant, bool)>>> = Arc::new(Mutex::new(Vec::new()));
+    let transitions: Arc<Mutex<Vec<bool>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&transitions);
-    let listener = WebSocketAgentsInstancesListener::new(format!(
-        "{addr}/agents/instances/{aih}"
+    let watch_aih = aih.clone();
+    let listener = WebSocketAgentsInstancesListListener::new(format!(
+        "{addr}/agents/instances/list"
     ))
-    .on_agent_change(move |record| {
-        recorder.lock().unwrap().push((Instant::now(), record.active));
+    .on_change(move |agents| {
+        if let Some(status) = agents
+            .iter()
+            .find(|a| a.agent_instance_hierarchy == watch_aih)
+        {
+            recorder.lock().unwrap().push(status.active);
+        }
     })
     .connect()
     .await
-    .expect("connect /agents/instances/{aih}");
-    wait_for!("the connect-time status record", listener.agent().await.is_some());
+    .expect("connect /agents/instances/list");
+    wait_for!("the connect-time list snapshot", {
+        listener
+            .agents()
+            .await
+            .iter()
+            .any(|a| a.agent_instance_hierarchy == aih)
+    });
     assert!(
-        listener.agent().await.is_some_and(|r| !r.active),
+        listener
+            .agents()
+            .await
+            .iter()
+            .any(|a| a.agent_instance_hierarchy == aih && !a.active),
         "agent exited — it must be inactive before the message"
     );
 
@@ -171,41 +184,44 @@ async fn message_wake_child_holds_the_aih_lock() {
 
     // ── 4. Released once the wake ends ───────────────────────────
     cli_test_util::wait_for_agent(&executor, &aih).await;
-    wait_for!(
-        "the record to settle inactive after the wake",
-        listener.agent().await.is_some_and(|r| !r.active)
-    );
+    wait_for!("the wake's Activated then Deactivated deltas", {
+        let log = transitions.lock().unwrap().clone();
+        log.iter().any(|active| *active)
+            && log.last().is_some_and(|active| !*active)
+    });
 
-    // ── 5. The longest single active span covers the wake's life ─
-    // Fold the timestamped records into contiguous active spans.
-    // Re-shipped records with an unchanged flag (tag/queue rebuilds)
-    // extend the current span; a false record closes it.
+    // ── 5. Exactly ONE contiguous active span — hold continuity ──
+    // Post-split a wake is one fast in-daemon mock turn (tens of ms),
+    // so span DURATION proves nothing; the invariant is that the
+    // family is acquired ONCE and held to the end. A drop-and-
+    // reacquire mid-life shows up as a second rising edge in the
+    // recorded transitions. Re-shipped statuses with an unchanged
+    // flag (other agents' deltas) don't edge.
     let log = transitions.lock().unwrap().clone();
-    let mut longest = Duration::ZERO;
-    let mut span_start: Option<Instant> = None;
-    for (at, active) in &log {
-        match (active, span_start) {
-            (true, None) => span_start = Some(*at),
-            (true, Some(_)) => {}
-            (false, Some(start)) => {
-                longest = longest.max(at.duration_since(start));
-                span_start = None;
+    let mut rising_edges = 0usize;
+    let mut in_span = false;
+    for active in &log {
+        match (active, in_span) {
+            (true, false) => {
+                rising_edges += 1;
+                in_span = true;
             }
-            (false, None) => {}
+            (false, true) => in_span = false,
+            _ => {}
         }
     }
     assert!(
-        span_start.is_none(),
-        "the record settled inactive above, so every span must be closed"
+        !in_span,
+        "the record settled inactive above, so the last span must be closed"
     );
     assert!(
-        log.iter().any(|(_, active)| *active),
-        "the wake must activate the agent at least once (no Activated record seen)"
+        rising_edges >= 1,
+        "the wake must activate the agent (no Activated record seen)"
     );
-    assert!(
-        longest >= MIN_HELD_STREAK,
-        "the AIH family must stay held for the wake's whole life \
-         (longest observed active span {longest:?} < {MIN_HELD_STREAK:?}) — \
-         a sub-100ms blip means the wake dropped and re-acquired mid-life"
+    assert_eq!(
+        rising_edges, 1,
+        "the AIH family must be acquired exactly once for the wake's \
+         whole life — {rising_edges} rising edges means it was dropped \
+         and re-acquired mid-life (the chat-incident failure mode)"
     );
 }
