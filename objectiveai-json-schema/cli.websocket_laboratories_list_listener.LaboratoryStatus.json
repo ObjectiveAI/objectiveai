@@ -3,6 +3,18 @@
   "description": "One laboratory on the `/laboratories/list` stream: its spec, the\nmachine whose host serves it, and whether that host is connected\nright now. There is no local-vs-remote split — machine identity is\nthe only provenance.",
   "type": "object",
   "properties": {
+    "agent_full_id": {
+      "description": "For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "connected": {
       "description": "Whether the serving host's `/laboratory` connection is live\nright now.",
       "type": "boolean"
@@ -35,7 +47,7 @@
       "type": "string"
     },
     "image": {
-      "type": "string"
+      "$ref": "laboratories.LaboratoryImage"
     },
     "machine": {
       "description": "The machine whose laboratory host serves this laboratory.",

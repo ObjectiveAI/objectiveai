@@ -41,6 +41,14 @@
       "enum": [
         "mock"
       ]
+    },
+    {
+      "title": "Script",
+      "description": "Script Upstream.",
+      "type": "string",
+      "enum": [
+        "script"
+      ]
     }
   ]
 }

@@ -1,0 +1,8 @@
+{
+  "title": "agent.script.Upstream",
+  "description": "Script upstream marker.",
+  "type": "string",
+  "enum": [
+    "script"
+  ]
+}

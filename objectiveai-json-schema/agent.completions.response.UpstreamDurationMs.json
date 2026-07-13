@@ -44,6 +44,20 @@
         }
       ],
       "omitempty": true
+    },
+    "script": {
+      "description": "Milliseconds spent in the Script upstream (client-side script\nexecution over the reverse channel).",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     }
   }
 }

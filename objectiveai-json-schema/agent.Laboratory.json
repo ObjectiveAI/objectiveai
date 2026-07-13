@@ -1,0 +1,43 @@
+{
+  "title": "agent.Laboratory",
+  "description": "A laboratory provisioned for an agent: the container spec the CLI\nconduit materializes on demand at MCP-initialize. No mounts —\nagent laboratories don't support them.",
+  "type": "object",
+  "properties": {
+    "cwd": {
+      "description": "Working directory new agents start in. `\"/\"` (the create-time\ndefault) collapses to `None` in prepare.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "env": {
+      "description": "`[key, value]` environment pairs. Sorted by prepare; empty\ncollapses to `None`.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "image": {
+      "description": "The base image — an inline Containerfile XOR a split registry\nreference.",
+      "$ref": "laboratories.LaboratoryImage"
+    }
+  }
+}

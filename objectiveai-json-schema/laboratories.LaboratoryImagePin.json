@@ -1,0 +1,28 @@
+{
+  "title": "laboratories.LaboratoryImagePin",
+  "description": "The image's version pin: a floating `tag` or a content-addressed\n`digest` — mutually exclusive by construction.",
+  "anyOf": [
+    {
+      "title": "Tag",
+      "description": "`registry/name:tag`.",
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "Digest",
+      "description": "`registry/name@digest` — content-addressed, immutable.",
+      "type": "object",
+      "properties": {
+        "digest": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

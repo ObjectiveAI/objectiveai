@@ -17,6 +17,10 @@
     {
       "title": "Mock",
       "$ref": "agent.mock.Continuation"
+    },
+    {
+      "title": "Script",
+      "$ref": "agent.script.Continuation"
     }
   ]
 }

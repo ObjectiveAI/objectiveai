@@ -30,7 +30,7 @@
       "type": "string"
     },
     "image": {
-      "type": "string"
+      "$ref": "laboratories.LaboratoryImage"
     },
     "machine": {
       "description": "The machine whose laboratory host owns the container.",

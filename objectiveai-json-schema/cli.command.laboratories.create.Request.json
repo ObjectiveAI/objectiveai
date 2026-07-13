@@ -17,7 +17,8 @@
       "type": "string"
     },
     "image": {
-      "type": "string"
+      "description": "The base image, split (`registry` + `name` + tag XOR digest) —\na joined reference string is never accepted, so unqualified\nshort names are unrepresentable.",
+      "$ref": "laboratories.LaboratoryImage"
     },
     "jq": {
       "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",

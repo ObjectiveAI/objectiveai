@@ -3,6 +3,18 @@
   "description": "One laboratory served by a connected laboratory HOST. There is no\nlocal-vs-remote split — machine identity is the only provenance,\nthe same logic regardless of where the host runs.",
   "type": "object",
   "properties": {
+    "agent_full_id": {
+      "description": "For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "created_at": {
       "description": "Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.",
       "anyOf": [
@@ -30,7 +42,7 @@
       "type": "string"
     },
     "image": {
-      "type": "string"
+      "$ref": "laboratories.LaboratoryImage"
     },
     "machine": {
       "description": "The machine whose laboratory host serves this laboratory.",

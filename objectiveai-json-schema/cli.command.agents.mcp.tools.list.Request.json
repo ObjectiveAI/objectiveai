@@ -57,7 +57,16 @@
       ]
     },
     "response_id": {
-      "type": "string"
+      "description": "Objectiveai response id of the live agent to address. `None` ⇒\nresolved from the caller's contextual agent arguments\n(`OBJECTIVEAI_RESPONSE_ID`); an error if absent there too.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "timeout_seconds": {
       "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",

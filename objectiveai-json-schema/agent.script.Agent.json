@@ -1,7 +1,8 @@
 {
-  "title": "agent.codex_sdk.AgentBase",
-  "description": "The base configuration for a Codex SDK Agent (without computed ID).",
+  "title": "agent.script.Agent",
+  "description": "A validated Script Agent with its computed content-addressed ID.",
   "type": "object",
+  "$ref": "agent.script.Script",
   "properties": {
     "client_objectiveai_mcp": {
       "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
@@ -15,17 +16,9 @@
       ],
       "omitempty": true
     },
-    "effort": {
-      "description": "Reasoning effort — maps to Codex's `model_reasoning_effort`.",
-      "anyOf": [
-        {
-          "$ref": "agent.codex_sdk.Effort"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+    "id": {
+      "description": "The deterministic content-addressed ID (22-character base62 string).",
+      "type": "string"
     },
     "laboratories": {
       "description": "Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).",
@@ -57,53 +50,13 @@
       ],
       "omitempty": true
     },
-    "model": {
-      "description": "The upstream language model identifier (e.g. `gpt-5`).",
-      "type": "string"
-    },
     "output_mode": {
       "description": "The output mode for vector completions. Ignored for agent completions.",
-      "$ref": "agent.codex_sdk.OutputMode"
-    },
-    "prefix_content": {
-      "description": "Rich content prepended to the user's prompt.",
-      "anyOf": [
-        {
-          "$ref": "agent.completions.message.RichContent"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "suffix_content": {
-      "description": "Rich content appended after the user's prompt.",
-      "anyOf": [
-        {
-          "$ref": "agent.completions.message.RichContent"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+      "$ref": "agent.script.OutputMode"
     },
     "upstream": {
       "description": "The upstream provider marker.",
-      "$ref": "agent.codex_sdk.Upstream"
-    },
-    "web_search_enabled": {
-      "description": "Whether this agent may use the codex binary's web-search tool.",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+      "$ref": "agent.script.Upstream"
     }
   }
 }

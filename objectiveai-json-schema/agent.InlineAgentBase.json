@@ -17,6 +17,10 @@
     {
       "title": "Mock",
       "$ref": "agent.mock.AgentBase"
+    },
+    {
+      "title": "Script",
+      "$ref": "agent.script.AgentBase"
     }
   ]
 }
