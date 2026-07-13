@@ -17,4 +17,5 @@ when that upstream was never used."""
     claude_agent_sdk: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Milliseconds spent in the Claude Agent SDK upstream.', json_schema_extra={'omitempty': True})
     codex_sdk: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Milliseconds spent in the Codex SDK upstream.', json_schema_extra={'omitempty': True})
     openrouter: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Milliseconds spent in the OpenRouter upstream.', json_schema_extra={'omitempty': True})
+    script: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Milliseconds spent in the Script upstream (client-side script\nexecution over the reverse channel).', json_schema_extra={'omitempty': True})
 

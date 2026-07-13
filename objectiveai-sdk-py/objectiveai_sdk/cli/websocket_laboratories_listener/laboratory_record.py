@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.cli.command.laboratories.create.env_var import EnvVar
 from objectiveai_sdk.cli.command.laboratories.create.mount import Mount
 from objectiveai_sdk.cli.websocket_laboratories_listener.laboratory_attachment import LaboratoryAttachment
+from objectiveai_sdk.laboratories.laboratory_image import LaboratoryImage
 from objectiveai_sdk.machine.machine_identity import MachineIdentity
 
 
@@ -18,13 +19,14 @@ ONLY through attachment rows (or not at all) zero-fills them —
 split — machine identity is the only provenance."""
     model_config = ConfigDict(title='cli.websocket_laboratories_listener.LaboratoryRecord')
 
+    agent_full_id: Optional[str] = Field(None, description='For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.', json_schema_extra={'omitempty': True})
     attachments: list[LaboratoryAttachment] = Field([], description='Every attachment row targeting this laboratory, oldest first.')
     connected: bool = Field(..., description="Whether the serving host's `/laboratory` connection is live\nright now.")
     created_at: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description="Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the identity source\ndidn't report it (or the laboratory is known only through\nattachment rows).", json_schema_extra={'omitempty': True})
     cwd: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     env: list[EnvVar] = []
     id: str = Field(..., description='Raw (state-agnostic) laboratory id.')
-    image: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    image: Optional[LaboratoryImage] = Field(None, json_schema_extra={'omitempty': True})
     machine: Optional[MachineIdentity] = Field(None, description='The machine whose laboratory host serves this laboratory —\n`None` when no connected host serves it.', json_schema_extra={'omitempty': True})
     machine_state: Optional[str] = Field(None, description='The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).', json_schema_extra={'omitempty': True})
     mounts: list[Mount] = []

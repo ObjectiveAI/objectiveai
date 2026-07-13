@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.cli.command.laboratories.create.env_var import EnvVar
 from objectiveai_sdk.cli.command.laboratories.create.mount import Mount
+from objectiveai_sdk.laboratories.laboratory_image import LaboratoryImage
 from objectiveai_sdk.machine.machine_identity import MachineIdentity
 
 
@@ -14,11 +15,12 @@ local-vs-remote split — machine identity is the only provenance,
 the same logic regardless of where the host runs."""
     model_config = ConfigDict(title='cli.command.laboratories.list.ResponseItem')
 
+    agent_full_id: Optional[str] = Field(None, description='For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.', json_schema_extra={'omitempty': True})
     created_at: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description="Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.", json_schema_extra={'omitempty': True})
     cwd: str
     env: list[EnvVar]
     id: str
-    image: str
+    image: LaboratoryImage
     machine: Optional[MachineIdentity] = Field(None, description='The machine whose laboratory host serves this laboratory.', json_schema_extra={'omitempty': True})
     machine_state: Optional[str] = Field(None, description='The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).', json_schema_extra={'omitempty': True})
     mounts: list[Mount]

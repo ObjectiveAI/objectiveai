@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.cli.command.laboratories.create.env_var import EnvVar
 from objectiveai_sdk.cli.command.laboratories.create.mount import Mount
+from objectiveai_sdk.laboratories.laboratory_image import LaboratoryImage
 from objectiveai_sdk.machine.machine_identity import MachineIdentity
 
 
@@ -16,7 +17,7 @@ class Response(BaseModel):
     cwd: str
     env: list[EnvVar]
     id: str
-    image: str
+    image: LaboratoryImage
     machine: Optional[MachineIdentity] = Field(None, description='The machine whose laboratory host owns the container.', json_schema_extra={'omitempty': True})
     machine_state: Optional[str] = Field(None, description='The state (on that machine) whose laboratory host owns the\ncontainer.', json_schema_extra={'omitempty': True})
     mounts: list[Mount]

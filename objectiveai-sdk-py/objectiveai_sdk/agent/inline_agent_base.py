@@ -7,6 +7,7 @@ from objectiveai_sdk.agent.claude_agent_sdk.agent_base import AgentBase as Agent
 from objectiveai_sdk.agent.codex_sdk.agent_base import AgentBase as AgentCodexSdkAgentBase
 from objectiveai_sdk.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai_sdk.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
+from objectiveai_sdk.agent.script.agent_base import AgentBase as AgentScriptAgentBase
 
 
 class InlineAgentBaseOpenrouter(RootModel):
@@ -33,6 +34,12 @@ class InlineAgentBaseMock(RootModel):
     root: AgentMockAgentBase
 
 
+class InlineAgentBaseScript(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Script'})
+
+    root: AgentScriptAgentBase
+
+
 class InlineAgentBase(RootModel):
     """The base inline configuration for an Agent (without computed ID or metadata).
 
@@ -40,5 +47,5 @@ This is an untagged enum that dispatches to the per-upstream AgentBase.
 Deserialization tries each variant in order until one matches."""
     model_config = ConfigDict(title='agent.InlineAgentBase')
 
-    root: Union[InlineAgentBaseOpenrouter, InlineAgentBaseClaudeAgentSdk, InlineAgentBaseCodexSdk, InlineAgentBaseMock]
+    root: Union[InlineAgentBaseOpenrouter, InlineAgentBaseClaudeAgentSdk, InlineAgentBaseCodexSdk, InlineAgentBaseMock, InlineAgentBaseScript]
 

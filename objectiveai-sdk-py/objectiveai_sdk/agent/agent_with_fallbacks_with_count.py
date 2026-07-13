@@ -9,6 +9,7 @@ from objectiveai_sdk.agent.codex_sdk.agent import Agent as AgentCodexSdkAgent
 from objectiveai_sdk.agent.inline_agent import InlineAgent
 from objectiveai_sdk.agent.mock.agent import Agent as AgentMockAgent
 from objectiveai_sdk.agent.openrouter.agent import Agent as AgentOpenrouterAgent
+from objectiveai_sdk.agent.script.agent import Agent as AgentScriptAgent
 
 
 class AgentWithFallbacksWithCountRemoteOpenrouter(AgentOpenrouterAgent):
@@ -35,6 +36,12 @@ class AgentWithFallbacksWithCountRemoteMock(AgentMockAgent):
     fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
 
 
+class AgentWithFallbacksWithCountRemoteScript(AgentScriptAgent):
+    description: str
+    count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
+    fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
+
+
 class AgentWithFallbacksWithCountInlineOpenrouter(AgentOpenrouterAgent):
     fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
@@ -55,9 +62,14 @@ class AgentWithFallbacksWithCountInlineMock(AgentMockAgent):
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
 
 
+class AgentWithFallbacksWithCountInlineScript(AgentScriptAgent):
+    fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
+    count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
+
+
 class AgentWithFallbacksWithCount(RootModel):
     """An [`AgentWithFallbacks`] with a count (post-validation swarm agent slot)."""
     model_config = ConfigDict(title='agent.AgentWithFallbacksWithCount', json_schema_extra={'_expanded_ref': 'agent.AgentWithFallbacks', '_expanded_ref_props': ['count']})
 
-    root: Union[AgentWithFallbacksWithCountRemoteOpenrouter, AgentWithFallbacksWithCountRemoteClaudeAgentSdk, AgentWithFallbacksWithCountRemoteCodexSdk, AgentWithFallbacksWithCountRemoteMock, AgentWithFallbacksWithCountInlineOpenrouter, AgentWithFallbacksWithCountInlineClaudeAgentSdk, AgentWithFallbacksWithCountInlineCodexSdk, AgentWithFallbacksWithCountInlineMock]
+    root: Union[AgentWithFallbacksWithCountRemoteOpenrouter, AgentWithFallbacksWithCountRemoteClaudeAgentSdk, AgentWithFallbacksWithCountRemoteCodexSdk, AgentWithFallbacksWithCountRemoteMock, AgentWithFallbacksWithCountRemoteScript, AgentWithFallbacksWithCountInlineOpenrouter, AgentWithFallbacksWithCountInlineClaudeAgentSdk, AgentWithFallbacksWithCountInlineCodexSdk, AgentWithFallbacksWithCountInlineMock, AgentWithFallbacksWithCountInlineScript]
 

@@ -13,6 +13,6 @@ class Request(BaseModel):
     max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
     python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
-    response_id: str
+    response_id: Optional[str] = Field(None, description="Objectiveai response id of the live agent to address. `None` ⇒\nresolved from the caller's contextual agent arguments\n(`OBJECTIVEAI_RESPONSE_ID`); an error if absent there too.", json_schema_extra={'omitempty': True})
     timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
 

@@ -9,6 +9,7 @@ from objectiveai_sdk.agent.inline_agent_base import InlineAgentBase
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote import InlineAgentBaseWithFallbacksOrRemote
 from objectiveai_sdk.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai_sdk.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
+from objectiveai_sdk.agent.script.agent_base import AgentBase as AgentScriptAgentBase
 
 
 class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter(AgentOpenrouterAgentBase):
@@ -27,6 +28,11 @@ class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk(AgentCodexS
 
 
 class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock(AgentMockAgentBase):
+    fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
+    count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
+
+
+class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseScript(AgentScriptAgentBase):
     fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
 
@@ -58,5 +64,5 @@ class InlineAgentBaseWithFallbacksOrRemoteWithCount(RootModel):
 (pre-validation swarm agent slot)."""
     model_config = ConfigDict(title='agent.InlineAgentBaseWithFallbacksOrRemoteWithCount', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBaseWithFallbacksOrRemote', '_expanded_ref_props': ['count']})
 
-    root: Union[InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteClient, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteMock]
+    root: Union[InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseScript, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteClient, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteMock]
 

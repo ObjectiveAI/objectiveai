@@ -7,6 +7,7 @@ from objectiveai_sdk.cli.command.laboratories.create.env_var import EnvVar
 from objectiveai_sdk.cli.command.laboratories.create.kind import Kind
 from objectiveai_sdk.cli.command.laboratories.create.mount import Mount
 from objectiveai_sdk.cli.command.laboratories.create.path import Path
+from objectiveai_sdk.laboratories.laboratory_image import LaboratoryImage
 
 
 class Request(BaseModel):
@@ -15,7 +16,7 @@ class Request(BaseModel):
     cwd: str = Field('/', description='Default working directory new agents start in; defaults to `/`.')
     env: list[EnvVar]
     id: str
-    image: str
+    image: LaboratoryImage = Field(..., description='The base image, split (`registry` + `name` + tag XOR digest) —\na joined reference string is never accepted, so unqualified\nshort names are unrepresentable.')
     jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
     kind: Kind
     machine: Optional[str] = Field(None, description="The EXACT machine id (as `laboratories list` reports it) whose\nlaboratory host should own the container. Provided together\nwith `machine_state` or not at all; neither ⇒ the current\nmachine + the daemon's own state.", json_schema_extra={'omitempty': True})

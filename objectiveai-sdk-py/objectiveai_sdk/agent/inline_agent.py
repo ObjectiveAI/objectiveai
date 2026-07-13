@@ -7,6 +7,7 @@ from objectiveai_sdk.agent.claude_agent_sdk.agent import Agent as AgentClaudeAge
 from objectiveai_sdk.agent.codex_sdk.agent import Agent as AgentCodexSdkAgent
 from objectiveai_sdk.agent.mock.agent import Agent as AgentMockAgent
 from objectiveai_sdk.agent.openrouter.agent import Agent as AgentOpenrouterAgent
+from objectiveai_sdk.agent.script.agent import Agent as AgentScriptAgent
 
 
 class InlineAgentOpenrouter(RootModel):
@@ -33,11 +34,17 @@ class InlineAgentMock(RootModel):
     root: AgentMockAgent
 
 
+class InlineAgentScript(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Script'})
+
+    root: AgentScriptAgent
+
+
 class InlineAgent(RootModel):
     """A validated inline Agent with its computed content-addressed ID.
 
 This is an untagged enum that dispatches to the per-upstream Agent."""
     model_config = ConfigDict(title='agent.InlineAgent')
 
-    root: Union[InlineAgentOpenrouter, InlineAgentClaudeAgentSdk, InlineAgentCodexSdk, InlineAgentMock]
+    root: Union[InlineAgentOpenrouter, InlineAgentClaudeAgentSdk, InlineAgentCodexSdk, InlineAgentMock, InlineAgentScript]
 
