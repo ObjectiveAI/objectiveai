@@ -44,6 +44,7 @@ impl FunctionExecution {
     pub fn normalize_for_tests(&mut self) {
         self.id = String::new();
         self.created = 0;
+        self.usage.normalize_for_tests();
         for task in &mut self.tasks {
             match task {
                 super::Task::VectorCompletion(vt) => {

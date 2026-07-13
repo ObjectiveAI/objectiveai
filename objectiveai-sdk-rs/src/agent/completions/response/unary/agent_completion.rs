@@ -50,17 +50,17 @@ impl AgentCompletion {
         self.id = String::new();
         self.agent_instance_hierarchy = String::new();
         self.created = 0;
-        // Upstream wall-clock varies run-to-run (script agents record
-        // real durations); strip it from the aggregate AND from each
+        // Durations AND costs vary run-to-run (script agents record
+        // real wall time, and the duration charge lands in the cost
+        // figures); strip both from the aggregate AND from each
         // assistant turn's usage so duration-recording upstreams are
-        // valid snapshot targets. (Cost stays: test harnesses run
-        // duration rates of ZERO, so it remains deterministic.)
-        self.usage.upstream_duration_ms = Default::default();
+        // valid snapshot targets.
+        self.usage.normalize_for_tests();
         for msg in &mut self.messages {
             if let super::Message::Assistant(asst) = msg {
                 asst.upstream_id = String::new();
                 asst.created = 0;
-                asst.usage.upstream_duration_ms = Default::default();
+                asst.usage.normalize_for_tests();
             }
         }
 

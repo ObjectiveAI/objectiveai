@@ -71,6 +71,17 @@ pub struct UpstreamUsage {
 }
 
 impl UpstreamUsage {
+    /// Normalizes the non-deterministic fields for test snapshot
+    /// comparison — same rule as
+    /// [`Usage::normalize_for_tests`](super::Usage::normalize_for_tests):
+    /// durations AND every cost figure.
+    pub fn normalize_for_tests(&mut self) {
+        self.upstream_duration_ms = Default::default();
+        self.cost = rust_decimal::Decimal::ZERO;
+        self.total_cost = rust_decimal::Decimal::ZERO;
+        self.cost_details = None;
+    }
+
     /// Appends usage statistics from another instance.
     pub fn push(&mut self, other: &UpstreamUsage) {
         self.completion_tokens += other.completion_tokens;

@@ -62,6 +62,18 @@ pub struct Usage {
 }
 
 impl Usage {
+    /// Normalizes the non-deterministic fields for test snapshot
+    /// comparison: wall-clock durations AND every cost figure (the
+    /// duration charge lands in `cost`/`total_cost`, so both vary
+    /// run-to-run wherever duration rates are non-zero). Token counts
+    /// stay — they are deterministic.
+    pub fn normalize_for_tests(&mut self) {
+        self.upstream_duration_ms = Default::default();
+        self.cost = rust_decimal::Decimal::ZERO;
+        self.total_cost = rust_decimal::Decimal::ZERO;
+        self.cost_details = None;
+    }
+
     /// Returns `true` if any usage metrics are non-zero.
     pub fn any_usage(&self) -> bool {
         self.completion_tokens > 0

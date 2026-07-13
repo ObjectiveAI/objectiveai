@@ -42,6 +42,7 @@ impl VectorCompletion {
     pub fn normalize_for_tests(&mut self) {
         self.id = String::new();
         self.created = 0;
+        self.usage.normalize_for_tests();
         for completion in &mut self.completions {
             completion.inner.normalize_for_tests();
         }
