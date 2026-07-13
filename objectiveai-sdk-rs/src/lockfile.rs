@@ -948,7 +948,7 @@ pub async fn spawn_until_published(
     // children elsewhere are unaffected (std re-duplicates the handle
     // inheritable at spawn time).
     #[cfg(windows)]
-    disinherit_std_handles();
+    crate::win_handles::disinherit_std_handles();
 
     let mut child = cmd.spawn().map_err(SpawnPublishError::Spawn)?;
 
@@ -1028,39 +1028,6 @@ pub async fn spawn_until_published(
     drop(child);
 
     Ok(listening)
-}
-
-/// Clear `HANDLE_FLAG_INHERIT` on this process's std handles so a
-/// child spawned with `bInheritHandles=TRUE` (any piped-stdio spawn)
-/// does not receive duplicated copies of them. Idempotent and
-/// best-effort: a pseudo/closed std handle that can't be updated has
-/// nothing to leak. The flag only governs inheritance — our own reads
-/// and writes through these handles are unaffected.
-#[cfg(windows)]
-fn disinherit_std_handles() {
-    use std::os::windows::io::AsRawHandle;
-
-    const HANDLE_FLAG_INHERIT: u32 = 0x1;
-    // kernel32 is always linked on Windows targets; no #[link] needed.
-    unsafe extern "system" {
-        fn SetHandleInformation(
-            h_object: *mut std::ffi::c_void,
-            dw_mask: u32,
-            dw_flags: u32,
-        ) -> i32;
-    }
-
-    for handle in [
-        std::io::stdin().as_raw_handle(),
-        std::io::stdout().as_raw_handle(),
-        std::io::stderr().as_raw_handle(),
-    ] {
-        if !handle.is_null() {
-            unsafe {
-                SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
-            }
-        }
-    }
 }
 
 /// Invert [`filename_escape`]: `%XX` → byte, everything else verbatim.

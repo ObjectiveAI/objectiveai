@@ -236,6 +236,14 @@ impl CommandExecutor for BinaryExecutor {
         if let Some(args) = agent_arguments {
             args.apply_to_command(&mut command);
         }
+        // Keep OUR OWN std handles out of the child (and thus out of
+        // any resident server the child goes on to spawn): a leaked
+        // copy of our stdout's write end in a long-lived grandchild
+        // means whoever pipes us never sees EOF after we exit. See
+        // `win_handles::disinherit_std_handles`. Our explicit pipes to
+        // this child and its inherited stderr are unaffected.
+        #[cfg(windows)]
+        crate::win_handles::disinherit_std_handles();
         let mut child = command.spawn().map_err(Error::Spawn)?;
 
         let stdout = child.stdout.take().ok_or(Error::NoStdout)?;
