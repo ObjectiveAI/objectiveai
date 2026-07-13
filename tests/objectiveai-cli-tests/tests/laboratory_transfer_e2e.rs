@@ -42,6 +42,13 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
 };
+use objectiveai_sdk::cli::command::SetScope;
+use objectiveai_sdk::cli::command::laboratories::config::addresses::add::{
+    Path as AddrAddPath, Request as AddrAddReq, Response as AddrAddResp,
+};
+use objectiveai_sdk::cli::command::laboratories::spawn::{
+    Path as LabSpawnPath, Request as LabSpawnReq, Response as LabSpawnResp,
+};
 use objectiveai_sdk::cli::command::laboratories::create::{
     Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
@@ -786,5 +793,183 @@ async fn servers_list_reflects_attach_and_detach() {
     assert!(
         !s3.contains(&lab_a),
         "session 3 should no longer include lab A; got: {s3}"
+    );
+}
+
+/// Cross-STATE transfer: two laboratories on the SAME machine but in
+/// two DIFFERENT states — two daemons, two hosts. The (machine, state)
+/// pairs differ, so the proxy sends the plain `transfer` request and
+/// the CLI daemon drives the export→import splice between the two
+/// hosts (the only e2e coverage that path gets — same-state transfers
+/// collapse to `local_transfer` inside one host).
+#[tokio::test(flavor = "multi_thread")]
+async fn transfer_across_states() {
+    let _base = cli_test_util::test_base_dir();
+    let state_a = cli_test_util::test_state_name();
+    let state_b = format!("{state_a}-b");
+    let exec_a = cli_test_util::executor().await;
+    let exec_b = cli_test_util::executor_for_state(&state_b).await;
+
+    // The agent session runs in daemon A, so state B's HOST must dial
+    // daemon A too (that is how A's registry learns the (machine,
+    // state B) host). Configure the extra address BEFORE anything
+    // spawns B's host, then create B's lab (create auto-spawns the
+    // host with the config in effect).
+    let addr_a = cli_test_util::daemon_ws_address(&exec_a, &state_a).await;
+    let addr_b = cli_test_util::daemon_ws_address(&exec_b, &state_b).await;
+    assert_ne!(addr_a, addr_b, "two daemons must bind distinct ports");
+    let _: AddrAddResp = cli_test_util::execute_one(
+        &exec_b,
+        AddrAddReq {
+            path_type: AddrAddPath::LaboratoriesConfigAddressesAdd,
+            scope: SetScope::State,
+            key: addr_a.clone(),
+            value: String::new(),
+            base: Default::default(),
+        },
+    )
+    .await;
+    let _: LabSpawnResp = cli_test_util::execute_one(
+        &exec_b,
+        LabSpawnReq {
+            path_type: LabSpawnPath::LaboratoriesSpawn,
+            base: Default::default(),
+        },
+    )
+    .await;
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let lab_a = format!("xstate-a-{nanos}");
+    let lab_b = format!("xstate-b-{nanos}");
+    let tag = format!("xstate-tag-{nanos}");
+
+    create_lab(&exec_a, &lab_a).await;
+    create_lab(&exec_b, &lab_b).await;
+
+    // Full identities: lab_a lives in state A, lab_b in state B —
+    // their composites differ in the state segment, which is exactly
+    // what routes the proxy onto the non-local path.
+    let machine = objectiveai_sdk::machine::machine_id(&cli_test_util::objectiveai_dir());
+    let marker = |lab: &str, state: &str| objectiveai_sdk::laboratories::ClientLaboratory {
+        r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
+        id: lab.to_string(),
+        machine: Some(machine.clone()),
+        machine_state: Some(state.to_string()),
+    };
+    let marker_a = marker(&lab_a, &state_a);
+    let marker_b = marker(&lab_b, &state_b);
+    let composite_a = marker_a.composite_id().expect("machine + state present");
+    let composite_b = marker_b.composite_id().expect("machine + state present");
+    let bash_a = format!("{}_Bash", marker_a.server_name().expect("server name"));
+    let bash_b = format!("{}_Bash", marker_b.server_name().expect("server name"));
+
+    // Deterministic agent script: write in a → transfer a→b → read in b.
+    let write_args = serde_json::to_string(
+        &json!({ "command": "mkdir -p /work && printf xhi > /work/x" }),
+    )
+    .unwrap();
+    let transfer_args = serde_json::to_string(&json!({
+        "source": composite_a,
+        "source_path": "/work/x",
+        "destination": composite_b,
+        "destination_path": "/work",
+    }))
+    .unwrap();
+    let read_args = serde_json::to_string(&json!({ "command": "cat /work/x" })).unwrap();
+    let agent_json = json!({
+        "upstream": "mock",
+        "output_mode": "instruction",
+        "instruction": "done",
+        "calls": [
+            { "tool_calls": [{ "name": bash_a, "arguments": write_args }], "content": "" },
+            { "tool_calls": [{ "name": "laboratory_transfer", "arguments": transfer_args }], "content": "" },
+            { "tool_calls": [{ "name": bash_b, "arguments": read_args }], "content": "" }
+        ]
+    });
+    let agent_spec = serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+        agent_json,
+    )
+    .expect("mock agent spec deserializes");
+
+    // GROUPED tag; attach lab_a (defaults = state A) and lab_b with
+    // its EXPLICIT (machine, state B) pair.
+    let _: ApplyResp = cli_test_util::execute_one(
+        &exec_a,
+        ApplyReq {
+            path_type: ApplyPath::AgentsTagsApply,
+            name: tag.clone(),
+            target: ApplyTarget::Agent {
+                agent_spec,
+                parent_agent_instance_hierarchy: None,
+            },
+            base: Default::default(),
+        },
+    )
+    .await;
+    attach_lab(&exec_a, &tag, &lab_a).await;
+    let _: AttachResp = cli_test_util::execute_one(
+        &exec_a,
+        AttachReq {
+            path_type: AttachPath::LaboratoriesAttach,
+            selector: AgentSelector::Tag {
+                agent_tag: tag.clone(),
+            },
+            laboratory_id: lab_b.clone(),
+            machine: Some(machine.clone()),
+            machine_state: Some(state_b.clone()),
+            base: Default::default(),
+        },
+    )
+    .await;
+
+    // Spawn via daemon A; the session dials lab_a on A's host and
+    // lab_b on B's host (reachable because B's host dials daemon A).
+    let items: Vec<SpawnItem> = cli_test_util::collect_stream(
+        &exec_a,
+        SpawnReq {
+            path_type: SpawnPath::AgentsSpawn,
+            message: RequestMessage::Simple("transfer across states".to_string()),
+            agent: AgentSelector::Tag {
+                agent_tag: tag.clone(),
+            },
+            dangerous_advanced: Some(RequestDangerousAdvanced {
+                stream: Some(true),
+                seed: Some(1),
+            }),
+            base: Default::default(),
+        },
+    )
+    .await;
+
+    let aih = items
+        .iter()
+        .find_map(|i| match i {
+            SpawnItem::Chunk(c) if !c.agent_instance_hierarchy.is_empty() => {
+                Some(c.agent_instance_hierarchy.clone())
+            }
+            _ => None,
+        })
+        .expect("spawn emits an agent_instance_hierarchy");
+    let response_id = items
+        .iter()
+        .find_map(|i| match i {
+            SpawnItem::Chunk(c) if !c.id.is_empty() => Some(c.id.clone()),
+            _ => None,
+        })
+        .expect("spawn emits a response id");
+
+    cli_test_util::wait_for_agent(&exec_a, &aih).await;
+
+    let results = tool_result_texts(&exec_a, &response_id).await.join("\n");
+    assert!(
+        results.contains("transferred"),
+        "expected a laboratory_transfer success line; got: {results}"
+    );
+    assert!(
+        results.contains("xhi"),
+        "expected lab b (state B) to read back the transferred content 'xhi'; got: {results}"
     );
 }
