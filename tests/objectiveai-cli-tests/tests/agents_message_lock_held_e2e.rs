@@ -1,28 +1,29 @@
 //! Lock-heldness repro for the `agents message` wake path — the
 //! chat-incident follow-up.
 //!
-//! `agents message` on an INACTIVE instance wins the AIH family,
-//! spawns a WAKE child (empty message; the queue row is the prompt),
-//! and TRANSFERS the claim into it (`LockClaim::transfer` — on
-//! Windows a `DuplicateHandle` handoff, the parent's handles closed
-//! after). The chat-incident evidence showed a second reader running
-//! concurrently with a message-spawned child, so this test pins the
-//! invariant nothing else asserts: the AIH lock stays CONTINUOUSLY
-//! HELD (sdk `lockfile::try_held`, the read-only probe) for the wake
-//! child's whole life, and releases when it exits.
+//! `agents message` on an INACTIVE instance wins the AIH family and
+//! runs a WAKE pass (empty message; the queue row is the prompt) as a
+//! detached IN-DAEMON task — since the daemon split there is no wake
+//! subprocess and no `LockClaim::transfer`; agent locks are the
+//! daemon's in-process `AgentLockMap`, with NOTHING on disk. The
+//! chat-incident evidence showed a second reader running concurrently
+//! with a message-spawned wake, so this test pins the invariant
+//! nothing else asserts: the AIH family stays CONTINUOUSLY HELD for
+//! the wake's whole life, and releases when it ends.
 //!
-//! The discriminator is DURATION, not an instant: a healthy transfer
-//! keeps the lock held from the waiter's acquire through the child's
-//! multi-second life (process boot via the cargo shim alone is
-//! seconds), so the longest observed held-streak spans well over
-//! [`MIN_HELD_STREAK`]. If the transfer silently drops the OS lock —
-//! the incident's prime suspect — held-ness blips only for the
-//! waiter's acquire→spawn window (well under 100ms) and the streak
-//! assertion fails.
+//! The observable is the lock-driven `active` flag on the daemon's
+//! `/agents/instances/{aih}` status stream (the same signal
+//! `agents_listeners_e2e` pins for spawn): Activated fires on the
+//! family acquire, Deactivated on release. The discriminator is
+//! DURATION, not an instant: a healthy wake holds for its whole
+//! multi-second turn, so the active span between the recorded
+//! Activated → Deactivated edges spans well over [`MIN_HELD_STREAK`].
+//! If the wake ever dropped and re-acquired the family mid-life, the
+//! longest single span collapses to the blip and the assertion fails.
 
 mod cli_test_util;
 
-use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
@@ -36,39 +37,44 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
+use objectiveai_sdk::cli::websocket_agents_instances_listener::WebSocketAgentsInstancesListener;
 
 const SEED: i64 = 42;
 
-/// The longest held-streak must span at least this long. Healthy:
-/// the child holds for its whole life (seconds — the cargo-shim boot
-/// alone exceeds this). Broken transfer: only the waiter's
-/// acquire→spawn blip (<100ms) is ever observed.
+/// The longest active span must last at least this long. Healthy: the
+/// wake holds the family for its whole turn (seconds). Broken
+/// hold-continuity: only sub-100ms acquire/release blips are ever
+/// observed.
 const MIN_HELD_STREAK: Duration = Duration::from_millis(500);
 
 /// Overall cap on the message wait — far beyond any healthy turn;
 /// the harness hang-watchdog backstops the whole test anyway.
 const MESSAGE_DEADLINE: Duration = Duration::from_secs(180);
 
-/// Mirror of the cli's `agent_instance_lock` split
-/// (`objectiveai-cli/src/command/agents/locks.rs`): every hierarchy
-/// segment but the last extends the dir, the leaf is the key.
-fn instance_lock(state_dir: &Path, hierarchy: &str) -> (PathBuf, String) {
-    let mut dir = state_dir.join("locks").join("agents").join("instances");
-    let mut segments = hierarchy.split('/').peekable();
-    let mut key = String::new();
-    while let Some(segment) = segments.next() {
-        if segments.peek().is_some() {
-            dir.push(segment);
-        } else {
-            key = segment.to_string();
+/// Poll `$cond` until true, failing after a generous deadline (the
+/// hang watchdog only guards active CLI commands — listener waits
+/// carry their own bound).
+macro_rules! wait_for {
+    ($desc:expr, $cond:expr) => {{
+        let deadline = Instant::now() + Duration::from_secs(180);
+        loop {
+            if $cond {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "timed out waiting for {}",
+                $desc
+            );
+            tokio::time::sleep(Duration::from_millis(250)).await;
         }
-    }
-    (dir, key)
+    }};
 }
 
 #[tokio::test]
 async fn message_wake_child_holds_the_aih_lock() {
     let executor = cli_test_util::executor().await;
+    let state = cli_test_util::test_state_name();
 
     // ── 1. Spawn a mock agent and let it finish ──────────────────
     let spawn_request = SpawnRequest {
@@ -101,18 +107,28 @@ async fn message_wake_child_holds_the_aih_lock() {
         .expect("agents spawn must emit a Chunk with a non-empty agent_instance_hierarchy");
     cli_test_util::wait_for_agent(&executor, &aih).await;
 
-    // ── 2. The AIH lock coordinates; free while the agent is idle ─
-    let state_dir = cli_test_util::objectiveai_dir()
-        .join("state")
-        .join(cli_test_util::test_state_name());
-    let (lock_dir, lock_key) = instance_lock(&state_dir, &aih);
+    // ── 2. Watch the AIH's lock-driven active flag; idle now ─────
+    // Every applied status record is timestamped at receipt — the
+    // Activated → Deactivated edge pair measures the wake's hold.
+    let addr = cli_test_util::daemon_ws_address(&executor, &state).await;
+    let transitions: Arc<Mutex<Vec<(Instant, bool)>>> = Arc::new(Mutex::new(Vec::new()));
+    let recorder = Arc::clone(&transitions);
+    let listener = WebSocketAgentsInstancesListener::new(format!(
+        "{addr}/agents/instances/{aih}"
+    ))
+    .on_agent_change(move |record| {
+        recorder.lock().unwrap().push((Instant::now(), record.active));
+    })
+    .connect()
+    .await
+    .expect("connect /agents/instances/{aih}");
+    wait_for!("the connect-time status record", listener.agent().await.is_some());
     assert!(
-        !objectiveai_sdk::lockfile::try_held(&lock_dir, &lock_key).await,
-        "agent exited — its AIH lock must be free before the message"
+        listener.agent().await.is_some_and(|r| !r.active),
+        "agent exited — it must be inactive before the message"
     );
 
-    // ── 3. Message the inactive instance (the wake path), sampling
-    //       held-ness the whole time ─────────────────────────────
+    // ── 3. Message the inactive instance (the wake path) ─────────
     let (parent, instance) = aih
         .rsplit_once('/')
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
@@ -140,37 +156,56 @@ async fn message_wake_child_holds_the_aih_lock() {
     });
 
     let started = Instant::now();
-    let mut streak_start: Option<Instant> = None;
-    let mut longest_streak = Duration::ZERO;
     while !message_task.is_finished() {
         assert!(
             started.elapsed() < MESSAGE_DEADLINE,
             "agents message did not resolve within {MESSAGE_DEADLINE:?}"
         );
-        let held = objectiveai_sdk::lockfile::try_held(&lock_dir, &lock_key).await;
-        match (held, streak_start) {
-            (true, None) => streak_start = Some(Instant::now()),
-            (true, Some(start)) => longest_streak = longest_streak.max(start.elapsed()),
-            (false, _) => streak_start = None,
-        }
-        tokio::time::sleep(Duration::from_millis(5)).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
     let response = message_task.await.expect("message task must not panic");
     assert!(
         matches!(response, MessageResponse::Delivered),
         "an instance message resolves Delivered (row consumed), got {response:?}"
     );
-    assert!(
-        longest_streak >= MIN_HELD_STREAK,
-        "the AIH lock must stay held for the wake child's whole life \
-         (longest observed streak {longest_streak:?} < {MIN_HELD_STREAK:?}) — \
-         a sub-100ms blip means the claim transfer dropped the OS lock"
+
+    // ── 4. Released once the wake ends ───────────────────────────
+    cli_test_util::wait_for_agent(&executor, &aih).await;
+    wait_for!(
+        "the record to settle inactive after the wake",
+        listener.agent().await.is_some_and(|r| !r.active)
     );
 
-    // ── 4. Released once the wake child exits ────────────────────
-    cli_test_util::wait_for_agent(&executor, &aih).await;
+    // ── 5. The longest single active span covers the wake's life ─
+    // Fold the timestamped records into contiguous active spans.
+    // Re-shipped records with an unchanged flag (tag/queue rebuilds)
+    // extend the current span; a false record closes it.
+    let log = transitions.lock().unwrap().clone();
+    let mut longest = Duration::ZERO;
+    let mut span_start: Option<Instant> = None;
+    for (at, active) in &log {
+        match (active, span_start) {
+            (true, None) => span_start = Some(*at),
+            (true, Some(_)) => {}
+            (false, Some(start)) => {
+                longest = longest.max(at.duration_since(start));
+                span_start = None;
+            }
+            (false, None) => {}
+        }
+    }
     assert!(
-        !objectiveai_sdk::lockfile::try_held(&lock_dir, &lock_key).await,
-        "the AIH lock must release when the wake child exits"
+        span_start.is_none(),
+        "the record settled inactive above, so every span must be closed"
+    );
+    assert!(
+        log.iter().any(|(_, active)| *active),
+        "the wake must activate the agent at least once (no Activated record seen)"
+    );
+    assert!(
+        longest >= MIN_HELD_STREAK,
+        "the AIH family must stay held for the wake's whole life \
+         (longest observed active span {longest:?} < {MIN_HELD_STREAK:?}) — \
+         a sub-100ms blip means the wake dropped and re-acquired mid-life"
     );
 }

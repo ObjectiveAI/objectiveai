@@ -83,9 +83,9 @@ pub struct Context {
     /// across clones.
     python: Arc<OnceCell<crate::python::Python>>,
     /// Per-key in-process gate for agent locks (AIH + tag), shared across
-    /// clones. The lockfile is a cross-process mutex that is reentrant
-    /// in-process, so this is what gives agent locks true in-process exclusion.
-    /// Acquired/released only through
+    /// clones. This map IS the whole lock layer: agents run as in-process
+    /// daemon tasks, so the former cross-process lockfile layer is gone —
+    /// nothing is written to disk. Acquired/released only through
     /// [`crate::command::agents::locks::{try_acquire, wait_acquire}`].
     agent_locks: Arc<crate::command::agents::locks::AgentLockMap>,
     /// The resident daemon's in-process hubs, published once at daemon

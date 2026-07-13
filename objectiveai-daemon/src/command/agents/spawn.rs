@@ -7,12 +7,12 @@
 //! threaded into the conduit for the BOUND upgrade, ABSENT → error.
 //!
 //! Stream-true (`dangerous_advanced.stream = Some(true)`): resolve
-//! + lock + drive the SDK streaming WS connection inside this cli
+//! + lock + drive the SDK streaming WS connection inside this daemon
 //! process. The INITIAL lock (try_acquire, failure = error): historic
 //! case → the AIH lock, un-upgraded tag case → the tag lock, plain ref
-//! → no initial lock. When a parent `agents message` transferred a
-//! claim into this process, the lockfile adopts it lazily on this first
-//! `try_acquire`, so the acquisition succeeds instantly. Historic spawns
+//! → no initial lock. Agent locks are the daemon's in-process
+//! [`AgentLockMap`](super::locks::AgentLockMap) — nothing on disk, no
+//! cross-process claim or transfer. Historic spawns
 //! load their agent params +
 //! continuation from the stored session. Mid-stream, every newly
 //! revealed hierarchy gets a best-effort AIH claim

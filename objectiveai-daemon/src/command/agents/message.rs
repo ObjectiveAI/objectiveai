@@ -152,9 +152,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 // FETCH the current family + LOCK it (all-or-nothing) — the
                 // membership can shift during a long wait, so resolve it at
                 // lock time. This acquire is BOTH the idle/active probe and
-                // (on a win) our brief hold; we never hand this OS lock to
-                // the child (cross-process lock transfer is unsound on
-                // Windows — the child competes for its own instead).
+                // (on a win) our brief hold; we never hand our hold to the
+                // wake task — it competes for its own family at startup.
                 match super::locks::try_acquire_family(
                     ctx.agent_locks(),
                     ctx.db_client().await?,
@@ -177,10 +176,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                         }
                     }
                     // IDLE: we hold the family. Nobody delivers unless we
-                    // wake the agent. RELEASE first — the child is a separate
-                    // process and co-holding the same lock is impossible — then
-                    // spawn a wake child (EMPTY message; it competes for its
-                    // OWN family lock and drains the queue oldest-id-first).
+                    // wake the agent. RELEASE first — the wake is a detached
+                    // in-daemon task that acquires its OWN family, and it
+                    // can't win while we hold it — then launch the wake
+                    // (EMPTY message; it drains the queue oldest-id-first).
                     Some(fam) => {
                         for lock in fam.into_locks() {
                             lock.release();
