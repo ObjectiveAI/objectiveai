@@ -269,6 +269,24 @@ impl McpHandler for ConduitMcpHandler {
         // forwards through the daemon's `laboratories.sock` to
         // whichever CONNECTED manager owns that laboratory, local or
         // remote alike.
+        // A cross-host transfer is ORCHESTRATED here (the splice), not
+        // forwarded whole - it addresses TWO hosts. Local transfers
+        // (same (machine, state) pair) fall through to the plain
+        // forward below and run entirely inside the one host.
+        if matches!(
+            request.payload,
+            server_request::Payload::LaboratoryTransfer(_)
+        ) {
+            let server_request::Payload::LaboratoryTransfer(req) = request.payload
+            else {
+                unreachable!("matched LaboratoryTransfer above");
+            };
+            let payload = self
+                .dispatch_laboratory_transfer(&request.headers, req)
+                .await;
+            return server_response::Response { id, payload };
+        }
+
         if let Some(target) = self.laboratory_target(&request.payload) {
             let payload = self
                 .dispatch_laboratory_forward(target, &request.headers, request.payload)
@@ -371,19 +389,25 @@ impl McpHandler for ConduitMcpHandler {
                     result: server_response::LaboratoryTransferAck {},
                 })
             }
-            // Host-level laboratory ops (create/delete) ride ONLY the
-            // daemon→host `/laboratory` channel — never the API reverse
-            // channel. Reaching here is a protocol violation.
-            server_request::Payload::LaboratoryCreate(_) => {
-                server_response::Payload::LaboratoryCreate(rpc_err(
-                    -32601,
-                    "the conduit does not serve laboratory create".to_string(),
+            // Enum-totality floor, not a routing path: both transfer
+            // forms are intercepted earlier in this fn by payload
+            // VARIANT (the cross-host splice explicitly, the local
+            // form via `laboratory_target`), independent of what the
+            // laboratories are. Future server-laboratory transfers
+            // are orchestrated at the PROXY (its match over the
+            // Laboratory enum pair) and never sent to a client
+            // conduit — so these arms only ever answer a misbehaving
+            // peer, with a typed error rather than a panic.
+            server_request::Payload::LaboratoryTransfer(_) => {
+                server_response::Payload::LaboratoryTransfer(rpc_err(
+                    -32603,
+                    "laboratory transfer must be intercepted upstream".to_string(),
                 ))
             }
-            server_request::Payload::LaboratoryDelete(_) => {
-                server_response::Payload::LaboratoryDelete(rpc_err(
-                    -32601,
-                    "the conduit does not serve laboratory delete".to_string(),
+            server_request::Payload::LaboratoryLocalTransfer(_) => {
+                server_response::Payload::LaboratoryLocalTransfer(rpc_err(
+                    -32603,
+                    "laboratory local transfer must be intercepted upstream".to_string(),
                 ))
             }
         };
@@ -655,6 +679,13 @@ impl ConduitMcpHandler {
                 machine: req.machine.clone(),
                 machine_state: req.machine_state.clone(),
             }),
+            // Both endpoints share one host (equal (machine, state) by
+            // construction) - route by the source pair, forward whole.
+            server_request::Payload::LaboratoryLocalTransfer(req) => Some(LabTarget {
+                id: req.source_id.clone(),
+                machine: req.source_machine.clone(),
+                machine_state: req.source_machine_state.clone(),
+            }),
             server_request::Payload::LaboratoryExportRead(req) => self
                 .inner
                 .transfer_routes
@@ -717,6 +748,15 @@ impl ConduitMcpHandler {
                 "laboratory forward requires the resident daemon".to_string(),
             );
         };
+        // TRANSLATE at the seam: the reverse channel and the host
+        // channel are naive to each other; the conduit is the one
+        // place an API-side op becomes a host-side op (and back).
+        let Some((host_payload, mcp_kind)) = to_host_payload(payload) else {
+            return shape.error(
+                -32603,
+                "payload is not laboratory-addressed".to_string(),
+            );
+        };
         let response = match hubs
             .laboratories
             .forward(
@@ -724,7 +764,7 @@ impl ConduitMcpHandler {
                 target.machine.as_deref(),
                 target.machine_state.as_deref(),
                 headers.clone(),
-                payload,
+                host_payload,
             )
             .await
         {
@@ -734,6 +774,7 @@ impl ConduitMcpHandler {
                     .error(-32603, format!("laboratory {}: {message}", target.id));
             }
         };
+        let response = from_host_payload(response, mcp_kind, &shape);
         // Open/close routes from the manager's replies.
         match &response {
             server_response::Payload::LaboratoryExportBegin(JsonRpcResult::Ok { result }) => {
@@ -758,6 +799,219 @@ impl ConduitMcpHandler {
         }
         response
     }
+
+    /// The daemon-side splice for a cross-host client-to-client
+    /// transfer: export from the source host, import into the
+    /// destination host, exactly ONE chunk in transit - the API never
+    /// touches payload bytes, and this daemon never accumulates beyond
+    /// the chunk being moved (the `data` strings pass through opaque,
+    /// no base64 work). Abort discipline mirrors the proxy's old
+    /// splice: an import-side failure aborts the parked export and
+    /// vice versa, so neither host leaks a parked transfer.
+    async fn dispatch_laboratory_transfer(
+        &self,
+        headers: &IndexMap<String, String>,
+        req: objectiveai_sdk::client_objectiveai_mcp::server_request::LaboratoryTransferRequest,
+    ) -> server_response::Payload {
+        use objectiveai_sdk::laboratories::daemon::{
+            self as labd, RequestPayload as P, ResponsePayload as HR,
+        };
+        use server_response::Payload as R;
+        let err =
+            |code: i64, message: String| R::LaboratoryTransfer(rpc_err(code, message));
+        let Some(hubs) = self.inner.ctx.resident_hubs() else {
+            return err(
+                -32603,
+                "laboratory transfer requires the resident daemon".to_string(),
+            );
+        };
+        let labs = &hubs.laboratories;
+        let source = (
+            req.source_id.clone(),
+            req.source_machine.clone(),
+            req.source_machine_state.clone(),
+        );
+        let destination = (
+            req.destination_id.clone(),
+            req.destination_machine.clone(),
+            req.destination_machine_state.clone(),
+        );
+        let forward = |target: &(String, Option<String>, Option<String>), payload: P| {
+            let (id, machine, machine_state) = target.clone();
+            let headers = headers.clone();
+            async move {
+                labs.forward(
+                    &id,
+                    machine.as_deref(),
+                    machine_state.as_deref(),
+                    headers,
+                    payload,
+                )
+                .await
+            }
+        };
+
+        // Export begin on the source host.
+        let export_id = match forward(
+            &source,
+            P::ExportBegin(labd::ExportBeginRequest {
+                path: req.source_path.clone(),
+            }),
+        )
+        .await
+        {
+            Ok(HR::ExportBegin(labd::JsonRpcResult::Ok { result })) => {
+                result.transfer_id
+            }
+            Ok(HR::ExportBegin(labd::JsonRpcResult::Err { code, message, .. })) => {
+                return err(code, format!("export begin: {message}"));
+            }
+            Ok(_) => return err(-32603, "export begin: variant mismatch".to_string()),
+            Err(message) => return err(-32603, format!("export begin: {message}")),
+        };
+
+        // Import begin on the destination host; abort the parked
+        // export on failure.
+        let import_id = match forward(
+            &destination,
+            P::ImportBegin(labd::ImportBeginRequest {
+                path: req.destination_path.clone(),
+            }),
+        )
+        .await
+        {
+            Ok(HR::ImportBegin(labd::JsonRpcResult::Ok { result })) => {
+                result.transfer_id
+            }
+            other => {
+                let _ = forward(
+                    &source,
+                    P::ExportAbort(labd::TransferIdRequest {
+                        transfer_id: export_id,
+                    }),
+                )
+                .await;
+                return match other {
+                    Ok(HR::ImportBegin(labd::JsonRpcResult::Err {
+                        code,
+                        message,
+                        ..
+                    })) => err(code, format!("import begin: {message}")),
+                    Ok(_) => err(-32603, "import begin: variant mismatch".to_string()),
+                    Err(message) => err(-32603, format!("import begin: {message}")),
+                };
+            }
+        };
+
+        // The splice: pull one chunk, push it, repeat. `eof: true`
+        // means the export side already dropped its entry (the final
+        // chunk's data may still be non-empty).
+        loop {
+            let chunk = match forward(
+                &source,
+                P::ExportRead(labd::TransferIdRequest {
+                    transfer_id: export_id.clone(),
+                }),
+            )
+            .await
+            {
+                Ok(HR::ExportRead(labd::JsonRpcResult::Ok { result })) => result,
+                other => {
+                    let _ = forward(
+                        &destination,
+                        P::ImportAbort(labd::TransferIdRequest {
+                            transfer_id: import_id,
+                        }),
+                    )
+                    .await;
+                    return match other {
+                        Ok(HR::ExportRead(labd::JsonRpcResult::Err {
+                            code,
+                            message,
+                            ..
+                        })) => err(code, format!("export read: {message}")),
+                        Ok(_) => {
+                            err(-32603, "export read: variant mismatch".to_string())
+                        }
+                        Err(message) => err(-32603, format!("export read: {message}")),
+                    };
+                }
+            };
+            let eof = chunk.eof;
+            if !chunk.data.is_empty() {
+                match forward(
+                    &destination,
+                    P::ImportWrite(labd::ImportWriteRequest {
+                        transfer_id: import_id.clone(),
+                        data: chunk.data,
+                    }),
+                )
+                .await
+                {
+                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => {}
+                    other => {
+                        if !eof {
+                            let _ = forward(
+                                &source,
+                                P::ExportAbort(
+                                    labd::TransferIdRequest {
+                                        transfer_id: export_id,
+                                    },
+                                ),
+                            )
+                            .await;
+                        }
+                        let _ = forward(
+                            &destination,
+                            P::ImportAbort(labd::TransferIdRequest {
+                                transfer_id: import_id,
+                            }),
+                        )
+                        .await;
+                        return match other {
+                            Ok(HR::ImportWrite(labd::JsonRpcResult::Err {
+                                code,
+                                message,
+                                ..
+                            })) => err(code, format!("import write: {message}")),
+                            Ok(_) => {
+                                err(-32603, "import write: variant mismatch".to_string())
+                            }
+                            Err(message) => {
+                                err(-32603, format!("import write: {message}"))
+                            }
+                        };
+                    }
+                }
+            }
+            if eof {
+                break;
+            }
+        }
+
+        // Close the import and surface the byte total.
+        match forward(
+            &destination,
+            P::ImportEnd(labd::TransferIdRequest {
+                transfer_id: import_id,
+            }),
+        )
+        .await
+        {
+            Ok(HR::ImportEnd(labd::JsonRpcResult::Ok { result })) => {
+                R::LaboratoryTransfer(JsonRpcResult::Ok {
+                    result: objectiveai_sdk::client_objectiveai_mcp::server_response::LaboratoryTransferResult {
+                        bytes: result.bytes,
+                    },
+                })
+            }
+            Ok(HR::ImportEnd(labd::JsonRpcResult::Err { code, message, .. })) => {
+                err(code, format!("import end: {message}"))
+            }
+            Ok(_) => err(-32603, "import end: variant mismatch".to_string()),
+            Err(message) => err(-32603, format!("import end: {message}")),
+        }
+    }
 }
 
 /// One laboratory-addressed payload's target: the raw id plus the
@@ -773,6 +1027,7 @@ struct LabTarget {
 
 /// Enough of a request payload's shape to build a same-variant error
 /// reply after the payload itself has been moved into the forward.
+#[derive(Clone)]
 enum LabErrorShape {
     Initialize(McpKind),
     SessionTerminate(McpKind),
@@ -788,6 +1043,7 @@ enum LabErrorShape {
     ImportWrite,
     ImportEnd,
     ImportAbort,
+    LocalTransfer,
     Other,
 }
 
@@ -809,6 +1065,7 @@ impl LabErrorShape {
             P::LaboratoryImportWrite(_) => Self::ImportWrite,
             P::LaboratoryImportEnd(_) => Self::ImportEnd,
             P::LaboratoryImportAbort(_) => Self::ImportAbort,
+            P::LaboratoryLocalTransfer(_) => Self::LocalTransfer,
             _ => Self::Other,
         }
     }
@@ -850,7 +1107,234 @@ impl LabErrorShape {
             Self::ImportWrite => R::LaboratoryImportWrite(rpc_err(code, message)),
             Self::ImportEnd => R::LaboratoryImportEnd(rpc_err(code, message)),
             Self::ImportAbort => R::LaboratoryImportAbort(rpc_err(code, message)),
+            Self::LocalTransfer => R::LaboratoryLocalTransfer(rpc_err(code, message)),
             Self::Other => R::Retrieve(rpc_err(code, message)),
+        }
+    }
+}
+
+/// Reverse-channel op → host-channel op. The two vocabularies are
+/// naive to each other; this (with [`from_host_payload`]) is the ONE
+/// translation seam. Returns `None` for payloads that are not
+/// laboratory-addressed (never happens after `laboratory_target`
+/// matched — kept total instead of panicking). The second element is
+/// what the response translation needs back: the MCP kind for MCP ops.
+fn to_host_payload(
+    payload: server_request::Payload,
+) -> Option<(
+    objectiveai_sdk::laboratories::daemon::RequestPayload,
+    Option<McpKind>,
+)> {
+    use objectiveai_sdk::laboratories::daemon::{self as labd, RequestPayload as H};
+    use server_request::Payload as P;
+    Some(match payload {
+        // MCP ops: the host neither needs nor sees `mcp_kind` (it is
+        // reverse-channel routing metadata) — captured here and
+        // re-attached by `from_host_payload`.
+        P::Initialize { mcp_kind, .. } => (H::Initialize, Some(mcp_kind)),
+        P::SessionTerminate { mcp_kind } => (H::SessionTerminate, Some(mcp_kind)),
+        P::ToolsList { mcp_kind, params } => (H::ToolsList(params), Some(mcp_kind)),
+        P::ToolsCall { mcp_kind, params } => (H::ToolsCall(params), Some(mcp_kind)),
+        P::ResourcesList { mcp_kind, params } => {
+            (H::ResourcesList(params), Some(mcp_kind))
+        }
+        P::ResourcesRead { mcp_kind, params } => {
+            (H::ResourcesRead(params), Some(mcp_kind))
+        }
+        // Transfer half-ops: machine/machine_state are daemon-side
+        // routing (already consumed by `laboratory_target`), and the
+        // per-payload laboratory_id is the envelope's job.
+        P::LaboratoryExportBegin(req) => (
+            H::ExportBegin(labd::ExportBeginRequest { path: req.path }),
+            None,
+        ),
+        P::LaboratoryExportRead(req) => (
+            H::ExportRead(labd::TransferIdRequest { transfer_id: req.transfer_id }),
+            None,
+        ),
+        P::LaboratoryExportAbort(req) => (
+            H::ExportAbort(labd::TransferIdRequest { transfer_id: req.transfer_id }),
+            None,
+        ),
+        P::LaboratoryImportBegin(req) => (
+            H::ImportBegin(labd::ImportBeginRequest { path: req.path }),
+            None,
+        ),
+        P::LaboratoryImportWrite(req) => (
+            H::ImportWrite(labd::ImportWriteRequest {
+                transfer_id: req.transfer_id,
+                data: req.data,
+            }),
+            None,
+        ),
+        P::LaboratoryImportEnd(req) => (
+            H::ImportEnd(labd::TransferIdRequest { transfer_id: req.transfer_id }),
+            None,
+        ),
+        P::LaboratoryImportAbort(req) => (
+            H::ImportAbort(labd::TransferIdRequest { transfer_id: req.transfer_id }),
+            None,
+        ),
+        P::LaboratoryLocalTransfer(req) => (
+            H::LocalTransfer(labd::LocalTransferRequest {
+                source_id: req.source_id,
+                source_path: req.source_path,
+                destination_id: req.destination_id,
+                destination_path: req.destination_path,
+            }),
+            None,
+        ),
+        _ => return None,
+    })
+}
+
+/// Host-channel reply → reverse-channel reply, re-attaching the MCP
+/// kind captured by [`to_host_payload`]. A host reply whose variant
+/// demands a kind we did not capture (impossible via the seam) falls
+/// back to the request's error shape.
+fn from_host_payload(
+    response: objectiveai_sdk::laboratories::daemon::ResponsePayload,
+    mcp_kind: Option<McpKind>,
+    shape: &LabErrorShape,
+) -> server_response::Payload {
+    use objectiveai_sdk::laboratories::daemon::ResponsePayload as H;
+    use server_response::Payload as R;
+    fn conv<T>(
+        result: objectiveai_sdk::laboratories::daemon::JsonRpcResult<T>,
+    ) -> JsonRpcResult<T> {
+        match result {
+            objectiveai_sdk::laboratories::daemon::JsonRpcResult::Ok { result } => {
+                JsonRpcResult::Ok { result }
+            }
+            objectiveai_sdk::laboratories::daemon::JsonRpcResult::Err {
+                code,
+                message,
+                data,
+            } => JsonRpcResult::Err { code, message, data },
+        }
+    }
+    let kind = |mcp_kind: Option<McpKind>| {
+        mcp_kind.ok_or_else(|| {
+            shape.clone().error(
+                -32603,
+                "host reply demands an MCP kind the seam never captured".to_string(),
+            )
+        })
+    };
+    match response {
+        H::Initialize(result) => match kind(mcp_kind) {
+            Ok(mcp_kind) => R::Initialize {
+                mcp_kind,
+                result: match conv(result) {
+                    JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
+                        result: server_response::InitializeReply {
+                            mcp_session_id: result.mcp_session_id,
+                            result: result.result,
+                        },
+                    },
+                    JsonRpcResult::Err { code, message, data } => {
+                        JsonRpcResult::Err { code, message, data }
+                    }
+                },
+            },
+            Err(error) => error,
+        },
+        H::SessionTerminate(result) => match kind(mcp_kind) {
+            Ok(mcp_kind) => R::SessionTerminate { mcp_kind, result: conv(result) },
+            Err(error) => error,
+        },
+        H::ToolsList(result) => match kind(mcp_kind) {
+            Ok(mcp_kind) => R::ToolsList { mcp_kind, result: conv(result) },
+            Err(error) => error,
+        },
+        H::ToolsCall(result) => match kind(mcp_kind) {
+            Ok(mcp_kind) => R::ToolsCall { mcp_kind, result: conv(result) },
+            Err(error) => error,
+        },
+        H::ResourcesList(result) => match kind(mcp_kind) {
+            Ok(mcp_kind) => R::ResourcesList { mcp_kind, result: conv(result) },
+            Err(error) => error,
+        },
+        H::ResourcesRead(result) => match kind(mcp_kind) {
+            Ok(mcp_kind) => R::ResourcesRead { mcp_kind, result: conv(result) },
+            Err(error) => error,
+        },
+        H::Drop(result) => R::Drop(server_response::DropResult {
+            dropped: result.dropped,
+        }),
+        H::ExportBegin(result) => R::LaboratoryExportBegin(match conv(result) {
+            JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
+                result: server_response::LaboratoryTransferBeginResult {
+                    transfer_id: result.transfer_id,
+                },
+            },
+            JsonRpcResult::Err { code, message, data } => {
+                JsonRpcResult::Err { code, message, data }
+            }
+        }),
+        H::ExportRead(result) => R::LaboratoryExportRead(match conv(result) {
+            JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
+                result: server_response::LaboratoryExportChunk {
+                    data: result.data,
+                    eof: result.eof,
+                },
+            },
+            JsonRpcResult::Err { code, message, data } => {
+                JsonRpcResult::Err { code, message, data }
+            }
+        }),
+        H::ExportAbort(result) => R::LaboratoryExportAbort(ack(conv(result))),
+        H::ImportBegin(result) => R::LaboratoryImportBegin(match conv(result) {
+            JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
+                result: server_response::LaboratoryTransferBeginResult {
+                    transfer_id: result.transfer_id,
+                },
+            },
+            JsonRpcResult::Err { code, message, data } => {
+                JsonRpcResult::Err { code, message, data }
+            }
+        }),
+        H::ImportWrite(result) => R::LaboratoryImportWrite(ack(conv(result))),
+        H::ImportEnd(result) => R::LaboratoryImportEnd(match conv(result) {
+            JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
+                result: server_response::LaboratoryImportEndResult {
+                    bytes: result.bytes,
+                },
+            },
+            JsonRpcResult::Err { code, message, data } => {
+                JsonRpcResult::Err { code, message, data }
+            }
+        }),
+        H::ImportAbort(result) => R::LaboratoryImportAbort(ack(conv(result))),
+        H::LocalTransfer(result) => R::LaboratoryLocalTransfer(match conv(result) {
+            JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
+                result: server_response::LaboratoryTransferResult {
+                    bytes: result.bytes,
+                },
+            },
+            JsonRpcResult::Err { code, message, data } => {
+                JsonRpcResult::Err { code, message, data }
+            }
+        }),
+        // Host-level ops (create/delete) never enter through this
+        // seam — the laboratories commands drive them directly.
+        H::Create(_) | H::Delete(_) => shape.clone().error(
+            -32603,
+            "unexpected host-level reply through the conduit seam".to_string(),
+        ),
+    }
+}
+
+/// Map a host `TransferAck` result onto the reverse channel's ack.
+fn ack(
+    result: JsonRpcResult<objectiveai_sdk::laboratories::daemon::TransferAck>,
+) -> JsonRpcResult<server_response::LaboratoryTransferAck> {
+    match result {
+        JsonRpcResult::Ok { .. } => JsonRpcResult::Ok {
+            result: server_response::LaboratoryTransferAck {},
+        },
+        JsonRpcResult::Err { code, message, data } => {
+            JsonRpcResult::Err { code, message, data }
         }
     }
 }

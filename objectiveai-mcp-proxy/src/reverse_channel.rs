@@ -190,6 +190,61 @@ impl ReverseChannel {
     /// request/response exchange awaited WITHOUT a deadline — laboratory
     /// transfers are timeout-free unconditionally (never bounded by the
     /// per-request MCP call timeout).
+    /// `LaboratoryTransfer`: hand the WHOLE cross-host client-to-client
+    /// transfer to the CLI daemon, which drives the export/import
+    /// splice itself. One request, one `{bytes}` reply — the proxy
+    /// never touches payload bytes. Timeout-free like every transfer
+    /// op.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn laboratory_transfer(
+        &self,
+        request: server_request::LaboratoryTransferRequest,
+    ) -> Result<u64, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryTransfer(request),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryTransfer(result) => {
+                unwrap_rpc("laboratory_transfer", result).map(|r| r.bytes)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_transfer",
+                "laboratory_transfer",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryLocalTransfer`: both endpoints share one (machine,
+    /// state) — the CLI daemon forwards this verbatim to that one
+    /// laboratory host, which pipes the bytes container-to-container.
+    pub async fn laboratory_local_transfer(
+        &self,
+        request: server_request::LaboratoryLocalTransferRequest,
+    ) -> Result<u64, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryLocalTransfer(request),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryLocalTransfer(result) => {
+                unwrap_rpc("laboratory_local_transfer", result).map(|r| r.bytes)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_local_transfer",
+                "laboratory_local_transfer",
+                &other,
+            )),
+        }
+    }
+
     pub async fn laboratory_export_begin(
         &self,
         laboratory_id: String,
@@ -1040,6 +1095,8 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::ReadMessageQueue(_) => "read_message_queue",
         P::Retrieve(_) => "retrieve",
         P::Drop(_) => "drop",
+        P::LaboratoryTransfer(_) => "laboratory_transfer",
+        P::LaboratoryLocalTransfer(_) => "laboratory_local_transfer",
         P::LaboratoryExportBegin(_) => "laboratory_export_begin",
         P::LaboratoryExportRead(_) => "laboratory_export_read",
         P::LaboratoryExportAbort(_) => "laboratory_export_abort",
@@ -1047,9 +1104,5 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::LaboratoryImportWrite(_) => "laboratory_import_write",
         P::LaboratoryImportEnd(_) => "laboratory_import_end",
         P::LaboratoryImportAbort(_) => "laboratory_import_abort",
-        // Host-level ops — daemon↔host `/laboratory` channel only;
-        // never expected on the reverse channel.
-        P::LaboratoryCreate(_) => "laboratory_create",
-        P::LaboratoryDelete(_) => "laboratory_delete",
     }
 }

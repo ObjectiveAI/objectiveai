@@ -131,17 +131,15 @@ pub enum Payload {
     LaboratoryImportAbort(JsonRpcResult<LaboratoryTransferAck>),
 
     /// Reply to
-    /// [`super::super::server_request::Payload::LaboratoryCreate`] —
-    /// the created laboratory's spec, echoed by the host. Rides ONLY
-    /// the `/laboratory` channel.
-    #[cfg(feature = "laboratory-daemon")]
-    #[schemars(title = "LaboratoryCreate")]
-    LaboratoryCreate(JsonRpcResult<crate::laboratories::daemon::Identify>),
+    /// [`super::super::server_request::Payload::LaboratoryTransfer`] —
+    /// the byte total the destination ingested.
+    #[schemars(title = "LaboratoryTransfer")]
+    LaboratoryTransfer(JsonRpcResult<LaboratoryTransferResult>),
     /// Reply to
-    /// [`super::super::server_request::Payload::LaboratoryDelete`].
-    #[cfg(feature = "laboratory-daemon")]
-    #[schemars(title = "LaboratoryDelete")]
-    LaboratoryDelete(JsonRpcResult<LaboratoryTransferAck>),
+    /// [`super::super::server_request::Payload::LaboratoryLocalTransfer`].
+    #[schemars(title = "LaboratoryLocalTransfer")]
+    LaboratoryLocalTransfer(JsonRpcResult<LaboratoryTransferResult>),
+
 }
 
 impl Payload {
@@ -165,9 +163,9 @@ impl Payload {
             | Payload::LaboratoryImportBegin(_)
             | Payload::LaboratoryImportWrite(_)
             | Payload::LaboratoryImportEnd(_)
-            | Payload::LaboratoryImportAbort(_) => None,
-            #[cfg(feature = "laboratory-daemon")]
-            Payload::LaboratoryCreate(_) | Payload::LaboratoryDelete(_) => None,
+            | Payload::LaboratoryImportAbort(_)
+            | Payload::LaboratoryTransfer(_)
+            | Payload::LaboratoryLocalTransfer(_) => None,
         }
     }
 }
@@ -242,6 +240,15 @@ pub struct LaboratoryTransferAck {}
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryImportEndResult")]
 pub struct LaboratoryImportEndResult {
+    pub bytes: u64,
+}
+
+/// Successful payload for [`Payload::LaboratoryTransfer`] /
+/// [`Payload::LaboratoryLocalTransfer`]: the total bytes the
+/// destination laboratory ingested.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryTransferResult")]
+pub struct LaboratoryTransferResult {
     pub bytes: u64,
 }
 

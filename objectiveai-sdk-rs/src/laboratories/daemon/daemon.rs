@@ -12,7 +12,7 @@
 //! 2. The standard `AuthEnvelope` (`{"signature": …}`) — authorization
 //!    strictly FOLLOWS identity.
 //! 3. Then a correlated request/response protocol: the daemon sends
-//!    [`ChannelRequest`]s (the [`crate::client_objectiveai_mcp::server_request::Payload`]
+//!    [`ChannelRequest`]s (the [`super::RequestPayload`]
 //!    vocabulary, verbatim, with `laboratory_id` addressing the lab)
 //!    and the host answers with [`ChannelResponse`]s — plus
 //!    uncorrelated host→daemon [`HostNotification`]s whenever the
@@ -103,7 +103,7 @@ pub struct ChannelRequest {
     /// `X-OBJECTIVEAI-RESPONSE-ID`, which keys the host's per-session
     /// MCP connections).
     pub headers: IndexMap<String, String>,
-    pub payload: crate::client_objectiveai_mcp::server_request::Payload,
+    pub payload: super::RequestPayload,
 }
 
 /// Host → daemon: the reply to a [`ChannelRequest`], correlated by
@@ -113,7 +113,7 @@ pub struct ChannelRequest {
 #[schemars(rename = "laboratories.daemon.ChannelResponse")]
 pub struct ChannelResponse {
     pub id: String,
-    pub payload: crate::client_objectiveai_mcp::server_response::Payload,
+    pub payload: super::ResponsePayload,
 }
 
 /// Host → daemon, UNCORRELATED: the host's laboratory set changed. The

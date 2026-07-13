@@ -16,8 +16,7 @@
 //! Only client-side laboratories are supported today.
 
 use objectiveai_sdk::cli::command::laboratories::create::{Kind, Request, Response};
-use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
-use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
+use objectiveai_sdk::laboratories::daemon::{JsonRpcResult, RequestPayload, ResponsePayload};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -36,8 +35,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .resident_hubs()
         .ok_or_else(|| Error::Laboratory("laboratories create requires the resident daemon".to_string()))?;
 
-    let payload = server_request::Payload::LaboratoryCreate(
-        server_request::LaboratoryCreateRequest {
+    let payload = RequestPayload::Create(
+        objectiveai_sdk::laboratories::daemon::CreateRequest {
             id: request.id.clone(),
             image: request.image.clone(),
             mounts: request
@@ -59,8 +58,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .await
         .map_err(Error::Laboratory)?;
     let identify = match response {
-        server_response::Payload::LaboratoryCreate(JsonRpcResult::Ok { result }) => result,
-        server_response::Payload::LaboratoryCreate(JsonRpcResult::Err {
+        ResponsePayload::Create(JsonRpcResult::Ok { result }) => result,
+        ResponsePayload::Create(JsonRpcResult::Err {
             message, ..
         }) => return Err(Error::Laboratory(message)),
         _ => {

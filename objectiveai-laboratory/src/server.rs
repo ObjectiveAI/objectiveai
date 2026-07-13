@@ -15,10 +15,12 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use indexmap::IndexMap;
-use objectiveai_sdk::laboratories::daemon::{ChannelRequest, ChannelResponse};
-use objectiveai_sdk::client_objectiveai_mcp::server_request;
-use objectiveai_sdk::client_objectiveai_mcp::server_response::{self, JsonRpcResult};
-use objectiveai_sdk::client_objectiveai_mcp::McpKind;
+use objectiveai_sdk::laboratories::daemon::{
+    ChannelRequest, ChannelResponse, DropResult, ExportBeginRequest, ExportChunk,
+    ImportBeginRequest, ImportEndResult, ImportWriteRequest, InitializeReply,
+    JsonRpcResult, LocalTransferResult, RequestPayload, ResponsePayload, TransferAck,
+    TransferBeginResult, TransferIdRequest,
+};
 use objectiveai_sdk::mcp::resource::{
     ListResourcesRequest, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult,
 };
@@ -115,86 +117,64 @@ impl LabServer {
     pub async fn handle(self: &Arc<Self>, request: ChannelRequest) -> ChannelResponse {
         let ChannelRequest { id, headers, payload, .. } = request;
         let payload = match payload {
-            server_request::Payload::Initialize { mcp_kind, params: _ } => {
-                self.initialize(mcp_kind, &headers).await
-            }
-            server_request::Payload::SessionTerminate { mcp_kind } => {
-                self.session_terminate(mcp_kind, &headers).await
-            }
-            server_request::Payload::ToolsList { mcp_kind, params } => {
-                let result = self
-                    .call::<ListToolsRequest, ListToolsResult>(&headers, "tools/list", &params)
-                    .await;
-                server_response::Payload::ToolsList { mcp_kind, result }
-            }
-            server_request::Payload::ToolsCall { mcp_kind, params } => {
-                let result = self
-                    .call::<CallToolRequestParams, CallToolResult>(&headers, "tools/call", &params)
-                    .await;
-                server_response::Payload::ToolsCall { mcp_kind, result }
-            }
-            server_request::Payload::ResourcesList { mcp_kind, params } => {
-                let result = self
-                    .call::<ListResourcesRequest, ListResourcesResult>(
-                        &headers,
-                        "resources/list",
-                        &params,
-                    )
-                    .await;
-                server_response::Payload::ResourcesList { mcp_kind, result }
-            }
-            server_request::Payload::ResourcesRead { mcp_kind, params } => {
-                let result = self
-                    .call::<ReadResourceRequestParams, ReadResourceResult>(
-                        &headers,
-                        "resources/read",
-                        &params,
-                    )
-                    .await;
-                server_response::Payload::ResourcesRead { mcp_kind, result }
-            }
-            server_request::Payload::Drop(req) => {
+            RequestPayload::Initialize => self.initialize(&headers).await,
+            RequestPayload::SessionTerminate => self.session_terminate(&headers).await,
+            RequestPayload::ToolsList(params) => ResponsePayload::ToolsList(
+                self.call::<ListToolsRequest, ListToolsResult>(&headers, "tools/list", &params)
+                    .await,
+            ),
+            RequestPayload::ToolsCall(params) => ResponsePayload::ToolsCall(
+                self.call::<CallToolRequestParams, CallToolResult>(
+                    &headers,
+                    "tools/call",
+                    &params,
+                )
+                .await,
+            ),
+            RequestPayload::ResourcesList(params) => ResponsePayload::ResourcesList(
+                self.call::<ListResourcesRequest, ListResourcesResult>(
+                    &headers,
+                    "resources/list",
+                    &params,
+                )
+                .await,
+            ),
+            RequestPayload::ResourcesRead(params) => ResponsePayload::ResourcesRead(
+                self.call::<ReadResourceRequestParams, ReadResourceResult>(
+                    &headers,
+                    "resources/read",
+                    &params,
+                )
+                .await,
+            ),
+            RequestPayload::Drop(req) => {
                 // Drop = kill for this response id's session, no upstream
                 // DELETE (mirrors the conduit's Drop semantics).
                 let dropped = self.connections.remove(&req.response_id).is_some();
-                server_response::Payload::Drop(server_response::DropResult { dropped })
+                ResponsePayload::Drop(DropResult { dropped })
             }
-            server_request::Payload::LaboratoryExportBegin(req) => {
-                self.export_begin(req).await
-            }
-            server_request::Payload::LaboratoryExportRead(req) => self.export_read(req).await,
-            server_request::Payload::LaboratoryExportAbort(req) => self.export_abort(req),
-            server_request::Payload::LaboratoryImportBegin(req) => {
-                self.import_begin(req).await
-            }
-            server_request::Payload::LaboratoryImportWrite(req) => self.import_write(req).await,
-            server_request::Payload::LaboratoryImportEnd(req) => self.import_end(req).await,
-            server_request::Payload::LaboratoryImportAbort(req) => self.import_abort(req),
-            // Ops a laboratory never serves (queue reads, retrieval).
-            server_request::Payload::ReadMessageQueue(_) => {
-                server_response::Payload::ReadMessageQueue(rpc_err(
-                    -32601,
-                    "laboratory manager does not serve read_message_queue".into(),
-                ))
-            }
-            server_request::Payload::Retrieve(_) => server_response::Payload::Retrieve(rpc_err(
-                -32601,
-                "laboratory manager does not serve retrieve".into(),
-            )),
+            RequestPayload::ExportBegin(req) => self.export_begin(req).await,
+            RequestPayload::ExportRead(req) => self.export_read(req).await,
+            RequestPayload::ExportAbort(req) => self.export_abort(req),
+            RequestPayload::ImportBegin(req) => self.import_begin(req).await,
+            RequestPayload::ImportWrite(req) => self.import_write(req).await,
+            RequestPayload::ImportEnd(req) => self.import_end(req).await,
+            RequestPayload::ImportAbort(req) => self.import_abort(req),
             // Host-level ops — answered by the HostServer BEFORE the
-            // per-lab demux; reaching here is a routing bug.
-            server_request::Payload::LaboratoryCreate(_) => {
-                server_response::Payload::LaboratoryCreate(rpc_err(
-                    -32601,
-                    "laboratory server does not serve create (host-level op)".into(),
-                ))
-            }
-            server_request::Payload::LaboratoryDelete(_) => {
-                server_response::Payload::LaboratoryDelete(rpc_err(
-                    -32601,
-                    "laboratory server does not serve delete (host-level op)".into(),
-                ))
-            }
+            // per-lab demux; reaching here is a routing bug, but the
+            // reply shape still pairs correctly.
+            RequestPayload::Create(_) => ResponsePayload::Create(rpc_err(
+                -32601,
+                "laboratory server does not serve create (host-level op)".into(),
+            )),
+            RequestPayload::Delete(_) => ResponsePayload::Delete(rpc_err(
+                -32601,
+                "laboratory server does not serve delete (host-level op)".into(),
+            )),
+            RequestPayload::LocalTransfer(_) => ResponsePayload::LocalTransfer(rpc_err(
+                -32601,
+                "laboratory server does not serve local transfer (host-level op)".into(),
+            )),
         };
         ChannelResponse { id, payload }
     }
@@ -203,12 +183,10 @@ impl LabServer {
 
     async fn initialize(
         &self,
-        mcp_kind: McpKind,
         headers: &IndexMap<String, String>,
-    ) -> server_response::Payload {
-        let initialize_err = |code: i64, message: String| server_response::Payload::Initialize {
-            mcp_kind: mcp_kind.clone(),
-            result: JsonRpcResult::Err { code, message, data: None },
+    ) -> ResponsePayload {
+        let initialize_err = |code: i64, message: String| {
+            ResponsePayload::Initialize(JsonRpcResult::Err { code, message, data: None })
         };
         let Some(response_id) = response_id_from_headers(headers) else {
             return initialize_err(-32600, "missing X-OBJECTIVEAI-RESPONSE-ID header".into());
@@ -225,26 +203,19 @@ impl LabServer {
         let mcp_session_id = connection.session_id.clone();
         let result = connection.initialize_result.clone();
         self.connections.insert(response_id, Arc::new(connection));
-        server_response::Payload::Initialize {
-            mcp_kind,
-            result: JsonRpcResult::Ok {
-                result: server_response::InitializeReply {
-                    mcp_session_id,
-                    result,
-                },
+        ResponsePayload::Initialize(JsonRpcResult::Ok {
+            result: InitializeReply {
+                mcp_session_id,
+                result,
             },
-        }
+        })
     }
 
     async fn session_terminate(
         &self,
-        mcp_kind: McpKind,
         headers: &IndexMap<String, String>,
-    ) -> server_response::Payload {
-        let ok = || server_response::Payload::SessionTerminate {
-            mcp_kind: mcp_kind.clone(),
-            result: JsonRpcResult::Ok { result: () },
-        };
+    ) -> ResponsePayload {
+        let ok = || ResponsePayload::SessionTerminate(JsonRpcResult::Ok { result: () });
         let Some(response_id) = response_id_from_headers(headers) else {
             return ok();
         };
@@ -256,14 +227,11 @@ impl LabServer {
                 self.connections.remove(&response_id);
                 ok()
             }
-            Err(e) => server_response::Payload::SessionTerminate {
-                mcp_kind,
-                result: JsonRpcResult::Err {
-                    code: -32603,
-                    message: format!("laboratory: upstream delete: {e}"),
-                    data: None,
-                },
-            },
+            Err(e) => ResponsePayload::SessionTerminate(JsonRpcResult::Err {
+                code: -32603,
+                message: format!("laboratory: upstream delete: {e}"),
+                data: None,
+            }),
         }
     }
 
@@ -301,12 +269,67 @@ impl LabServer {
             .retain(|_, entry| entry.idle_secs() < TRANSFER_IDLE_SECS);
     }
 
+    /// The local-transfer fast path: pipe this laboratory's `/export`
+    /// stream STRAIGHT into `destination`'s `/import` body — no chunk
+    /// staging, no base64, no parked transfer entries; reqwest streams
+    /// the tar end to end and the HTTP bodies provide the
+    /// backpressure. Returns the byte total the destination ingested.
+    /// Dropping the export response on any failure aborts the GET, so
+    /// nothing leaks.
+    pub async fn pipe_export_into(
+        &self,
+        source_path: &str,
+        destination: &LabServer,
+        destination_path: &str,
+    ) -> Result<u64, String> {
+        let export = reqwest::Client::new()
+            .get(format!("{}/export", self.base_url))
+            .query(&[("path", &source_path)])
+            .send()
+            .await
+            .map_err(|e| format!("export: {e}"))?;
+        if !export.status().is_success() {
+            let status = export.status();
+            let body = export.text().await.unwrap_or_default();
+            return Err(format!("export: HTTP {status}: {}", body.trim()));
+        }
+        // Count bytes as they flow — the import side reports only
+        // HTTP success, and the export stream is consumed exactly
+        // once, here.
+        let bytes = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let counted = {
+            use futures::StreamExt as _;
+            let bytes = std::sync::Arc::clone(&bytes);
+            export.bytes_stream().map(move |chunk| {
+                if let Ok(chunk) = &chunk {
+                    bytes.fetch_add(
+                        chunk.len() as u64,
+                        std::sync::atomic::Ordering::Relaxed,
+                    );
+                }
+                chunk
+            })
+        };
+        let import = reqwest::Client::new()
+            .post(format!("{}/import", destination.base_url))
+            .query(&[("path", &destination_path)])
+            .body(reqwest::Body::wrap_stream(counted))
+            .send()
+            .await
+            .map_err(|e| format!("import: {e}"))?;
+        if !import.status().is_success() {
+            let status = import.status();
+            let body = import.text().await.unwrap_or_default();
+            return Err(format!("import: HTTP {status}: {}", body.trim()));
+        }
+        Ok(bytes.load(std::sync::atomic::Ordering::Relaxed))
+    }
+
     async fn export_begin(
         &self,
-        req: server_request::LaboratoryExportBeginRequest,
-    ) -> server_response::Payload {
-        use server_response::Payload;
-        let err = |m: String| Payload::LaboratoryExportBegin(rpc_err(-32603, m));
+        req: ExportBeginRequest,
+    ) -> ResponsePayload {
+                let err = |m: String| ResponsePayload::ExportBegin(rpc_err(-32603, m));
         self.gc_transfers();
         let response = match reqwest::Client::new()
             .get(format!("{}/export", self.base_url))
@@ -315,16 +338,12 @@ impl LabServer {
             .await
         {
             Ok(r) => r,
-            Err(e) => return err(format!("export from {}: {e}", req.laboratory_id)),
+            Err(e) => return err(format!("export: {e}")),
         };
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return err(format!(
-                "export from {}: HTTP {status}: {}",
-                req.laboratory_id,
-                body.trim()
-            ));
+            return err(format!("export: HTTP {status}: {}", body.trim()));
         }
         let transfer_id = uuid::Uuid::new_v4().to_string();
         let entry = TransferEntry::Export {
@@ -332,18 +351,17 @@ impl LabServer {
             last_used: std::sync::atomic::AtomicI64::new(now_secs()),
         };
         self.transfers.insert(transfer_id.clone(), Arc::new(entry));
-        Payload::LaboratoryExportBegin(JsonRpcResult::Ok {
-            result: server_response::LaboratoryTransferBeginResult { transfer_id },
+        ResponsePayload::ExportBegin(JsonRpcResult::Ok {
+            result: TransferBeginResult { transfer_id },
         })
     }
 
     async fn export_read(
         &self,
-        req: server_request::LaboratoryExportReadRequest,
-    ) -> server_response::Payload {
+        req: TransferIdRequest,
+    ) -> ResponsePayload {
         use base64::Engine as _;
-        use server_response::Payload;
-        let err = |m: String| Payload::LaboratoryExportRead(rpc_err(-32603, m));
+                let err = |m: String| ResponsePayload::ExportRead(rpc_err(-32603, m));
         let entry = match self.transfers.get(&req.transfer_id) {
             Some(e) => Arc::clone(&e),
             None => return err(format!("no export transfer '{}'", req.transfer_id)),
@@ -378,8 +396,8 @@ impl LabServer {
             drop(guard);
             self.transfers.remove(&req.transfer_id);
         }
-        Payload::LaboratoryExportRead(JsonRpcResult::Ok {
-            result: server_response::LaboratoryExportChunk {
+        ResponsePayload::ExportRead(JsonRpcResult::Ok {
+            result: ExportChunk {
                 data: base64::engine::general_purpose::STANDARD.encode(&buf),
                 eof,
             },
@@ -388,25 +406,23 @@ impl LabServer {
 
     fn export_abort(
         &self,
-        req: server_request::LaboratoryExportAbortRequest,
-    ) -> server_response::Payload {
+        req: TransferIdRequest,
+    ) -> ResponsePayload {
         self.transfers.remove(&req.transfer_id);
-        server_response::Payload::LaboratoryExportAbort(JsonRpcResult::Ok {
-            result: server_response::LaboratoryTransferAck {},
+        ResponsePayload::ExportAbort(JsonRpcResult::Ok {
+            result: TransferAck {},
         })
     }
 
     async fn import_begin(
         &self,
-        req: server_request::LaboratoryImportBeginRequest,
-    ) -> server_response::Payload {
-        use server_response::Payload;
-        let err = |m: String| Payload::LaboratoryImportBegin(rpc_err(-32603, m));
+        req: ImportBeginRequest,
+    ) -> ResponsePayload {
+                let err = |m: String| ResponsePayload::ImportBegin(rpc_err(-32603, m));
         self.gc_transfers();
         let (tx, rx) = tokio::sync::mpsc::channel::<Result<Vec<u8>, std::io::Error>>(4);
         let base = self.base_url.clone();
-        let laboratory_id = req.laboratory_id.clone();
-        let path = req.path.clone();
+                let path = req.path.clone();
         let join = tokio::spawn(async move {
             let response = reqwest::Client::new()
                 .post(format!("{base}/import"))
@@ -416,16 +432,13 @@ impl LabServer {
                 ))
                 .send()
                 .await
-                .map_err(|e| format!("import to {laboratory_id}: {e}"))?;
+                .map_err(|e| format!("import: {e}"))?;
             if response.status().is_success() {
                 Ok(())
             } else {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
-                Err(format!(
-                    "import to {laboratory_id}: HTTP {status}: {}",
-                    body.trim()
-                ))
+                Err(format!("import: HTTP {status}: {}", body.trim()))
             }
         });
         let transfer_id = uuid::Uuid::new_v4().to_string();
@@ -436,18 +449,17 @@ impl LabServer {
             last_used: std::sync::atomic::AtomicI64::new(now_secs()),
         };
         self.transfers.insert(transfer_id.clone(), Arc::new(entry));
-        Payload::LaboratoryImportBegin(JsonRpcResult::Ok {
-            result: server_response::LaboratoryTransferBeginResult { transfer_id },
+        ResponsePayload::ImportBegin(JsonRpcResult::Ok {
+            result: TransferBeginResult { transfer_id },
         })
     }
 
     async fn import_write(
         &self,
-        req: server_request::LaboratoryImportWriteRequest,
-    ) -> server_response::Payload {
+        req: ImportWriteRequest,
+    ) -> ResponsePayload {
         use base64::Engine as _;
-        use server_response::Payload;
-        let err = |m: String| Payload::LaboratoryImportWrite(rpc_err(-32603, m));
+                let err = |m: String| ResponsePayload::ImportWrite(rpc_err(-32603, m));
         let entry = match self.transfers.get(&req.transfer_id) {
             Some(e) => Arc::clone(&e),
             None => return err(format!("no import transfer '{}'", req.transfer_id)),
@@ -480,17 +492,16 @@ impl LabServer {
             return err(detail);
         }
         bytes.fetch_add(len, std::sync::atomic::Ordering::Relaxed);
-        Payload::LaboratoryImportWrite(JsonRpcResult::Ok {
-            result: server_response::LaboratoryTransferAck {},
+        ResponsePayload::ImportWrite(JsonRpcResult::Ok {
+            result: TransferAck {},
         })
     }
 
     async fn import_end(
         &self,
-        req: server_request::LaboratoryImportEndRequest,
-    ) -> server_response::Payload {
-        use server_response::Payload;
-        let err = |m: String| Payload::LaboratoryImportEnd(rpc_err(-32603, m));
+        req: TransferIdRequest,
+    ) -> ResponsePayload {
+                let err = |m: String| ResponsePayload::ImportEnd(rpc_err(-32603, m));
         let entry = match self.transfers.remove(&req.transfer_id) {
             Some((_, e)) => e,
             None => return err(format!("no import transfer '{}'", req.transfer_id)),
@@ -502,8 +513,8 @@ impl LabServer {
         let joined = join.lock().await.take();
         match joined {
             Some(handle) => match handle.await {
-                Ok(Ok(())) => Payload::LaboratoryImportEnd(JsonRpcResult::Ok {
-                    result: server_response::LaboratoryImportEndResult {
+                Ok(Ok(())) => ResponsePayload::ImportEnd(JsonRpcResult::Ok {
+                    result: ImportEndResult {
                         bytes: bytes.load(std::sync::atomic::Ordering::Relaxed),
                     },
                 }),
@@ -516,8 +527,8 @@ impl LabServer {
 
     fn import_abort(
         &self,
-        req: server_request::LaboratoryImportAbortRequest,
-    ) -> server_response::Payload {
+        req: TransferIdRequest,
+    ) -> ResponsePayload {
         if let Some((_, entry)) = self.transfers.remove(&req.transfer_id) {
             if let TransferEntry::Import { join, .. } = &*entry {
                 if let Ok(mut guard) = join.try_lock() {
@@ -525,8 +536,8 @@ impl LabServer {
                 }
             }
         }
-        server_response::Payload::LaboratoryImportAbort(JsonRpcResult::Ok {
-            result: server_response::LaboratoryTransferAck {},
+        ResponsePayload::ImportAbort(JsonRpcResult::Ok {
+            result: TransferAck {},
         })
     }
 }

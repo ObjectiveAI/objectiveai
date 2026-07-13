@@ -128,22 +128,24 @@ pub enum Payload {
     #[schemars(title = "LaboratoryImportAbort")]
     LaboratoryImportAbort(LaboratoryImportAbortRequest),
 
-    /// Create a laboratory on the receiving HOST (podman create + MCP
-    /// binary injection, container NOT started). Rides ONLY the
-    /// `/laboratory` channel — daemon → host — never the API reverse
-    /// channel. The host replies with the created spec and broadcasts
-    /// a `laboratory_created` notification to every daemon it is
-    /// connected to.
-    #[cfg(feature = "laboratory-daemon")]
-    #[schemars(title = "LaboratoryCreate")]
-    LaboratoryCreate(LaboratoryCreateRequest),
-    /// Delete a laboratory from the receiving HOST (`podman rm -f`;
-    /// missing container is not an error). Same channel scope as
-    /// [`Payload::LaboratoryCreate`]; the host broadcasts a
-    /// `laboratory_deleted` notification.
-    #[cfg(feature = "laboratory-daemon")]
-    #[schemars(title = "LaboratoryDelete")]
-    LaboratoryDelete(LaboratoryDeleteRequest),
+    /// Transfer a path between TWO client laboratories on (possibly)
+    /// different hosts: the CLI daemon drives the whole export→import
+    /// splice itself with the half-op vocabulary above, holding at
+    /// most one chunk in transit, and replies once with the byte
+    /// total. Sent by the API's proxy when both endpoints are CLIENT
+    /// laboratories that do NOT share a (machine, state) pair.
+    #[schemars(title = "LaboratoryTransfer")]
+    LaboratoryTransfer(LaboratoryTransferRequest),
+    /// Transfer a path between two client laboratories that share the
+    /// SAME (machine, state) — i.e. the same laboratory host. The CLI
+    /// daemon forwards this verbatim to that host, which pipes the
+    /// source's export stream straight into the destination's import
+    /// (no chunk staging anywhere outside the host). Sent by the
+    /// API's proxy when both endpoints are CLIENT laboratories with
+    /// equal (machine, state) pairs.
+    #[schemars(title = "LaboratoryLocalTransfer")]
+    LaboratoryLocalTransfer(LaboratoryLocalTransferRequest),
+
 }
 
 impl Payload {
@@ -168,9 +170,9 @@ impl Payload {
             | Payload::LaboratoryImportWrite(_)
             | Payload::LaboratoryImportEnd(_)
             | Payload::LaboratoryImportAbort(_)
+            | Payload::LaboratoryTransfer(_)
+            | Payload::LaboratoryLocalTransfer(_)
             => None,
-            #[cfg(feature = "laboratory-daemon")]
-            Payload::LaboratoryCreate(_) | Payload::LaboratoryDelete(_) => None,
         }
     }
 }
@@ -276,34 +278,65 @@ pub struct LaboratoryImportEndRequest {
     pub transfer_id: String,
 }
 
-/// Parameters for [`Payload::LaboratoryCreate`] — the `laboratories
-/// create` spec, forwarded to the host that will own the container.
-#[cfg(feature = "laboratory-daemon")]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryCreateRequest")]
-pub struct LaboratoryCreateRequest {
-    pub id: String,
-    pub image: String,
-    /// Bind mounts as `[host, container]` pairs.
-    pub mounts: Vec<[String; 2]>,
-    /// Environment as `[key, value]` pairs.
-    pub env: Vec<[String; 2]>,
-    pub cwd: String,
-}
-
-/// Parameters for [`Payload::LaboratoryDelete`].
-#[cfg(feature = "laboratory-daemon")]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryDeleteRequest")]
-pub struct LaboratoryDeleteRequest {
-    pub id: String,
-}
 
 /// Parameters for [`Payload::LaboratoryImportAbort`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportAbortRequest")]
 pub struct LaboratoryImportAbortRequest {
     pub transfer_id: String,
+}
+
+/// Parameters for [`Payload::LaboratoryTransfer`] and
+/// [`Payload::LaboratoryLocalTransfer`] — both endpoints' RAW ids and
+/// exact host pairs (composite ids never ride the wire), plus the two
+/// paths, `cp`-style.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryTransferRequest")]
+pub struct LaboratoryTransferRequest {
+    pub source_id: String,
+    /// The source laboratory's exact host: machine id + its state.
+    /// Absent pair (=) first-match-by-id routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub source_machine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub source_machine_state: Option<String>,
+    pub source_path: String,
+    pub destination_id: String,
+    /// The destination laboratory's exact host pair.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub destination_machine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub destination_machine_state: Option<String>,
+    pub destination_path: String,
+}
+
+/// Parameters for [`Payload::LaboratoryLocalTransfer`] — identical
+/// shape to [`LaboratoryTransferRequest`]; the (machine, state) pairs
+/// are equal by construction (the proxy only picks the local variant
+/// when they match).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryLocalTransferRequest")]
+pub struct LaboratoryLocalTransferRequest {
+    pub source_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub source_machine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub source_machine_state: Option<String>,
+    pub source_path: String,
+    pub destination_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub destination_machine: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub destination_machine_state: Option<String>,
+    pub destination_path: String,
 }
 
 /// Parameters for [`Payload::Initialize`].

@@ -12,8 +12,7 @@
 //! scanning. Only client-side laboratories are supported today.
 
 use objectiveai_sdk::cli::command::laboratories::delete::{Kind, Request, Response};
-use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
-use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
+use objectiveai_sdk::laboratories::daemon::{JsonRpcResult, RequestPayload, ResponsePayload};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -32,8 +31,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .resident_hubs()
         .ok_or_else(|| Error::Laboratory("laboratories delete requires the resident daemon".to_string()))?;
 
-    let payload = server_request::Payload::LaboratoryDelete(
-        server_request::LaboratoryDeleteRequest { id: request.id.clone() },
+    let payload = RequestPayload::Delete(
+        objectiveai_sdk::laboratories::daemon::DeleteRequest { id: request.id.clone() },
     );
     let response = hubs
         .laboratories
@@ -41,10 +40,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .await
         .map_err(Error::Laboratory)?;
     match response {
-        server_response::Payload::LaboratoryDelete(JsonRpcResult::Ok { .. }) => {
+        ResponsePayload::Delete(JsonRpcResult::Ok { .. }) => {
             Ok(Response { id: request.id })
         }
-        server_response::Payload::LaboratoryDelete(JsonRpcResult::Err {
+        ResponsePayload::Delete(JsonRpcResult::Err {
             message, ..
         }) => Err(Error::Laboratory(message)),
         _ => Err(Error::Laboratory(

@@ -177,8 +177,8 @@ impl LaboratoryRegistry {
         machine: Option<&str>,
         machine_state: Option<&str>,
         headers: indexmap::IndexMap<String, String>,
-        request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
-    ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
+        request: objectiveai_sdk::laboratories::daemon::RequestPayload,
+    ) -> Result<objectiveai_sdk::laboratories::daemon::ResponsePayload, String> {
         let (machine_id, state) = match (machine, machine_state) {
             (Some(machine), Some(machine_state)) => {
                 (machine.to_string(), machine_state.to_string())
@@ -210,8 +210,8 @@ impl LaboratoryRegistry {
         machine_id: &str,
         state: &str,
         headers: indexmap::IndexMap<String, String>,
-        request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
-    ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
+        request: objectiveai_sdk::laboratories::daemon::RequestPayload,
+    ) -> Result<objectiveai_sdk::laboratories::daemon::ResponsePayload, String> {
         self.forward_inner(machine_id, state, None, headers, request)
             .await
     }
@@ -222,8 +222,8 @@ impl LaboratoryRegistry {
         state: &str,
         laboratory_id: Option<String>,
         headers: indexmap::IndexMap<String, String>,
-        request: objectiveai_sdk::client_objectiveai_mcp::server_request::Payload,
-    ) -> Result<objectiveai_sdk::client_objectiveai_mcp::server_response::Payload, String> {
+        request: objectiveai_sdk::laboratories::daemon::RequestPayload,
+    ) -> Result<objectiveai_sdk::laboratories::daemon::ResponsePayload, String> {
         // Clone the Arc out; never hold a map guard across an await.
         let host = match self
             .hosts
@@ -237,6 +237,23 @@ impl LaboratoryRegistry {
             }
         };
         let id = uuid::Uuid::new_v4().to_string();
+        // Transfer-family ops are timeout-free: an archive can exceed
+        // any fixed cap, and the host disconnect (pending-map drop) is
+        // the failure signal. Everything else keeps the standard cap.
+        let timeout_free = {
+            use objectiveai_sdk::laboratories::daemon::RequestPayload as P;
+            matches!(
+                request,
+                P::ExportBegin(_)
+                    | P::ExportRead(_)
+                    | P::ExportAbort(_)
+                    | P::ImportBegin(_)
+                    | P::ImportWrite(_)
+                    | P::ImportEnd(_)
+                    | P::ImportAbort(_)
+                    | P::LocalTransfer(_)
+            )
+        };
         let (reply_tx, reply_rx) = oneshot::channel();
         host.pending.insert(id.clone(), reply_tx);
         let sent = host.tx.send(ChannelRequest {
@@ -250,6 +267,15 @@ impl LaboratoryRegistry {
             return Err(format!(
                 "laboratory host for machine '{machine_id}' disconnected"
             ));
+        }
+        if timeout_free {
+            return match reply_rx.await {
+                Ok(response) => Ok(response.payload),
+                // Pending map dropped — the host disconnected.
+                Err(_) => Err(format!(
+                    "laboratory host for machine '{machine_id}' disconnected mid-request"
+                )),
+            };
         }
         match tokio::time::timeout(FORWARD_TIMEOUT, reply_rx).await {
             Ok(Ok(response)) => Ok(response.payload),

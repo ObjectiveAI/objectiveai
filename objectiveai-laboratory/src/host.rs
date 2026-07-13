@@ -24,10 +24,10 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use objectiveai_sdk::laboratories::daemon::{
-    ChannelRequest, ChannelResponse, HostIdentify, HostNotification, Identify, IdentifyMount,
+    ChannelRequest, ChannelResponse, CreateRequest, HostIdentify, HostNotification,
+    Identify, IdentifyMount, JsonRpcResult, LocalTransferRequest, LocalTransferResult,
+    RequestPayload, ResponsePayload, TransferAck,
 };
-use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
-use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use objectiveai_sdk::machine::MachineIdentity;
 
 use crate::podman;
@@ -130,18 +130,28 @@ impl HostServer {
     /// [`LabServer`].
     pub async fn handle(self: &Arc<Self>, request: ChannelRequest) -> ChannelResponse {
         match &request.payload {
-            server_request::Payload::LaboratoryCreate(req) => {
+            RequestPayload::Create(req) => {
                 let result = self.create_laboratory(req).await;
                 return ChannelResponse {
                     id: request.id,
-                    payload: server_response::Payload::LaboratoryCreate(result),
+                    payload: ResponsePayload::Create(result),
                 };
             }
-            server_request::Payload::LaboratoryDelete(req) => {
+            RequestPayload::Delete(req) => {
                 let result = self.delete_laboratory(&req.id).await;
                 return ChannelResponse {
                     id: request.id,
-                    payload: server_response::Payload::LaboratoryDelete(result),
+                    payload: ResponsePayload::Delete(result),
+                };
+            }
+            // Host-level like create/delete — it addresses TWO
+            // laboratories on THIS host, so it never demuxes to one
+            // LabServer.
+            RequestPayload::LocalTransfer(req) => {
+                let result = self.local_transfer(req).await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::LocalTransfer(result),
                 };
             }
             _ => {}
@@ -197,7 +207,7 @@ impl HostServer {
     /// `laboratory_created` to every connected daemon.
     async fn create_laboratory(
         &self,
-        req: &server_request::LaboratoryCreateRequest,
+        req: &CreateRequest,
     ) -> JsonRpcResult<Identify> {
         let mounts: Vec<podman::laboratory::Mount> = req
             .mounts
@@ -273,7 +283,7 @@ impl HostServer {
     async fn delete_laboratory(
         &self,
         id: &str,
-    ) -> JsonRpcResult<server_response::LaboratoryTransferAck> {
+    ) -> JsonRpcResult<TransferAck> {
         self.labs.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {
             return rpc_err(-32603, format!("delete laboratory '{id}': {e}"));
@@ -281,7 +291,49 @@ impl HostServer {
         self.broadcast(&HostNotification::LaboratoryDeleted { id: id.to_string() })
             .await;
         JsonRpcResult::Ok {
-            result: server_response::LaboratoryTransferAck {},
+            result: TransferAck {},
+        }
+    }
+
+    /// `LaboratoryLocalTransfer`: both endpoints live on THIS host
+    /// (equal (machine, state) by construction — the proxy only picks
+    /// the local variant when the pairs match). Start both containers
+    /// if needed and pipe the source's export stream straight into
+    /// the destination's import. The host is the only tier allowed to
+    /// buffer, and this path does not even stage chunks.
+    async fn local_transfer(
+        &self,
+        req: &LocalTransferRequest,
+    ) -> JsonRpcResult<LocalTransferResult> {
+        let source = match self.lab_server(&req.source_id).await {
+            Ok(server) => server,
+            Err(message) => {
+                return rpc_err(-32603, format!("source '{}': {message}", req.source_id));
+            }
+        };
+        let destination = match self.lab_server(&req.destination_id).await {
+            Ok(server) => server,
+            Err(message) => {
+                return rpc_err(
+                    -32603,
+                    format!("destination '{}': {message}", req.destination_id),
+                );
+            }
+        };
+        match source
+            .pipe_export_into(&req.source_path, &destination, &req.destination_path)
+            .await
+        {
+            Ok(bytes) => JsonRpcResult::Ok {
+                result: LocalTransferResult { bytes },
+            },
+            Err(message) => rpc_err(
+                -32603,
+                format!(
+                    "local transfer '{}' -> '{}': {message}",
+                    req.source_id, req.destination_id
+                ),
+            ),
         }
     }
 
@@ -329,50 +381,34 @@ fn rpc_err<T>(code: i64, message: String) -> JsonRpcResult<T> {
 /// Variant names pair 1:1 with the request side; `Drop` has no error
 /// shape (infallible ack), so it answers `dropped: false`.
 fn reject(
-    payload: &server_request::Payload,
+    payload: &RequestPayload,
     code: i64,
     message: String,
-) -> server_response::Payload {
-    use server_request::Payload as Req;
-    use server_response::Payload as Resp;
+) -> ResponsePayload {
+    use RequestPayload as Req;
+    use ResponsePayload as Resp;
     match payload {
-        Req::Initialize { mcp_kind, .. } => Resp::Initialize {
-            mcp_kind: mcp_kind.clone(),
-            result: rpc_err(code, message),
-        },
-        Req::ToolsList { mcp_kind, .. } => Resp::ToolsList {
-            mcp_kind: mcp_kind.clone(),
-            result: rpc_err(code, message),
-        },
-        Req::ToolsCall { mcp_kind, .. } => Resp::ToolsCall {
-            mcp_kind: mcp_kind.clone(),
-            result: rpc_err(code, message),
-        },
-        Req::ResourcesList { mcp_kind, .. } => Resp::ResourcesList {
-            mcp_kind: mcp_kind.clone(),
-            result: rpc_err(code, message),
-        },
-        Req::ResourcesRead { mcp_kind, .. } => Resp::ResourcesRead {
-            mcp_kind: mcp_kind.clone(),
-            result: rpc_err(code, message),
-        },
-        Req::SessionTerminate { mcp_kind } => Resp::SessionTerminate {
-            mcp_kind: mcp_kind.clone(),
-            result: rpc_err(code, message),
-        },
-        Req::ReadMessageQueue(_) => Resp::ReadMessageQueue(rpc_err(code, message)),
-        Req::Retrieve(_) => Resp::Retrieve(rpc_err(code, message)),
-        Req::Drop(_) => Resp::Drop(server_response::DropResult { dropped: false }),
-        Req::LaboratoryExportBegin(_) => Resp::LaboratoryExportBegin(rpc_err(code, message)),
-        Req::LaboratoryExportRead(_) => Resp::LaboratoryExportRead(rpc_err(code, message)),
-        Req::LaboratoryExportAbort(_) => Resp::LaboratoryExportAbort(rpc_err(code, message)),
-        Req::LaboratoryImportBegin(_) => Resp::LaboratoryImportBegin(rpc_err(code, message)),
-        Req::LaboratoryImportWrite(_) => Resp::LaboratoryImportWrite(rpc_err(code, message)),
-        Req::LaboratoryImportEnd(_) => Resp::LaboratoryImportEnd(rpc_err(code, message)),
-        Req::LaboratoryImportAbort(_) => Resp::LaboratoryImportAbort(rpc_err(code, message)),
+        Req::Initialize => Resp::Initialize(rpc_err(code, message)),
+        Req::SessionTerminate => Resp::SessionTerminate(rpc_err(code, message)),
+        Req::ToolsList(_) => Resp::ToolsList(rpc_err(code, message)),
+        Req::ToolsCall(_) => Resp::ToolsCall(rpc_err(code, message)),
+        Req::ResourcesList(_) => Resp::ResourcesList(rpc_err(code, message)),
+        Req::ResourcesRead(_) => Resp::ResourcesRead(rpc_err(code, message)),
+        // Drop is infallible in shape — nothing was dropped.
+        Req::Drop(_) => Resp::Drop(objectiveai_sdk::laboratories::daemon::DropResult {
+            dropped: false,
+        }),
+        Req::ExportBegin(_) => Resp::ExportBegin(rpc_err(code, message)),
+        Req::ExportRead(_) => Resp::ExportRead(rpc_err(code, message)),
+        Req::ExportAbort(_) => Resp::ExportAbort(rpc_err(code, message)),
+        Req::ImportBegin(_) => Resp::ImportBegin(rpc_err(code, message)),
+        Req::ImportWrite(_) => Resp::ImportWrite(rpc_err(code, message)),
+        Req::ImportEnd(_) => Resp::ImportEnd(rpc_err(code, message)),
+        Req::ImportAbort(_) => Resp::ImportAbort(rpc_err(code, message)),
         // Host-level ops are answered in `handle` — reaching here is a
         // routing bug, but the reply shape still pairs correctly.
-        Req::LaboratoryCreate(_) => Resp::LaboratoryCreate(rpc_err(code, message)),
-        Req::LaboratoryDelete(_) => Resp::LaboratoryDelete(rpc_err(code, message)),
+        Req::Create(_) => Resp::Create(rpc_err(code, message)),
+        Req::Delete(_) => Resp::Delete(rpc_err(code, message)),
+        Req::LocalTransfer(_) => Resp::LocalTransfer(rpc_err(code, message)),
     }
 }

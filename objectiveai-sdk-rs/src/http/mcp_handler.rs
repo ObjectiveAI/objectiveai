@@ -114,11 +114,11 @@ impl McpHandler for RejectHandler {
             server_request::Payload::LaboratoryImportAbort(_) => {
                 Payload::LaboratoryImportAbort(reject_err())
             }
-            server_request::Payload::LaboratoryCreate(_) => {
-                Payload::LaboratoryCreate(reject_err())
+            server_request::Payload::LaboratoryTransfer(_) => {
+                Payload::LaboratoryTransfer(reject_err())
             }
-            server_request::Payload::LaboratoryDelete(_) => {
-                Payload::LaboratoryDelete(reject_err())
+            server_request::Payload::LaboratoryLocalTransfer(_) => {
+                Payload::LaboratoryLocalTransfer(reject_err())
             }
         };
         server_response::Response {

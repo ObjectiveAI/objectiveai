@@ -11,6 +11,7 @@ use futures::future::try_join_all;
 use indexmap::IndexMap;
 use std::sync::Arc;
 use objectiveai_sdk::laboratories::{ClientLaboratory, Laboratory};
+use objectiveai_sdk::client_objectiveai_mcp::server_request;
 use objectiveai_sdk::mcp::{
     JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
@@ -419,9 +420,11 @@ impl Session {
     /// a name, or a bare id. Returns the upstream and its typed
     /// marker, whose (machine, machine_state) pair pins the exact
     /// host for downstream routing.
-    fn find_laboratory(&self, target: &ClientLaboratory) -> Option<(&Upstream, ClientLaboratory)> {
+    fn find_laboratory(&self, target: &ClientLaboratory) -> Option<(&Upstream, Laboratory)> {
         self.connections.values().find_map(|u| match u.laboratory() {
-            Some(Laboratory::Client(c)) if c == *target => Some((u, c)),
+            Some(Laboratory::Client(c)) if c == *target => {
+                Some((u, Laboratory::Client(c)))
+            }
             _ => None,
         })
     }
@@ -433,13 +436,15 @@ impl Session {
     /// REQUIRED: laboratory ids are only unique per (machine, state),
     /// so a bare id is ambiguous and rejected. Resolved against the
     /// typed markers on all three fields.
-    /// The byte movement is a PROXY-SIDE SPLICE of two completely
-    /// independent conduit operations — an export pulled chunk-by-chunk
-    /// from the source's channel and an import pushed chunk-by-chunk to
-    /// the destination's channel — so the tar bytes stream through the
-    /// API and the two laboratories need not share a host. (Today both
-    /// channels are clones of the one session channel; the splice shape
-    /// stops caring.)
+    /// The byte movement is DELEGATED: the proxy matches the two
+    /// laboratories' enum variants and, for client↔client, sends ONE
+    /// combined request down the reverse channel — `local_transfer`
+    /// when both share a (machine, state) pair (the one laboratory
+    /// host pipes container-to-container), plain `transfer` otherwise
+    /// (the CLI daemon drives the export/import splice, one chunk in
+    /// transit). The proxy never touches payload bytes. Future
+    /// `Laboratory::Server` variants extend the match with their own
+    /// (more involved) orchestration.
     async fn laboratory_transfer(&self, params: &CallToolRequestParams) -> CallToolResult {
         let arg = |key: &str| -> Option<&str> {
             params
@@ -507,70 +512,48 @@ impl Session {
             }
         };
 
-        // Begin both halves; a failure on either aborts the survivor.
-        // Each Begin carries the matched marker's RAW id + its
-        // (machine, machine_state) pair — laboratory ids are only
-        // unique per (machine, state), so the conduit forwards each
-        // half to the exact host. NEVER the composite arg string: the
-        // wire's laboratory_id is the raw id everywhere.
-        let export_id = match source_channel
-            .laboratory_export_begin(
-                source_marker.id.clone(),
-                source_marker.machine,
-                source_marker.machine_state,
-                source_path.to_string(),
-            )
-            .await
-        {
-            Ok(id) => id,
-            Err(e) => return transfer_error(format!("transfer failed: {e}")),
-        };
-        let import_id = match dest_channel
-            .laboratory_import_begin(
-                dest_marker.id.clone(),
-                dest_marker.machine,
-                dest_marker.machine_state,
-                destination_path.to_string(),
-            )
-            .await
-        {
-            Ok(id) => id,
-            Err(e) => {
-                source_channel.laboratory_export_abort(export_id).await;
-                return transfer_error(format!("transfer failed: {e}"));
-            }
-        };
-
-        // The splice: pull a chunk, push a chunk, until eof. One chunk
-        // in flight is the backpressure.
-        let mut export_open = true;
-        let bytes = loop {
-            let chunk = match source_channel.laboratory_export_read(export_id.clone()).await {
-                Ok(chunk) => chunk,
-                Err(e) => {
-                    dest_channel.laboratory_import_abort(import_id.clone()).await;
-                    return transfer_error(format!("transfer failed: {e}"));
-                }
-            };
-            if chunk.eof {
-                // The conduit already removed the export entry.
-                export_open = false;
-            }
-            if !chunk.data.is_empty() {
-                if let Err(e) = dest_channel
-                    .laboratory_import_write(import_id.clone(), chunk.data)
-                    .await
-                {
-                    if export_open {
-                        source_channel.laboratory_export_abort(export_id.clone()).await;
+        // Dispatch by the two markers' enum variants. Client↔client
+        // collapses to ONE combined request on the SOURCE upstream's
+        // reverse channel (both channels reach the same client today;
+        // source is the documented pick). Adding a Laboratory::Server
+        // variant makes this match non-exhaustive — its arms carry
+        // their own orchestration, they are NOT a forwarded request.
+        let bytes = match (source_marker, dest_marker) {
+            (Laboratory::Client(src), Laboratory::Client(dst)) => {
+                let local = src.machine.is_some()
+                    && src.machine == dst.machine
+                    && src.machine_state.is_some()
+                    && src.machine_state == dst.machine_state;
+                if local {
+                    let request = server_request::LaboratoryLocalTransferRequest {
+                        source_id: src.id,
+                        source_machine: src.machine,
+                        source_machine_state: src.machine_state,
+                        source_path: source_path.to_string(),
+                        destination_id: dst.id,
+                        destination_machine: dst.machine,
+                        destination_machine_state: dst.machine_state,
+                        destination_path: destination_path.to_string(),
+                    };
+                    match source_channel.laboratory_local_transfer(request).await {
+                        Ok(bytes) => bytes,
+                        Err(e) => return transfer_error(format!("transfer failed: {e}")),
                     }
-                    return transfer_error(format!("transfer failed: {e}"));
-                }
-            }
-            if !export_open {
-                match dest_channel.laboratory_import_end(import_id.clone()).await {
-                    Ok(bytes) => break bytes,
-                    Err(e) => return transfer_error(format!("transfer failed: {e}")),
+                } else {
+                    let request = server_request::LaboratoryTransferRequest {
+                        source_id: src.id,
+                        source_machine: src.machine,
+                        source_machine_state: src.machine_state,
+                        source_path: source_path.to_string(),
+                        destination_id: dst.id,
+                        destination_machine: dst.machine,
+                        destination_machine_state: dst.machine_state,
+                        destination_path: destination_path.to_string(),
+                    };
+                    match source_channel.laboratory_transfer(request).await {
+                        Ok(bytes) => bytes,
+                        Err(e) => return transfer_error(format!("transfer failed: {e}")),
+                    }
                 }
             }
         };
