@@ -257,10 +257,12 @@ objectiveai.execute(["agents", "mcp", "tools", "call", "--params", params])
         "python": python,
         "laboratories": [
             {
+                // The registry image's WIRE shape: the pin is flattened
+                // (`tag` XOR `digest` at the top level), never nested.
                 "image": {
                     "registry": "docker.io",
                     "name": "library/bash",
-                    "pin": { "tag": "latest" }
+                    "tag": "latest"
                 },
                 "cwd": "/tmp"
             }
