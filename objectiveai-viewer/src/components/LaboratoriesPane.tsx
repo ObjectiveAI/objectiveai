@@ -2,21 +2,22 @@ import cn from "classnames";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { useAgo } from "../hooks/useAgo";
 import { isInlineImage, useLaboratoriesList } from "../hooks/useLaboratoriesList";
-import { useMachineIdentity } from "../hooks/useMachineIdentity";
 import {
   classifyLaboratories,
   type DisplayLaboratory,
-  type ViewerSource,
 } from "../lib/laboratories";
+import { tauriInvoke } from "../lib/tauri";
 import { LogoMark } from "./shared/Logo";
+import { OpenTab } from "./shared/OpenTab";
 
 /**
  * The `laboratories` home pane: the daemon's `/laboratories/list`
- * stream (the host registry — the whole laboratory universe), each
- * laboratory classified `local` / `remote` by comparing its serving
- * host's machine identity against this machine's (see
- * [`classifyLaboratories`]). All laboratory state lives HERE —
- * unshared with the agents tab.
+ * stream (the host registry — the whole laboratory universe). Each
+ * card shows the laboratory's spec plus its serving host's machine
+ * identity verbatim (os, hostname, machine id, state) — machine
+ * identity is the only provenance; there is no local/remote
+ * classification. All laboratory state lives HERE — unshared with
+ * the agents tab.
  */
 export function LaboratoriesPane({
   transport,
@@ -25,8 +26,7 @@ export function LaboratoriesPane({
   active: boolean;
 }) {
   const daemon = useLaboratoriesList(transport);
-  const machine = useMachineIdentity();
-  const laboratories = classifyLaboratories(daemon, machine);
+  const laboratories = classifyLaboratories(daemon);
 
   if (laboratories.length === 0) {
     return (
@@ -65,24 +65,26 @@ export function LaboratoriesPane({
         )}
       >
         {laboratories.map((lab) => (
-          <LaboratoryCard key={lab.id} lab={lab} />
+          <LaboratoryCard
+            key={`${lab.machine?.id ?? ""}\n${lab.machineState ?? ""}\n${lab.id}`}
+            lab={lab}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-/** Copper-badge tint per source — the same palette the tree uses,
- * with a distinct hue only for `remote` (which leaves this machine's
- * trust boundary). */
-const SOURCE_CLASSES: Record<ViewerSource, string> = {
-  local: cn(
-    "border-copper-mid/70",
-    "bg-copper-warm/10",
-    "text-copper-bright",
-  ),
-  remote: cn("border-info-mid/40", "bg-info-mid/10", "text-info-mid"),
-};
+/** Open (or focus) the laboratory's filesystem WINDOW — a real Tauri
+ * window on the `laboratory.html` entry, created by the Rust shell
+ * (`open_laboratory_window`). */
+function openLaboratoryWindow(lab: DisplayLaboratory): void {
+  void tauriInvoke("open_laboratory_window", {
+    id: lab.id,
+    machine: lab.machine?.id ?? null,
+    machineState: lab.machineState,
+  });
+}
 
 function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
   // "" when createdAt is absent — formatAgo renders nothing for
@@ -106,7 +108,8 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
         "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
       )}
     >
-      {/* Header: connected dot + id + source chip. */}
+      {/* Header: connected dot + id + the open tab (the top-right
+          corner belongs to the opener, same as the agent box). */}
       <div className={cn("flex", "items-center", "gap-2")}>
         <span
           className={cn(
@@ -131,28 +134,35 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
         >
           {lab.id}
         </span>
-        <span
-          className={cn(
-            "shrink-0",
-            "px-1.5",
-            "py-px",
-            "rounded-sm",
-            "border",
-            "text-xs",
-            SOURCE_CLASSES[lab.source],
-          )}
-          title={
-            lab.machine
-              ? `${lab.machine.hostname ?? lab.machine.id} (${lab.machine.os})`
-              : undefined
-          }
-        >
-          {lab.source}
-        </span>
+        <OpenTab
+          dataAttr="data-open-laboratory"
+          onClick={() => openLaboratoryWindow(lab)}
+          ariaLabel={`Open ${lab.id} filesystem`}
+          className={cn("self-start", "-mt-[9px]", "-mr-[11px]")}
+        />
       </div>
 
-      {/* Spec detail. */}
+      {/* Spec detail — the machine identity first: where this
+          laboratory belongs. */}
       <div className={cn("flex", "flex-col", "gap-1", "text-xs", "text-[#c3bfbb]")}>
+        {lab.machine === null ? (
+          <DetailRow label="machine" value="unknown" />
+        ) : (
+          <>
+            <DetailRow label="os" value={lab.machine.os} />
+            <DetailRow label="hostname" value={lab.machine.hostname ?? ""} />
+            <DetailRow
+              label="machine"
+              value={
+                lab.machine.id.length > 16
+                  ? `${lab.machine.id.slice(0, 16)}…`
+                  : lab.machine.id
+              }
+              title={lab.machine.id}
+            />
+            <DetailRow label="state" value={lab.machineState ?? ""} />
+          </>
+        )}
         {isInlineImage(lab.image) ? (
           <div className={cn("flex", "flex-col", "gap-0.5")}>
             <span className={cn("text-info-dim")}>containerfile</span>
@@ -238,12 +248,22 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  title?: string;
+}) {
   if (value === "") return null;
   return (
     <div className={cn("flex", "gap-2")}>
       <span className={cn("shrink-0", "text-info-dim")}>{label}</span>
-      <span className={cn("min-w-0", "break-all")}>{value}</span>
+      <span className={cn("min-w-0", "break-all")} title={title}>
+        {value}
+      </span>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { LoadingDots } from "./LoadingDots";
+import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
 import {
@@ -385,38 +386,15 @@ function AgentNode({
       >
         {/* The EXPLICIT opener, on its own line above the instance
             chip — the only way to open the conversation (no whole-box
-            click). */}
-        <button
-          type="button"
-          data-open-agent
+            click). Positioned as a corner tab: pulled up/right through
+            this box's padding so its border merges 1px with the box's
+            top-right border. */}
+        <OpenTab
+          dataAttr="data-open-agent"
           onClick={() => onOpen(hierarchy)}
-          aria-label={`Open ${hierarchy} conversation`}
-          className={cn(
-            "self-end",
-            // A corner TAB: pulled up/right through the box padding so
-            // its border merges 1px with the box's top-right border —
-            // rounded only where it matches the box corner (tr) and
-            // where it faces the content (bl).
-            "-mt-[7px]",
-            "-mr-[11px]",
-            "rounded-tr-sm",
-            "rounded-bl-sm",
-            "rounded-tl-none",
-            "rounded-br-none",
-            "px-1.5",
-            "py-px",
-            "border",
-            "border-copper-mid",
-            "bg-copper-warm/10",
-            "text-copper-bright",
-            "text-xs",
-            "hover:border-copper-hot",
-            "hover:text-copper-hot",
-            "cursor-pointer",
-          )}
-        >
-          open ↗
-        </button>
+          ariaLabel={`Open ${hierarchy} conversation`}
+          className={cn("self-end", "-mt-[7px]", "-mr-[11px]")}
+        />
         {agent === null ? (
           <LoadingDots marker="data-tags-loading" />
         ) : (
