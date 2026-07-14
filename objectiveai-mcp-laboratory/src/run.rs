@@ -112,6 +112,11 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     let server = ObjectiveAiMcpLaboratory::new(laboratory_id, default_cwd);
     server.init().await;
 
+    // Start filesystem-change attribution (best-effort; dormant until
+    // the container has CAP_SYS_ADMIN). `FAN_MARK_FILESYSTEM` on `/`
+    // covers the whole container filesystem.
+    crate::attribution::init(std::path::Path::new("/"));
+
     let ct = CancellationToken::new();
 
     let service: StreamableHttpService<ObjectiveAiMcpLaboratory, LocalSessionManager> =

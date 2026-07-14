@@ -240,6 +240,14 @@ pub async fn execute_bash(
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout_file))
         .stderr(Stdio::from(output_file));
+    // Give this exec its OWN process group (pgid == child pid), so
+    // every descendant it spawns shares that group — the handle the
+    // attribution engine maps back to this AIH. Inherited across fork;
+    // unchanged for the child's own signal handling. Linux-only (the
+    // laboratory always runs in a Linux container; attribution is
+    // Linux-only too).
+    #[cfg(target_os = "linux")]
+    cmd.process_group(0);
 
     // Apply session env var overrides
     for (key, value) in &env_overrides {
@@ -250,17 +258,33 @@ pub async fn execute_bash(
         .spawn()
         .map_err(|e| format!("Failed to spawn command: {e}"))?;
 
+    // Register this exec's process group under the caller's AIH for the
+    // exec's lifetime, so filesystem writes it (and its descendants)
+    // make are attributed to this agent. `child.id()` == the new pgid.
+    let pgid = child.id().map(|p| p as i32);
+    if let Some(pgid) = pgid {
+        crate::attribution::register_session(pgid, aih);
+    }
+
     // Wait for child to exit (output is in the file, not pipes)
     let (exit_code, interrupted) = match tokio::time::timeout(timeout_duration, child.wait()).await
     {
         Ok(Ok(status)) => (status.code(), false),
-        Ok(Err(e)) => return Err(format!("Command failed: {e}")),
+        Ok(Err(e)) => {
+            if let Some(pgid) = pgid {
+                crate::attribution::unregister_session(pgid);
+            }
+            return Err(format!("Command failed: {e}"));
+        }
         Err(_) => {
             // Timeout — kill the child, then read whatever output was written
             let _ = child.kill().await;
             (None, true)
         }
     };
+    if let Some(pgid) = pgid {
+        crate::attribution::unregister_session(pgid);
+    }
 
     // Read the output file
     let full_output = fs::read_to_string(&output_file_path).await.unwrap_or_default();

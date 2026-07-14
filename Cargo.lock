@@ -4387,6 +4387,7 @@ dependencies = [
  "glob",
  "http",
  "indexmap 2.14.0",
+ "nix 0.29.0",
  "notify",
  "objectiveai-sdk",
  "pathdiff",
@@ -4402,6 +4403,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "xattr",
 ]
 
 [[package]]

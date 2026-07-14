@@ -108,7 +108,18 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
             async move {
                 match res {
                     Ok(event) => events_to_deltas(&root, event).await,
-                    Err(_) => Vec::new(),
+                    // A watch error — most importantly an inotify queue
+                    // OVERFLOW (`IN_Q_OVERFLOW`: events were dropped
+                    // faster than we drained, so we no longer know
+                    // what changed) — is unrecoverable incrementally.
+                    // RESYNC: re-walk and emit a fresh snapshot; the
+                    // client's `Snapshot` fold replaces its whole tree.
+                    // A spurious resync (any other watch error) is
+                    // harmless — it replaces the tree with an identical
+                    // one.
+                    Err(_) => vec![sse_event(&FileTreeEvent::Snapshot {
+                        children: build_children(&root).await,
+                    })],
                 }
             }
         })
@@ -194,9 +205,9 @@ async fn build_node(path: &Path) -> Option<FileTreeNode> {
         .unwrap_or_default();
     let ft = meta.file_type();
     if ft.is_dir() {
-        Some(dir_node(name, &meta, build_children(path).await))
+        Some(dir_node(path, name, &meta, build_children(path).await))
     } else {
-        Some(leaf_node(name, ft.is_symlink(), &meta))
+        Some(leaf_node(path, name, ft.is_symlink(), &meta))
     }
 }
 
@@ -220,9 +231,9 @@ fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> 
             let name = entry.file_name().to_string_lossy().into_owned();
             let ft = meta.file_type();
             let child = if ft.is_dir() {
-                dir_node(name, &meta, build_children(&path).await)
+                dir_node(&path, name, &meta, build_children(&path).await)
             } else {
-                leaf_node(name, ft.is_symlink(), &meta)
+                leaf_node(&path, name, ft.is_symlink(), &meta)
             };
             children.push(child);
         }
@@ -230,17 +241,23 @@ fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> 
     })
 }
 
-/// A `File` or `Symlink` leaf node from a name + metadata.
-fn leaf_node(name: String, is_symlink: bool, meta: &std::fs::Metadata) -> FileTreeNode {
+/// A `File` or `Symlink` leaf node from a path, name + metadata.
+fn leaf_node(
+    path: &Path,
+    name: String,
+    is_symlink: bool,
+    meta: &std::fs::Metadata,
+) -> FileTreeNode {
     let created_at = unix_secs(meta.created().ok());
     let modified_at = unix_secs(meta.modified().ok());
+    let attr = crate::attribution::lookup(path);
     if is_symlink {
         FileTreeNode::Symlink {
             name,
             created_at,
             modified_at,
-            created_by: None,
-            modified_by: None,
+            created_by: attr.created_by,
+            modified_by: attr.modified_by,
         }
     } else {
         FileTreeNode::File {
@@ -248,24 +265,26 @@ fn leaf_node(name: String, is_symlink: bool, meta: &std::fs::Metadata) -> FileTr
             size: Some(meta.len()),
             created_at,
             modified_at,
-            created_by: None,
-            modified_by: None,
+            created_by: attr.created_by,
+            modified_by: attr.modified_by,
         }
     }
 }
 
-/// A `Directory` node from a name, metadata, and its children.
+/// A `Directory` node from a path, name, metadata, and its children.
 fn dir_node(
+    path: &Path,
     name: String,
     meta: &std::fs::Metadata,
     children: Vec<FileTreeNode>,
 ) -> FileTreeNode {
+    let attr = crate::attribution::lookup(path);
     FileTreeNode::Directory {
         name,
         created_at: unix_secs(meta.created().ok()),
         modified_at: unix_secs(meta.modified().ok()),
-        created_by: None,
-        modified_by: None,
+        created_by: attr.created_by,
+        modified_by: attr.modified_by,
         children,
     }
 }
