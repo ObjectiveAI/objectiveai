@@ -1,7 +1,7 @@
 /**
  * Typed consumer of the cli daemon's `/listen` broadcast SSE — the JS
  * mirror of the Rust SDK's
- * `cli::websocket_listener::WebSocketListener`, identical in
+ * `cli::broadcast_listener::BroadcastListener`, identical in
  * construction and semantics: connect to the daemon's published
  * `/listen` URL (optional signature auth), receive one envelope per
  * announced run, reconnection is the caller's loop. Usable anywhere
@@ -12,7 +12,7 @@
  * (`{…context, id, value: <Request>}`), then bare `{id, value: <item>}`
  * response frames (no type tag — the id is the whole routing story),
  * then exactly one terminator (`{id, end: true}`).
- * [`WebSocketListener`] turns those frames into the generated
+ * [`BroadcastListener`] turns those frames into the generated
  * [`CliCommandListenerExecution`] tree — the mirror of the Rust
  * `cli::command::ListenerExecution` — and IS a stream of that root
  * union: `{request, agentArguments, response}` per run, discriminated
@@ -34,7 +34,7 @@
  * runs, so retention here would be a memory leak.
  *
  * Rust-parity lifecycle: one listener = one connection. When the
- * stream closes (daemon exit, network drop, [`WebSocketListener.close`]),
+ * stream closes (daemon exit, network drop, [`BroadcastListener.close`]),
  * every open run's feed closes (unary responses settle with the
  * synthesized "run ended" error, streams end) and every root iterator
  * ENDS.
@@ -67,7 +67,7 @@ type Subscriber<T> = {
 
 /**
  * Live-only async-iterable for one run's streaming response — the JS
- * mirror of the Rust `websocket_listener::ResponseItemStream`. Items
+ * mirror of the Rust `broadcast_listener::ResponseItemStream`. Items
  * fan out to every CURRENT iterator; nothing is retained, so an
  * iterator sees only items pushed after it subscribed (subscription
  * happens when the iterator is created), and items pushed while no
@@ -162,7 +162,7 @@ type LiveFeed = {
   settled?: boolean;
 };
 
-export interface WebSocketListenerOptions {
+export interface BroadcastListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as
    * the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must
    * be running without a secret. */
@@ -171,11 +171,11 @@ export interface WebSocketListenerOptions {
 
 /**
  * The connected `/listen` consumer — construct via
- * [`WebSocketListener.connect`]. IS a stream of the root
+ * [`BroadcastListener.connect`]. IS a stream of the root
  * [`CliCommandListenerExecution`] union:
  *
  * ```ts
- * const listener = await WebSocketListener.connect(
+ * const listener = await BroadcastListener.connect(
  *   "http://127.0.0.1:49152/listen",
  *   { signature },
  * );
@@ -194,7 +194,7 @@ export interface WebSocketListenerOptions {
  * or its early frames are dropped. Every iterator ends when the
  * connection does; reconnection is the caller's loop.
  */
-export class WebSocketListener {
+export class BroadcastListener {
   #abort: AbortController;
   #closed = false;
   #live = new Map<string, LiveFeed>();
@@ -232,11 +232,11 @@ export class WebSocketListener {
    */
   static async connect(
     url: string,
-    options?: WebSocketListenerOptions,
-  ): Promise<WebSocketListener> {
+    options?: BroadcastListenerOptions,
+  ): Promise<BroadcastListener> {
     const abort = new AbortController();
     const events = await connectSse(url, options?.signature, abort.signal);
-    return new WebSocketListener(abort, events);
+    return new BroadcastListener(abort, events);
   }
 
   /** Drop the connection: every open run's feed closes and every root

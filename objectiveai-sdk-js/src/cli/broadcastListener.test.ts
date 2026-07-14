@@ -3,7 +3,7 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
 /**
- * Behavior tests for the `WebSocketListener` `/listen` SSE consumer:
+ * Behavior tests for the `BroadcastListener` `/listen` SSE consumer:
  * transport (a mocked global `fetch` — nothing connects), header auth,
  * frame routing by id, live-only multi-subscriber delivery, and the
  * Rust-parity close lifecycle.
@@ -74,14 +74,14 @@ function stubFetch(status = 200): void {
   );
 }
 
-import { WebSocketListener, ResponseItemStream } from "./websocketListener";
+import { BroadcastListener, ResponseItemStream } from "./broadcastListener";
 import type { CliCommandListenerExecution } from "./command/listenerExecution";
 
 /** Connect a listener against the newest mock connection. */
 async function connect(options?: {
   signature?: string | null;
-}): Promise<{ listener: WebSocketListener; sse: MockSseConnection }> {
-  const listener = await WebSocketListener.connect(
+}): Promise<{ listener: BroadcastListener; sse: MockSseConnection }> {
+  const listener = await BroadcastListener.connect(
     "http://127.0.0.1:1/listen",
     options,
   );
@@ -92,7 +92,7 @@ async function connect(options?: {
 
 /** Collect the next `n` runs off a fresh iterator. */
 function collectRuns(
-  listener: WebSocketListener,
+  listener: BroadcastListener,
   n: number,
 ): Promise<CliCommandListenerExecution[]> {
   return (async () => {
@@ -110,7 +110,7 @@ async function settle() {
   await new Promise((r) => setTimeout(r, 0));
 }
 
-describe("WebSocketListener", () => {
+describe("BroadcastListener", () => {
   beforeEach(() => {
     MockSseConnection.instances = [];
     stubFetch();
@@ -133,7 +133,7 @@ describe("WebSocketListener", () => {
   it("rejects connect on a non-2xx response (refused signature)", async () => {
     stubFetch(401);
     await expect(
-      WebSocketListener.connect("http://127.0.0.1:1/listen"),
+      BroadcastListener.connect("http://127.0.0.1:1/listen"),
     ).rejects.toThrow(/401/);
   });
 

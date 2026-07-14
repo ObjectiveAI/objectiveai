@@ -1,7 +1,7 @@
 /**
  * Materialized consumer of the cli daemon's `/laboratories/list`
  * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::websocket_laboratories_list_listener::WebSocketLaboratoriesListListener`,
+ * `cli::laboratories_list_listener::LaboratoriesListListener`,
  * identical in construction and semantics.
  *
  * Each item is one laboratory's spec plus the `machine` whose host
@@ -12,25 +12,25 @@
  * `snapshot` replaces the whole set, `upserted` replaces one
  * laboratory by id (introducing it if unseen), `removed` drops one.
  * Per-lab attachment detail lives on the `/laboratories/{id}`
- * endpoint ({@link WebSocketLaboratoriesListener}).
+ * endpoint ({@link LaboratoriesListener}).
  *
  * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: when the socket closes the
  * view freezes at its last state; reconnection is the caller's loop.
  * Unparseable events are skipped (forward compat). No runtime
- * validation, like {@link WebSocketListener}.
+ * validation, like {@link BroadcastListener}.
  */
 
 import { connectSse } from "./sse";
 
 import type {
-  CliWebsocketLaboratoriesListListenerLaboratoryEvent,
-  CliWebsocketLaboratoriesListListenerLaboratoryStatus,
-} from "./websocket_laboratories_list_listener";
+  CliLaboratoriesListListenerLaboratoryEvent,
+  CliLaboratoriesListListenerLaboratoryStatus,
+} from "./laboratories_list_listener";
 
-type LaboratoryStatus = CliWebsocketLaboratoriesListListenerLaboratoryStatus;
-type LaboratoryEvent = CliWebsocketLaboratoriesListListenerLaboratoryEvent;
+type LaboratoryStatus = CliLaboratoriesListListenerLaboratoryStatus;
+type LaboratoryEvent = CliLaboratoriesListListenerLaboratoryEvent;
 
-export interface WebSocketLaboratoriesListListenerOptions {
+export interface LaboratoriesListListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
    * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
    * running without a secret. */
@@ -38,16 +38,16 @@ export interface WebSocketLaboratoriesListListenerOptions {
   /** Invoked with the full current laboratory set (sorted by id)
    * after every applied change. Runs synchronously on frame receipt,
    * so keep it cheap; for the full state on demand use
-   * {@link WebSocketLaboratoriesListListener.laboratories}. */
+   * {@link LaboratoriesListListener.laboratories}. */
   onChange?: (laboratories: LaboratoryStatus[]) => void;
 }
 
 /**
  * The materialized `/laboratories/list` view — construct via
- * {@link WebSocketLaboratoriesListListener.connect}.
+ * {@link LaboratoriesListListener.connect}.
  *
  * ```ts
- * const listener = await WebSocketLaboratoriesListListener.connect(
+ * const listener = await LaboratoriesListListener.connect(
  *   "http://127.0.0.1:49152/laboratories/list",
  *   { signature, onChange: (laboratories) => render(laboratories) },
  * );
@@ -66,7 +66,7 @@ function foldKey(
   return `${machine ?? ""}\n${machineState ?? ""}\n${id}`;
 }
 
-export class WebSocketLaboratoriesListListener {
+export class LaboratoriesListListener {
   #abort: AbortController;
   #closed = false;
   /** `(machine, state, id) fold key → status` — laboratory ids are
@@ -95,8 +95,8 @@ export class WebSocketLaboratoriesListListener {
    */
   static async connect(
     url: string,
-    options?: WebSocketLaboratoriesListListenerOptions,
-  ): Promise<WebSocketLaboratoriesListListener> {
+    options?: LaboratoriesListListenerOptions,
+  ): Promise<LaboratoriesListListener> {
     const abort = new AbortController();
     let events: AsyncGenerator<string>;
     try {
@@ -104,7 +104,7 @@ export class WebSocketLaboratoriesListListener {
     } catch (e) {
       throw new Error(`connect daemon laboratories sse: ${String(e)}`);
     }
-    const listener = new WebSocketLaboratoriesListListener(
+    const listener = new LaboratoriesListListener(
       abort,
       options?.onChange,
     );
@@ -155,7 +155,7 @@ export class WebSocketLaboratoriesListListener {
   /** Resolves on the next change applied to the state. A fresh call
    * waits for the FIRST change after it is made — loop with the
    * {@link laboratories} read, or use
-   * {@link WebSocketLaboratoriesListListenerOptions.onChange} for
+   * {@link LaboratoriesListListenerOptions.onChange} for
    * guaranteed push. Resolves immediately if already closed. */
   subscribe(): Promise<void> {
     if (this.#closed) return Promise.resolve();

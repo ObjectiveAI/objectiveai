@@ -1,7 +1,7 @@
 /**
  * Materialized consumer of the cli daemon's `/agents/instances/{*aih}`
  * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::websocket_agents_instances_listener::WebSocketAgentsInstancesListener`,
+ * `cli::agents_instances_listener::AgentsInstancesListener`,
  * identical in construction and semantics.
  *
  * One connection carries TWO structurally independent concerns:
@@ -25,32 +25,32 @@
  * "reconnect for a fresh snapshot"; the view freezes at its last
  * state. Unparseable events are SKIPPED — the forward-compat contract
  * for future event variants. No runtime validation, like
- * {@link WebSocketListener}.
+ * {@link BroadcastListener}.
  */
 
 import { connectSse } from "./sse";
 
 import type {
-  CliWebsocketAgentsInstancesListenerAgentInstanceEvent,
-  CliWebsocketAgentsInstancesListenerAgentRecord,
-  CliWebsocketAgentsInstancesListenerAssistantResponsePart,
-  CliWebsocketAgentsInstancesListenerClientNotificationPart,
-  CliWebsocketAgentsInstancesListenerConversationBlock,
-  CliWebsocketAgentsInstancesListenerRequestMessageUserPart,
-  CliWebsocketAgentsInstancesListenerToolResponsePart,
-  CliWebsocketAgentsInstancesListenerVectorRequestChoice,
-  CliWebsocketAgentsInstancesListenerVectorRequestChoicePart,
-} from "./websocket_agents_instances_listener";
+  CliAgentsInstancesListenerAgentInstanceEvent,
+  CliAgentsInstancesListenerAgentRecord,
+  CliAgentsInstancesListenerAssistantResponsePart,
+  CliAgentsInstancesListenerClientNotificationPart,
+  CliAgentsInstancesListenerConversationBlock,
+  CliAgentsInstancesListenerRequestMessageUserPart,
+  CliAgentsInstancesListenerToolResponsePart,
+  CliAgentsInstancesListenerVectorRequestChoice,
+  CliAgentsInstancesListenerVectorRequestChoicePart,
+} from "./agents_instances_listener";
 
-type AgentRecord = CliWebsocketAgentsInstancesListenerAgentRecord;
-type AgentInstanceEvent = CliWebsocketAgentsInstancesListenerAgentInstanceEvent;
-type ConversationBlock = CliWebsocketAgentsInstancesListenerConversationBlock;
-type AssistantResponsePart = CliWebsocketAgentsInstancesListenerAssistantResponsePart;
-type ClientNotificationPart = CliWebsocketAgentsInstancesListenerClientNotificationPart;
-type RequestMessageUserPart = CliWebsocketAgentsInstancesListenerRequestMessageUserPart;
-type ToolResponsePart = CliWebsocketAgentsInstancesListenerToolResponsePart;
-type VectorRequestChoice = CliWebsocketAgentsInstancesListenerVectorRequestChoice;
-type VectorRequestChoicePart = CliWebsocketAgentsInstancesListenerVectorRequestChoicePart;
+type AgentRecord = CliAgentsInstancesListenerAgentRecord;
+type AgentInstanceEvent = CliAgentsInstancesListenerAgentInstanceEvent;
+type ConversationBlock = CliAgentsInstancesListenerConversationBlock;
+type AssistantResponsePart = CliAgentsInstancesListenerAssistantResponsePart;
+type ClientNotificationPart = CliAgentsInstancesListenerClientNotificationPart;
+type RequestMessageUserPart = CliAgentsInstancesListenerRequestMessageUserPart;
+type ToolResponsePart = CliAgentsInstancesListenerToolResponsePart;
+type VectorRequestChoice = CliAgentsInstancesListenerVectorRequestChoice;
+type VectorRequestChoicePart = CliAgentsInstancesListenerVectorRequestChoicePart;
 
 /** The conversation part-event variants (everything except `live` /
  * `agent` / the single-shot `vector_response_vote` and `error`). */
@@ -278,7 +278,7 @@ function toBlock(block: OpenBlock): ConversationBlock | null {
   }
 }
 
-export interface WebSocketAgentsInstancesListenerOptions {
+export interface AgentsInstancesListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
    * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
    * running without a secret. */
@@ -287,7 +287,7 @@ export interface WebSocketAgentsInstancesListenerOptions {
    * conversation order) after every applied CONVERSATION event —
    * never for agent-status events. Runs synchronously on frame
    * receipt; for state on demand use
-   * {@link WebSocketAgentsInstancesListener.conversation}. */
+   * {@link AgentsInstancesListener.conversation}. */
   onChange?: (blocks: ConversationBlock[]) => void;
   /** Invoked with the agent's refreshed list record after every
    * applied AGENT-STATUS event (activation / deactivation / tag
@@ -297,10 +297,10 @@ export interface WebSocketAgentsInstancesListenerOptions {
 
 /**
  * The materialized `/agents/instances/{*aih}` view — construct via
- * {@link WebSocketAgentsInstancesListener.connect}.
+ * {@link AgentsInstancesListener.connect}.
  *
  * ```ts
- * const listener = await WebSocketAgentsInstancesListener.connect(
+ * const listener = await AgentsInstancesListener.connect(
  *   `http://127.0.0.1:49152/agents/instances/${aih}`,
  *   { signature, onChange: render, onAgentChange: renderStatus },
  * );
@@ -310,7 +310,7 @@ export interface WebSocketAgentsInstancesListenerOptions {
  * await listener.subscribe(); // resolves on the next change (either concern)
  * ```
  */
-export class WebSocketAgentsInstancesListener {
+export class AgentsInstancesListener {
   #abort: AbortController;
   #closed = false;
   #slots: Slot[] = [];
@@ -323,7 +323,7 @@ export class WebSocketAgentsInstancesListener {
 
   private constructor(
     abort: AbortController,
-    options?: WebSocketAgentsInstancesListenerOptions,
+    options?: AgentsInstancesListenerOptions,
   ) {
     this.#abort = abort;
     this.#onChange = options?.onChange;
@@ -340,8 +340,8 @@ export class WebSocketAgentsInstancesListener {
    */
   static async connect(
     url: string,
-    options?: WebSocketAgentsInstancesListenerOptions,
-  ): Promise<WebSocketAgentsInstancesListener> {
+    options?: AgentsInstancesListenerOptions,
+  ): Promise<AgentsInstancesListener> {
     const abort = new AbortController();
     let events: AsyncGenerator<string>;
     try {
@@ -349,7 +349,7 @@ export class WebSocketAgentsInstancesListener {
     } catch (e) {
       throw new Error(`connect daemon agent-instance sse: ${String(e)}`);
     }
-    const listener = new WebSocketAgentsInstancesListener(abort, options);
+    const listener = new AgentsInstancesListener(abort, options);
     listener.#pump(events);
     return listener;
   }

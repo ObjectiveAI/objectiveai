@@ -1,7 +1,7 @@
 /**
  * Materialized consumer of the cli daemon's `/agents/instances/list`
  * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::websocket_agents_instances_list_listener::WebSocketAgentsInstancesListListener`,
+ * `cli::agents_instances_list_listener::AgentsInstancesListListener`,
  * identical in construction and semantics.
  *
  * Deliberately minimal wire: each item is an AIH plus its live
@@ -18,20 +18,20 @@
  * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: when the socket closes the
  * view freezes at its last state; reconnection is the caller's loop.
  * Unparseable events are skipped (forward compat). No runtime
- * validation, like {@link WebSocketListener}.
+ * validation, like {@link BroadcastListener}.
  */
 
 import { connectSse } from "./sse";
 
 import type {
-  CliWebsocketAgentsInstancesListListenerAgentEvent,
-  CliWebsocketAgentsInstancesListListenerAgentStatus,
-} from "./websocket_agents_instances_list_listener";
+  CliAgentsInstancesListListenerAgentEvent,
+  CliAgentsInstancesListListenerAgentStatus,
+} from "./agents_instances_list_listener";
 
-type AgentStatus = CliWebsocketAgentsInstancesListListenerAgentStatus;
-type AgentEvent = CliWebsocketAgentsInstancesListListenerAgentEvent;
+type AgentStatus = CliAgentsInstancesListListenerAgentStatus;
+type AgentEvent = CliAgentsInstancesListListenerAgentEvent;
 
-export interface WebSocketAgentsInstancesListListenerOptions {
+export interface AgentsInstancesListListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
    * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
    * running without a secret. */
@@ -39,16 +39,16 @@ export interface WebSocketAgentsInstancesListListenerOptions {
   /** Invoked with the full current agent set (sorted by AIH) after
    * every applied change. Runs synchronously on frame receipt, so keep
    * it cheap; for the full state on demand use
-   * {@link WebSocketAgentsInstancesListListener.agents}. */
+   * {@link AgentsInstancesListListener.agents}. */
   onChange?: (agents: AgentStatus[]) => void;
 }
 
 /**
  * The materialized `/agents/instances/list` view — construct via
- * {@link WebSocketAgentsInstancesListListener.connect}.
+ * {@link AgentsInstancesListListener.connect}.
  *
  * ```ts
- * const listener = await WebSocketAgentsInstancesListListener.connect(
+ * const listener = await AgentsInstancesListListener.connect(
  *   "http://127.0.0.1:49152/agents/instances/list",
  *   { signature, onChange: (agents) => render(agents) },
  * );
@@ -56,7 +56,7 @@ export interface WebSocketAgentsInstancesListListenerOptions {
  * await listener.subscribe(); // resolves on the next change
  * ```
  */
-export class WebSocketAgentsInstancesListListener {
+export class AgentsInstancesListListener {
   #abort: AbortController;
   #closed = false;
   /** `AIH → active`. */
@@ -83,8 +83,8 @@ export class WebSocketAgentsInstancesListListener {
    */
   static async connect(
     url: string,
-    options?: WebSocketAgentsInstancesListListenerOptions,
-  ): Promise<WebSocketAgentsInstancesListListener> {
+    options?: AgentsInstancesListListenerOptions,
+  ): Promise<AgentsInstancesListListener> {
     const abort = new AbortController();
     let events: AsyncGenerator<string>;
     try {
@@ -92,7 +92,7 @@ export class WebSocketAgentsInstancesListListener {
     } catch (e) {
       throw new Error(`connect daemon agents sse: ${String(e)}`);
     }
-    const listener = new WebSocketAgentsInstancesListListener(
+    const listener = new AgentsInstancesListListener(
       abort,
       options?.onChange,
     );
@@ -146,7 +146,7 @@ export class WebSocketAgentsInstancesListListener {
   /** Resolves on the next change applied to the state. A fresh call
    * waits for the FIRST change after it is made — loop with the
    * {@link agents} read, or use
-   * {@link WebSocketAgentsInstancesListListenerOptions.onChange} for
+   * {@link AgentsInstancesListListenerOptions.onChange} for
    * guaranteed push. Resolves immediately if already closed. */
   subscribe(): Promise<void> {
     if (this.#closed) return Promise.resolve();
