@@ -679,7 +679,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
       <pre
         data-agent-definition
         className={cn(
-          "text-sm",
+          "text-xs",
           "text-[#c3bfbb]",
           "text-left",
           "whitespace-pre",
