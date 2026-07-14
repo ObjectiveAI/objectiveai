@@ -30,6 +30,20 @@ OAI_DIR="$REPO_ROOT/.objectiveai"
 LOG_DIR="$REPO_ROOT/.logs/tests"
 mkdir -p "$LOG_DIR"
 
+# The integration crates build in their OWN target dir (the repo's
+# target-* convention — mcp-laboratory/proxy/viewer do the same).
+# Sharing target/ with the concurrently-running unit suite is unsound:
+# the two invocations select different packages, so cargo unifies
+# dependency features differently (e.g. objectiveai-cli-tests' tokio
+# "full" vs the unit graphs), yet workspace-lib units like
+# objectiveai-daemon land on the SAME artifact filename — the suites
+# alternately clobber it and whichever links second dies with E0460
+# ("found possibly newer version of crate ..."). Isolation makes every
+# integration build self-consistent, at the cost of a second debug
+# build tree (junction target-integration to the big drive like
+# target/ if system-disk space matters).
+export CARGO_TARGET_DIR="$REPO_ROOT/target-integration"
+
 # Host nextest (whatever `cargo nextest` resolves to on PATH).
 if ! cargo nextest --version >/dev/null 2>&1; then
   echo "test-integration: host cargo-nextest not found on PATH; install it (cargo install cargo-nextest)" >&2
