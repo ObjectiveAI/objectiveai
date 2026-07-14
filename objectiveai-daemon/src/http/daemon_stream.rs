@@ -9,12 +9,12 @@
 //!   then that request's CLI **response** lines (newline-delimited JSON,
 //!   no ack), then closes. `interprocess` inserts no framing of its own,
 //!   so the trailing `\n` is the only delimiter — the same wire shape as
-//!   [`crate::websockets::mcp_listener`].
+//!   [`crate::http::mcp_listener`].
 //! - **Consumer side** — an [`axum`] HTTP server bound to the
 //!   daemon's configured `address:port`. The broadcast lives on the
 //!   `/listen` SSE route: every client that connects immediately
 //!   begins receiving future frames; it is a pure push channel. The
-//!   sibling `/execute` route ([`crate::websockets::daemon_execute`])
+//!   sibling `/execute` route ([`crate::http::daemon_execute`])
 //!   runs commands in-process, one POST per command — its SSE streams
 //!   never carry broadcast frames.
 //!
@@ -42,28 +42,28 @@
 
 use tokio::sync::broadcast;
 
-/// Shared state for the daemon's WebSocket routes: the broadcast
+/// Shared state for the daemon's HTTP routes: the broadcast
 /// sender `/listen` subscribers drain, the resident
 /// [`crate::context::Context`] that `/execute` runs commands against,
 /// and the optional secret every connection's auth preamble is
 /// verified against.
 #[derive(Clone)]
-pub(crate) struct DaemonWsState {
+pub(crate) struct DaemonHttpState {
     pub(crate) tx: broadcast::Sender<String>,
     pub(crate) ctx: crate::context::Context,
     pub(crate) secret: Option<std::sync::Arc<String>>,
     /// The live agent-status registry backing the `/agents/instances/list` route.
-    pub(crate) active: crate::websockets::websocket_agents::ActiveAgents,
+    pub(crate) active: crate::http::agents_routes::ActiveAgents,
     /// The live-conversation hub backing the `/agents/instances/{*aih}`
     /// route.
-    pub(crate) conversations: crate::websockets::websocket_agent_instance::ConversationHub,
+    pub(crate) conversations: crate::http::agent_instance_route::ConversationHub,
     /// The connected-laboratory registry backing the `/laboratory`
     /// route and `laboratories.sock`.
-    pub(crate) laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
+    pub(crate) laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
     /// The live-laboratories hub backing the `/laboratories/list` +
     /// `/laboratories/{id}` +
     /// `/laboratories/{id}/filetree` routes.
-    pub(crate) labs_hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
+    pub(crate) labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
 }
 
 /// Serve the daemon's HTTP API on `listener`:
@@ -71,7 +71,7 @@ pub(crate) struct DaemonWsState {
 /// - **`GET /listen`** — the broadcast SSE: each client receives every
 ///   future frame. Pure push.
 /// - **`POST /execute`** — request-per-command execution
-///   ([`crate::websockets::daemon_execute`]): the client's request runs
+///   ([`crate::http::daemon_execute`]): the client's request runs
 ///   in-process against `ctx`, and its items stream back on that
 ///   response only — never onto the broadcast. (The run's tee still
 ///   lands on `/listen` like any other CLI activity, via the producer
@@ -80,32 +80,32 @@ pub(crate) struct DaemonWsState {
 ///   watcher routes.
 /// - **`/laboratory`** — the ONE WebSocket: the bidirectional
 ///   laboratory-host channel
-///   ([`crate::websockets::websocket_laboratory`]).
+///   ([`crate::http::websocket_laboratory`]).
 ///
 /// Every HTTP route authenticates by the `X-OBJECTIVEAI-SIGNATURE`
-/// header ([`crate::websockets::daemon_auth::authenticate_header`],
+/// header ([`crate::http::daemon_auth::authenticate_header`],
 /// 401 on a missing/invalid signature when `secret` is `Some`); the
 /// `/laboratory` WebSocket keeps the first-message `AuthEnvelope`
 /// preamble. Returns the serve task's handle.
-pub fn serve_ws(
+pub fn serve_http(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
     secret: Option<std::sync::Arc<String>>,
     ctx: crate::context::Context,
-    active: crate::websockets::websocket_agents::ActiveAgents,
-    conversations: crate::websockets::websocket_agent_instance::ConversationHub,
-    laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
-    labs_hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
+    active: crate::http::agents_routes::ActiveAgents,
+    conversations: crate::http::agent_instance_route::ConversationHub,
+    laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
+    labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::get(listen_handler))
         .route(
             "/execute",
-            axum::routing::post(crate::websockets::daemon_execute::execute_handler),
+            axum::routing::post(crate::http::daemon_execute::execute_handler),
         )
         .route(
             "/agents/instances/list",
-            axum::routing::get(crate::websockets::websocket_agents::agents_handler),
+            axum::routing::get(crate::http::agents_routes::agents_handler),
         )
         // Wildcard ({*aih} — AIHs contain `/`). The literal `list`
         // route above takes matching priority; axum 0.8 permits the
@@ -114,7 +114,7 @@ pub fn serve_ws(
         .route(
             "/agents/instances/{*aih}",
             axum::routing::get(
-                crate::websockets::websocket_agent_instance::instance_handler,
+                crate::http::agent_instance_route::instance_handler,
             ),
         )
         // Laboratory managers dial in here: Identify frame first,
@@ -122,13 +122,13 @@ pub fn serve_ws(
         .route(
             "/laboratory",
             axum::routing::any(
-                crate::websockets::websocket_laboratory::laboratory_handler,
+                crate::http::websocket_laboratory::laboratory_handler,
             ),
         )
         .route(
             "/laboratories/list",
             axum::routing::get(
-                crate::websockets::websocket_laboratories::laboratories_handler,
+                crate::http::laboratories_routes::laboratories_handler,
             ),
         )
         // Single-segment `{id}` under the literal `list` route —
@@ -137,16 +137,16 @@ pub fn serve_ws(
         .route(
             "/laboratories/{id}",
             axum::routing::get(
-                crate::websockets::websocket_laboratories::laboratory_instance_handler,
+                crate::http::laboratories_routes::laboratory_instance_handler,
             ),
         )
         .route(
             "/laboratories/{id}/filetree",
             axum::routing::get(
-                crate::websockets::websocket_laboratories::laboratory_filetree_handler,
+                crate::http::laboratories_routes::laboratory_filetree_handler,
             ),
         )
-        .with_state(DaemonWsState {
+        .with_state(DaemonHttpState {
             tx,
             ctx,
             secret,
@@ -177,11 +177,11 @@ pub fn serve_ws(
 /// frame. Pure server→client push (the daemon's activity tee); the
 /// client never sends anything.
 async fn listen_handler(
-    axum::extract::State(state): axum::extract::State<DaemonWsState>,
+    axum::extract::State(state): axum::extract::State<DaemonHttpState>,
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(listen_stream(state.tx))

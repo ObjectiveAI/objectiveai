@@ -78,7 +78,7 @@ fn extract_leaf<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, serde
 /// `agent_arguments` is `None`, `base` is borrowed unchanged.
 ///
 /// Shared by [`DaemonCommandExecutor`] and the daemon's `/execute`
-/// WebSocket route (`crate::websockets::daemon_execute`), which applies
+/// SSE route (`crate::http::daemon_execute`), which applies
 /// the same override to its own resident ctx per request.
 pub(crate) fn apply_agent_arguments<'a>(
     base: &'a Context,

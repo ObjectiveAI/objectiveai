@@ -9,8 +9,8 @@
 //! Per-chunk: claim a process-owned lock file for every
 //! `agent_instance_hierarchy` referenced anywhere in the chunk's
 //! nested task tree, via
-//! [`crate::websockets::agent_hierarchies::ChunkAgentHierarchies`]
-//! + [`crate::websockets::agent_registry::AgentInstanceRegistry`].
+//! [`crate::http::agent_hierarchies::ChunkAgentHierarchies`]
+//! + [`crate::http::agent_registry::AgentInstanceRegistry`].
 //!
 //! Event::Id handshake: gated on
 //! [`crate::db::logs::LogWriter::written_once`]. Every chunk we
@@ -32,8 +32,8 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::websockets::agent_hierarchies::ChunkAgentHierarchies;
-use crate::websockets::agent_registry::AgentInstanceRegistry;
+use crate::http::agent_hierarchies::ChunkAgentHierarchies;
+use crate::http::agent_registry::AgentInstanceRegistry;
 
 /// Item yielded by [`run`]. The cli leaf maps it to its own typed
 /// `ResponseItem` (`standard::ResponseItem` or
@@ -67,14 +67,14 @@ pub fn run(
         );
 
         // Per-call resources.
-        let mcp_server = crate::websockets::mcp_server::spawn(ctx.clone());
+        let mcp_server = crate::http::mcp_server::spawn(ctx.clone());
         // Function execution doesn't bind a tag — that's only the
         // `agents spawn --agent-tag` path. Pass `None` so
         // the conduit's read-message-queue handler skips the fused
         // tag-group upgrade.
         let backoff_max_elapsed_time_ms =
             ctx.resolve_backoff_max_elapsed_time_ms().await?;
-        let conduit = crate::websockets::conduit::ConduitMcpHandler::new(
+        let conduit = crate::http::conduit::ConduitMcpHandler::new(
             mcp_server,
             ctx.clone(),
             None,

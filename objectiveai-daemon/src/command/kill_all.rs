@@ -10,7 +10,7 @@
 //! postmasters with them), viewers, and mcp servers.
 //!
 //! It runs INSIDE the daemon (via `/execute`), and deliberately skips
-//! its OWN pid — a self-`TerminateProcess` would drop the WebSocket
+//! its OWN pid — a self-`TerminateProcess` would drop the /execute stream
 //! before the response could be sent. So the daemon sweeps everything
 //! else and SURVIVES; the thin CLI kills the daemon itself right after
 //! this response returns. The reported count is the OTHERS killed; the

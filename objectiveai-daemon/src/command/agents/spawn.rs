@@ -46,8 +46,8 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 };
 use crate::context::Context;
 use crate::error::Error;
-use crate::websockets::agent_hierarchies::ChunkAgentHierarchies;
-use crate::websockets::agent_registry::AgentInstanceRegistry;
+use crate::http::agent_hierarchies::ChunkAgentHierarchies;
+use crate::http::agent_registry::AgentInstanceRegistry;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -532,9 +532,9 @@ pub(crate) fn run_multi_pass(
             // new conduit + MCP server. The registry survives across
             // passes (see above).
             let mcp_server =
-                crate::websockets::mcp_server::spawn(ctx.clone());
+                crate::http::mcp_server::spawn(ctx.clone());
             let conduit =
-                crate::websockets::conduit::ConduitMcpHandler::new(
+                crate::http::conduit::ConduitMcpHandler::new(
                     mcp_server,
                     ctx.clone(),
                     agent_tag.clone(),

@@ -7,8 +7,8 @@
 //! reading only the first `Id` off its stdout, and letting the orphan
 //! finish. The subprocess existed purely so the work could outlive the
 //! short `/execute` request that only needed the `Id` — a `/execute`
-//! run is bound to its WebSocket and is cancelled when the socket
-//! closes (`websockets::daemon_execute`).
+//! run is bound to its SSE response stream and is cancelled when it
+//! ends (`http::daemon_execute`).
 //!
 //! [`spawn_detached`] reproduces that exactly with a `tokio::spawn`
 //! task instead of a subprocess: the task re-enters the daemon through
@@ -17,7 +17,7 @@
 //! adapters — identically to the subprocess's own `crate::run`. The
 //! task owns the run stream, so a client disconnect can never cancel
 //! it; dropping the returned `JoinHandle` detaches it, and tokio reaps
-//! it on completion. The per-run [`crate::websockets::agent_registry`]
+//! it on completion. The per-run [`crate::http::agent_registry`]
 //! (and therefore the agent's lock family) lives INSIDE that stream, so
 //! the locks release at true agent-completion — the same lifetime the
 //! orphan process gave them.

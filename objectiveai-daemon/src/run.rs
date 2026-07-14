@@ -3,7 +3,7 @@ use std::pin::Pin;
 use envconfig::Envconfig;
 use futures::Stream;
 use objectiveai_sdk::cli::command::{CommandRequest, ResponseItem, parse_request};
-use objectiveai_sdk::cli::websocket_listener::ListenerEnd;
+use objectiveai_sdk::cli::broadcast_listener::ListenerEnd;
 
 use crate::context::Context;
 use crate::error::Error;
@@ -206,18 +206,18 @@ pub struct Config {
     /// Propagated onto spawned plugins.
     pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
-    /// Bind address for the resident daemon's broadcast WebSocket
+    /// Bind address for the resident daemon's broadcast HTTP
     /// server (bare `ADDRESS`); default `127.0.0.1`.
     pub daemon_address: String,
-    /// Bind port for the resident daemon's broadcast WebSocket server
+    /// Bind port for the resident daemon's broadcast HTTP server
     /// (bare `PORT`); default `0` (OS-assigned).
     pub daemon_port: u16,
-    /// Optional shared secret for the daemon's WebSocket server (bare
+    /// Optional shared secret for the daemon's HTTP server (bare
     /// `SECRET`). When set, every connection's first-message auth preamble
     /// must carry a valid `sha256=<hex(SHA256(secret))>` signature; when
     /// `None`, the server is open.
     pub daemon_secret: Option<String>,
-    /// Optional PRE-DERIVED client signature for this daemon's WebSocket
+    /// Optional PRE-DERIVED client signature for this daemon's HTTP
     /// server (bare `SIGNATURE`) — what the daemon hands to the clients
     /// it spawns (viewer, laboratory host). When unset it is derived
     /// from `SECRET` (`sha256=<hex(SHA256(secret))>`); setting it
@@ -234,7 +234,7 @@ impl Config {
         self.daemon_signature.clone().or_else(|| {
             self.daemon_secret
                 .as_deref()
-                .map(crate::websockets::daemon_auth::derive_signature)
+                .map(crate::http::daemon_auth::derive_signature)
         })
     }
 }

@@ -7,7 +7,7 @@ use objectiveai_sdk::cli::command::agents::mcp::resources::read::{Request, Respo
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::websockets::mcp_listener::{SocketRequest, SocketResponse, call_notifier};
+use crate::http::mcp_listener::{SocketRequest, SocketResponse, call_notifier};
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     // `response_id` may be omitted: fall back to the invoking agent's

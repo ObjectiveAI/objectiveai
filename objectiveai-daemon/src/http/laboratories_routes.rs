@@ -22,10 +22,10 @@
 use std::collections::BTreeMap;
 
 use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Mount};
-use objectiveai_sdk::cli::websocket_laboratories_list_listener::{
+use objectiveai_sdk::cli::laboratories_list_listener::{
     LaboratoryEvent, LaboratoryStatus,
 };
-use objectiveai_sdk::cli::websocket_laboratories_listener::{
+use objectiveai_sdk::cli::laboratories_listener::{
     LaboratoryAttachment, LaboratoryInstanceEvent, LaboratoryRecord,
 };
 use objectiveai_sdk::laboratories::daemon::Identify;
@@ -33,7 +33,7 @@ use objectiveai_sdk::laboratories::filetree::FileTreeEvent;
 use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::broadcast;
 
-use crate::websockets::websocket_laboratory::LaboratoryRegistry;
+use crate::http::websocket_laboratory::LaboratoryRegistry;
 
 /// One coalesced "something changed" tick. No payloads — every
 /// consumer rebuilds from truth.
@@ -282,12 +282,12 @@ fn status_key(status: &LaboratoryStatus) -> String {
 /// snapshot followed by `Upserted`/`Removed` deltas.
 pub(crate) async fn laboratories_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(laboratories_list_stream(state.labs_hub))
@@ -381,14 +381,14 @@ pub(crate) struct RecordQuery {
 /// record, re-sent (full-value) on every relevant change.
 pub(crate) async fn laboratory_instance_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     axum::extract::Path(id): axum::extract::Path<String>,
     axum::extract::Query(query): axum::extract::Query<RecordQuery>,
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     let host = match (query.machine, query.machine_state) {
@@ -458,14 +458,14 @@ fn laboratory_instance_stream(
 /// re-emitted verbatim as it arrives.
 pub(crate) async fn laboratory_filetree_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     axum::extract::Path(id): axum::extract::Path<String>,
     axum::extract::Query(query): axum::extract::Query<RecordQuery>,
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     let pin = match (query.machine, query.machine_state) {

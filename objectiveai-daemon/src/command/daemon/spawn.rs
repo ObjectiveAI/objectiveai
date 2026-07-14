@@ -8,7 +8,7 @@
 //! init gate it binds the HTTP listener and acquires the
 //! singleton lock (publishing the client-connect `http://` URL as the lock
 //! content, like `objectiveai-api` publishes its `http://` URL), brings
-//! up the [`crate::websockets::daemon_stream`] hub (`/listen` broadcast SSE +
+//! up the [`crate::http::daemon_stream`] hub (`/listen` broadcast SSE +
 //! `/execute` POST→SSE runner + fixed-name producer socket), then launches
 //! every `daemon: true` plugin via the SHARED plugin executor
 //! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
@@ -194,9 +194,9 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // release. Held in scope for the daemon's life (its sender clone keeps
     // the channel open).
     let (agents_tx, _agents_rx) = tokio::sync::broadcast::channel::<
-        crate::websockets::websocket_agents::StatusChange,
+        crate::http::agents_routes::StatusChange,
     >(1024);
-    let active = crate::websockets::websocket_agents::ActiveAgents::new(
+    let active = crate::http::agents_routes::ActiveAgents::new(
         state_dir.clone(),
         agents_tx,
         ctx.clone(),
@@ -208,24 +208,24 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         std::sync::Arc<str>,
         std::sync::Arc<str>,
     )>(1024);
-    let conversations = crate::websockets::websocket_agent_instance::ConversationHub::new(
+    let conversations = crate::http::agent_instance_route::ConversationHub::new(
         conversation_tx,
         ctx.clone(),
     );
     let laboratories =
-        crate::websockets::websocket_laboratory::LaboratoryRegistry::new();
+        crate::http::websocket_laboratory::LaboratoryRegistry::new();
     // The live-laboratories hub: local-scan cache + coalesced change
     // feed for `/laboratories/list` + `/laboratories/{id}`. Its
     // resident tasks (scanner, registry forwarder, attachments
     // watcher) live for the daemon's life.
-    let labs_hub = crate::websockets::websocket_laboratories::LaboratoriesHub::new(
+    let labs_hub = crate::http::laboratories_routes::LaboratoriesHub::new(
         laboratories.clone(),
         ctx.clone(),
     );
     labs_hub.spawn_tasks();
     // Publish the in-process hubs on the shared `Context` so every
     // in-process producer reaches its consumer directly (the former
-    // unix sockets). Every `/execute`-derived ctx and `DaemonWsState.ctx`
+    // unix sockets). Every `/execute`-derived ctx and `DaemonHttpState.ctx`
     // is an Arc-sibling of this one, so this single set is visible
     // everywhere. `mcp_notifiers` replaces the per-response mcp sockets.
     let mcp_notifiers = std::sync::Arc::new(dashmap::DashMap::new());
@@ -237,7 +237,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         labs_hub: labs_hub.clone(),
         mcp_notifiers,
     });
-    crate::websockets::daemon_stream::serve_ws(
+    crate::http::daemon_stream::serve_http(
         http_listener,
         tx.clone(),
         secret,

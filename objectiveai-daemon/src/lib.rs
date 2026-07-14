@@ -10,7 +10,7 @@ mod python_wasm;
 pub mod retrieve;
 mod source_resolver;
 mod spawn;
-pub(crate) mod websockets;
+pub(crate) mod http;
 
 #[cfg(test)]
 mod python_tests;

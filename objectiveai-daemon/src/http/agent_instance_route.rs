@@ -10,8 +10,8 @@
 //!   MANY AIHs (a function execution streams every nested agent's
 //!   rows), so routing is per-frame by the row's own AIH, never
 //!   per-connection.
-//! - **Consumer side** — the [`axum`] WebSocket
-//!   `/agents/instances/{*aih}` route (wildcard: AIHs contain `/`).
+//! - **Consumer side** — the [`axum`] `/agents/instances/{*aih}`
+//!   SSE route (wildcard: AIHs contain `/`).
 //!   On connect a client gets the agent's conversation replayed from
 //!   the DB (content inlined, `objectiveai.messages."index"` order,
 //!   paged), then [`AgentInstanceEvent::Live`], then live frames.
@@ -20,15 +20,11 @@
 //!   drop-and-continue like `/listen`): dropped rows are only
 //!   recoverable by reconnecting for a fresh snapshot, so the close
 //!   IS the resync signal.
-//!
-//! The inbound WS leg is read (and ignored beyond close detection) —
-//! reserved for the planned client→daemon message requests over this
-//! stream.
 
 use std::sync::Arc;
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use objectiveai_sdk::cli::websocket_agents_instances_listener::{
+use objectiveai_sdk::cli::agents_instances_listener::{
     AgentInstanceEvent, ClientNotificationPart, PartContent,
 };
 use sqlx::Row as _;
@@ -186,13 +182,13 @@ fn event_aih(event: &AgentInstanceEvent) -> Option<&str> {
 /// replays the DB snapshot, marks live, and relays this AIH's frames.
 pub(crate) async fn instance_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     axum::extract::Path(aih): axum::extract::Path<String>,
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(instance_stream(
@@ -217,13 +213,13 @@ pub(crate) async fn instance_handler(
 /// both subscriptions.
 fn instance_stream(
     hub: ConversationHub,
-    active: crate::websockets::websocket_agents::ActiveAgents,
+    active: crate::http::agents_routes::ActiveAgents,
     aih: String,
 ) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
     use axum::response::sse::Event;
-    use objectiveai_sdk::cli::websocket_agents_instances_listener::AgentRecord;
+    use objectiveai_sdk::cli::agents_instances_listener::AgentRecord;
 
-    use crate::websockets::websocket_agents::StatusChange;
+    use crate::http::agents_routes::StatusChange;
     async_stream::stream! {
         let mut rx = hub.subscribe();
         let mut agents_rx = active.subscribe();

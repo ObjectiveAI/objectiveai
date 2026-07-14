@@ -57,7 +57,7 @@ use objectiveai_sdk::cli::command::agents::spawn::ResponseItem as SpawnResponseI
 use crate::context::Context;
 use crate::db;
 use crate::error::Error;
-use crate::websockets::agent_registry::AgentInstanceRegistry;
+use crate::http::agent_registry::AgentInstanceRegistry;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 

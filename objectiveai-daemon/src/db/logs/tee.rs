@@ -20,14 +20,14 @@
 
 use std::collections::HashMap;
 
-use objectiveai_sdk::cli::websocket_agents_instances_listener::{
+use objectiveai_sdk::cli::agents_instances_listener::{
     AgentInstanceEvent, AssistantResponsePart, PartContent, RequestMessageUserPart,
     ToolResponsePart, VectorRequestChoicePart,
 };
 use tokio::sync::mpsc;
 
 use super::row::RowValue;
-use crate::websockets::websocket_agent_instance::ConversationHub;
+use crate::http::agent_instance_route::ConversationHub;
 
 /// One JSONL line on `conversation.sock`. CLI-internal (the daemon is
 /// the only reader); the resolved wire type the daemon fans out is the

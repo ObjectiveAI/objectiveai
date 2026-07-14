@@ -4,7 +4,7 @@
 //! Request-per-command over plain HTTP: the client POSTs the
 //! `cli::command::Request` serde JSON as the raw request body — nothing
 //! wraps it — authenticating with the `X-OBJECTIVEAI-SIGNATURE` header
-//! (verified by [`crate::websockets::daemon_auth::authenticate_header`]).
+//! (verified by [`crate::http::daemon_auth::authenticate_header`]).
 //! The daemon streams the result back as Server-Sent Events.
 //!
 //! The [`AgentArguments`] identity rides the
@@ -48,13 +48,13 @@ use crate::error::Error;
 /// stream its items back as SSE.
 pub(crate) async fn execute_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     headers: axum::http::HeaderMap,
     body: axum::body::Bytes,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     Sse::new(execute_stream(state.ctx, agent_arguments(&headers), body))

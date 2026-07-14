@@ -6,8 +6,8 @@
 //! emitting `{id, type}` parts for `agents logs read id` to resolve,
 //! each row's ACTUAL content is batch-fetched from its per-kind table
 //! and inlined into a typed SDK
-//! [`AgentInstanceEvent`](objectiveai_sdk::cli::websocket_agents_instances_listener::AgentInstanceEvent)
-//! — the same frame shape the live tee ships, so the WS handler
+//! [`AgentInstanceEvent`](objectiveai_sdk::cli::agents_instances_listener::AgentInstanceEvent)
+//! — the same frame shape the live tee ships, so the SSE handler
 //! replays the snapshot and relays live frames through one type and
 //! clients converge the seam by part identity.
 //!
@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use objectiveai_sdk::cli::websocket_agents_instances_listener::{
+use objectiveai_sdk::cli::agents_instances_listener::{
     AgentInstanceEvent, AssistantResponsePart, ClientNotificationPart, PartContent,
     RequestMessageUserPart, ToolResponsePart, VectorRequestChoicePart,
 };
@@ -319,7 +319,7 @@ fn assistant_media(delivered_at: String, content: PartContent) -> AssistantRespo
 /// One page of an agent's conversation as typed events, content
 /// inlined, in `objectiveai.messages."index"` order. Returns the
 /// events plus the `after_id` cursor for the next page (`None` when
-/// this page was the last). The caller (the daemon WS handler) loops
+/// this page was the last). The caller (the daemon SSE handler) loops
 /// pages, streaming each event as one frame — bounded memory for huge
 /// histories.
 pub async fn read_conversation_page(

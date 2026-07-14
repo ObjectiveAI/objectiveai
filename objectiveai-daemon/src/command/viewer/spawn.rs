@@ -2,7 +2,7 @@
 //! background.
 //!
 //! The viewer is per-state: its lock lives at
-//! `<dir>/state/<state>/locks` key `viewer`. The viewer is a WebSocket
+//! `<dir>/state/<state>/locks` key `viewer`. The viewer is an SSE
 //! CLIENT of the daemon's broadcast (not a server), so the lock content
 //! is a plain readiness marker, not a URL. If the lock is already held
 //! the viewer is already up.
@@ -32,12 +32,12 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    // The daemon WS auth signature: the daemon's own bare `SIGNATURE`
+    // The daemon auth signature: the daemon's own bare `SIGNATURE`
     // env when set, else derived one-way from its bare `SECRET`
     // (`sha256=<hex(SHA256(secret))>`, the same math as
     // `generate_viewer_secret_signature_pair`). Clients send it
-    // verbatim in the first-message auth preamble (the SDK
-    // `AuthEnvelope`) on every daemon WebSocket connection.
+    // verbatim in the `X-OBJECTIVEAI-SIGNATURE` header on every daemon
+    // HTTP request (the `/laboratory` WebSocket keeps the `AuthEnvelope` preamble).
     let daemon_signature = ctx.config.client_signature();
 
     // The child inherits the cli's environment; every env key the

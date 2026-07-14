@@ -84,7 +84,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Context for nested (plugin-originated) commands: this caller's
     // ctx verbatim. Plugins carry no special routing identity — their
     // nested commands broadcast on /listen like any other run, and
-    // plugins observe the daemon with the SAME WebSocket executor /
+    // plugins observe the daemon with the SAME SSE executor /
     // listeners every other client uses.
     let nested_ctx = ctx.clone();
 

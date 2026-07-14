@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::command::agents::locks::{AgentLock, AgentLockMap};
-use crate::websockets::websocket_agents::ActiveAgents;
+use crate::http::agents_routes::ActiveAgents;
 
 pub struct AgentInstanceRegistry {
     state_dir: PathBuf,

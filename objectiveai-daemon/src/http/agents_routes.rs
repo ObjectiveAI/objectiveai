@@ -6,7 +6,7 @@
 //!
 //! - **Producer side** — every place the daemon acquires an
 //!   `agent_instance_hierarchy` (AIH) instance lock (via
-//!   [`crate::websockets::agent_registry`]) calls [`ActiveAgents::activate`]
+//!   [`crate::http::agent_registry`]) calls [`ActiveAgents::activate`]
 //!   directly: "AIH X is now active."
 //! - **Watcher** — on each activation the daemon spawns
 //!   [`ActiveAgents::watch`], which awaits the AIH lock's release
@@ -14,8 +14,8 @@
 //!   the agent's task ends (or the whole daemon dies), so a spawn killed
 //!   mid-stream flips to inactive exactly — no leak, no reliance on a clean
 //!   stream end.
-//! - **Consumer side** — the [`axum`] WebSocket `/agents/instances/list` route
-//!   (registered by [`crate::websockets::daemon_stream::serve_ws`]). On
+//! - **Consumer side** — the [`axum`] `/agents/instances/list` SSE route
+//!   (registered by [`crate::http::daemon_stream::serve_http`]). On
 //!   connect a client gets one [`AgentEvent::Snapshot`] of ALL agents
 //!   (from the DB), then streams [`AgentEvent::Activated`] /
 //!   [`AgentEvent::Deactivated`] deltas.
@@ -29,13 +29,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
-use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentStatus};
-use objectiveai_sdk::cli::websocket_agents_instances_listener::AgentRecord;
+use objectiveai_sdk::cli::agents_instances_list_listener::{AgentEvent, AgentStatus};
+use objectiveai_sdk::cli::agents_instances_listener::AgentRecord;
 use tokio::sync::{Mutex, broadcast};
 
 
 /// CLI-internal agent-status change, broadcast by [`ActiveAgents`] to
-/// BOTH websocket routes, which map it to their own wire vocabularies:
+/// BOTH agent SSE routes, which map it to their own wire vocabularies:
 /// `/agents/instances/list` re-ships `Activated`/`Deactivated` as its
 /// flat status events (and ignores `TagsChanged`);
 /// `/agents/instances/{*aih}` rebuilds and re-ships this one agent's
@@ -63,7 +63,7 @@ pub(crate) enum StatusChange {
 
 
 
-/// Shared live-agent registry + delta broadcast. Cloned into the WS state
+/// Shared live-agent registry + delta broadcast. Cloned into the route state
 /// and the socket accept loop; the sender clones keep the broadcast open
 /// for the daemon's whole life.
 #[derive(Clone)]
@@ -73,7 +73,7 @@ pub(crate) struct ActiveAgents {
     /// under the lock, serializing correctly against concurrent
     /// [`activate`](Self::activate) (no lost activation on fast reacquire).
     active: Arc<Mutex<HashSet<String>>>,
-    /// Typed [`StatusChange`]s, fanned to both websocket routes.
+    /// Typed [`StatusChange`]s, fanned to both agent SSE routes.
     events: broadcast::Sender<StatusChange>,
     state_dir: PathBuf,
     /// Resident context — the DB pool is resolved lazily (`db_client`), as
@@ -368,7 +368,7 @@ fn record_from_item(
         attached_laboratories: attached
             .into_iter()
             .map(|record| {
-                objectiveai_sdk::cli::websocket_agents_instances_listener::AttachedLaboratory {
+                objectiveai_sdk::cli::agents_instances_listener::AttachedLaboratory {
                     id: record.laboratory_id,
                     machine: record.machine_id,
                     machine_state: record.machine_state,
@@ -382,16 +382,16 @@ fn record_from_item(
 }
 
 
-/// `/agents/instances/list`: upgrade to WebSocket, consume the auth preamble, send the
-/// snapshot, then stream deltas.
+/// `/agents/instances/list`: header-auth, then an SSE stream — the
+/// snapshot first, then deltas.
 pub(crate) async fn agents_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(agents_stream(state.active))

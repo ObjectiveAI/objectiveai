@@ -2,7 +2,7 @@
 //!
 //! This handler runs INSIDE the daemon (every command reaches it via
 //! `/execute`), so it must never kill itself: a self-`TerminateProcess`
-//! would drop the WebSocket before the response could be sent. Killing
+//! would drop the /execute stream before the response could be sent. Killing
 //! the daemon is the thin CLI's job — it resolves the daemon-lock owner
 //! and signals it directly, off the wire. So a `daemon kill` that arrives
 //! here (e.g. from a non-CLI `/execute` client) is rejected. The CLI's

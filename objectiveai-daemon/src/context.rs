@@ -27,10 +27,10 @@ use tokio::sync::{OnceCell, broadcast};
 use crate::db;
 use crate::filesystem;
 use crate::run::Config;
-use crate::websockets::websocket_agent_instance::ConversationHub;
-use crate::websockets::websocket_agents::ActiveAgents;
-use crate::websockets::websocket_laboratories::LaboratoriesHub;
-use crate::websockets::websocket_laboratory::LaboratoryRegistry;
+use crate::http::agent_instance_route::ConversationHub;
+use crate::http::agents_routes::ActiveAgents;
+use crate::http::laboratories_routes::LaboratoriesHub;
+use crate::http::websocket_laboratory::LaboratoryRegistry;
 
 /// The resident daemon's in-process hubs — the direct replacements for
 /// the former unix sockets. Built once at daemon boot in

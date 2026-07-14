@@ -13,7 +13,7 @@
 //!    state scopes the HOST's containers and locks on its own
 //!    machine, and a remote daemon's state name is unrelated to it.
 //! 2. The SECOND frame is the standard first-message `AuthEnvelope`
-//!    (verified by [`crate::websockets::daemon_auth::authenticate`],
+//!    (verified by [`crate::http::daemon_auth::authenticate`],
 //!    demoted to second place here).
 //! 3. Then the daemon sends [`ChannelRequest`]s (stamped with the
 //!    target `laboratory_id`) and the host answers [`ChannelResponse`]s
@@ -369,7 +369,7 @@ impl LaboratoryRegistry {
 /// `(machine, state)` identity, pump until disconnect.
 pub(crate) async fn laboratory_handler(
     axum::extract::State(state): axum::extract::State<
-        crate::websockets::daemon_stream::DaemonWsState,
+        crate::http::daemon_stream::DaemonHttpState,
     >,
     ws: axum::extract::ws::WebSocketUpgrade,
 ) -> axum::response::Response {
@@ -396,7 +396,7 @@ pub(crate) async fn laboratory_handler(
         // unrelated. The (machine, state) pair is simply the host's
         // registry identity.
         // 2. Authorization SECOND (the standard preamble, verbatim).
-        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
+        if !crate::http::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
             .await
         {
             return;

@@ -93,7 +93,7 @@ struct Inner {
     /// `instance::run`. Each `McpKind::ObjectiveAi` dial awaits the
     /// handle's shared port future and builds
     /// `http://127.0.0.1:{port}` on the fly.
-    mcp_server: crate::websockets::mcp_server::McpServerHandle,
+    mcp_server: crate::http::mcp_server::McpServerHandle,
     client: objectiveai_sdk::mcp::Client,
     /// Every dialed upstream — primary + plugin — keyed by `(objectiveai
     /// response id → McpKind → connection)`. The outer key is the
@@ -145,7 +145,7 @@ impl ConduitMcpHandler {
     /// each `dispatch_read_message_queue` call fuses the tag-group
     /// upgrade with the row read in one transaction.
     pub fn new(
-        mcp_server: crate::websockets::mcp_server::McpServerHandle,
+        mcp_server: crate::http::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
         agent_tag: Option<String>,
         backoff_max_elapsed_time_ms: u64,
