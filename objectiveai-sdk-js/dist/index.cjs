@@ -9216,6 +9216,116 @@ var SseCommandExecutor = class {
 };
 _url = new WeakMap();
 _options = new WeakMap();
+
+// src/cli/viewer.ts
+function newStreamId() {
+  return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+async function connectViewerStream(transport, command, args, signal) {
+  const streamId = newStreamId();
+  const queue = [];
+  let wake = null;
+  const push = (event) => {
+    queue.push(event);
+    if (wake !== null) {
+      const w = wake;
+      wake = null;
+      w();
+    }
+  };
+  const channel = transport.channel();
+  channel.onmessage = push;
+  if (signal.aborted) {
+    throw new Error(`connect daemon stream: ${command}: aborted`);
+  }
+  signal.addEventListener("abort", () => {
+    push({ type: "error", message: "aborted" });
+    void transport.invoke("daemon_stream_close", { streamId }).catch(() => {
+    });
+  });
+  try {
+    await transport.invoke(command, { ...args, streamId, onEvent: channel });
+  } catch (e) {
+    throw new Error(`connect daemon stream: ${command}: ${String(e)}`);
+  }
+  return (async function* () {
+    for (; ; ) {
+      while (queue.length > 0) {
+        const event = queue.shift();
+        switch (event.type) {
+          case "data":
+            yield event.data;
+            break;
+          case "end":
+            return;
+          case "error":
+            throw new Error(event.message);
+        }
+      }
+      await new Promise((resolve) => {
+        wake = resolve;
+      });
+    }
+  })();
+}
+
+// src/cli/command/executor/viewer.ts
+var _transport;
+var ViewerCommandExecutor = class {
+  constructor(transport) {
+    __privateAdd(this, _transport);
+    __privateSet(this, _transport, transport);
+  }
+  execute(request) {
+    const transport = __privateGet(this, _transport);
+    return {
+      async *[Symbol.asyncIterator]() {
+        const controller = new AbortController();
+        let events;
+        try {
+          events = await connectViewerStream(
+            transport,
+            "daemon_execute",
+            { request: JSON.stringify(request) },
+            controller.signal
+          );
+        } catch (e) {
+          yield {
+            type: "error",
+            level: "error",
+            fatal: null,
+            message: `connect daemon execute: ${String(e)}`
+          };
+          return;
+        }
+        try {
+          for await (const data of events) {
+            try {
+              yield JSON.parse(data);
+            } catch (e) {
+              yield {
+                type: "error",
+                level: "error",
+                fatal: null,
+                message: `decode daemon execute message: ${String(e)}`
+              };
+            }
+          }
+        } catch (e) {
+          yield {
+            type: "error",
+            level: "error",
+            fatal: null,
+            message: `daemon execute stream: ${String(e)}`
+          };
+        } finally {
+          controller.abort();
+        }
+      }
+    };
+  }
+};
+_transport = new WeakMap();
 var CliCommandFunctionsExecuteStandardRequestSchemaPathSchema = z1597.z.literal("functions/execute/standard/request_schema").meta({ title: "cli.command.functions.execute.standard.request_schema.Path" });
 var CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema = z1597.z.object({
   jq: z1597.z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set \u2014 python overrides jq.").optional(),
@@ -13580,6 +13690,34 @@ var _AgentsInstancesListListener = class _AgentsInstancesListListener {
     __privateMethod(_a = listener, _AgentsInstancesListListener_instances, pump_fn).call(_a, events);
     return listener;
   }
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three). Same
+   * resolve/reject and lifecycle semantics as {@link connect};
+   * reconnection remains the caller's loop.
+   */
+  static async connectViewer(transport, options) {
+    var _a;
+    const abort = new AbortController();
+    let events;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_agents_instances_list",
+        {},
+        abort.signal
+      );
+    } catch (e) {
+      throw new Error(`connect daemon agents sse: ${String(e)}`);
+    }
+    const listener = new _AgentsInstancesListListener(
+      abort,
+      options?.onChange
+    );
+    __privateMethod(_a = listener, _AgentsInstancesListListener_instances, pump_fn).call(_a, events);
+    return listener;
+  }
   /** Whether the connection has closed (the view is frozen). */
   get closed() {
     return __privateGet(this, _closed);
@@ -13863,6 +14001,33 @@ var _AgentsInstancesListener = class _AgentsInstancesListener {
     __privateMethod(_a = listener, _AgentsInstancesListener_instances, pump_fn2).call(_a, events);
     return listener;
   }
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three).
+   * `agentInstanceHierarchy` is the agent's full hierarchy (raw
+   * slashes are fine — it is the subscription target, not transport).
+   * Same resolve/reject and lifecycle semantics as {@link connect};
+   * reconnection remains the caller's loop.
+   */
+  static async connectViewer(transport, agentInstanceHierarchy, options) {
+    var _a;
+    const abort = new AbortController();
+    let events;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_agents_instance",
+        { aih: agentInstanceHierarchy },
+        abort.signal
+      );
+    } catch (e) {
+      throw new Error(`connect daemon agent-instance sse: ${String(e)}`);
+    }
+    const listener = new _AgentsInstancesListener(abort, options);
+    __privateMethod(_a = listener, _AgentsInstancesListener_instances, pump_fn2).call(_a, events);
+    return listener;
+  }
   /** Whether the connection has closed (the view is frozen; the daemon
    * disconnects lagging clients — reconnect for a fresh snapshot). */
   get closed() {
@@ -14091,6 +14256,34 @@ var _LaboratoriesListListener = class _LaboratoriesListListener {
     __privateMethod(_a = listener, _LaboratoriesListListener_instances, pump_fn3).call(_a, events);
     return listener;
   }
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three). Same
+   * resolve/reject and lifecycle semantics as {@link connect};
+   * reconnection remains the caller's loop.
+   */
+  static async connectViewer(transport, options) {
+    var _a;
+    const abort = new AbortController();
+    let events;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_laboratories_list",
+        {},
+        abort.signal
+      );
+    } catch (e) {
+      throw new Error(`connect daemon laboratories sse: ${String(e)}`);
+    }
+    const listener = new _LaboratoriesListListener(
+      abort,
+      options?.onChange
+    );
+    __privateMethod(_a = listener, _LaboratoriesListListener_instances, pump_fn3).call(_a, events);
+    return listener;
+  }
   /** Whether the connection has closed (the view is frozen). */
   get closed() {
     return __privateGet(this, _closed3);
@@ -14231,6 +14424,32 @@ var _LaboratoriesListener = class _LaboratoriesListener {
     let events;
     try {
       events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon laboratory sse: ${String(e)}`);
+    }
+    const listener = new _LaboratoriesListener(abort, options?.onChange);
+    __privateMethod(_a = listener, _LaboratoriesListener_instances, pump_fn4).call(_a, events);
+    return listener;
+  }
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three). `id` is
+   * the raw laboratory id. Same resolve/reject and lifecycle
+   * semantics as {@link connect}; reconnection remains the caller's
+   * loop.
+   */
+  static async connectViewer(transport, id, options) {
+    var _a;
+    const abort = new AbortController();
+    let events;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_laboratory",
+        { id, machine: options?.machine, machineState: options?.machineState },
+        abort.signal
+      );
     } catch (e) {
       throw new Error(`connect daemon laboratory sse: ${String(e)}`);
     }
@@ -14423,6 +14642,23 @@ var _BroadcastListener = class _BroadcastListener {
   static async connect(url, options) {
     const abort = new AbortController();
     const events = await connectSse(url, options?.signature, abort.signal);
+    return new _BroadcastListener(abort, events);
+  }
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature (the Rust side owns both). Same resolve/reject and
+   * lifecycle semantics as {@link connect}; reconnection remains the
+   * caller's loop.
+   */
+  static async connectViewer(transport) {
+    const abort = new AbortController();
+    const events = await connectViewerStream(
+      transport,
+      "daemon_listen",
+      {},
+      abort.signal
+    );
     return new _BroadcastListener(abort, events);
   }
   /** Drop the connection: every open run's feed closes and every root
@@ -17319,6 +17555,7 @@ exports.VectorCompletionsResponseUnaryObjectSchema = VectorCompletionsResponseUn
 exports.VectorCompletionsResponseUnaryVectorCompletionSchema = VectorCompletionsResponseUnaryVectorCompletionSchema;
 exports.VectorCompletionsResponseVoteSchema = VectorCompletionsResponseVoteSchema;
 exports.VectorCompletionsVectorResponsesSchema = VectorCompletionsVectorResponsesSchema;
+exports.ViewerCommandExecutor = ViewerCommandExecutor;
 exports.WeightsEntrySchema = WeightsEntrySchema;
 exports.WeightsSchema = WeightsSchema;
 exports.agentCompletionsCreateAgentCompletion = agentCompletionsCreateAgentCompletion;
@@ -17675,6 +17912,7 @@ exports.authGetCredits = authGetCredits;
 exports.authGetOpenrouterByokApiKey = authGetOpenrouterByokApiKey;
 exports.authListApiKeys = authListApiKeys;
 exports.connectSse = connectSse;
+exports.connectViewerStream = connectViewerStream;
 exports.daemonKillExecute = daemonKillExecute;
 exports.daemonKillExecuteTransform = daemonKillExecuteTransform;
 exports.daemonKillRequestSchemaExecute = daemonKillRequestSchemaExecute;
