@@ -7,7 +7,7 @@
 //! [`SseCommandExecutor`] — the one piece of daemon traffic still
 //! initiated from Rust. Everything else is JS-native: plugin iframes
 //! receive the daemon coordinates on their URL and talk to the daemon
-//! THEMSELVES with the same WebSocket executor/listeners the main
+//! THEMSELVES with the same SSE executor/listeners the main
 //! viewer uses — no host bridge, no routing.
 
 use futures::StreamExt;

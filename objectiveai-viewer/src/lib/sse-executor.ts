@@ -1,6 +1,6 @@
 /**
  * The viewer's shared daemon `/execute` client — one lazy
- * [`SseCommandExecutor`] built from the Rust side's `websocket_config`,
+ * [`SseCommandExecutor`] built from the Rust side's `daemon_config`,
  * which carries EVERY field the executor takes: the daemon address,
  * the auth signature (sent as the `X-OBJECTIVEAI-SIGNATURE` header),
  * and the agent arguments identifying viewer-initiated executions.
@@ -20,10 +20,10 @@ export async function sseExecutor(): Promise<SseCommandExecutor> {
         address: string;
         signature: string | null;
         agent_arguments: CliCommandAgentArguments;
-      }>("websocket_config");
+      }>("daemon_config");
       if (!config) {
         throw new Error(
-          "websocket_config unavailable (not running under Tauri)",
+          "daemon_config unavailable (not running under Tauri)",
         );
       }
       return new SseCommandExecutor(`${config.address}/execute`, {

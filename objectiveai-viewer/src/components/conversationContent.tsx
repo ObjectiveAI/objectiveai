@@ -8,14 +8,14 @@
  */
 import cn from "classnames";
 import type {
-  CliWebsocketAgentsInstancesListenerAssistantResponsePart,
-  CliWebsocketAgentsInstancesListenerPartContent,
+  CliAgentsInstancesListenerAssistantResponsePart,
+  CliAgentsInstancesListenerPartContent,
 } from "@objectiveai/sdk";
 import { Markdown } from "./Markdown";
 import type { ConversationBlock } from "../hooks/useAgentInstance";
 
-export type PartContent = CliWebsocketAgentsInstancesListenerPartContent;
-export type AssistantPart = CliWebsocketAgentsInstancesListenerAssistantResponsePart;
+export type PartContent = CliAgentsInstancesListenerPartContent;
+export type AssistantPart = CliAgentsInstancesListenerAssistantResponsePart;
 
 /** The block-level scope label — the first half of every indicator.
  * Deliberately coarse: request-vs-response is not distinguished

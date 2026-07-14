@@ -13,16 +13,16 @@
  */
 import { useEffect, useState } from "react";
 import {
-  WebSocketAgentsInstancesListener,
-  type CliWebsocketAgentsInstancesListenerAgentRecord,
-  type CliWebsocketAgentsInstancesListenerConversationBlock,
+  AgentsInstancesListener,
+  type CliAgentsInstancesListenerAgentRecord,
+  type CliAgentsInstancesListenerConversationBlock,
 } from "@objectiveai/sdk";
 import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
-export type AgentRecord = CliWebsocketAgentsInstancesListenerAgentRecord;
+export type AgentRecord = CliAgentsInstancesListenerAgentRecord;
 export type ConversationBlock =
-  CliWebsocketAgentsInstancesListenerConversationBlock;
+  CliAgentsInstancesListenerConversationBlock;
 
 export interface AgentInstanceView {
   /** The agent's status record — `null` until the first status frame
@@ -50,12 +50,12 @@ export function useAgentInstance(
   useEffect(() => {
     if (connection === null) return;
     let cancelled = false;
-    let current: WebSocketAgentsInstancesListener | null = null;
+    let current: AgentsInstancesListener | null = null;
     void (async () => {
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await WebSocketAgentsInstancesListener.connect(
+          const listener = await AgentsInstancesListener.connect(
             `${connection.address}/agents/instances/${agentInstanceHierarchy}`,
             {
               signature: connection.signature,

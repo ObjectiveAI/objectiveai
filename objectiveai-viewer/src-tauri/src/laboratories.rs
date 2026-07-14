@@ -3,7 +3,7 @@
 //! through the daemon (the SseCommandExecutor and the
 //! `/laboratories/*` streams), which is the ONLY laboratory data
 //! path now that the `objectiveai-laboratory` binary is a pure
-//! WebSocket host with no subcommands.
+//! laboratory host binary with no subcommands.
 //!
 //! - `machine_identity` returns THIS machine's
 //!   [`objectiveai_sdk::machine::MachineIdentity`] — what JS compares
@@ -13,7 +13,7 @@
 //! - `laboratories_spawn_host` starts THIS machine's resident
 //!   laboratory HOST (one per (machine, state), serving ALL of its
 //!   laboratories), dialing the viewer's own daemon (address +
-//!   signature from the managed [`crate::run::WebSocketConfig`]).
+//!   signature from the managed [`crate::run::DaemonConfig`]).
 //!   Idempotent via the single `laboratories` lock in
 //!   `<state>/locks` — an already-running host is a no-op. Readiness
 //!   is lock publication (the host retries its dial forever).
@@ -49,15 +49,15 @@ pub(crate) fn machine_identity(
 /// Spawn (or find already-published) THIS machine's resident
 /// laboratory HOST, dialing the viewer's own daemon. The target
 /// address + signature are implicit — always the viewer's own (the
-/// managed [`crate::run::WebSocketConfig`]). Idempotent via the single
+/// managed [`crate::run::DaemonConfig`]). Idempotent via the single
 /// `laboratories` lock: an already-running host is a no-op. Resolves
 /// to nothing.
 #[tauri::command]
 pub(crate) async fn laboratories_spawn_host(
     env: tauri::State<'_, LabEnv>,
-    ws: tauri::State<'_, crate::run::WebSocketConfig>,
+    config: tauri::State<'_, crate::run::DaemonConfig>,
 ) -> Result<(), String> {
-    spawn_host(&env, &ws.address, ws.signature.as_deref())
+    spawn_host(&env, &config.address, config.signature.as_deref())
         .await
         .map_err(|e| format!("laboratory host: {e}"))
 }

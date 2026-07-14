@@ -6,7 +6,7 @@ import type { DaemonConnection } from "./lib/daemon";
 interface PluginPaneProps {
   info: ViewerPluginInfo;
   /** The daemon coordinates, threaded down from App. Plugins talk to
-   * the daemon THEMSELVES — the same WebSocket executor/listeners the
+   * the daemon THEMSELVES — the same SSE executor/listeners the
    * main viewer uses — so the coordinates ride the iframe URL as
    * query parameters (`daemon_address` / `daemon_signature`). */
   connection: DaemonConnection | null;

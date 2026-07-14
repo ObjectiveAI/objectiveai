@@ -6,20 +6,20 @@
  *
  * NOT a singleton: the hook takes the daemon connection as an
  * argument (threaded down from App, which fetches it once) and owns
- * ONE `WebSocketAgentsInstancesListListener` for its lifetime,
+ * ONE `AgentsInstancesListListener` for its lifetime,
  * reconnecting with a 1s pause when the connection drops (each
  * reconnect re-snapshots, so the state self-heals). `null` connection
  * (browser dev, config not yet fetched) yields an empty list.
  */
 import { useEffect, useState } from "react";
 import {
-  WebSocketAgentsInstancesListListener,
-  type CliWebsocketAgentsInstancesListListenerAgentStatus,
+  AgentsInstancesListListener,
+  type CliAgentsInstancesListListenerAgentStatus,
 } from "@objectiveai/sdk";
 import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
-export type AgentStatus = CliWebsocketAgentsInstancesListListenerAgentStatus;
+export type AgentStatus = CliAgentsInstancesListListenerAgentStatus;
 
 export function useAgentsInstancesList(
   connection: DaemonConnection | null,
@@ -28,12 +28,12 @@ export function useAgentsInstancesList(
   useEffect(() => {
     if (connection === null) return;
     let cancelled = false;
-    let current: WebSocketAgentsInstancesListListener | null = null;
+    let current: AgentsInstancesListListener | null = null;
     void (async () => {
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await WebSocketAgentsInstancesListListener.connect(
+          const listener = await AgentsInstancesListListener.connect(
             `${connection.address}/agents/instances/list`,
             {
               signature: connection.signature,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
-  WebSocketLaboratoriesListListener,
-  type CliWebsocketLaboratoriesListListenerLaboratoryStatus,
+  LaboratoriesListListener,
+  type CliLaboratoriesListListenerLaboratoryStatus,
   type LaboratoriesInlineLaboratoryImage,
   type LaboratoriesLaboratoryImage,
 } from "@objectiveai/sdk";
@@ -23,7 +23,7 @@ export function isInlineImage(
 /** One laboratory on the daemon's live list — the SDK wire type,
  * re-exported under the viewer's short name. */
 export type LaboratoryStatus =
-  CliWebsocketLaboratoriesListListenerLaboratoryStatus;
+  CliLaboratoriesListListenerLaboratoryStatus;
 
 /**
  * The daemon's live laboratories list (`/laboratories/list`): the
@@ -42,13 +42,13 @@ export function useLaboratoriesList(
     setLaboratories([]);
     if (connection === null) return;
     let cancelled = false;
-    let current: WebSocketLaboratoriesListListener | null = null;
+    let current: LaboratoriesListListener | null = null;
 
     void (async () => {
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await WebSocketLaboratoriesListListener.connect(
+          const listener = await LaboratoriesListListener.connect(
             `${connection.address}/laboratories/list`,
             {
               signature: connection.signature,

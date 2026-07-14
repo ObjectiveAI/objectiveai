@@ -208,7 +208,7 @@ function App() {
       >
         {/* Every pane stays mounted at all times; only the active one is
             shown (the rest are display:none). Keeping plugin iframes
-            mounted means their JS — and any daemon WebSocket
+            mounted means their JS — and any daemon SSE
             connections they hold — keeps running regardless of which
             tab is focused. */}
         <div

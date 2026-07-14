@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 
 /**
  * Tests for useAgentDefinition: the one-off `agents instances get`
- * read of the recorded agent definition (websocket executor + SDK
+ * read of the recorded agent definition (SSE executor + SDK
  * execute mocked). No live half — definitions only change on
  * respawn-by-spec.
  */

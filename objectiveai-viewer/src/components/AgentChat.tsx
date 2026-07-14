@@ -8,7 +8,7 @@ import { sseExecutor } from "../lib/sse-executor";
 /**
  * The per-agent chat: a composer (Enter = send, Shift+Enter =
  * newline, Send button) plus the queued area directly above it.
- * Every send runs `agents message` through the shared WebSocket
+ * Every send runs `agents message` through the shared SSE
  * executor; the message shows as a queued entry (newest at the
  * bottom) until its command resolves — which, with the CLI's
  * always-enqueue FIFO, means exactly "my queue row was consumed",

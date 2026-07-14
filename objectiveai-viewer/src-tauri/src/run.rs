@@ -3,7 +3,7 @@
 //! The Rust side holds NO daemon stream: the JS frontend connects to
 //! the daemon's published `http://` endpoint directly (fetch/SSE to
 //! `/listen` and `/execute`), and the Rust side only
-//! hands it the variables it needs via the [`websocket_config`]
+//! hands it the variables it needs via the [`daemon_config`]
 //! command (address, optional first-message auth signature, and the
 //! viewer's agent arguments). The `"viewer"` lock is a per-state
 //! singleton marker (content `"ready"`).
@@ -28,14 +28,14 @@ fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
 /// appends `/listen` / `/execute` and connects with fetch/SSE — no
 /// daemon traffic flows through the Rust side.
 #[derive(Clone, serde::Serialize)]
-pub struct WebSocketConfig {
+pub struct DaemonConfig {
     pub address: String,
     pub signature: Option<String>,
     pub agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
 }
 
 #[tauri::command]
-fn websocket_config(state: tauri::State<'_, WebSocketConfig>) -> WebSocketConfig {
+fn daemon_config(state: tauri::State<'_, DaemonConfig>) -> DaemonConfig {
     state.inner().clone()
 }
 
@@ -262,7 +262,7 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
     executor: SseCommandExecutor,
-    websocket_config_state: WebSocketConfig,
+    daemon_config_state: DaemonConfig,
     agents_dir: AgentsDir,
     plugins_dir: PathBuf,
     lab_env: crate::laboratories::LabEnv,
@@ -278,7 +278,7 @@ pub fn serve(
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(executor)
-        .manage(websocket_config_state)
+        .manage(daemon_config_state)
         .manage(agents_dir)
         .manage(lab_env)
         .manage(crate::plugins::PluginsDir(plugins_dir))
@@ -287,7 +287,7 @@ pub fn serve(
         });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
-        websocket_config,
+        daemon_config,
         open_agent_remote,
         open_url,
         open_agent_window,
@@ -348,7 +348,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
 
     // There is only ever ONE viewer per STATE (unlike the api, which
     // is one per OBJECTIVEAI_DIR): claim key "viewer" in
-    // <dir>/state/<state>/locks. The viewer is a WebSocket client (no
+    // <dir>/state/<state>/locks. The viewer is an HTTP client of the daemon (no
     // listener), so the content is a plain readiness marker, not a
     // URL. The claim is held until process death (LockClaim leaks on
     // drop by design) and the kernel releases it on any exit, crash
@@ -366,10 +366,10 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     }
 
     // No Rust-side daemon streams: the JS frontend connects to the
-    // daemon directly with native WebSockets, using the variables the
-    // `websocket_config` command hands it — the same viewer identity
+    // daemon directly over fetch/SSE, using the variables the
+    // `daemon_config` command hands it — the same viewer identity
     // the Rust-side executor stamps on its own calls.
-    let websocket_config_state = WebSocketConfig {
+    let daemon_config_state = DaemonConfig {
         address: daemon_address,
         signature: config.daemon_signature.clone(),
         agent_arguments: crate::plugins::viewer_agent_arguments(),
@@ -390,7 +390,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
 
     Ok(serve(
         executor,
-        websocket_config_state,
+        daemon_config_state,
         agents_dir,
         plugins_dir,
         lab_env,

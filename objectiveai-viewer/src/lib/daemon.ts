@@ -2,7 +2,7 @@
  * The daemon connection coordinates the viewer's per-component
  * listeners are built from: the daemon's HTTP base address and the
  * pre-derived auth signature, handed over by the Rust side via the
- * `websocket_config` Tauri command (the Rust process holds no daemon
+ * `daemon_config` Tauri command (the Rust process holds no daemon
  * stream itself — the webview connects directly over fetch/SSE).
  *
  * There is deliberately NO global listener singleton: App fetches
@@ -25,7 +25,7 @@ export async function daemonConnection(): Promise<DaemonConnection | null> {
   const config = await tauriInvoke<{
     address: string;
     signature: string | null;
-  }>("websocket_config");
+  }>("daemon_config");
   if (!config) return null;
   return { address: config.address, signature: config.signature };
 }
