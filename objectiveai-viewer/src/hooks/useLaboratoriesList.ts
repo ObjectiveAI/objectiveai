@@ -26,12 +26,16 @@ export type LaboratoryStatus =
   CliLaboratoriesListListenerLaboratoryStatus;
 
 /**
- * The daemon's live laboratories list (`/laboratories/list`): the
- * `laboratories list` merge as a stream — connected ∪ daemon-local
- * scan, each with `source` (the DAEMON's local/remote vantage) and a
- * live `connected` flag. Mirrors [`useAgentsInstancesList`]: one
- * listener per hook instance, 1s reconnect loop, errors to the toast.
- * `null` transport yields an empty list.
+ * The daemon's live laboratories list (`/laboratories/list`) as a
+ * stream. VISIBILITY FOLLOWS THE HOST: the list contains only
+ * laboratories served by a CONNECTED laboratory host, and hosts spawn
+ * lazily (the first `laboratories create`/`attach` spawns the local
+ * one) — so an empty list on a fresh daemon does NOT mean no
+ * containers exist; pre-existing ones appear all at once when
+ * something spawns the host and it announces podman's current set.
+ * Mirrors [`useAgentsInstancesList`]: one listener per hook instance,
+ * 1s reconnect loop, errors to the toast. `null` transport yields an
+ * empty list.
  */
 export function useLaboratoriesList(
   transport: ViewerTransport | null,
