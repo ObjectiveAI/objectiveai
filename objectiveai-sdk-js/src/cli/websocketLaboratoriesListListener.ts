@@ -1,6 +1,6 @@
 /**
  * Materialized consumer of the cli daemon's `/laboratories/list`
- * endpoint over a NATIVE WebSocket — the JS mirror of the Rust SDK's
+ * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
  * `cli::websocket_laboratories_list_listener::WebSocketLaboratoriesListListener`,
  * identical in construction and semantics.
  *
@@ -14,12 +14,13 @@
  * Per-lab attachment detail lives on the `/laboratories/{id}`
  * endpoint ({@link WebSocketLaboratoriesListener}).
  *
- * Auth is the first-message preamble shared by every daemon WebSocket
- * route. One listener = one connection: when the socket closes the
+ * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: when the socket closes the
  * view freezes at its last state; reconnection is the caller's loop.
  * Unparseable events are skipped (forward compat). No runtime
  * validation, like {@link WebSocketListener}.
  */
+
+import { connectSse } from "./sse";
 
 import type {
   CliWebsocketLaboratoriesListListenerLaboratoryEvent,
@@ -31,7 +32,7 @@ type LaboratoryEvent = CliWebsocketLaboratoriesListListenerLaboratoryEvent;
 
 export interface WebSocketLaboratoriesListListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-   * verbatim in the auth preamble. Without it the daemon must be
+   * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
    * running without a secret. */
   signature?: string | null;
   /** Invoked with the full current laboratory set (sorted by id)
@@ -66,7 +67,7 @@ function foldKey(
 }
 
 export class WebSocketLaboratoriesListListener {
-  #ws: WebSocket;
+  #abort: AbortController;
   #closed = false;
   /** `(machine, state, id) fold key → status` — laboratory ids are
    * only unique per (machine, state), so same-id items from different
@@ -77,22 +78,11 @@ export class WebSocketLaboratoriesListListener {
   #waiters = new Set<() => void>();
 
   private constructor(
-    ws: WebSocket,
+    abort: AbortController,
     onChange?: (laboratories: LaboratoryStatus[]) => void,
   ) {
-    this.#ws = ws;
+    this.#abort = abort;
     this.#onChange = onChange;
-    ws.onmessage = (event: MessageEvent) => {
-      if (typeof event.data !== "string") return;
-      let frame: unknown;
-      try {
-        frame = JSON.parse(event.data);
-      } catch {
-        return;
-      }
-      this.#onFrame(frame);
-    };
-    ws.onclose = () => this.#onClose();
   }
 
   /**
@@ -103,37 +93,43 @@ export class WebSocketLaboratoriesListListener {
    * immediately begins folding events (the first is the connect-time
    * snapshot).
    */
-  static connect(
+  static async connect(
     url: string,
     options?: WebSocketLaboratoriesListListenerOptions,
   ): Promise<WebSocketLaboratoriesListListener> {
-    return new Promise((resolve, reject) => {
-      let ws: WebSocket;
-      try {
-        ws = new WebSocket(url);
-      } catch (e) {
-        reject(
-          new Error(`connect daemon laboratories websocket: ${String(e)}`),
-        );
-        return;
+    const abort = new AbortController();
+    let events: AsyncGenerator<string>;
+    try {
+      events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon laboratories sse: ${String(e)}`);
+    }
+    const listener = new WebSocketLaboratoriesListListener(
+      abort,
+      options?.onChange,
+    );
+    listener.#pump(events);
+    return listener;
+  }
+
+  /** Read the SSE stream, feeding each event to {@link #onFrame} until
+   * it ends (or is aborted); then settle as closed. */
+  async #pump(events: AsyncGenerator<string>): Promise<void> {
+    try {
+      for await (const data of events) {
+        let frame: unknown;
+        try {
+          frame = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        this.#onFrame(frame);
       }
-      ws.onopen = () => {
-        // The auth preamble — always the connection's first text frame,
-        // `{"signature": null}` against a secretless daemon.
-        ws.send(JSON.stringify({ signature: options?.signature ?? null }));
-        resolve(
-          new WebSocketLaboratoriesListListener(ws, options?.onChange),
-        );
-      };
-      ws.onclose = (event: CloseEvent) => {
-        reject(
-          new Error(
-            `connect daemon laboratories websocket: connection closed` +
-              `${event.code ? ` (code ${event.code})` : ""}`,
-          ),
-        );
-      };
-    });
+    } catch {
+      // Aborted or transport error — fall through to close.
+    } finally {
+      this.#onClose();
+    }
   }
 
   /** Whether the connection has closed (the view is frozen). */
@@ -145,8 +141,7 @@ export class WebSocketLaboratoriesListListener {
    * {@link subscribe} resolves. */
   close(): void {
     if (this.#closed) return;
-    this.#ws.close();
-    // The browser fires onclose asynchronously; settle deterministically.
+    this.#abort.abort();
     this.#onClose();
   }
 

@@ -277,100 +277,89 @@ fn status_key(status: &LaboratoryStatus) -> String {
 
 // ── the two routes ──────────────────────────────────────────────────
 
-/// `/laboratories/list`: upgrade, consume the auth preamble, send the
-/// snapshot, then stream `Upserted`/`Removed` deltas.
+/// `/laboratories/list`: header-auth, then an SSE stream of the
+/// snapshot followed by `Upserted`/`Removed` deltas.
 pub(crate) async fn laboratories_handler(
     axum::extract::State(state): axum::extract::State<
         crate::websockets::daemon_stream::DaemonWsState,
     >,
-    ws: axum::extract::ws::WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |mut socket| async move {
-        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
-            .await
-        {
-            return;
-        }
-        laboratories_list_pump(socket, state.labs_hub).await;
-    })
+    use axum::response::IntoResponse;
+    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    axum::response::sse::Sse::new(laboratories_list_stream(state.labs_hub))
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response()
 }
 
-/// Send the connect snapshot, then rebuild-and-diff on every change,
+/// Yield the connect snapshot, then rebuild-and-diff on every change,
 /// emitting per-lab deltas. Subscribes BEFORE the snapshot so no
 /// change slips the gap; `Lagged` self-heals (the next rebuild+diff
-/// covers everything missed).
-async fn laboratories_list_pump(
-    mut socket: axum::extract::ws::WebSocket,
+/// covers everything missed). A dropped stream (client gone) drops the
+/// subscription — no inbound leg needed.
+fn laboratories_list_stream(
     hub: LaboratoriesHub,
-) {
-    use axum::extract::ws::Message;
-    let mut rx = hub.subscribe();
+) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
+    use axum::response::sse::Event;
+    async_stream::stream! {
+        let mut rx = hub.subscribe();
 
-    let mut last: BTreeMap<String, LaboratoryStatus> = hub
-        .list()
-        .await
-        .into_iter()
-        .map(|lab| (status_key(&lab), lab))
-        .collect();
-    let snapshot = LaboratoryEvent::Snapshot {
-        laboratories: last.values().cloned().collect(),
-    };
-    if let Ok(frame) = serde_json::to_string(&snapshot) {
-        if socket.send(Message::Text(frame.into())).await.is_err() {
-            return;
+        let mut last: BTreeMap<String, LaboratoryStatus> = hub
+            .list()
+            .await
+            .into_iter()
+            .map(|lab| (status_key(&lab), lab))
+            .collect();
+        let snapshot = LaboratoryEvent::Snapshot {
+            laboratories: last.values().cloned().collect(),
+        };
+        if let Ok(frame) = serde_json::to_string(&snapshot) {
+            yield Ok(Event::default().data(frame));
         }
-    }
-    loop {
-        tokio::select! {
-            received = rx.recv() => {
-                match received {
-                    // Attachment changes don't ride the list; identity
-                    // and connected-ness are its whole payload.
-                    Ok(LabsChange::Attachments) => continue,
-                    Ok(LabsChange::Registry)
-                    | Err(broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(broadcast::error::RecvError::Closed) => break,
-                }
-                let next: BTreeMap<String, LaboratoryStatus> = hub
-                    .list()
-                    .await
-                    .into_iter()
-                    .map(|lab| (status_key(&lab), lab))
-                    .collect();
-                let mut frames: Vec<LaboratoryEvent> = Vec::new();
-                for (key, lab) in &next {
-                    if last.get(key) != Some(lab) {
-                        frames.push(LaboratoryEvent::Upserted {
-                            laboratory: lab.clone(),
-                        });
-                    }
-                }
-                for (key, old) in &last {
-                    if !next.contains_key(key) {
-                        // The pair rides the removal — a bare id is
-                        // ambiguous when another host serves the same
-                        // id.
-                        frames.push(LaboratoryEvent::Removed {
-                            id: old.id.clone(),
-                            machine: old.machine.as_ref().map(|m| m.id.clone()),
-                            machine_state: old.machine_state.clone(),
-                        });
-                    }
-                }
-                last = next;
-                for event in frames {
-                    let Ok(frame) = serde_json::to_string(&event) else {
-                        continue;
-                    };
-                    if socket.send(Message::Text(frame.into())).await.is_err() {
-                        return;
-                    }
+        loop {
+            match rx.recv().await {
+                // Attachment changes don't ride the list; identity
+                // and connected-ness are its whole payload.
+                Ok(LabsChange::Attachments) => continue,
+                Ok(LabsChange::Registry)
+                | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+            let next: BTreeMap<String, LaboratoryStatus> = hub
+                .list()
+                .await
+                .into_iter()
+                .map(|lab| (status_key(&lab), lab))
+                .collect();
+            let mut frames: Vec<LaboratoryEvent> = Vec::new();
+            for (key, lab) in &next {
+                if last.get(key) != Some(lab) {
+                    frames.push(LaboratoryEvent::Upserted {
+                        laboratory: lab.clone(),
+                    });
                 }
             }
-            inbound = socket.recv() => match inbound {
-                None | Some(Err(_)) | Some(Ok(Message::Close(_))) => break,
-                Some(Ok(_)) => {}
-            },
+            for (key, old) in &last {
+                if !next.contains_key(key) {
+                    // The pair rides the removal — a bare id is
+                    // ambiguous when another host serves the same
+                    // id.
+                    frames.push(LaboratoryEvent::Removed {
+                        id: old.id.clone(),
+                        machine: old.machine.as_ref().map(|m| m.id.clone()),
+                        machine_state: old.machine_state.clone(),
+                    });
+                }
+            }
+            last = next;
+            for event in frames {
+                let Ok(frame) = serde_json::to_string(&event) else {
+                    continue;
+                };
+                yield Ok(Event::default().data(frame));
+            }
         }
     }
 }
@@ -387,85 +376,73 @@ pub(crate) struct RecordQuery {
     machine_state: Option<String>,
 }
 
-/// `/laboratories/{*id}`: upgrade, consume the auth preamble, send
-/// the record, then re-send it (full-value) on every relevant change.
+/// `/laboratories/{*id}`: header-auth, then an SSE stream of the
+/// record, re-sent (full-value) on every relevant change.
 pub(crate) async fn laboratory_instance_handler(
     axum::extract::State(state): axum::extract::State<
         crate::websockets::daemon_stream::DaemonWsState,
     >,
     axum::extract::Path(id): axum::extract::Path<String>,
     axum::extract::Query(query): axum::extract::Query<RecordQuery>,
-    ws: axum::extract::ws::WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |mut socket| async move {
-        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
-            .await
-        {
-            return;
-        }
-        let host = match (query.machine, query.machine_state) {
-            (Some(machine), Some(machine_state)) => Some((machine, machine_state)),
-            _ => None,
-        };
-        laboratory_instance_pump(socket, state.labs_hub, id, host).await;
-    })
+    use axum::response::IntoResponse;
+    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    let host = match (query.machine, query.machine_state) {
+        (Some(machine), Some(machine_state)) => Some((machine, machine_state)),
+        _ => None,
+    };
+    axum::response::sse::Sse::new(laboratory_instance_stream(state.labs_hub, id, host))
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response()
 }
 
-/// Send the current record, then rebuild on EVERY change (registry and
-/// attachments both can alter it) and send only when the record
+/// Yield the current record, then rebuild on EVERY change (registry
+/// and attachments both can alter it) and yield only when the record
 /// actually differs. A DB outage skips the frame; the next change
 /// retries.
-async fn laboratory_instance_pump(
-    mut socket: axum::extract::ws::WebSocket,
+fn laboratory_instance_stream(
     hub: LaboratoriesHub,
     id: String,
     host: Option<(String, String)>,
-) {
-    use axum::extract::ws::Message;
-    let host = host
-        .as_ref()
-        .map(|(machine, machine_state)| (machine.as_str(), machine_state.as_str()));
-    let mut rx = hub.subscribe();
+) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
+    use axum::response::sse::Event;
+    async_stream::stream! {
+        let host = host
+            .as_ref()
+            .map(|(machine, machine_state)| (machine.as_str(), machine_state.as_str()));
+        let mut rx = hub.subscribe();
 
-    let mut last: Option<LaboratoryRecord> = hub.build_record(&id, host).await;
-    if let Some(record) = &last {
-        let event = LaboratoryInstanceEvent::Laboratory {
-            laboratory: record.clone(),
-        };
-        if let Ok(frame) = serde_json::to_string(&event) {
-            if socket.send(Message::Text(frame.into())).await.is_err() {
-                return;
+        let mut last: Option<LaboratoryRecord> = hub.build_record(&id, host).await;
+        if let Some(record) = &last {
+            let event = LaboratoryInstanceEvent::Laboratory {
+                laboratory: record.clone(),
+            };
+            if let Ok(frame) = serde_json::to_string(&event) {
+                yield Ok(Event::default().data(frame));
             }
         }
-    }
-    loop {
-        tokio::select! {
-            received = rx.recv() => {
-                match received {
-                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
-                    Err(broadcast::error::RecvError::Closed) => break,
-                }
-                let Some(record) = hub.build_record(&id, host).await else {
-                    continue;
-                };
-                if last.as_ref() == Some(&record) {
-                    continue;
-                }
-                let event = LaboratoryInstanceEvent::Laboratory {
-                    laboratory: record.clone(),
-                };
-                last = Some(record);
-                let Ok(frame) = serde_json::to_string(&event) else {
-                    continue;
-                };
-                if socket.send(Message::Text(frame.into())).await.is_err() {
-                    break;
-                }
+        loop {
+            match rx.recv().await {
+                Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                Err(broadcast::error::RecvError::Closed) => break,
             }
-            inbound = socket.recv() => match inbound {
-                None | Some(Err(_)) | Some(Ok(Message::Close(_))) => break,
-                Some(Ok(_)) => {}
-            },
+            let Some(record) = hub.build_record(&id, host).await else {
+                continue;
+            };
+            if last.as_ref() == Some(&record) {
+                continue;
+            }
+            let event = LaboratoryInstanceEvent::Laboratory {
+                laboratory: record.clone(),
+            };
+            last = Some(record);
+            let Ok(frame) = serde_json::to_string(&event) else {
+                continue;
+            };
+            yield Ok(Event::default().data(frame));
         }
     }
 }

@@ -52,6 +52,27 @@ pub(crate) async fn authenticate(socket: &mut WebSocket, secret: Option<&Arc<Str
     true
 }
 
+/// Header-based auth for the SSE watcher routes (`/laboratories/list`,
+/// `/laboratories/{*id}`, `/agents/instances/list`,
+/// `/agents/instances/{*aih}`). Reads the `X-OBJECTIVEAI-SIGNATURE`
+/// header and applies the same policy as [`authenticate`]: when a
+/// `secret` is configured the header must be present and valid;
+/// without one, any header is ignored. SSE clients reach the daemon
+/// over `fetch`, which — unlike a browser WebSocket — can set headers,
+/// so these routes don't need the first-frame preamble.
+pub(crate) fn authenticate_header(
+    headers: &axum::http::HeaderMap,
+    secret: Option<&Arc<String>>,
+) -> bool {
+    let Some(secret) = secret else {
+        return true;
+    };
+    headers
+        .get("X-OBJECTIVEAI-SIGNATURE")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|signature| verify_signature(secret, signature))
+}
+
 /// `true` iff `signature` is `sha256=<hex(SHA256(secret))>`. The
 /// signature is a static, pre-computed value; the comparison is
 /// constant-time to avoid leaking it. Identical math to the cli's

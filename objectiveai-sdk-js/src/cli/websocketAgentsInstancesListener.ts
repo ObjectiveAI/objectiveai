@@ -1,6 +1,6 @@
 /**
  * Materialized consumer of the cli daemon's `/agents/instances/{*aih}`
- * endpoint over a NATIVE WebSocket — the JS mirror of the Rust SDK's
+ * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
  * `cli::websocket_agents_instances_listener::WebSocketAgentsInstancesListener`,
  * identical in construction and semantics.
  *
@@ -20,14 +20,15 @@
  *   connect and on every change. Held separately; the conversation
  *   callback never fires for it and vice versa.
  *
- * Auth is the first-message preamble shared by every daemon WebSocket
- * route. One listener = one connection: the daemon DISCONNECTS lagging
+ * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: the daemon DISCONNECTS lagging
  * clients rather than dropping frames, so a closed socket means
  * "reconnect for a fresh snapshot"; the view freezes at its last
  * state. Unparseable events are SKIPPED — the forward-compat contract
  * for future event variants. No runtime validation, like
  * {@link WebSocketListener}.
  */
+
+import { connectSse } from "./sse";
 
 import type {
   CliWebsocketAgentsInstancesListenerAgentInstanceEvent,
@@ -279,7 +280,7 @@ function toBlock(block: OpenBlock): ConversationBlock | null {
 
 export interface WebSocketAgentsInstancesListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-   * verbatim in the auth preamble. Without it the daemon must be
+   * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
    * running without a secret. */
   signature?: string | null;
   /** Invoked with the full current conversation (blocks in
@@ -310,7 +311,7 @@ export interface WebSocketAgentsInstancesListenerOptions {
  * ```
  */
 export class WebSocketAgentsInstancesListener {
-  #ws: WebSocket;
+  #abort: AbortController;
   #closed = false;
   #slots: Slot[] = [];
   #partToSlot = new Map<string, number>();
@@ -321,23 +322,12 @@ export class WebSocketAgentsInstancesListener {
   #waiters = new Set<() => void>();
 
   private constructor(
-    ws: WebSocket,
+    abort: AbortController,
     options?: WebSocketAgentsInstancesListenerOptions,
   ) {
-    this.#ws = ws;
+    this.#abort = abort;
     this.#onChange = options?.onChange;
     this.#onAgentChange = options?.onAgentChange;
-    ws.onmessage = (event: MessageEvent) => {
-      if (typeof event.data !== "string") return;
-      let frame: unknown;
-      try {
-        frame = JSON.parse(event.data);
-      } catch {
-        return;
-      }
-      this.#onFrame(frame);
-    };
-    ws.onclose = () => this.#onClose();
   }
 
   /**
@@ -348,35 +338,40 @@ export class WebSocketAgentsInstancesListener {
    * fine). The returned listener immediately begins folding the
    * agent-status frame and the snapshot replay.
    */
-  static connect(
+  static async connect(
     url: string,
     options?: WebSocketAgentsInstancesListenerOptions,
   ): Promise<WebSocketAgentsInstancesListener> {
-    return new Promise((resolve, reject) => {
-      let ws: WebSocket;
-      try {
-        ws = new WebSocket(url);
-      } catch (e) {
-        reject(
-          new Error(`connect daemon agent-instance websocket: ${String(e)}`),
-        );
-        return;
+    const abort = new AbortController();
+    let events: AsyncGenerator<string>;
+    try {
+      events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon agent-instance sse: ${String(e)}`);
+    }
+    const listener = new WebSocketAgentsInstancesListener(abort, options);
+    listener.#pump(events);
+    return listener;
+  }
+
+  /** Read the SSE stream, feeding each event to {@link #onFrame} until
+   * it ends (or is aborted); then settle as closed. */
+  async #pump(events: AsyncGenerator<string>): Promise<void> {
+    try {
+      for await (const data of events) {
+        let frame: unknown;
+        try {
+          frame = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        this.#onFrame(frame);
       }
-      ws.onopen = () => {
-        // The auth preamble — always the connection's first text
-        // frame, `{"signature": null}` against a secretless daemon.
-        ws.send(JSON.stringify({ signature: options?.signature ?? null }));
-        resolve(new WebSocketAgentsInstancesListener(ws, options));
-      };
-      ws.onclose = (event: CloseEvent) => {
-        reject(
-          new Error(
-            `connect daemon agent-instance websocket: connection closed` +
-              `${event.code ? ` (code ${event.code})` : ""}`,
-          ),
-        );
-      };
-    });
+    } catch {
+      // Aborted or transport error — fall through to close.
+    } finally {
+      this.#onClose();
+    }
   }
 
   /** Whether the connection has closed (the view is frozen; the daemon
@@ -395,8 +390,7 @@ export class WebSocketAgentsInstancesListener {
    * {@link subscribe} resolves. */
   close(): void {
     if (this.#closed) return;
-    this.#ws.close();
-    // The browser fires onclose asynchronously; settle deterministically.
+    this.#abort.abort();
     this.#onClose();
   }
 

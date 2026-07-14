@@ -23,13 +23,11 @@
 
 use std::sync::Arc;
 
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
+use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio::sync::{Mutex, watch};
-use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use super::{LaboratoryInstanceEvent, LaboratoryRecord};
-use crate::cli::command::command_executor::websocket::AuthEnvelope;
 
 /// The on-change callback: invoked with the fresh full record after
 /// each applied frame.
@@ -37,13 +35,13 @@ pub type OnChange = Box<dyn Fn(&LaboratoryRecord) + Send + Sync>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// The URL failed to build into a client upgrade request, or the
-    /// connection/upgrade itself failed.
-    #[error("connect daemon laboratory websocket: {0}")]
-    Connect(tungstenite::Error),
-    /// Sending the auth preamble on the freshly-opened connection failed.
-    #[error("daemon laboratory websocket: {0}")]
-    Ws(tungstenite::Error),
+    /// The request builder rejected the URL, or opening the SSE
+    /// stream failed.
+    #[error("connect daemon sse: {0}")]
+    Connect(#[from] reqwest_eventsource::CannotCloneRequestError),
+    /// The underlying reqwest client failed to build.
+    #[error("daemon sse http client: {0}")]
+    Client(#[from] reqwest::Error),
 }
 
 /// The shared inner state, held by both the listener handle and its
@@ -67,8 +65,8 @@ pub struct WebSocketLaboratoriesListenerBuilder {
     /// Full connect URL of the daemon's per-laboratory route, e.g.
     /// `ws://127.0.0.1:49152/laboratories/my-lab`.
     url: String,
-    /// Optional auth signature, sent in the [`AuthEnvelope`] preamble
-    /// right after connecting.
+    /// Optional auth signature, sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` request header.
     signature: Option<String>,
     /// Optional on-change callback.
     on_change: Option<OnChange>,
@@ -76,10 +74,10 @@ pub struct WebSocketLaboratoriesListenerBuilder {
 
 impl WebSocketLaboratoriesListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim in the
-    /// [`AuthEnvelope`] preamble — the connection's first text frame,
-    /// the same shape every daemon route expects. Without it the
-    /// daemon must be running without a secret.
+    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` request header — the daemon's SSE
+    /// watcher routes authenticate by header. Without it the daemon
+    /// must be running without a secret.
     pub fn signature(mut self, signature: impl Into<String>) -> Self {
         self.signature = Some(signature.into());
         self
@@ -97,36 +95,19 @@ impl WebSocketLaboratoriesListenerBuilder {
         self
     }
 
-    /// Upgrade, send the auth preamble, and start the pump. The
+    /// Open the SSE stream and start the pump. The
     /// returned [`WebSocketLaboratoriesListener`] immediately begins
     /// folding frames (the first is the endpoint's connect-time
     /// record).
     pub async fn connect(self) -> Result<WebSocketLaboratoriesListener, Error> {
-        let upgrade = self
-            .url
-            .as_str()
-            .into_client_request()
-            .map_err(Error::Connect)?;
-        let (mut ws, _response) = tokio_tungstenite::connect_async(upgrade)
-            .await
-            .map_err(Error::Connect)?;
-
-        // The auth preamble — always the connection's first text
-        // frame, `{"signature": null}` against a secretless daemon.
-        let auth = serde_json::to_string(&AuthEnvelope {
-            signature: self.signature,
-        })
-        .expect("AuthEnvelope serialization is infallible");
-        ws.send(tungstenite::Message::Text(auth.into()))
-            .await
-            .map_err(Error::Ws)?;
+        let source = connect_sse(&self.url, self.signature.as_deref())?;
 
         let shared = Arc::new(Shared {
             state: Mutex::new(None),
             changes: watch::channel(0u64).0,
             on_change: self.on_change,
         });
-        let pump = tokio::spawn(pump(ws, shared.clone()));
+        let pump = tokio::spawn(pump(source, shared.clone()));
         Ok(WebSocketLaboratoriesListener { shared, pump })
     }
 }
@@ -182,16 +163,12 @@ impl Drop for WebSocketLaboratoriesListener {
 /// `shared.state`, fire the callback with the fresh record, and bump
 /// the change counter. Runs until the connection closes. Parse errors
 /// and non-text frames are skipped; transport errors end the pump.
-async fn pump(
-    mut ws: tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
-    shared: Arc<Shared>,
-) {
-    loop {
-        match ws.next().await {
-            Some(Ok(tungstenite::Message::Text(text))) => {
-                match serde_json::from_str::<LaboratoryInstanceEvent>(&text) {
+async fn pump(mut source: reqwest_eventsource::EventSource, shared: Arc<Shared>) {
+    while let Some(event) = source.next().await {
+        match event {
+            Ok(Event::Open) => continue,
+            Ok(Event::Message(message)) => {
+                match serde_json::from_str::<LaboratoryInstanceEvent>(&message.data) {
                     Ok(LaboratoryInstanceEvent::Laboratory { laboratory }) => {
                         {
                             let mut state = shared.state.lock().await;
@@ -208,10 +185,38 @@ async fn pump(
                     Err(_) => continue,
                 }
             }
-            // Control / non-text frames: tungstenite answers pings itself.
-            Some(Ok(tungstenite::Message::Close(_))) | None => break,
-            Some(Ok(_)) => continue,
-            Some(Err(_)) => break,
+            Err(_) => break,
         }
     }
+}
+
+
+/// Rewrite a `ws://`/`wss://` URL to `http`/`https` (reqwest cannot
+/// dial a `ws://` URL); other schemes pass through unchanged.
+fn ws_to_http(url: &str) -> String {
+    if let Some(rest) = url.strip_prefix("ws://") {
+        format!("http://{rest}")
+    } else if let Some(rest) = url.strip_prefix("wss://") {
+        format!("https://{rest}")
+    } else {
+        url.to_string()
+    }
+}
+
+/// Open the daemon's SSE watcher stream: rewrite the scheme, request
+/// `text/event-stream`, and stamp `X-OBJECTIVEAI-SIGNATURE` when a
+/// signature is present (the daemon's watcher routes moved auth from
+/// the first-frame preamble to this header).
+fn connect_sse(
+    url: &str,
+    signature: Option<&str>,
+) -> Result<reqwest_eventsource::EventSource, Error> {
+    let client = reqwest::Client::builder().build()?;
+    let mut request = client
+        .get(ws_to_http(url))
+        .header("Accept", "text/event-stream");
+    if let Some(signature) = signature {
+        request = request.header("X-OBJECTIVEAI-SIGNATURE", signature);
+    }
+    Ok(request.eventsource()?)
 }

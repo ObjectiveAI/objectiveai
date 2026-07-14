@@ -26,28 +26,25 @@
 //! an on-change callback, and
 //! [`subscribe`](WebSocketAgentsInstancesListener::subscribe).
 //!
-//! One listener = one connection: the view updates until the socket
-//! closes (the daemon disconnects lagging clients rather than dropping
-//! frames), then freezes. Reconnection is the caller's loop — build a
-//! new listener; the fresh snapshot replaces everything. The write
-//! half of the socket is retained for the planned client→daemon
-//! message requests over this stream.
+//! One listener = one connection: the view updates until the SSE
+//! stream closes (the daemon disconnects lagging clients rather than
+//! dropping frames), then freezes. Reconnection is the caller's loop —
+//! build a new listener; the fresh snapshot replaces everything. This
+//! is a read-only stream; a future client→daemon message channel would
+//! be a separate request, not this one.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
+use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio::sync::{Mutex, watch};
-use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use super::{
     AgentInstanceEvent, AgentRecord, AssistantResponsePart, ClientNotificationPart,
     ConversationBlock, RequestMessageUserPart, ToolResponsePart, VectorRequestChoice,
     VectorRequestChoicePart,
 };
-use crate::cli::command::command_executor::websocket::AuthEnvelope;
 
 /// The conversation on-change callback: invoked with the full current
 /// conversation (blocks in conversation order) after each applied
@@ -60,19 +57,15 @@ pub type OnChange = Box<dyn Fn(&[ConversationBlock]) + Send + Sync>;
 /// other's events.
 pub type OnAgentChange = Box<dyn Fn(&AgentRecord) + Send + Sync>;
 
-type Ws = tokio_tungstenite::WebSocketStream<
-    tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
->;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// The URL failed to build into a client upgrade request, or the
-    /// connection/upgrade itself failed.
-    #[error("connect daemon agent-instance websocket: {0}")]
-    Connect(tungstenite::Error),
-    /// The established connection failed mid-stream.
-    #[error("daemon agent-instance websocket: {0}")]
-    Ws(tungstenite::Error),
+    /// The request builder rejected the URL, or opening the SSE
+    /// stream failed.
+    #[error("connect daemon sse: {0}")]
+    Connect(#[from] reqwest_eventsource::CannotCloneRequestError),
+    /// The underlying reqwest client failed to build.
+    #[error("daemon sse http client: {0}")]
+    Client(#[from] reqwest::Error),
 }
 
 /// The class discriminant for part identity routing.
@@ -612,10 +605,6 @@ struct Shared {
     changes: watch::Sender<u64>,
     on_change: Option<OnChange>,
     on_agent_change: Option<OnAgentChange>,
-    /// The connection's write half — retained for the planned
-    /// client→daemon message requests over this stream; unused today.
-    #[allow(dead_code)]
-    sink: Mutex<SplitSink<Ws, tungstenite::Message>>,
 }
 
 /// Unconnected configuration — [`WebSocketAgentsInstancesListener::new`] +
@@ -632,9 +621,10 @@ pub struct WebSocketAgentsInstancesListenerBuilder {
 
 impl WebSocketAgentsInstancesListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim in the
-    /// [`AuthEnvelope`] preamble. Without it the daemon must be running
-    /// without a secret.
+    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` request header — the daemon's SSE
+    /// watcher routes authenticate by header. Without it the daemon
+    /// must be running without a secret.
     pub fn signature(mut self, signature: impl Into<String>) -> Self {
         self.signature = Some(signature.into());
         self
@@ -666,41 +656,50 @@ impl WebSocketAgentsInstancesListenerBuilder {
         self
     }
 
-    /// Upgrade, send the auth preamble, and start the pump. The
-    /// returned listener immediately begins folding the snapshot
-    /// replay.
+    /// Open the SSE stream and start the pump. The returned listener
+    /// immediately begins folding the snapshot replay.
     pub async fn connect(self) -> Result<WebSocketAgentsInstancesListener, Error> {
-        let upgrade = self
-            .url
-            .as_str()
-            .into_client_request()
-            .map_err(Error::Connect)?;
-        let (mut ws, _response) = tokio_tungstenite::connect_async(upgrade)
-            .await
-            .map_err(Error::Connect)?;
-
-        // The auth preamble — always the connection's first text frame,
-        // `{"signature": null}` against a secretless daemon.
-        let auth = serde_json::to_string(&AuthEnvelope {
-            signature: self.signature,
-        })
-        .expect("AuthEnvelope serialization is infallible");
-        ws.send(tungstenite::Message::Text(auth.into()))
-            .await
-            .map_err(Error::Ws)?;
-
-        let (sink, stream) = ws.split();
+        let source = connect_sse(&self.url, self.signature.as_deref())?;
         let shared = Arc::new(Shared {
             state: Mutex::new(ConversationState::default()),
             agent: Mutex::new(None),
             changes: watch::channel(0u64).0,
             on_change: self.on_change,
             on_agent_change: self.on_agent_change,
-            sink: Mutex::new(sink),
         });
-        let pump = tokio::spawn(pump(stream, shared.clone()));
+        let pump = tokio::spawn(pump(source, shared.clone()));
         Ok(WebSocketAgentsInstancesListener { shared, pump })
     }
+}
+
+/// Rewrite a `ws://`/`wss://` URL to `http`/`https` (reqwest cannot
+/// dial a `ws://` URL); other schemes pass through unchanged.
+fn ws_to_http(url: &str) -> String {
+    if let Some(rest) = url.strip_prefix("ws://") {
+        format!("http://{rest}")
+    } else if let Some(rest) = url.strip_prefix("wss://") {
+        format!("https://{rest}")
+    } else {
+        url.to_string()
+    }
+}
+
+/// Open the daemon's SSE watcher stream: rewrite the scheme, request
+/// `text/event-stream`, and stamp `X-OBJECTIVEAI-SIGNATURE` when a
+/// signature is present (the daemon's watcher routes moved auth from
+/// the first-frame preamble to this header).
+fn connect_sse(
+    url: &str,
+    signature: Option<&str>,
+) -> Result<reqwest_eventsource::EventSource, Error> {
+    let client = reqwest::Client::builder().build()?;
+    let mut request = client
+        .get(ws_to_http(url))
+        .header("Accept", "text/event-stream");
+    if let Some(signature) = signature {
+        request = request.header("X-OBJECTIVEAI-SIGNATURE", signature);
+    }
+    Ok(request.eventsource()?)
 }
 
 /// The materialized `/agents/instances/{*aih}` view — see the module
@@ -769,15 +768,14 @@ impl Drop for WebSocketAgentsInstancesListener {
 /// connection closes (the daemon disconnects lagging clients —
 /// reconnect for a fresh snapshot). Unparseable frames are SKIPPED —
 /// the forward-compat contract for future event variants.
-async fn pump(mut stream: SplitStream<Ws>, shared: Arc<Shared>) {
-    while let Some(message) = stream.next().await {
-        let text = match message {
-            Ok(tungstenite::Message::Text(text)) => text,
-            // Control / non-text frames: tungstenite answers pings itself.
-            Ok(tungstenite::Message::Close(_)) | Err(_) => break,
-            Ok(_) => continue,
+async fn pump(mut source: reqwest_eventsource::EventSource, shared: Arc<Shared>) {
+    while let Some(event_result) = source.next().await {
+        let message = match event_result {
+            Ok(Event::Open) => continue,
+            Ok(Event::Message(message)) => message,
+            Err(_) => break,
         };
-        let Ok(event) = serde_json::from_str::<AgentInstanceEvent>(&text) else {
+        let Ok(event) = serde_json::from_str::<AgentInstanceEvent>(&message.data) else {
             continue;
         };
         match event {

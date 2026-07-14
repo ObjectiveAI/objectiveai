@@ -182,198 +182,179 @@ fn event_aih(event: &AgentInstanceEvent) -> Option<&str> {
 }
 
 
-/// `/agents/instances/{*aih}`: upgrade, consume the auth preamble,
-/// replay the DB snapshot, mark live, relay this AIH's frames.
+/// `/agents/instances/{*aih}`: header-auth, then an SSE stream that
+/// replays the DB snapshot, marks live, and relays this AIH's frames.
 pub(crate) async fn instance_handler(
     axum::extract::State(state): axum::extract::State<
         crate::websockets::daemon_stream::DaemonWsState,
     >,
     axum::extract::Path(aih): axum::extract::Path<String>,
-    ws: axum::extract::ws::WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |mut socket| async move {
-        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
-            .await
-        {
-            return;
-        }
-        instance_pump(socket, state.conversations, state.active, aih).await;
-    })
+    use axum::response::IntoResponse;
+    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    axum::response::sse::Sse::new(instance_stream(
+        state.conversations,
+        state.active,
+        aih,
+    ))
+    .keep_alive(axum::response::sse::KeepAlive::default())
+    .into_response()
 }
 
 /// The snapshot→live seam, in order: subscribe FIRST on BOTH concerns
 /// (no gap — duplicates converge client-side: conversation rows by
 /// identity, the agent record by full-value replace), ship the agent's
 /// current status record, replay the DB conversation snapshot page by
-/// page (one WS text frame per row), send `Live`, then relay both
-/// streams. A DB-less daemon skips the snapshot and goes straight to
-/// live. Conversation `Lagged` DISCONNECTS the client; agent-status
-/// `Lagged` self-heals (full state is one cheap query — and a
-/// fleet-wide burst of OTHER agents' events must not kill this
-/// connection).
-async fn instance_pump(
-    mut socket: axum::extract::ws::WebSocket,
+/// page (one SSE frame per row), send `Live`, then relay both streams.
+/// A DB-less daemon skips the snapshot and goes straight to live.
+/// Conversation `Lagged` ENDS the stream (the client resyncs on
+/// reconnect); agent-status `Lagged` self-heals (full state is one
+/// cheap query — and a fleet-wide burst of OTHER agents' events must
+/// not kill this connection). A dropped stream (client gone) drops
+/// both subscriptions.
+fn instance_stream(
     hub: ConversationHub,
     active: crate::websockets::websocket_agents::ActiveAgents,
     aih: String,
-) {
-    use axum::extract::ws::Message;
+) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
+    use axum::response::sse::Event;
     use objectiveai_sdk::cli::websocket_agents_instances_listener::AgentRecord;
 
     use crate::websockets::websocket_agents::StatusChange;
-    let mut rx = hub.subscribe();
-    let mut agents_rx = active.subscribe();
+    async_stream::stream! {
+        let mut rx = hub.subscribe();
+        let mut agents_rx = active.subscribe();
 
-    // The agent's current status record, first — one small frame,
-    // instant active/tags state, independent of the conversation.
-    // (`get_exact` zero-fills unknown AIHs, so a record exists whenever
-    // the DB is up; DB-less: skipped, the first live event covers it.)
-    let mut last_record: Option<AgentRecord> = active.build_record_for(&aih).await;
-    if let Some(agent) = &last_record {
-        let event = AgentInstanceEvent::Agent {
-            agent: agent.clone(),
-        };
-        if let Ok(frame) = serde_json::to_string(&event) {
-            if socket.send(Message::Text(frame.into())).await.is_err() {
-                return;
-            }
-        }
-    }
-
-    if let Ok(pool) = hub.ctx.db_client().await {
-        let mut after_id: Option<i64> = None;
-        loop {
-            let page = crate::db::logs::read_conversation_page(
-                pool,
-                &aih,
-                after_id,
-                SNAPSHOT_PAGE,
-            )
-            .await;
-            let (rows, next) = match page {
-                Ok(page) => page,
-                // Partial snapshot on a DB error: proceed live — the
-                // client re-snapshots on its next reconnect anyway.
-                Err(_) => break,
+        // The agent's current status record, first — one small frame,
+        // instant active/tags state, independent of the conversation.
+        // (`get_exact` zero-fills unknown AIHs, so a record exists whenever
+        // the DB is up; DB-less: skipped, the first live event covers it.)
+        let mut last_record: Option<AgentRecord> = active.build_record_for(&aih).await;
+        if let Some(agent) = &last_record {
+            let event = AgentInstanceEvent::Agent {
+                agent: agent.clone(),
             };
-            for event in rows {
-                let Ok(frame) = serde_json::to_string(&event) else {
-                    continue;
-                };
-                if socket.send(Message::Text(frame.into())).await.is_err() {
-                    return;
-                }
-            }
-            match next {
-                Some(next) => after_id = Some(next),
-                None => break,
+            if let Ok(frame) = serde_json::to_string(&event) {
+                yield Ok(Event::default().data(frame));
             }
         }
-    }
 
-    let Ok(live) = serde_json::to_string(&AgentInstanceEvent::Live) else {
-        return;
-    };
-    if socket.send(Message::Text(live.into())).await.is_err() {
-        return;
-    }
-
-    loop {
-        tokio::select! {
-            received = rx.recv() => match received {
-                Ok((frame_aih, frame)) => {
-                    if *frame_aih != *aih {
-                        continue;
-                    }
-                    if socket
-                        .send(Message::Text(frame.to_string().into()))
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-                // Lagging client: rows were dropped and full-value
-                // upserts cannot recover a dropped FINAL state —
-                // disconnect so the client resyncs with a fresh
-                // snapshot. (Unlike /listen's drop-and-continue.)
-                Err(broadcast::error::RecvError::Lagged(_)) => break,
-                Err(broadcast::error::RecvError::Closed) => break,
-            },
-            received = agents_rx.recv() => match received {
-                Ok(change) => {
-                    // The internal status broadcast carries every
-                    // agent's lifecycle/tag changes. Keep only this
-                    // agent's, and ship a full-value `Agent` record.
-                    let agent = match change {
-                        StatusChange::Activated { agent_instance_hierarchy }
-                        | StatusChange::TagsChanged { agent_instance_hierarchy }
-                        | StatusChange::AttachmentsChanged { agent_instance_hierarchy }
-                        | StatusChange::ActiveLaboratoriesChanged { agent_instance_hierarchy }
-                            if agent_instance_hierarchy == aih =>
-                        {
-                            // Rebuild from DB truth + the live active
-                            // flag (changes are low-frequency).
-                            match active.build_record_for(&aih).await {
-                                Some(record) => Some(record),
-                                None => continue,
-                            }
-                        }
-                        StatusChange::Deactivated {
-                            agent_instance_hierarchy,
-                            last_active_at,
-                        } if agent_instance_hierarchy == aih => {
-                            // Patch the last-known record with the
-                            // release-moment timestamp (fall back to a
-                            // fresh build for a connection that never
-                            // got one — e.g. a DB-less connect).
-                            let mut record = match last_record.take() {
-                                Some(record) => record,
-                                None => match active.build_record_for(&aih).await {
-                                    Some(record) => record,
-                                    None => continue,
-                                },
-                            };
-                            record.active = false;
-                            record.last_active_at = last_active_at;
-                            Some(record)
-                        }
-                        // Other agents' changes.
-                        _ => None,
-                    };
-                    let Some(agent) = agent else { continue };
-                    last_record = Some(agent.clone());
-                    let event = AgentInstanceEvent::Agent { agent };
+        if let Ok(pool) = hub.ctx.db_client().await {
+            let mut after_id: Option<i64> = None;
+            loop {
+                let page = crate::db::logs::read_conversation_page(
+                    pool,
+                    &aih,
+                    after_id,
+                    SNAPSHOT_PAGE,
+                )
+                .await;
+                let (rows, next) = match page {
+                    Ok(page) => page,
+                    // Partial snapshot on a DB error: proceed live — the
+                    // client re-snapshots on its next reconnect anyway.
+                    Err(_) => break,
+                };
+                for event in rows {
                     let Ok(frame) = serde_json::to_string(&event) else {
                         continue;
                     };
-                    if socket.send(Message::Text(frame.into())).await.is_err() {
-                        break;
-                    }
+                    yield Ok(Event::default().data(frame));
                 }
-                // Agent-status lag self-heals: the full state is one
-                // cheap query, and a fleet-wide burst of OTHER agents'
-                // events must not kill this connection.
-                Err(broadcast::error::RecvError::Lagged(_)) => {
-                    if let Some(agent) = active.build_record_for(&aih).await {
+                match next {
+                    Some(next) => after_id = Some(next),
+                    None => break,
+                }
+            }
+        }
+
+        if let Ok(live) = serde_json::to_string(&AgentInstanceEvent::Live) {
+            yield Ok(Event::default().data(live));
+        }
+
+        loop {
+            tokio::select! {
+                received = rx.recv() => match received {
+                    Ok((frame_aih, frame)) => {
+                        if *frame_aih != *aih {
+                            continue;
+                        }
+                        yield Ok(Event::default().data(frame.to_string()));
+                    }
+                    // Lagging client: rows were dropped and full-value
+                    // upserts cannot recover a dropped FINAL state —
+                    // end the stream so the client resyncs with a fresh
+                    // snapshot. (Unlike /listen's drop-and-continue.)
+                    Err(broadcast::error::RecvError::Lagged(_)) => break,
+                    Err(broadcast::error::RecvError::Closed) => break,
+                },
+                received = agents_rx.recv() => match received {
+                    Ok(change) => {
+                        // The internal status broadcast carries every
+                        // agent's lifecycle/tag changes. Keep only this
+                        // agent's, and ship a full-value `Agent` record.
+                        let agent = match change {
+                            StatusChange::Activated { agent_instance_hierarchy }
+                            | StatusChange::TagsChanged { agent_instance_hierarchy }
+                            | StatusChange::AttachmentsChanged { agent_instance_hierarchy }
+                            | StatusChange::ActiveLaboratoriesChanged { agent_instance_hierarchy }
+                                if agent_instance_hierarchy == aih =>
+                            {
+                                // Rebuild from DB truth + the live active
+                                // flag (changes are low-frequency).
+                                match active.build_record_for(&aih).await {
+                                    Some(record) => Some(record),
+                                    None => continue,
+                                }
+                            }
+                            StatusChange::Deactivated {
+                                agent_instance_hierarchy,
+                                last_active_at,
+                            } if agent_instance_hierarchy == aih => {
+                                // Patch the last-known record with the
+                                // release-moment timestamp (fall back to a
+                                // fresh build for a connection that never
+                                // got one — e.g. a DB-less connect).
+                                let mut record = match last_record.take() {
+                                    Some(record) => record,
+                                    None => match active.build_record_for(&aih).await {
+                                        Some(record) => record,
+                                        None => continue,
+                                    },
+                                };
+                                record.active = false;
+                                record.last_active_at = last_active_at;
+                                Some(record)
+                            }
+                            // Other agents' changes.
+                            _ => None,
+                        };
+                        let Some(agent) = agent else { continue };
                         last_record = Some(agent.clone());
                         let event = AgentInstanceEvent::Agent { agent };
-                        if let Ok(frame) = serde_json::to_string(&event) {
-                            if socket.send(Message::Text(frame.into())).await.is_err() {
-                                break;
+                        let Ok(frame) = serde_json::to_string(&event) else {
+                            continue;
+                        };
+                        yield Ok(Event::default().data(frame));
+                    }
+                    // Agent-status lag self-heals: the full state is one
+                    // cheap query, and a fleet-wide burst of OTHER agents'
+                    // events must not kill this connection.
+                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                        if let Some(agent) = active.build_record_for(&aih).await {
+                            last_record = Some(agent.clone());
+                            let event = AgentInstanceEvent::Agent { agent };
+                            if let Ok(frame) = serde_json::to_string(&event) {
+                                yield Ok(Event::default().data(frame));
                             }
                         }
                     }
-                }
-                Err(broadcast::error::RecvError::Closed) => break,
-            },
-            inbound = socket.recv() => match inbound {
-                // Client closed or errored.
-                None | Some(Err(_)) | Some(Ok(Message::Close(_))) => break,
-                // Ignore other inbound messages — reserved for the
-                // planned client message requests over this stream.
-                Some(Ok(_)) => {}
-            },
+                    Err(broadcast::error::RecvError::Closed) => break,
+                },
+            }
         }
     }
 }

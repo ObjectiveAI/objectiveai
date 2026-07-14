@@ -106,7 +106,7 @@ pub fn serve_ws(
         )
         .route(
             "/agents/instances/list",
-            axum::routing::any(crate::websockets::websocket_agents::agents_handler),
+            axum::routing::get(crate::websockets::websocket_agents::agents_handler),
         )
         // Wildcard ({*aih} — AIHs contain `/`). The literal `list`
         // route above takes matching priority; axum 0.8 permits the
@@ -114,7 +114,7 @@ pub fn serve_ws(
         // boot, so a clean boot is the regression check).
         .route(
             "/agents/instances/{*aih}",
-            axum::routing::any(
+            axum::routing::get(
                 crate::websockets::websocket_agent_instance::instance_handler,
             ),
         )
@@ -128,7 +128,7 @@ pub fn serve_ws(
         )
         .route(
             "/laboratories/list",
-            axum::routing::any(
+            axum::routing::get(
                 crate::websockets::websocket_laboratories::laboratories_handler,
             ),
         )
@@ -136,7 +136,7 @@ pub fn serve_ws(
         // proven axum-0.8 overlap as `/agents/instances/*` above.
         .route(
             "/laboratories/{*id}",
-            axum::routing::any(
+            axum::routing::get(
                 crate::websockets::websocket_laboratories::laboratory_instance_handler,
             ),
         )

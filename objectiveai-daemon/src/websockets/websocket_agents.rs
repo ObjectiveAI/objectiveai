@@ -388,37 +388,37 @@ pub(crate) async fn agents_handler(
     axum::extract::State(state): axum::extract::State<
         crate::websockets::daemon_stream::DaemonWsState,
     >,
-    ws: axum::extract::ws::WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |mut socket| async move {
-        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
-            .await
-        {
-            return;
-        }
-        agents_pump(socket, state.active).await;
-    })
+    use axum::response::IntoResponse;
+    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    axum::response::sse::Sse::new(agents_stream(state.active))
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response()
 }
 
-/// Send the connect snapshot, then forward every delta frame until the
-/// client disconnects. Subscribes BEFORE building the snapshot so no delta
-/// slips through the gap; a client may thus see one delta already folded
-/// into the snapshot — consumers key by AIH. `Lagged` (slow client) drops
-/// missed deltas and keeps going, like `daemon_stream::pump`.
-async fn agents_pump(mut socket: axum::extract::ws::WebSocket, active: ActiveAgents) {
-    use axum::extract::ws::Message;
-    let mut rx = active.subscribe();
-    let snapshot = AgentEvent::Snapshot {
-        agents: active.snapshot().await,
-    };
-    if let Ok(frame) = serde_json::to_string(&snapshot) {
-        if socket.send(Message::Text(frame.into())).await.is_err() {
-            return;
+/// Yield the connect snapshot, then forward every delta frame.
+/// Subscribes BEFORE building the snapshot so no delta slips through
+/// the gap; a client may thus see one delta already folded into the
+/// snapshot — consumers key by AIH. `Lagged` (slow client) drops
+/// missed deltas and keeps going. A dropped stream (client gone) drops
+/// the subscription — no inbound leg needed.
+fn agents_stream(
+    active: ActiveAgents,
+) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
+    use axum::response::sse::Event;
+    async_stream::stream! {
+        let mut rx = active.subscribe();
+        let snapshot = AgentEvent::Snapshot {
+            agents: active.snapshot().await,
+        };
+        if let Ok(frame) = serde_json::to_string(&snapshot) {
+            yield Ok(Event::default().data(frame));
         }
-    }
-    loop {
-        tokio::select! {
-            received = rx.recv() => match received {
+        loop {
+            match rx.recv().await {
                 Ok(change) => {
                     // Map the internal change to this endpoint's flat
                     // wire vocabulary; tag changes don't ride the list.
@@ -436,17 +436,11 @@ async fn agents_pump(mut socket: axum::extract::ws::WebSocket, active: ActiveAge
                     let Ok(frame) = serde_json::to_string(&event) else {
                         continue;
                     };
-                    if socket.send(Message::Text(frame.into())).await.is_err() {
-                        break;
-                    }
+                    yield Ok(Event::default().data(frame));
                 }
                 Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => break,
-            },
-            inbound = socket.recv() => match inbound {
-                None | Some(Err(_)) | Some(Ok(Message::Close(_))) => break,
-                Some(Ok(_)) => {}
-            },
+            }
         }
     }
 }
