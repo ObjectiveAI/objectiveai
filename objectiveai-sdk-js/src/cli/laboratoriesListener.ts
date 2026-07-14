@@ -18,6 +18,7 @@
  */
 
 import { connectSse } from "./sse";
+import { connectViewerStream, type ViewerTransport } from "./viewer";
 
 import type {
   CliLaboratoriesListenerLaboratoryInstanceEvent,
@@ -39,6 +40,20 @@ export interface LaboratoriesListenerOptions {
    * {@link LaboratoriesListener.laboratory}. */
   onChange?: (laboratory: LaboratoryRecord) => void;
 }
+
+/** {@link LaboratoriesListener.connectViewer} options — the regular
+ * options sans `signature` (the Rust proxy stamps auth), plus the
+ * optional `(machine, machineState)` host pin the URL query carried
+ * in fetch mode. */
+export type LaboratoriesListenerViewerOptions = Omit<
+  LaboratoriesListenerOptions,
+  "signature"
+> & {
+  /** Pin the record to one host's laboratory (with `machineState`). */
+  machine?: string;
+  /** The pinned host's state name (with `machine`). */
+  machineState?: string;
+};
 
 /**
  * The materialized `/laboratories/{id}` view — construct via
@@ -86,6 +101,36 @@ export class LaboratoriesListener {
     let events: AsyncGenerator<string>;
     try {
       events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon laboratory sse: ${String(e)}`);
+    }
+    const listener = new LaboratoriesListener(abort, options?.onChange);
+    listener.#pump(events);
+    return listener;
+  }
+
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three). `id` is
+   * the raw laboratory id. Same resolve/reject and lifecycle
+   * semantics as {@link connect}; reconnection remains the caller's
+   * loop.
+   */
+  static async connectViewer(
+    transport: ViewerTransport,
+    id: string,
+    options?: LaboratoriesListenerViewerOptions,
+  ): Promise<LaboratoriesListener> {
+    const abort = new AbortController();
+    let events: AsyncGenerator<string>;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_laboratory",
+        { id, machine: options?.machine, machineState: options?.machineState },
+        abort.signal,
+      );
     } catch (e) {
       throw new Error(`connect daemon laboratory sse: ${String(e)}`);
     }

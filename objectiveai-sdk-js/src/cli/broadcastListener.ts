@@ -58,6 +58,7 @@ import {
   type CliCommandListenerExecution,
 } from "./command/listenerExecution";
 import { connectSse } from "./sse";
+import { connectViewerStream, type ViewerTransport } from "./viewer";
 
 /** One live subscriber: a per-iterator pending queue's feed side. */
 type Subscriber<T> = {
@@ -236,6 +237,26 @@ export class BroadcastListener {
   ): Promise<BroadcastListener> {
     const abort = new AbortController();
     const events = await connectSse(url, options?.signature, abort.signal);
+    return new BroadcastListener(abort, events);
+  }
+
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature (the Rust side owns both). Same resolve/reject and
+   * lifecycle semantics as {@link connect}; reconnection remains the
+   * caller's loop.
+   */
+  static async connectViewer(
+    transport: ViewerTransport,
+  ): Promise<BroadcastListener> {
+    const abort = new AbortController();
+    const events = await connectViewerStream(
+      transport,
+      "daemon_listen",
+      {},
+      abort.signal,
+    );
     return new BroadcastListener(abort, events);
   }
 

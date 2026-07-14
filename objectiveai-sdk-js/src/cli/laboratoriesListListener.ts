@@ -21,6 +21,7 @@
  */
 
 import { connectSse } from "./sse";
+import { connectViewerStream, type ViewerTransport } from "./viewer";
 
 import type {
   CliLaboratoriesListListenerLaboratoryEvent,
@@ -41,6 +42,13 @@ export interface LaboratoriesListListenerOptions {
    * {@link LaboratoriesListListener.laboratories}. */
   onChange?: (laboratories: LaboratoryStatus[]) => void;
 }
+
+/** {@link LaboratoriesListListener.connectViewer} options — the
+ * regular options sans `signature` (the Rust proxy stamps auth). */
+export type LaboratoriesListListenerViewerOptions = Omit<
+  LaboratoriesListListenerOptions,
+  "signature"
+>;
 
 /**
  * The materialized `/laboratories/list` view — construct via
@@ -101,6 +109,37 @@ export class LaboratoriesListListener {
     let events: AsyncGenerator<string>;
     try {
       events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon laboratories sse: ${String(e)}`);
+    }
+    const listener = new LaboratoriesListListener(
+      abort,
+      options?.onChange,
+    );
+    listener.#pump(events);
+    return listener;
+  }
+
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three). Same
+   * resolve/reject and lifecycle semantics as {@link connect};
+   * reconnection remains the caller's loop.
+   */
+  static async connectViewer(
+    transport: ViewerTransport,
+    options?: LaboratoriesListListenerViewerOptions,
+  ): Promise<LaboratoriesListListener> {
+    const abort = new AbortController();
+    let events: AsyncGenerator<string>;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_laboratories_list",
+        {},
+        abort.signal,
+      );
     } catch (e) {
       throw new Error(`connect daemon laboratories sse: ${String(e)}`);
     }

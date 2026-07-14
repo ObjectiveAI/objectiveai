@@ -7,11 +7,14 @@
 // `/agents/instances/{*aih}` conversation + agent-status view),
 // `laboratoriesListListener` (the materialized
 // `/laboratories/list` view), `laboratoriesListener` (the
-// materialized `/laboratories/{id}` record view), and the shared `sse`
-// transport (`connectSse`). Kept header-free so install-zod preserves
-// it instead of overwriting it with a stub.
+// materialized `/laboratories/{id}` record view), and the shared
+// transports — `sse` (`connectSse`, fetch mode) and `viewer`
+// (`connectViewerStream` + `ViewerTransport`, the Tauri IPC proxy
+// mode behind every listener's `connectViewer`). Kept header-free so
+// install-zod preserves it instead of overwriting it with a stub.
 export * from "./generatedIndex";
 export * from "./sse";
+export * from "./viewer";
 export * from "./agentsInstancesListListener";
 export * from "./agentsInstancesListener";
 export * from "./laboratoriesListListener";

@@ -29,6 +29,7 @@
  */
 
 import { connectSse } from "./sse";
+import { connectViewerStream, type ViewerTransport } from "./viewer";
 
 import type {
   CliAgentsInstancesListenerAgentInstanceEvent,
@@ -295,6 +296,13 @@ export interface AgentsInstancesListenerOptions {
   onAgentChange?: (agent: AgentRecord) => void;
 }
 
+/** {@link AgentsInstancesListener.connectViewer} options — the
+ * regular options sans `signature` (the Rust proxy stamps auth). */
+export type AgentsInstancesListenerViewerOptions = Omit<
+  AgentsInstancesListenerOptions,
+  "signature"
+>;
+
 /**
  * The materialized `/agents/instances/{*aih}` view — construct via
  * {@link AgentsInstancesListener.connect}.
@@ -346,6 +354,37 @@ export class AgentsInstancesListener {
     let events: AsyncGenerator<string>;
     try {
       events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon agent-instance sse: ${String(e)}`);
+    }
+    const listener = new AgentsInstancesListener(abort, options);
+    listener.#pump(events);
+    return listener;
+  }
+
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three).
+   * `agentInstanceHierarchy` is the agent's full hierarchy (raw
+   * slashes are fine — it is the subscription target, not transport).
+   * Same resolve/reject and lifecycle semantics as {@link connect};
+   * reconnection remains the caller's loop.
+   */
+  static async connectViewer(
+    transport: ViewerTransport,
+    agentInstanceHierarchy: string,
+    options?: AgentsInstancesListenerViewerOptions,
+  ): Promise<AgentsInstancesListener> {
+    const abort = new AbortController();
+    let events: AsyncGenerator<string>;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_agents_instance",
+        { aih: agentInstanceHierarchy },
+        abort.signal,
+      );
     } catch (e) {
       throw new Error(`connect daemon agent-instance sse: ${String(e)}`);
     }

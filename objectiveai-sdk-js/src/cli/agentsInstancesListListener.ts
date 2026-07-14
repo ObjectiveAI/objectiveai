@@ -22,6 +22,7 @@
  */
 
 import { connectSse } from "./sse";
+import { connectViewerStream, type ViewerTransport } from "./viewer";
 
 import type {
   CliAgentsInstancesListListenerAgentEvent,
@@ -42,6 +43,13 @@ export interface AgentsInstancesListListenerOptions {
    * {@link AgentsInstancesListListener.agents}. */
   onChange?: (agents: AgentStatus[]) => void;
 }
+
+/** {@link AgentsInstancesListListener.connectViewer} options — the
+ * regular options sans `signature` (the Rust proxy stamps auth). */
+export type AgentsInstancesListListenerViewerOptions = Omit<
+  AgentsInstancesListListenerOptions,
+  "signature"
+>;
 
 /**
  * The materialized `/agents/instances/list` view — construct via
@@ -89,6 +97,37 @@ export class AgentsInstancesListListener {
     let events: AsyncGenerator<string>;
     try {
       events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon agents sse: ${String(e)}`);
+    }
+    const listener = new AgentsInstancesListListener(
+      abort,
+      options?.onChange,
+    );
+    listener.#pump(events);
+    return listener;
+  }
+
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature, no identity (the Rust side owns all three). Same
+   * resolve/reject and lifecycle semantics as {@link connect};
+   * reconnection remains the caller's loop.
+   */
+  static async connectViewer(
+    transport: ViewerTransport,
+    options?: AgentsInstancesListListenerViewerOptions,
+  ): Promise<AgentsInstancesListListener> {
+    const abort = new AbortController();
+    let events: AsyncGenerator<string>;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_agents_instances_list",
+        {},
+        abort.signal,
+      );
     } catch (e) {
       throw new Error(`connect daemon agents sse: ${String(e)}`);
     }
