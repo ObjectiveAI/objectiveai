@@ -114,6 +114,75 @@ async fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), Str
     open_agent_window_impl(&app, &aih).map_err(|e| e.to_string())
 }
 
+/// The deterministic-within-one-process window label for one
+/// laboratory. Lab ids are only unique per (machine, machine_state),
+/// so all three feed the hash; `Hash for str` is length-prefixed, so
+/// sequential hashing needs no separators.
+fn laboratory_window_label(
+    id: &str,
+    machine: Option<&str>,
+    machine_state: Option<&str>,
+) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut hasher);
+    machine.unwrap_or("").hash(&mut hasher);
+    machine_state.unwrap_or("").hash(&mut hasher);
+    format!("laboratory-{:016x}", hasher.finish())
+}
+
+/// Create — or focus, when already open — the laboratory filesystem
+/// window for one laboratory: the `laboratory.html` entry. The
+/// identity reaches the page via an initialization script (a global
+/// set before any page script runs) — NOT a URL query:
+/// `WebviewUrl::App` is a PathBuf, so a query string would be treated
+/// as part of the asset path and 404 to a white window (same as
+/// [`open_agent_window_impl`]).
+fn open_laboratory_window_impl(
+    app: &tauri::AppHandle,
+    id: &str,
+    machine: Option<&str>,
+    machine_state: Option<&str>,
+) -> tauri::Result<()> {
+    use tauri::Manager;
+    let label = laboratory_window_label(id, machine, machine_state);
+    if let Some(existing) = app.get_webview_window(&label) {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    let global = serde_json::json!({
+        "id": id,
+        "machine": machine,
+        "machineState": machine_state,
+    })
+    .to_string();
+    tauri::WebviewWindowBuilder::new(
+        app,
+        &label,
+        tauri::WebviewUrl::App("laboratory.html".into()),
+    )
+    .initialization_script(format!("window.__LABORATORY__ = {global};"))
+    .title(id)
+    .inner_size(1024.0, 768.0)
+    .build()?;
+    Ok(())
+}
+
+/// Open (or focus) the laboratory filesystem window — the laboratory
+/// card's `open` tab calls this. ASYNC on purpose, same as
+/// [`open_agent_window`]: a sync command white-screens webview
+/// creation on Windows.
+#[tauri::command]
+async fn open_laboratory_window(
+    app: tauri::AppHandle,
+    id: String,
+    machine: Option<String>,
+    machine_state: Option<String>,
+) -> Result<(), String> {
+    open_laboratory_window_impl(&app, &id, machine.as_deref(), machine_state.as_deref())
+        .map_err(|e| e.to_string())
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "DAEMON_ADDRESS")]
@@ -272,6 +341,7 @@ pub fn serve(
         open_agent_remote,
         open_url,
         open_agent_window,
+        open_laboratory_window,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,
