@@ -187,7 +187,11 @@ for crate in ${CRATES[@]+"${CRATES[@]}"}; do
 done
 if [ "${#PKG_ARGS[@]}" -gt 0 ]; then
   echo "test-integration: build ${CRATES[*]} ..."
-  if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_ARGS[@]}" \
+  # --build-jobs caps parallel rustc/link steps: the test binaries each
+  # mmap multi-GB workspace rlibs at link time, and unbounded parallel
+  # links (on top of the concurrently-building unit suite) can exhaust
+  # the Windows commit charge (os error 1455, "paging file too small").
+  if ! cargo nextest run --no-run --build-jobs 4 --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_ARGS[@]}" \
        >"$BUILD_LOG_DIR/integration-nextest-${TIMESTAMP}.txt" 2>&1; then
     echo "test-integration: BUILD FAILED (see .logs/build/integration-nextest-${TIMESTAMP}.txt)" >&2
     echo "test-integration: one or more test builds failed; aborting" >&2
