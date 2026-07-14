@@ -20,7 +20,9 @@
 //! and replay as deltas the moment forwarding starts — so no change is
 //! lost in the window between the snapshot and the live stream.
 
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::time::UNIX_EPOCH;
 
 use axum::{
@@ -88,19 +90,9 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
             .into_response();
     }
 
-    // Build the recursive snapshot off the async runtime.
-    let walk_root = root.clone();
-    let snapshot_root =
-        match tokio::task::spawn_blocking(move || build_tree(&walk_root)).await {
-            Ok(node) => node,
-            Err(e) => {
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("walk join: {e}"),
-                )
-                    .into_response();
-            }
-        };
+    // Build the recursive snapshot with async fs — no blocking thread
+    // parked for the whole walk.
+    let snapshot_root = build_tree(&root).await;
 
     // The SSE body: snapshot first, then each notify event mapped to a
     // delta. The `watcher` is moved into the stream's closure state so
@@ -108,17 +100,23 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
     // response drops the watcher and unregisters the inotify watches.
     let snapshot_event = sse_event(&FileTreeEvent::Snapshot { root: snapshot_root });
     let deltas = rx
-        .map(move |res| {
+        .then(move |res| {
             // Keep `watcher` alive for the stream's lifetime.
             let _keep = &watcher;
-            res
+            let root = root.clone();
+            async move {
+                match res {
+                    Ok(event) => events_to_deltas(&root, event).await,
+                    Err(_) => Vec::new(),
+                }
+            }
         })
-        .flat_map(move |res| {
-            let events = match res {
-                Ok(event) => events_to_deltas(&root, event),
-                Err(_) => Vec::new(),
-            };
-            futures::stream::iter(events.into_iter().map(|e| Ok::<Event, std::convert::Infallible>(e)))
+        .flat_map(|events| {
+            futures::stream::iter(
+                events
+                    .into_iter()
+                    .map(Ok::<Event, std::convert::Infallible>),
+            )
         });
     let stream = futures::stream::once(async move { Ok(snapshot_event) }).chain(deltas);
 
@@ -133,7 +131,7 @@ fn sse_event(event: &FileTreeEvent) -> Event {
 /// Map one notify event to zero or more filetree deltas. A create /
 /// modify / rename-to stats the path into an `Upserted`; a remove /
 /// rename-from emits `Removed`. Paths outside `root` are ignored.
-fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
+async fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
     use notify::EventKind;
     let mut out = Vec::new();
     match event.kind {
@@ -141,7 +139,7 @@ fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
             for path in event.paths {
                 // A rename's "from" side no longer exists → treat a
                 // failed stat as a removal.
-                match entry_for(root, &path) {
+                match entry_for(root, &path).await {
                     Some(entry) => {
                         out.push(sse_event(&FileTreeEvent::Upserted { entry }));
                     }
@@ -183,9 +181,9 @@ fn rel_path(root: &Path, path: &Path) -> Option<String> {
 
 /// Stat a single path into a flat [`FileTreeEntry`] (relative to
 /// `root`). `None` when the path is gone or not under `root`.
-fn entry_for(root: &Path, path: &Path) -> Option<FileTreeEntry> {
+async fn entry_for(root: &Path, path: &Path) -> Option<FileTreeEntry> {
     let rel = rel_path(root, path)?;
-    let meta = std::fs::symlink_metadata(path).ok()?;
+    let meta = tokio::fs::symlink_metadata(path).await.ok()?;
     let kind = file_kind(&meta.file_type());
     Some(FileTreeEntry {
         path: rel,
@@ -199,49 +197,48 @@ fn entry_for(root: &Path, path: &Path) -> Option<FileTreeEntry> {
     })
 }
 
-/// Recursively build the tree rooted at `root`. The root node's `name`
-/// is the watched path; children carry their basenames. Symlinks are
-/// leaves (never followed); unreadable entries are skipped.
-fn build_tree(root: &Path) -> FileTreeNode {
-    let meta = std::fs::symlink_metadata(root).ok();
+/// Recursively build the tree rooted at `root` with async fs. The root
+/// node's `name` is the watched path; children carry their basenames.
+/// Symlinks are leaves (never followed); unreadable entries are
+/// skipped.
+async fn build_tree(root: &Path) -> FileTreeNode {
+    let meta = tokio::fs::symlink_metadata(root).await.ok();
     let mut node = node_for(
         root.to_string_lossy().into_owned(),
         FileKind::Dir,
         meta.as_ref(),
     );
-    node.children = Some(build_children(root));
+    node.children = Some(build_children(root).await);
     node
 }
 
 /// Build the immediate children of a directory, recursing into
-/// subdirectories. Entries that fail to stat are skipped.
-fn build_children(dir: &Path) -> Vec<FileTreeNode> {
-    let mut children = Vec::new();
-    let read = match std::fs::read_dir(dir) {
-        Ok(r) => r,
-        Err(_) => return children,
-    };
-    for entry in read.flatten() {
-        let path = entry.path();
-        let Ok(meta) = entry.metadata().or_else(|_| std::fs::symlink_metadata(&path))
-        else {
-            continue;
+/// subdirectories. Boxed because async recursion needs an indirected
+/// future. Entries that fail to stat are skipped.
+fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + '_>> {
+    Box::pin(async move {
+        let mut children = Vec::new();
+        let mut read = match tokio::fs::read_dir(dir).await {
+            Ok(r) => r,
+            Err(_) => return children,
         };
-        // `entry.metadata()` follows symlinks; re-stat without follow
-        // so the KIND reflects the link itself.
-        let ft = match std::fs::symlink_metadata(&path) {
-            Ok(m) => m.file_type(),
-            Err(_) => meta.file_type(),
-        };
-        let kind = file_kind(&ft);
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let mut child = node_for(name, kind, Some(&meta));
-        if kind == FileKind::Dir {
-            child.children = Some(build_children(&path));
+        while let Ok(Some(entry)) = read.next_entry().await {
+            let path = entry.path();
+            // `symlink_metadata` so the KIND reflects the link itself
+            // (never followed).
+            let Ok(meta) = tokio::fs::symlink_metadata(&path).await else {
+                continue;
+            };
+            let kind = file_kind(&meta.file_type());
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let mut child = node_for(name, kind, Some(&meta));
+            if kind == FileKind::Dir {
+                child.children = Some(build_children(&path).await);
+            }
+            children.push(child);
         }
-        children.push(child);
-    }
-    children
+        children
+    })
 }
 
 /// Build a node from a name, kind, and optional metadata.
