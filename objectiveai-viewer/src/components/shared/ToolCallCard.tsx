@@ -1,6 +1,7 @@
 import cn from "classnames";
 import { useState, useCallback, useEffect, memo } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
+import { JsonBlock } from "./JsonBlock";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -48,9 +49,10 @@ export const ToolCallCard = memo(function ToolCallCard({ call }: { call: { id?: 
             args
           </Collapsible.Trigger>
           <Collapsible.Content>
-            <div className={cn("font-mono", "text-[11px]", "whitespace-pre-wrap", "break-words", "text-info-mid", "max-h-[150px]", "overflow-y-auto", "mt-1")}>
-              {formattedArgs}
-            </div>
+            <JsonBlock
+              value={fn?.arguments ?? ""}
+              className={cn("text-[11px]", "text-info-mid", "max-h-[150px]", "overflow-y-auto", "mt-1")}
+            />
           </Collapsible.Content>
         </Collapsible.Root>
       )}

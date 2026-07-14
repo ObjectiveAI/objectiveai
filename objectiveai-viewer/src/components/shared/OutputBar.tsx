@@ -1,5 +1,6 @@
 import cn from "classnames";
 import { scoreColor, formatScore } from "../../lib/scoring";
+import { JsonBlock } from "./JsonBlock";
 
 function truncateLabel(label: string, max = 60): string {
   if (label.length <= max) return label;
@@ -82,10 +83,10 @@ export function OutputBar({ output, labels }: { output: unknown; labels?: string
   }
 
   // Fallback for non-numeric output (objects, strings, mixed arrays)
-  const formatted = typeof output === "string" ? output : JSON.stringify(output, null, 2);
   return (
-    <pre className={cn("font-mono", "text-[11px]", "text-info-mid", "whitespace-pre-wrap", "break-words", "max-h-[200px]", "overflow-y-auto")}>
-      {formatted}
-    </pre>
+    <JsonBlock
+      value={output}
+      className={cn("text-[11px]", "text-info-mid", "max-h-[200px]", "overflow-y-auto")}
+    />
   );
 }

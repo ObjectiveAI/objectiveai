@@ -12,6 +12,7 @@ import type {
   CliAgentsInstancesListenerPartContent,
 } from "@objectiveai/sdk";
 import { Markdown } from "./Markdown";
+import { JsonBlock } from "./shared/JsonBlock";
 import type { ConversationBlock } from "../hooks/useAgentInstance";
 
 export type PartContent = CliAgentsInstancesListenerPartContent;
@@ -176,29 +177,14 @@ export function describeLastItem(block: ConversationBlock): {
 }
 
 /** Pretty-printed JSON body: a string that parses as JSON renders
- * re-indented; anything else renders raw. */
+ * re-indented (string-embedded JSON expanded, wrapped lines hang at
+ * their own indentation — [`JsonBlock`]); anything else renders raw. */
 export function JsonBody({ value }: { value: unknown }) {
-  let text: string;
-  if (typeof value === "string") {
-    try {
-      text = JSON.stringify(JSON.parse(value), null, 2);
-    } catch {
-      text = value;
-    }
-  } else {
-    text = JSON.stringify(value, null, 2);
-  }
   return (
-    <pre
-      className={cn(
-        "text-[9px]",
-        "whitespace-pre-wrap",
-        "break-words",
-        "leading-snug",
-      )}
-    >
-      {text}
-    </pre>
+    <JsonBlock
+      value={value}
+      className={cn("text-[9px]", "leading-snug")}
+    />
   );
 }
 

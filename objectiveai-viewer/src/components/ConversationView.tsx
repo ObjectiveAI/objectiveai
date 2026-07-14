@@ -9,6 +9,7 @@ import type { AssistantPart, PartContent } from "./conversationContent";
 import { useAgo } from "../hooks/useAgo";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
+import { JsonBlock } from "./shared/JsonBlock";
 
 /**
  * The per-agent conversation popup: near-fullscreen panel over a dim
@@ -559,16 +560,6 @@ function assistantPartNode(
   }
 }
 
-/** Pretty-print a JSON text body; unparsable input passes through
- * verbatim. */
-function prettyJson(text: string): string {
-  try {
-    return JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    return text;
-  }
-}
-
 /** The normalized media descriptor every inlined content maps to, so
  * one renderer ([`MediaView`]) serves everything. */
 type Media =
@@ -622,17 +613,12 @@ function MediaView({ media }: { media: Media }) {
     case "text":
       if (media.json) {
         return (
-          <pre
-            data-json-part
-            className={cn(
-              "text-left",
-              "whitespace-pre-wrap",
-              "break-words",
-              "leading-snug",
-            )}
-          >
-            {prettyJson(media.text)}
-          </pre>
+          <div data-json-part>
+            <JsonBlock
+              value={media.text}
+              className={cn("text-left", "leading-snug")}
+            />
+          </div>
         );
       }
       return <Markdown>{media.text}</Markdown>;
