@@ -6,7 +6,7 @@ import { CliCommandSetScopeSchema } from "../../../../setScope";
 
 export const CliCommandLaboratoriesConfigAddressesAddRequestSchema = z.object({
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
-  key: z.string().describe("The daemon `ws://` address the laboratory host should connect to."),
+  key: z.string().describe("The daemon `http://` address the laboratory host should connect to."),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   path_type: CliCommandLaboratoriesConfigAddressesAddPathSchema,
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),

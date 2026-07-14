@@ -14,7 +14,7 @@
       ]
     },
     "key": {
-      "description": "The daemon `ws://` address the laboratory host should connect to.",
+      "description": "The daemon `http://` address the laboratory host should connect to.",
       "type": "string"
     },
     "max_tokens": {

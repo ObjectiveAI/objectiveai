@@ -8,9 +8,9 @@ from objectiveai_sdk.cli.command.agent_arguments import AgentArguments
 
 
 class ExecuteEnvelope(BaseModel):
-    """The one client→daemon message on an `/execute` connection: the
-typed request (as its serde JSON) plus the optional per-request
-identity override. The daemon deserializes this exact shape."""
+    """The `/execute` POST body: the typed request (as its serde JSON) plus
+the optional per-request identity override. The daemon deserializes
+this exact shape."""
     model_config = ConfigDict(title='cli.command.command_executor.ExecuteEnvelope')
 
     agent_arguments: Optional[AgentArguments] = Field(None, description="Per-request identity override, applied onto the daemon's own\nconfig for this run only (same semantics as the other\nexecutors' per-call override; `mcp_session_id` is ignored).", json_schema_extra={'omitempty': True})

@@ -128,7 +128,6 @@ impl InlineLaboratoryImage {
     Ord,
     Hash,
     Serialize,
-    Deserialize,
     JsonSchema,
     arbitrary::Arbitrary,
 )]
@@ -144,6 +143,50 @@ pub struct RegistryLaboratoryImage {
     /// Exactly one of `tag` / `digest`.
     #[serde(flatten)]
     pub pin: LaboratoryImagePin,
+}
+
+/// Manual, because the derived path cannot enforce the pin's
+/// exclusivity: `pin` is a `#[serde(flatten)]`ed externally-tagged
+/// enum, and serde's buffered flatten deserialization takes the FIRST
+/// matching key from the remaining map — a payload carrying BOTH
+/// `tag` and `digest` would silently win as `tag`. This impl rejects
+/// that (and a payload carrying neither) instead. Serialization stays
+/// derived — the wire shape is unchanged.
+impl<'de> Deserialize<'de> for RegistryLaboratoryImage {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Wire {
+            registry: String,
+            name: String,
+            #[serde(default)]
+            tag: Option<String>,
+            #[serde(default)]
+            digest: Option<String>,
+        }
+        let wire = Wire::deserialize(deserializer)?;
+        let pin = match (wire.tag, wire.digest) {
+            (Some(tag), None) => LaboratoryImagePin::Tag(tag),
+            (None, Some(digest)) => LaboratoryImagePin::Digest(digest),
+            (Some(_), Some(_)) => {
+                return Err(serde::de::Error::custom(
+                    "`tag` and `digest` are mutually exclusive",
+                ));
+            }
+            (None, None) => {
+                return Err(serde::de::Error::custom(
+                    "one of `tag` / `digest` is required",
+                ));
+            }
+        };
+        Ok(Self {
+            registry: wire.registry,
+            name: wire.name,
+            pin,
+        })
+    }
 }
 
 /// The image's version pin: a floating `tag` or a content-addressed

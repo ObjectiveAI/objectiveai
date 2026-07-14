@@ -8,4 +8,5 @@ func (v *AgentCompletionsResponseUpstreamDurationMs) Push(other *AgentCompletion
 	v.Openrouter = pushOptionUint64(v.Openrouter, other.Openrouter)
 	v.ClaudeAgentSDK = pushOptionUint64(v.ClaudeAgentSDK, other.ClaudeAgentSDK)
 	v.CodexSDK = pushOptionUint64(v.CodexSDK, other.CodexSDK)
+	v.Script = pushOptionUint64(v.Script, other.Script)
 }

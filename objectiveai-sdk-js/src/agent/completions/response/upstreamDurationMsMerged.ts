@@ -21,16 +21,19 @@ export function agentCompletionsResponseUpstreamDurationMsMerged(
   const openrouter = sumField(a.openrouter, b.openrouter);
   const claude_agent_sdk = sumField(a.claude_agent_sdk, b.claude_agent_sdk);
   const codex_sdk = sumField(a.codex_sdk, b.codex_sdk);
+  const script = sumField(a.script, b.script);
   const changed =
     openrouter !== (a.openrouter ?? undefined) ||
     claude_agent_sdk !== (a.claude_agent_sdk ?? undefined) ||
-    codex_sdk !== (a.codex_sdk ?? undefined);
+    codex_sdk !== (a.codex_sdk ?? undefined) ||
+    script !== (a.script ?? undefined);
   if (!changed) return [a, false];
   return [
     {
       ...(openrouter !== undefined ? { openrouter } : {}),
       ...(claude_agent_sdk !== undefined ? { claude_agent_sdk } : {}),
       ...(codex_sdk !== undefined ? { codex_sdk } : {}),
+      ...(script !== undefined ? { script } : {}),
     },
     true,
   ];

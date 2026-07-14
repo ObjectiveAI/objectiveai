@@ -7,9 +7,9 @@ import (
 	"fmt"
 )
 
-// The one client→daemon message on an `/execute` connection: the
-// typed request (as its serde JSON) plus the optional per-request
-// identity override. The daemon deserializes this exact shape.
+// The `/execute` POST body: the typed request (as its serde JSON) plus
+// the optional per-request identity override. The daemon deserializes
+// this exact shape.
 type CliCommandCommandExecutorExecuteEnvelope struct {
 	// Per-request identity override, applied onto the daemon's own
 	// config for this run only (same semantics as the other

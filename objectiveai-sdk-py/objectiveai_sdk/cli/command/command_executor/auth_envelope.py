@@ -6,13 +6,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AuthEnvelope(BaseModel):
-    """The FIRST client→daemon message on EVERY daemon WebSocket
-connection (`/execute` and `/listen` alike) — always sent, even to
-a secretless daemon (`{"signature": null}`). Headers are never
-used for auth: browser WebSocket clients can't set them. A daemon
-holding a `DAEMON_SECRET` verifies the signature and closes the
-connection on a missing/invalid one; a secretless daemon consumes
-the envelope and ignores the value."""
+    """The first client→daemon frame on the `/laboratory` host-channel
+WebSocket (the daemon's ONE remaining WebSocket) — the auth preamble,
+always sent, even to a secretless daemon (`{"signature": null}`). A
+daemon holding a `DAEMON_SECRET` verifies the signature and closes
+the connection on a missing/invalid one; a secretless daemon consumes
+the envelope and ignores the value. (The HTTP routes — `/execute`,
+`/listen`, and the SSE watchers — authenticate by the
+`X-OBJECTIVEAI-SIGNATURE` header instead.)"""
     model_config = ConfigDict(title='cli.command.command_executor.AuthEnvelope')
 
     signature: Optional[str] = Field(None, description='The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, or\n`null` when the client has none.')

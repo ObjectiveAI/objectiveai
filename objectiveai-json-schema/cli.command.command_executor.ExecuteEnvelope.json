@@ -1,6 +1,6 @@
 {
   "title": "cli.command.command_executor.ExecuteEnvelope",
-  "description": "The one client→daemon message on an `/execute` connection: the\ntyped request (as its serde JSON) plus the optional per-request\nidentity override. The daemon deserializes this exact shape.",
+  "description": "The `/execute` POST body: the typed request (as its serde JSON) plus\nthe optional per-request identity override. The daemon deserializes\nthis exact shape.",
   "type": "object",
   "properties": {
     "agent_arguments": {

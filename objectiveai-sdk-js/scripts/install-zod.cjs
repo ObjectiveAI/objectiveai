@@ -441,7 +441,13 @@ function convertSingleType(type, schema, refs, lazyRefs, selfTitle, cyclicTitles
     case "array":
       if (schema.items) {
         const itemSchema = convert(schema.items, refs, lazyRefs, selfTitle, cyclicTitles);
-        return `z.array(${itemSchema})`;
+        // Length bounds (e.g. the fixed-2 `[key, value]` pairs from
+        // Rust `[String; 2]`) — the roundtrip harness reads these back
+        // as minItems/maxItems via zod's min_size/max_size checks.
+        let expr = `z.array(${itemSchema})`;
+        if (schema.minItems !== undefined) expr += `.min(${schema.minItems})`;
+        if (schema.maxItems !== undefined) expr += `.max(${schema.maxItems})`;
+        return expr;
       }
       refs.add(JSON_VALUE_REF);
       return "z.array(JsonValueSchema)";

@@ -1,0 +1,234 @@
+{
+  "title": "laboratories.filetree.FileTreeNode",
+  "description": "One node of the filesystem tree — discriminated by `type`. A\n`directory` carries its `children` inline; `file` and `symlink` are\nleaves. Symlinks are the link itself (never followed), so a broken\nor looping link renders as a leaf rather than confusing the tree.\n\nCommon metadata on every variant: `name` (basename), `created_at`\n(birth time when the filesystem records one), `modified_at`\n(mtime), and the reserved `created_by`/`modified_by` (the\nattribution engine fills these later; always `None` today).",
+  "anyOf": [
+    {
+      "title": "File",
+      "description": "A regular file.",
+      "type": "object",
+      "properties": {
+        "created_at": {
+          "description": "Creation time (unix seconds), when the filesystem records a\nbirth time. `None` when unsupported — best-effort display\nmetadata, never load-bearing.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "created_by": {
+          "description": "The agent that created this entry, when known. Reserved for\nthe attribution engine; currently always `None`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "modified_at": {
+          "description": "Last-modified time (unix seconds). `None` when the stat\ncouldn't be read.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "modified_by": {
+          "description": "The agent that last modified this entry, when known.\nReserved; currently always `None`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "name": {
+          "description": "Basename of this file.",
+          "type": "string"
+        },
+        "size": {
+          "description": "Size in bytes.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 18446744073709551615
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "file"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Directory",
+      "description": "A directory — carries its child nodes.",
+      "type": "object",
+      "properties": {
+        "children": {
+          "description": "This directory's entries. Empty for an empty directory —\nnever absent.",
+          "type": "array",
+          "items": {
+            "$ref": "laboratories.filetree.FileTreeNode"
+          }
+        },
+        "created_at": {
+          "description": "Creation time (unix seconds), when the filesystem records a\nbirth time.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "created_by": {
+          "description": "The agent that created this entry, when known. Reserved.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "modified_at": {
+          "description": "Last-modified time (unix seconds) — a directory's mtime\ntracks entry add/remove.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "modified_by": {
+          "description": "The agent that last modified this entry, when known.\nReserved.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "name": {
+          "description": "Basename of this directory (the watched root is represented\nby the snapshot's child list, not by a root node).",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "directory"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Symlink",
+      "description": "A symbolic link (the link itself, not its target — never\nfollowed).",
+      "type": "object",
+      "properties": {
+        "created_at": {
+          "description": "Creation time (unix seconds), when the filesystem records a\nbirth time.",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "created_by": {
+          "description": "The agent that created this entry, when known. Reserved.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "modified_at": {
+          "description": "Last-modified time (unix seconds).",
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "modified_by": {
+          "description": "The agent that last modified this entry, when known.\nReserved.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "name": {
+          "description": "Basename of this link.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "symlink"
+          ]
+        }
+      }
+    }
+  ]
+}

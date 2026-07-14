@@ -1175,6 +1175,8 @@ MODULES = [
     'objectiveai_sdk.laboratories.agent_laboratory_type',
     'objectiveai_sdk.laboratories.client_laboratory',
     'objectiveai_sdk.laboratories.client_laboratory_type',
+    'objectiveai_sdk.laboratories.filetree.file_tree_event',
+    'objectiveai_sdk.laboratories.filetree.file_tree_node',
     'objectiveai_sdk.laboratories.inline_laboratory_image',
     'objectiveai_sdk.laboratories.laboratory',
     'objectiveai_sdk.laboratories.laboratory_image',

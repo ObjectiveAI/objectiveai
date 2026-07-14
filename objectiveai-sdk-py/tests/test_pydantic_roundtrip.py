@@ -174,6 +174,12 @@ def _extract_annotated_constraints(metadata: list[Any]) -> dict:
                     result["maximum"] = mm.le
                 if hasattr(mm, "pattern") and mm.pattern is not None:
                     result["pattern"] = mm.pattern
+                # List length bounds (Field(min_length/max_length) on a
+                # list — e.g. the fixed-2 `[key, value]` pairs).
+                if hasattr(mm, "min_length") and mm.min_length is not None:
+                    result["minItems"] = mm.min_length
+                if hasattr(mm, "max_length") and mm.max_length is not None:
+                    result["maxItems"] = mm.max_length
             # Check json_schema_extra
             extra = m.json_schema_extra
             if isinstance(extra, dict):
@@ -182,13 +188,17 @@ def _extract_annotated_constraints(metadata: list[Any]) -> dict:
                 if "pattern" in extra:
                     result["pattern"] = extra["pattern"]
         else:
-            # Direct constraint objects (Ge, Le, etc.)
+            # Direct constraint objects (Ge, Le, MinLen, MaxLen, etc.)
             if hasattr(m, "ge") and m.ge is not None:
                 result["minimum"] = m.ge
             if hasattr(m, "le") and m.le is not None:
                 result["maximum"] = m.le
             if hasattr(m, "pattern") and m.pattern is not None:
                 result["pattern"] = m.pattern
+            if hasattr(m, "min_length") and m.min_length is not None:
+                result["minItems"] = m.min_length
+            if hasattr(m, "max_length") and m.max_length is not None:
+                result["maxItems"] = m.max_length
     return result
 
 

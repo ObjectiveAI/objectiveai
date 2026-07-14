@@ -7,5 +7,5 @@ import { CliCommandAgentArgumentsSchema } from "../agentArguments";
 export const CliCommandCommandExecutorExecuteEnvelopeSchema = z.object({
   agent_arguments: CliCommandAgentArgumentsSchema.nullable().describe("Per-request identity override, applied onto the daemon's own\nconfig for this run only (same semantics as the other\nexecutors' per-call override; `mcp_session_id` is ignored).").meta({ omitempty: true }).optional(),
   request: JsonValueSchema.describe("The serde JSON of a `cli::command::Request`."),
-}).describe("The one client→daemon message on an `/execute` connection: the\ntyped request (as its serde JSON) plus the optional per-request\nidentity override. The daemon deserializes this exact shape.").meta({ title: "cli.command.command_executor.ExecuteEnvelope" });
+}).describe("The `/execute` POST body: the typed request (as its serde JSON) plus\nthe optional per-request identity override. The daemon deserializes\nthis exact shape.").meta({ title: "cli.command.command_executor.ExecuteEnvelope" });
 export type CliCommandCommandExecutorExecuteEnvelope = z.infer<typeof CliCommandCommandExecutorExecuteEnvelopeSchema>;

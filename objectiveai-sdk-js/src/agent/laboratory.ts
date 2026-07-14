@@ -5,7 +5,7 @@ import { LaboratoriesLaboratoryImageSchema } from "../laboratories/laboratoryIma
 
 export const AgentLaboratorySchema = z.object({
   cwd: z.string().nullable().describe("Working directory new agents start in. `\"/\"` (the create-time\ndefault) collapses to `None` in prepare.").meta({ omitempty: true }).optional(),
-  env: z.array(z.array(z.string())).nullable().describe("`[key, value]` environment pairs. Sorted by prepare; empty\ncollapses to `None`.").meta({ omitempty: true }).optional(),
+  env: z.array(z.array(z.string()).min(2).max(2)).nullable().describe("`[key, value]` environment pairs. Sorted by prepare; empty\ncollapses to `None`.").meta({ omitempty: true }).optional(),
   image: LaboratoriesLaboratoryImageSchema.describe("The base image — an inline Containerfile XOR a split registry\nreference."),
 }).describe("A laboratory provisioned for an agent: the container spec the CLI\nconduit materializes on demand at MCP-initialize. No mounts —\nagent laboratories don't support them.").meta({ title: "agent.Laboratory" });
 export type AgentLaboratory = z.infer<typeof AgentLaboratorySchema>;

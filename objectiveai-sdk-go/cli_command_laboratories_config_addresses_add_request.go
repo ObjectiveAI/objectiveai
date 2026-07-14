@@ -11,7 +11,7 @@ type CliCommandLaboratoriesConfigAddressesAddRequest struct {
 	// jq filter applied to the JSON output. Ignored when `python`
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
-	// The daemon `ws://` address the laboratory host should connect to.
+	// The daemon `http://` address the laboratory host should connect to.
 	Key string `json:"key"`
 	// Response token budget, `>= 1` (`0` is rejected at parse
 	// time — omit entirely for unlimited). Forward-compatible
