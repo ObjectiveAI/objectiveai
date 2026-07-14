@@ -216,7 +216,13 @@ launch() {  # launch <name> <command...>
 for crate in ${CRATES[@]+"${CRATES[@]}"}; do
   # The SAME package selection as the prebuild (identical feature
   # unification -- see above); the filterset picks this crate's tests.
-  launch "$crate" cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" \
+  # --test-threads bounds the per-binary test parallelism: every
+  # integration test spawns its own resident daemon (+ agents, podman
+  # ops) against ONE shared api server + postgres pool, and core-count
+  # parallelism starves the machine -- db pool timeouts, 180s listener
+  # waits missing, and daemons dying mid-response under commit-charge
+  # pressure. Eight keeps the suite parallel without the process storm.
+  launch "$crate" cargo nextest run --no-tests=pass --test-threads 8 --manifest-path "$REPO_ROOT/Cargo.toml" \
     "${PKG_ARGS[@]}" -E "package($crate)"
 done
 
