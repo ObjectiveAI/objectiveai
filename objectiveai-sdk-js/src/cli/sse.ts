@@ -32,14 +32,23 @@ export async function connectSse(
   const headers: Record<string, string> = { Accept: "text/event-stream" };
   if (signature) headers["X-OBJECTIVEAI-SIGNATURE"] = signature;
   if (init?.body !== undefined) headers["Content-Type"] = "application/json";
-  const response = await fetch(url, {
-    method: init?.method ?? "GET",
-    ...(init?.body !== undefined ? { body: init.body } : {}),
-    headers,
-    signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: init?.method ?? "GET",
+      ...(init?.body !== undefined ? { body: init.body } : {}),
+      headers,
+      signal,
+    });
+  } catch (e) {
+    throw new Error(
+      `connect daemon sse: fetch ${init?.method ?? "GET"} ${url} failed: ${String(e)}`,
+    );
+  }
   if (!response.ok || !response.body) {
-    throw new Error(`connect daemon sse: HTTP ${response.status}`);
+    throw new Error(
+      `connect daemon sse: HTTP ${response.status} from ${init?.method ?? "GET"} ${url}`,
+    );
   }
   return readSseData(response.body);
 }
