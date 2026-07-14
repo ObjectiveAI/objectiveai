@@ -7,7 +7,9 @@
 // `/agents/instances/{*aih}` conversation + agent-status view),
 // `laboratoriesListListener` (the materialized
 // `/laboratories/list` view), `laboratoriesListener` (the
-// materialized `/laboratories/{id}` record view), and the shared
+// materialized `/laboratories/{id}` record view),
+// `laboratoriesFiletreeListener` (the materialized
+// `/laboratories/{id}/filetree` view), and the shared
 // transports — `sse` (`connectSse`, fetch mode) and `viewer`
 // (`connectViewerStream` + `ViewerTransport`, the Tauri IPC proxy
 // mode behind every listener's `connectViewer`). Kept header-free so
@@ -17,6 +19,7 @@ export * from "./sse";
 export * from "./viewer";
 export * from "./agentsInstancesListListener";
 export * from "./agentsInstancesListener";
+export * from "./laboratoriesFiletreeListener";
 export * from "./laboratoriesListListener";
 export * from "./laboratoriesListener";
 export * from "./broadcastListener";
