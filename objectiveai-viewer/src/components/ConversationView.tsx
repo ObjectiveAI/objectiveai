@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import cn from "classnames";
-import type { DaemonConnection } from "../lib/daemon";
+import type { ViewerTransport } from "@objectiveai/sdk";
 import {
   useAgentInstance,
   type ConversationBlock,
@@ -37,13 +37,13 @@ import { Markdown } from "./Markdown";
  * `tool_call_id` inside one [`ToolSection`]. Media renders for real.
  */
 export function ConversationView({
-  connection,
+  transport,
   hierarchy,
 }: {
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   hierarchy: string;
 }) {
-  const { blocks, live } = useAgentInstance(connection, hierarchy);
+  const { blocks, live } = useAgentInstance(transport, hierarchy);
   return (
     <div
       data-conversation-view

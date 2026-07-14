@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import {
   LaboratoriesListListener,
+  type ViewerTransport,
   type CliLaboratoriesListListenerLaboratoryStatus,
   type LaboratoriesInlineLaboratoryImage,
   type LaboratoriesLaboratoryImage,
 } from "@objectiveai/sdk";
-import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
 /** A laboratory's base image — the SDK wire type (an INLINE
@@ -31,16 +31,16 @@ export type LaboratoryStatus =
  * scan, each with `source` (the DAEMON's local/remote vantage) and a
  * live `connected` flag. Mirrors [`useAgentsInstancesList`]: one
  * listener per hook instance, 1s reconnect loop, errors to the toast.
- * `null` connection yields an empty list.
+ * `null` transport yields an empty list.
  */
 export function useLaboratoriesList(
-  connection: DaemonConnection | null,
+  transport: ViewerTransport | null,
 ): LaboratoryStatus[] {
   const [laboratories, setLaboratories] = useState<LaboratoryStatus[]>([]);
 
   useEffect(() => {
     setLaboratories([]);
-    if (connection === null) return;
+    if (transport === null) return;
     let cancelled = false;
     let current: LaboratoriesListListener | null = null;
 
@@ -48,10 +48,9 @@ export function useLaboratoriesList(
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await LaboratoriesListListener.connect(
-            `${connection.address}/laboratories/list`,
+          const listener = await LaboratoriesListListener.connectViewer(
+            transport,
             {
-              signature: connection.signature,
               onChange: (next) => {
                 if (!cancelled) setLaboratories(next);
               },
@@ -79,7 +78,7 @@ export function useLaboratoriesList(
       cancelled = true;
       current?.close();
     };
-  }, [connection]);
+  }, [transport]);
 
   return laboratories;
 }

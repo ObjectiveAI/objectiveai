@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
-import type { DaemonConnection } from "../lib/daemon";
+import type { ViewerTransport } from "@objectiveai/sdk";
 import { LoadingDots } from "./LoadingDots";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
@@ -39,11 +39,11 @@ interface ScopedAgent {
  * both ways.
  */
 export function HierarchyTree({
-  connection,
+  transport,
   agents,
   zoom = 1,
 }: {
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   agents: AgentStatus[];
   /** Canvas zoom factor from the footer slider. Applied as the CSS
    * `zoom` property (Chromium reflows layout under it, so the scroll
@@ -154,7 +154,7 @@ export function HierarchyTree({
             key={name}
             name={name}
             members={members}
-            connection={connection}
+            transport={transport}
             onOpen={openAgentWindow}
           />
         ))}
@@ -181,12 +181,12 @@ function openAgentWindow(hierarchy: string): void {
 function HierarchyNode({
   name,
   members,
-  connection,
+  transport,
   onOpen,
 }: {
   name: string;
   members: ScopedAgent[];
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   onOpen: (hierarchy: string) => void;
 }) {
   const orientation = useOrientation();
@@ -204,7 +204,7 @@ function HierarchyNode({
         <AgentNode
           name={name}
           status={self}
-          connection={connection}
+          transport={transport}
           onOpen={onOpen}
         />
       ) : (
@@ -313,7 +313,7 @@ function HierarchyNode({
                     <HierarchyNode
                       name={child}
                       members={group}
-                      connection={connection}
+                      transport={transport}
                       onOpen={onOpen}
                     />
                   </div>
@@ -339,16 +339,16 @@ function HierarchyNode({
 function AgentNode({
   name,
   status,
-  connection,
+  transport,
   onOpen,
 }: {
   name: string;
   status: AgentStatus;
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   onOpen: (hierarchy: string) => void;
 }) {
   const hierarchy = status.agent_instance_hierarchy;
-  const { agent, lastBlock } = useAgentInstance(connection, hierarchy);
+  const { agent, lastBlock } = useAgentInstance(transport, hierarchy);
   const kind = status.active ? "agent-active" : "agent-inactive";
   // A live agent's last-active is implicitly "now" — while active the
   // status row reads `active`; inactive shows the record's timestamp.

@@ -16,8 +16,8 @@ import {
   AgentsInstancesListener,
   type CliAgentsInstancesListenerAgentRecord,
   type CliAgentsInstancesListenerConversationBlock,
+  type ViewerTransport,
 } from "@objectiveai/sdk";
-import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
 
 export type AgentRecord = CliAgentsInstancesListenerAgentRecord;
@@ -38,7 +38,7 @@ export interface AgentInstanceView {
 }
 
 export function useAgentInstance(
-  connection: DaemonConnection | null,
+  transport: ViewerTransport | null,
   agentInstanceHierarchy: string,
 ): AgentInstanceView {
   const [view, setView] = useState<AgentInstanceView>({
@@ -48,17 +48,17 @@ export function useAgentInstance(
     live: false,
   });
   useEffect(() => {
-    if (connection === null) return;
+    if (transport === null) return;
     let cancelled = false;
     let current: AgentsInstancesListener | null = null;
     void (async () => {
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await AgentsInstancesListener.connect(
-            `${connection.address}/agents/instances/${agentInstanceHierarchy}`,
+          const listener = await AgentsInstancesListener.connectViewer(
+            transport,
+            agentInstanceHierarchy,
             {
-              signature: connection.signature,
               onChange: (blocks) => {
                 if (cancelled) return;
                 const lastBlock =
@@ -100,6 +100,6 @@ export function useAgentInstance(
       cancelled = true;
       current?.close();
     };
-  }, [connection, agentInstanceHierarchy]);
+  }, [transport, agentInstanceHierarchy]);
   return view;
 }

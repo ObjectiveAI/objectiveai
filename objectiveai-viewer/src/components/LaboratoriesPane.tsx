@@ -1,5 +1,5 @@
 import cn from "classnames";
-import type { DaemonConnection } from "../lib/daemon";
+import type { ViewerTransport } from "@objectiveai/sdk";
 import { useAgo } from "../hooks/useAgo";
 import { isInlineImage, useLaboratoriesList } from "../hooks/useLaboratoriesList";
 import { useMachineIdentity } from "../hooks/useMachineIdentity";
@@ -19,12 +19,12 @@ import { LogoMark } from "./shared/Logo";
  * unshared with the agents tab.
  */
 export function LaboratoriesPane({
-  connection,
+  transport,
 }: {
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   active: boolean;
 }) {
-  const daemon = useLaboratoriesList(connection);
+  const daemon = useLaboratoriesList(transport);
   const machine = useMachineIdentity();
   const laboratories = classifyLaboratories(daemon, machine);
 

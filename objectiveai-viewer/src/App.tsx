@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "./lib/tauri";
-import { daemonConnection, type DaemonConnection } from "./lib/daemon";
+import { viewerTransport } from "./lib/viewer-transport";
+import type { ViewerTransport } from "@objectiveai/sdk";
 import {
   useAgentsInstancesList,
   type AgentStatus,
@@ -26,12 +27,12 @@ const HOME_TABS: Tab[] = [
 ];
 
 function ObjectiveAIView({
-  connection,
+  transport,
   agents,
   zoom,
   onStatusChange,
 }: {
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   agents: AgentStatus[];
   zoom: number;
   onStatusChange?: (status: ViewerStatus) => void;
@@ -94,7 +95,7 @@ function ObjectiveAIView({
           <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
         </div>
         {/* The body: the agent hierarchy tree, over the watermark. */}
-        <HierarchyTree connection={connection} agents={agents} zoom={zoom} />
+        <HierarchyTree transport={transport} agents={agents} zoom={zoom} />
       </div>
       <div
         className={cn(
@@ -105,7 +106,7 @@ function ObjectiveAIView({
         )}
       >
         <LaboratoriesPane
-          connection={connection}
+          transport={transport}
           active={homeTab === "laboratories"}
         />
       </div>
@@ -133,21 +134,21 @@ function App() {
   const [status, setStatus] = useState<ViewerStatus>({
     entries: [],
   });
-  // The daemon connection coordinates, fetched once. There is no
-  // global listener singleton — App threads this down and components
-  // construct and own their own listeners.
-  const [connection, setConnection] = useState<DaemonConnection | null>(null);
+  // The daemon transport (the Rust proxy's invoke + Channel), fetched
+  // once. There is no global listener singleton — App threads this
+  // down and components construct and own their own listeners.
+  const [transport, setTransport] = useState<ViewerTransport | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void daemonConnection().then((config) => {
-      if (!cancelled && config !== null) setConnection(config);
+    void viewerTransport().then((t) => {
+      if (!cancelled && t !== null) setTransport(t);
     });
     return () => {
       cancelled = true;
     };
   }, []);
   // The app's ONE agents-list connection: {aih, active} items, live.
-  const agents = useAgentsInstancesList(connection);
+  const agents = useAgentsInstancesList(transport);
   const activeAgents = agents.filter((agent) => agent.active).length;
   // Canvas zoom — the footer slider drives it; the main tab's canvas
   // consumes it (per-tab zoom for plugin panes comes later).
@@ -171,7 +172,7 @@ function App() {
     return (
       <div className={cn("flex", "flex-col", "h-screen")}>
         <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-          <ObjectiveAIView connection={connection} agents={agents} zoom={zoom} onStatusChange={setStatus} />
+          <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
         </div>
         <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
       <ErrorToast />
@@ -219,7 +220,7 @@ function App() {
             activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
           )}
         >
-          <ObjectiveAIView connection={connection} agents={agents} zoom={zoom} onStatusChange={setStatus} />
+          <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
         </div>
         {plugins.map((p) => (
           <div
@@ -231,7 +232,7 @@ function App() {
               activeTab === p.name ? "flex" : "hidden",
             )}
           >
-            <PluginPane info={p} connection={connection} />
+            <PluginPane info={p} />
           </div>
         ))}
       </div>
