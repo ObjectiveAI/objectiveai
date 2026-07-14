@@ -171,24 +171,28 @@ for n in sorted(names):
 ' | tr -d '\r'
 )
 
-# Build each crate's test binaries up front, ONE AT A TIME, so the parallel
-# run phase below only executes (not rebuilds concurrently against the
-# shared target dir). Every crate is attempted so one failure doesn't hide
-# the rest.
+# Build every crate's test binaries up front in ONE cargo invocation.
+# One invocation = one feature unification: separate per-crate builds
+# select different package sets, so cargo resolves shared dependencies
+# (rand, windows, tokio, ...) with different features yet writes them to
+# the SAME artifact filenames -- alternating builds clobber each other
+# and the next link dies with E0460/E0462. The run phase below reuses
+# the exact same package selection (filtersets pick which crate's tests
+# execute), so nothing is ever rebuilt against a foreign graph.
 BUILD_LOG_DIR="$REPO_ROOT/.logs/build"
 mkdir -p "$BUILD_LOG_DIR"
-prebuild_failed=0
+PKG_ARGS=()
 for crate in ${CRATES[@]+"${CRATES[@]}"}; do
-  echo "test-integration: build $crate ..."
-  if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" \
-       >"$BUILD_LOG_DIR/${crate}-integration-nextest-${TIMESTAMP}.txt" 2>&1; then
-    echo "test-integration: BUILD FAILED: $crate (see .logs/build/${crate}-integration-nextest-${TIMESTAMP}.txt)" >&2
-    prebuild_failed=1
-  fi
+  PKG_ARGS+=(-p "$crate")
 done
-if [ "$prebuild_failed" -ne 0 ]; then
-  echo "test-integration: one or more test builds failed; aborting" >&2
-  exit 1
+if [ "${#PKG_ARGS[@]}" -gt 0 ]; then
+  echo "test-integration: build ${CRATES[*]} ..."
+  if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_ARGS[@]}" \
+       >"$BUILD_LOG_DIR/integration-nextest-${TIMESTAMP}.txt" 2>&1; then
+    echo "test-integration: BUILD FAILED (see .logs/build/integration-nextest-${TIMESTAMP}.txt)" >&2
+    echo "test-integration: one or more test builds failed; aborting" >&2
+    exit 1
+  fi
 fi
 
 # ── Step 8: run all integration suites in parallel ──────────────────
@@ -206,7 +210,10 @@ launch() {  # launch <name> <command...>
 }
 
 for crate in ${CRATES[@]+"${CRATES[@]}"}; do
-  launch "$crate" cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate"
+  # The SAME package selection as the prebuild (identical feature
+  # unification -- see above); the filterset picks this crate's tests.
+  launch "$crate" cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" \
+    "${PKG_ARGS[@]}" -E "package($crate)"
 done
 
 # SDK importer projects. OBJECTIVEAI_ADDRESS is exported above; each suite's
