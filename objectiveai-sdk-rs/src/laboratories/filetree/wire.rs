@@ -51,11 +51,13 @@ pub enum FileTreeNode {
         /// metadata, never load-bearing.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_option_i64)]
         created_at: Option<i64>,
         /// Last-modified time (unix seconds). `None` when the stat
         /// couldn't be read.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_option_i64)]
         modified_at: Option<i64>,
         /// The agent that created this entry, when known. Reserved for
         /// the attribution engine; currently always `None`.
@@ -78,11 +80,13 @@ pub enum FileTreeNode {
         /// birth time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_option_i64)]
         created_at: Option<i64>,
         /// Last-modified time (unix seconds) — a directory's mtime
         /// tracks entry add/remove.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_option_i64)]
         modified_at: Option<i64>,
         /// The agent that created this entry, when known. Reserved.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -107,10 +111,12 @@ pub enum FileTreeNode {
         /// birth time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_option_i64)]
         created_at: Option<i64>,
         /// Last-modified time (unix seconds).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
+        #[arbitrary(with = crate::arbitrary_util::arbitrary_option_i64)]
         modified_at: Option<i64>,
         /// The agent that created this entry, when known. Reserved.
         #[serde(default, skip_serializing_if = "Option::is_none")]

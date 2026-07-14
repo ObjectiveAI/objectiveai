@@ -16,7 +16,7 @@ type AgentLaboratory struct {
 	Cwd *string `json:"cwd,omitempty"`
 	// `[key, value]` environment pairs. Sorted by prepare; empty
 	// collapses to `None`.
-	Env *[][]string `json:"env,omitempty"`
+	Env *[][]string `json:"env,omitempty" validate:"omitempty,dive,min=2,max=2"`
 	// The base image — an inline Containerfile XOR a split registry
 	// reference.
 	Image LaboratoriesLaboratoryImage `json:"image"`

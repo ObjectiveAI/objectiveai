@@ -439,10 +439,10 @@ func addValidateConstraints(schema map[string]any, validateTag string) {
 			schema["enum"] = enumVals
 		}
 		if strings.HasPrefix(part, "min=") {
-			schema["minimum"] = json.Number(strings.TrimPrefix(part, "min="))
+			schema[boundKeyword(schema, "min")] = json.Number(strings.TrimPrefix(part, "min="))
 		}
 		if strings.HasPrefix(part, "max=") {
-			schema["maximum"] = json.Number(strings.TrimPrefix(part, "max="))
+			schema[boundKeyword(schema, "max")] = json.Number(strings.TrimPrefix(part, "max="))
 		}
 	}
 
@@ -462,13 +462,31 @@ func addValidateConstraints(schema map[string]any, validateTag string) {
 				continue
 			}
 			if strings.HasPrefix(part, "min=") {
-				target["minimum"] = json.Number(strings.TrimPrefix(part, "min="))
+				target[boundKeyword(target, "min")] = json.Number(strings.TrimPrefix(part, "min="))
 			}
 			if strings.HasPrefix(part, "max=") {
-				target["maximum"] = json.Number(strings.TrimPrefix(part, "max="))
+				target[boundKeyword(target, "max")] = json.Number(strings.TrimPrefix(part, "max="))
 			}
 		}
 	}
+}
+
+// The JSON Schema keyword a validate `min=`/`max=` maps back to,
+// derived from the target's type — the validator's min/max mean
+// LENGTH on a slice (minItems/maxItems) and VALUE on a number
+// (minimum/maximum). Never mixed: the tag carries the number, the Go
+// type picks the keyword (the Go-roundtrip reconstruction rule).
+func boundKeyword(target map[string]any, side string) string {
+	if target["type"] == "array" {
+		if side == "min" {
+			return "minItems"
+		}
+		return "maxItems"
+	}
+	if side == "min" {
+		return "minimum"
+	}
+	return "maximum"
 }
 
 
