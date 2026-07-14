@@ -231,11 +231,22 @@ async fn agent_instance_stream_snapshot_and_live() {
     let executor = cli_test_util::executor().await;
     let state = cli_test_util::test_state_name();
     let addr = cli_test_util::daemon_address(&executor, &state).await;
+    // Phase timing (temporary diagnostics): this test fails at a
+    // sub-second-identical ~185s across runs — find the fixed ~180s
+    // consumer.
+    let t0 = std::time::Instant::now();
+    macro_rules! mark {
+        ($what:expr) => {
+            eprintln!("[timing +{:>7.1?}] {}", t0.elapsed(), $what)
+        };
+    }
+    mark!("daemon up");
 
     // First turn BEFORE connecting: the listener must replay it from
     // the DB snapshot.
     let tag = format!("listeners-aih-{}", nanos());
     let aih = spawn_via_tag(&executor, &tag, two_turn_mock()).await;
+    mark!("first turn spawned + settled");
 
     let records: Arc<Mutex<Vec<AgentRecord>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&records);
@@ -248,10 +259,12 @@ async fn agent_instance_stream_snapshot_and_live() {
     .connect()
     .await
     .expect("connect /agents/instances/{aih}");
+    mark!("instance listener connected");
 
     // Snapshot replay: live marker, the user request, the scripted
     // assistant text, and a settled status record.
     wait_for!("snapshot replay complete", listener.is_live().await);
+    mark!("snapshot replay complete");
     let conversation = listener.conversation().await;
     assert!(
         conversation
@@ -273,7 +286,9 @@ async fn agent_instance_stream_snapshot_and_live() {
     // LIVE: a second turn while connected — new blocks arrive over the
     // tee and the record flips active → inactive (both recorded).
     let blocks_before = listener.conversation().await.len();
+    mark!("second turn: spawning");
     spawn_second_turn(&executor, &aih, "again").await;
+    mark!("second turn spawned + settled");
     wait_for!("second-turn text over the live tee", {
         let conversation = listener.conversation().await;
         conversation.len() > blocks_before
@@ -285,6 +300,7 @@ async fn agent_instance_stream_snapshot_and_live() {
     wait_for!("record settles inactive", {
         listener.agent().await.is_some_and(|r| !r.active)
     });
+    mark!("record settled inactive");
 
     // Attachment update: attach a (DB-only) laboratory id to the AIH —
     // the record rebuild rides the attachments NOTIFY.
@@ -308,6 +324,7 @@ async fn agent_instance_stream_snapshot_and_live() {
         },
     )
     .await;
+    mark!("attach returned");
     wait_for!("attached laboratory on the record", {
         listener
             .agent()

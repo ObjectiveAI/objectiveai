@@ -194,6 +194,13 @@ impl CommandExecutor for SseCommandExecutor {
                 Ok(line) => line.into(),
                 Err(e) => Err(Error::Json(e)),
             },
+            // `EventStreamError::Transport` does NOT expose its inner
+            // reqwest error via `source()` — unwrap it by hand so the
+            // hyper cause chain (reset vs premature close vs framing)
+            // actually reaches the message.
+            Err(eventsource_stream::EventStreamError::Transport(e)) => {
+                Err(Error::Sse(format!("transport: {}", error_chain(&e))))
+            }
             Err(e) => Err(Error::Sse(error_chain(&e))),
         });
 
