@@ -4547,15 +4547,18 @@ dependencies = [
  "dirs",
  "dotenv",
  "envconfig",
+ "eventsource-stream",
  "futures",
  "mime_guess",
  "objectiveai-sdk",
  "open",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

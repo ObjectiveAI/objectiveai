@@ -13,10 +13,11 @@
 //! - `laboratories_spawn_host` starts THIS machine's resident
 //!   laboratory HOST (one per (machine, state), serving ALL of its
 //!   laboratories), dialing the viewer's own daemon (address +
-//!   signature from the managed [`crate::run::DaemonConfig`]).
-//!   Idempotent via the single `laboratories` lock in
-//!   `<state>/locks` — an already-running host is a no-op. Readiness
-//!   is lock publication (the host retries its dial forever).
+//!   signature from the managed
+//!   [`crate::daemon_proxy::DaemonProxy`]). Idempotent via the single
+//!   `laboratories` lock in `<state>/locks` — an already-running host
+//!   is a no-op. Readiness is lock publication (the host retries its
+//!   dial forever).
 
 use std::path::PathBuf;
 
@@ -49,15 +50,15 @@ pub(crate) fn machine_identity(
 /// Spawn (or find already-published) THIS machine's resident
 /// laboratory HOST, dialing the viewer's own daemon. The target
 /// address + signature are implicit — always the viewer's own (the
-/// managed [`crate::run::DaemonConfig`]). Idempotent via the single
-/// `laboratories` lock: an already-running host is a no-op. Resolves
-/// to nothing.
+/// managed [`crate::daemon_proxy::DaemonProxy`]). Idempotent via the
+/// single `laboratories` lock: an already-running host is a no-op.
+/// Resolves to nothing.
 #[tauri::command]
 pub(crate) async fn laboratories_spawn_host(
     env: tauri::State<'_, LabEnv>,
-    config: tauri::State<'_, crate::run::DaemonConfig>,
+    proxy: tauri::State<'_, crate::daemon_proxy::DaemonProxy>,
 ) -> Result<(), String> {
-    spawn_host(&env, &config.address, config.signature.as_deref())
+    spawn_host(&env, &proxy.address, proxy.signature.as_deref())
         .await
         .map_err(|e| format!("laboratory host: {e}"))
 }

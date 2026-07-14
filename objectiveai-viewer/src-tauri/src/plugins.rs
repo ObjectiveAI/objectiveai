@@ -4,11 +4,11 @@
 //!
 //! Plugin discovery goes through the daemon: [`list_all_plugins`]
 //! drives the SDK's typed `plugins list` leaf over the
-//! [`SseCommandExecutor`] — the one piece of daemon traffic still
-//! initiated from Rust. Everything else is JS-native: plugin iframes
-//! receive the daemon coordinates on their URL and talk to the daemon
-//! THEMSELVES with the same SSE executor/listeners the main
-//! viewer uses — no host bridge, no routing.
+//! [`SseCommandExecutor`]. Plugin iframes currently have NO daemon
+//! access — the webview no longer holds daemon coordinates (every
+//! daemon stream rides [`crate::daemon_proxy`]'s Tauri commands,
+//! which a sandboxed iframe cannot invoke); see the TODO(plugins) in
+//! `src/PluginPane.tsx`.
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::sse::SseCommandExecutor;

@@ -1,12 +1,12 @@
 //! Viewer lifecycle: env config, the event bus, and the Tauri shell.
 //!
-//! The Rust side holds NO daemon stream: the JS frontend connects to
-//! the daemon's published `http://` endpoint directly (fetch/SSE to
-//! `/listen` and `/execute`), and the Rust side only
-//! hands it the variables it needs via the [`daemon_config`]
-//! command (address, optional first-message auth signature, and the
-//! viewer's agent arguments). The `"viewer"` lock is a per-state
-//! singleton marker (content `"ready"`).
+//! The Rust side owns ALL daemon traffic: the JS frontend never sees
+//! the daemon's address, auth signature, or the viewer's agent
+//! identity — every daemon stream rides the
+//! [`crate::daemon_proxy`] Tauri commands over IPC channels (the
+//! webview's per-origin HTTP connection cap starved the old
+//! direct-fetch model). The `"viewer"` lock is a per-state singleton
+//! marker (content `"ready"`).
 
 use envconfig::Envconfig;
 use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
@@ -19,24 +19,6 @@ use crate::plugins::serve_plugin_asset;
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
     state.notify_one();
-}
-
-/// Everything the JS frontend's own daemon clients take: the
-/// published base `http://` address, the optional auth signature
-/// (sent as the `X-OBJECTIVEAI-SIGNATURE` header), and the agent
-/// arguments identifying viewer-initiated executions. The frontend
-/// appends `/listen` / `/execute` and connects with fetch/SSE — no
-/// daemon traffic flows through the Rust side.
-#[derive(Clone, serde::Serialize)]
-pub struct DaemonConfig {
-    pub address: String,
-    pub signature: Option<String>,
-    pub agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
-}
-
-#[tauri::command]
-fn daemon_config(state: tauri::State<'_, DaemonConfig>) -> DaemonConfig {
-    state.inner().clone()
 }
 
 /// The per-state agents root the `client` remote links open:
@@ -262,7 +244,7 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
     executor: SseCommandExecutor,
-    daemon_config_state: DaemonConfig,
+    proxy: crate::daemon_proxy::DaemonProxy,
     agents_dir: AgentsDir,
     plugins_dir: PathBuf,
     lab_env: crate::laboratories::LabEnv,
@@ -270,15 +252,15 @@ pub fn serve(
     agent_window: Option<String>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
-    // notification today (the JS frontend talks to the daemon
-    // directly); the command is kept as a startup signal for later.
+    // notification today; the command is kept as a startup signal
+    // for later.
     let ready = Arc::new(Notify::new());
 
     let plugins_dir_for_protocol = plugins_dir.clone();
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(executor)
-        .manage(daemon_config_state)
+        .manage(proxy)
         .manage(agents_dir)
         .manage(lab_env)
         .manage(crate::plugins::PluginsDir(plugins_dir))
@@ -287,10 +269,17 @@ pub fn serve(
         });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
-        daemon_config,
         open_agent_remote,
         open_url,
         open_agent_window,
+        crate::daemon_proxy::daemon_listen,
+        crate::daemon_proxy::daemon_execute,
+        crate::daemon_proxy::daemon_agents_instances_list,
+        crate::daemon_proxy::daemon_agents_instance,
+        crate::daemon_proxy::daemon_laboratories_list,
+        crate::daemon_proxy::daemon_laboratory,
+        crate::daemon_proxy::daemon_laboratory_filetree,
+        crate::daemon_proxy::daemon_stream_close,
         crate::plugins::list_plugins_with_viewer,
         crate::laboratories::machine_identity,
         crate::laboratories::laboratories_spawn_host,
@@ -365,15 +354,13 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         ));
     }
 
-    // No Rust-side daemon streams: the JS frontend connects to the
-    // daemon directly over fetch/SSE, using the variables the
-    // `daemon_config` command hands it — the same viewer identity
-    // the Rust-side executor stamps on its own calls.
-    let daemon_config_state = DaemonConfig {
-        address: daemon_address,
-        signature: config.daemon_signature.clone(),
-        agent_arguments: crate::plugins::viewer_agent_arguments(),
-    };
+    // ALL daemon streams flow through the Rust-side proxy commands
+    // (`crate::daemon_proxy`) — the JS frontend never holds the
+    // address or signature.
+    let proxy = crate::daemon_proxy::DaemonProxy::new(
+        daemon_address,
+        config.daemon_signature.clone(),
+    );
 
     let agents_dir = AgentsDir(
         config
@@ -390,7 +377,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
 
     Ok(serve(
         executor,
-        daemon_config_state,
+        proxy,
         agents_dir,
         plugins_dir,
         lab_env,
