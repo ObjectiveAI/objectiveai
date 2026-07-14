@@ -1376,6 +1376,14 @@ fn from_host_payload(
         H::Drop(result) => R::Drop(server_response::DropResult {
             dropped: result.dropped,
         }),
+        // The daemon's own container-lifecycle signal
+        // (`LaboratoryRegistry::send_filetree_signal`) — never a
+        // reverse-channel op, so a host echoing it into a forwarded
+        // op's reply is a protocol bug.
+        H::Filetree(_) => shape.clone().error(
+            -32603,
+            "unexpected filetree watch reply on the reverse channel".to_string(),
+        ),
         H::ExportBegin(result) => R::LaboratoryExportBegin(match conv(result) {
             JsonRpcResult::Ok { result } => JsonRpcResult::Ok {
                 result: server_response::LaboratoryTransferBeginResult {

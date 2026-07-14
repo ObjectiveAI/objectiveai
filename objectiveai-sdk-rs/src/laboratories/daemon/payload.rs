@@ -47,6 +47,16 @@ pub enum RequestPayload {
     /// laboratory — the host-side half of the conduit's own drop.
     #[schemars(title = "Drop")]
     Drop(DropRequest),
+    /// Whether the daemon currently holds ≥1 live filetree subscriber
+    /// for the envelope's laboratory (edge-triggered: sent on the
+    /// 0→1 and 1→0 transitions, and replayed as `on: true` when the
+    /// host reconnects while subscribers exist). Drives the host's
+    /// container lifecycle: `on` lazily starts the container (and its
+    /// filetree pump); `off` makes it a stop candidate once the lab
+    /// also has no MCP connections. Defaults to off — a host that
+    /// never receives this treats the lab as unwatched.
+    #[schemars(title = "Filetree")]
+    Filetree(FiletreeRequest),
     /// Begin streaming a tar export OUT of the laboratory: the host
     /// opens the container's `/export` and parks the byte stream under
     /// a fresh `transfer_id`; the requester then PULLS chunks with
@@ -113,6 +123,8 @@ pub enum ResponsePayload {
     /// Infallible — reports whether a bucket was present and removed.
     #[schemars(title = "Drop")]
     Drop(DropResult),
+    #[schemars(title = "Filetree")]
+    Filetree(JsonRpcResult<TransferAck>),
     #[schemars(title = "ExportBegin")]
     ExportBegin(JsonRpcResult<TransferBeginResult>),
     #[schemars(title = "ExportRead")]
@@ -178,6 +190,15 @@ pub struct DropRequest {
 #[schemars(rename = "laboratories.daemon.DropResult")]
 pub struct DropResult {
     pub dropped: bool,
+}
+
+/// Parameters for [`RequestPayload::Filetree`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.FiletreeRequest")]
+pub struct FiletreeRequest {
+    /// `true` ⇒ the daemon holds ≥1 live filetree subscriber for this
+    /// laboratory; `false` ⇒ it holds none.
+    pub on: bool,
 }
 
 /// Parameters for [`RequestPayload::ExportBegin`]. `path` exports

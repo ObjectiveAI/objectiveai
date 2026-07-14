@@ -77,8 +77,11 @@ pub struct LabServer {
     /// The container's MCP/transfer HTTP base (`http://127.0.0.1:{port}`).
     base_url: String,
     mcp: objectiveai_sdk::mcp::Client,
-    /// Per-response-id MCP connections into the container.
-    connections: DashMap<String, Arc<objectiveai_sdk::mcp::Connection>>,
+    /// Per-response-id MCP connections into the container, each
+    /// tagged with the daemon channel that opened it — a channel
+    /// disconnect drops its sessions ([`Self::drop_channel`]), so a
+    /// dead daemon can never pin this container running.
+    connections: DashMap<String, (u64, Arc<objectiveai_sdk::mcp::Connection>)>,
     /// Parked transfer halves, keyed by manager-minted transfer id.
     transfers: DashMap<String, Arc<TransferEntry>>,
 }
@@ -111,13 +114,35 @@ impl LabServer {
         }
     }
 
+    /// Whether any per-response MCP connection is live — half of the
+    /// host's container-idle condition (the other half is the
+    /// filetree-watch state, which lives on the HostServer).
+    pub fn has_connections(&self) -> bool {
+        !self.connections.is_empty()
+    }
+
+    /// Drop every session `channel` opened — called when that daemon
+    /// channel disconnects (its response ids are unreachable until the
+    /// daemon reconnects and re-initializes).
+    pub fn drop_channel(&self, channel: u64) {
+        self.connections.retain(|_, (ch, _)| *ch != channel);
+    }
+
+    /// Whether any transfer half is parked — in-flight exports/imports
+    /// are demand too: they hold no MCP connection, and an idle stop
+    /// mid-stream would truncate them.
+    pub fn has_transfers(&self) -> bool {
+        !self.transfers.is_empty()
+    }
+
     /// Serve one request; the reply echoes the correlation id. The
     /// host has already demuxed on `laboratory_id` — this server IS
-    /// that laboratory's.
-    pub async fn handle(self: &Arc<Self>, request: ChannelRequest) -> ChannelResponse {
+    /// that laboratory's. `channel` tags any session the request opens
+    /// with its daemon channel (see [`Self::drop_channel`]).
+    pub async fn handle(self: &Arc<Self>, channel: u64, request: ChannelRequest) -> ChannelResponse {
         let ChannelRequest { id, headers, payload, .. } = request;
         let payload = match payload {
-            RequestPayload::Initialize => self.initialize(&headers).await,
+            RequestPayload::Initialize => self.initialize(channel, &headers).await,
             RequestPayload::SessionTerminate => self.session_terminate(&headers).await,
             RequestPayload::ToolsList(params) => ResponsePayload::ToolsList(
                 self.call::<ListToolsRequest, ListToolsResult>(&headers, "tools/list", &params)
@@ -160,6 +185,13 @@ impl LabServer {
             RequestPayload::ImportWrite(req) => self.import_write(req).await,
             RequestPayload::ImportEnd(req) => self.import_end(req).await,
             RequestPayload::ImportAbort(req) => self.import_abort(req),
+            // Answered by the HostServer BEFORE the per-lab demux
+            // (it owns the filetree-watch state); reaching here is a
+            // routing bug, but the reply shape still pairs correctly.
+            RequestPayload::Filetree(_) => ResponsePayload::Filetree(rpc_err(
+                -32601,
+                "laboratory server does not serve filetree watch state (host-level op)".into(),
+            )),
             // Host-level ops — answered by the HostServer BEFORE the
             // per-lab demux; reaching here is a routing bug, but the
             // reply shape still pairs correctly.
@@ -183,6 +215,7 @@ impl LabServer {
 
     async fn initialize(
         &self,
+        channel: u64,
         headers: &IndexMap<String, String>,
     ) -> ResponsePayload {
         let initialize_err = |code: i64, message: String| {
@@ -202,7 +235,8 @@ impl LabServer {
         };
         let mcp_session_id = connection.session_id.clone();
         let result = connection.initialize_result.clone();
-        self.connections.insert(response_id, Arc::new(connection));
+        self.connections
+            .insert(response_id, (channel, Arc::new(connection)));
         ResponsePayload::Initialize(JsonRpcResult::Ok {
             result: InitializeReply {
                 mcp_session_id,
@@ -219,7 +253,9 @@ impl LabServer {
         let Some(response_id) = response_id_from_headers(headers) else {
             return ok();
         };
-        let Some(connection) = self.connections.get(&response_id).map(|c| Arc::clone(&c)) else {
+        let Some(connection) =
+            self.connections.get(&response_id).map(|c| Arc::clone(&c.1))
+        else {
             return ok();
         };
         match connection.delete().await {
@@ -250,7 +286,7 @@ impl LabServer {
         let Some(response_id) = response_id_from_headers(headers) else {
             return rpc_err(-32600, "missing X-OBJECTIVEAI-RESPONSE-ID header".into());
         };
-        let Some(conn) = self.connections.get(&response_id).map(|c| Arc::clone(&c)) else {
+        let Some(conn) = self.connections.get(&response_id).map(|c| Arc::clone(&c.1)) else {
             return rpc_err(
                 -32001,
                 format!("no cached connection for response id {response_id:?}"),

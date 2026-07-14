@@ -95,7 +95,7 @@ pub async fn run(
                     let host = Arc::clone(&host);
                     let reply_tx = reply_tx.clone();
                     tokio::spawn(async move {
-                        let response = host.handle(request).await;
+                        let response = host.handle(channel_id, request).await;
                         if let Ok(frame) = serde_json::to_string(&response) {
                             let _ = reply_tx.send(frame);
                         }

@@ -132,6 +132,14 @@ pub struct LaboratoryRegistry {
     /// subscriber resyncs from [`Self::filetree_state`] — every event
     /// is also folded there before it is sent here.
     filetree_events: tokio::sync::broadcast::Sender<FiletreeChange>,
+    /// Live filetree SSE subscriber refcounts, keyed by the RESOLVED
+    /// `(machine id, state, laboratory id)`. The 0→1 / 1→0 edges send
+    /// `RequestPayload::Filetree { on }` to the owning host — the
+    /// signal its container lifecycle runs on (`on` lazily starts the
+    /// container; `off` + no MCP connections stops it). Counts belong
+    /// to SUBSCRIBERS, not hosts: a host reconnect replays `on: true`
+    /// for every key it owns with a live count.
+    filetree_watchers: Arc<DashMap<(String, String, String), usize>>,
 }
 
 impl LaboratoryRegistry {
@@ -140,6 +148,7 @@ impl LaboratoryRegistry {
             hosts: Arc::new(DashMap::new()),
             events: tokio::sync::broadcast::channel(1024).0,
             filetree_events: tokio::sync::broadcast::channel(1024).0,
+            filetree_watchers: Arc::new(DashMap::new()),
         }
     }
 
@@ -152,6 +161,64 @@ impl LaboratoryRegistry {
     /// filter by id / host pin).
     pub fn filetree_subscribe(&self) -> tokio::sync::broadcast::Receiver<FiletreeChange> {
         self.filetree_events.subscribe()
+    }
+
+    /// Register one live filetree SSE subscriber for `laboratory_id`,
+    /// resolved to its serving host (the `pin` when given, else the
+    /// same first-match-by-id scan [`Self::forward`] uses). Bumps the
+    /// per-`(machine, state, id)` count; the 0→1 edge sends
+    /// `Filetree { on: true }` to that host. Returns a guard whose
+    /// drop decrements (the 1→0 edge sends `off`). `None` when no
+    /// connected host serves the laboratory — the subscriber still
+    /// streams (empty snapshot; events flow if a host appears), it
+    /// just can't drive the container lifecycle.
+    pub async fn filetree_watch(
+        &self,
+        laboratory_id: &str,
+        pin: Option<(&str, &str)>,
+    ) -> Option<FiletreeWatchGuard> {
+        let (machine_id, state) = match pin {
+            Some((machine_id, machine_state)) => {
+                (machine_id.to_string(), machine_state.to_string())
+            }
+            None => self.host_for_laboratory(laboratory_id).await?,
+        };
+        let key = (machine_id, state, laboratory_id.to_string());
+        let count = {
+            let mut entry = self.filetree_watchers.entry(key.clone()).or_insert(0);
+            *entry += 1;
+            *entry
+        };
+        if count == 1 {
+            self.send_filetree_signal(key.clone(), true);
+        }
+        Some(FiletreeWatchGuard {
+            registry: self.clone(),
+            key,
+        })
+    }
+
+    /// Fire-and-forget `Filetree { on }` to the host owning `key`.
+    /// Failures (host gone, timeout) are dropped — a reconnecting
+    /// host gets the current state replayed at register time, and a
+    /// host that never returns treats the lab as unwatched by
+    /// default.
+    fn send_filetree_signal(&self, key: (String, String, String), on: bool) {
+        let registry = self.clone();
+        tokio::spawn(async move {
+            let (machine_id, state, laboratory_id) = key;
+            let _ = registry
+                .forward_inner(
+                    &machine_id,
+                    &state,
+                    Some(laboratory_id),
+                    indexmap::IndexMap::new(),
+                    objectiveai_sdk::laboratories::daemon::RequestPayload::Filetree(
+                        objectiveai_sdk::laboratories::daemon::FiletreeRequest { on },
+                    ),
+                )
+                .await;
+        });
     }
 
     /// The current materialized file tree (the watched root's child
@@ -364,6 +431,31 @@ impl LaboratoryRegistry {
     }
 }
 
+/// RAII registration of one filetree SSE subscriber — see
+/// [`LaboratoryRegistry::filetree_watch`]. Dropping it decrements the
+/// count; the last drop sends `Filetree { on: false }` to the host.
+pub struct FiletreeWatchGuard {
+    registry: LaboratoryRegistry,
+    key: (String, String, String),
+}
+
+impl Drop for FiletreeWatchGuard {
+    fn drop(&mut self) {
+        let mut last = false;
+        self.registry
+            .filetree_watchers
+            .remove_if_mut(&self.key, |_, count| {
+                *count -= 1;
+                last = *count == 0;
+                last
+            });
+        if last {
+            self.registry
+                .send_filetree_signal(self.key.clone(), false);
+        }
+    }
+}
+
 /// `/laboratory`: upgrade, read the HostIdentify frame, consume the
 /// auth preamble (strictly second), register under the host's
 /// `(machine, state)` identity, pump until disconnect.
@@ -430,6 +522,20 @@ pub(crate) async fn laboratory_handler(
             .laboratories
             .events
             .send(LabRegistryChange::HostConnected(host_key.0.clone()));
+        // Replay the filetree-watch state: a (re)connecting host
+        // defaults every lab to unwatched, so every key it owns with
+        // live subscribers gets a fresh `on: true` — without this, a
+        // daemon-side watcher that outlives a host restart would
+        // never restart the container.
+        for entry in state.laboratories.filetree_watchers.iter() {
+            let (machine_id, host_state, laboratory_id) = entry.key();
+            if *machine_id == host_key.0 && *host_state == host_key.1 && *entry.value() > 0 {
+                state.laboratories.send_filetree_signal(
+                    (machine_id.clone(), host_state.clone(), laboratory_id.clone()),
+                    true,
+                );
+            }
+        }
 
         // Pump: outbound requests + inbound correlated replies and
         // uncorrelated notifications.
@@ -474,6 +580,26 @@ pub(crate) async fn laboratory_handler(
                             HostNotification::LaboratoryCreated { laboratory } => {
                                 let id = laboratory.id.clone();
                                 host.labs.write().await.insert(id.clone(), laboratory);
+                                // A recreate under live subscribers needs a
+                                // fresh `on` edge — the host cleared its
+                                // watch demand at delete, but our count
+                                // never dropped, so no subscriber edge will
+                                // fire.
+                                let key = (
+                                    host_key.0.clone(),
+                                    host_key.1.clone(),
+                                    id.clone(),
+                                );
+                                if state
+                                    .laboratories
+                                    .filetree_watchers
+                                    .get(&key)
+                                    .is_some_and(|count| *count > 0)
+                                {
+                                    state
+                                        .laboratories
+                                        .send_filetree_signal(key, true);
+                                }
                                 let _ = state
                                     .laboratories
                                     .events

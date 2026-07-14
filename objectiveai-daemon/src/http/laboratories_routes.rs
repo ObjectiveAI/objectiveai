@@ -496,6 +496,11 @@ pub(crate) async fn laboratory_filetree_handler(
 /// overflow-resync discipline as the lab endpoint itself. An unknown
 /// laboratory yields an empty snapshot and waits: events start flowing
 /// the moment its container starts.
+///
+/// The stream also REGISTERS as a filetree watcher
+/// ([`LaboratoryRegistry::filetree_watch`]) for its whole life: the
+/// first subscriber makes the host lazily START the laboratory's
+/// container, and the last one leaving makes it a stop candidate.
 fn filetree_stream(
     registry: LaboratoryRegistry,
     id: String,
@@ -503,6 +508,11 @@ fn filetree_stream(
 ) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
     use axum::response::sse::Event;
     async_stream::stream! {
+        // Held for the stream's lifetime; dropping the SSE response
+        // drops the guard, which is the subscriber-gone signal.
+        let _watch = registry
+            .filetree_watch(&id, pin.as_ref().map(|(m, s)| (m.as_str(), s.as_str())))
+            .await;
         let mut rx = registry.filetree_subscribe();
         loop {
             let children = registry

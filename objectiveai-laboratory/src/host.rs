@@ -17,6 +17,16 @@
 //!   current without scanning. Channel attach (identify snapshot +
 //!   subscription) is atomic against these broadcasts — a change
 //!   concurrent with a handshake is never lost (see `attach_lock`).
+//!
+//! It also OWNS the container lifecycle: a laboratory wants to run
+//! while it has ≥1 live MCP connection ([`LabServer::has_connections`])
+//! OR ≥1 daemon-side filetree watcher ([`RequestPayload::Filetree`],
+//! per channel, default off). Either demand lazily starts the
+//! container; when BOTH are gone the container is stopped after a
+//! short grace ([`STOP_GRACE`], re-checked — never removed: its
+//! filesystem survives for the next lazy start). A daemon channel
+//! disconnecting withdraws all of ITS demand (its filetree watches and
+//! its MCP sessions), so a dead daemon can never pin a container.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -28,11 +38,18 @@ use objectiveai_sdk::laboratories::daemon::{
     Identify, IdentifyMount, JsonRpcResult, LocalTransferRequest, LocalTransferResult,
     RequestPayload, ResponsePayload, TransferAck,
 };
+
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use objectiveai_sdk::machine::MachineIdentity;
 
 use crate::podman;
 use crate::server::LabServer;
+/// How long a laboratory stays up after its LAST demand (MCP
+/// connection or filetree watcher) disappears, before the idle stop —
+/// re-checked at expiry, so any new demand in the window cancels it.
+/// Long enough that back-to-back agent completions (each opening and
+/// dropping a session) don't thrash podman start/stop.
+const STOP_GRACE: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// The machine-wide server: lazy per-laboratory [`LabServer`]s plus
 /// the outbound senders of every live daemon channel (the notification
@@ -62,9 +79,20 @@ pub struct HostServer {
     /// `attach_lock`, so snapshot vs. delta ordering holds by
     /// construction.
     filetree: DashMap<String, Vec<FileTreeNode>>,
-    /// The per-laboratory filetree pump tasks — aborted on delete (and
-    /// dying with the process on shutdown).
+    /// The per-laboratory filetree pump tasks — aborted on delete and
+    /// on idle stop (and dying with the process on shutdown).
     filetree_pumps: DashMap<String, tokio::task::JoinHandle<()>>,
+    /// Per-laboratory filetree DEMAND: the daemon channels that
+    /// currently hold ≥1 filetree subscriber for the lab
+    /// ([`RequestPayload::Filetree`], edge-triggered per channel,
+    /// default off). Half of the wants-to-run condition; the other
+    /// half is the lab's live MCP connections.
+    filetree_watchers: DashMap<String, std::collections::HashSet<u64>>,
+    /// Per-laboratory start/stop serialization: held across the lazy
+    /// container init AND the idle stop, so an op racing a stop waits
+    /// and re-starts cleanly instead of hitting a half-stopped
+    /// container.
+    lifecycle: DashMap<String, Arc<tokio::sync::Mutex<()>>>,
     /// Serializes [`Self::attach_channel`] (snapshot + subscribe)
     /// against [`Self::broadcast`], closing the classic race: a
     /// create/delete concurrent with a channel handshake either lands
@@ -87,6 +115,8 @@ impl HostServer {
             next_outbound: AtomicU64::new(0),
             filetree: DashMap::new(),
             filetree_pumps: DashMap::new(),
+            filetree_watchers: DashMap::new(),
+            lifecycle: DashMap::new(),
             attach_lock: tokio::sync::Mutex::new(()),
         }
     }
@@ -152,8 +182,32 @@ impl HostServer {
         self.outbound.retain(|_, tx| tx.send(frame.clone()).is_ok());
     }
 
-    pub fn detach_channel(&self, id: u64) {
+    /// Detach a disconnected daemon channel: drop its notification
+    /// sender and withdraw ALL of its demand — its filetree watches
+    /// and its MCP sessions — then schedule the idle check for every
+    /// laboratory it touched. A dead daemon never pins a container.
+    pub fn detach_channel(self: &Arc<Self>, id: u64) {
         self.outbound.remove(&id);
+        let mut affected: Vec<String> = Vec::new();
+        self.filetree_watchers.retain(|lab_id, channels| {
+            if channels.remove(&id) {
+                affected.push(lab_id.clone());
+            }
+            !channels.is_empty()
+        });
+        for entry in self.labs.iter() {
+            if let Some(server) = entry.value().get() {
+                server.drop_channel(id);
+                if !server.has_connections() {
+                    affected.push(entry.key().clone());
+                }
+            }
+        }
+        affected.sort();
+        affected.dedup();
+        for lab_id in affected {
+            self.schedule_stop_check(&lab_id);
+        }
     }
 
     /// The CURRENT laboratory set, straight from podman. A read
@@ -169,11 +223,12 @@ impl HostServer {
         }
     }
 
-    /// Serve one request from any daemon channel; the reply echoes the
-    /// correlation id. Host-level ops (create/delete) run here;
+    /// Serve one request from `channel`; the reply echoes the
+    /// correlation id. Host-level ops (create/delete/local-transfer)
+    /// and the lifecycle-owning filetree watch state run here;
     /// everything else demuxes by `laboratory_id` to a lazily-started
     /// [`LabServer`].
-    pub async fn handle(self: &Arc<Self>, request: ChannelRequest) -> ChannelResponse {
+    pub async fn handle(self: &Arc<Self>, channel: u64, request: ChannelRequest) -> ChannelResponse {
         match &request.payload {
             RequestPayload::Create(req) => {
                 let result = self.create_laboratory(req).await;
@@ -199,6 +254,25 @@ impl HostServer {
                     payload: ResponsePayload::LocalTransfer(result),
                 };
             }
+            // Lab-scoped but LIFECYCLE-owning, so it never demuxes (a
+            // watch must not fail just because a start is in flight).
+            RequestPayload::Filetree(req) => {
+                let Some(lab_id) = request.laboratory_id.clone() else {
+                    return ChannelResponse {
+                        payload: reject(
+                            &request.payload,
+                            -32600,
+                            "missing laboratory_id on a laboratory-scoped request".into(),
+                        ),
+                        id: request.id,
+                    };
+                };
+                let result = self.set_filetree_watch(channel, &lab_id, req.on).await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::Filetree(result),
+                };
+            }
             _ => {}
         }
         let Some(lab_id) = request.laboratory_id.clone() else {
@@ -211,19 +285,128 @@ impl HostServer {
                 id: request.id,
             };
         };
-        match self.lab_server(&lab_id).await {
-            Ok(server) => server.handle(request).await,
+        // A session-ending op may leave the lab idle — schedule the
+        // graced stop check after serving it.
+        let ends_session = matches!(
+            request.payload,
+            RequestPayload::SessionTerminate | RequestPayload::Drop(_)
+        );
+        let response = match self.lab_server(&lab_id).await {
+            Ok(server) => server.handle(channel, request).await,
             Err(message) => ChannelResponse {
                 payload: reject(&request.payload, -32603, message),
                 id: request.id,
             },
+        };
+        if ends_session {
+            self.schedule_stop_check(&lab_id);
         }
+        response
+    }
+
+    /// `RequestPayload::Filetree`: set this channel's filetree demand
+    /// for the laboratory. `on` lazily STARTS the container (the watch
+    /// is the demand — the daemon holds ≥1 live subscriber); `off`
+    /// withdraws it and schedules the idle check.
+    async fn set_filetree_watch(
+        self: &Arc<Self>,
+        channel: u64,
+        lab_id: &str,
+        on: bool,
+    ) -> JsonRpcResult<TransferAck> {
+        if on {
+            self.filetree_watchers
+                .entry(lab_id.to_string())
+                .or_default()
+                .insert(channel);
+            if let Err(message) = self.lab_server(lab_id).await {
+                return rpc_err(-32603, message);
+            }
+        } else {
+            self.filetree_watchers
+                .remove_if_mut(lab_id, |_, channels| {
+                    channels.remove(&channel);
+                    channels.is_empty()
+                });
+            self.schedule_stop_check(lab_id);
+        }
+        JsonRpcResult::Ok {
+            result: TransferAck {},
+        }
+    }
+
+    /// The per-laboratory start/stop lock.
+    fn lifecycle(&self, id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.lifecycle
+            .entry(id.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+
+    /// Schedule the graced idle check: after [`STOP_GRACE`], stop the
+    /// container if it STILL has no demand. Spurious wakeups are
+    /// harmless (the check re-verifies everything under the lifecycle
+    /// lock), so callers fire this on every possibly-idle edge.
+    fn schedule_stop_check(self: &Arc<Self>, id: &str) {
+        let host = Arc::clone(self);
+        let id = id.to_string();
+        tokio::spawn(async move {
+            tokio::time::sleep(STOP_GRACE).await;
+            host.stop_if_idle(&id).await;
+        });
+    }
+
+    /// Stop the laboratory's container if it is running with no demand
+    /// — no filetree watchers AND no live MCP connections. Serialized
+    /// against the lazy start by the lifecycle lock; stopped, never
+    /// removed (the filesystem survives; the materialized filetree
+    /// keeps its last state — the view freezes until the next start
+    /// re-snapshots).
+    async fn stop_if_idle(self: &Arc<Self>, id: &str) {
+        let lock = self.lifecycle(id);
+        let _guard = lock.lock().await;
+        // Started at all?
+        let Some(server) = self.labs.get(id).and_then(|cell| cell.get().cloned()) else {
+            return;
+        };
+        if self
+            .filetree_watchers
+            .get(id)
+            .is_some_and(|channels| !channels.is_empty())
+            || server.has_connections()
+            || server.has_transfers()
+        {
+            return;
+        }
+        if let Some((_, pump)) = self.filetree_pumps.remove(id) {
+            pump.abort();
+        }
+        if let Err(e) = podman::laboratory::stop(&self.podman, &self.state, id).await {
+            eprintln!("idle-stop laboratory '{id}': {e}");
+        }
+        // Uninitialize: the next op (or watch) lazily starts again.
+        self.labs.remove(id);
     }
 
     /// The laboratory's server, starting its container on first use.
     /// A successful start also spawns the lab's filetree pump (the
-    /// container's `/filetree` SSE proxied to every daemon).
+    /// container's `/filetree` SSE proxied to every daemon). The init
+    /// runs under the lifecycle lock, so a start racing an idle stop
+    /// waits for the stop to finish and brings the container back up
+    /// cleanly.
     async fn lab_server(self: &Arc<Self>, id: &str) -> Result<Arc<LabServer>, String> {
+        // ALWAYS under the lifecycle lock — deliberately no
+        // check-the-cell fast path: a lock-free read could hand out a
+        // LabServer whose container an in-flight idle stop is tearing
+        // down, silently satisfying new demand with a dying container
+        // (a `Filetree { on }` racing the stop would reply Ok and
+        // nothing would ever restart). Waiting out the stop means the
+        // cell is gone by the time we look, and the demand re-starts
+        // cleanly. Uncontended, the lock is a few atomic ops.
+        let lock = self.lifecycle(id);
+        let _guard = lock.lock().await;
+        // Re-fetch under the lock: an idle stop may have removed (or a
+        // concurrent start created) the cell while we waited.
         let cell = self
             .labs
             .entry(id.to_string())
@@ -415,11 +598,14 @@ impl HostServer {
         self.labs.remove(id);
         // The lab's filetree watch dies with it — abort the pump and
         // drop the materialized tree (daemons clear theirs on the
-        // `laboratory_deleted` broadcast below).
+        // `laboratory_deleted` broadcast below), plus the lifecycle
+        // bookkeeping (watch demand and the start/stop lock).
         if let Some((_, pump)) = self.filetree_pumps.remove(id) {
             pump.abort();
         }
         self.filetree.remove(id);
+        self.filetree_watchers.remove(id);
+        self.lifecycle.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {
             return rpc_err(-32603, format!("delete laboratory '{id}': {e}"));
         }
@@ -533,6 +719,7 @@ fn reject(
         Req::Drop(_) => Resp::Drop(objectiveai_sdk::laboratories::daemon::DropResult {
             dropped: false,
         }),
+        Req::Filetree(_) => Resp::Filetree(rpc_err(code, message)),
         Req::ExportBegin(_) => Resp::ExportBegin(rpc_err(code, message)),
         Req::ExportRead(_) => Resp::ExportRead(rpc_err(code, message)),
         Req::ExportAbort(_) => Resp::ExportAbort(rpc_err(code, message)),
