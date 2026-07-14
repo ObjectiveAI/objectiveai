@@ -46,7 +46,7 @@ export interface WebSocketLaboratoriesListenerOptions {
  *
  * ```ts
  * const listener = await WebSocketLaboratoriesListener.connect(
- *   `ws://127.0.0.1:49152/laboratories/${id}`,
+ *   `http://127.0.0.1:49152/laboratories/${id}`,
  *   { signature, onChange: (laboratory) => render(laboratory) },
  * );
  * listener.laboratory(); // { id, ..., connected, attachments } | null

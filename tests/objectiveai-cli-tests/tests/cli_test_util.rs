@@ -141,11 +141,11 @@ pub async fn executor_for_state(state: &str) -> HangPreventingBinaryCommandExecu
 }
 
 /// Ensure `state`'s resident daemon is up (idempotent `daemon spawn`
-/// through `executor`) and return its published `ws://` connect URL —
+/// through `executor`) and return its published `http://` connect URL —
 /// read from the daemon's singleton lockfile, exactly how the CLI
 /// itself discovers it. Read-only: tests never write config or locks
 /// directly.
-pub async fn daemon_ws_address<E>(executor: &E, state: &str) -> String
+pub async fn daemon_address<E>(executor: &E, state: &str) -> String
 where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
@@ -180,7 +180,7 @@ where
         }
         assert!(
             std::time::Instant::now() < deadline,
-            "daemon for state '{state}' never published its ws:// lock"
+            "daemon for state '{state}' never published its http:// lock"
         );
         tokio::time::sleep(std::time::Duration::from_millis(250)).await;
     }

@@ -49,7 +49,7 @@ export interface WebSocketAgentsInstancesListListenerOptions {
  *
  * ```ts
  * const listener = await WebSocketAgentsInstancesListListener.connect(
- *   "ws://127.0.0.1:49152/agents/instances/list",
+ *   "http://127.0.0.1:49152/agents/instances/list",
  *   { signature, onChange: (agents) => render(agents) },
  * );
  * listener.agents(); // [{ agent_instance_hierarchy, active }, ...]

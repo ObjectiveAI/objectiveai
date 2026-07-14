@@ -26,7 +26,7 @@
 //!   server's `/listen` route.
 //! - [`daemon_execute`] — the daemon's `/execute` WebSocket route:
 //!   connection-per-command in-process execution for remote consumers
-//!   (the SDK's `WebSocketExecutor`, notably the viewer).
+//!   (the SDK's `SseCommandExecutor`, notably the viewer).
 //! - [`websocket_agents`] — the daemon's `/agents/instances/list` WebSocket route + its
 //!   dedicated `agents.sock` producer socket: a live all-agents
 //!   active/inactive stream, driven by AIH-lockfile release.
@@ -39,7 +39,7 @@
 //!   the `laboratories.sock` request/response socket the conduit uses
 //!   to reach connected laboratories.
 //! - [`websocket_laboratories`] — the daemon's `/laboratories/list` +
-//!   `/laboratories/{*id}` WebSocket routes: the live laboratories
+//!   `/laboratories/{id}` SSE routes: the live laboratories
 //!   merge (connected ∪ local scan) and per-laboratory records with
 //!   attachments.
 

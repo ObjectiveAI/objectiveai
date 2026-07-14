@@ -1,11 +1,11 @@
-//! The user-facing `objectiveai` CLI — a thin WebSocket client.
+//! The user-facing `objectiveai` CLI — a thin HTTP client.
 //!
 //! Every command is a typed `cli::command::Request`. This binary does
 //! NOT run any command logic: it clap-parses argv into a `Request`
 //! locally, ensures the resident `objectiveai-daemon` is up, and ships
-//! the `Request` over the daemon's `/execute` WebSocket via the SDK
-//! [`WebSocketExecutor`]. The daemon runs it IN-PROCESS and streams the
-//! result back — one JSON line per item, exactly the stdout JSONL
+//! the `Request` to the daemon's `/execute` route (POST) via the SDK
+//! [`SseCommandExecutor`]. The daemon runs it IN-PROCESS and streams the
+//! result back as SSE — one JSON line per item, exactly the stdout JSONL
 //! shapes the daemon itself would have written. We drain those lines to
 //! stdout verbatim.
 //!
@@ -15,15 +15,15 @@
 //! (`objectiveai_daemon::command::daemon::spawn`): a
 //! `spawn_until_published` against the `objectiveai-daemon` binary,
 //! keyed on the per-state `plugins-daemon` lock, whose published
-//! contents are the daemon's connect `ws://` URL.
+//! contents are the daemon's connect `http://` URL.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::command_executor::websocket;
+use objectiveai_sdk::cli::command::command_executor::sse;
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, ParseError, Request, WebSocketExecutor, parse_request,
+    AgentArguments, CommandExecutor, ParseError, Request, SseCommandExecutor, parse_request,
 };
 use tokio::io::AsyncWriteExt;
 
@@ -109,7 +109,7 @@ async fn run(args: Vec<String>) -> i32 {
         Special::None => {}
     }
 
-    // Ensure the daemon is up and build the WS executor + identity bag.
+    // Ensure the daemon is up and build the HTTP executor + identity bag.
     let (executor, agent_arguments) = match connect().await {
         Ok(pair) => pair,
         Err(message) => {
@@ -133,7 +133,7 @@ async fn run(args: Vec<String>) -> i32 {
                     Ok(value) => write_json_line(&mut stdout, &value).await,
                     Err(e) => {
                         saw_error = true;
-                        write_ws_error(&mut stdout, e).await;
+                        write_execute_error(&mut stdout, e).await;
                     }
                 }
             }
@@ -143,7 +143,7 @@ async fn run(args: Vec<String>) -> i32 {
             if saw_error { 1 } else { 0 }
         }
         Err(e) => {
-            write_ws_error(&mut stdout, e).await;
+            write_execute_error(&mut stdout, e).await;
             1
         }
     }
@@ -175,8 +175,8 @@ fn resolve_layout() -> Layout {
     Layout { dir, state, lock_dir, daemon_exe }
 }
 
-/// The daemon WS auth signature the CLI sends in the first-message auth
-/// preamble, read verbatim from `DAEMON_SIGNATURE`
+/// The daemon auth signature the CLI sends as the
+/// `X-OBJECTIVEAI-SIGNATURE` header, read verbatim from `DAEMON_SIGNATURE`
 /// (`sha256=<hex(SHA256(secret))>`). The CLI never derives it from a
 /// secret — `DAEMON_SECRET` is only for handing a spawned daemon its
 /// `SECRET`. `None` = connect unauthenticated (the daemon must be open).
@@ -184,10 +184,10 @@ fn daemon_signature() -> Option<String> {
     std::env::var("DAEMON_SIGNATURE").ok().filter(|s| !s.is_empty())
 }
 
-/// Build a `/execute` [`WebSocketExecutor`] for an already-known daemon
-/// `ws://` URL (no spawn).
-fn executor_for(url: &str) -> WebSocketExecutor {
-    let executor = WebSocketExecutor::new(format!("{url}/execute"));
+/// Build a `/execute` [`SseCommandExecutor`] for an already-known daemon
+/// `http://` URL (no spawn).
+fn executor_for(url: &str) -> SseCommandExecutor {
+    let executor = SseCommandExecutor::new(format!("{url}/execute"));
     match daemon_signature() {
         Some(signature) => executor.signature(signature),
         None => executor,
@@ -195,9 +195,9 @@ fn executor_for(url: &str) -> WebSocketExecutor {
 }
 
 /// Ensure the resident `objectiveai-daemon` is up and return a
-/// `/execute` [`WebSocketExecutor`] plus the per-request identity
+/// `/execute` [`SseCommandExecutor`] plus the per-request identity
 /// override to send with every command.
-async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String> {
+async fn connect() -> Result<(SseCommandExecutor, Option<AgentArguments>), String> {
     // Remote override: when `DAEMON_ADDRESS` is set, connect to that daemon
     // directly and NEVER spawn a local one — this is how the CLI reaches a
     // daemon on another machine.
@@ -212,7 +212,7 @@ async fn connect() -> Result<(WebSocketExecutor, Option<AgentArguments>), String
     // Idempotent: returns immediately if the daemon already holds its
     // lock; otherwise launches it once (as its own foreground process)
     // and waits for readiness. The published lock content is the
-    // daemon's connect `ws://` URL. Mirrors
+    // daemon's connect `http://` URL. Mirrors
     // `objectiveai_daemon::command::daemon::spawn::spawn`, but launches
     // the `objectiveai-daemon` binary rather than re-execing this one.
     let url = objectiveai_sdk::lockfile::spawn_until_published(
@@ -430,13 +430,13 @@ fn is_informational(e: &clap::Error) -> bool {
     )
 }
 
-/// Render a WS-executor error to stdout. A daemon-framed structured
-/// error (`Error::Cli`) is reserialized verbatim — it is already the
-/// cli's `{"type":"error",...}` line shape. Transport / decode / empty
-/// failures become a fresh fatal error line.
-async fn write_ws_error(stdout: &mut tokio::io::Stdout, e: websocket::Error) {
+/// Render an execute-executor error to stdout. A daemon-framed
+/// structured error (`Error::Cli`) is reserialized verbatim — it is
+/// already the cli's `{"type":"error",...}` line shape. Transport /
+/// decode / empty failures become a fresh fatal error line.
+async fn write_execute_error(stdout: &mut tokio::io::Stdout, e: sse::Error) {
     match e {
-        websocket::Error::Cli(cli) => write_json_line(stdout, &cli).await,
+        sse::Error::Cli(cli) => write_json_line(stdout, &cli).await,
         other => write_error_line(stdout, other.to_string(), Some(true)).await,
     }
 }

@@ -1,15 +1,15 @@
 //! Viewer lifecycle: env config, the event bus, and the Tauri shell.
 //!
 //! The Rust side holds NO daemon stream: the JS frontend connects to
-//! the daemon's published `ws://` endpoint directly (native
-//! WebSockets to `/listen` and `/execute`), and the Rust side only
+//! the daemon's published `http://` endpoint directly (fetch/SSE to
+//! `/listen` and `/execute`), and the Rust side only
 //! hands it the variables it needs via the [`websocket_config`]
 //! command (address, optional first-message auth signature, and the
 //! viewer's agent arguments). The `"viewer"` lock is a per-state
 //! singleton marker (content `"ready"`).
 
 use envconfig::Envconfig;
-use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
+use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -21,12 +21,12 @@ fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
     state.notify_one();
 }
 
-/// Everything the JS frontend's own WebSocket clients take: the
-/// published base `ws://` address, the optional first-message auth
-/// signature, and the agent arguments identifying viewer-initiated
-/// executions. The frontend appends `/listen` / `/execute` and
-/// connects with native WebSockets — no daemon traffic flows through
-/// the Rust side.
+/// Everything the JS frontend's own daemon clients take: the
+/// published base `http://` address, the optional auth signature
+/// (sent as the `X-OBJECTIVEAI-SIGNATURE` header), and the agent
+/// arguments identifying viewer-initiated executions. The frontend
+/// appends `/listen` / `/execute` and connects with fetch/SSE — no
+/// daemon traffic flows through the Rust side.
 #[derive(Clone, serde::Serialize)]
 pub struct WebSocketConfig {
     pub address: String,
@@ -206,15 +206,14 @@ impl ConfigBuilder {
 }
 
 pub struct Config {
-    /// The daemon's `ws://` connect URL (`DAEMON_ADDRESS`). REQUIRED —
+    /// The daemon's `http://` connect URL (`DAEMON_ADDRESS`). REQUIRED —
     /// [`run`] errors out when unset. Provided by `objectiveai viewer
     /// spawn`, which resolves it from the daemon it just ensured.
     /// `Option` only so `ConfigBuilder::build` stays infallible.
     pub daemon_address: Option<String>,
-    /// Optional daemon WebSocket auth signature
-    /// (`DAEMON_SIGNATURE`): the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>` sent verbatim in the
-    /// first-message auth preamble on every connection. `None` =
+    /// Optional daemon auth signature (`DAEMON_SIGNATURE`): the
+    /// pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>` sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` header on every request. `None` =
     /// connect unauthenticated (the daemon must be open).
     pub daemon_signature: Option<String>,
     pub suppress_output: bool,
@@ -230,15 +229,15 @@ pub struct Config {
     pub agent_instance_hierarchy: Option<String>,
 }
 
-/// The one Rust-side WebSocket executor: `list_plugins_with_viewer`
+/// The one Rust-side command executor: `list_plugins_with_viewer`
 /// discovers plugins through it at startup. Everything else is
 /// JS-native. Commands travel to the daemon's `/execute` route and
 /// run in-process there — the viewer never spawns the cli binary, so
 /// it can live on a different machine than the CLI. `daemon_address`
-/// is the daemon's published base `ws://` URL (the same one the JS
+/// is the daemon's published base `http://` URL (the same one the JS
 /// frontend connects to).
-pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> WebSocketExecutor {
-    let executor = WebSocketExecutor::new(format!("{daemon_address}/execute"));
+pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> SseCommandExecutor {
+    let executor = SseCommandExecutor::new(format!("{daemon_address}/execute"));
     match signature {
         Some(signature) => executor.signature(signature),
         None => executor,
@@ -262,7 +261,7 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 ///
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
-    executor: WebSocketExecutor,
+    executor: SseCommandExecutor,
     websocket_config_state: WebSocketConfig,
     agents_dir: AgentsDir,
     plugins_dir: PathBuf,
@@ -335,7 +334,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     let daemon_address = config.daemon_address.clone().ok_or_else(|| {
         std::io::Error::other(
             "DAEMON_ADDRESS is not set — start the viewer via `objectiveai viewer spawn`, \
-             which passes the daemon's ws:// address",
+             which passes the daemon's http:// address",
         )
     })?;
 

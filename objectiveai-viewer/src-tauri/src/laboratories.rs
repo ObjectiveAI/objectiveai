@@ -1,6 +1,6 @@
 //! Laboratory Tauri commands: the machine-identity bridge and the
 //! host spawner — everything else about laboratories reaches JS
-//! through the daemon (the WebSocketExecutor and the
+//! through the daemon (the SseCommandExecutor and the
 //! `/laboratories/*` streams), which is the ONLY laboratory data
 //! path now that the `objectiveai-laboratory` binary is a pure
 //! WebSocket host with no subcommands.

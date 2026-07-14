@@ -828,8 +828,8 @@ async fn transfer_across_states() {
     // state B) host). Configure the extra address BEFORE anything
     // spawns B's host, then create B's lab (create auto-spawns the
     // host with the config in effect).
-    let addr_a = cli_test_util::daemon_ws_address(&exec_a, &state_a).await;
-    let addr_b = cli_test_util::daemon_ws_address(&exec_b, &state_b).await;
+    let addr_a = cli_test_util::daemon_address(&exec_a, &state_a).await;
+    let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
     assert_ne!(addr_a, addr_b, "two daemons must bind distinct ports");
     let _: AddrAddResp = cli_test_util::execute_one(
         &exec_b,

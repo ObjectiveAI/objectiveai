@@ -19,9 +19,11 @@
 //!    target `laboratory_id`) and the host answers [`ChannelResponse`]s
 //!    correlated by id — plus uncorrelated host→daemon
 //!    [`HostNotification`]s whenever the host's laboratory set changes
-//!    (create/delete), which update the registry's per-host set. No
-//!    scanning, no polling: the announced set + notifications ARE the
-//!    daemon's laboratory knowledge.
+//!    (create/delete) or a served laboratory's file tree changes (the
+//!    host proxies each running lab's `/filetree` SSE verbatim), which
+//!    update the registry's per-host set and per-lab materialized
+//!    trees. No scanning, no polling: the announced set + notifications
+//!    ARE the daemon's laboratory knowledge.
 //!
 //! The set of live `/laboratory` connections IS the laboratory
 //! registry: `laboratories list` snapshots it, and a host disconnect
@@ -40,6 +42,7 @@ use indexmap::IndexMap;
 use objectiveai_sdk::laboratories::daemon::{
     ChannelRequest, ChannelResponse, HostIdentify, HostNotification, Identify,
 };
+use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::{mpsc, oneshot, RwLock};
 
@@ -58,6 +61,14 @@ struct HostConnection {
     /// The laboratories this host serves RIGHT NOW: the HostIdentify
     /// announcement, kept current by created/deleted notifications.
     labs: RwLock<IndexMap<String, Identify>>,
+    /// Per-laboratory materialized file trees (the watched root's
+    /// child list), folded from the host's unsolicited
+    /// `laboratory_filetree` notifications: the host opens each with a
+    /// synthesized snapshot on attach and streams every delta after —
+    /// this map is always current, no polling. Backs the
+    /// `/laboratories/{id}/filetree` SSE endpoint's connect-time
+    /// snapshots.
+    filetree: RwLock<IndexMap<String, Vec<FileTreeNode>>>,
     /// Frames queued to the host (drained by the connection's writer
     /// half).
     tx: mpsc::UnboundedSender<ChannelRequest>,
@@ -87,6 +98,25 @@ pub enum LabRegistryChange {
     LaboratoryDeleted(String),
 }
 
+/// One live file-tree event from a served laboratory, re-broadcast to
+/// the `/laboratories/{id}/filetree` SSE handlers after being folded
+/// into the owning [`HostConnection`]'s materialized tree. A separate
+/// feed from [`LabRegistryChange`] — file trees churn far faster than
+/// the connected set, and the list/instance streams must not wake on
+/// every file write.
+#[derive(Debug, Clone)]
+pub struct FiletreeChange {
+    /// The serving host's machine id.
+    pub machine_id: String,
+    /// The serving host's state.
+    pub state: String,
+    /// The RAW laboratory id.
+    pub laboratory_id: String,
+    /// The event, verbatim from the host (which proxies the lab's own
+    /// `/filetree` SSE) — re-emitted verbatim to SSE subscribers.
+    pub event: FileTreeEvent,
+}
+
 /// The connected-host registry, shared by the `/laboratory` route
 /// (writers) and the conduit + `laboratories` commands +
 /// `/laboratories/*` endpoints (readers). Keyed by `(machine id,
@@ -98,6 +128,10 @@ pub struct LaboratoryRegistry {
     /// Connected-set change feed. Send errors (no subscriber) are
     /// ignored — the feed is advisory.
     events: tokio::sync::broadcast::Sender<LabRegistryChange>,
+    /// Live file-tree event feed (see [`FiletreeChange`]). A lagged
+    /// subscriber resyncs from [`Self::filetree_state`] — every event
+    /// is also folded there before it is sent here.
+    filetree_events: tokio::sync::broadcast::Sender<FiletreeChange>,
 }
 
 impl LaboratoryRegistry {
@@ -105,12 +139,47 @@ impl LaboratoryRegistry {
         Self {
             hosts: Arc::new(DashMap::new()),
             events: tokio::sync::broadcast::channel(1024).0,
+            filetree_events: tokio::sync::broadcast::channel(1024).0,
         }
     }
 
     /// Subscribe to connected-set changes.
     pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<LabRegistryChange> {
         self.events.subscribe()
+    }
+
+    /// Subscribe to live file-tree events (all laboratories; consumers
+    /// filter by id / host pin).
+    pub fn filetree_subscribe(&self) -> tokio::sync::broadcast::Receiver<FiletreeChange> {
+        self.filetree_events.subscribe()
+    }
+
+    /// The current materialized file tree (the watched root's child
+    /// list) for `laboratory_id` — from the exact host when the
+    /// `(machine, machine_state)` pin is given, else from the first
+    /// connected host serving that id (the legacy first-match scan).
+    /// Empty when nothing is known (no host, lab never started, or no
+    /// snapshot yet).
+    pub async fn filetree_state(
+        &self,
+        laboratory_id: &str,
+        pin: Option<(&str, &str)>,
+    ) -> Vec<FileTreeNode> {
+        // Clone the Arcs out; never hold a map guard across an await.
+        let hosts: Vec<Arc<HostConnection>> = match pin {
+            Some((machine_id, machine_state)) => self
+                .hosts
+                .get(&(machine_id.to_string(), machine_state.to_string()))
+                .map(|h| vec![Arc::clone(&h)])
+                .unwrap_or_default(),
+            None => self.hosts.iter().map(|e| Arc::clone(&e)).collect(),
+        };
+        for host in hosts {
+            if let Some(children) = host.filetree.read().await.get(laboratory_id) {
+                return children.clone();
+            }
+        }
+        Vec::new()
     }
 
     /// Every served laboratory with the host serving it — machine
@@ -349,6 +418,7 @@ pub(crate) async fn laboratory_handler(
             machine: identify.machine,
             state: identify.state,
             labs: RwLock::new(labs),
+            filetree: RwLock::new(IndexMap::new()),
             tx,
             pending: DashMap::new(),
         });
@@ -411,10 +481,31 @@ pub(crate) async fn laboratory_handler(
                             }
                             HostNotification::LaboratoryDeleted { id } => {
                                 host.labs.write().await.shift_remove(&id);
+                                host.filetree.write().await.shift_remove(&id);
                                 let _ = state
                                     .laboratories
                                     .events
                                     .send(LabRegistryChange::LaboratoryDeleted(id));
+                            }
+                            HostNotification::LaboratoryFiletree { id, event } => {
+                                // Fold FIRST, then feed subscribers — a
+                                // lagged subscriber resyncs from the
+                                // folded state, so this order means it
+                                // never misses what it skipped.
+                                {
+                                    let mut filetree = host.filetree.write().await;
+                                    event
+                                        .clone()
+                                        .apply(filetree.entry(id.clone()).or_default());
+                                }
+                                let _ = state.laboratories.filetree_events.send(
+                                    FiletreeChange {
+                                        machine_id: host.machine.id.clone(),
+                                        state: host.state.clone(),
+                                        laboratory_id: id,
+                                        event,
+                                    },
+                                );
                             }
                         }
                     }

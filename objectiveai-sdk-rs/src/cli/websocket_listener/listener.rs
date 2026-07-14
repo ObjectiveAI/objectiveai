@@ -1,6 +1,6 @@
-//! Typed consumer of the cli daemon's `/listen` broadcast — the read
-//! side matching [`crate::cli::command::WebSocketExecutor`]'s write
-//! side.
+//! Typed consumer of the cli daemon's `/listen` broadcast SSE — the
+//! read side matching [`crate::cli::command::SseCommandExecutor`]'s
+//! write side.
 //!
 //! The daemon broadcasts every CLI run as one request frame
 //! (`{…context, id, value: <leaf Request>}`), then that run's response
@@ -39,75 +39,58 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures::{SinkExt, Stream, StreamExt};
+use futures::{Stream, StreamExt};
+use reqwest_eventsource::{Event, RequestBuilderExt};
 use serde_json::value::RawValue;
-use tokio_tungstenite::tungstenite;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use crate::cli::command::AgentArguments;
-use crate::cli::command::command_executor::websocket::AuthEnvelope;
 
 use crate::cli::command::ListenerExecution;
 use super::dispatch::{RunFeed, open_run};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// The URL failed to build into a client upgrade request, or the
-    /// connection/upgrade itself failed.
-    #[error("connect daemon listen websocket: {0}")]
-    Connect(tungstenite::Error),
-    /// The established connection failed mid-stream.
-    #[error("daemon listen websocket: {0}")]
-    Ws(tungstenite::Error),
+    /// The request builder rejected the URL, or opening the SSE stream
+    /// failed.
+    #[error("connect daemon listen sse: {0}")]
+    Connect(#[from] reqwest_eventsource::CannotCloneRequestError),
+    /// The underlying reqwest client failed to build.
+    #[error("daemon listen sse http client: {0}")]
+    Client(#[from] reqwest::Error),
+    /// The SSE stream failed (or ended) mid-run — the caller reconnects.
+    #[error("daemon listen sse stream: {0}")]
+    Stream(String),
 }
 
 /// Unconnected configuration — [`WebSocketListener::new`] +
 /// [`WebSocketListenerBuilder::signature`] +
 /// [`WebSocketListenerBuilder::connect`].
 pub struct WebSocketListenerBuilder {
-    /// Full connect URL of the daemon's listen route, e.g.
-    /// `ws://127.0.0.1:49152/listen`.
+    /// Full `http`/`https` URL of the daemon's listen SSE route, e.g.
+    /// `http://127.0.0.1:49152/listen`.
     url: String,
-    /// Optional auth signature, sent in the [`AuthEnvelope`] preamble
-    /// right after connecting.
+    /// Optional auth signature, sent as the `X-OBJECTIVEAI-SIGNATURE`
+    /// request header.
     signature: Option<String>,
 }
 
 impl WebSocketListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim in the
-    /// [`AuthEnvelope`] preamble — the connection's first text frame,
-    /// the same shape every daemon route expects. Without it the
-    /// daemon must be running without a secret.
+    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
+    /// running without a secret.
     pub fn signature(mut self, signature: impl Into<String>) -> Self {
         self.signature = Some(signature.into());
         self
     }
 
-    /// Upgrade, send the auth preamble, and start the pump. The
-    /// returned [`WebSocketListener`] is the root envelope stream.
+    /// Open the SSE stream and start the pump. The returned
+    /// [`WebSocketListener`] is the root envelope stream; connection/auth
+    /// failures surface as the first `Err` item.
     pub async fn connect(self) -> Result<WebSocketListener, Error> {
-        let upgrade = self
-            .url
-            .as_str()
-            .into_client_request()
-            .map_err(Error::Connect)?;
-        let (mut ws, _response) = tokio_tungstenite::connect_async(upgrade)
-            .await
-            .map_err(Error::Connect)?;
-
-        // The auth preamble — always the connection's first text
-        // frame, `{"signature": null}` against a secretless daemon.
-        let auth = serde_json::to_string(&AuthEnvelope {
-            signature: self.signature,
-        })
-        .expect("AuthEnvelope serialization is infallible");
-        ws.send(tungstenite::Message::Text(auth.into()))
-            .await
-            .map_err(Error::Ws)?;
-
+        let source = connect_sse(&self.url, self.signature.as_deref())?;
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<ListenerExecution, Error>>();
-        tokio::spawn(pump(ws, tx));
+        tokio::spawn(pump(source, tx));
         Ok(WebSocketListener { rx })
     }
 }
@@ -190,9 +173,7 @@ impl Frame<'_> {
 /// terminator. Runs until the connection ends — deliberately not tied
 /// to the root stream's lifetime (see module docs).
 async fn pump(
-    mut ws: tokio_tungstenite::WebSocketStream<
-        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
-    >,
+    mut source: reqwest_eventsource::EventSource,
     tx: tokio::sync::mpsc::UnboundedSender<Result<ListenerExecution, Error>>,
 ) {
     let mut feeds: HashMap<String, RunFeed> = HashMap::new();
@@ -201,8 +182,10 @@ async fn pump(
     // re-probed as requests.
     let mut skipped: std::collections::HashSet<String> = std::collections::HashSet::new();
     loop {
-        match ws.next().await {
-            Some(Ok(tungstenite::Message::Text(text))) => {
+        match source.next().await {
+            Some(Ok(Event::Open)) => continue,
+            Some(Ok(Event::Message(message))) => {
+                let text = message.data;
                 let Ok(mut frame) = serde_json::from_str::<Frame>(&text) else {
                     continue;
                 };
@@ -247,14 +230,13 @@ async fn pump(
                     let _ = tx.send(Ok(run));
                 }
             }
-            // Control / non-text frames: not part of the frame stream
-            // (tungstenite answers pings internally).
-            Some(Ok(tungstenite::Message::Close(_))) | None => break,
-            Some(Ok(_)) => continue,
+            // Stream ended or errored — end the pump (the caller
+            // reconnects); a final `Err` surfaces the cause first.
             Some(Err(e)) => {
-                let _ = tx.send(Err(Error::Ws(e)));
+                let _ = tx.send(Err(Error::Stream(e.to_string())));
                 break;
             }
+            None => break,
         }
     }
     // Connection over: close every still-open run (unresolved unary
@@ -263,6 +245,21 @@ async fn pump(
     for (_, feed) in feeds.drain() {
         feed.close();
     }
+}
+
+/// Open the daemon's `/listen` SSE stream: request `text/event-stream`
+/// and stamp `X-OBJECTIVEAI-SIGNATURE` when a signature is present. `url`
+/// MUST be an `http`/`https` URL.
+fn connect_sse(
+    url: &str,
+    signature: Option<&str>,
+) -> Result<reqwest_eventsource::EventSource, Error> {
+    let client = reqwest::Client::builder().build()?;
+    let mut request = client.get(url).header("Accept", "text/event-stream");
+    if let Some(signature) = signature {
+        request = request.header("X-OBJECTIVEAI-SIGNATURE", signature);
+    }
+    Ok(request.eventsource()?)
 }
 
 /// One run's unary response: resolves on the run's FIRST response

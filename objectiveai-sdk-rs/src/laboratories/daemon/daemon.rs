@@ -121,10 +121,11 @@ pub struct ChannelResponse {
     pub payload: super::ResponsePayload,
 }
 
-/// Host → daemon, UNCORRELATED: the host's laboratory set changed. The
-/// daemon's pump tries [`ChannelResponse`] first (it has `id`), then
-/// this — notifications never carry a correlation id. Sent to EVERY
-/// daemon the host is connected to, so all views stay current.
+/// Host → daemon, UNCORRELATED: the host's laboratory set (or a
+/// served laboratory's live file tree) changed. The daemon's pump
+/// tries [`ChannelResponse`] first (it has `id`), then this —
+/// notifications never carry a correlation id. Sent to EVERY daemon
+/// the host is connected to, so all views stay current.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "laboratories.daemon.HostNotification")]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -135,4 +136,18 @@ pub enum HostNotification {
     /// A laboratory was deleted from this host.
     #[schemars(title = "LaboratoryDeleted")]
     LaboratoryDeleted { id: String },
+    /// One live file-tree event from a laboratory this host watches:
+    /// the host proxies the container MCP's `/filetree` SSE verbatim —
+    /// every event it receives is forwarded here, unsolicited, to every
+    /// connected daemon (which folds it into its own materialized tree
+    /// and re-emits it on `/laboratories/{id}/filetree`). On attach the
+    /// host sends a synthesized [`Snapshot`](crate::laboratories::filetree::FileTreeEvent::Snapshot)
+    /// per watched laboratory, so a late-connecting daemon starts
+    /// current — the same snapshot-then-deltas contract as the lab
+    /// endpoint itself.
+    #[schemars(title = "LaboratoryFiletree")]
+    LaboratoryFiletree {
+        id: String,
+        event: crate::laboratories::filetree::FileTreeEvent,
+    },
 }

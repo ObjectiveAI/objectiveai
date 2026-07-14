@@ -1,24 +1,25 @@
-//! Optional first-message auth for the daemon's WebSocket server.
+//! Optional auth for the daemon's routes — two mechanisms, one policy.
 //!
-//! Headers are never used (browser WebSocket clients can't set them):
-//! EVERY connection's first text frame must be the SDK
-//! [`AuthEnvelope`] — `{"signature": "sha256=<hex>"}` where `<hex>` is
-//! `SHA256(secret)`, or `{"signature": null}` when the client has
-//! none. Both routes (`/listen`, `/execute`) consume this preamble
-//! unconditionally, so the protocol is uniform whether or not the
-//! daemon holds a secret:
+//! - **HTTP routes** (everything except `/laboratory`): the
+//!   `X-OBJECTIVEAI-SIGNATURE` request header, checked by
+//!   [`authenticate_header`]. `401` on a missing/invalid signature.
+//! - **The `/laboratory` WebSocket** (the daemon's ONE remaining WS —
+//!   the bidirectional host channel): a first-message text-frame
+//!   preamble, the SDK [`AuthEnvelope`] —
+//!   `{"signature": "sha256=<hex>"}` where `<hex>` is
+//!   `SHA256(secret)`, or `{"signature": null}` when the client has
+//!   none — checked by [`authenticate`] (demoted to the SECOND frame
+//!   there: identity precedes authorization).
 //!
-//! - secret configured: a missing/invalid signature closes the
-//!   connection without a word;
-//! - no secret: the envelope is consumed and its value ignored.
-//!
-//! Knowing the signature does not reveal the secret (preimage
-//! resistance).
+//! Both apply the same policy: secret configured ⇒ a missing/invalid
+//! signature is rejected; no secret ⇒ the credential is consumed and
+//! ignored. Knowing the signature does not reveal the secret
+//! (preimage resistance).
 
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
-use objectiveai_sdk::cli::command::command_executor::websocket::AuthEnvelope;
+use objectiveai_sdk::cli::command::command_executor::sse::AuthEnvelope;
 use subtle::ConstantTimeEq;
 
 /// Consume the connection's auth preamble: read frames until the
@@ -52,14 +53,11 @@ pub(crate) async fn authenticate(socket: &mut WebSocket, secret: Option<&Arc<Str
     true
 }
 
-/// Header-based auth for the SSE watcher routes (`/laboratories/list`,
-/// `/laboratories/{*id}`, `/agents/instances/list`,
-/// `/agents/instances/{*aih}`). Reads the `X-OBJECTIVEAI-SIGNATURE`
-/// header and applies the same policy as [`authenticate`]: when a
-/// `secret` is configured the header must be present and valid;
-/// without one, any header is ignored. SSE clients reach the daemon
-/// over `fetch`, which — unlike a browser WebSocket — can set headers,
-/// so these routes don't need the first-frame preamble.
+/// Header-based auth for the daemon's HTTP routes (`/execute`,
+/// `/listen`, `/laboratories/*`, `/agents/instances/*`). Reads the
+/// `X-OBJECTIVEAI-SIGNATURE` header and applies the same policy as
+/// [`authenticate`]: when a `secret` is configured the header must be
+/// present and valid; without one, any header is ignored.
 pub(crate) fn authenticate_header(
     headers: &axum::http::HeaderMap,
     secret: Option<&Arc<String>>,

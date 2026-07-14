@@ -24,13 +24,32 @@ use tokio_tungstenite::tungstenite::Message;
 
 use crate::host::HostServer;
 
+/// Re-derive the `ws://`/`wss://` WebSocket scheme from the daemon's
+/// published `http://`/`https://` address for the `/laboratory` dial
+/// (the daemon's one WebSocket). An already-`ws://` address (legacy
+/// config entry) passes through unchanged.
+fn http_to_ws(url: &str) -> String {
+    if let Some(rest) = url.strip_prefix("http://") {
+        format!("ws://{rest}")
+    } else if let Some(rest) = url.strip_prefix("https://") {
+        format!("wss://{rest}")
+    } else {
+        url.to_string()
+    }
+}
+
 pub async fn run(
     daemon_address: String,
     signature: Option<String>,
     host: Arc<HostServer>,
     suppress_output: bool,
 ) {
-    let url = format!("{}/laboratory", daemon_address.trim_end_matches('/'));
+    // The daemon publishes an `http://` address — its command channel,
+    // broadcast, and SSE watcher routes are all plain HTTP. `/laboratory`
+    // is its ONE WebSocket, so re-derive the `ws://` scheme here, at the
+    // single site that actually dials it.
+    let base = http_to_ws(daemon_address.trim_end_matches('/'));
+    let url = format!("{base}/laboratory");
     // Mirrors the SDK `AuthEnvelope` shape without pulling the cli
     // feature in for one two-field struct.
     let auth_frame = serde_json::json!({ "signature": signature }).to_string();

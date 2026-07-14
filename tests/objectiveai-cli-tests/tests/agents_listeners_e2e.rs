@@ -184,7 +184,7 @@ async fn agents_list_stream_activation_lifecycle() {
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
     let state = cli_test_util::test_state_name();
-    let addr = cli_test_util::daemon_ws_address(&executor, &state).await;
+    let addr = cli_test_util::daemon_address(&executor, &state).await;
 
     let snapshots: Arc<Mutex<Vec<Vec<AgentStatus>>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&snapshots);
@@ -230,7 +230,7 @@ async fn agent_instance_stream_snapshot_and_live() {
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
     let state = cli_test_util::test_state_name();
-    let addr = cli_test_util::daemon_ws_address(&executor, &state).await;
+    let addr = cli_test_util::daemon_address(&executor, &state).await;
 
     // First turn BEFORE connecting: the listener must replay it from
     // the DB snapshot.

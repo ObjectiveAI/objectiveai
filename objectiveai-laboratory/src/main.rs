@@ -21,6 +21,7 @@
 
 mod channel;
 mod cleaner;
+mod filetree;
 mod host;
 mod podman;
 mod server;
@@ -34,7 +35,7 @@ use objectiveai_sdk::laboratories::daemon::{Identify, IdentifyMount};
 #[derive(Parser)]
 #[command(name = "objectiveai-laboratory", version)]
 struct Args {
-    /// A daemon `ws://` base address to connect to (its `/laboratory`
+    /// A daemon `http://` base address to connect to (its `/laboratory`
     /// route is appended). Repeatable — one resident connection per
     /// address.
     #[arg(long = "address")]

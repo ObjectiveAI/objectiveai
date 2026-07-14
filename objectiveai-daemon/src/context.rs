@@ -68,7 +68,7 @@ pub struct Context {
     pub filesystem: filesystem::Client,
     /// Lazily-built API `HttpClient` — see [`Context::api_client`].
     api: Arc<OnceCell<HttpClient>>,
-    /// The daemon's published `ws://` connect URL, stored by `run`'s
+    /// The daemon's published `http://` connect URL, stored by `run`'s
     /// producer tee right after it ensures the daemon is up (the
     /// daemon spawn returns the lock content). Empty when the daemon
     /// couldn't be spawned. Shared across clones; first set wins. See
@@ -124,14 +124,14 @@ impl Context {
         }
     }
 
-    /// Record the daemon's published `ws://` connect URL. Called by
+    /// Record the daemon's published `http://` connect URL. Called by
     /// `run`'s producer tee once the daemon is confirmed up. First set
     /// wins; later calls are no-ops.
     pub fn set_daemon_address(&self, url: String) {
         let _ = self.daemon_address.set(url);
     }
 
-    /// The daemon's published `ws://` connect URL, when `run`'s
+    /// The daemon's published `http://` connect URL, when `run`'s
     /// producer tee successfully ensured the daemon this run. `None`
     /// means the daemon couldn't be spawned (or this context never
     /// went through `run`).

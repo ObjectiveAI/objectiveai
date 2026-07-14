@@ -10,14 +10,13 @@
 //!   no ack), then closes. `interprocess` inserts no framing of its own,
 //!   so the trailing `\n` is the only delimiter — the same wire shape as
 //!   [`crate::websockets::mcp_listener`].
-//! - **Consumer side** — an [`axum`] WebSocket server bound to the
+//! - **Consumer side** — an [`axum`] HTTP server bound to the
 //!   daemon's configured `address:port`. The broadcast lives on the
-//!   `/listen` route: every client that connects immediately begins
-//!   receiving future frames; it is a pure push channel (inbound
-//!   messages are ignored except to notice the client closing). The
+//!   `/listen` SSE route: every client that connects immediately
+//!   begins receiving future frames; it is a pure push channel. The
 //!   sibling `/execute` route ([`crate::websockets::daemon_execute`])
-//!   runs commands in-process, one connection per command — its
-//!   streams never carry broadcast frames.
+//!   runs commands in-process, one POST per command — its SSE streams
+//!   never carry broadcast frames.
 //!
 //! Each producer connection is assigned a fresh `id`. The request is
 //! wrapped as the SDK's generic `ListenerRequest<T>` shape
@@ -62,32 +61,32 @@ pub(crate) struct DaemonWsState {
     /// route and `laboratories.sock`.
     pub(crate) laboratories: crate::websockets::websocket_laboratory::LaboratoryRegistry,
     /// The live-laboratories hub backing the `/laboratories/list` +
-    /// `/laboratories/{*id}` routes.
+    /// `/laboratories/{id}` +
+    /// `/laboratories/{id}/filetree` routes.
     pub(crate) labs_hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
 }
 
-/// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
-/// separated:
+/// Serve the daemon's HTTP API on `listener`:
 ///
-/// - **`/listen`** — the broadcast: each client receives every future
-///   frame. Pure push; after the auth preamble, inbound messages are
-///   never treated as requests.
-/// - **`/execute`** — connection-per-command execution
+/// - **`GET /listen`** — the broadcast SSE: each client receives every
+///   future frame. Pure push.
+/// - **`POST /execute`** — request-per-command execution
 ///   ([`crate::websockets::daemon_execute`]): the client's request runs
-///   in-process against `ctx`, and its items stream back on that socket
-///   only — never onto the broadcast. (The run's tee still lands on
-///   `/listen` like any other CLI activity, via the producer socket.)
-/// - **`/agents/instances/list`** — the live agent-status stream
-///   ([`crate::websockets::websocket_agents`]): a connect-time snapshot of
-///   every agent, then `Activated`/`Deactivated` deltas driven by
-///   AIH-lockfile release. Backed by `state.active`.
+///   in-process against `ctx`, and its items stream back on that
+///   response only — never onto the broadcast. (The run's tee still
+///   lands on `/listen` like any other CLI activity, via the producer
+///   socket.)
+/// - **`GET /agents/instances/*`, `/laboratories/*`** — the live SSE
+///   watcher routes.
+/// - **`/laboratory`** — the ONE WebSocket: the bidirectional
+///   laboratory-host channel
+///   ([`crate::websockets::websocket_laboratory`]).
 ///
-/// EVERY connection on both routes starts with the first-message auth
-/// preamble ([`crate::websockets::daemon_auth::authenticate`]): the
-/// first text frame must be the SDK `AuthEnvelope`. When `secret` is
-/// `Some`, a missing/invalid signature closes the connection; when
-/// `None`, the envelope is consumed and ignored. Headers are never
-/// used. Returns the serve task's handle.
+/// Every HTTP route authenticates by the `X-OBJECTIVEAI-SIGNATURE`
+/// header ([`crate::websockets::daemon_auth::authenticate_header`],
+/// 401 on a missing/invalid signature when `secret` is `Some`); the
+/// `/laboratory` WebSocket keeps the first-message `AuthEnvelope`
+/// preamble. Returns the serve task's handle.
 pub fn serve_ws(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
@@ -99,10 +98,10 @@ pub fn serve_ws(
     labs_hub: crate::websockets::websocket_laboratories::LaboratoriesHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
-        .route("/listen", axum::routing::any(listen_handler))
+        .route("/listen", axum::routing::get(listen_handler))
         .route(
             "/execute",
-            axum::routing::any(crate::websockets::daemon_execute::execute_handler),
+            axum::routing::post(crate::websockets::daemon_execute::execute_handler),
         )
         .route(
             "/agents/instances/list",
@@ -132,12 +131,19 @@ pub fn serve_ws(
                 crate::websockets::websocket_laboratories::laboratories_handler,
             ),
         )
-        // Wildcard ({*id}) under the literal `list` route — the same
-        // proven axum-0.8 overlap as `/agents/instances/*` above.
+        // Single-segment `{id}` under the literal `list` route —
+        // laboratory ids forbid `/`, so the id is one segment and
+        // `/laboratories/{id}/filetree` is an unambiguous sibling.
         .route(
-            "/laboratories/{*id}",
+            "/laboratories/{id}",
             axum::routing::get(
                 crate::websockets::websocket_laboratories::laboratory_instance_handler,
+            ),
+        )
+        .route(
+            "/laboratories/{id}/filetree",
+            axum::routing::get(
+                crate::websockets::websocket_laboratories::laboratory_filetree_handler,
             ),
         )
         .with_state(DaemonWsState {
@@ -154,45 +160,37 @@ pub fn serve_ws(
     })
 }
 
-/// `/listen`: upgrade to WebSocket, consume the auth preamble, and
-/// pump broadcast frames.
+/// `GET /listen`: header-auth, then an SSE stream of every broadcast
+/// frame. Pure server→client push (the daemon's activity tee); the
+/// client never sends anything.
 async fn listen_handler(
     axum::extract::State(state): axum::extract::State<DaemonWsState>,
-    ws: axum::extract::ws::WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |mut socket| async move {
-        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref()).await
-        {
-            return;
-        }
-        pump(socket, state.tx).await;
-    })
+    use axum::response::IntoResponse;
+    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    axum::response::sse::Sse::new(listen_stream(state.tx))
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response()
 }
 
-/// Forward every broadcast frame to one client until it disconnects.
-/// Pure push: inbound frames are read only to notice the close. A
-/// `Lagged` broadcast receiver (slow client) drops missed frames and
-/// keeps going.
-async fn pump(mut socket: axum::extract::ws::WebSocket, tx: broadcast::Sender<String>) {
-    use axum::extract::ws::Message;
-    let mut rx = tx.subscribe();
-    loop {
-        tokio::select! {
-            received = rx.recv() => match received {
-                Ok(frame) => {
-                    if socket.send(Message::Text(frame.into())).await.is_err() {
-                        break;
-                    }
-                }
+/// Forward every broadcast frame as an SSE event until the client drops
+/// the stream. A `Lagged` broadcast receiver (slow client) drops missed
+/// frames and keeps going; `Closed` ends the stream.
+fn listen_stream(
+    tx: broadcast::Sender<String>,
+) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
+    use axum::response::sse::Event;
+    async_stream::stream! {
+        let mut rx = tx.subscribe();
+        loop {
+            match rx.recv().await {
+                Ok(frame) => yield Ok(Event::default().data(frame)),
                 Err(broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(broadcast::error::RecvError::Closed) => break,
-            },
-            inbound = socket.recv() => match inbound {
-                // Client closed or errored.
-                None | Some(Err(_)) | Some(Ok(Message::Close(_))) => break,
-                // Ignore any other inbound message.
-                Some(Ok(_)) => {}
-            },
+            }
         }
     }
 }

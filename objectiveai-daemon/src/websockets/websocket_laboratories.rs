@@ -1,6 +1,6 @@
 //! The daemon's live laboratories endpoints: `/laboratories/list`
 //! (every laboratory served by a connected host, as a stream) and
-//! `/laboratories/{*id}` (one laboratory's full record, attachments
+//! `/laboratories/{id}` (one laboratory's full record, attachments
 //! included).
 //!
 //! State sources, coalesced into one [`LabsChange`] feed:
@@ -29,6 +29,7 @@ use objectiveai_sdk::cli::websocket_laboratories_listener::{
     LaboratoryAttachment, LaboratoryInstanceEvent, LaboratoryRecord,
 };
 use objectiveai_sdk::laboratories::daemon::Identify;
+use objectiveai_sdk::laboratories::filetree::FileTreeEvent;
 use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::broadcast;
 
@@ -364,7 +365,7 @@ fn laboratories_list_stream(
     }
 }
 
-/// The `/laboratories/{*id}` route's optional query: pins the exact
+/// The `/laboratories/{id}` (+ `/filetree`) routes' optional query: pins the exact
 /// laboratory (`?machine=…&machine_state=…`) — ids are only unique
 /// per (machine, state). Anything short of the full pair is treated
 /// as absent (legacy first-match-by-id).
@@ -376,7 +377,7 @@ pub(crate) struct RecordQuery {
     machine_state: Option<String>,
 }
 
-/// `/laboratories/{*id}`: header-auth, then an SSE stream of the
+/// `/laboratories/{id}`: header-auth, then an SSE stream of the
 /// record, re-sent (full-value) on every relevant change.
 pub(crate) async fn laboratory_instance_handler(
     axum::extract::State(state): axum::extract::State<
@@ -443,6 +444,89 @@ fn laboratory_instance_stream(
                 continue;
             };
             yield Ok(Event::default().data(frame));
+        }
+    }
+}
+
+/// `/laboratories/{id}/filetree`: header-auth, then the laboratory's
+/// live file tree as SSE — the exact wire contract of the lab MCP's own
+/// `/filetree` endpoint (a `snapshot` first, then `upserted`/`removed`
+/// deltas, the shared `laboratories.filetree.FileTreeEvent` shapes), so
+/// the same client folds either. The snapshot is synthesized from the
+/// daemon's materialized state (kept live by the host's pushed
+/// notifications — nothing is fetched on demand); every later event is
+/// re-emitted verbatim as it arrives.
+pub(crate) async fn laboratory_filetree_handler(
+    axum::extract::State(state): axum::extract::State<
+        crate::websockets::daemon_stream::DaemonWsState,
+    >,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    axum::extract::Query(query): axum::extract::Query<RecordQuery>,
+    headers: axum::http::HeaderMap,
+) -> axum::response::Response {
+    use axum::response::IntoResponse;
+    if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+        return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    }
+    let pin = match (query.machine, query.machine_state) {
+        (Some(machine), Some(machine_state)) => Some((machine, machine_state)),
+        _ => None,
+    };
+    axum::response::sse::Sse::new(filetree_stream(state.laboratories, id, pin))
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response()
+}
+
+/// Yield a synthesized snapshot of the current materialized tree, then
+/// re-emit every matching pushed event. Subscribe-then-snapshot: an
+/// event landing between the two is delivered twice, and the fold is
+/// idempotent, so nothing is ever missed. A lagged receiver (slow
+/// client under heavy churn) resyncs by re-snapshotting — the same
+/// overflow-resync discipline as the lab endpoint itself. An unknown
+/// laboratory yields an empty snapshot and waits: events start flowing
+/// the moment its container starts.
+fn filetree_stream(
+    registry: LaboratoryRegistry,
+    id: String,
+    pin: Option<(String, String)>,
+) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
+    use axum::response::sse::Event;
+    async_stream::stream! {
+        let mut rx = registry.filetree_subscribe();
+        loop {
+            let children = registry
+                .filetree_state(
+                    &id,
+                    pin.as_ref().map(|(m, s)| (m.as_str(), s.as_str())),
+                )
+                .await;
+            let snapshot = FileTreeEvent::Snapshot { children };
+            if let Ok(frame) = serde_json::to_string(&snapshot) {
+                yield Ok(Event::default().data(frame));
+            }
+            loop {
+                match rx.recv().await {
+                    Ok(change) => {
+                        if change.laboratory_id != id {
+                            continue;
+                        }
+                        if let Some((machine, machine_state)) = &pin
+                            && (&change.machine_id != machine
+                                || &change.state != machine_state)
+                        {
+                            continue;
+                        }
+                        let Ok(frame) = serde_json::to_string(&change.event) else {
+                            continue;
+                        };
+                        yield Ok(Event::default().data(frame));
+                    }
+                    // Lagged: missed events are already folded into the
+                    // registry state — resync with a fresh snapshot.
+                    Err(broadcast::error::RecvError::Lagged(_)) => break,
+                    Err(broadcast::error::RecvError::Closed) => return,
+                }
+            }
         }
     }
 }

@@ -49,6 +49,16 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         )));
     }
 
+    // Ids are one URL path segment (`/laboratories/{id}`,
+    // `/laboratories/{id}/filetree`) — a `/` would break the routes.
+    // (The host re-checks authoritatively.)
+    if request.id.contains('/') {
+        return Err(Error::Laboratory(format!(
+            "laboratory id '{}' contains '/' — ids must be a single path segment",
+            request.id,
+        )));
+    }
+
     let (target, host_state) =
         super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
     super::ensure_host(ctx, &target, &host_state).await?;

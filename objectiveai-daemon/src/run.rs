@@ -493,7 +493,7 @@ async fn start_tee(ctx: &Context, request: &objectiveai_sdk::cli::command::Reque
     if !should_tee(request) {
         return None;
     }
-    // Idempotent: records the daemon's published `ws://` URL on the ctx
+    // Idempotent: records the daemon's published `http://` URL on the ctx
     // (used by `viewer spawn`). In-process this is a lock read — the
     // daemon is already up (we are it), so no spawn happens.
     if let Ok(url) = crate::command::daemon::spawn::spawn(ctx).await {

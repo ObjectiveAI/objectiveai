@@ -48,7 +48,7 @@ export interface WebSocketLaboratoriesListListenerOptions {
  *
  * ```ts
  * const listener = await WebSocketLaboratoriesListListener.connect(
- *   "ws://127.0.0.1:49152/laboratories/list",
+ *   "http://127.0.0.1:49152/laboratories/list",
  *   { signature, onChange: (laboratories) => render(laboratories) },
  * );
  * listener.laboratories(); // [{ id, image, ..., machine, connected }, ...]

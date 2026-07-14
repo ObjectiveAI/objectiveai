@@ -3,72 +3,91 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
 /**
- * Behavior tests for the native `WebSocketListener`: transport (a
- * mocked global WebSocket — nothing connects), the auth preamble,
+ * Behavior tests for the `WebSocketListener` `/listen` SSE consumer:
+ * transport (a mocked global `fetch` — nothing connects), header auth,
  * frame routing by id, live-only multi-subscriber delivery, and the
  * Rust-parity close lifecycle.
  */
 
-/** A controllable stand-in for the browser WebSocket. */
-class MockWebSocket {
-  static CONNECTING = 0;
-  static OPEN = 1;
-  static CLOSING = 2;
-  static CLOSED = 3;
-  static instances: MockWebSocket[] = [];
+const encoder = new TextEncoder();
+
+/** A controllable stand-in for one `fetch`ed SSE response. */
+class MockSseConnection {
+  static instances: MockSseConnection[] = [];
 
   url: string;
-  readyState = MockWebSocket.CONNECTING;
-  sent: string[] = [];
-  onopen: (() => void) | null = null;
-  onmessage: ((event: { data: unknown }) => void) | null = null;
-  onclose: ((event: { code: number }) => void) | null = null;
+  headers: Record<string, string>;
+  aborted = false;
+  stream: ReadableStream<Uint8Array>;
+  #controller!: ReadableStreamDefaultController<Uint8Array>;
 
-  constructor(url: string) {
+  constructor(url: string, init: RequestInit) {
     this.url = url;
-    MockWebSocket.instances.push(this);
-  }
-
-  send(data: string): void {
-    this.sent.push(data);
-  }
-
-  close(): void {
-    if (this.readyState === MockWebSocket.CLOSED) return;
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.({ code: 1000 });
+    this.headers = (init.headers ?? {}) as Record<string, string>;
+    this.stream = new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        this.#controller = controller;
+      },
+      cancel: () => {
+        this.aborted = true;
+      },
+    });
+    init.signal?.addEventListener("abort", () => {
+      this.aborted = true;
+      try {
+        this.#controller.error(new Error("aborted"));
+      } catch {
+        // Already closed.
+      }
+    });
+    MockSseConnection.instances.push(this);
   }
 
   // ── test drivers ──
-  open(): void {
-    this.readyState = MockWebSocket.OPEN;
-    this.onopen?.();
-  }
-
   frame(value: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(value) });
+    this.#controller.enqueue(
+      encoder.encode(`data: ${JSON.stringify(value)}\n\n`),
+    );
   }
 
-  serverClose(code = 1000): void {
-    this.readyState = MockWebSocket.CLOSED;
-    this.onclose?.({ code });
+  serverClose(): void {
+    try {
+      this.#controller.close();
+    } catch {
+      // Already closed.
+    }
   }
+}
+
+/** Mock `fetch`: 2xx + a controllable SSE body, unless `status` says
+ * otherwise. */
+function stubFetch(status = 200): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit) => {
+      if (status !== 200) {
+        return { ok: false, status, body: null };
+      }
+      const connection = new MockSseConnection(url, init);
+      return { ok: true, status, body: connection.stream };
+    }),
+  );
 }
 
 import { WebSocketListener, ResponseItemStream } from "./websocketListener";
 import type { CliCommandListenerExecution } from "./command/listenerExecution";
 
-/** Connect a listener against the newest mock socket. */
+/** Connect a listener against the newest mock connection. */
 async function connect(options?: {
   signature?: string | null;
-}): Promise<{ listener: WebSocketListener; ws: MockWebSocket }> {
-  const pending = WebSocketListener.connect(
-    "ws://127.0.0.1:1/listen",
+}): Promise<{ listener: WebSocketListener; sse: MockSseConnection }> {
+  const listener = await WebSocketListener.connect(
+    "http://127.0.0.1:1/listen",
     options,
   );
-  const ws = MockWebSocket.instances[MockWebSocket.instances.length - 1];
-  ws.open();
-  return { listener: await pending, ws };
+  const sse =
+    MockSseConnection.instances[MockSseConnection.instances.length - 1];
+  return { listener, sse };
 }
 
 /** Collect the next `n` runs off a fresh iterator. */
@@ -93,36 +112,37 @@ async function settle() {
 
 describe("WebSocketListener", () => {
   beforeEach(() => {
-    MockWebSocket.instances = [];
-    vi.stubGlobal("WebSocket", MockWebSocket);
+    MockSseConnection.instances = [];
+    stubFetch();
   });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("sends the auth preamble as the connection's first frame", async () => {
-    const { ws } = await connect({ signature: "sha256=abc" });
-    expect(ws.sent.map((s) => JSON.parse(s))).toEqual([
-      { signature: "sha256=abc" },
-    ]);
+  it("sends the signature as the auth header", async () => {
+    const { sse } = await connect({ signature: "sha256=abc" });
+    expect(sse.headers["X-OBJECTIVEAI-SIGNATURE"]).toBe("sha256=abc");
+    expect(sse.headers["Accept"]).toBe("text/event-stream");
   });
 
-  it("sends a null signature when unconfigured", async () => {
-    const { ws } = await connect();
-    expect(ws.sent.map((s) => JSON.parse(s))).toEqual([{ signature: null }]);
+  it("omits the auth header when unconfigured", async () => {
+    const { sse } = await connect();
+    expect(sse.headers["X-OBJECTIVEAI-SIGNATURE"]).toBeUndefined();
   });
 
-  it("rejects connect when the socket closes during the handshake", async () => {
-    const pending = WebSocketListener.connect("ws://127.0.0.1:1/listen");
-    MockWebSocket.instances[0].serverClose(1006);
-    await expect(pending).rejects.toThrow(/code 1006/);
+  it("rejects connect on a non-2xx response (refused signature)", async () => {
+    stubFetch(401);
+    await expect(
+      WebSocketListener.connect("http://127.0.0.1:1/listen"),
+    ).rejects.toThrow(/401/);
   });
 
   it("yields an envelope per request frame and feeds its stream by id", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const runsPromise = collectRuns(listener, 1);
+    await settle();
 
-    ws.frame({
+    sse.frame({
       id: "run-1",
       agent_id: "agent-a",
       value: { path_type: "plugins/run", owner: "o", name: "n" },
@@ -139,54 +159,60 @@ describe("WebSocketListener", () => {
 
     const items = (run.response as ResponseItemStream<unknown>).toArray();
     await settle();
-    ws.frame({ id: "run-1", value: { n: 1 } });
-    ws.frame({ id: "run-1", value: { n: 2 } });
-    ws.frame({ id: "run-1", end: true });
+    sse.frame({ id: "run-1", value: { n: 1 } });
+    sse.frame({ id: "run-1", value: { n: 2 } });
+    sse.frame({ id: "run-1", end: true });
+    await settle();
+    sse.serverClose();
     expect(await items).toEqual([{ n: 1 }, { n: 2 }]);
   });
 
   it("settles a unary run's promise with its first response frame", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const runsPromise = collectRuns(listener, 1);
+    await settle();
 
-    ws.frame({ id: "run-u", value: { path_type: "agents/enqueue" } });
+    sse.frame({ id: "run-u", value: { path_type: "agents/enqueue" } });
     const [run] = await runsPromise;
     expect(run.response).toBeInstanceOf(Promise);
 
-    ws.frame({ id: "run-u", value: { ok: true } });
-    ws.frame({ id: "run-u", end: true });
+    sse.frame({ id: "run-u", value: { ok: true } });
+    sse.frame({ id: "run-u", end: true });
     expect(await run.response).toEqual({ ok: true });
   });
 
   it("demuxes interleaved runs by id", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const runsPromise = collectRuns(listener, 2);
+    await settle();
 
-    ws.frame({ id: "a", value: { path_type: "plugins/run" } });
-    ws.frame({ id: "b", value: { path_type: "plugins/list" } });
+    sse.frame({ id: "a", value: { path_type: "plugins/run" } });
+    sse.frame({ id: "b", value: { path_type: "plugins/list" } });
     const [runA, runB] = await runsPromise;
     const itemsA = (runA.response as ResponseItemStream<unknown>).toArray();
     const itemsB = (runB.response as ResponseItemStream<unknown>).toArray();
     await settle();
 
-    ws.frame({ id: "a", value: { from: "a1" } });
-    ws.frame({ id: "b", value: { from: "b1" } });
-    ws.frame({ id: "a", value: { from: "a2" } });
-    ws.frame({ id: "b", end: true });
-    ws.frame({ id: "a", end: true });
+    sse.frame({ id: "a", value: { from: "a1" } });
+    sse.frame({ id: "b", value: { from: "b1" } });
+    sse.frame({ id: "a", value: { from: "a2" } });
+    sse.frame({ id: "b", end: true });
+    sse.frame({ id: "a", end: true });
+    await settle();
 
     expect(await itemsA).toEqual([{ from: "a1" }, { from: "a2" }]);
     expect(await itemsB).toEqual([{ from: "b1" }]);
   });
 
   it("skips runs whose path_type is unknown, dropping their frames", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const runsPromise = collectRuns(listener, 1);
+    await settle();
 
-    ws.frame({ id: "mystery", value: { path_type: "not/a/real/path" } });
-    ws.frame({ id: "mystery", value: { dropped: true } });
-    ws.frame({ id: "mystery", end: true });
-    ws.frame({ id: "real", value: { path_type: "plugins/run" } });
+    sse.frame({ id: "mystery", value: { path_type: "not/a/real/path" } });
+    sse.frame({ id: "mystery", value: { dropped: true } });
+    sse.frame({ id: "mystery", end: true });
+    sse.frame({ id: "real", value: { path_type: "plugins/run" } });
 
     const [run] = await runsPromise;
     expect((run.request as { path_type: string }).path_type).toBe(
@@ -195,15 +221,16 @@ describe("WebSocketListener", () => {
   });
 
   it("delivers live-only: a late subscriber misses earlier runs", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const early = collectRuns(listener, 2);
     await settle();
 
-    ws.frame({ id: "first", value: { path_type: "plugins/run" } });
+    sse.frame({ id: "first", value: { path_type: "plugins/run" } });
+    await settle();
 
     const late = collectRuns(listener, 1);
     await settle();
-    ws.frame({ id: "second", value: { path_type: "plugins/list" } });
+    sse.frame({ id: "second", value: { path_type: "plugins/list" } });
 
     expect(
       (await early).map((r) => (r.request as { path_type: string }).path_type),
@@ -214,7 +241,7 @@ describe("WebSocketListener", () => {
   });
 
   it("ends every root iterator and open feed when the connection closes", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const allRuns = (async () => {
       const out: unknown[] = [];
       for await (const run of listener) out.push(run);
@@ -222,11 +249,12 @@ describe("WebSocketListener", () => {
     })();
     await settle();
 
-    ws.frame({ id: "s", value: { path_type: "plugins/run" } });
-    ws.frame({ id: "u", value: { path_type: "agents/enqueue" } });
+    sse.frame({ id: "s", value: { path_type: "plugins/run" } });
+    sse.frame({ id: "u", value: { path_type: "agents/enqueue" } });
     await settle();
 
-    ws.serverClose();
+    sse.serverClose();
+    await settle();
 
     // Root iterator ends (Rust parity: the stream is over).
     const runs = (await allRuns) as CliCommandListenerExecution[];
@@ -242,7 +270,7 @@ describe("WebSocketListener", () => {
   });
 
   it("close() drops the connection and ends iteration", async () => {
-    const { listener, ws } = await connect();
+    const { listener, sse } = await connect();
     const allRuns = (async () => {
       const out: unknown[] = [];
       for await (const run of listener) out.push(run);
@@ -251,7 +279,8 @@ describe("WebSocketListener", () => {
     await settle();
 
     listener.close();
-    expect(ws.readyState).toBe(MockWebSocket.CLOSED);
+    await settle();
+    expect(sse.aborted).toBe(true);
     expect(await allRuns).toEqual([]);
   });
 });

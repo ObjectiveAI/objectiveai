@@ -1,10 +1,10 @@
 export * from "./binary";
 export * from "./plugin";
-export * from "./websocket";
+export * from "./sse";
 
 import type { BinaryCommandExecutor } from "./binary";
 import type { PluginCommandExecutor } from "./plugin";
-import type { WebSocketExecutor } from "./websocket";
+import type { SseCommandExecutor } from "./sse";
 
 /**
  * Any of the CLI command executors. The generated per-command execute
@@ -13,4 +13,4 @@ import type { WebSocketExecutor } from "./websocket";
 export type CommandExecutor =
   | BinaryCommandExecutor
   | PluginCommandExecutor
-  | WebSocketExecutor;
+  | SseCommandExecutor;

@@ -8,7 +8,7 @@
 //!   full-value replaced on every relevant change.
 //!
 //! Everything is driven through CLI commands — no direct filesystem
-//! writes; each daemon's `ws://` address comes from its published
+//! writes; each daemon's `http://` address comes from its published
 //! lockfile (read-only, the CLI's own discovery mechanism), and the
 //! host's dial list rides `laboratories config addresses add`.
 //!
@@ -163,7 +163,7 @@ async fn laboratories_list_and_record_streams() {
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
     let state = cli_test_util::test_state_name();
-    let addr = cli_test_util::daemon_ws_address(&executor, &state).await;
+    let addr = cli_test_util::daemon_address(&executor, &state).await;
 
     let id = format!("e2e-listeners-lab-{}", nanos());
 
@@ -296,8 +296,8 @@ async fn laboratories_cross_daemon_propagation() {
     let exec_a = cli_test_util::executor().await;
     let exec_b = cli_test_util::executor_for_state(&state_b).await;
 
-    let addr_a = cli_test_util::daemon_ws_address(&exec_a, &state_a).await;
-    let addr_b = cli_test_util::daemon_ws_address(&exec_b, &state_b).await;
+    let addr_a = cli_test_util::daemon_address(&exec_a, &state_a).await;
+    let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
     assert_ne!(addr_a, addr_b, "two daemons must bind distinct ports");
 
     // Point state A's host at daemon B too (empty value ⇒ dial
@@ -435,8 +435,8 @@ async fn duplicate_ids_across_hosts() {
     let exec_a = cli_test_util::executor().await;
     let exec_b = cli_test_util::executor_for_state(&state_b).await;
 
-    let addr_a = cli_test_util::daemon_ws_address(&exec_a, &state_a).await;
-    let addr_b = cli_test_util::daemon_ws_address(&exec_b, &state_b).await;
+    let addr_a = cli_test_util::daemon_address(&exec_a, &state_a).await;
+    let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
 
     let list_a = WebSocketLaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
         .connect()

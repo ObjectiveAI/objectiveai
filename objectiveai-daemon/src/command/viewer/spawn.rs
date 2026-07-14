@@ -15,7 +15,7 @@ use crate::error::Error;
 /// The spawn flow itself. Idempotent and cheap when the viewer is
 /// already up: a try_read of the lock returns without spawning.
 pub async fn spawn(ctx: &Context) -> Result<String, Error> {
-    // The viewer requires the daemon's ws:// connect URL. `run`'s
+    // The viewer requires the daemon's http:// connect URL. `run`'s
     // producer tee ensured the daemon and recorded the address on the
     // ctx before this handler ran; if it's absent the daemon couldn't
     // be spawned, and a viewer without a daemon is useless — error out.
@@ -45,7 +45,7 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // `objectiveai-viewer/src-tauri/src/run.rs`: DAEMON_ADDRESS,
     // DAEMON_SIGNATURE, SUPPRESS_OUTPUT, OBJECTIVEAI_DIR,
     // OBJECTIVEAI_STATE) is set explicitly here when known.
-    // `DAEMON_ADDRESS` is the daemon's full ws:// connect URL the viewer
+    // `DAEMON_ADDRESS` is the daemon's full http:// connect URL the viewer
     // (a client) dials (always set — required above). `DAEMON_SIGNATURE`
     // is derived here from the daemon's own bare `SECRET` when it has one;
     // otherwise any inherited `DAEMON_SIGNATURE` is left as-is (the spawner

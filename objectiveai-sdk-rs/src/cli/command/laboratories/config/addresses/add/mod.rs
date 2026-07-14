@@ -9,7 +9,7 @@ pub struct Request {
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
     pub scope: crate::cli::command::SetScope,
-    /// The daemon `ws://` address the laboratory host should connect to.
+    /// The daemon `http://` address the laboratory host should connect to.
     pub key: String,
     /// The signature to present at that address. Empty ⇒ dial
     /// unauthenticated (the address's daemon must be open). Always
@@ -49,7 +49,7 @@ pub struct Args {
     pub state: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
-    /// Entry key (a daemon `ws://` address).
+    /// Entry key (a daemon `http://` address).
     #[arg(long)]
     pub key: Option<String>,
     /// Entry value (the signature to present at that address).

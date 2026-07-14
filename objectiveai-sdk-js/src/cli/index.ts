@@ -6,10 +6,12 @@
 // `websocketAgentsInstancesListener` (the materialized
 // `/agents/instances/{*aih}` conversation + agent-status view),
 // `websocketLaboratoriesListListener` (the materialized
-// `/laboratories/list` view), and `websocketLaboratoriesListener` (the
-// materialized `/laboratories/{id}` record view). Kept header-free so
-// install-zod preserves it instead of overwriting it with a stub.
+// `/laboratories/list` view), `websocketLaboratoriesListener` (the
+// materialized `/laboratories/{id}` record view), and the shared `sse`
+// transport (`connectSse`). Kept header-free so install-zod preserves
+// it instead of overwriting it with a stub.
 export * from "./generatedIndex";
+export * from "./sse";
 export * from "./websocketAgentsInstancesListListener";
 export * from "./websocketAgentsInstancesListener";
 export * from "./websocketLaboratoriesListListener";

@@ -28,6 +28,7 @@ use objectiveai_sdk::laboratories::daemon::{
     Identify, IdentifyMount, JsonRpcResult, LocalTransferRequest, LocalTransferResult,
     RequestPayload, ResponsePayload, TransferAck,
 };
+use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use objectiveai_sdk::machine::MachineIdentity;
 
 use crate::podman;
@@ -54,6 +55,16 @@ pub struct HostServer {
     /// next broadcast.
     outbound: DashMap<u64, tokio::sync::mpsc::UnboundedSender<String>>,
     next_outbound: AtomicU64,
+    /// Per-laboratory materialized file trees (the watched root — the
+    /// lab's cwd — child list), folded from each running lab's
+    /// `/filetree` SSE by its pump. Read by [`Self::attach_channel`] to
+    /// open late daemons with a synthesized snapshot; both sides hold
+    /// `attach_lock`, so snapshot vs. delta ordering holds by
+    /// construction.
+    filetree: DashMap<String, Vec<FileTreeNode>>,
+    /// The per-laboratory filetree pump tasks — aborted on delete (and
+    /// dying with the process on shutdown).
+    filetree_pumps: DashMap<String, tokio::task::JoinHandle<()>>,
     /// Serializes [`Self::attach_channel`] (snapshot + subscribe)
     /// against [`Self::broadcast`], closing the classic race: a
     /// create/delete concurrent with a channel handshake either lands
@@ -74,6 +85,8 @@ impl HostServer {
             labs: DashMap::new(),
             outbound: DashMap::new(),
             next_outbound: AtomicU64::new(0),
+            filetree: DashMap::new(),
+            filetree_pumps: DashMap::new(),
             attach_lock: tokio::sync::Mutex::new(()),
         }
     }
@@ -102,9 +115,41 @@ impl HostServer {
             serde_json::to_string(&identify).expect("identify serializes");
         let _ = reply_tx.send(identify_frame);
         let _ = reply_tx.send(auth_frame);
+        // A synthesized file-tree snapshot per WATCHED laboratory, so
+        // this daemon's materialized trees start current — the same
+        // snapshot-then-deltas contract the lab endpoint itself opens
+        // with. Under `attach_lock`, atomic against the pumps' folds.
+        for entry in self.filetree.iter() {
+            let notification = HostNotification::LaboratoryFiletree {
+                id: entry.key().clone(),
+                event: FileTreeEvent::Snapshot {
+                    children: entry.value().clone(),
+                },
+            };
+            if let Ok(frame) = serde_json::to_string(&notification) {
+                let _ = reply_tx.send(frame);
+            }
+        }
         let id = self.next_outbound.fetch_add(1, Ordering::Relaxed);
         self.outbound.insert(id, reply_tx);
         id
+    }
+
+    /// One event off a laboratory's `/filetree` SSE (called by that
+    /// lab's pump): fold it into the materialized tree, then fan it out
+    /// to every connected daemon — one `attach_lock` hold for both, so
+    /// an attaching channel either sees the fold in its synthesized
+    /// snapshot or receives the broadcast, never neither.
+    pub(crate) async fn filetree_event(&self, id: &str, event: FileTreeEvent) {
+        let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
+            id: id.to_string(),
+            event: event.clone(),
+        }) else {
+            return;
+        };
+        let _guard = self.attach_lock.lock().await;
+        event.apply(self.filetree.entry(id.to_string()).or_default().value_mut());
+        self.outbound.retain(|_, tx| tx.send(frame.clone()).is_ok());
     }
 
     pub fn detach_channel(&self, id: u64) {
@@ -176,7 +221,9 @@ impl HostServer {
     }
 
     /// The laboratory's server, starting its container on first use.
-    async fn lab_server(&self, id: &str) -> Result<Arc<LabServer>, String> {
+    /// A successful start also spawns the lab's filetree pump (the
+    /// container's `/filetree` SSE proxied to every daemon).
+    async fn lab_server(self: &Arc<Self>, id: &str) -> Result<Arc<LabServer>, String> {
         let cell = self
             .labs
             .entry(id.to_string())
@@ -189,7 +236,11 @@ impl HostServer {
                 .await
                 .map_err(|e| format!("start laboratory '{id}': {e}"))?;
             match podman::laboratory::host_port(&self.podman, &self.state, id).await {
-                Ok(port) => Ok(Arc::new(LabServer::new(format!("http://127.0.0.1:{port}")))),
+                Ok(port) => {
+                    let base_url = format!("http://127.0.0.1:{port}");
+                    self.spawn_filetree_pump(id, &base_url).await;
+                    Ok(Arc::new(LabServer::new(base_url)))
+                }
                 Err(e) => {
                     // We just started it — don't leak a running
                     // container behind a failed init.
@@ -200,6 +251,30 @@ impl HostServer {
         })
         .await
         .cloned()
+    }
+
+    /// Start the laboratory's filetree pump, watching its cwd (the
+    /// workspace; podman's record is the source of truth — an empty or
+    /// unreadable cwd falls back to the endpoint's default). Replaces —
+    /// and aborts — any predecessor for the id (delete + recreate).
+    async fn spawn_filetree_pump(self: &Arc<Self>, id: &str, base_url: &str) {
+        let path = match podman::laboratory::list(&self.podman, &self.state).await {
+            Ok(labs) => labs
+                .into_iter()
+                .find(|l| l.id == id)
+                .map(|l| l.cwd)
+                .filter(|cwd| !cwd.is_empty()),
+            Err(_) => None,
+        };
+        let handle = tokio::spawn(crate::filetree::pump(
+            Arc::clone(self),
+            id.to_string(),
+            base_url.to_string(),
+            path,
+        ));
+        if let Some(old) = self.filetree_pumps.insert(id.to_string(), handle) {
+            old.abort();
+        }
     }
 
     /// `LaboratoryCreate`: podman create + MCP binary injection
@@ -247,6 +322,18 @@ impl HostServer {
                 );
             }
             _ => {}
+        }
+        // Ids are one URL path segment on the daemons'
+        // `/laboratories/{id}` routes — reject `/` here
+        // authoritatively, whatever daemon sent the create.
+        if req.id.contains('/') {
+            return rpc_err(
+                -32602,
+                format!(
+                    "laboratory id '{}' contains '/' — ids must be a single path segment",
+                    req.id,
+                ),
+            );
         }
         let mounts: Vec<podman::laboratory::Mount> = req
             .mounts
@@ -326,6 +413,13 @@ impl HostServer {
         id: &str,
     ) -> JsonRpcResult<TransferAck> {
         self.labs.remove(id);
+        // The lab's filetree watch dies with it — abort the pump and
+        // drop the materialized tree (daemons clear theirs on the
+        // `laboratory_deleted` broadcast below).
+        if let Some((_, pump)) = self.filetree_pumps.remove(id) {
+            pump.abort();
+        }
+        self.filetree.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {
             return rpc_err(-32603, format!("delete laboratory '{id}': {e}"));
         }
@@ -343,7 +437,7 @@ impl HostServer {
     /// the destination's import. The host is the only tier allowed to
     /// buffer, and this path does not even stage chunks.
     async fn local_transfer(
-        &self,
+        self: &Arc<Self>,
         req: &LocalTransferRequest,
     ) -> JsonRpcResult<LocalTransferResult> {
         let source = match self.lab_server(&req.source_id).await {

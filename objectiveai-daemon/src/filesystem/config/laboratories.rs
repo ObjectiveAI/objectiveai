@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 )]
 #[schemars(rename = "filesystem.config.LaboratoriesConfig")]
 pub struct LaboratoriesConfig {
-    /// Daemon `ws://` address → signature to present there. An EMPTY
+    /// Daemon `http://` address → signature to present there. An EMPTY
     /// signature dials unauthenticated (that daemon must be open).
-    /// Every entry gets its own resident connection from the host.
+    /// Every entry gets its own resident connection from the host (which
+    /// re-derives `ws://` to open the `/laboratory` WebSocket).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub addresses: Option<indexmap::IndexMap<String, String>>,

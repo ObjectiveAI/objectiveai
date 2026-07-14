@@ -187,3 +187,83 @@ pub enum FileTreeEvent {
         path: Vec<String>,
     },
 }
+
+impl FileTreeEvent {
+    /// Fold this event into a live tree (the watched root's children).
+    /// `Snapshot` replaces the whole child set; `Upserted` inserts or
+    /// replaces one node at its path (a directory node carries its
+    /// whole subtree); `Removed` drops the node at its path (and,
+    /// being a subtree, everything under it). Idempotent — replaying an
+    /// already-applied event leaves the tree unchanged, so at-least-once
+    /// delivery is safe.
+    ///
+    /// This is THE fold, shared by every holder of a materialized tree:
+    /// the SDK's `FileTree` client, the laboratory host's per-lab
+    /// state, and the CLI daemon's per-host state.
+    pub fn apply(self, root: &mut Vec<FileTreeNode>) {
+        match self {
+            FileTreeEvent::Snapshot { children } => {
+                *root = children;
+            }
+            FileTreeEvent::Upserted { path, node } => {
+                let Some((leaf, parents)) = path.split_last() else {
+                    // Empty path can't address a node — ignore.
+                    return;
+                };
+                let siblings = descend_mut(root, parents);
+                match siblings.iter().position(|c| c.name() == leaf) {
+                    Some(i) => siblings[i] = node,
+                    None => siblings.push(node),
+                }
+            }
+            FileTreeEvent::Removed { path } => {
+                let Some((leaf, parents)) = path.split_last() else {
+                    return;
+                };
+                let siblings = descend_mut(root, parents);
+                siblings.retain(|c| c.name() != leaf);
+            }
+        }
+    }
+}
+
+/// Walk `comps` from `children`, following each component into its
+/// directory's child list; a missing middle segment is created as a
+/// synthetic empty directory (defensive — the server sends parents
+/// before children, but a dropped frame shouldn't wedge the fold).
+/// Returns the child list at the end of the walk.
+fn descend_mut<'a>(
+    mut children: &'a mut Vec<FileTreeNode>,
+    comps: &[String],
+) -> &'a mut Vec<FileTreeNode> {
+    for comp in comps {
+        let idx = match children.iter().position(|c| c.name() == comp) {
+            Some(i) => i,
+            None => {
+                children.push(FileTreeNode::Directory {
+                    name: comp.clone(),
+                    created_at: None,
+                    modified_at: None,
+                    created_by: None,
+                    modified_by: None,
+                    children: Vec::new(),
+                });
+                children.len() - 1
+            }
+        };
+        // A non-directory sitting where a directory should be gets
+        // replaced with an empty directory so the walk can continue.
+        if children[idx].children_mut().is_none() {
+            children[idx] = FileTreeNode::Directory {
+                name: comp.clone(),
+                created_at: None,
+                modified_at: None,
+                created_by: None,
+                modified_by: None,
+                children: Vec::new(),
+            };
+        }
+        children = children[idx].children_mut().expect("just ensured directory");
+    }
+    children
+}

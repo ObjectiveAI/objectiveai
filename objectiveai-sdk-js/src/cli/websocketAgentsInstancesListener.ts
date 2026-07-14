@@ -301,7 +301,7 @@ export interface WebSocketAgentsInstancesListenerOptions {
  *
  * ```ts
  * const listener = await WebSocketAgentsInstancesListener.connect(
- *   `ws://127.0.0.1:49152/agents/instances/${aih}`,
+ *   `http://127.0.0.1:49152/agents/instances/${aih}`,
  *   { signature, onChange: render, onAgentChange: renderStatus },
  * );
  * listener.conversation(); // ConversationBlock[] — the logs-list mirror

@@ -1,4 +1,8 @@
-//! Materialized consumer of a laboratory's `/filetree` SSE endpoint.
+//! Materialized consumer of a live file-tree SSE stream — a
+//! laboratory MCP's own `/filetree` endpoint
+//! ([`FileTree::laboratory`]) or a CLI daemon's
+//! `/laboratories/{id}/filetree` proxy ([`FileTree::daemon`]); both
+//! speak the identical wire contract.
 //!
 //! [`FileTree`] is NOT a raw event stream — it connects once, then
 //! folds every incoming [`FileTreeEvent`] into an in-memory,
@@ -59,24 +63,53 @@ struct Shared {
     on_change: Option<OnChange>,
 }
 
-/// Unconnected configuration — [`FileTree::new`] +
-/// [`FileTreeBuilder::on_change`] + [`FileTreeBuilder::connect`].
+/// Unconnected configuration — [`FileTree::laboratory`] /
+/// [`FileTree::daemon`] + builder methods + [`FileTreeBuilder::connect`].
 pub struct FileTreeBuilder {
-    /// The laboratory's base HTTP address, e.g.
-    /// `http://127.0.0.1:49152`.
-    base_url: String,
-    /// Optional absolute path inside the container to watch. `None`
-    /// watches the whole filesystem (`/`).
-    path: Option<String>,
+    /// The full endpoint URL — `{lab}/filetree` (laboratory variant) or
+    /// `{daemon}/laboratories/{id}/filetree` (daemon variant).
+    url: String,
+    /// Query params to send (the laboratory variant's `path` scope, the
+    /// daemon variant's host pin).
+    query: Vec<(String, String)>,
+    /// Optional daemon auth signature, sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` header (daemon variant only —
+    /// laboratories have no auth).
+    signature: Option<String>,
     /// Optional on-change callback.
     on_change: Option<OnChange>,
 }
 
 impl FileTreeBuilder {
-    /// Scope the watch to an absolute path inside the container. Omit
-    /// to watch the whole filesystem.
+    /// Scope the watch to an absolute path inside the container.
+    /// Laboratory variant only: the daemon endpoint always serves the
+    /// laboratory's workspace (its cwd) and ignores this.
     pub fn path(mut self, path: impl Into<String>) -> Self {
-        self.path = Some(path.into());
+        self.query.push(("path".to_string(), path.into()));
+        self
+    }
+
+    /// Attach the daemon auth signature (the pre-derived
+    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` header. Daemon variant only; without
+    /// it the daemon must be running without a secret.
+    pub fn signature(mut self, signature: impl Into<String>) -> Self {
+        self.signature = Some(signature.into());
+        self
+    }
+
+    /// Pin the exact serving host (`?machine=…&machine_state=…`) —
+    /// laboratory ids are only unique per (machine, state). Daemon
+    /// variant only; omit for the legacy first-match-by-id scan.
+    pub fn host(
+        mut self,
+        machine: impl Into<String>,
+        machine_state: impl Into<String>,
+    ) -> Self {
+        self.query.push(("machine".to_string(), machine.into()));
+        self
+            .query
+            .push(("machine_state".to_string(), machine_state.into()));
         self
     }
 
@@ -94,14 +127,17 @@ impl FileTreeBuilder {
 
     /// Open the SSE stream and start the pump. The returned
     /// [`FileTree`] immediately begins folding events (the first is
-    /// the endpoint's connect-time snapshot). Laboratories have no
-    /// auth — the endpoint rides the same loopback-published port the
-    /// conduit dials.
+    /// the endpoint's connect-time snapshot).
     pub async fn connect(self) -> Result<FileTree, Error> {
         let client = reqwest::Client::builder().build()?;
-        let mut request = client.get(format!("{}/filetree", self.base_url));
-        if let Some(path) = &self.path {
-            request = request.query(&[("path", path)]);
+        let mut request = client
+            .get(&self.url)
+            .header("Accept", "text/event-stream");
+        if !self.query.is_empty() {
+            request = request.query(&self.query);
+        }
+        if let Some(signature) = &self.signature {
+            request = request.header("X-OBJECTIVEAI-SIGNATURE", signature);
         }
         let source = request.eventsource()?;
 
@@ -116,19 +152,48 @@ impl FileTreeBuilder {
 }
 
 /// The materialized `/filetree` view — see the module docs. Construct
-/// via [`FileTree::new`]. Dropping it aborts the background pump.
+/// via [`FileTree::laboratory`] or [`FileTree::daemon`]. Dropping it
+/// aborts the background pump.
 pub struct FileTree {
     shared: Arc<Shared>,
     pump: tokio::task::JoinHandle<()>,
 }
 
 impl FileTree {
-    /// Start building a [`FileTree`] for a laboratory's base HTTP
-    /// address (e.g. `http://127.0.0.1:<port>`).
-    pub fn new(base_url: impl Into<String>) -> FileTreeBuilder {
+    /// Build a [`FileTree`] against a laboratory MCP's own `/filetree`
+    /// endpoint, from its base HTTP address (e.g.
+    /// `http://127.0.0.1:<port>` — the loopback-published container
+    /// port). No auth — the port itself is the trust boundary.
+    pub fn laboratory(base_url: impl Into<String>) -> FileTreeBuilder {
         FileTreeBuilder {
-            base_url: base_url.into(),
-            path: None,
+            url: format!("{}/filetree", base_url.into()),
+            query: Vec::new(),
+            signature: None,
+            on_change: None,
+        }
+    }
+
+    /// Build a [`FileTree`] against a CLI daemon's
+    /// `/laboratories/{id}/filetree` endpoint, from the daemon's
+    /// published `http://` address and the RAW laboratory id (ids
+    /// forbid `/`, so the URL is safe by construction). Same wire
+    /// contract as the laboratory variant — the daemon re-emits the
+    /// identical events from its own materialized state. Attach
+    /// [`signature`](FileTreeBuilder::signature) against a secretful
+    /// daemon and [`host`](FileTreeBuilder::host) to pin the exact
+    /// serving host.
+    pub fn daemon(
+        base_url: impl Into<String>,
+        laboratory_id: impl AsRef<str>,
+    ) -> FileTreeBuilder {
+        FileTreeBuilder {
+            url: format!(
+                "{}/laboratories/{}/filetree",
+                base_url.into(),
+                laboratory_id.as_ref(),
+            ),
+            query: Vec::new(),
+            signature: None,
             on_change: None,
         }
     }
@@ -157,77 +222,6 @@ impl Drop for FileTree {
     }
 }
 
-/// Fold one event into the live tree. `Snapshot` replaces the whole
-/// child set; `Upserted` inserts/replaces one node at its path (a
-/// directory node carries its whole subtree); `Removed` drops the node
-/// at its path (and, being a subtree, everything under it).
-fn apply_event(root: &mut Vec<FileTreeNode>, event: FileTreeEvent) {
-    match event {
-        FileTreeEvent::Snapshot { children } => {
-            *root = children;
-        }
-        FileTreeEvent::Upserted { path, node } => {
-            let Some((leaf, parents)) = path.split_last() else {
-                // Empty path can't address a node — ignore.
-                return;
-            };
-            let siblings = descend_mut(root, parents);
-            match siblings.iter().position(|c| c.name() == leaf) {
-                Some(i) => siblings[i] = node,
-                None => siblings.push(node),
-            }
-        }
-        FileTreeEvent::Removed { path } => {
-            let Some((leaf, parents)) = path.split_last() else {
-                return;
-            };
-            let siblings = descend_mut(root, parents);
-            siblings.retain(|c| c.name() != leaf);
-        }
-    }
-}
-
-/// Walk `comps` from `children`, following each component into its
-/// directory's child list; a missing middle segment is created as a
-/// synthetic empty directory (defensive — the server sends parents
-/// before children, but a dropped frame shouldn't wedge the fold).
-/// Returns the child list at the end of the walk.
-fn descend_mut<'a>(
-    mut children: &'a mut Vec<FileTreeNode>,
-    comps: &[String],
-) -> &'a mut Vec<FileTreeNode> {
-    for comp in comps {
-        let idx = match children.iter().position(|c| c.name() == comp) {
-            Some(i) => i,
-            None => {
-                children.push(FileTreeNode::Directory {
-                    name: comp.clone(),
-                    created_at: None,
-                    modified_at: None,
-                    created_by: None,
-                    modified_by: None,
-                    children: Vec::new(),
-                });
-                children.len() - 1
-            }
-        };
-        // A non-directory sitting where a directory should be gets
-        // replaced with an empty directory so the walk can continue.
-        if children[idx].children_mut().is_none() {
-            children[idx] = FileTreeNode::Directory {
-                name: comp.clone(),
-                created_at: None,
-                modified_at: None,
-                created_by: None,
-                modified_by: None,
-                children: Vec::new(),
-            };
-        }
-        children = children[idx].children_mut().expect("just ensured directory");
-    }
-    children
-}
-
 /// Read SSE messages, fold each [`FileTreeEvent`] into `shared.state`,
 /// fire the callback with the refreshed set, and bump the change
 /// counter. Runs until the stream closes. Parse errors and non-message
@@ -245,7 +239,7 @@ async fn pump(mut source: reqwest_eventsource::EventSource, shared: Arc<Shared>)
                 };
                 let snapshot = {
                     let mut state = shared.state.lock().await;
-                    apply_event(&mut state, event);
+                    event.apply(&mut state);
                     shared.on_change.as_ref().map(|_| state.clone())
                 };
                 if let (Some(callback), Some(snapshot)) =

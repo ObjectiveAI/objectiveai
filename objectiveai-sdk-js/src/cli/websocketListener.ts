@@ -1,12 +1,12 @@
 /**
- * Typed consumer of the cli daemon's `/listen` broadcast over a
- * NATIVE WebSocket — the JS mirror of the Rust SDK's
+ * Typed consumer of the cli daemon's `/listen` broadcast SSE — the JS
+ * mirror of the Rust SDK's
  * `cli::websocket_listener::WebSocketListener`, identical in
  * construction and semantics: connect to the daemon's published
  * `/listen` URL (optional signature auth), receive one envelope per
- * announced run, reconnection is the caller's loop. Usable anywhere a
- * `WebSocket` can reach the daemon — the main viewer window, Node
- * 22+, any browser context with network access.
+ * announced run, reconnection is the caller's loop. Usable anywhere
+ * `fetch` can reach the daemon — the main viewer window, Node 22+,
+ * any browser context with network access.
  *
  * The daemon broadcasts every CLI run as one request frame
  * (`{…context, id, value: <Request>}`), then bare `{id, value: <item>}`
@@ -22,12 +22,9 @@
  * `dangerous_advanced.stream` flag, matching their
  * `…ListenerExecutionVariant` union.
  *
- * Auth is the first-message preamble shared by every daemon WebSocket
- * route (headers are never used — browser WebSocket clients can't set
- * them): the connection's first outbound text frame is
- * `{"signature": "sha256=<hex>"}` (or `{"signature": null}`); a
- * secret-bearing daemon closes the connection on a missing/invalid
- * signature.
+ * Auth is the `X-OBJECTIVEAI-SIGNATURE` request header (the same
+ * header every daemon HTTP route uses): a secret-bearing daemon
+ * answers `401 Unauthorized` on a missing/invalid signature.
  *
  * Delivery is LIVE-ONLY — the listener multiplexes but never retains.
  * A subscriber (root iterator or response-stream iterator) receives
@@ -37,7 +34,7 @@
  * runs, so retention here would be a memory leak.
  *
  * Rust-parity lifecycle: one listener = one connection. When the
- * socket closes (daemon exit, network drop, [`WebSocketListener.close`]),
+ * stream closes (daemon exit, network drop, [`WebSocketListener.close`]),
  * every open run's feed closes (unary responses settle with the
  * synthesized "run ended" error, streams end) and every root iterator
  * ENDS.
@@ -60,6 +57,7 @@ import {
   CLI_COMMAND_LISTENER_EXECUTION_MODES,
   type CliCommandListenerExecution,
 } from "./command/listenerExecution";
+import { connectSse } from "./sse";
 
 /** One live subscriber: a per-iterator pending queue's feed side. */
 type Subscriber<T> = {
@@ -165,9 +163,9 @@ type LiveFeed = {
 };
 
 export interface WebSocketListenerOptions {
-  /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-   * verbatim in the auth preamble. Without it the daemon must be
-   * running without a secret. */
+  /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as
+   * the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must
+   * be running without a secret. */
   signature?: string | null;
 }
 
@@ -178,7 +176,7 @@ export interface WebSocketListenerOptions {
  *
  * ```ts
  * const listener = await WebSocketListener.connect(
- *   "ws://127.0.0.1:49152/listen",
+ *   "http://127.0.0.1:49152/listen",
  *   { signature },
  * );
  * for await (const run of listener) {
@@ -197,68 +195,56 @@ export interface WebSocketListenerOptions {
  * connection does; reconnection is the caller's loop.
  */
 export class WebSocketListener {
-  #ws: WebSocket;
+  #abort: AbortController;
   #closed = false;
   #live = new Map<string, LiveFeed>();
   #skipped = new Set<string>();
   #subscribers = new Set<Subscriber<CliCommandListenerExecution>>();
 
-  private constructor(ws: WebSocket) {
-    this.#ws = ws;
-    ws.onmessage = (event: MessageEvent) => {
-      if (typeof event.data !== "string") return;
-      let frame: unknown;
+  private constructor(abort: AbortController, events: AsyncGenerator<string>) {
+    this.#abort = abort;
+    // The pump: parse each SSE data payload and route the frame; the
+    // stream ending (daemon exit, network drop, abort) closes the
+    // listener.
+    void (async () => {
       try {
-        frame = JSON.parse(event.data);
+        for await (const data of events) {
+          let frame: unknown;
+          try {
+            frame = JSON.parse(data);
+          } catch {
+            continue;
+          }
+          this.#onFrame(frame);
+        }
       } catch {
-        return;
+        // Transport failure — same terminal handling as a clean end.
       }
-      this.#onFrame(frame);
-    };
-    ws.onclose = () => this.#onClose();
+      this.#onClose();
+    })();
   }
 
   /**
-   * Open the connection, send the auth preamble, and resolve once the
-   * socket is established (rejects when the daemon is unreachable or
-   * closes during the handshake — e.g. it refused the auth).
-   * `url` is the daemon's full `/listen` URL.
+   * Open the SSE stream and resolve once the response headers arrive
+   * (rejects when the daemon is unreachable or answers non-2xx — e.g.
+   * `401` on a refused signature). `url` is the daemon's full
+   * `/listen` URL.
    */
-  static connect(
+  static async connect(
     url: string,
     options?: WebSocketListenerOptions,
   ): Promise<WebSocketListener> {
-    return new Promise((resolve, reject) => {
-      let ws: WebSocket;
-      try {
-        ws = new WebSocket(url);
-      } catch (e) {
-        reject(new Error(`connect daemon listen websocket: ${String(e)}`));
-        return;
-      }
-      ws.onopen = () => {
-        // The auth preamble — always the connection's first text
-        // frame, `{"signature": null}` against a secretless daemon.
-        ws.send(JSON.stringify({ signature: options?.signature ?? null }));
-        resolve(new WebSocketListener(ws));
-      };
-      ws.onclose = (event: CloseEvent) => {
-        reject(
-          new Error(
-            `connect daemon listen websocket: connection closed` +
-              `${event.code ? ` (code ${event.code})` : ""}`,
-          ),
-        );
-      };
-    });
+    const abort = new AbortController();
+    const events = await connectSse(url, options?.signature, abort.signal);
+    return new WebSocketListener(abort, events);
   }
 
   /** Drop the connection: every open run's feed closes and every root
    * iterator ends. */
   close(): void {
     if (this.#closed) return;
-    this.#ws.close();
-    // The browser fires onclose asynchronously; end deterministically.
+    this.#abort.abort();
+    // The pump notices asynchronously; end deterministically.
     this.#onClose();
   }
 

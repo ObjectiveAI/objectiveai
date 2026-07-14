@@ -107,7 +107,7 @@ async fn message_wake_child_holds_the_aih_lock() {
     // a tens-of-milliseconds wake). Every applied delta fires
     // `on_change` with the folded statuses — record our AIH's flag per
     // event; the sequence of flags carries the edge structure.
-    let addr = cli_test_util::daemon_ws_address(&executor, &state).await;
+    let addr = cli_test_util::daemon_address(&executor, &state).await;
     let transitions: Arc<Mutex<Vec<bool>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&transitions);
     let watch_aih = aih.clone();

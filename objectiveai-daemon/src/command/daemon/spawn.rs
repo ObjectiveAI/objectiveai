@@ -5,11 +5,11 @@
 //! foreground daemon if it isn't held, re-check on child exit.
 //!
 //! Foreground (`foreground:true`): the resident daemon. Under a blocking
-//! init gate it binds the broadcast WebSocket listener and acquires the
-//! singleton lock (publishing the client-connect `ws://` URL as the lock
+//! init gate it binds the HTTP listener and acquires the
+//! singleton lock (publishing the client-connect `http://` URL as the lock
 //! content, like `objectiveai-api` publishes its `http://` URL), brings
-//! up the [`crate::websockets::daemon_stream`] hub (`/listen` broadcast +
-//! `/execute` in-process runner + fixed-name producer socket), then launches
+//! up the [`crate::websockets::daemon_stream`] hub (`/listen` broadcast SSE +
+//! `/execute` POST→SSE runner + fixed-name producer socket), then launches
 //! every `daemon: true` plugin via the SHARED plugin executor
 //! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
 //! plugin gets the full bidirectional protocol (it can execute nested
@@ -113,11 +113,11 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     .await
     .map_err(lock_err)?;
 
-    // Bind the broadcast WebSocket listener BEFORE claiming the
+    // Bind the HTTP listener BEFORE claiming the
     // singleton, so its real (post-`:0`) address can be published as the
     // lock content. Binding happens under the init gate, which
     // serializes startup — at most one foreground races here at a time.
-    let ws_listener = match tokio::net::TcpListener::bind((
+    let http_listener = match tokio::net::TcpListener::bind((
         ctx.config.daemon_address.as_str(),
         ctx.config.daemon_port,
     ))
@@ -126,14 +126,16 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         Ok(listener) => listener,
         Err(e) => {
             let _ = init.release();
-            return Err(Error::Spawn("daemon ws bind".into(), e));
+            return Err(Error::Spawn("daemon http bind".into(), e));
         }
     };
-    // Build the client-connect URL published in the lock — a `ws://`
-    // URL, mirroring how `objectiveai-api` publishes its `http://` URL:
-    // a wildcard bind (`0.0.0.0` / `::`) maps to loopback so the
-    // published address is actually connectable.
-    let bound = match ws_listener.local_addr() {
+    // Build the client-connect URL published in the lock — an `http://`
+    // URL (the command channel, the broadcast `/listen`, and the SSE
+    // watcher routes are all plain HTTP; only the `/laboratory` host
+    // channel is a WebSocket, and its dialer re-derives `ws://` from
+    // this address). A wildcard bind (`0.0.0.0` / `::`) maps to loopback
+    // so the published address is actually connectable.
+    let bound = match http_listener.local_addr() {
         Ok(addr) => {
             let connect_ip = match addr.ip() {
                 std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
@@ -144,20 +146,20 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
                 }
                 ip => ip,
             };
-            format!("ws://{}", std::net::SocketAddr::new(connect_ip, addr.port()))
+            format!("http://{}", std::net::SocketAddr::new(connect_ip, addr.port()))
         }
         Err(e) => {
             let _ = init.release();
-            return Err(Error::Spawn("daemon ws local_addr".into(), e));
+            return Err(Error::Spawn("daemon http local_addr".into(), e));
         }
     };
 
     let state_dir = ctx.filesystem.state_dir();
 
-    // Publish the client-connect `ws://` URL as the lock content (the
+    // Publish the client-connect `http://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
     // discovers exactly where to connect. Published only now that BOTH the
-    // WebSocket listener and the producer socket are up.
+    // HTTP listener and the producer socket are up.
     let claim = match objectiveai_sdk::lockfile::try_acquire(
         &lock_dir,
         super::DAEMON_LOCK_KEY,
@@ -168,7 +170,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         // A sibling daemon already holds the lock — drop our listeners and
         // bow out.
         None => {
-            drop(ws_listener);
+            drop(http_listener);
             let _ = init.release();
             return Ok(Box::pin(futures::stream::empty()));
         }
@@ -178,7 +180,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
 
     // Bring up the broadcast hub: in-process producers (the run tee)
     // push pre-serialized frames onto this channel via `ctx`'s resident
-    // hubs, and they fan out to every connected `/listen` WebSocket
+    // hubs, and they fan out to every connected `/listen` SSE
     // client. The `_rx` clone keeps the channel open for the daemon's
     // whole life.
     let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
@@ -213,7 +215,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     let laboratories =
         crate::websockets::websocket_laboratory::LaboratoryRegistry::new();
     // The live-laboratories hub: local-scan cache + coalesced change
-    // feed for `/laboratories/list` + `/laboratories/{*id}`. Its
+    // feed for `/laboratories/list` + `/laboratories/{id}`. Its
     // resident tasks (scanner, registry forwarder, attachments
     // watcher) live for the daemon's life.
     let labs_hub = crate::websockets::websocket_laboratories::LaboratoriesHub::new(
@@ -236,7 +238,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         mcp_notifiers,
     });
     crate::websockets::daemon_stream::serve_ws(
-        ws_listener,
+        http_listener,
         tx.clone(),
         secret,
         ctx.clone(),

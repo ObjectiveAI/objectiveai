@@ -63,7 +63,7 @@ struct Shared {
 /// [`WebSocketLaboratoriesListenerBuilder::connect`].
 pub struct WebSocketLaboratoriesListenerBuilder {
     /// Full connect URL of the daemon's per-laboratory route, e.g.
-    /// `ws://127.0.0.1:49152/laboratories/my-lab`.
+    /// `http://127.0.0.1:49152/laboratories/my-lab`.
     url: String,
     /// Optional auth signature, sent as the
     /// `X-OBJECTIVEAI-SIGNATURE` request header.
@@ -191,19 +191,7 @@ async fn pump(mut source: reqwest_eventsource::EventSource, shared: Arc<Shared>)
 }
 
 
-/// Rewrite a `ws://`/`wss://` URL to `http`/`https` (reqwest cannot
-/// dial a `ws://` URL); other schemes pass through unchanged.
-fn ws_to_http(url: &str) -> String {
-    if let Some(rest) = url.strip_prefix("ws://") {
-        format!("http://{rest}")
-    } else if let Some(rest) = url.strip_prefix("wss://") {
-        format!("https://{rest}")
-    } else {
-        url.to_string()
-    }
-}
-
-/// Open the daemon's SSE watcher stream: rewrite the scheme, request
+/// Open the daemon's SSE watcher stream: request
 /// `text/event-stream`, and stamp `X-OBJECTIVEAI-SIGNATURE` when a
 /// signature is present (the daemon's watcher routes moved auth from
 /// the first-frame preamble to this header).
@@ -213,7 +201,7 @@ fn connect_sse(
 ) -> Result<reqwest_eventsource::EventSource, Error> {
     let client = reqwest::Client::builder().build()?;
     let mut request = client
-        .get(ws_to_http(url))
+        .get(url)
         .header("Accept", "text/event-stream");
     if let Some(signature) = signature {
         request = request.header("X-OBJECTIVEAI-SIGNATURE", signature);
