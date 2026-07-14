@@ -26,50 +26,6 @@ async fn main() {
         });
     let _ = dotenv::from_path(dir.join(".env"));
 
-    // Persist panics: the resident daemon runs detached with its
-    // stderr discarded, so a panicking task (e.g. inside one hyper
-    // connection's service future — which aborts just that connection
-    // while the process lives) vanishes without a trace. Append every
-    // panic to `<state_dir>/panics.log` — location, thread, payload —
-    // and still chain to the default hook.
-    {
-        let state = std::env::var("OBJECTIVEAI_STATE")
-            .ok()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "default".to_string());
-        let panic_log = dir.join("state").join(&state).join("panics.log");
-        let default_hook = std::panic::take_hook();
-        std::panic::set_hook(Box::new(move |info| {
-            let payload = info
-                .payload()
-                .downcast_ref::<&str>()
-                .map(|s| s.to_string())
-                .or_else(|| info.payload().downcast_ref::<String>().cloned())
-                .unwrap_or_else(|| "<non-string panic payload>".to_string());
-            let location = info
-                .location()
-                .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
-                .unwrap_or_else(|| "<unknown location>".to_string());
-            let thread = std::thread::current()
-                .name()
-                .unwrap_or("<unnamed>")
-                .to_string();
-            let line = format!(
-                "[pid {} thread {thread}] panicked at {location}: {payload}\n",
-                std::process::id(),
-            );
-            if let Ok(mut file) = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(&panic_log)
-            {
-                use std::io::Write as _;
-                let _ = file.write_all(line.as_bytes());
-            }
-            default_hook(info);
-        }));
-    }
-
     // Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
     // stdio handles before any child spawns. See
     // `objectiveai_daemon::clear_stdio_inheritance` for the
