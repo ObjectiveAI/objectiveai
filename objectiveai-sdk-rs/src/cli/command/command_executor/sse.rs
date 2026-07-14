@@ -115,6 +115,21 @@ pub enum Error {
     Empty,
 }
 
+/// A transport error's FULL cause chain — `Display` alone hides the
+/// interesting part (reqwest's "error decoding response body" says
+/// nothing without the hyper cause underneath, e.g. "connection reset"
+/// vs "connection closed before message completed").
+fn error_chain(e: &dyn std::error::Error) -> String {
+    let mut message = e.to_string();
+    let mut source = e.source();
+    while let Some(cause) = source {
+        message.push_str(": ");
+        message.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    message
+}
+
 /// Per-event untagged decode. `Err` is listed first so serde tries it
 /// before `Ok` — `cli::Error`'s `type:"error"` constant short-circuits
 /// every non-error wire shape, then `Ok(T)` is the fallthrough.
@@ -179,7 +194,7 @@ impl CommandExecutor for SseCommandExecutor {
                 Ok(line) => line.into(),
                 Err(e) => Err(Error::Json(e)),
             },
-            Err(e) => Err(Error::Sse(e.to_string())),
+            Err(e) => Err(Error::Sse(error_chain(&e))),
         });
 
         Ok(Box::pin(stream))

@@ -231,9 +231,17 @@ async fn pump(
                 }
             }
             // Stream ended or errored — end the pump (the caller
-            // reconnects); a final `Err` surfaces the cause first.
+            // reconnects); a final `Err` surfaces the FULL cause chain
+            // first (`Display` alone hides the transport cause).
             Some(Err(e)) => {
-                let _ = tx.send(Err(Error::Stream(e.to_string())));
+                let mut message = e.to_string();
+                let mut source = std::error::Error::source(&e);
+                while let Some(cause) = source {
+                    message.push_str(": ");
+                    message.push_str(&cause.to_string());
+                    source = cause.source();
+                }
+                let _ = tx.send(Err(Error::Stream(message)));
                 break;
             }
             None => break,
