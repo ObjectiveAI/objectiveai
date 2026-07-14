@@ -154,7 +154,20 @@ pub fn serve_ws(
             conversations,
             laboratories,
             labs_hub,
-        });
+        })
+        // CORS, permissive — mirrors objectiveai-api. The viewer's
+        // webview fetches these routes cross-origin (its page origin is
+        // never the daemon's), and a fetch+SSE response without CORS
+        // headers is opaque to a browser: the preflight 405s and the GET
+        // is unreadable. Auth is the `X-OBJECTIVEAI-SIGNATURE` header
+        // (never cookies), so any-origin is safe here.
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+                .expose_headers(tower_http::cors::Any),
+        );
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     })

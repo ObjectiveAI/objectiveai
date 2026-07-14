@@ -4297,6 +4297,7 @@ dependencies = [
  "tiktoken-rs",
  "tokio",
  "tokio-stream",
+ "tower-http",
  "twox-hash",
  "uuid",
  "wasmtime",
