@@ -241,6 +241,45 @@ async fn agent_instance_stream_snapshot_and_live() {
         };
     }
     mark!("daemon up");
+    // Postmortem watchdog (temporary diagnostics, like the marks): every
+    // 5s record daemon lock liveness + TCP accept and log TRANSITIONS —
+    // when the ~185s failure fires, this shows whether the daemon died
+    // silently (lock released / connect refused) or stayed alive while
+    // aborting individual connections.
+    {
+        let probe_addr = addr
+            .trim_start_matches("http://")
+            .trim_start_matches("https://")
+            .to_string();
+        let lock_dir = cli_test_util::objectiveai_dir()
+            .join("state")
+            .join(&state)
+            .join("locks");
+        let t0p = std::time::Instant::now();
+        tokio::spawn(async move {
+            let mut last = String::new();
+            loop {
+                let held =
+                    objectiveai_sdk::lockfile::try_held(&lock_dir, "plugins-daemon").await;
+                let tcp = match tokio::time::timeout(
+                    std::time::Duration::from_secs(2),
+                    tokio::net::TcpStream::connect(&probe_addr),
+                )
+                .await
+                {
+                    Ok(Ok(_)) => "tcp-ok",
+                    Ok(Err(_)) => "tcp-refused",
+                    Err(_) => "tcp-timeout",
+                };
+                let now = format!("daemon-lock-held={held} {tcp}");
+                if now != last {
+                    eprintln!("[probe +{:>7.1?}] {now}", t0p.elapsed());
+                    last = now;
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+        });
+    }
 
     // First turn BEFORE connecting: the listener must replay it from
     // the DB snapshot.
