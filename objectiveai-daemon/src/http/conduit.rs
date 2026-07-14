@@ -134,7 +134,21 @@ struct Inner {
     /// Register-once guard; this conduit's entries are removed from the
     /// map when [`Inner`] drops (agent completion ended).
     listener_ids: DashSet<String>,
+    /// Laboratory MCP sessions THIS reverse connection opened:
+    /// `response_id → {(lab id, machine, machine_state)}`, recorded on
+    /// every forwarded lab `Initialize` and cleared by forwarded
+    /// `SessionTerminate`/`Drop`. [`Inner`]'s drop forwards a host
+    /// `Drop { response_id }` for every remainder — an ABRUPT reverse-
+    /// channel death (API crash, network cut) never says goodbye, and
+    /// without this the host's per-lab session entry would leak and
+    /// pin the container against its idle stop forever. The whole map
+    /// is this connection's lab state; connection gone ⇒ state gone.
+    laboratory_sessions: DashMap<String, std::collections::HashSet<LabSessionKey>>,
 }
+
+/// One recorded lab session target — the resolved routing triple the
+/// teardown `Drop` re-uses.
+type LabSessionKey = (String, Option<String>, Option<String>);
 
 impl ConduitMcpHandler {
     /// Construct a handler over the given in-process `objectiveai-mcp`
@@ -183,6 +197,7 @@ impl ConduitMcpHandler {
                 ctx,
                 agent_tag,
                 listener_ids: DashSet::new(),
+                laboratory_sessions: DashMap::new(),
             }),
         }
     }
@@ -242,10 +257,51 @@ impl Drop for Inner {
     /// agent completion ended, so the notifier's WS is closing). The
     /// former per-response sockets never cleaned up — this is a strict
     /// improvement over unbounded growth.
+    ///
+    /// Also forward a host `Drop { response_id }` for every laboratory
+    /// session still in this connection's ledger: an abrupt reverse-
+    /// channel death (API crash, network cut) never sent
+    /// `SessionTerminate`/`Drop`, and the host's per-lab session entry
+    /// counts as run demand — leaked, it would pin the container
+    /// against its idle stop forever. This connection's lab state dies
+    /// WITH the connection. Fire-and-forget: a session the host
+    /// already dropped (e.g. the daemon↔host channel bounced, whose
+    /// detach sweep clears per-channel sessions) answers
+    /// `dropped: false` harmlessly.
     fn drop(&mut self) {
         if let Some(hubs) = self.ctx.resident_hubs() {
             for id in self.listener_ids.iter() {
                 hubs.mcp_notifiers.remove(id.key());
+            }
+            let registry = hubs.laboratories.clone();
+            // `Drop` is sync; the forwards need the runtime. Teardown
+            // outside a runtime (process exit) can skip — the host's
+            // own shutdown/boot sweep covers that case.
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                for entry in self.laboratory_sessions.iter() {
+                    let response_id = entry.key().clone();
+                    for (id, machine, machine_state) in entry.value().iter() {
+                        let registry = registry.clone();
+                        let response_id = response_id.clone();
+                        let (id, machine, machine_state) =
+                            (id.clone(), machine.clone(), machine_state.clone());
+                        handle.spawn(async move {
+                            let _ = registry
+                                .forward(
+                                    &id,
+                                    machine.as_deref(),
+                                    machine_state.as_deref(),
+                                    indexmap::IndexMap::new(),
+                                    objectiveai_sdk::laboratories::daemon::RequestPayload::Drop(
+                                        objectiveai_sdk::laboratories::daemon::DropRequest {
+                                            response_id,
+                                        },
+                                    ),
+                                )
+                                .await;
+                        });
+                    }
+                }
             }
         }
     }
@@ -856,6 +912,44 @@ impl ConduitMcpHandler {
                         target.machine_state = Some(machine_state);
                     }
                 }
+            }
+        }
+        // Session ledger: remember every lab Initialize this reverse
+        // connection forwards (keyed by response id + the RESOLVED
+        // routing triple), and forget on the graceful ends — the
+        // remainder is what [`Inner`]'s drop cleans up after an abrupt
+        // reverse-channel death. Over-approximate on purpose: a failed
+        // Initialize still records, and its teardown Drop is a
+        // harmless `dropped: false` no-op host-side.
+        if let Some(response_id) = response_id_from_headers(headers).or_else(|| {
+            match &payload {
+                server_request::Payload::Drop(req) => Some(req.response_id.clone()),
+                _ => None,
+            }
+        }) {
+            let key: LabSessionKey = (
+                target.id.clone(),
+                target.machine.clone(),
+                target.machine_state.clone(),
+            );
+            match &payload {
+                server_request::Payload::Initialize { .. } => {
+                    self.inner
+                        .laboratory_sessions
+                        .entry(response_id)
+                        .or_default()
+                        .insert(key);
+                }
+                server_request::Payload::SessionTerminate { .. }
+                | server_request::Payload::Drop(_) => {
+                    self.inner
+                        .laboratory_sessions
+                        .remove_if_mut(&response_id, |_, keys| {
+                            keys.remove(&key);
+                            keys.is_empty()
+                        });
+                }
+                _ => {}
             }
         }
         // TRANSLATE at the seam: the reverse channel and the host
