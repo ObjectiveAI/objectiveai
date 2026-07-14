@@ -62,22 +62,26 @@ pub(crate) async fn execute_handler(
         .into_response()
 }
 
-/// The per-request identity from the [`AGENT_ARGUMENT_HEADERS`] request
-/// headers, field ↔ header in order. A missing (or non-UTF-8) header is
-/// `None`, which [`crate::executor::apply_agent_arguments`] DELETES on
-/// the run's config — never inherits. `mcp_session_id` has no header
-/// and is always cleared.
+/// The per-request identity from the `X-OBJECTIVEAI-*` request headers
+/// — the same names the api stamps on outbound calls, one header per
+/// field. A missing (or non-UTF-8) header is `None`, which
+/// [`crate::executor::apply_agent_arguments`] DELETES on the run's
+/// config — never inherits. `mcp_session_id` has no header and is
+/// always cleared.
 fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
-    let mut values = AGENT_ARGUMENT_HEADERS
-        .iter()
-        .map(|name| headers.get(*name).and_then(|v| v.to_str().ok()).map(String::from));
+    let get = |name: &str| {
+        headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .map(String::from)
+    };
     AgentArguments {
-        agent_instance_hierarchy: values.next().flatten(),
-        agent_id: values.next().flatten(),
-        agent_full_id: values.next().flatten(),
-        agent_remote: values.next().flatten(),
-        response_id: values.next().flatten(),
-        response_ids: values.next().flatten(),
+        agent_instance_hierarchy: get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"),
+        agent_id: get("X-OBJECTIVEAI-AGENT-ID"),
+        agent_full_id: get("X-OBJECTIVEAI-AGENT-FULL-ID"),
+        agent_remote: get("X-OBJECTIVEAI-AGENT-REMOTE"),
+        response_id: get("X-OBJECTIVEAI-RESPONSE-ID"),
+        response_ids: get("X-OBJECTIVEAI-RESPONSE-IDS"),
         mcp_session_id: None,
     }
 }
