@@ -11,7 +11,7 @@
 //! by `end: true`, response when the id is already open, request
 //! otherwise.
 //!
-//! [`WebSocketListener`] IS a `Stream`: it yields one [`ListenerExecution`] envelope
+//! [`BroadcastListener`] IS a `Stream`: it yields one [`ListenerExecution`] envelope
 //! per announced run, discriminated over the run's REQUEST — each
 //! variant carries the actual leaf request, the producer's
 //! [`AgentArguments`], and the response as either a
@@ -62,10 +62,10 @@ pub enum Error {
     Stream(String),
 }
 
-/// Unconnected configuration — [`WebSocketListener::new`] +
-/// [`WebSocketListenerBuilder::signature`] +
-/// [`WebSocketListenerBuilder::connect`].
-pub struct WebSocketListenerBuilder {
+/// Unconnected configuration — [`BroadcastListener::new`] +
+/// [`BroadcastListenerBuilder::signature`] +
+/// [`BroadcastListenerBuilder::connect`].
+pub struct BroadcastListenerBuilder {
     /// Full `http`/`https` URL of the daemon's listen SSE route, e.g.
     /// `http://127.0.0.1:49152/listen`.
     url: String,
@@ -74,7 +74,7 @@ pub struct WebSocketListenerBuilder {
     signature: Option<String>,
 }
 
-impl WebSocketListenerBuilder {
+impl BroadcastListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
     /// `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
@@ -85,34 +85,34 @@ impl WebSocketListenerBuilder {
     }
 
     /// Open the SSE stream and start the pump. The returned
-    /// [`WebSocketListener`] is the root envelope stream; connection/auth
+    /// [`BroadcastListener`] is the root envelope stream; connection/auth
     /// failures surface as the first `Err` item.
-    pub async fn connect(self) -> Result<WebSocketListener, Error> {
+    pub async fn connect(self) -> Result<BroadcastListener, Error> {
         let source = connect_sse(&self.url, self.signature.as_deref())?;
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<ListenerExecution, Error>>();
         tokio::spawn(pump(source, tx));
-        Ok(WebSocketListener { rx })
+        Ok(BroadcastListener { rx })
     }
 }
 
 /// The root run stream — see the module docs. Construct via
-/// [`WebSocketListener::new`].
-pub struct WebSocketListener {
+/// [`BroadcastListener::new`].
+pub struct BroadcastListener {
     rx: tokio::sync::mpsc::UnboundedReceiver<Result<ListenerExecution, Error>>,
 }
 
-impl WebSocketListener {
+impl BroadcastListener {
     /// Start building a listener for the daemon's `/listen` URL (the
     /// daemon's published base address + `/listen`).
-    pub fn new(url: impl Into<String>) -> WebSocketListenerBuilder {
-        WebSocketListenerBuilder {
+    pub fn new(url: impl Into<String>) -> BroadcastListenerBuilder {
+        BroadcastListenerBuilder {
             url: url.into(),
             signature: None,
         }
     }
 }
 
-impl Stream for WebSocketListener {
+impl Stream for BroadcastListener {
     type Item = Result<ListenerExecution, Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

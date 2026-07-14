@@ -14,7 +14,7 @@ use crate::cli::command::laboratories::create::{EnvVar, Mount};
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_laboratories_listener.LaboratoryAttachment")]
+#[schemars(rename = "cli.laboratories_listener.LaboratoryAttachment")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum LaboratoryAttachment {
     /// Attached directly to an agent instance hierarchy.
@@ -71,7 +71,7 @@ pub enum LaboratoryAttachment {
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_laboratories_listener.LaboratoryRecord")]
+#[schemars(rename = "cli.laboratories_listener.LaboratoryRecord")]
 pub struct LaboratoryRecord {
     /// Raw (state-agnostic) laboratory id.
     pub id: String,
@@ -121,7 +121,7 @@ pub struct LaboratoryRecord {
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_laboratories_listener.LaboratoryInstanceEvent")]
+#[schemars(rename = "cli.laboratories_listener.LaboratoryInstanceEvent")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum LaboratoryInstanceEvent {
     /// The laboratory's current full record.

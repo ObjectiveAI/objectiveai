@@ -11,7 +11,7 @@
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_list_listener.AgentStatus")]
+#[schemars(rename = "cli.agents_instances_list_listener.AgentStatus")]
 pub struct AgentStatus {
     /// Full hierarchy of this agent instance.
     pub agent_instance_hierarchy: String,
@@ -28,7 +28,7 @@ pub struct AgentStatus {
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_list_listener.AgentEvent")]
+#[schemars(rename = "cli.agents_instances_list_listener.AgentEvent")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     /// The full agent set (every known AIH with its `active` flag),

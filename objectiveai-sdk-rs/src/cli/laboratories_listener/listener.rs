@@ -1,19 +1,19 @@
 //! Materialized consumer of the cli daemon's `/laboratories/{id}`
 //! endpoint.
 //!
-//! [`WebSocketLaboratoriesListener`] connects once, then folds every
+//! [`LaboratoriesListener`] connects once, then folds every
 //! incoming [`LaboratoryInstanceEvent::Laboratory`] frame — always a
 //! full-value record replace — into an in-memory
 //! `Option<LaboratoryRecord>`.
 //!
 //! Three ways to observe it:
-//! - [`laboratory`](WebSocketLaboratoriesListener::laboratory) —
+//! - [`laboratory`](LaboratoriesListener::laboratory) —
 //!   async snapshot of the current record (`None` before the first
 //!   frame).
 //! - an on-change **callback**
-//!   ([`on_change`](WebSocketLaboratoriesListenerBuilder::on_change)),
+//!   ([`on_change`](LaboratoriesListenerBuilder::on_change)),
 //!   invoked with the fresh record on every frame.
-//! - [`subscribe`](WebSocketLaboratoriesListener::subscribe) — async,
+//! - [`subscribe`](LaboratoriesListener::subscribe) — async,
 //!   blocks until the next change.
 //!
 //! One listener = one connection: the internal pump runs until the
@@ -51,17 +51,17 @@ struct Shared {
     state: Mutex<Option<LaboratoryRecord>>,
     /// A monotonically-bumped change counter. Each applied frame
     /// bumps it, waking every
-    /// [`subscribe`](WebSocketLaboratoriesListener::subscribe) waiter.
+    /// [`subscribe`](LaboratoriesListener::subscribe) waiter.
     changes: watch::Sender<u64>,
     /// Optional push callback, invoked with the fresh record after
     /// each frame.
     on_change: Option<OnChange>,
 }
 
-/// Unconnected configuration — [`WebSocketLaboratoriesListener::new`]
-/// + [`WebSocketLaboratoriesListenerBuilder::signature`] +
-/// [`WebSocketLaboratoriesListenerBuilder::connect`].
-pub struct WebSocketLaboratoriesListenerBuilder {
+/// Unconnected configuration — [`LaboratoriesListener::new`]
+/// + [`LaboratoriesListenerBuilder::signature`] +
+/// [`LaboratoriesListenerBuilder::connect`].
+pub struct LaboratoriesListenerBuilder {
     /// Full connect URL of the daemon's per-laboratory route, e.g.
     /// `http://127.0.0.1:49152/laboratories/my-lab`.
     url: String,
@@ -72,7 +72,7 @@ pub struct WebSocketLaboratoriesListenerBuilder {
     on_change: Option<OnChange>,
 }
 
-impl WebSocketLaboratoriesListenerBuilder {
+impl LaboratoriesListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
     /// `X-OBJECTIVEAI-SIGNATURE` request header — the daemon's SSE
@@ -86,7 +86,7 @@ impl WebSocketLaboratoriesListenerBuilder {
     /// Register a callback invoked with the fresh full record after
     /// every applied frame. Runs on the pump task, so keep it cheap
     /// and non-blocking; for the state on demand use
-    /// [`laboratory`](WebSocketLaboratoriesListener::laboratory).
+    /// [`laboratory`](LaboratoriesListener::laboratory).
     pub fn on_change(
         mut self,
         callback: impl Fn(&LaboratoryRecord) + Send + Sync + 'static,
@@ -96,10 +96,10 @@ impl WebSocketLaboratoriesListenerBuilder {
     }
 
     /// Open the SSE stream and start the pump. The
-    /// returned [`WebSocketLaboratoriesListener`] immediately begins
+    /// returned [`LaboratoriesListener`] immediately begins
     /// folding frames (the first is the endpoint's connect-time
     /// record).
-    pub async fn connect(self) -> Result<WebSocketLaboratoriesListener, Error> {
+    pub async fn connect(self) -> Result<LaboratoriesListener, Error> {
         let source = connect_sse(&self.url, self.signature.as_deref())?;
 
         let shared = Arc::new(Shared {
@@ -108,24 +108,24 @@ impl WebSocketLaboratoriesListenerBuilder {
             on_change: self.on_change,
         });
         let pump = tokio::spawn(pump(source, shared.clone()));
-        Ok(WebSocketLaboratoriesListener { shared, pump })
+        Ok(LaboratoriesListener { shared, pump })
     }
 }
 
 /// The materialized `/laboratories/{id}` view — see the module docs.
-/// Construct via [`WebSocketLaboratoriesListener::new`]. Dropping it
+/// Construct via [`LaboratoriesListener::new`]. Dropping it
 /// aborts the background pump.
-pub struct WebSocketLaboratoriesListener {
+pub struct LaboratoriesListener {
     shared: Arc<Shared>,
     pump: tokio::task::JoinHandle<()>,
 }
 
-impl WebSocketLaboratoriesListener {
+impl LaboratoriesListener {
     /// Start building a listener for the daemon's `/laboratories/{id}`
     /// URL (the daemon's published base address + `/laboratories/` +
     /// the raw laboratory id).
-    pub fn new(url: impl Into<String>) -> WebSocketLaboratoriesListenerBuilder {
-        WebSocketLaboratoriesListenerBuilder {
+    pub fn new(url: impl Into<String>) -> LaboratoriesListenerBuilder {
+        LaboratoriesListenerBuilder {
             url: url.into(),
             signature: None,
             on_change: None,
@@ -140,7 +140,7 @@ impl WebSocketLaboratoriesListener {
     /// Block until the next frame is applied to the state. A fresh
     /// call waits for the FIRST change after it is made — pair with a
     /// [`laboratory`](Self::laboratory) read in a loop, or use the
-    /// [`on_change`](WebSocketLaboratoriesListenerBuilder::on_change)
+    /// [`on_change`](LaboratoriesListenerBuilder::on_change)
     /// callback for guaranteed push.
     pub async fn subscribe(&self) {
         // A receiver from `subscribe` is caught up to the current
@@ -152,7 +152,7 @@ impl WebSocketLaboratoriesListener {
     }
 }
 
-impl Drop for WebSocketLaboratoriesListener {
+impl Drop for LaboratoriesListener {
     fn drop(&mut self) {
         // Stop updating a view no one holds any more.
         self.pump.abort();

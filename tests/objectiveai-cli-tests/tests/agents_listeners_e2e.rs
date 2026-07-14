@@ -1,10 +1,10 @@
 //! E2E: the daemon's LIVE agents WebSocket endpoints, consumed with
 //! the Rust SDK listener clients:
 //!
-//! - `/agents/instances/list` ([`WebSocketAgentsInstancesListListener`])
+//! - `/agents/instances/list` ([`AgentsInstancesListListener`])
 //!   — every known AIH with its live `active` flag (lock-driven:
 //!   Activated on spawn's lock acquire, Deactivated on release).
-//! - `/agents/instances/{*aih}` ([`WebSocketAgentsInstancesListener`])
+//! - `/agents/instances/{*aih}` ([`AgentsInstancesListener`])
 //!   — one agent's conversation (DB snapshot replay, then the live
 //!   log-writer tee) plus its full status record (tags, queue,
 //!   attachments, active).
@@ -32,11 +32,11 @@ use objectiveai_sdk::cli::command::agents::tags::apply::{
 use objectiveai_sdk::cli::command::laboratories::attach::{
     Path as AttachPath, Request as AttachReq, Response as AttachResp,
 };
-use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{
-    AgentStatus, WebSocketAgentsInstancesListListener,
+use objectiveai_sdk::cli::agents_instances_list_listener::{
+    AgentStatus, AgentsInstancesListListener,
 };
-use objectiveai_sdk::cli::websocket_agents_instances_listener::{
-    AgentRecord, AssistantResponsePart, ConversationBlock, WebSocketAgentsInstancesListener,
+use objectiveai_sdk::cli::agents_instances_listener::{
+    AgentRecord, AssistantResponsePart, ConversationBlock, AgentsInstancesListener,
 };
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
@@ -188,7 +188,7 @@ async fn agents_list_stream_activation_lifecycle() {
 
     let snapshots: Arc<Mutex<Vec<Vec<AgentStatus>>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&snapshots);
-    let listener = WebSocketAgentsInstancesListListener::new(format!(
+    let listener = AgentsInstancesListListener::new(format!(
         "{addr}/agents/instances/list"
     ))
     .on_change(move |agents| {
@@ -289,7 +289,7 @@ async fn agent_instance_stream_snapshot_and_live() {
 
     let records: Arc<Mutex<Vec<AgentRecord>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&records);
-    let listener = WebSocketAgentsInstancesListener::new(format!(
+    let listener = AgentsInstancesListener::new(format!(
         "{addr}/agents/instances/{aih}"
     ))
     .on_agent_change(move |record| {

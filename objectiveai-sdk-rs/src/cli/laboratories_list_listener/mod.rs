@@ -11,7 +11,7 @@
 //! disconnect, appear in, or vanish from the local scan.
 //!
 //! The daemon side lives in `objectiveai-cli`'s
-//! `websockets::websocket_laboratories`.
+//! `http::laboratories_routes`.
 
 mod wire;
 pub use wire::*;

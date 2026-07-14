@@ -225,7 +225,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::websocket_listener`].
+/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub enum ListenerExecution {
     Call(call::ListenerExecution),

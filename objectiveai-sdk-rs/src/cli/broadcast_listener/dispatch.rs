@@ -1,4 +1,4 @@
-//! Wire dispatch for [`super::WebSocketListener`]: open a run from
+//! Wire dispatch for [`super::BroadcastListener`]: open a run from
 //! its broadcast request frame's raw body — discriminate via a probe
 //! of the request's `path_type` (plus jq/python and, on the dual-form
 //! leaves, `dangerous_advanced.stream`), deserialize the request

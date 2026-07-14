@@ -10,7 +10,7 @@
 //! mid-stream is reported inactive exactly, with no leak.
 //!
 //! The daemon side lives in `objectiveai-cli`'s
-//! `websockets::websocket_agents`.
+//! `http::agents_routes`.
 
 mod wire;
 pub use wire::*;

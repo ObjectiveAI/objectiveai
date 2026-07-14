@@ -37,7 +37,7 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
-use objectiveai_sdk::cli::websocket_agents_instances_list_listener::WebSocketAgentsInstancesListListener;
+use objectiveai_sdk::cli::agents_instances_list_listener::AgentsInstancesListListener;
 
 const SEED: i64 = 42;
 
@@ -111,7 +111,7 @@ async fn message_wake_child_holds_the_aih_lock() {
     let transitions: Arc<Mutex<Vec<bool>>> = Arc::new(Mutex::new(Vec::new()));
     let recorder = Arc::clone(&transitions);
     let watch_aih = aih.clone();
-    let listener = WebSocketAgentsInstancesListListener::new(format!(
+    let listener = AgentsInstancesListListener::new(format!(
         "{addr}/agents/instances/list"
     ))
     .on_change(move |agents| {

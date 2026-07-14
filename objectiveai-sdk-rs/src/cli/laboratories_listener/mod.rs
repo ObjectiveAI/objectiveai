@@ -11,7 +11,7 @@
 //! Full-value replace, never a patch.
 //!
 //! The daemon side lives in `objectiveai-cli`'s
-//! `websockets::websocket_laboratories`.
+//! `http::laboratories_routes`.
 
 mod wire;
 pub use wire::*;

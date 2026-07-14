@@ -1,9 +1,9 @@
 //! E2E: the daemon's LIVE laboratories WebSocket endpoints, consumed
 //! with the Rust SDK listener clients (their first Rust consumers):
 //!
-//! - `/laboratories/list` ([`WebSocketLaboratoriesListListener`]) —
+//! - `/laboratories/list` ([`LaboratoriesListListener`]) —
 //!   the host-registry stream (Snapshot / Upserted / Removed).
-//! - `/laboratories/{id}` ([`WebSocketLaboratoriesListener`]) — one
+//! - `/laboratories/{id}` ([`LaboratoriesListener`]) — one
 //!   laboratory's full record (identity + machine + attachments),
 //!   full-value replaced on every relevant change.
 //!
@@ -48,9 +48,9 @@ use objectiveai_sdk::cli::command::laboratories::list::{
 use objectiveai_sdk::cli::command::laboratories::spawn::{
     Path as LabSpawnPath, Request as LabSpawnReq, Response as LabSpawnResp,
 };
-use objectiveai_sdk::cli::websocket_laboratories_list_listener::WebSocketLaboratoriesListListener;
-use objectiveai_sdk::cli::websocket_laboratories_listener::{
-    LaboratoryAttachment, WebSocketLaboratoriesListener,
+use objectiveai_sdk::cli::laboratories_list_listener::LaboratoriesListListener;
+use objectiveai_sdk::cli::laboratories_listener::{
+    LaboratoryAttachment, LaboratoriesListener,
 };
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
@@ -209,11 +209,11 @@ async fn laboratories_list_and_record_streams() {
     // Listeners up-front: the list snapshot must NOT contain the
     // attachment-only laboratory (nothing serves it); the record
     // stream must serve it zero-filled with the attachment row.
-    let list = WebSocketLaboratoriesListListener::new(format!("{addr}/laboratories/list"))
+    let list = LaboratoriesListListener::new(format!("{addr}/laboratories/list"))
         .connect()
         .await
         .expect("connect /laboratories/list");
-    let record = WebSocketLaboratoriesListener::new(format!("{addr}/laboratories/{id}"))
+    let record = LaboratoriesListener::new(format!("{addr}/laboratories/{id}"))
         .connect()
         .await
         .expect("connect /laboratories/{id}");
@@ -328,11 +328,11 @@ async fn laboratories_cross_daemon_propagation() {
         "the host dials the local daemon first, then the configured address"
     );
 
-    let list_a = WebSocketLaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
+    let list_a = LaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
         .connect()
         .await
         .expect("connect daemon A /laboratories/list");
-    let list_b = WebSocketLaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
+    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
         .connect()
         .await
         .expect("connect daemon B /laboratories/list");
@@ -438,11 +438,11 @@ async fn duplicate_ids_across_hosts() {
     let addr_a = cli_test_util::daemon_address(&exec_a, &state_a).await;
     let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
 
-    let list_a = WebSocketLaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
+    let list_a = LaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
         .connect()
         .await
         .expect("connect daemon A /laboratories/list");
-    let list_b = WebSocketLaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
+    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
         .connect()
         .await
         .expect("connect daemon B /laboratories/list");

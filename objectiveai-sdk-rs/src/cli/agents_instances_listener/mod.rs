@@ -11,7 +11,7 @@
 //! the whole merge story and also converges the snapshot/live seam.
 //!
 //! The daemon side lives in `objectiveai-cli`'s
-//! `websockets::websocket_agent_instance` (fed by the log writer's
+//! `http::agent_instance_route` (fed by the log writer's
 //! `db::logs::tee` over `conversation.sock`).
 
 mod wire;

@@ -28,7 +28,7 @@ use crate::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.AgentRecord")]
+#[schemars(rename = "cli.agents_instances_listener.AgentRecord")]
 pub struct AgentRecord {
     /// Full hierarchy of this agent instance.
     pub agent_instance_hierarchy: String,
@@ -75,7 +75,7 @@ pub struct AgentRecord {
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.AttachedLaboratory")]
+#[schemars(rename = "cli.agents_instances_listener.AttachedLaboratory")]
 pub struct AttachedLaboratory {
     /// The attached laboratory's id.
     pub id: String,
@@ -106,7 +106,7 @@ pub struct AttachedLaboratory {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agents_instances_listener.PartContent")]
+#[schemars(rename = "cli.agents_instances_listener.PartContent")]
 pub enum PartContent {
     #[schemars(title = "Text")]
     Text { text: String },
@@ -125,7 +125,7 @@ pub enum PartContent {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.ClientNotificationPart")]
+#[schemars(rename = "cli.agents_instances_listener.ClientNotificationPart")]
 pub struct ClientNotificationPart {
     /// When the receiver consumed this content row.
     pub delivered_at: String,
@@ -140,7 +140,7 @@ pub struct ClientNotificationPart {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agents_instances_listener.AssistantResponsePart")]
+#[schemars(rename = "cli.agents_instances_listener.AssistantResponsePart")]
 pub enum AssistantResponsePart {
     /// A tool call. `arguments` is the call's full current accumulated
     /// string (full-value, not a fragment).
@@ -186,7 +186,7 @@ pub enum AssistantResponsePart {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.ToolResponsePart")]
+#[schemars(rename = "cli.agents_instances_listener.ToolResponsePart")]
 pub struct ToolResponsePart {
     pub delivered_at: String,
     pub content: PartContent,
@@ -197,7 +197,7 @@ pub struct ToolResponsePart {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.RequestMessageUserPart")]
+#[schemars(rename = "cli.agents_instances_listener.RequestMessageUserPart")]
 pub struct RequestMessageUserPart {
     pub delivered_at: String,
     pub content: PartContent,
@@ -208,7 +208,7 @@ pub struct RequestMessageUserPart {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.VectorRequestChoicePart")]
+#[schemars(rename = "cli.agents_instances_listener.VectorRequestChoicePart")]
 pub struct VectorRequestChoicePart {
     pub delivered_at: String,
     pub content: PartContent,
@@ -220,7 +220,7 @@ pub struct VectorRequestChoicePart {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_instances_listener.VectorRequestChoice")]
+#[schemars(rename = "cli.agents_instances_listener.VectorRequestChoice")]
 pub struct VectorRequestChoice {
     /// The prefix-tree voting key this agent assigned to the choice.
     pub key: String,
@@ -238,7 +238,7 @@ pub struct VectorRequestChoice {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agents_instances_listener.ConversationBlock")]
+#[schemars(rename = "cli.agents_instances_listener.ConversationBlock")]
 pub enum ConversationBlock {
     /// A `user`-role message from the request/task input.
     #[schemars(title = "RequestMessageUser")]
@@ -353,7 +353,7 @@ pub enum ConversationBlock {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agents_instances_listener.AgentInstanceEvent")]
+#[schemars(rename = "cli.agents_instances_listener.AgentInstanceEvent")]
 pub enum AgentInstanceEvent {
     /// One part of a `RequestMessageUser` block. `row_index` = message
     /// index, `row_sub_index` = part index.

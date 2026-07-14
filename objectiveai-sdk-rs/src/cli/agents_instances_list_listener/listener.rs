@@ -1,7 +1,7 @@
 //! Materialized consumer of the cli daemon's `/agents/instances/list`
 //! endpoint.
 //!
-//! [`WebSocketAgentsInstancesListListener`] is NOT a raw event stream —
+//! [`AgentsInstancesListListener`] is NOT a raw event stream —
 //! it connects once, then folds every incoming [`AgentEvent`] into an
 //! in-memory, self-updating map of `AIH → active` flags: a
 //! [`Snapshot`](AgentEvent::Snapshot) replaces the whole set,
@@ -13,12 +13,12 @@
 //! counters) is `/agents/instances/{*aih}`'s job.
 //!
 //! Three ways to observe it:
-//! - [`agents`](WebSocketAgentsInstancesListListener::agents) — async
+//! - [`agents`](AgentsInstancesListListener::agents) — async
 //!   snapshot of the current set (sorted by AIH).
 //! - an on-change **callback**
-//!   ([`on_change`](WebSocketAgentsInstancesListListenerBuilder::on_change)),
+//!   ([`on_change`](AgentsInstancesListListenerBuilder::on_change)),
 //!   invoked with the full refreshed set on every applied change.
-//! - [`subscribe`](WebSocketAgentsInstancesListListener::subscribe) —
+//! - [`subscribe`](AgentsInstancesListListener::subscribe) —
 //!   async, blocks until the next change.
 //!
 //! One listener = one connection: the internal pump runs until the daemon
@@ -58,7 +58,7 @@ struct Shared {
     /// callback) is sorted by AIH.
     state: Mutex<BTreeMap<String, bool>>,
     /// A monotonically-bumped change counter. Each applied event bumps it,
-    /// waking every [`subscribe`](WebSocketAgentsInstancesListListener::subscribe)
+    /// waking every [`subscribe`](AgentsInstancesListListener::subscribe)
     /// waiter.
     changes: watch::Sender<u64>,
     /// Optional push callback, invoked with the full set after each change.
@@ -77,10 +77,10 @@ impl Shared {
     }
 }
 
-/// Unconnected configuration — [`WebSocketAgentsInstancesListListener::new`] +
-/// [`WebSocketAgentsInstancesListListenerBuilder::signature`] +
-/// [`WebSocketAgentsInstancesListListenerBuilder::connect`].
-pub struct WebSocketAgentsInstancesListListenerBuilder {
+/// Unconnected configuration — [`AgentsInstancesListListener::new`] +
+/// [`AgentsInstancesListListenerBuilder::signature`] +
+/// [`AgentsInstancesListListenerBuilder::connect`].
+pub struct AgentsInstancesListListenerBuilder {
     /// Full connect URL of the daemon's agents route, e.g.
     /// `http://127.0.0.1:49152/agents/instances/list`.
     url: String,
@@ -91,7 +91,7 @@ pub struct WebSocketAgentsInstancesListListenerBuilder {
     on_change: Option<OnChange>,
 }
 
-impl WebSocketAgentsInstancesListListenerBuilder {
+impl AgentsInstancesListListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
     /// `X-OBJECTIVEAI-SIGNATURE` request header — the daemon's SSE
@@ -106,7 +106,7 @@ impl WebSocketAgentsInstancesListListenerBuilder {
     /// (sorted by AIH) after every applied change. Runs on the pump
     /// task, so keep it cheap and non-blocking; for the full state on
     /// demand use
-    /// [`agents`](WebSocketAgentsInstancesListListener::agents).
+    /// [`agents`](AgentsInstancesListListener::agents).
     pub fn on_change(
         mut self,
         callback: impl Fn(&[AgentStatus]) + Send + Sync + 'static,
@@ -116,9 +116,9 @@ impl WebSocketAgentsInstancesListListenerBuilder {
     }
 
     /// Open the SSE stream and start the pump. The
-    /// returned [`WebSocketAgentsInstancesListListener`] immediately begins
+    /// returned [`AgentsInstancesListListener`] immediately begins
     /// folding events (the first is the endpoint's connect-time snapshot).
-    pub async fn connect(self) -> Result<WebSocketAgentsInstancesListListener, Error> {
+    pub async fn connect(self) -> Result<AgentsInstancesListListener, Error> {
         let source = connect_sse(&self.url, self.signature.as_deref())?;
 
         let shared = Arc::new(Shared {
@@ -127,23 +127,23 @@ impl WebSocketAgentsInstancesListListenerBuilder {
             on_change: self.on_change,
         });
         let pump = tokio::spawn(pump(source, shared.clone()));
-        Ok(WebSocketAgentsInstancesListListener { shared, pump })
+        Ok(AgentsInstancesListListener { shared, pump })
     }
 }
 
 /// The materialized `/agents/instances/list` view — see the module docs.
-/// Construct via [`WebSocketAgentsInstancesListListener::new`]. Dropping it
+/// Construct via [`AgentsInstancesListListener::new`]. Dropping it
 /// aborts the background pump.
-pub struct WebSocketAgentsInstancesListListener {
+pub struct AgentsInstancesListListener {
     shared: Arc<Shared>,
     pump: tokio::task::JoinHandle<()>,
 }
 
-impl WebSocketAgentsInstancesListListener {
+impl AgentsInstancesListListener {
     /// Start building a listener for the daemon's `/agents/instances/list`
     /// URL (the daemon's published base address + `/agents/instances/list`).
-    pub fn new(url: impl Into<String>) -> WebSocketAgentsInstancesListListenerBuilder {
-        WebSocketAgentsInstancesListListenerBuilder {
+    pub fn new(url: impl Into<String>) -> AgentsInstancesListListenerBuilder {
+        AgentsInstancesListListenerBuilder {
             url: url.into(),
             signature: None,
             on_change: None,
@@ -159,7 +159,7 @@ impl WebSocketAgentsInstancesListListener {
     /// waits for the FIRST change after it is made, so a change that lands
     /// between a preceding [`agents`](Self::agents) read and this call is
     /// not observed by it — pair with the read in a loop, or use the
-    /// [`on_change`](WebSocketAgentsInstancesListListenerBuilder::on_change)
+    /// [`on_change`](AgentsInstancesListListenerBuilder::on_change)
     /// callback for guaranteed push.
     pub async fn subscribe(&self) {
         // A receiver from `subscribe` is caught up to the current version,
@@ -170,7 +170,7 @@ impl WebSocketAgentsInstancesListListener {
     }
 }
 
-impl Drop for WebSocketAgentsInstancesListListener {
+impl Drop for AgentsInstancesListListener {
     fn drop(&mut self) {
         // Stop updating a view no one holds any more.
         self.pump.abort();

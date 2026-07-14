@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// A run announcement on the `/listen` broadcast — see the module
 /// docs.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "cli.websocket_listener.ListenerRequest.{T}")]
+#[schemars(rename = "cli.broadcast_listener.ListenerRequest.{T}")]
 pub struct ListenerRequest<T> {
     /// The broadcast stream id — fresh per run; every following frame
     /// for the run carries it.
@@ -49,7 +49,7 @@ pub struct ListenerRequest<T> {
 
 /// One response item on the `/listen` broadcast — see the module docs.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "cli.websocket_listener.ListenerResponse.{T}")]
+#[schemars(rename = "cli.broadcast_listener.ListenerResponse.{T}")]
 pub struct ListenerResponse<T> {
     /// The broadcast stream id of the run this item belongs to.
     pub id: String,
@@ -60,7 +60,7 @@ pub struct ListenerResponse<T> {
 /// A stream terminator on the `/listen` broadcast — see the module
 /// docs.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "cli.websocket_listener.ListenerEnd")]
+#[schemars(rename = "cli.broadcast_listener.ListenerEnd")]
 pub struct ListenerEnd {
     /// The broadcast stream id this terminator closes.
     pub id: String,

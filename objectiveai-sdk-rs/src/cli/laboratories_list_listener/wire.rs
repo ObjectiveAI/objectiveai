@@ -5,7 +5,7 @@
 //! a live `connected` flag from the daemon's `/laboratory` registry —
 //! a field the unary command deliberately does not carry. Per-lab
 //! attachment detail lives on the `/laboratories/{id}` endpoint's
-//! [`super::super::websocket_laboratories_listener`] types.
+//! [`super::super::laboratories_listener`] types.
 
 use crate::cli::command::laboratories::create::{EnvVar, Mount};
 
@@ -16,7 +16,7 @@ use crate::cli::command::laboratories::create::{EnvVar, Mount};
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_laboratories_list_listener.LaboratoryStatus")]
+#[schemars(rename = "cli.laboratories_list_listener.LaboratoryStatus")]
 pub struct LaboratoryStatus {
     /// Raw (state-agnostic) laboratory id.
     pub id: String,
@@ -58,7 +58,7 @@ pub struct LaboratoryStatus {
 #[derive(
     Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_laboratories_list_listener.LaboratoryEvent")]
+#[schemars(rename = "cli.laboratories_list_listener.LaboratoryEvent")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum LaboratoryEvent {
     /// The full laboratory set (connected ∪ local scan), sent once

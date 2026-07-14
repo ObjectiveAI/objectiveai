@@ -1,7 +1,7 @@
 //! Materialized consumer of the cli daemon's `/laboratories/list`
 //! endpoint.
 //!
-//! [`WebSocketLaboratoriesListListener`] is NOT a raw event stream —
+//! [`LaboratoriesListListener`] is NOT a raw event stream —
 //! it connects once, then folds every incoming [`LaboratoryEvent`]
 //! into an in-memory, self-updating map of `id → LaboratoryStatus`: a
 //! [`Snapshot`](LaboratoryEvent::Snapshot) replaces the whole set,
@@ -11,12 +11,12 @@
 //! detail is `/laboratories/{id}`'s job.
 //!
 //! Three ways to observe it:
-//! - [`laboratories`](WebSocketLaboratoriesListListener::laboratories)
+//! - [`laboratories`](LaboratoriesListListener::laboratories)
 //!   — async snapshot of the current set (sorted by id).
 //! - an on-change **callback**
-//!   ([`on_change`](WebSocketLaboratoriesListListenerBuilder::on_change)),
+//!   ([`on_change`](LaboratoriesListListenerBuilder::on_change)),
 //!   invoked with the full refreshed set on every applied change.
-//! - [`subscribe`](WebSocketLaboratoriesListListener::subscribe) —
+//! - [`subscribe`](LaboratoriesListListener::subscribe) —
 //!   async, blocks until the next change.
 //!
 //! One listener = one connection: the internal pump runs until the
@@ -59,7 +59,7 @@ struct Shared {
     state: Mutex<BTreeMap<String, LaboratoryStatus>>,
     /// A monotonically-bumped change counter. Each applied event bumps
     /// it, waking every
-    /// [`subscribe`](WebSocketLaboratoriesListListener::subscribe)
+    /// [`subscribe`](LaboratoriesListListener::subscribe)
     /// waiter.
     changes: watch::Sender<u64>,
     /// Optional push callback, invoked with the full set after each
@@ -76,10 +76,10 @@ impl Shared {
 }
 
 /// Unconnected configuration —
-/// [`WebSocketLaboratoriesListListener::new`] +
-/// [`WebSocketLaboratoriesListListenerBuilder::signature`] +
-/// [`WebSocketLaboratoriesListListenerBuilder::connect`].
-pub struct WebSocketLaboratoriesListListenerBuilder {
+/// [`LaboratoriesListListener::new`] +
+/// [`LaboratoriesListListenerBuilder::signature`] +
+/// [`LaboratoriesListListenerBuilder::connect`].
+pub struct LaboratoriesListListenerBuilder {
     /// Full connect URL of the daemon's laboratories route, e.g.
     /// `http://127.0.0.1:49152/laboratories/list`.
     url: String,
@@ -90,7 +90,7 @@ pub struct WebSocketLaboratoriesListListenerBuilder {
     on_change: Option<OnChange>,
 }
 
-impl WebSocketLaboratoriesListListenerBuilder {
+impl LaboratoriesListListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
     /// `X-OBJECTIVEAI-SIGNATURE` request header — the daemon's SSE
@@ -105,7 +105,7 @@ impl WebSocketLaboratoriesListListenerBuilder {
     /// set (sorted by id) after every applied change. Runs on the
     /// pump task, so keep it cheap and non-blocking; for the full
     /// state on demand use
-    /// [`laboratories`](WebSocketLaboratoriesListListener::laboratories).
+    /// [`laboratories`](LaboratoriesListListener::laboratories).
     pub fn on_change(
         mut self,
         callback: impl Fn(&[LaboratoryStatus]) + Send + Sync + 'static,
@@ -115,10 +115,10 @@ impl WebSocketLaboratoriesListListenerBuilder {
     }
 
     /// Open the SSE stream and start the pump. The
-    /// returned [`WebSocketLaboratoriesListListener`] immediately
+    /// returned [`LaboratoriesListListener`] immediately
     /// begins folding events (the first is the endpoint's
     /// connect-time snapshot).
-    pub async fn connect(self) -> Result<WebSocketLaboratoriesListListener, Error> {
+    pub async fn connect(self) -> Result<LaboratoriesListListener, Error> {
         let source = connect_sse(&self.url, self.signature.as_deref())?;
 
         let shared = Arc::new(Shared {
@@ -127,23 +127,23 @@ impl WebSocketLaboratoriesListListenerBuilder {
             on_change: self.on_change,
         });
         let pump = tokio::spawn(pump(source, shared.clone()));
-        Ok(WebSocketLaboratoriesListListener { shared, pump })
+        Ok(LaboratoriesListListener { shared, pump })
     }
 }
 
 /// The materialized `/laboratories/list` view — see the module docs.
-/// Construct via [`WebSocketLaboratoriesListListener::new`]. Dropping
+/// Construct via [`LaboratoriesListListener::new`]. Dropping
 /// it aborts the background pump.
-pub struct WebSocketLaboratoriesListListener {
+pub struct LaboratoriesListListener {
     shared: Arc<Shared>,
     pump: tokio::task::JoinHandle<()>,
 }
 
-impl WebSocketLaboratoriesListListener {
+impl LaboratoriesListListener {
     /// Start building a listener for the daemon's `/laboratories/list`
     /// URL (the daemon's published base address + `/laboratories/list`).
-    pub fn new(url: impl Into<String>) -> WebSocketLaboratoriesListListenerBuilder {
-        WebSocketLaboratoriesListListenerBuilder {
+    pub fn new(url: impl Into<String>) -> LaboratoriesListListenerBuilder {
+        LaboratoriesListListenerBuilder {
             url: url.into(),
             signature: None,
             on_change: None,
@@ -160,7 +160,7 @@ impl WebSocketLaboratoriesListListener {
     /// that lands between a preceding
     /// [`laboratories`](Self::laboratories) read and this call is not
     /// observed by it — pair with the read in a loop, or use the
-    /// [`on_change`](WebSocketLaboratoriesListListenerBuilder::on_change)
+    /// [`on_change`](LaboratoriesListListenerBuilder::on_change)
     /// callback for guaranteed push.
     pub async fn subscribe(&self) {
         // A receiver from `subscribe` is caught up to the current
@@ -172,7 +172,7 @@ impl WebSocketLaboratoriesListListener {
     }
 }
 
-impl Drop for WebSocketLaboratoriesListListener {
+impl Drop for LaboratoriesListListener {
     fn drop(&mut self) {
         // Stop updating a view no one holds any more.
         self.pump.abort();
