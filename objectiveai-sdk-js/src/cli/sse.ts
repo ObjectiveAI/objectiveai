@@ -18,20 +18,55 @@
  * Open the daemon SSE stream at `url` and return an async generator of
  * each event's raw `data` string. `signature`, when present, is sent as
  * the `X-OBJECTIVEAI-SIGNATURE` header. `signal` aborts the stream
- * (call `AbortController.abort()` to close). `init` sets the HTTP method
- * and body (a JSON `body` also sets `Content-Type: application/json`) —
- * omit it for the plain `GET` watcher/broadcast routes. Rejects on a
- * connection failure or a non-2xx status.
+ * (call `AbortController.abort()` to close). `init` sets the HTTP method,
+ * body (a JSON `body` also sets `Content-Type: application/json`), and
+ * the per-run agent-identity header values — one `X-OBJECTIVEAI-*`
+ * header per set field, the same names the api stamps on outbound
+ * calls. Omit `init` for the plain `GET` watcher/broadcast routes.
+ * Rejects on a connection failure or a non-2xx status.
  */
 export async function connectSse(
   url: string,
   signature: string | null | undefined,
   signal: AbortSignal,
-  init?: { method?: string; body?: string },
+  init?: {
+    method?: string;
+    body?: string;
+    /** Value for the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header. */
+    agentInstanceHierarchy?: string | null;
+    /** Value for the `X-OBJECTIVEAI-AGENT-ID` header. */
+    agentId?: string | null;
+    /** Value for the `X-OBJECTIVEAI-AGENT-FULL-ID` header. */
+    agentFullId?: string | null;
+    /** Value for the `X-OBJECTIVEAI-AGENT-REMOTE` header (the
+     * JSON-encoded `RemotePath`). */
+    agentRemote?: string | null;
+    /** Value for the `X-OBJECTIVEAI-RESPONSE-ID` header. */
+    responseId?: string | null;
+    /** Value for the `X-OBJECTIVEAI-RESPONSE-IDS` header. */
+    responseIds?: string | null;
+  },
 ): Promise<AsyncGenerator<string>> {
   const headers: Record<string, string> = { Accept: "text/event-stream" };
   if (signature) headers["X-OBJECTIVEAI-SIGNATURE"] = signature;
   if (init?.body !== undefined) headers["Content-Type"] = "application/json";
+  if (init?.agentInstanceHierarchy) {
+    headers["X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"] =
+      init.agentInstanceHierarchy;
+  }
+  if (init?.agentId) headers["X-OBJECTIVEAI-AGENT-ID"] = init.agentId;
+  if (init?.agentFullId) {
+    headers["X-OBJECTIVEAI-AGENT-FULL-ID"] = init.agentFullId;
+  }
+  if (init?.agentRemote) {
+    headers["X-OBJECTIVEAI-AGENT-REMOTE"] = init.agentRemote;
+  }
+  if (init?.responseId) {
+    headers["X-OBJECTIVEAI-RESPONSE-ID"] = init.responseId;
+  }
+  if (init?.responseIds) {
+    headers["X-OBJECTIVEAI-RESPONSE-IDS"] = init.responseIds;
+  }
   let response: Response;
   try {
     response = await fetch(url, {

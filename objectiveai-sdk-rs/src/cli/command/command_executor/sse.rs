@@ -10,16 +10,24 @@ use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, Comma
 /// result streamed back as Server-Sent Events.
 ///
 /// The daemon runs each request IN-PROCESS (no child binary) with the
-/// envelope's [`AgentArguments`] applied as a per-request config
-/// override (`mcp_session_id` is ignored server-side; the daemon's
+/// [`AgentArguments`] headers applied as a per-request config
+/// override (`mcp_session_id` has no header; the daemon's
 /// filesystem layout and secret are never overridable). This is what
 /// lets a consumer — notably the viewer — run on a different machine
 /// than the cli: the only local requirement is network reach to the
 /// daemon's published `http://` address.
 ///
 /// Wire contract (one request per `execute`):
-/// - client POSTs the [`ExecuteEnvelope`] as the JSON body, with the
-///   auth signature in the `X-OBJECTIVEAI-SIGNATURE` header;
+/// - client POSTs the `cli::command::Request` serde JSON as the raw
+///   body — nothing wraps it — with the auth signature in the
+///   `X-OBJECTIVEAI-SIGNATURE` header and the [`AgentArguments`]
+///   identity in the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` /
+///   `-AGENT-ID` / `-AGENT-FULL-ID` / `-AGENT-REMOTE` /
+///   `-RESPONSE-ID` / `-RESPONSE-IDS` request headers — the same
+///   names the api stamps on outbound calls, one header per `Some`
+///   field (`mcp_session_id` has no header). A missing header
+///   DELETES that config field for the run — the daemon never
+///   inherits its own resident value;
 /// - the daemon replies `text/event-stream`, one SSE `data:` event per
 ///   stream item — exactly the cli's stdout JSONL line shapes (a `T`
 ///   JSON, or a [`crate::cli::Error`] `{"type":"error",...}` line) —
@@ -76,21 +84,6 @@ pub struct AuthEnvelope {
     pub signature: Option<String>,
 }
 
-/// The `/execute` POST body: the typed request (as its serde JSON) plus
-/// the optional per-request identity override. The daemon deserializes
-/// this exact shape.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.command_executor.ExecuteEnvelope")]
-pub struct ExecuteEnvelope {
-    /// Per-request identity override, applied onto the daemon's own
-    /// config for this run only (same semantics as the other
-    /// executors' per-call override; `mcp_session_id` is ignored).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_arguments: Option<AgentArguments>,
-    /// The serde JSON of a `cli::command::Request`.
-    pub request: serde_json::Value,
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -165,17 +158,32 @@ impl CommandExecutor for SseCommandExecutor {
         R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
-        let envelope = ExecuteEnvelope {
-            agent_arguments: agent_arguments.cloned(),
-            request: serde_json::to_value(&request).map_err(Error::Json)?,
-        };
-
         let mut req = reqwest::Client::new()
             .post(&self.url)
             .header("Accept", "text/event-stream")
-            .json(&envelope);
+            .json(&request);
         if let Some(signature) = &self.signature {
             req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
+        }
+        if let Some(args) = agent_arguments {
+            if let Some(v) = &args.agent_instance_hierarchy {
+                req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
+            }
+            if let Some(v) = &args.agent_id {
+                req = req.header("X-OBJECTIVEAI-AGENT-ID", v);
+            }
+            if let Some(v) = &args.agent_full_id {
+                req = req.header("X-OBJECTIVEAI-AGENT-FULL-ID", v);
+            }
+            if let Some(v) = &args.agent_remote {
+                req = req.header("X-OBJECTIVEAI-AGENT-REMOTE", v);
+            }
+            if let Some(v) = &args.response_id {
+                req = req.header("X-OBJECTIVEAI-RESPONSE-ID", v);
+            }
+            if let Some(v) = &args.response_ids {
+                req = req.header("X-OBJECTIVEAI-RESPONSE-IDS", v);
+            }
         }
         let response = req.send().await.map_err(Error::Connect)?;
         if !response.status().is_success() {

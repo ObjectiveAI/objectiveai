@@ -1,21 +1,26 @@
 //! The resident daemon's `/execute` route — the server side of
 //! [`objectiveai_sdk::cli::command::SseCommandExecutor`].
 //!
-//! Request-per-command over plain HTTP: the client POSTs the SDK
-//! [`ExecuteEnvelope`] (a `cli::command::Request` as serde JSON plus an
-//! optional [`AgentArguments`] identity override) as the request body,
-//! authenticating with the `X-OBJECTIVEAI-SIGNATURE` header (verified by
-//! [`crate::websockets::daemon_auth::authenticate_header`]). The daemon
-//! streams the result back as Server-Sent Events.
+//! Request-per-command over plain HTTP: the client POSTs the
+//! `cli::command::Request` serde JSON as the raw request body — nothing
+//! wraps it — authenticating with the `X-OBJECTIVEAI-SIGNATURE` header
+//! (verified by [`crate::websockets::daemon_auth::authenticate_header`]).
+//! The daemon streams the result back as Server-Sent Events.
+//!
+//! The [`AgentArguments`] identity rides the
+//! [`AGENT_ARGUMENT_HEADERS`] request headers (the same
+//! `X-OBJECTIVEAI-*` names the api stamps on outbound calls), one
+//! header per field. A missing header DELETES that config field for
+//! the run — the daemon never inherits its own resident value.
 //!
 //! The daemon runs the request IN-PROCESS via the re-entrant
 //! [`crate::run`] (the same path `plugins run` uses for nested plugin
 //! commands) against a clone of its resident [`Context`] with the
 //! override applied ([`crate::executor::apply_agent_arguments`] —
-//! `mcp_session_id` is ignored: a remote caller has no business joining
-//! the daemon's MCP sessions, and the daemon's own slot is scrubbed at
-//! spawn). The daemon's filesystem layout and secret are never
-//! overridable.
+//! `mcp_session_id` has no header: a remote caller has no business
+//! joining the daemon's MCP sessions, and the daemon's own slot is
+//! scrubbed at spawn). The daemon's filesystem layout and secret are
+//! never overridable.
 //!
 //! Each stream item goes back as one SSE `data:` event in exactly the
 //! cli's stdout JSONL line shapes (`main.rs::drain`): `Ok` items as
@@ -34,7 +39,7 @@
 
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::command_executor::sse::ExecuteEnvelope;
+use objectiveai_sdk::cli::command::AgentArguments;
 
 use crate::context::Context;
 use crate::error::Error;
@@ -52,45 +57,52 @@ pub(crate) async fn execute_handler(
     if !crate::websockets::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
-    Sse::new(execute_stream(state.ctx, body))
+    Sse::new(execute_stream(state.ctx, agent_arguments(&headers), body))
         .keep_alive(KeepAlive::default())
         .into_response()
 }
 
-/// Decode the envelope, run in-process, and yield each item as one SSE
-/// event. Envelope/run errors ride in-band as `cli::Error` events (the
-/// same shape a mid-stream error uses), then the stream ends. The body
-/// ending is the end-of-stream marker.
+/// The per-request identity from the [`AGENT_ARGUMENT_HEADERS`] request
+/// headers, field ↔ header in order. A missing (or non-UTF-8) header is
+/// `None`, which [`crate::executor::apply_agent_arguments`] DELETES on
+/// the run's config — never inherits. `mcp_session_id` has no header
+/// and is always cleared.
+fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
+    let mut values = AGENT_ARGUMENT_HEADERS
+        .iter()
+        .map(|name| headers.get(*name).and_then(|v| v.to_str().ok()).map(String::from));
+    AgentArguments {
+        agent_instance_hierarchy: values.next().flatten(),
+        agent_id: values.next().flatten(),
+        agent_full_id: values.next().flatten(),
+        agent_remote: values.next().flatten(),
+        response_id: values.next().flatten(),
+        response_ids: values.next().flatten(),
+        mcp_session_id: None,
+    }
+}
+
+/// Run the raw-body request in-process and yield each item as one SSE
+/// event. Errors ride in-band as `cli::Error` events (the same shape a
+/// mid-stream error uses), then the stream ends. The body ending is the
+/// end-of-stream marker.
 fn execute_stream(
     ctx: Context,
+    agent_arguments: AgentArguments,
     body: axum::body::Bytes,
 ) -> impl futures::Stream<Item = Result<Event, std::convert::Infallible>> {
     async_stream::stream! {
-        let envelope: ExecuteEnvelope = match serde_json::from_slice(&body) {
-            Ok(envelope) => envelope,
-            Err(e) => {
-                yield Ok(error_event(format!("decode execute envelope: {e}")));
-                return;
-            }
-        };
-
-        // Per-request identity override — sans `mcp_session_id`, which is
-        // stripped so `apply_agent_arguments` clears rather than adopts it.
-        let agent_arguments = envelope.agent_arguments.map(|mut args| {
-            args.mcp_session_id = None;
-            args
-        });
-        let ctx = crate::executor::apply_agent_arguments(&ctx, agent_arguments.as_ref())
+        let ctx = crate::executor::apply_agent_arguments(&ctx, Some(&agent_arguments))
             .into_owned();
 
         // The same re-entry `plugins run` uses for nested commands:
         // `crate::run` strips args[0] unconditionally, so prepend a
-        // placeholder and dispatch the request JSON through the top-level
-        // `--request` front door.
-        let request_json = match serde_json::to_string(&envelope.request) {
+        // placeholder and dispatch the raw body — the request JSON —
+        // through the top-level `--request` front door.
+        let request_json = match String::from_utf8(body.to_vec()) {
             Ok(json) => json,
             Err(e) => {
-                yield Ok(error_event(format!("serialize execute request: {e}")));
+                yield Ok(error_event(format!("decode execute request: {e}")));
                 return;
             }
         };

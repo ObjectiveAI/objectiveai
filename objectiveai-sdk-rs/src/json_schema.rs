@@ -1210,10 +1210,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     ]);
 
     #[cfg(feature = "cli-executor")]
-    schemas.extend([
-        schemars::schema_for!(crate::cli::command::command_executor::sse::AuthEnvelope),
-        schemars::schema_for!(crate::cli::command::command_executor::sse::ExecuteEnvelope),
-    ]);
+    schemas.extend([schemars::schema_for!(
+        crate::cli::command::command_executor::sse::AuthEnvelope
+    )]);
 
     #[cfg(feature = "cli-listener")]
     schemas.extend([

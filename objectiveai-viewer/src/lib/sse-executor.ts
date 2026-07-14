@@ -7,19 +7,19 @@
  * Shared by the plugin bridge's cli-execute forwarding and the
  * viewer's own one-off command reads (e.g. `useAgent`'s logs fetch).
  */
-import { SseCommandExecutor } from "@objectiveai/sdk";
+import { SseCommandExecutor, type CliCommandAgentArguments } from "@objectiveai/sdk";
 import { tauriInvoke } from "./tauri";
 
 let executorPromise: Promise<SseCommandExecutor> | null = null;
 
 /** The daemon config handed over by the Rust side, fetched once. */
-export async function websocketExecutor(): Promise<SseCommandExecutor> {
+export async function sseExecutor(): Promise<SseCommandExecutor> {
   if (!executorPromise) {
     executorPromise = (async () => {
       const config = await tauriInvoke<{
         address: string;
         signature: string | null;
-        agent_arguments: Record<string, string | null>;
+        agent_arguments: CliCommandAgentArguments;
       }>("websocket_config");
       if (!config) {
         throw new Error(
@@ -28,7 +28,12 @@ export async function websocketExecutor(): Promise<SseCommandExecutor> {
       }
       return new SseCommandExecutor(`${config.address}/execute`, {
         signature: config.signature,
-        agentArguments: config.agent_arguments,
+        agentInstanceHierarchy: config.agent_arguments.agent_instance_hierarchy,
+        agentId: config.agent_arguments.agent_id,
+        agentFullId: config.agent_arguments.agent_full_id,
+        agentRemote: config.agent_arguments.agent_remote,
+        responseId: config.agent_arguments.response_id,
+        responseIds: config.agent_arguments.response_ids,
       });
     })();
     // A failed fetch shouldn't poison every later invocation.

@@ -29,8 +29,8 @@ const harness = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../lib/websocket-executor", () => ({
-  websocketExecutor: async () => {
+vi.mock("../lib/sse-executor", () => ({
+  sseExecutor: async () => {
     if (harness.failConnect) throw new Error("daemon unavailable");
     return {
       execute(request: unknown) {

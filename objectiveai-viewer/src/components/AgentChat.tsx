@@ -3,7 +3,7 @@ import cn from "classnames";
 import { agentsMessageExecute } from "@objectiveai/sdk";
 import { instanceSelector } from "../lib/aih";
 import { reportError } from "../lib/errors";
-import { websocketExecutor } from "../lib/websocket-executor";
+import { sseExecutor } from "../lib/sse-executor";
 
 /**
  * The per-agent chat: a composer (Enter = send, Shift+Enter =
@@ -46,7 +46,7 @@ export function AgentChat({ hierarchy }: { hierarchy: string }) {
     setQueued((q) => [...q, { key, text: trimmed, failed: false }]);
     void (async () => {
       try {
-        const executor = await websocketExecutor();
+        const executor = await sseExecutor();
         const result = await agentsMessageExecute(executor, {
           agent: instanceSelector(hierarchy),
           message: { Simple: trimmed },

@@ -123,7 +123,7 @@ async fn run(args: Vec<String>) -> i32 {
     // post-transform JSON alike), and the executor surfaces the daemon's
     // structured error lines as `Error::Cli`.
     match executor
-        .execute::<_, serde_json::Value>(request, agent_arguments.as_ref())
+        .execute::<_, serde_json::Value>(request, Some(&agent_arguments))
         .await
     {
         Ok(mut stream) => {
@@ -197,7 +197,7 @@ fn executor_for(url: &str) -> SseCommandExecutor {
 /// Ensure the resident `objectiveai-daemon` is up and return a
 /// `/execute` [`SseCommandExecutor`] plus the per-request identity
 /// override to send with every command.
-async fn connect() -> Result<(SseCommandExecutor, Option<AgentArguments>), String> {
+async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
     // Remote override: when `DAEMON_ADDRESS` is set, connect to that daemon
     // directly and NEVER spawn a local one — this is how the CLI reaches a
     // daemon on another machine.
@@ -355,7 +355,7 @@ async fn kill_all_via_daemon(url: &str, mut request: Request) -> Result<usize, S
     }
     let executor = executor_for(url);
     let mut stream = executor
-        .execute::<_, serde_json::Value>(request, None)
+        .execute::<_, serde_json::Value>(request, Some(&agent_arguments_from_env()))
         .await
         .map_err(|e| format!("kill-all over daemon: {e}"))?;
     match stream.next().await {
@@ -391,30 +391,27 @@ async fn kill_tree_locally(dir: &Path) -> usize {
     killed.len()
 }
 
-/// Build the per-request identity override from this process's
-/// environment. Gated on `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` being
-/// present: a plain user invocation leaves it unset → `None`, so the
-/// daemon runs under its own resident `"cli"` identity. Only when an
-/// agent/plugin invoked us (AIH set) do we override — and then we send
-/// the WHOLE bag, because the daemon's override replaces every identity
-/// field (a `None` hierarchy would become `"UNKNOWN"`, mislabeling the
-/// run).
-fn agent_arguments_from_env() -> Option<AgentArguments> {
-    let agent_instance_hierarchy = std::env::var("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY")
-        .ok()
-        .filter(|s| !s.is_empty())?;
+/// Build the per-request identity from this process's environment.
+/// The hierarchy defaults to the CLI's own `"cli"` identity (the same
+/// literal the daemon's resident config defaults to) when
+/// `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` is unset — a plain user
+/// invocation. Every other unset field stays `None`, sent as no
+/// header, which the daemon DELETES on the run's config — never
+/// inherits.
+fn agent_arguments_from_env() -> AgentArguments {
     let var = |key: &str| std::env::var(key).ok().filter(|s| !s.is_empty());
-    Some(AgentArguments {
-        agent_instance_hierarchy: Some(agent_instance_hierarchy),
+    AgentArguments {
+        agent_instance_hierarchy: var("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY")
+            .or_else(|| Some("cli".to_string())),
         agent_id: var("OBJECTIVEAI_AGENT_ID"),
         agent_full_id: var("OBJECTIVEAI_AGENT_FULL_ID"),
         agent_remote: var("OBJECTIVEAI_AGENT_REMOTE"),
         response_id: var("OBJECTIVEAI_RESPONSE_ID"),
         response_ids: var("OBJECTIVEAI_RESPONSE_IDS"),
-        // Ignored server-side (a remote caller has no business joining
-        // the daemon's MCP sessions); carried for symmetry.
-        mcp_session_id: var(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV),
-    })
+        // Never sent (the daemon always clears it — a remote caller has
+        // no business joining the daemon's MCP sessions).
+        mcp_session_id: None,
+    }
 }
 
 /// Did clap exit with a "successful informational output" variant?
