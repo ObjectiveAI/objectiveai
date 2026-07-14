@@ -9,19 +9,17 @@ use crate::context::Context;
 use crate::error::Error;
 
 /// Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
-/// stdin/stdout/stderr handles. Called at the top of the instance
-/// subprocess fast-path so plugin spawns (and any other later
-/// `Stdio::piped()` spawn that triggers `bInheritHandles=TRUE`)
-/// don't leak this process's stdio write ends to those children.
+/// stdin/stdout/stderr handles. Process-global initialization,
+/// called ONCE at daemon startup (`main.rs`) before any child
+/// spawns, so `Stdio::piped()` spawns (which set
+/// `bInheritHandles=TRUE`) don't leak the daemon's stdio write ends
+/// to those children.
 ///
-/// Without this, on Windows a plugin spawned by the instance
-/// subprocess inherits the instance's stdout/stderr write ends.
-/// The plugin keeps those handles open for its whole lifetime
-/// (e.g. an `axum::serve` that runs forever). When the instance
-/// exits, the cli outer's reads of the instance's stdout/stderr
-/// don't see EOF — the plugin is still holding the write ends —
-/// and the cli outer hangs forever waiting for an EOF that never
-/// arrives.
+/// Without this, a spawned child (e.g. a plugin RMCP server that
+/// lives for a whole agent completion) inherits and holds the
+/// daemon's stdout/stderr write ends for its whole lifetime, so
+/// whoever spawned the daemon with piped stdio never sees EOF on
+/// those pipes after the daemon exits, and hangs waiting for one.
 #[cfg(windows)]
 pub fn clear_stdio_inheritance() {
     use windows_sys::Win32::Foundation::{HANDLE_FLAG_INHERIT, SetHandleInformation};
@@ -303,34 +301,6 @@ pub fn run(
     ctx: Option<Context>,
 ) -> Pin<Box<dyn std::future::Future<Output = Result<RunStream, Error>> + Send>> {
     Box::pin(async move {
-    // Windows: clear the inheritance flag on this process's
-    // stdin/stdout/stderr handles. They were marked inheritable by
-    // whoever spawned us via `Stdio::piped()` — necessary so we
-    // inherit them at all — but if we leave the flag set, every
-    // grandchild process we (or any of our descendants) spawn with
-    // `Stdio::piped()` (which sets `bInheritHandles=TRUE`) inherits
-    // OUR stdio handles in addition to its own new pipes. That
-    // grandchild (e.g. a plugin RMCP server living for the whole
-    // agent completion) then holds our stdio write ends open even
-    // after we exit, leaving our parent's reads of our stdout/stderr
-    // hanging forever instead of EOF'ing.
-    //
-    // Applies to BOTH branches:
-    //   - The `instance` branch (called from a parent cli) so plugin
-    //     grandchildren don't inherit the instance's stdio.
-    //   - The non-instance branch (the outer cli, called from a test
-    //     harness or another shell) so the instance subprocess
-    //     doesn't inherit the outer cli's stdio — otherwise an
-    //     orphan plugin grandchild keeps the outer cli's stdout
-    //     pipe alive after the instance dies, and the harness
-    //     hangs waiting for stdout EOF.
-    //
-    // Clearing the flag is a no-op for our own use of std{in,out,err}
-    // — we keep using them normally. It only affects what gets
-    // propagated on subsequent `CreateProcessW` calls.
-    #[cfg(windows)]
-    clear_stdio_inheritance();
-
     // `Context::new` is synchronous and IO-free; the API client,
     // viewer client, and db pool connect lazily on first use via
     // `ctx.{api,viewer,db}_client()`. No explicit setup call needed
