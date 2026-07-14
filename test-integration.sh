@@ -212,7 +212,7 @@ launch() {  # launch <name> <command...>
 for crate in ${CRATES[@]+"${CRATES[@]}"}; do
   # The SAME package selection as the prebuild (identical feature
   # unification -- see above); the filterset picks this crate's tests.
-  launch "$crate" cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" \
+  launch "$crate" cargo nextest run --no-tests=pass --no-fail-fast --manifest-path "$REPO_ROOT/Cargo.toml" \
     "${PKG_ARGS[@]}" -E "package($crate)"
 done
 
