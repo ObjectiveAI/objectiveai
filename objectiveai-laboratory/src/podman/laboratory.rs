@@ -243,7 +243,22 @@ pub async fn create(
         .arg("--name")
         .arg(&name)
         .arg("-p")
-        .arg(format!("127.0.0.1::{LAB_PORT}/tcp"));
+        .arg(format!("127.0.0.1::{LAB_PORT}/tcp"))
+        // Grant CAP_SYS_ADMIN so the in-container MCP can run its
+        // `fanotify` filesystem-change ATTRIBUTION watch (which agent
+        // touched each file — surfaced by `/filetree`). There is no
+        // narrower capability for fanotify; the kernel requires
+        // CAP_SYS_ADMIN for filesystem/mount marks. Under rootless
+        // podman this is NAMESPACE-scoped (admin over the container's
+        // own user namespace, backed by an unprivileged host user —
+        // NOT host root), and adding a capability never breaks an
+        // image. Without it, `fanotify_init` fails EPERM and
+        // attribution degrades silently (created_by/modified_by stay
+        // absent). It is the single broadest capability, so it widens
+        // the container's inner attack surface — the deliberate
+        // trade-off for attribution.
+        .arg("--cap-add")
+        .arg("SYS_ADMIN");
     for m in mounts {
         create_cmd
             .arg("-v")
