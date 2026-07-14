@@ -35,9 +35,7 @@ use axum::{
 };
 use futures::StreamExt;
 use notify::Watcher;
-use objectiveai_sdk::laboratories::filetree::{
-    FileKind, FileTreeEntry, FileTreeEvent, FileTreeNode,
-};
+use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -91,14 +89,17 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
     }
 
     // Build the recursive snapshot with async fs — no blocking thread
-    // parked for the whole walk.
-    let snapshot_root = build_tree(&root).await;
+    // parked for the whole walk. The snapshot is the watched root's
+    // child nodes (the root's own identity is the requested path).
+    let snapshot_children = build_children(&root).await;
 
     // The SSE body: snapshot first, then each notify event mapped to a
     // delta. The `watcher` is moved into the stream's closure state so
     // it lives exactly as long as the connection — dropping the
     // response drops the watcher and unregisters the inotify watches.
-    let snapshot_event = sse_event(&FileTreeEvent::Snapshot { root: snapshot_root });
+    let snapshot_event = sse_event(&FileTreeEvent::Snapshot {
+        children: snapshot_children,
+    });
     let deltas = rx
         .then(move |res| {
             // Keep `watcher` alive for the stream's lifetime.
@@ -129,7 +130,9 @@ fn sse_event(event: &FileTreeEvent) -> Event {
 }
 
 /// Map one notify event to zero or more filetree deltas. A create /
-/// modify / rename-to stats the path into an `Upserted`; a remove /
+/// modify / rename-to builds the node at the path into an `Upserted`
+/// (a directory re-walks its whole subtree, so a moved-in populated
+/// dir arrives as ONE `Upserted` with its contents); a remove /
 /// rename-from emits `Removed`. Paths outside `root` are ignored.
 async fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
     use notify::EventKind;
@@ -137,24 +140,26 @@ async fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
     match event.kind {
         EventKind::Create(_) | EventKind::Modify(_) => {
             for path in event.paths {
+                let Some(components) = rel_components(root, &path) else {
+                    continue;
+                };
                 // A rename's "from" side no longer exists → treat a
                 // failed stat as a removal.
-                match entry_for(root, &path).await {
-                    Some(entry) => {
-                        out.push(sse_event(&FileTreeEvent::Upserted { entry }));
-                    }
-                    None => {
-                        if let Some(rel) = rel_path(root, &path) {
-                            out.push(sse_event(&FileTreeEvent::Removed { path: rel }));
-                        }
-                    }
+                match build_node(&path).await {
+                    Some(node) => out.push(sse_event(&FileTreeEvent::Upserted {
+                        path: components,
+                        node,
+                    })),
+                    None => out.push(sse_event(&FileTreeEvent::Removed {
+                        path: components,
+                    })),
                 }
             }
         }
         EventKind::Remove(_) => {
             for path in event.paths {
-                if let Some(rel) = rel_path(root, &path) {
-                    out.push(sse_event(&FileTreeEvent::Removed { path: rel }));
+                if let Some(components) = rel_components(root, &path) {
+                    out.push(sse_event(&FileTreeEvent::Removed { path: components }));
                 }
             }
         }
@@ -164,52 +169,35 @@ async fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
     out
 }
 
-/// Path relative to `root`, `/`-separated. `None` if `path` is `root`
+/// The path components relative to `root`. `None` if `path` is `root`
 /// itself or not under it.
-fn rel_path(root: &Path, path: &Path) -> Option<String> {
+fn rel_components(root: &Path, path: &Path) -> Option<Vec<String>> {
     let rel = pathdiff::diff_paths(path, root)?;
     if rel.as_os_str().is_empty() || rel.starts_with("..") {
         return None;
     }
     Some(
         rel.components()
-            .map(|c| c.as_os_str().to_string_lossy())
-            .collect::<Vec<_>>()
-            .join("/"),
+            .map(|c| c.as_os_str().to_string_lossy().into_owned())
+            .collect(),
     )
 }
 
-/// Stat a single path into a flat [`FileTreeEntry`] (relative to
-/// `root`). `None` when the path is gone or not under `root`.
-async fn entry_for(root: &Path, path: &Path) -> Option<FileTreeEntry> {
-    let rel = rel_path(root, path)?;
+/// Build the [`FileTreeNode`] for a single path (symlink-aware; a
+/// directory carries its whole re-walked subtree). `None` when the
+/// path is gone.
+async fn build_node(path: &Path) -> Option<FileTreeNode> {
     let meta = tokio::fs::symlink_metadata(path).await.ok()?;
-    let kind = file_kind(&meta.file_type());
-    Some(FileTreeEntry {
-        path: rel,
-        kind,
-        size: (kind == FileKind::File).then(|| meta.len()),
-        created_at: unix_secs(meta.created().ok()),
-        modified_at: unix_secs(meta.modified().ok()),
-        // Reserved for the attribution engine.
-        created_by: None,
-        modified_by: None,
-    })
-}
-
-/// Recursively build the tree rooted at `root` with async fs. The root
-/// node's `name` is the watched path; children carry their basenames.
-/// Symlinks are leaves (never followed); unreadable entries are
-/// skipped.
-async fn build_tree(root: &Path) -> FileTreeNode {
-    let meta = tokio::fs::symlink_metadata(root).await.ok();
-    let mut node = node_for(
-        root.to_string_lossy().into_owned(),
-        FileKind::Dir,
-        meta.as_ref(),
-    );
-    node.children = Some(build_children(root).await);
-    node
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let ft = meta.file_type();
+    if ft.is_dir() {
+        Some(dir_node(name, &meta, build_children(path).await))
+    } else {
+        Some(leaf_node(name, ft.is_symlink(), &meta))
+    }
 }
 
 /// Build the immediate children of a directory, recursing into
@@ -229,42 +217,56 @@ fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> 
             let Ok(meta) = tokio::fs::symlink_metadata(&path).await else {
                 continue;
             };
-            let kind = file_kind(&meta.file_type());
             let name = entry.file_name().to_string_lossy().into_owned();
-            let mut child = node_for(name, kind, Some(&meta));
-            if kind == FileKind::Dir {
-                child.children = Some(build_children(&path).await);
-            }
+            let ft = meta.file_type();
+            let child = if ft.is_dir() {
+                dir_node(name, &meta, build_children(&path).await)
+            } else {
+                leaf_node(name, ft.is_symlink(), &meta)
+            };
             children.push(child);
         }
         children
     })
 }
 
-/// Build a node from a name, kind, and optional metadata.
-fn node_for(name: String, kind: FileKind, meta: Option<&std::fs::Metadata>) -> FileTreeNode {
-    FileTreeNode {
-        name,
-        kind,
-        size: match (kind, meta) {
-            (FileKind::File, Some(m)) => Some(m.len()),
-            _ => None,
-        },
-        created_at: meta.and_then(|m| unix_secs(m.created().ok())),
-        modified_at: meta.and_then(|m| unix_secs(m.modified().ok())),
-        created_by: None,
-        modified_by: None,
-        children: None,
+/// A `File` or `Symlink` leaf node from a name + metadata.
+fn leaf_node(name: String, is_symlink: bool, meta: &std::fs::Metadata) -> FileTreeNode {
+    let created_at = unix_secs(meta.created().ok());
+    let modified_at = unix_secs(meta.modified().ok());
+    if is_symlink {
+        FileTreeNode::Symlink {
+            name,
+            created_at,
+            modified_at,
+            created_by: None,
+            modified_by: None,
+        }
+    } else {
+        FileTreeNode::File {
+            name,
+            size: Some(meta.len()),
+            created_at,
+            modified_at,
+            created_by: None,
+            modified_by: None,
+        }
     }
 }
 
-fn file_kind(ft: &std::fs::FileType) -> FileKind {
-    if ft.is_symlink() {
-        FileKind::Symlink
-    } else if ft.is_dir() {
-        FileKind::Dir
-    } else {
-        FileKind::File
+/// A `Directory` node from a name, metadata, and its children.
+fn dir_node(
+    name: String,
+    meta: &std::fs::Metadata,
+    children: Vec<FileTreeNode>,
+) -> FileTreeNode {
+    FileTreeNode::Directory {
+        name,
+        created_at: unix_secs(meta.created().ok()),
+        modified_at: unix_secs(meta.modified().ok()),
+        created_by: None,
+        modified_by: None,
+        children,
     }
 }
 
