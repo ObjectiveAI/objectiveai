@@ -14210,27 +14210,226 @@ onClose_fn2 = function() {
 };
 var AgentsInstancesListener = _AgentsInstancesListener;
 
+// src/cli/laboratoriesFiletreeListener.ts
+function applyFileTreeEvent(root, event) {
+  switch (event.type) {
+    case "snapshot":
+      return event.children;
+    case "upserted":
+      if (event.path.length === 0) return root;
+      return upsertAt(root, event.path, 0, event.node);
+    case "removed":
+      if (event.path.length === 0) return root;
+      return removeAt(root, event.path, 0);
+    default:
+      return root;
+  }
+}
+function upsertAt(children, path, depth, node) {
+  const name = path[depth];
+  const next = [...children];
+  const i = next.findIndex((child) => child.name === name);
+  if (depth === path.length - 1) {
+    if (i >= 0) next[i] = node;
+    else next.push(node);
+    return next;
+  }
+  const existing = i >= 0 ? next[i] : void 0;
+  const directory = existing !== void 0 && existing.type === "directory" ? {
+    ...existing,
+    children: upsertAt(existing.children, path, depth + 1, node)
+  } : {
+    // Missing middle (or a non-directory in the way) — a bare
+    // synthesized directory, exactly like the Rust fold.
+    type: "directory",
+    name,
+    children: upsertAt([], path, depth + 1, node)
+  };
+  if (i >= 0) next[i] = directory;
+  else next.push(directory);
+  return next;
+}
+function removeAt(children, path, depth) {
+  const name = path[depth];
+  const i = children.findIndex((child) => child.name === name);
+  if (i < 0) return children;
+  if (depth === path.length - 1) {
+    const next2 = [...children];
+    next2.splice(i, 1);
+    return next2;
+  }
+  const existing = children[i];
+  if (existing.type !== "directory") return children;
+  const nextChildren = removeAt(existing.children, path, depth + 1);
+  if (nextChildren === existing.children) return children;
+  const next = [...children];
+  next[i] = { ...existing, children: nextChildren };
+  return next;
+}
+var _abort3, _closed3, _root, _onChange3, _waiters3, _LaboratoriesFiletreeListener_instances, pump_fn3, onFrame_fn3, onClose_fn3;
+var _LaboratoriesFiletreeListener = class _LaboratoriesFiletreeListener {
+  constructor(abort, onChange) {
+    __privateAdd(this, _LaboratoriesFiletreeListener_instances);
+    __privateAdd(this, _abort3);
+    __privateAdd(this, _closed3, false);
+    /** The folded root child set — `null` until the first frame lands
+     * (an unknown/not-yet-started laboratory sends an EMPTY snapshot,
+     * which is a real state, distinct from "still connecting"). */
+    __privateAdd(this, _root, null);
+    __privateAdd(this, _onChange3);
+    /** Resolvers for the in-flight {@link subscribe} promises. */
+    __privateAdd(this, _waiters3, /* @__PURE__ */ new Set());
+    __privateSet(this, _abort3, abort);
+    __privateSet(this, _onChange3, onChange);
+  }
+  /**
+   * Open the connection and resolve once the stream is established
+   * (rejects when the daemon is unreachable or refused the auth).
+   * `url` is the daemon's full `/laboratories/{id}/filetree` URL; the
+   * optional `(machine, machine_state)` host pin rides the URL query,
+   * built by the caller. The returned listener immediately begins
+   * folding events (the first is the connect-time snapshot).
+   */
+  static async connect(url, options) {
+    var _a;
+    const abort = new AbortController();
+    let events;
+    try {
+      events = await connectSse(url, options?.signature, abort.signal);
+    } catch (e) {
+      throw new Error(`connect daemon laboratory filetree sse: ${String(e)}`);
+    }
+    const listener = new _LaboratoriesFiletreeListener(
+      abort,
+      options?.onChange
+    );
+    __privateMethod(_a = listener, _LaboratoriesFiletreeListener_instances, pump_fn3).call(_a, events);
+    return listener;
+  }
+  /**
+   * Viewer-mode connect: the stream rides the Tauri IPC proxy
+   * ({@link connectViewerStream}) instead of fetch — no address, no
+   * signature (the Rust side owns both). `id` is the raw laboratory
+   * id. Same resolve/reject and lifecycle semantics as
+   * {@link connect}; reconnection remains the caller's loop.
+   */
+  static async connectViewer(transport, id, options) {
+    var _a;
+    const abort = new AbortController();
+    let events;
+    try {
+      events = await connectViewerStream(
+        transport,
+        "daemon_laboratory_filetree",
+        { id, machine: options?.machine, machineState: options?.machineState },
+        abort.signal
+      );
+    } catch (e) {
+      throw new Error(`connect daemon laboratory filetree sse: ${String(e)}`);
+    }
+    const listener = new _LaboratoriesFiletreeListener(
+      abort,
+      options?.onChange
+    );
+    __privateMethod(_a = listener, _LaboratoriesFiletreeListener_instances, pump_fn3).call(_a, events);
+    return listener;
+  }
+  /** Whether the connection has closed (the view is frozen). */
+  get closed() {
+    return __privateGet(this, _closed3);
+  }
+  /** Drop the connection: the view freezes and any pending
+   * {@link subscribe} resolves. */
+  close() {
+    if (__privateGet(this, _closed3)) return;
+    __privateGet(this, _abort3).abort();
+    __privateMethod(this, _LaboratoriesFiletreeListener_instances, onClose_fn3).call(this);
+  }
+  /** The folded root child set — `null` until the first frame. The
+   * array (and every unchanged subtree in it) is identity-stable
+   * across events; only changed spines get new objects. */
+  children() {
+    return __privateGet(this, _root);
+  }
+  /** Resolves on the next change applied to the state. A fresh call
+   * waits for the FIRST change after it is made — loop with the
+   * {@link children} read, or use
+   * {@link LaboratoriesFiletreeListenerOptions.onChange} for
+   * guaranteed push. Resolves immediately if already closed. */
+  subscribe() {
+    if (__privateGet(this, _closed3)) return Promise.resolve();
+    return new Promise((resolve) => {
+      __privateGet(this, _waiters3).add(resolve);
+    });
+  }
+};
+_abort3 = new WeakMap();
+_closed3 = new WeakMap();
+_root = new WeakMap();
+_onChange3 = new WeakMap();
+_waiters3 = new WeakMap();
+_LaboratoriesFiletreeListener_instances = new WeakSet();
+pump_fn3 = async function(events) {
+  try {
+    for await (const data of events) {
+      let frame;
+      try {
+        frame = JSON.parse(data);
+      } catch {
+        continue;
+      }
+      __privateMethod(this, _LaboratoriesFiletreeListener_instances, onFrame_fn3).call(this, frame);
+    }
+  } catch {
+  } finally {
+    __privateMethod(this, _LaboratoriesFiletreeListener_instances, onClose_fn3).call(this);
+  }
+};
+onFrame_fn3 = function(frame) {
+  if (typeof frame !== "object" || frame === null) return;
+  const kind = frame.type;
+  if (kind !== "snapshot" && kind !== "upserted" && kind !== "removed") {
+    return;
+  }
+  __privateSet(this, _root, applyFileTreeEvent(
+    __privateGet(this, _root) ?? [],
+    frame
+  ));
+  if (__privateGet(this, _onChange3)) __privateGet(this, _onChange3).call(this, __privateGet(this, _root));
+  const waiters = [...__privateGet(this, _waiters3)];
+  __privateGet(this, _waiters3).clear();
+  for (const wake of waiters) wake();
+};
+onClose_fn3 = function() {
+  if (__privateGet(this, _closed3)) return;
+  __privateSet(this, _closed3, true);
+  const waiters = [...__privateGet(this, _waiters3)];
+  __privateGet(this, _waiters3).clear();
+  for (const wake of waiters) wake();
+};
+var LaboratoriesFiletreeListener = _LaboratoriesFiletreeListener;
+
 // src/cli/laboratoriesListListener.ts
 function foldKey(id, machine, machineState) {
   return `${machine ?? ""}
 ${machineState ?? ""}
 ${id}`;
 }
-var _abort3, _closed3, _state2, _onChange3, _waiters3, _LaboratoriesListListener_instances, pump_fn3, onFrame_fn3, apply_fn2, notify_fn2, onClose_fn3;
+var _abort4, _closed4, _state2, _onChange4, _waiters4, _LaboratoriesListListener_instances, pump_fn4, onFrame_fn4, apply_fn2, notify_fn2, onClose_fn4;
 var _LaboratoriesListListener = class _LaboratoriesListListener {
   constructor(abort, onChange) {
     __privateAdd(this, _LaboratoriesListListener_instances);
-    __privateAdd(this, _abort3);
-    __privateAdd(this, _closed3, false);
+    __privateAdd(this, _abort4);
+    __privateAdd(this, _closed4, false);
     /** `(machine, state, id) fold key → status` — laboratory ids are
      * only unique per (machine, state), so same-id items from different
      * hosts coexist. */
     __privateAdd(this, _state2, /* @__PURE__ */ new Map());
-    __privateAdd(this, _onChange3);
+    __privateAdd(this, _onChange4);
     /** Resolvers for the in-flight {@link subscribe} promises. */
-    __privateAdd(this, _waiters3, /* @__PURE__ */ new Set());
-    __privateSet(this, _abort3, abort);
-    __privateSet(this, _onChange3, onChange);
+    __privateAdd(this, _waiters4, /* @__PURE__ */ new Set());
+    __privateSet(this, _abort4, abort);
+    __privateSet(this, _onChange4, onChange);
   }
   /**
    * Open the connection, send the auth preamble, and resolve once the
@@ -14253,7 +14452,7 @@ var _LaboratoriesListListener = class _LaboratoriesListListener {
       abort,
       options?.onChange
     );
-    __privateMethod(_a = listener, _LaboratoriesListListener_instances, pump_fn3).call(_a, events);
+    __privateMethod(_a = listener, _LaboratoriesListListener_instances, pump_fn4).call(_a, events);
     return listener;
   }
   /**
@@ -14281,19 +14480,19 @@ var _LaboratoriesListListener = class _LaboratoriesListListener {
       abort,
       options?.onChange
     );
-    __privateMethod(_a = listener, _LaboratoriesListListener_instances, pump_fn3).call(_a, events);
+    __privateMethod(_a = listener, _LaboratoriesListListener_instances, pump_fn4).call(_a, events);
     return listener;
   }
   /** Whether the connection has closed (the view is frozen). */
   get closed() {
-    return __privateGet(this, _closed3);
+    return __privateGet(this, _closed4);
   }
   /** Drop the connection: the view freezes and any pending
    * {@link subscribe} resolves. */
   close() {
-    if (__privateGet(this, _closed3)) return;
-    __privateGet(this, _abort3).abort();
-    __privateMethod(this, _LaboratoriesListListener_instances, onClose_fn3).call(this);
+    if (__privateGet(this, _closed4)) return;
+    __privateGet(this, _abort4).abort();
+    __privateMethod(this, _LaboratoriesListListener_instances, onClose_fn4).call(this);
   }
   /** Snapshot the current laboratory set, sorted by `id`. */
   laboratories() {
@@ -14307,19 +14506,19 @@ var _LaboratoriesListListener = class _LaboratoriesListListener {
    * {@link LaboratoriesListListenerOptions.onChange} for
    * guaranteed push. Resolves immediately if already closed. */
   subscribe() {
-    if (__privateGet(this, _closed3)) return Promise.resolve();
+    if (__privateGet(this, _closed4)) return Promise.resolve();
     return new Promise((resolve) => {
-      __privateGet(this, _waiters3).add(resolve);
+      __privateGet(this, _waiters4).add(resolve);
     });
   }
 };
-_abort3 = new WeakMap();
-_closed3 = new WeakMap();
+_abort4 = new WeakMap();
+_closed4 = new WeakMap();
 _state2 = new WeakMap();
-_onChange3 = new WeakMap();
-_waiters3 = new WeakMap();
+_onChange4 = new WeakMap();
+_waiters4 = new WeakMap();
 _LaboratoriesListListener_instances = new WeakSet();
-pump_fn3 = async function(events) {
+pump_fn4 = async function(events) {
   try {
     for await (const data of events) {
       let frame;
@@ -14328,14 +14527,14 @@ pump_fn3 = async function(events) {
       } catch {
         continue;
       }
-      __privateMethod(this, _LaboratoriesListListener_instances, onFrame_fn3).call(this, frame);
+      __privateMethod(this, _LaboratoriesListListener_instances, onFrame_fn4).call(this, frame);
     }
   } catch {
   } finally {
-    __privateMethod(this, _LaboratoriesListListener_instances, onClose_fn3).call(this);
+    __privateMethod(this, _LaboratoriesListListener_instances, onClose_fn4).call(this);
   }
 };
-onFrame_fn3 = function(frame) {
+onFrame_fn4 = function(frame) {
   if (typeof frame !== "object" || frame === null) return;
   if (typeof frame.type !== "string") return;
   if (__privateMethod(this, _LaboratoriesListListener_instances, apply_fn2).call(this, frame)) {
@@ -14379,36 +14578,36 @@ apply_fn2 = function(event) {
 /** Fire the callback with the refreshed set and wake every
  * {@link subscribe} waiter. */
 notify_fn2 = function() {
-  if (__privateGet(this, _onChange3)) {
-    __privateGet(this, _onChange3).call(this, this.laboratories());
+  if (__privateGet(this, _onChange4)) {
+    __privateGet(this, _onChange4).call(this, this.laboratories());
   }
-  const waiters = [...__privateGet(this, _waiters3)];
-  __privateGet(this, _waiters3).clear();
+  const waiters = [...__privateGet(this, _waiters4)];
+  __privateGet(this, _waiters4).clear();
   for (const wake of waiters) wake();
 };
-onClose_fn3 = function() {
-  if (__privateGet(this, _closed3)) return;
-  __privateSet(this, _closed3, true);
-  const waiters = [...__privateGet(this, _waiters3)];
-  __privateGet(this, _waiters3).clear();
+onClose_fn4 = function() {
+  if (__privateGet(this, _closed4)) return;
+  __privateSet(this, _closed4, true);
+  const waiters = [...__privateGet(this, _waiters4)];
+  __privateGet(this, _waiters4).clear();
   for (const wake of waiters) wake();
 };
 var LaboratoriesListListener = _LaboratoriesListListener;
 
 // src/cli/laboratoriesListener.ts
-var _abort4, _closed4, _state3, _onChange4, _waiters4, _LaboratoriesListener_instances, pump_fn4, onFrame_fn4, onClose_fn4;
+var _abort5, _closed5, _state3, _onChange5, _waiters5, _LaboratoriesListener_instances, pump_fn5, onFrame_fn5, onClose_fn5;
 var _LaboratoriesListener = class _LaboratoriesListener {
   constructor(abort, onChange) {
     __privateAdd(this, _LaboratoriesListener_instances);
-    __privateAdd(this, _abort4);
-    __privateAdd(this, _closed4, false);
+    __privateAdd(this, _abort5);
+    __privateAdd(this, _closed5, false);
     /** The latest full record — `null` until the first frame lands. */
     __privateAdd(this, _state3, null);
-    __privateAdd(this, _onChange4);
+    __privateAdd(this, _onChange5);
     /** Resolvers for the in-flight {@link subscribe} promises. */
-    __privateAdd(this, _waiters4, /* @__PURE__ */ new Set());
-    __privateSet(this, _abort4, abort);
-    __privateSet(this, _onChange4, onChange);
+    __privateAdd(this, _waiters5, /* @__PURE__ */ new Set());
+    __privateSet(this, _abort5, abort);
+    __privateSet(this, _onChange5, onChange);
   }
   /**
    * Open the connection, send the auth preamble, and resolve once the
@@ -14428,7 +14627,7 @@ var _LaboratoriesListener = class _LaboratoriesListener {
       throw new Error(`connect daemon laboratory sse: ${String(e)}`);
     }
     const listener = new _LaboratoriesListener(abort, options?.onChange);
-    __privateMethod(_a = listener, _LaboratoriesListener_instances, pump_fn4).call(_a, events);
+    __privateMethod(_a = listener, _LaboratoriesListener_instances, pump_fn5).call(_a, events);
     return listener;
   }
   /**
@@ -14454,19 +14653,19 @@ var _LaboratoriesListener = class _LaboratoriesListener {
       throw new Error(`connect daemon laboratory sse: ${String(e)}`);
     }
     const listener = new _LaboratoriesListener(abort, options?.onChange);
-    __privateMethod(_a = listener, _LaboratoriesListener_instances, pump_fn4).call(_a, events);
+    __privateMethod(_a = listener, _LaboratoriesListener_instances, pump_fn5).call(_a, events);
     return listener;
   }
   /** Whether the connection has closed (the view is frozen). */
   get closed() {
-    return __privateGet(this, _closed4);
+    return __privateGet(this, _closed5);
   }
   /** Drop the connection: the view freezes and any pending
    * {@link subscribe} resolves. */
   close() {
-    if (__privateGet(this, _closed4)) return;
-    __privateGet(this, _abort4).abort();
-    __privateMethod(this, _LaboratoriesListener_instances, onClose_fn4).call(this);
+    if (__privateGet(this, _closed5)) return;
+    __privateGet(this, _abort5).abort();
+    __privateMethod(this, _LaboratoriesListener_instances, onClose_fn5).call(this);
   }
   /** The current record — `null` before the first frame. */
   laboratory() {
@@ -14478,19 +14677,19 @@ var _LaboratoriesListener = class _LaboratoriesListener {
    * {@link LaboratoriesListenerOptions.onChange} for
    * guaranteed push. Resolves immediately if already closed. */
   subscribe() {
-    if (__privateGet(this, _closed4)) return Promise.resolve();
+    if (__privateGet(this, _closed5)) return Promise.resolve();
     return new Promise((resolve) => {
-      __privateGet(this, _waiters4).add(resolve);
+      __privateGet(this, _waiters5).add(resolve);
     });
   }
 };
-_abort4 = new WeakMap();
-_closed4 = new WeakMap();
+_abort5 = new WeakMap();
+_closed5 = new WeakMap();
 _state3 = new WeakMap();
-_onChange4 = new WeakMap();
-_waiters4 = new WeakMap();
+_onChange5 = new WeakMap();
+_waiters5 = new WeakMap();
 _LaboratoriesListener_instances = new WeakSet();
-pump_fn4 = async function(events) {
+pump_fn5 = async function(events) {
   try {
     for await (const data of events) {
       let frame;
@@ -14499,30 +14698,30 @@ pump_fn4 = async function(events) {
       } catch {
         continue;
       }
-      __privateMethod(this, _LaboratoriesListener_instances, onFrame_fn4).call(this, frame);
+      __privateMethod(this, _LaboratoriesListener_instances, onFrame_fn5).call(this, frame);
     }
   } catch {
   } finally {
-    __privateMethod(this, _LaboratoriesListener_instances, onClose_fn4).call(this);
+    __privateMethod(this, _LaboratoriesListener_instances, onClose_fn5).call(this);
   }
 };
-onFrame_fn4 = function(frame) {
+onFrame_fn5 = function(frame) {
   if (typeof frame !== "object" || frame === null) return;
   if (frame.type !== "laboratory") return;
   const event = frame;
   __privateSet(this, _state3, event.laboratory);
-  if (__privateGet(this, _onChange4)) {
-    __privateGet(this, _onChange4).call(this, event.laboratory);
+  if (__privateGet(this, _onChange5)) {
+    __privateGet(this, _onChange5).call(this, event.laboratory);
   }
-  const waiters = [...__privateGet(this, _waiters4)];
-  __privateGet(this, _waiters4).clear();
+  const waiters = [...__privateGet(this, _waiters5)];
+  __privateGet(this, _waiters5).clear();
   for (const wake of waiters) wake();
 };
-onClose_fn4 = function() {
-  if (__privateGet(this, _closed4)) return;
-  __privateSet(this, _closed4, true);
-  const waiters = [...__privateGet(this, _waiters4)];
-  __privateGet(this, _waiters4).clear();
+onClose_fn5 = function() {
+  if (__privateGet(this, _closed5)) return;
+  __privateSet(this, _closed5, true);
+  const waiters = [...__privateGet(this, _waiters5)];
+  __privateGet(this, _waiters5).clear();
   for (const wake of waiters) wake();
 };
 var LaboratoriesListener = _LaboratoriesListener;
@@ -14607,16 +14806,16 @@ var ResponseItemStream = class {
 };
 _done = new WeakMap();
 _subscribers = new WeakMap();
-var _abort5, _closed5, _live2, _skipped, _subscribers2, _BroadcastListener_instances, onClose_fn5, onFrame_fn5, onRequest_fn, onResponse_fn, onEnd_fn;
+var _abort6, _closed6, _live2, _skipped, _subscribers2, _BroadcastListener_instances, onClose_fn6, onFrame_fn6, onRequest_fn, onResponse_fn, onEnd_fn;
 var _BroadcastListener = class _BroadcastListener {
   constructor(abort, events) {
     __privateAdd(this, _BroadcastListener_instances);
-    __privateAdd(this, _abort5);
-    __privateAdd(this, _closed5, false);
+    __privateAdd(this, _abort6);
+    __privateAdd(this, _closed6, false);
     __privateAdd(this, _live2, /* @__PURE__ */ new Map());
     __privateAdd(this, _skipped, /* @__PURE__ */ new Set());
     __privateAdd(this, _subscribers2, /* @__PURE__ */ new Set());
-    __privateSet(this, _abort5, abort);
+    __privateSet(this, _abort6, abort);
     void (async () => {
       try {
         for await (const data of events) {
@@ -14626,11 +14825,11 @@ var _BroadcastListener = class _BroadcastListener {
           } catch {
             continue;
           }
-          __privateMethod(this, _BroadcastListener_instances, onFrame_fn5).call(this, frame);
+          __privateMethod(this, _BroadcastListener_instances, onFrame_fn6).call(this, frame);
         }
       } catch {
       }
-      __privateMethod(this, _BroadcastListener_instances, onClose_fn5).call(this);
+      __privateMethod(this, _BroadcastListener_instances, onClose_fn6).call(this);
     })();
   }
   /**
@@ -14664,9 +14863,9 @@ var _BroadcastListener = class _BroadcastListener {
   /** Drop the connection: every open run's feed closes and every root
    * iterator ends. */
   close() {
-    if (__privateGet(this, _closed5)) return;
-    __privateGet(this, _abort5).abort();
-    __privateMethod(this, _BroadcastListener_instances, onClose_fn5).call(this);
+    if (__privateGet(this, _closed6)) return;
+    __privateGet(this, _abort6).abort();
+    __privateMethod(this, _BroadcastListener_instances, onClose_fn6).call(this);
   }
   /**
    * Iterate the runs announced from this call onward. Multiple
@@ -14675,7 +14874,7 @@ var _BroadcastListener = class _BroadcastListener {
    */
   runs() {
     const queue = [];
-    let ended = __privateGet(this, _closed5);
+    let ended = __privateGet(this, _closed6);
     let wake = null;
     const subscriber = {
       push: (run) => {
@@ -14726,8 +14925,8 @@ var _BroadcastListener = class _BroadcastListener {
     return this.runs();
   }
 };
-_abort5 = new WeakMap();
-_closed5 = new WeakMap();
+_abort6 = new WeakMap();
+_closed6 = new WeakMap();
 _live2 = new WeakMap();
 _skipped = new WeakMap();
 _subscribers2 = new WeakMap();
@@ -14735,9 +14934,9 @@ _BroadcastListener_instances = new WeakSet();
 /** Connection over: close every still-open run (unresolved unary
  * responses settle with the synthesized "run ended" error; streams
  * end) and end every root iterator. */
-onClose_fn5 = function() {
-  if (__privateGet(this, _closed5)) return;
-  __privateSet(this, _closed5, true);
+onClose_fn6 = function() {
+  if (__privateGet(this, _closed6)) return;
+  __privateSet(this, _closed6, true);
   for (const id of [...__privateGet(this, _live2).keys()]) {
     __privateMethod(this, _BroadcastListener_instances, onEnd_fn).call(this, id);
   }
@@ -14748,7 +14947,7 @@ onClose_fn5 = function() {
     subscriber.end();
   }
 };
-onFrame_fn5 = function(frame) {
+onFrame_fn6 = function(frame) {
   if (typeof frame !== "object" || frame === null) return;
   const f = frame;
   if (typeof f.id !== "string") return;
@@ -17468,6 +17667,7 @@ exports.LaboratoriesClientLaboratorySchema = LaboratoriesClientLaboratorySchema;
 exports.LaboratoriesClientLaboratoryTypeSchema = LaboratoriesClientLaboratoryTypeSchema;
 exports.LaboratoriesFiletreeFileTreeEventSchema = LaboratoriesFiletreeFileTreeEventSchema;
 exports.LaboratoriesFiletreeFileTreeNodeSchema = LaboratoriesFiletreeFileTreeNodeSchema;
+exports.LaboratoriesFiletreeListener = LaboratoriesFiletreeListener;
 exports.LaboratoriesInlineLaboratoryImageSchema = LaboratoriesInlineLaboratoryImageSchema;
 exports.LaboratoriesLaboratoryImagePinSchema = LaboratoriesLaboratoryImagePinSchema;
 exports.LaboratoriesLaboratoryImageSchema = LaboratoriesLaboratoryImageSchema;
@@ -17904,6 +18104,7 @@ exports.apiSpawnRequestSchemaExecute = apiSpawnRequestSchemaExecute;
 exports.apiSpawnRequestSchemaExecuteTransform = apiSpawnRequestSchemaExecuteTransform;
 exports.apiSpawnResponseSchemaExecute = apiSpawnResponseSchemaExecute;
 exports.apiSpawnResponseSchemaExecuteTransform = apiSpawnResponseSchemaExecuteTransform;
+exports.applyFileTreeEvent = applyFileTreeEvent;
 exports.authCreateApiKey = authCreateApiKey;
 exports.authCreateOpenrouterByokApiKey = authCreateOpenrouterByokApiKey;
 exports.authDeleteOpenrouterByokApiKey = authDeleteOpenrouterByokApiKey;
