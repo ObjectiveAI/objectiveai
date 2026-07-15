@@ -460,6 +460,12 @@ fn laboratory_instance_stream(
     }
 }
 
+/// The whole blocking open — the Filetree{on} RPC (itself bounded by
+/// the forward timeout) AND the wait for the first materialized
+/// snapshot — shares ONE deadline, so a handler can never pend longer
+/// than this before 504ing.
+const FILETREE_PRIME_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
+
 /// `/laboratories/{id}/filetree`: header-auth, then the laboratory's
 /// live file tree as SSE — the exact wire contract of the lab MCP's own
 /// `/filetree` endpoint (a `snapshot` first, then `upserted`/`removed`
@@ -468,6 +474,16 @@ fn laboratory_instance_stream(
 /// daemon's materialized state (kept live by the host's pushed
 /// notifications — nothing is fetched on demand); every later event is
 /// re-emitted verbatim as it arrives.
+///
+/// The response is HELD until that first snapshot is real: registering
+/// the watch lazily starts the container, the host's pump delivers the
+/// lab's first snapshot, and only once it is folded daemon-side do the
+/// headers (and the snapshot) go out — a client never sees a premature
+/// empty tree for a lab that is still booting. Failure semantics:
+/// 404 when no connected host serves the lab (or it is deleted while
+/// waiting), 502 when the container fails to start or its host
+/// disconnects mid-wait, 504 when nothing materializes within
+/// [`FILETREE_PRIME_TIMEOUT`].
 pub(crate) async fn laboratory_filetree_handler(
     axum::extract::State(state): axum::extract::State<
         crate::http::daemon_stream::DaemonHttpState,
@@ -484,44 +500,130 @@ pub(crate) async fn laboratory_filetree_handler(
         (Some(machine), Some(machine_state)) => Some((machine, machine_state)),
         _ => None,
     };
-    axum::response::sse::Sse::new(filetree_stream(state.laboratories, id, pin))
+    let registry = state.laboratories;
+    // The prime wait owns the watch guard: dropping this future at the
+    // deadline (or on client disconnect) drops the guard and withdraws
+    // the demand it registered.
+    let primed = tokio::time::timeout(FILETREE_PRIME_TIMEOUT, async {
+        let pin_ref = pin.as_ref().map(|(m, s)| (m.as_str(), s.as_str()));
+        let Some((watch, signal)) = registry.filetree_watch(&id, pin_ref).await else {
+            return Err((
+                axum::http::StatusCode::NOT_FOUND,
+                format!("no connected laboratory host serves '{id}'"),
+            ));
+        };
+        if let Err(e) = signal {
+            return Err((
+                axum::http::StatusCode::BAD_GATEWAY,
+                format!("start laboratory '{id}': {e}"),
+            ));
+        }
+        // Subscribe BEFORE the first state check (fold-first +
+        // subscribe-first ⇒ the priming snapshot cannot be missed;
+        // anything delivered twice is an idempotent re-fold).
+        let mut rx = registry.filetree_subscribe();
+        let mut registry_rx = registry.subscribe();
+        while registry.filetree_state(&id, pin_ref).await.is_none() {
+            tokio::select! {
+                change = rx.recv() => match change {
+                    // Any matching event means a fold happened —
+                    // re-check. Non-matching events just loop.
+                    Ok(_) => {}
+                    // Missed events are folded state — re-check.
+                    Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => {
+                        return Err((
+                            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            "laboratory registry closed".to_string(),
+                        ));
+                    }
+                },
+                // The lab can vanish while we wait — surface that
+                // instead of pending to the deadline.
+                event = registry_rx.recv() => match event {
+                    Ok(crate::http::websocket_laboratory::LabRegistryChange::LaboratoryDeleted(deleted))
+                        if deleted == id =>
+                    {
+                        return Err((
+                            axum::http::StatusCode::NOT_FOUND,
+                            format!("laboratory '{id}' was deleted"),
+                        ));
+                    }
+                    Ok(crate::http::websocket_laboratory::LabRegistryChange::HostDisconnected(machine))
+                        if machine == watch.key().0 =>
+                    {
+                        return Err((
+                            axum::http::StatusCode::BAD_GATEWAY,
+                            format!("laboratory host for '{id}' disconnected"),
+                        ));
+                    }
+                    // Anything else (incl. Lagged) → re-check.
+                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(broadcast::error::RecvError::Closed) => {
+                        return Err((
+                            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                            "laboratory registry closed".to_string(),
+                        ));
+                    }
+                },
+            }
+        }
+        Ok((watch, rx))
+    })
+    .await;
+    let (watch, rx) = match primed {
+        Ok(Ok(primed)) => primed,
+        Ok(Err((status, message))) => return (status, message).into_response(),
+        Err(_elapsed) => {
+            return (
+                axum::http::StatusCode::GATEWAY_TIMEOUT,
+                format!("laboratory '{id}' filetree did not materialize in time"),
+            )
+                .into_response();
+        }
+    };
+    axum::response::sse::Sse::new(filetree_stream(registry, id, pin, watch, rx))
         .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
 }
 
 /// Yield a synthesized snapshot of the current materialized tree, then
-/// re-emit every matching pushed event. Subscribe-then-snapshot: an
-/// event landing between the two is delivered twice, and the fold is
-/// idempotent, so nothing is ever missed. A lagged receiver (slow
-/// client under heavy churn) resyncs by re-snapshotting — the same
-/// overflow-resync discipline as the lab endpoint itself. An unknown
-/// laboratory yields an empty snapshot and waits: events start flowing
-/// the moment its container starts.
+/// re-emit every matching pushed event. The handler already primed the
+/// state and subscribed `rx` before its first state check, so the
+/// first snapshot here is the real tree and no event can slip the gap
+/// (an event landing between subscribe and snapshot is delivered
+/// twice, and the fold is idempotent). A lagged receiver (slow client
+/// under heavy churn) resyncs by re-snapshotting — the same
+/// overflow-resync discipline as the lab endpoint itself.
 ///
-/// The stream also REGISTERS as a filetree watcher
-/// ([`LaboratoryRegistry::filetree_watch`]) for its whole life: the
-/// first subscriber makes the host lazily START the laboratory's
-/// container, and the last one leaving makes it a stop candidate.
+/// The stream HOLDS the filetree watch registration
+/// ([`LaboratoryRegistry::filetree_watch`], acquired by the handler)
+/// for its whole life: the first subscriber makes the host lazily
+/// START the laboratory's container, and the last one leaving makes
+/// it a stop candidate.
 fn filetree_stream(
     registry: LaboratoryRegistry,
     id: String,
     pin: Option<(String, String)>,
+    watch: crate::http::websocket_laboratory::FiletreeWatchGuard,
+    rx: broadcast::Receiver<crate::http::websocket_laboratory::FiletreeChange>,
 ) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
     use axum::response::sse::Event;
     async_stream::stream! {
         // Held for the stream's lifetime; dropping the SSE response
         // drops the guard, which is the subscriber-gone signal.
-        let _watch = registry
-            .filetree_watch(&id, pin.as_ref().map(|(m, s)| (m.as_str(), s.as_str())))
-            .await;
-        let mut rx = registry.filetree_subscribe();
+        let _watch = watch;
+        let mut rx = rx;
         loop {
+            // Primed by the handler, so `None` only reappears if the
+            // lab is deleted mid-stream — an empty snapshot then.
             let children = registry
                 .filetree_state(
                     &id,
                     pin.as_ref().map(|(m, s)| (m.as_str(), s.as_str())),
                 )
-                .await;
+                .await
+                .unwrap_or_default();
             let snapshot = FileTreeEvent::Snapshot { children };
             if let Ok(frame) = serde_json::to_string(&snapshot) {
                 yield Ok(Event::default().data(frame));

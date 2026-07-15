@@ -174,16 +174,23 @@ impl LaboratoryRegistry {
     /// resolved to its serving host (the `pin` when given, else the
     /// same first-match-by-id scan [`Self::forward`] uses). Bumps the
     /// per-`(machine, state, id)` count; the 0→1 edge sends
-    /// `Filetree { on: true }` to that host. Returns a guard whose
-    /// drop decrements (the 1→0 edge sends `off`). `None` when no
-    /// connected host serves the laboratory — the subscriber still
-    /// streams (empty snapshot; events flow if a host appears), it
-    /// just can't drive the container lifecycle.
+    /// `Filetree { on: true }` to that host and reports the outcome —
+    /// `Err` means the container could not start (host mid-restart,
+    /// start error, timeout) and the caller decides what to do with
+    /// that. Returns a guard whose drop decrements (the 1→0 edge
+    /// sends `off`). `None` when no connected host serves the
+    /// laboratory — without a resolvable host there is no demand to
+    /// register and nothing the subscriber could ever receive.
+    ///
+    /// CANCEL-SAFETY: the guard is constructed BEFORE the edge signal
+    /// is awaited — a caller dropped mid-await (client disconnect,
+    /// handler timeout) drops the guard and withdraws the count, never
+    /// leaking a phantom watcher that would pin the container.
     pub async fn filetree_watch(
         &self,
         laboratory_id: &str,
         pin: Option<(&str, &str)>,
-    ) -> Option<FiletreeWatchGuard> {
+    ) -> Option<(FiletreeWatchGuard, Result<(), String>)> {
         let (machine_id, state) = match pin {
             Some((machine_id, machine_state)) => {
                 (machine_id.to_string(), machine_state.to_string())
@@ -196,20 +203,28 @@ impl LaboratoryRegistry {
             *entry += 1;
             *entry
         };
-        if count == 1 {
-            // AWAITED on the 0→1 edge: the host's reply lands only
-            // after its lazy container start completes, so the
-            // subscriber's first snapshot isn't a premature "no
-            // files" against a container that's still booting.
-            // Failure (host mid-restart, start error, timeout) is
-            // tolerated — the stream proceeds with what exists and
-            // live events flow when the container comes up.
-            let _ = self.send_filetree_signal_now(key.clone(), true).await;
-        }
-        Some(FiletreeWatchGuard {
+        let guard = FiletreeWatchGuard {
             registry: self.clone(),
-            key,
-        })
+            key: key.clone(),
+        };
+        let signal = if count == 1 {
+            // AWAITED on the 0→1 edge: the host's reply lands only
+            // after its lazy container start completes.
+            use objectiveai_sdk::laboratories::daemon::{JsonRpcResult, ResponsePayload};
+            match self.send_filetree_signal_now(key, true).await {
+                Ok(ResponsePayload::Filetree(JsonRpcResult::Ok { .. })) => Ok(()),
+                Ok(ResponsePayload::Filetree(JsonRpcResult::Err { message, .. })) => {
+                    Err(message)
+                }
+                Ok(_) => Err("unexpected filetree reply".to_string()),
+                Err(e) => Err(e),
+            }
+        } else {
+            // Not the starting edge — an earlier subscriber already
+            // drove (or is driving) the container start.
+            Ok(())
+        };
+        Some((guard, signal))
     }
 
     /// Fire-and-forget `Filetree { on }` to the host owning `key`.
@@ -249,13 +264,16 @@ impl LaboratoryRegistry {
     /// list) for `laboratory_id` — from the exact host when the
     /// `(machine, machine_state)` pin is given, else from the first
     /// connected host serving that id (the legacy first-match scan).
-    /// Empty when nothing is known (no host, lab never started, or no
-    /// snapshot yet).
+    /// `None` when nothing is MATERIALIZED (no host, lab never
+    /// started, or no snapshot folded yet) — key presence is the
+    /// "primed" signal the blocking `/filetree` open gates on, and it
+    /// is distinct from `Some(vec![])`, a real snapshot of an empty
+    /// tree.
     pub async fn filetree_state(
         &self,
         laboratory_id: &str,
         pin: Option<(&str, &str)>,
-    ) -> Vec<FileTreeNode> {
+    ) -> Option<Vec<FileTreeNode>> {
         // Clone the Arcs out; never hold a map guard across an await.
         let hosts: Vec<Arc<HostConnection>> = match pin {
             Some((machine_id, machine_state)) => self
@@ -267,10 +285,10 @@ impl LaboratoryRegistry {
         };
         for host in hosts {
             if let Some(children) = host.filetree.read().await.get(laboratory_id) {
-                return children.clone();
+                return Some(children.clone());
             }
         }
-        Vec::new()
+        None
     }
 
     /// Every served laboratory with the host serving it — machine
@@ -461,6 +479,15 @@ impl LaboratoryRegistry {
 pub struct FiletreeWatchGuard {
     registry: LaboratoryRegistry,
     key: (String, String, String),
+}
+
+impl FiletreeWatchGuard {
+    /// The resolved `(machine id, machine state, laboratory id)` this
+    /// subscriber registered under — the blocking `/filetree` open
+    /// matches host-disconnect events against it.
+    pub fn key(&self) -> &(String, String, String) {
+        &self.key
+    }
 }
 
 impl Drop for FiletreeWatchGuard {

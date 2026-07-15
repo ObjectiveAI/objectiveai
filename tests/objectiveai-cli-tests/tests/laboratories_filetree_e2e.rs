@@ -14,8 +14,9 @@
 //! Two laboratories × two observation paths:
 //! - `created_attached_lab_filetree_live_deltas`: `laboratories create`
 //!   + `laboratories attach`; the [`FileTree`] client connects BEFORE
-//!   the container ever starts, so everything it sees arrives as LIVE
-//!   deltas (the connect-time synthesized snapshot is empty).
+//!   the container ever starts — the daemon HOLDS the response until
+//!   the lazily-started container's first real snapshot materializes
+//!   (an empty `/tmp`), and the writes then arrive as LIVE deltas.
 //! - `agent_embedded_lab_filetree_snapshot`: the lab rides the agent
 //!   definition's `laboratories` field (derived `oai-agent-…` id,
 //!   discovered via `laboratories list`); the client connects AFTER
@@ -284,10 +285,11 @@ fn dir_children(node: &FileTreeNode) -> Option<&[FileTreeNode]> {
 }
 
 /// Create + attach: the `FileTree` daemon client connects BEFORE the
-/// container's first start, so the whole tree arrives as LIVE deltas
-/// (lab boots → host pump opens → snapshot + writes push through the
-/// daemon to the already-open SSE stream); a second spawn's `rm` then
-/// lands as a removal delta on the same connection.
+/// container's first start. The connect itself is the demand that
+/// lazily boots the container, and the daemon holds its response
+/// until the first real snapshot (an empty `/tmp`) materializes; the
+/// agent's writes then push through as LIVE deltas, and a second
+/// spawn's `rm` lands as a removal delta on the same connection.
 #[tokio::test(flavor = "multi_thread")]
 async fn created_attached_lab_filetree_live_deltas() {
     let _base = cli_test_util::test_base_dir();
@@ -301,9 +303,12 @@ async fn created_attached_lab_filetree_live_deltas() {
     let marker = format!("ft-marker-{n}.txt");
     create_lab(&executor, &lab, "/tmp").await;
 
-    // Connect while the container has never started: the synthesized
-    // connect-time snapshot is empty, and everything below must reach
-    // this client as pushed deltas.
+    // Connect while the container has never started: this connect IS
+    // what starts it (watch demand), the response is held until the
+    // fresh container's first snapshot (empty /tmp) materializes, and
+    // everything below must reach this client as pushed deltas.
+    // `connect()` itself is lazy (resolves before response headers),
+    // so the hold shows up as a later first event, not a hang here.
     let tree = FileTree::daemon(&addr, &lab)
         .connect()
         .await
