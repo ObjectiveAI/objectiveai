@@ -295,9 +295,12 @@ pub async fn create(
     create_cmd
         .arg("-e")
         .arg(format!("OBJECTIVEAI_LABORATORY_CWD={cwd}"));
-    // The `/filetree` ignore set. The in-container MCP is deliberately
-    // NAIVE — it just hides whatever paths this env lists; the mount
-    // concept lives HERE, so this is where the policy is decided:
+    // The `/filetree` ignore set — HOST-OWNED, exclusively: the
+    // in-container MCP is deliberately naive and just hides whatever
+    // paths this env lists, and this stamp is the only writer (it is
+    // appended after the user's env, so podman's last-wins semantics
+    // make any user-supplied value inert). The mount concept lives
+    // HERE, so this is where the policy is decided:
     //
     // - Every mount's container path: filesystem mounts (9p/virtiofs)
     //   deliver ZERO inotify events (proven empirically — the mount
@@ -309,16 +312,8 @@ pub async fn create(
     //   container: they churn constantly, aren't laboratory data, and
     //   their magic files abort inotify registration wholesale
     //   (`watch /` used to die on `/proc/tty/driver` with EACCES).
-    //
-    // The user's own entries (ordinary create-request env) come
-    // first; appended after the user's env so this merged value wins.
-    let filetree_ignore = env
-        .iter()
-        .rev()
-        .find(|(k, _)| k == "OBJECTIVEAI_FILETREE_IGNORE")
-        .map(|(_, v)| v.as_str())
+    let filetree_ignore = ["/proc", "/sys", "/dev"]
         .into_iter()
-        .chain(["/proc", "/sys", "/dev"])
         .chain(mounts.iter().map(|m| m.container.as_str()))
         .collect::<Vec<_>>()
         .join(":");
