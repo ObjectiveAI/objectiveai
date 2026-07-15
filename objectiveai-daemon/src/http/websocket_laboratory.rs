@@ -151,7 +151,10 @@ impl LaboratoryRegistry {
         Self {
             hosts: Arc::new(DashMap::new()),
             events: tokio::sync::broadcast::channel(1024).0,
-            filetree_events: tokio::sync::broadcast::channel(1024).0,
+            // Capacity matches the kernel's inotify queue (and the
+            // host's filetree ring): one full kernel-side burst fits
+            // before a slow viewer needs its lag resync.
+            filetree_events: tokio::sync::broadcast::channel(16384).0,
             filetree_watchers: Arc::new(DashMap::new()),
         }
     }
