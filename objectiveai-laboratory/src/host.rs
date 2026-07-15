@@ -67,11 +67,26 @@ pub struct HostServer {
     /// container this host started — [`Self::stop_started`] stops
     /// exactly those.
     labs: DashMap<String, Arc<tokio::sync::OnceCell<Arc<LabServer>>>>,
-    /// One outbound frame sender per connected daemon channel, keyed by
-    /// a host-minted registration id. Dead senders are dropped on the
-    /// next broadcast.
+    /// The CONTROL lane: one outbound frame sender per connected daemon
+    /// channel, keyed by a host-minted registration id. Unbounded but
+    /// request-paced — it carries only the identify/auth handshake,
+    /// attach-time synthesized snapshots, correlated RPC responses
+    /// (never droppable), and the rare Created/Updated/Deleted
+    /// notifications. The filetree fire hose rides
+    /// [`Self::filetree_events`] instead. Dead senders are dropped on
+    /// the next broadcast.
     outbound: DashMap<u64, tokio::sync::mpsc::UnboundedSender<String>>,
     next_outbound: AtomicU64,
+    /// The FILETREE lane: pre-serialized `LaboratoryFiletree` frames on
+    /// a bounded ring, mirroring the daemon→viewer standard. Each
+    /// channel's WS writer holds a receiver and, on `Lagged`, resyncs
+    /// itself with fresh snapshots from [`Self::filetree_snapshot_frames`]
+    /// — so a stalled daemon socket costs a resync, never unbounded
+    /// host memory. The ring retains up to its capacity of frames
+    /// (including full-tree snapshots from pump reconnects) while any
+    /// receiver lives; that retention is the bounded buffer, which is
+    /// the point.
+    filetree_events: tokio::sync::broadcast::Sender<String>,
     /// Per-laboratory materialized file trees (the watched root — the
     /// lab's cwd — child list), folded from each running lab's
     /// `/filetree` SSE by its pump. Read by [`Self::attach_channel`] to
@@ -113,6 +128,8 @@ impl HostServer {
             labs: DashMap::new(),
             outbound: DashMap::new(),
             next_outbound: AtomicU64::new(0),
+            // Capacity mirrors the daemon's viewer-facing filetree ring.
+            filetree_events: tokio::sync::broadcast::channel(1024).0,
             filetree: DashMap::new(),
             filetree_pumps: DashMap::new(),
             filetree_watchers: DashMap::new(),
@@ -125,16 +142,23 @@ impl HostServer {
     /// [`HostIdentify`] (built from podman's CURRENT laboratory set —
     /// podman is the only source of truth, nothing mirrored to drift)
     /// and the auth envelope as the channel's first two frames, then
-    /// register its sender for notification fan-out — all under
-    /// `attach_lock`, atomically against broadcasts (see the field
-    /// docs). Everything rides the ONE `reply_tx` writer, so wire
-    /// order (identify, auth, then replies/notifications) holds by
-    /// construction. Returns the id to [`Self::detach_channel`] with.
+    /// register its CONTROL sender for notification fan-out and
+    /// subscribe it to the filetree ring — all under `attach_lock`,
+    /// atomically against broadcasts and the pumps' folds (see the
+    /// field docs). Exactly-once for filetree state: the synthesized
+    /// snapshots are queued on `reply_tx` in the SAME lock hold as the
+    /// ring `subscribe()`, and every fold+send in
+    /// [`Self::filetree_event`] holds the same lock — so an event is
+    /// either folded into this channel's snapshot or delivered by its
+    /// ring receiver, never neither. The channel's writer drains the
+    /// control lane first (biased), so the snapshots reach the wire
+    /// before any ring delta. Returns the id to
+    /// [`Self::detach_channel`] with, plus the channel's ring receiver.
     pub async fn attach_channel(
         &self,
         reply_tx: tokio::sync::mpsc::UnboundedSender<String>,
         auth_frame: String,
-    ) -> u64 {
+    ) -> (u64, tokio::sync::broadcast::Receiver<String>) {
         let _guard = self.attach_lock.lock().await;
         let identify = HostIdentify {
             state: self.state.clone(),
@@ -149,27 +173,47 @@ impl HostServer {
         // this daemon's materialized trees start current — the same
         // snapshot-then-deltas contract the lab endpoint itself opens
         // with. Under `attach_lock`, atomic against the pumps' folds.
-        for entry in self.filetree.iter() {
-            let notification = HostNotification::LaboratoryFiletree {
-                id: entry.key().clone(),
-                event: FileTreeEvent::Snapshot {
-                    children: entry.value().clone(),
-                },
-            };
-            if let Ok(frame) = serde_json::to_string(&notification) {
-                let _ = reply_tx.send(frame);
-            }
+        for frame in self.filetree_snapshot_frames() {
+            let _ = reply_tx.send(frame);
         }
+        let filetree_rx = self.filetree_events.subscribe();
         let id = self.next_outbound.fetch_add(1, Ordering::Relaxed);
         self.outbound.insert(id, reply_tx);
-        id
+        (id, filetree_rx)
+    }
+
+    /// One synthesized `LaboratoryFiletree` Snapshot frame per
+    /// materialized laboratory tree — the resync currency shared by
+    /// [`Self::attach_channel`] (under `attach_lock`) and each
+    /// channel writer's `Lagged` recovery (deliberately WITHOUT the
+    /// lock): the caller's ring receiver is already subscribed, so
+    /// every event folded before this clone is in the snapshot and
+    /// every later one is still in-order in its ring; a delta replayed
+    /// on top of a newer snapshot is an idempotent re-apply. DashMap's
+    /// entry locking keeps the clone un-torn against a concurrent
+    /// fold.
+    pub(crate) fn filetree_snapshot_frames(&self) -> Vec<String> {
+        self.filetree
+            .iter()
+            .filter_map(|entry| {
+                serde_json::to_string(&HostNotification::LaboratoryFiletree {
+                    id: entry.key().clone(),
+                    event: FileTreeEvent::Snapshot {
+                        children: entry.value().clone(),
+                    },
+                })
+                .ok()
+            })
+            .collect()
     }
 
     /// One event off a laboratory's `/filetree` SSE (called by that
-    /// lab's pump): fold it into the materialized tree, then fan it out
-    /// to every connected daemon — one `attach_lock` hold for both, so
-    /// an attaching channel either sees the fold in its synthesized
-    /// snapshot or receives the broadcast, never neither.
+    /// lab's pump): fold it into the materialized tree, then publish
+    /// the frame on the filetree ring — one `attach_lock` hold for
+    /// both, so an attaching channel either sees the fold in its
+    /// synthesized snapshot or receives the ring frame, never neither.
+    /// A send with no receivers (no daemon connected) just drops; the
+    /// materialized tree is the durable state.
     pub(crate) async fn filetree_event(&self, id: &str, event: FileTreeEvent) {
         let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
             id: id.to_string(),
@@ -179,7 +223,7 @@ impl HostServer {
         };
         let _guard = self.attach_lock.lock().await;
         event.apply(self.filetree.entry(id.to_string()).or_default().value_mut());
-        self.outbound.retain(|_, tx| tx.send(frame.clone()).is_ok());
+        let _ = self.filetree_events.send(frame);
     }
 
     /// Detach a disconnected daemon channel: drop its notification
@@ -609,11 +653,21 @@ impl HostServer {
         // The lab's filetree watch dies with it — abort the pump and
         // drop the materialized tree (daemons clear theirs on the
         // `laboratory_deleted` broadcast below), plus the lifecycle
-        // bookkeeping (watch demand and the start/stop lock).
-        if let Some((_, pump)) = self.filetree_pumps.remove(id) {
-            pump.abort();
+        // bookkeeping (watch demand and the start/stop lock). Under
+        // `attach_lock`: a pump mid-`filetree_event` either finishes
+        // its fold BEFORE the remove (and the entry is dropped here)
+        // or blocks on the lock until after (and dies aborted at that
+        // await) — without the lock it could re-create the entry via
+        // `or_default`, leaving a phantom tree served to every later
+        // attach. NOT held across `broadcast` below, which takes it
+        // itself.
+        {
+            let _guard = self.attach_lock.lock().await;
+            if let Some((_, pump)) = self.filetree_pumps.remove(id) {
+                pump.abort();
+            }
+            self.filetree.remove(id);
         }
-        self.filetree.remove(id);
         self.filetree_watchers.remove(id);
         self.lifecycle.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {

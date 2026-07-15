@@ -9,12 +9,30 @@
 //! FULL current laboratory set), the SECOND is the authorization
 //! envelope (`{"signature": …}` — the daemon's standard first-message
 //! auth, demoted to second place here because identity always precedes
-//! authorization on this endpoint). Both are enqueued by
-//! [`HostServer::attach_channel`] onto the SAME single-writer queue
-//! the replies and notifications use, so that order — and the
-//! atomicity of the identify snapshot against concurrent
-//! create/delete broadcasts — holds by construction; this loop never
-//! writes a frame itself.
+//! authorization on this endpoint).
+//!
+//! Outbound frames ride TWO lanes, merged by one writer task per
+//! channel:
+//!
+//! - **Control** (unbounded mpsc): identify, auth, attach-time
+//!   synthesized filetree snapshots, correlated RPC responses, and the
+//!   rare Created/Updated/Deleted notifications. Never dropped;
+//!   request-paced, so effectively bounded.
+//! - **Filetree** (bounded broadcast ring on the host): the per-event
+//!   fire hose. A writer that falls behind gets `Lagged` and resyncs
+//!   itself with fresh snapshots from
+//!   [`HostServer::filetree_snapshot_frames`] — a stalled daemon
+//!   socket costs a resync, never unbounded host memory (the same
+//!   lag→snapshot standard the daemon applies to its viewer SSE
+//!   subscribers).
+//!
+//! The writer's `select!` is BIASED, control lane first: any control
+//! frame enqueued before a ring frame was broadcast reaches the wire
+//! first. That is the ordering guarantee — identify/auth/snapshots
+//! precede every delta ([`HostServer::attach_channel`] queues them in
+//! the same `attach_lock` hold that subscribes the ring), and a
+//! `LaboratoryCreated` precedes the first ring frame of a recreated
+//! lab. This loop never writes a frame itself.
 
 use std::sync::Arc;
 
@@ -61,22 +79,63 @@ pub async fn run(
                     eprintln!("connected: {url}");
                 }
                 let (mut sink, mut stream) = ws.split();
-                // ALL outbound frames funnel through one writer task;
-                // each request is served concurrently.
                 let (reply_tx, mut reply_rx) =
                     tokio::sync::mpsc::unbounded_channel::<String>();
+                // Attach FIRST: enqueues identify + auth + snapshots on
+                // the control lane and subscribes the filetree ring,
+                // atomically against broadcasts and folds. The frames
+                // wait in the unbounded control queue until the writer
+                // starts.
+                let (channel_id, mut filetree_rx) =
+                    host.attach_channel(reply_tx.clone(), auth_frame.clone()).await;
+                // The single writer merges both lanes (see the module
+                // docs for the lane contract and why `biased` control-
+                // first is the ordering guarantee).
+                let writer_host = Arc::clone(&host);
                 let writer = tokio::spawn(async move {
-                    while let Some(frame) = reply_rx.recv().await {
-                        if sink.send(Message::Text(frame)).await.is_err() {
-                            break;
+                    loop {
+                        tokio::select! {
+                            biased;
+                            frame = reply_rx.recv() => match frame {
+                                Some(frame) => {
+                                    if sink.send(Message::Text(frame)).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                // All control senders dropped — the
+                                // channel is detached; we're done.
+                                None => break,
+                            },
+                            result = filetree_rx.recv() => match result {
+                                Ok(frame) => {
+                                    if sink.send(Message::Text(frame)).await.is_err() {
+                                        break;
+                                    }
+                                }
+                                // Fell behind the ring: the missed
+                                // events are already folded into the
+                                // host's materialized trees — resync
+                                // with fresh snapshots and resume.
+                                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {
+                                    let mut failed = false;
+                                    for frame in writer_host.filetree_snapshot_frames() {
+                                        if sink.send(Message::Text(frame)).await.is_err() {
+                                            failed = true;
+                                            break;
+                                        }
+                                    }
+                                    if failed {
+                                        break;
+                                    }
+                                }
+                                // Unreachable in practice: our
+                                // `writer_host` Arc keeps the ring
+                                // sender alive.
+                                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                            },
                         }
                     }
                 });
-                // Attach: enqueues identify + auth as the first two
-                // frames and subscribes this channel to notifications,
-                // atomically against create/delete broadcasts.
-                let channel_id =
-                    host.attach_channel(reply_tx.clone(), auth_frame.clone()).await;
                 while let Some(frame) = stream.next().await {
                     let text = match frame {
                         Ok(Message::Text(text)) => text,
