@@ -94,17 +94,25 @@ fn ignore() -> &'static [PathBuf] {
 }
 
 /// Whether `path` does not exist as far as a stream rooted at `root`
-/// is concerned: under (or equal to) an ignored path. The root itself
-/// is never excluded.
+/// is concerned: under (or equal to) an APPLICABLE ignored path. An
+/// entry that covers the root itself is inert for the stream —
+/// watching the root was the caller's explicit ask, and a stream
+/// whose every child is ignored would be a permanently empty tree —
+/// so only entries strictly below the root apply.
 fn is_excluded(root: &Path, path: &Path) -> bool {
-    path != root && ignore().iter().any(|p| path.starts_with(p))
+    ignore()
+        .iter()
+        .any(|p| !root.starts_with(p) && path.starts_with(p))
 }
 
-/// Whether ANY path under `dir` could be excluded — the cheap
-/// pre-check that decides if a subtree is safe for an indiscriminate
-/// recursive watch.
-fn subtree_may_contain_excluded(dir: &Path) -> bool {
-    ignore().iter().any(|p| p.starts_with(dir))
+/// Whether ANY path under `dir` could be excluded for a stream rooted
+/// at `root` — the cheap pre-check that decides if a subtree is safe
+/// for an indiscriminate recursive watch. Same applicability rule as
+/// [`is_excluded`].
+fn subtree_may_contain_excluded(root: &Path, dir: &Path) -> bool {
+    ignore()
+        .iter()
+        .any(|p| !root.starts_with(p) && p.starts_with(dir))
 }
 
 /// Register watches for `dir`, resiliently: excluded paths are never
@@ -125,7 +133,7 @@ fn watch_resilient(
     if is_excluded(watch_root, dir) {
         return Ok(());
     }
-    if !subtree_may_contain_excluded(dir)
+    if !subtree_may_contain_excluded(watch_root, dir)
         && watcher.watch(dir, notify::RecursiveMode::Recursive).is_ok()
     {
         return Ok(());
