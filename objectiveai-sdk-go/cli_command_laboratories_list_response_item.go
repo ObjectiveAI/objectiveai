@@ -28,6 +28,10 @@ type CliCommandLaboratoriesListResponseItem struct {
 	// laboratory ids are only unique per (machine, state).
 	MachineState *string `json:"machine_state,omitempty"`
 	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
+	// Whether the laboratory's CONTAINER is running right now (the
+	// lifecycle starts and stops containers on demand). Defaulted so
+	// older daemons' items parse (as not-running).
+	Running bool `json:"running" default:"false"`
 }
 
 func (CliCommandLaboratoriesListResponseItem) SchemaTitle() string { return "cli.command.laboratories.list.ResponseItem" }
@@ -40,7 +44,7 @@ func (v *CliCommandLaboratoriesListResponseItem) UnmarshalJSON(data []byte) erro
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"cwd", "env", "id", "image", "mounts"} {
+	for _, key := range []string{"cwd", "env", "id", "image", "mounts", "running"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandLaboratoriesListResponseItem: missing required field %q", key)
 		}

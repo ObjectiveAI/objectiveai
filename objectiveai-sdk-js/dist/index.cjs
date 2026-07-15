@@ -11131,7 +11131,8 @@ var CliCommandLaboratoriesListResponseItemSchema = z1597.z.object({
   image: LaboratoriesLaboratoryImageSchema,
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
   machine_state: z1597.z.string().nullable().describe("The state (on that machine) the serving host serves \u2014\nlaboratory ids are only unique per (machine, state).").meta({ omitempty: true }).optional(),
-  mounts: z1597.z.array(CliCommandLaboratoriesCreateMountSchema)
+  mounts: z1597.z.array(CliCommandLaboratoriesCreateMountSchema),
+  running: z1597.z.boolean().default(false).describe("Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running).")
 }).describe("One laboratory served by a connected laboratory HOST. There is no\nlocal-vs-remote split \u2014 machine identity is the only provenance,\nthe same logic regardless of where the host runs.").meta({ title: "cli.command.laboratories.list.ResponseItem" });
 function laboratoriesListExecute(executor, request) {
   return new CliStream(executor.execute({ ...request, jq: void 0, python: void 0, path_type: "laboratories/list" }), z1597.z.union([CliErrorSchema, CliCommandLaboratoriesListResponseItemSchema]));
@@ -13591,7 +13592,8 @@ var CliLaboratoriesListListenerLaboratoryStatusSchema = z1597.z.object({
   image: LaboratoriesLaboratoryImageSchema,
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
   machine_state: z1597.z.string().nullable().describe("The state (on that machine) the serving host serves \u2014\nlaboratory ids are only unique per (machine, state), so the\nstream may legitimately carry several same-id items that\ndiffer here.").meta({ omitempty: true }).optional(),
-  mounts: z1597.z.array(CliCommandLaboratoriesCreateMountSchema)
+  mounts: z1597.z.array(CliCommandLaboratoriesCreateMountSchema),
+  running: z1597.z.boolean().default(false).describe("Whether the laboratory's CONTAINER is running right now. The\nlifecycle starts and stops containers on demand (MCP\nconnections and filetree watchers are the demand), and every\ntransition streams as an upsert \u2014 subscribers hold live state.\nDefaulted so frames predating this field parse (as\nnot-running).")
 }).describe("One laboratory on the `/laboratories/list` stream: its spec, the\nmachine whose host serves it, and whether that host is connected\nright now. There is no local-vs-remote split \u2014 machine identity is\nthe only provenance.").meta({ title: "cli.laboratories_list_listener.LaboratoryStatus" });
 
 // src/cli/laboratories_list_listener/laboratoryEvent.ts

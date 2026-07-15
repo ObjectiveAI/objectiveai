@@ -85784,6 +85784,7 @@ declare const CliCommandLaboratoriesListResponseItemSchema: z.ZodObject<{
         container: z.ZodString;
         host: z.ZodString;
     }, z.core.$strip>>;
+    running: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;
 
@@ -136619,6 +136620,7 @@ declare const CliLaboratoriesListListenerLaboratoryEventSchema: z.ZodUnion<reado
             container: z.ZodString;
             host: z.ZodString;
         }, z.core.$strip>>;
+        running: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$strip>>;
     type: z.ZodLiteral<"snapshot">;
 }, z.core.$strip>, z.ZodObject<{
@@ -136653,6 +136655,7 @@ declare const CliLaboratoriesListListenerLaboratoryEventSchema: z.ZodUnion<reado
             container: z.ZodString;
             host: z.ZodString;
         }, z.core.$strip>>;
+        running: z.ZodDefault<z.ZodBoolean>;
     }, z.core.$strip>;
     type: z.ZodLiteral<"upserted">;
 }, z.core.$strip>, z.ZodObject<{
@@ -136694,6 +136697,7 @@ declare const CliLaboratoriesListListenerLaboratoryStatusSchema: z.ZodObject<{
         container: z.ZodString;
         host: z.ZodString;
     }, z.core.$strip>>;
+    running: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
 type CliLaboratoriesListListenerLaboratoryStatus = z.infer<typeof CliLaboratoriesListListenerLaboratoryStatusSchema>;
 

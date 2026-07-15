@@ -35,6 +35,13 @@ type CliLaboratoriesListListenerLaboratoryStatus struct {
 	// differ here.
 	MachineState *string `json:"machine_state,omitempty"`
 	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
+	// Whether the laboratory's CONTAINER is running right now. The
+	// lifecycle starts and stops containers on demand (MCP
+	// connections and filetree watchers are the demand), and every
+	// transition streams as an upsert — subscribers hold live state.
+	// Defaulted so frames predating this field parse (as
+	// not-running).
+	Running bool `json:"running" default:"false"`
 }
 
 func (CliLaboratoriesListListenerLaboratoryStatus) SchemaTitle() string { return "cli.laboratories_list_listener.LaboratoryStatus" }
@@ -47,7 +54,7 @@ func (v *CliLaboratoriesListListenerLaboratoryStatus) UnmarshalJSON(data []byte)
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"connected", "cwd", "env", "id", "image", "mounts"} {
+	for _, key := range []string{"connected", "cwd", "env", "id", "image", "mounts", "running"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliLaboratoriesListListenerLaboratoryStatus: missing required field %q", key)
 		}

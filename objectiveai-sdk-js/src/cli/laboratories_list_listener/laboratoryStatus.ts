@@ -17,5 +17,6 @@ export const CliLaboratoriesListListenerLaboratoryStatusSchema = z.object({
   machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
   machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state), so the\nstream may legitimately carry several same-id items that\ndiffer here.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
+  running: z.boolean().default(false).describe("Whether the laboratory's CONTAINER is running right now. The\nlifecycle starts and stops containers on demand (MCP\nconnections and filetree watchers are the demand), and every\ntransition streams as an upsert — subscribers hold live state.\nDefaulted so frames predating this field parse (as\nnot-running)."),
 }).describe("One laboratory on the `/laboratories/list` stream: its spec, the\nmachine whose host serves it, and whether that host is connected\nright now. There is no local-vs-remote split — machine identity is\nthe only provenance.").meta({ title: "cli.laboratories_list_listener.LaboratoryStatus" });
 export type CliLaboratoriesListListenerLaboratoryStatus = z.infer<typeof CliLaboratoriesListListenerLaboratoryStatusSchema>;

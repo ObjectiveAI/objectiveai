@@ -78,6 +78,11 @@
       "items": {
         "$ref": "cli.command.laboratories.create.Mount"
       }
+    },
+    "running": {
+      "description": "Whether the laboratory's CONTAINER is running right now. The\nlifecycle starts and stops containers on demand (MCP\nconnections and filetree watchers are the demand), and every\ntransition streams as an upsert — subscribers hold live state.\nDefaulted so frames predating this field parse (as\nnot-running).",
+      "type": "boolean",
+      "default": false
     }
   }
 }

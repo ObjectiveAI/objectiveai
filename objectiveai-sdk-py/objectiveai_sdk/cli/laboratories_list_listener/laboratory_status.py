@@ -26,4 +26,5 @@ the only provenance."""
     machine: Optional[MachineIdentity] = Field(None, description='The machine whose laboratory host serves this laboratory.', json_schema_extra={'omitempty': True})
     machine_state: Optional[str] = Field(None, description='The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state), so the\nstream may legitimately carry several same-id items that\ndiffer here.', json_schema_extra={'omitempty': True})
     mounts: list[Mount]
+    running: bool = Field(False, description="Whether the laboratory's CONTAINER is running right now. The\nlifecycle starts and stops containers on demand (MCP\nconnections and filetree watchers are the demand), and every\ntransition streams as an upsert — subscribers hold live state.\nDefaulted so frames predating this field parse (as\nnot-running).")
 

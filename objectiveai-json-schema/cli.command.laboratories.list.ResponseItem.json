@@ -73,6 +73,11 @@
       "items": {
         "$ref": "cli.command.laboratories.create.Mount"
       }
+    },
+    "running": {
+      "description": "Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running).",
+      "type": "boolean",
+      "default": false
     }
   }
 }

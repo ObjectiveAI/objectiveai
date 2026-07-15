@@ -24,4 +24,5 @@ the same logic regardless of where the host runs."""
     machine: Optional[MachineIdentity] = Field(None, description='The machine whose laboratory host serves this laboratory.', json_schema_extra={'omitempty': True})
     machine_state: Optional[str] = Field(None, description='The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).', json_schema_extra={'omitempty': True})
     mounts: list[Mount]
+    running: bool = Field(False, description="Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running).")
 
