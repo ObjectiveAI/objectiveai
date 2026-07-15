@@ -36,7 +36,11 @@ pub fn no_window(command: &mut tokio::process::Command) {
 /// Returns 1 if a live process with that pid was signalled, 0 otherwise
 /// (no such process, or the signal/open failed). Idempotent and
 /// best-effort: killing an already-dead pid is a 0, not an error.
-#[cfg(unix)]
+///
+/// Gated on the two features that carry the nix / windows-sys deps —
+/// the module itself exists for every subprocess-spawning feature
+/// (see the `no_window` gate).
+#[cfg(all(unix, any(feature = "lockfile", feature = "subprocess-reaper")))]
 pub fn kill_pid(pid: u32) -> usize {
     // SAFETY: `kill(2)` with a valid signal number is sound — it only
     // checks the target's existence and posts a signal, touching no
@@ -46,7 +50,7 @@ pub fn kill_pid(pid: u32) -> usize {
     if rc == 0 { 1 } else { 0 }
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, any(feature = "lockfile", feature = "subprocess-reaper")))]
 pub fn kill_pid(pid: u32) -> usize {
     use windows_sys::Win32::Foundation::CloseHandle;
     use windows_sys::Win32::System::Threading::{
