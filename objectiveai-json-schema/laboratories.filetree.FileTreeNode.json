@@ -222,6 +222,18 @@
           "description": "Basename of this link.",
           "type": "string"
         },
+        "target": {
+          "description": "The link's target path, exactly as stored in the link\n(possibly relative, possibly dangling — never resolved or\nfollowed). `None` only when the readlink itself failed.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
         "type": {
           "type": "string",
           "enum": [

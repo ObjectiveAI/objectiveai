@@ -106,6 +106,10 @@ type LaboratoriesFiletreeFileTreeNodeSymlink struct {
 	ModifiedBy *string `json:"modified_by,omitempty"`
 	// Basename of this link.
 	Name string `json:"name"`
+	// The link's target path, exactly as stored in the link
+	// (possibly relative, possibly dangling — never resolved or
+	// followed). `None` only when the readlink itself failed.
+	Target *string `json:"target,omitempty"`
 	Type string `json:"type" validate:"oneof=symlink"`
 }
 

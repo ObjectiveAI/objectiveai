@@ -41,6 +41,7 @@ followed)."""
     modified_at: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description='Last-modified time (unix seconds).', json_schema_extra={'omitempty': True})
     modified_by: Optional[str] = Field(None, description='The agent that last modified this entry, when known.\nReserved.', json_schema_extra={'omitempty': True})
     name: str = Field(..., description='Basename of this link.')
+    target: Optional[str] = Field(None, description="The link's target path, exactly as stored in the link\n(possibly relative, possibly dangling — never resolved or\nfollowed). `None` only when the readlink itself failed.", json_schema_extra={'omitempty': True})
     type_: Literal['symlink'] = Field(..., alias='type')
 
 

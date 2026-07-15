@@ -137127,6 +137127,7 @@ type LaboratoriesFiletreeFileTreeNode = {
     modified_at?: (number) | null;
     modified_by?: (string) | null;
     name: string;
+    target?: (string) | null;
     type: "symlink";
 };
 declare const LaboratoriesFiletreeFileTreeNodeSchema: z.ZodType<LaboratoriesFiletreeFileTreeNode>;

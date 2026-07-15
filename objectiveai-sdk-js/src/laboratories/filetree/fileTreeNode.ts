@@ -24,6 +24,7 @@ export type LaboratoriesFiletreeFileTreeNode = {
   modified_at?: (number) | null;
   modified_by?: (string) | null;
   name: string;
+  target?: (string) | null;
   type: "symlink";
 };
 export const LaboratoriesFiletreeFileTreeNodeSchema: z.ZodType<LaboratoriesFiletreeFileTreeNode> = z.union([z.object({
@@ -48,5 +49,6 @@ export const LaboratoriesFiletreeFileTreeNodeSchema: z.ZodType<LaboratoriesFilet
   modified_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Last-modified time (unix seconds).").meta({ omitempty: true }).optional(),
   modified_by: z.string().nullable().describe("The agent that last modified this entry, when known.\nReserved.").meta({ omitempty: true }).optional(),
   name: z.string().describe("Basename of this link."),
+  target: z.string().nullable().describe("The link's target path, exactly as stored in the link\n(possibly relative, possibly dangling — never resolved or\nfollowed). `None` only when the readlink itself failed.").meta({ omitempty: true }).optional(),
   type: z.literal("symlink"),
 }).describe("A symbolic link (the link itself, not its target — never\nfollowed).").meta({"variantTitle":"Symlink"})]).describe("One node of the filesystem tree — discriminated by `type`. A\n`directory` carries its `children` inline; `file` and `symlink` are\nleaves. Symlinks are the link itself (never followed), so a broken\nor looping link renders as a leaf rather than confusing the tree.\n\nCommon metadata on every variant: `name` (basename), `created_at`\n(birth time when the filesystem records one), `modified_at`\n(mtime), and the reserved `created_by`/`modified_by` (the\nattribution engine fills these later; always `None` today).").meta({ title: "laboratories.filetree.FileTreeNode" });
