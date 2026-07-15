@@ -314,13 +314,24 @@ async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i3
     };
 
     let killed = match daemon_up {
-        // Daemon up: it sweeps the others (excluding itself); we kill it.
+        // Daemon up: it sweeps the others (excluding its own process
+        // tree); we kill it.
         Some(url) => {
             let others = match kill_all_via_daemon(&url, request).await {
                 Ok(n) => n,
                 Err(message) => {
-                    write_error_line(stdout, message, Some(true)).await;
-                    return 1;
+                    // The daemon died mid-sweep (or refused) — kill-all
+                    // must still finish the job. Degrade to the local
+                    // tree sweep (idempotent: whatever the daemon
+                    // already killed stays dead) and report what
+                    // happened as a non-fatal line.
+                    write_error_line(
+                        stdout,
+                        format!("{message}; finishing with a local sweep"),
+                        Some(false),
+                    )
+                    .await;
+                    kill_tree_locally(&layout.dir).await
                 }
             };
             let daemon_killed: usize =
