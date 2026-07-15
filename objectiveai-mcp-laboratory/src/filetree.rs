@@ -401,6 +401,11 @@ fn leaf_node(
     if is_symlink {
         FileTreeNode::Symlink {
             name,
+            // The raw link contents — possibly relative, possibly
+            // dangling; never resolved.
+            target: std::fs::read_link(path)
+                .ok()
+                .map(|t| t.to_string_lossy().into_owned()),
             created_at,
             modified_at,
             created_by: attr.created_by,

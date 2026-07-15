@@ -107,6 +107,12 @@ pub enum FileTreeNode {
     Symlink {
         /// Basename of this link.
         name: String,
+        /// The link's target path, exactly as stored in the link
+        /// (possibly relative, possibly dangling — never resolved or
+        /// followed). `None` only when the readlink itself failed.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        target: Option<String>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
