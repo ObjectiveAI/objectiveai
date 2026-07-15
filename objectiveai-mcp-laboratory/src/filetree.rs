@@ -6,8 +6,8 @@
 //! snapshot into a `path → entry` map and applies deltas by path (see
 //! the SDK's `objectiveai_sdk::laboratories::filetree::FileTree`).
 //!
-//! `path` defaults to `/` (the whole container). The wire shapes are
-//! the SDK's shared `filetree` types.
+//! The tree is always rooted at `/` — the whole container. The wire
+//! shapes are the SDK's shared `filetree` types.
 //!
 //! ## Ignored entries do not exist
 //!
@@ -22,10 +22,9 @@
 //!
 //! Colon-separated ABSOLUTE PATHS, nothing fancier: each entry
 //! ignores that path and everything under it; entries not starting
-//! with `/` are skipped. Plain prefix matching only — cheap enough to
-//! run per walked entry and per event on a large filesystem. The
-//! watched root itself is never ignored (watching it was the
-//! caller's explicit ask).
+//! with `/` are skipped, and so is a literal `/` entry (it would
+//! erase the entire tree). Plain prefix matching only — cheap enough
+//! to run per walked entry and per event on a large filesystem.
 //!
 //! Any subtree whose watch registration fails is skipped (its changes
 //! just don't stream) instead of failing the endpoint — see
@@ -48,7 +47,6 @@ use std::pin::Pin;
 use std::time::UNIX_EPOCH;
 
 use axum::{
-    extract::Query,
     http::StatusCode,
     response::{
         IntoResponse, Response,
@@ -57,18 +55,6 @@ use axum::{
 };
 use futures::StreamExt;
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
-use serde::Deserialize;
-
-#[derive(Deserialize)]
-pub struct PathQuery {
-    /// Absolute path inside the container to watch. Defaults to `/`.
-    #[serde(default = "default_root")]
-    path: String,
-}
-
-fn default_root() -> String {
-    "/".to_string()
-}
 
 /// The parsed ignore set — absolute path prefixes, nothing fancier
 /// (see the module docs). Naive by design: this module neither knows
@@ -83,7 +69,8 @@ pub(crate) fn init_ignore_env(raw: Option<&str>) {
     let _ = IGNORE.set(
         raw.unwrap_or_default()
             .split(':')
-            .filter(|entry| entry.starts_with('/'))
+            // A literal "/" would erase the entire tree — skipped.
+            .filter(|entry| entry.starts_with('/') && *entry != "/")
             .map(PathBuf::from)
             .collect(),
     );
@@ -93,26 +80,18 @@ fn ignore() -> &'static [PathBuf] {
     IGNORE.get_or_init(Vec::new)
 }
 
-/// Whether `path` does not exist as far as a stream rooted at `root`
-/// is concerned: under (or equal to) an APPLICABLE ignored path. An
-/// entry that covers the root itself is inert for the stream —
-/// watching the root was the caller's explicit ask, and a stream
-/// whose every child is ignored would be a permanently empty tree —
-/// so only entries strictly below the root apply.
-fn is_excluded(root: &Path, path: &Path) -> bool {
-    ignore()
-        .iter()
-        .any(|p| !root.starts_with(p) && path.starts_with(p))
+/// Whether `path` does not exist as far as this stream is concerned:
+/// under (or equal to) an ignored path. `/` itself can never match
+/// (a literal `/` entry is skipped at parse).
+fn is_excluded(path: &Path) -> bool {
+    ignore().iter().any(|p| path.starts_with(p))
 }
 
-/// Whether ANY path under `dir` could be excluded for a stream rooted
-/// at `root` — the cheap pre-check that decides if a subtree is safe
-/// for an indiscriminate recursive watch. Same applicability rule as
-/// [`is_excluded`].
-fn subtree_may_contain_excluded(root: &Path, dir: &Path) -> bool {
-    ignore()
-        .iter()
-        .any(|p| !root.starts_with(p) && p.starts_with(dir))
+/// Whether ANY path under `dir` could be excluded — the cheap
+/// pre-check that decides if a subtree is safe for an indiscriminate
+/// recursive watch.
+fn subtree_may_contain_excluded(dir: &Path) -> bool {
+    ignore().iter().any(|p| p.starts_with(dir))
 }
 
 /// Register watches for `dir`, resiliently: excluded paths are never
@@ -123,17 +102,14 @@ fn subtree_may_contain_excluded(root: &Path, dir: &Path) -> bool {
 /// only used for exclusion-free subtrees, and one unwatchable corner
 /// skips that corner instead of killing the whole stream. Only a
 /// failure to watch `dir` itself NON-recursively is an error.
-/// `watch_root` is the stream's requested root (exclusion is scoped
-/// to it); `dir` descends across recursive calls.
 fn watch_resilient(
     watcher: &mut dyn notify::Watcher,
     dir: &Path,
-    watch_root: &Path,
 ) -> notify::Result<()> {
-    if is_excluded(watch_root, dir) {
+    if is_excluded(dir) {
         return Ok(());
     }
-    if !subtree_may_contain_excluded(watch_root, dir)
+    if !subtree_may_contain_excluded(dir)
         && watcher.watch(dir, notify::RecursiveMode::Recursive).is_ok()
     {
         return Ok(());
@@ -148,25 +124,16 @@ fn watch_resilient(
         if is_dir {
             // Per-child failures are skipped — that child's changes
             // just don't stream.
-            let _ = watch_resilient(watcher, &path, watch_root);
+            let _ = watch_resilient(watcher, &path);
         }
     }
     Ok(())
 }
 
-/// `GET /filetree?path=<p>` — snapshot-then-deltas SSE stream.
-pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
-    let root = PathBuf::from(&q.path);
-    let metadata = match tokio::fs::metadata(&root).await {
-        Ok(m) => m,
-        Err(e) => {
-            return (StatusCode::NOT_FOUND, format!("stat {}: {e}", root.display()))
-                .into_response();
-        }
-    };
-    if !metadata.is_dir() {
-        return (StatusCode::BAD_REQUEST, "path is not a directory").into_response();
-    }
+/// `GET /filetree` — snapshot-then-deltas SSE stream over the whole
+/// container filesystem.
+pub async fn filetree() -> Response {
+    let root = PathBuf::from("/");
 
     // Arm the watcher FIRST — events during the walk buffer in the
     // channel and replay when forwarding begins.
@@ -185,7 +152,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
                 .into_response();
         }
     };
-    if let Err(e) = watch_resilient(&mut watcher, &root, &root) {
+    if let Err(e) = watch_resilient(&mut watcher, &root) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("watch {}: {e}", root.display()),
@@ -200,7 +167,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
     // Build the recursive snapshot with async fs — no blocking thread
     // parked for the whole walk. The snapshot is the watched root's
     // child nodes (the root's own identity is the requested path).
-    let snapshot_children = build_children(&root, &root).await;
+    let snapshot_children = build_children(&root).await;
 
     // The SSE body: snapshot first, then each notify event mapped to a
     // delta. The `watcher` is moved into the stream's closure state so
@@ -228,7 +195,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
                     // harmless — it replaces the tree with an identical
                     // one.
                     Err(_) => vec![sse_event(&FileTreeEvent::Snapshot {
-                        children: build_children(&root, &root).await,
+                        children: build_children(&root).await,
                     })],
                 }
             }
@@ -274,7 +241,7 @@ async fn events_to_deltas(
     match event.kind {
         EventKind::Create(_) | EventKind::Modify(_) => {
             for path in event.paths {
-                if is_excluded(root, &path) {
+                if is_excluded(&path) {
                     continue;
                 }
                 let Some(components) = rel_components(root, &path) else {
@@ -282,12 +249,12 @@ async fn events_to_deltas(
                 };
                 // A rename's "from" side no longer exists → treat a
                 // failed stat as a removal.
-                match build_node(&path, root).await {
+                match build_node(&path).await {
                     Some(node) => {
                         if matches!(node, FileTreeNode::Directory { .. })
                             && let Ok(mut watcher) = watcher.lock()
                         {
-                            let _ = watch_resilient(&mut *watcher, &path, root);
+                            let _ = watch_resilient(&mut *watcher, &path);
                         }
                         out.push(sse_event(&FileTreeEvent::Upserted {
                             path: components,
@@ -302,7 +269,7 @@ async fn events_to_deltas(
         }
         EventKind::Remove(_) => {
             for path in event.paths {
-                if is_excluded(root, &path) {
+                if is_excluded(&path) {
                     continue;
                 }
                 if let Some(components) = rel_components(root, &path) {
@@ -333,7 +300,7 @@ fn rel_components(root: &Path, path: &Path) -> Option<Vec<String>> {
 /// Build the [`FileTreeNode`] for a single path (symlink-aware; a
 /// directory carries its whole re-walked subtree, excluded paths
 /// omitted). `None` when the path is gone.
-async fn build_node(path: &Path, watch_root: &Path) -> Option<FileTreeNode> {
+async fn build_node(path: &Path) -> Option<FileTreeNode> {
     let meta = tokio::fs::symlink_metadata(path).await.ok()?;
     let name = path
         .file_name()
@@ -341,7 +308,7 @@ async fn build_node(path: &Path, watch_root: &Path) -> Option<FileTreeNode> {
         .unwrap_or_default();
     let ft = meta.file_type();
     if ft.is_dir() {
-        Some(dir_node(path, name, &meta, build_children(path, watch_root).await))
+        Some(dir_node(path, name, &meta, build_children(path).await))
     } else {
         Some(leaf_node(path, name, ft.is_symlink(), &meta))
     }
@@ -351,10 +318,9 @@ async fn build_node(path: &Path, watch_root: &Path) -> Option<FileTreeNode> {
 /// subdirectories. Boxed because async recursion needs an indirected
 /// future. Entries that fail to stat are skipped; excluded paths do
 /// not exist (see the module docs).
-fn build_children<'a>(
-    dir: &'a Path,
-    watch_root: &'a Path,
-) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + 'a>> {
+fn build_children(
+    dir: &Path,
+) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + '_>> {
     Box::pin(async move {
         let mut children = Vec::new();
         let mut read = match tokio::fs::read_dir(dir).await {
@@ -363,7 +329,7 @@ fn build_children<'a>(
         };
         while let Ok(Some(entry)) = read.next_entry().await {
             let path = entry.path();
-            if is_excluded(watch_root, &path) {
+            if is_excluded(&path) {
                 continue;
             }
             // `symlink_metadata` so the KIND reflects the link itself
@@ -374,7 +340,7 @@ fn build_children<'a>(
             let name = entry.file_name().to_string_lossy().into_owned();
             let ft = meta.file_type();
             let child = if ft.is_dir() {
-                dir_node(&path, name, &meta, build_children(&path, watch_root).await)
+                dir_node(&path, name, &meta, build_children(&path).await)
             } else {
                 leaf_node(&path, name, ft.is_symlink(), &meta)
             };
