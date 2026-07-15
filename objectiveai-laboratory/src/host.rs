@@ -128,8 +128,11 @@ impl HostServer {
             labs: DashMap::new(),
             outbound: DashMap::new(),
             next_outbound: AtomicU64::new(0),
-            // Capacity mirrors the daemon's viewer-facing filetree ring.
-            filetree_events: tokio::sync::broadcast::channel(1024).0,
+            // Capacity matches the kernel's inotify queue
+            // (fs.inotify.max_queued_events default 16384) — the ring
+            // can absorb everything the container-side watcher can
+            // deliver in one burst before its own overflow resync.
+            filetree_events: tokio::sync::broadcast::channel(16384).0,
             filetree: DashMap::new(),
             filetree_pumps: DashMap::new(),
             filetree_watchers: DashMap::new(),
