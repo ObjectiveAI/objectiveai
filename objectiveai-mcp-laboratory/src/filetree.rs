@@ -52,7 +52,7 @@ use axum::{
     http::StatusCode,
     response::{
         IntoResponse, Response,
-        sse::{Event, KeepAlive, Sse},
+        sse::{Event, Sse},
     },
 };
 use futures::StreamExt;
@@ -242,7 +242,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
         });
     let stream = futures::stream::once(async move { Ok(snapshot_event) }).chain(deltas);
 
-    Sse::new(stream).keep_alive(KeepAlive::default()).into_response()
+    Sse::new(stream).into_response()
 }
 
 /// Serialize a [`FileTreeEvent`] into an SSE data frame.

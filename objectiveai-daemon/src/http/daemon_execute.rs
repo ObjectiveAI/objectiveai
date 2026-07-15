@@ -37,7 +37,7 @@
 //! context. `/execute` streams never carry broadcast data and `/listen`
 //! never accepts requests.
 
-use axum::response::sse::{Event, KeepAlive, Sse};
+use axum::response::sse::{Event, Sse};
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::AgentArguments;
 
@@ -58,7 +58,6 @@ pub(crate) async fn execute_handler(
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     Sse::new(execute_stream(state.ctx, agent_arguments(&headers), body))
-        .keep_alive(KeepAlive::default())
         .into_response()
 }
 

@@ -395,7 +395,6 @@ pub(crate) async fn agents_handler(
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(agents_stream(state.active))
-        .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
 }
 

@@ -303,7 +303,6 @@ pub(crate) async fn laboratories_handler(
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(laboratories_list_stream(state.labs_hub))
-        .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
 }
 
@@ -408,7 +407,6 @@ pub(crate) async fn laboratory_instance_handler(
         _ => None,
     };
     axum::response::sse::Sse::new(laboratory_instance_stream(state.labs_hub, id, host))
-        .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
 }
 
@@ -460,12 +458,6 @@ fn laboratory_instance_stream(
     }
 }
 
-/// The whole blocking open — the Filetree{on} RPC (itself bounded by
-/// the forward timeout) AND the wait for the first materialized
-/// snapshot — shares ONE deadline, so a handler can never pend longer
-/// than this before 504ing.
-const FILETREE_PRIME_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
-
 /// `/laboratories/{id}/filetree`: header-auth, then the laboratory's
 /// live file tree as SSE — the exact wire contract of the lab MCP's own
 /// `/filetree` endpoint (a `snapshot` first, then `upserted`/`removed`
@@ -479,11 +471,11 @@ const FILETREE_PRIME_TIMEOUT: std::time::Duration = std::time::Duration::from_se
 /// the watch lazily starts the container, the host's pump delivers the
 /// lab's first snapshot, and only once it is folded daemon-side do the
 /// headers (and the snapshot) go out — a client never sees a premature
-/// empty tree for a lab that is still booting. Failure semantics:
-/// 404 when no connected host serves the lab (or it is deleted while
-/// waiting), 502 when the container fails to start or its host
-/// disconnects mid-wait, 504 when nothing materializes within
-/// [`FILETREE_PRIME_TIMEOUT`].
+/// empty tree for a lab that is still booting — however long the
+/// arming and snapshot walk take, the stream opens when the data is
+/// real. Failure semantics: 404 when no connected host serves the lab
+/// (or it is deleted while waiting), 502 when the container fails to
+/// start or its host disconnects mid-wait.
 pub(crate) async fn laboratory_filetree_handler(
     axum::extract::State(state): axum::extract::State<
         crate::http::daemon_stream::DaemonHttpState,
@@ -501,10 +493,10 @@ pub(crate) async fn laboratory_filetree_handler(
         _ => None,
     };
     let registry = state.laboratories;
-    // The prime wait owns the watch guard: dropping this future at the
-    // deadline (or on client disconnect) drops the guard and withdraws
-    // the demand it registered.
-    let primed = tokio::time::timeout(FILETREE_PRIME_TIMEOUT, async {
+    // The prime wait owns the watch guard: a client disconnecting
+    // while we wait drops this future, which drops the guard and
+    // withdraws the demand it registered.
+    let primed = async {
         let pin_ref = pin.as_ref().map(|(m, s)| (m.as_str(), s.as_str()));
         let Some((watch, signal)) = registry.filetree_watch(&id, pin_ref).await else {
             return Err((
@@ -569,21 +561,13 @@ pub(crate) async fn laboratory_filetree_handler(
             }
         }
         Ok((watch, rx))
-    })
+    }
     .await;
     let (watch, rx) = match primed {
-        Ok(Ok(primed)) => primed,
-        Ok(Err((status, message))) => return (status, message).into_response(),
-        Err(_elapsed) => {
-            return (
-                axum::http::StatusCode::GATEWAY_TIMEOUT,
-                format!("laboratory '{id}' filetree did not materialize in time"),
-            )
-                .into_response();
-        }
+        Ok(primed) => primed,
+        Err((status, message)) => return (status, message).into_response(),
     };
     axum::response::sse::Sse::new(filetree_stream(registry, id, pin, watch, rx))
-        .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
 }
 

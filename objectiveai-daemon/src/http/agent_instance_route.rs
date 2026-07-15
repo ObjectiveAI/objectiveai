@@ -196,7 +196,6 @@ pub(crate) async fn instance_handler(
         state.active,
         aih,
     ))
-    .keep_alive(axum::response::sse::KeepAlive::default())
     .into_response()
 }
 

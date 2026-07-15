@@ -185,7 +185,6 @@ async fn listen_handler(
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(listen_stream(state.tx))
-        .keep_alive(axum::response::sse::KeepAlive::default())
         .into_response()
 }
 
