@@ -9,6 +9,18 @@
 //! `path` defaults to `/` (the whole container). The wire shapes are
 //! the SDK's shared `filetree` types.
 //!
+//! ## Virtual filesystems and unwatchable subtrees
+//!
+//! Kernel pseudo-filesystems ([`VIRTUAL_ROOTS`]: `/proc`, `/sys`,
+//! `/dev`) are NEVER walked into or watched — their magic files abort
+//! inotify registration wholesale (`watch /` used to die on
+//! `/proc/tty/driver` with EACCES, and one failure killed the whole
+//! stream), their contents churn constantly, and they aren't
+//! laboratory data. They appear in the tree as childless directories.
+//! Any OTHER subtree whose watch registration fails is skipped (its
+//! changes just don't stream) instead of failing the endpoint — see
+//! [`watch_resilient`].
+//!
 //! No auth (v1): rides the same loopback-published MCP port the
 //! conduit dials, so it's reachable only by the conduit — the same
 //! trust model as `/export` / `/import`.
@@ -49,6 +61,48 @@ fn default_root() -> String {
     "/".to_string()
 }
 
+/// Kernel pseudo-filesystems — never walked into, never watched (see
+/// the module docs). Shown as childless directories.
+const VIRTUAL_ROOTS: [&str; 3] = ["/proc", "/sys", "/dev"];
+
+/// Whether `path` IS one of the virtual kernel filesystem roots.
+fn is_virtual(path: &Path) -> bool {
+    VIRTUAL_ROOTS.iter().any(|root| path == Path::new(root))
+}
+
+/// Register watches for `root`, resiliently: virtual roots are never
+/// watched; a subtree whose RECURSIVE registration fails degrades to a
+/// non-recursive watch of the directory itself plus a resilient watch
+/// per child directory (so one unwatchable corner — historically
+/// `/proc/tty/driver` under `/` — skips that corner instead of killing
+/// the whole stream). Only a failure to watch `root` itself
+/// NON-recursively is an error.
+fn watch_resilient(
+    watcher: &mut dyn notify::Watcher,
+    root: &Path,
+) -> notify::Result<()> {
+    if is_virtual(root) {
+        return Ok(());
+    }
+    if watcher.watch(root, notify::RecursiveMode::Recursive).is_ok() {
+        return Ok(());
+    }
+    watcher.watch(root, notify::RecursiveMode::NonRecursive)?;
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Ok(());
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
+        if is_dir {
+            // Per-child failures are skipped — that child's changes
+            // just don't stream.
+            let _ = watch_resilient(watcher, &path);
+        }
+    }
+    Ok(())
+}
+
 /// `GET /filetree?path=<p>` — snapshot-then-deltas SSE stream.
 pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
     let root = PathBuf::from(&q.path);
@@ -80,13 +134,17 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
                 .into_response();
         }
     };
-    if let Err(e) = watcher.watch(&root, notify::RecursiveMode::Recursive) {
+    if let Err(e) = watch_resilient(&mut watcher, &root) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("watch {}: {e}", root.display()),
         )
             .into_response();
     }
+    // Shared + mutable for the stream's life: composite-watched
+    // regions (a recursive registration that degraded) need watches
+    // ADDED for directories created later — see the delta mapping.
+    let watcher = std::sync::Arc::new(std::sync::Mutex::new(watcher));
 
     // Build the recursive snapshot with async fs — no blocking thread
     // parked for the whole walk. The snapshot is the watched root's
@@ -102,12 +160,13 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
     });
     let deltas = rx
         .then(move |res| {
-            // Keep `watcher` alive for the stream's lifetime.
-            let _keep = &watcher;
+            // The Arc keeps the watcher (and its inotify registrations)
+            // alive for exactly the stream's lifetime.
+            let watcher = std::sync::Arc::clone(&watcher);
             let root = root.clone();
             async move {
                 match res {
-                    Ok(event) => events_to_deltas(&root, event).await,
+                    Ok(event) => events_to_deltas(&root, event, &watcher).await,
                     // A watch error — most importantly an inotify queue
                     // OVERFLOW (`IN_Q_OVERFLOW`: events were dropped
                     // faster than we drained, so we no longer know
@@ -145,7 +204,17 @@ fn sse_event(event: &FileTreeEvent) -> Event {
 /// (a directory re-walks its whole subtree, so a moved-in populated
 /// dir arrives as ONE `Upserted` with its contents); a remove /
 /// rename-from emits `Removed`. Paths outside `root` are ignored.
-async fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
+///
+/// An upserted DIRECTORY also (re)registers a resilient watch on
+/// itself: inside a composite-watched region (a recursive
+/// registration that degraded — see [`watch_resilient`]) a new
+/// directory has no watch of its own; inside a healthy recursive
+/// region the extra registration is a harmless duplicate.
+async fn events_to_deltas(
+    root: &Path,
+    event: notify::Event,
+    watcher: &std::sync::Arc<std::sync::Mutex<notify::RecommendedWatcher>>,
+) -> Vec<Event> {
     use notify::EventKind;
     let mut out = Vec::new();
     match event.kind {
@@ -157,10 +226,17 @@ async fn events_to_deltas(root: &Path, event: notify::Event) -> Vec<Event> {
                 // A rename's "from" side no longer exists → treat a
                 // failed stat as a removal.
                 match build_node(&path).await {
-                    Some(node) => out.push(sse_event(&FileTreeEvent::Upserted {
-                        path: components,
-                        node,
-                    })),
+                    Some(node) => {
+                        if matches!(node, FileTreeNode::Directory { .. })
+                            && let Ok(mut watcher) = watcher.lock()
+                        {
+                            let _ = watch_resilient(&mut *watcher, &path);
+                        }
+                        out.push(sse_event(&FileTreeEvent::Upserted {
+                            path: components,
+                            node,
+                        }));
+                    }
                     None => out.push(sse_event(&FileTreeEvent::Removed {
                         path: components,
                     })),
@@ -205,7 +281,15 @@ async fn build_node(path: &Path) -> Option<FileTreeNode> {
         .unwrap_or_default();
     let ft = meta.file_type();
     if ft.is_dir() {
-        Some(dir_node(path, name, &meta, build_children(path).await))
+        // Virtual kernel filesystems stay childless here too (an
+        // attribute change on `/proc` itself can fire off the root's
+        // own watch even though its contents are never watched).
+        let children = if is_virtual(path) {
+            Vec::new()
+        } else {
+            build_children(path).await
+        };
+        Some(dir_node(path, name, &meta, children))
     } else {
         Some(leaf_node(path, name, ft.is_symlink(), &meta))
     }
@@ -231,7 +315,14 @@ fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> 
             let name = entry.file_name().to_string_lossy().into_owned();
             let ft = meta.file_type();
             let child = if ft.is_dir() {
-                dir_node(&path, name, &meta, build_children(&path).await)
+                // Virtual kernel filesystems appear as childless
+                // directories — never walked (see the module docs).
+                let grandchildren = if is_virtual(&path) {
+                    Vec::new()
+                } else {
+                    build_children(&path).await
+                };
+                dir_node(&path, name, &meta, grandchildren)
             } else {
                 leaf_node(&path, name, ft.is_symlink(), &meta)
             };
