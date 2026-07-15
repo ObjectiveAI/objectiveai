@@ -83,6 +83,10 @@ fn raw_machine_id() -> Option<String> {
 fn raw_machine_id() -> Option<String> {
     // `ioreg -rd1 -c IOPlatformExpertDevice` prints a line like:
     //   "IOPlatformUUID" = "XXXXXXXX-XXXX-…"
+    //
+    // DELIBERATE std (not tokio) subprocess — the repo-wide rule is
+    // tokio-only, but `machine_identity` is a sync API consumed from
+    // sync contexts, and this macOS-only one-shot read can't await.
     let output = std::process::Command::new("ioreg")
         .args(["-rd1", "-c", "IOPlatformExpertDevice"])
         .output()

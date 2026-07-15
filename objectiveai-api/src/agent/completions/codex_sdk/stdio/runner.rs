@@ -102,6 +102,7 @@ impl Runner {
     /// here by the `tokio::sync::Semaphore` stored on `Self`.
     pub async fn spawn(binary: &str, query_limit: u64) -> Result<Self, RunnerError> {
         let mut cmd = Command::new(binary);
+        objectiveai_sdk::process::no_window(&mut cmd);
         cmd.stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());

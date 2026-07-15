@@ -372,21 +372,15 @@ fn detect_shell() -> String {
         }
     }
 
-    // 3. On Windows (msys/git-bash), try common paths then `which`
+    // 3. On Windows (msys/git-bash — LOCAL DEV ONLY, the shipped
+    //    binary is always musl-linux), try the common paths. No
+    //    `which` subprocess fallback: this detector is sync (called
+    //    from ShellState's constructor) and the repo spawns
+    //    subprocesses through tokio only.
     if cfg!(windows) {
         for candidate in &["/usr/bin/bash", "/bin/bash"] {
             if std::path::Path::new(candidate).exists() {
                 return candidate.to_string();
-            }
-        }
-        // Fall back to `which bash`
-        if let Ok(output) = std::process::Command::new("which")
-            .arg("bash")
-            .output()
-        {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                return path;
             }
         }
     }

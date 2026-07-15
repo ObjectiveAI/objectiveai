@@ -38,15 +38,7 @@ fn container_command(exe: &Path) -> tokio::process::Command {
     if std::env::consts::OS != "linux" {
         cmd.arg("--connection").arg(MACHINE_NAME);
     }
-    // The host runs windowless; without this every podman exec briefly
-    // flashes its own console window (the lifecycle runs several per
-    // container start/stop).
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    objectiveai_sdk::process::no_window(&mut cmd);
     cmd
 }
 

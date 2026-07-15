@@ -206,6 +206,7 @@ impl CommandExecutor for BinaryExecutor {
         let binary = self.binary_path()?;
 
         let mut command = Command::new(&binary);
+        crate::process::no_window(&mut command);
         command
             .args(&argv)
             .stdin(std::process::Stdio::null())

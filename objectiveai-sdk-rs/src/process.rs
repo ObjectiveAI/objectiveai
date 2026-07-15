@@ -1,6 +1,36 @@
 //! Process-management helpers that pair with [`crate::lockfile`]'s owner
 //! lookups: given a pid (e.g. from [`crate::lockfile::owners`] /
-//! [`crate::lockfile::owners_in_tree`]), ask the OS to terminate it.
+//! [`crate::lockfile::owners_in_tree`]), ask the OS to terminate it —
+//! plus the repo-wide [`no_window`] spawn hygiene.
+
+/// Windows `CREATE_NO_WINDOW`: spawn the child without a console
+/// window. Our services are windowless (daemon, laboratory host, db
+/// supervisor, the viewer shell), so every console-subsystem child
+/// they spawn — podman, postgres, plugins, tools, runners, the cli
+/// re-execing itself — otherwise allocates and FLASHES its own
+/// console at the user. Applied at every runtime spawn site in the
+/// repository; no-op off Windows.
+#[cfg(any(
+    feature = "http",
+    feature = "mcp",
+    feature = "cli-executor",
+    feature = "cli-listener",
+    feature = "lockfile",
+    feature = "subprocess-reaper"
+))]
+pub fn no_window(command: &mut tokio::process::Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = command;
+    }
+}
+
 
 /// Send a terminate to `pid` — Unix `SIGTERM`, Windows `TerminateProcess`.
 /// Returns 1 if a live process with that pid was signalled, 0 otherwise

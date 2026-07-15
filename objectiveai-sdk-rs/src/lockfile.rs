@@ -925,6 +925,7 @@ pub async fn spawn_until_published(
         .unwrap_or_else(|| exe.display().to_string());
 
     let mut cmd = tokio::process::Command::new(exe);
+    crate::process::no_window(&mut cmd);
     cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());

@@ -63,13 +63,6 @@ pub(crate) fn command(exe: &Path, helper_dir: Option<&Path>) -> tokio::process::
     if let Some(dir) = helper_dir {
         cmd.env("CONTAINERS_HELPER_BINARY_DIR", dir);
     }
-    // Windowless host — see `laboratory::container_command`: without
-    // this every podman exec briefly flashes a console window.
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    objectiveai_sdk::process::no_window(&mut cmd);
     cmd
 }

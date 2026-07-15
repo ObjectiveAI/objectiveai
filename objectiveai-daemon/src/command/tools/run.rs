@@ -70,6 +70,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     .await?;
 
     let mut cmd = Command::new(&program);
+    objectiveai_sdk::process::no_window(&mut cmd);
     cmd.args(argv)
         .current_dir(&cwd)
         .env("OBJECTIVEAI_STATE_DIR", &state_dir)
