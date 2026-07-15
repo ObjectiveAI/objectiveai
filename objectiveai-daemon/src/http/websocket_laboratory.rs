@@ -643,6 +643,19 @@ pub(crate) async fn laboratory_handler(
                                     .send(LabRegistryChange::LaboratoryDeleted(id));
                             }
                             HostNotification::LaboratoryFiletree { id, event } => {
+                                // The host's control lane (Deleted) and
+                                // filetree ring are separate lanes: a
+                                // `laboratory_deleted` can overtake a
+                                // stale ring delta, and folding that
+                                // straggler would resurrect a phantom
+                                // tree via `or_default`. A LIVE lab is
+                                // always announced (HostIdentify /
+                                // Created) before its first filetree
+                                // frame, so unknown-lab events are
+                                // exactly the stragglers — drop them.
+                                if !host.labs.read().await.contains_key(&id) {
+                                    continue;
+                                }
                                 // Fold FIRST, then feed subscribers — a
                                 // lagged subscriber resyncs from the
                                 // folded state, so this order means it
