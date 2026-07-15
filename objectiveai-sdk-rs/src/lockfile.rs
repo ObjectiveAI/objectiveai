@@ -925,13 +925,16 @@ pub async fn spawn_until_published(
         .unwrap_or_else(|| exe.display().to_string());
 
     let mut cmd = tokio::process::Command::new(exe);
-    crate::process::no_window(&mut cmd);
     cmd.stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     #[cfg(windows)]
     {
-        // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008).
+        // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008):
+        // service children are windowless. `configure` runs AFTER this
+        // and may override the creation flags — the daemon's `viewer`
+        // spawn does, because the viewer is a windowed app the user is
+        // meant to see.
         cmd.creation_flags(0x0800_0008);
     }
     configure(&mut cmd);

@@ -53,6 +53,22 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
     // distinct from these client-facing `DAEMON_` vars.
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
+        // The viewer is the one WINDOWED child in the spawn family — a
+        // Tauri shell the user is meant to SEE. The shared spawn
+        // suppresses console windows (`CREATE_NO_WINDOW |
+        // DETACHED_PROCESS`) for every service child; `configure` runs
+        // after those flags, so this override wins. `DETACHED_PROCESS`
+        // alone is kept: it detaches the viewer from any console the
+        // spawner might be running in (closing that terminal must not
+        // kill the viewer) without hiding anything — the release
+        // viewer is a GUI-subsystem binary (`windows_subsystem =
+        // "windows"` in its main.rs), which never allocates a console
+        // regardless.
+        #[cfg(windows)]
+        {
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            cmd.creation_flags(DETACHED_PROCESS);
+        }
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true")

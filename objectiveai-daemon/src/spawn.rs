@@ -70,7 +70,9 @@ pub fn resolve_program(program: String, cwd: &Path) -> std::ffi::OsString {
 ///    share. Null stdin; stdout/stderr are piped and drained so a
 ///    child that dies before publishing reports its own output in
 ///    the error; detached from the console on Windows
-///    (`CREATE_NO_WINDOW | DETACHED_PROCESS`); `kill_on_drop` stays
+///    (`CREATE_NO_WINDOW | DETACHED_PROCESS` — except the `viewer`
+///    spawn, whose `configure` overrides to `DETACHED_PROCESS` only:
+///    the viewer is a windowed app); `kill_on_drop` stays
 ///    false everywhere so the child outlives the cli (Unix re-parents
 ///    it to init when the cli exits).
 /// 3. Subscribe to the lock ([`objectiveai_sdk::lockfile::wait_read`]),
