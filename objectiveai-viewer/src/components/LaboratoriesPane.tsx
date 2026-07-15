@@ -108,20 +108,24 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
         "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
       )}
     >
-      {/* Header: connected dot + id + the open tab (the top-right
-          corner belongs to the opener, same as the agent box). */}
+      {/* Header: running dot + id + the open tab (the top-right
+          corner belongs to the opener, same as the agent box). The
+          dot is the CONTAINER's live run state — `connected` is
+          tautologically true here (the list only carries labs on
+          connected hosts). */}
       <div className={cn("flex", "items-center", "gap-2")}>
         <span
+          data-running={lab.running}
           className={cn(
             "w-1.5",
             "h-1.5",
             "rounded-full",
             "shrink-0",
-            lab.connected
+            lab.running
               ? cn("bg-copper-hot", "animate-pulse")
               : "bg-info-dim",
           )}
-          title={lab.connected ? "connected" : "not connected"}
+          title={lab.running ? "running" : "stopped"}
         />
         <span
           className={cn(

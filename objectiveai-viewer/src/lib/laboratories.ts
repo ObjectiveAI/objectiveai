@@ -21,6 +21,10 @@ export interface DisplayLaboratory {
    * `machine` (laboratory ids are only unique per (machine, state)). */
   machineState: string | null;
   connected: boolean;
+  /** Whether the laboratory's CONTAINER is running right now — the
+   * lifecycle starts/stops containers on demand, and every transition
+   * streams as an upsert, so this is live state. */
+  running: boolean;
 }
 
 /** The display list: every daemon-listed laboratory, sorted by id.
@@ -40,6 +44,7 @@ export function classifyLaboratories(
     machine: lab.machine ?? null,
     machineState: lab.machine_state ?? null,
     connected: lab.connected,
+    running: lab.running ?? false,
   }));
   return out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
