@@ -23,6 +23,7 @@ mod channel;
 mod cleaner;
 mod filetree;
 mod host;
+mod mount_watch;
 mod podman;
 mod server;
 

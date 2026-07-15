@@ -87,10 +87,11 @@ pub struct HostServer {
     /// receiver lives; that retention is the bounded buffer, which is
     /// the point.
     filetree_events: tokio::sync::broadcast::Sender<String>,
-    /// Per-laboratory materialized file trees (the watched root — the
-    /// lab's cwd — child list), folded from each running lab's
-    /// `/filetree` SSE by its pump. Read by [`Self::attach_channel`] to
-    /// open late daemons with a synthesized snapshot; both sides hold
+    /// Per-laboratory materialized file trees (the container root's
+    /// child list — the UNIFIED view: the lab's `/filetree` stream
+    /// folded by its pump, plus every mount subtree grafted by
+    /// [`Self::graft_mount`]). Read by [`Self::attach_channel`] to
+    /// open late daemons with a synthesized snapshot; all writers hold
     /// `attach_lock`, so snapshot vs. delta ordering holds by
     /// construction.
     filetree: DashMap<String, Vec<FileTreeNode>>,
@@ -116,6 +117,10 @@ pub struct HostServer {
     /// upserts daemon-side; a miss would be a stale view until the
     /// next reconnect.
     attach_lock: tokio::sync::Mutex<()>,
+    /// Host-side mount watches — the native half of the unified
+    /// per-lab filetree (see [`crate::mount_watch`]). Attached at
+    /// container start, detached at stop/delete.
+    mounts: crate::mount_watch::MountRegistry,
 }
 
 impl HostServer {
@@ -138,6 +143,7 @@ impl HostServer {
             filetree_watchers: DashMap::new(),
             lifecycle: DashMap::new(),
             attach_lock: tokio::sync::Mutex::new(()),
+            mounts: crate::mount_watch::MountRegistry::default(),
         }
     }
 
@@ -217,6 +223,12 @@ impl HostServer {
     /// synthesized snapshot or receives the ring frame, never neither.
     /// A send with no receivers (no daemon connected) just drops; the
     /// materialized tree is the durable state.
+    ///
+    /// A container `Snapshot` REPLACES the lab's whole tree — and the
+    /// container never sees mounts — so every Snapshot fold is
+    /// followed, in the SAME lock hold, by re-grafting each of the
+    /// lab's mounts from its watch's cached tree. That one rule makes
+    /// every ordering of mount walks vs container snapshots correct.
     pub(crate) async fn filetree_event(&self, id: &str, event: FileTreeEvent) {
         let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
             id: id.to_string(),
@@ -224,8 +236,92 @@ impl HostServer {
         }) else {
             return;
         };
+        let is_snapshot = matches!(event, FileTreeEvent::Snapshot { .. });
         let _guard = self.attach_lock.lock().await;
         event.apply(self.filetree.entry(id.to_string()).or_default().value_mut());
+        let _ = self.filetree_events.send(frame);
+        if is_snapshot {
+            for (mountpoint, node) in self.mounts.grafts_for(id) {
+                let graft = FileTreeEvent::Upserted {
+                    path: mountpoint,
+                    node,
+                };
+                let Ok(graft_frame) =
+                    serde_json::to_string(&HostNotification::LaboratoryFiletree {
+                        id: id.to_string(),
+                        event: graft.clone(),
+                    })
+                else {
+                    continue;
+                };
+                if let Some(mut entry) = self.filetree.get_mut(id) {
+                    graft.apply(entry.value_mut());
+                }
+                let _ = self.filetree_events.send(graft_frame);
+            }
+        }
+    }
+
+    /// One lab-space delta from a MOUNT watch (see
+    /// [`crate::mount_watch`]): like [`Self::filetree_event`] but the
+    /// fold happens ONLY if the lab already has a materialized tree —
+    /// mount watches are shared across labs and outlive any one lab's
+    /// delete, so they must never resurrect a deleted lab's entry (the
+    /// phantom-tree bug class). A pre-snapshot mount delta is safely
+    /// dropped: the Snapshot re-graft replays the mount's state from
+    /// its cached tree.
+    pub(crate) async fn mount_event(&self, id: &str, event: FileTreeEvent) {
+        let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
+            id: id.to_string(),
+            event: event.clone(),
+        }) else {
+            return;
+        };
+        let _guard = self.attach_lock.lock().await;
+        let Some(mut entry) = self.filetree.get_mut(id) else {
+            return;
+        };
+        event.apply(entry.value_mut());
+        drop(entry);
+        let _ = self.filetree_events.send(frame);
+    }
+
+    /// Graft one mount's whole cached tree into a lab's filetree at
+    /// `mountpoint` — used at attach time (after the initial walk) and
+    /// by mount resyncs. Everything under ONE `attach_lock` hold: the
+    /// subscription re-check (a graft can never land after detach),
+    /// the tree clone, the fold, and the ring send — which is what
+    /// guarantees a graft ordered after a delta contains that delta.
+    pub(crate) async fn graft_mount(
+        &self,
+        id: &str,
+        mountpoint: &[String],
+        watch: &crate::mount_watch::MountWatch,
+    ) {
+        let _guard = self.attach_lock.lock().await;
+        if !watch.subscribed(id, mountpoint) {
+            return;
+        }
+        let Some(node) = watch.graft(mountpoint) else {
+            return;
+        };
+        let event = FileTreeEvent::Upserted {
+            path: mountpoint.to_vec(),
+            node,
+        };
+        let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
+            id: id.to_string(),
+            event: event.clone(),
+        }) else {
+            return;
+        };
+        let Some(mut entry) = self.filetree.get_mut(id) else {
+            // No materialized tree yet (container snapshot pending) —
+            // the Snapshot re-graft will replay this.
+            return;
+        };
+        event.apply(entry.value_mut());
+        drop(entry);
         let _ = self.filetree_events.send(frame);
     }
 
@@ -428,6 +524,7 @@ impl HostServer {
         if let Some((_, pump)) = self.filetree_pumps.remove(id) {
             pump.abort();
         }
+        self.mounts.detach_lab(id);
         if let Err(e) = podman::laboratory::stop(&self.podman, &self.state, id).await {
             eprintln!("idle-stop laboratory '{id}': {e}");
         }
@@ -496,19 +593,28 @@ impl HostServer {
     /// unreadable cwd falls back to the endpoint's default). Replaces —
     /// and aborts — any predecessor for the id (delete + recreate).
     async fn spawn_filetree_pump(self: &Arc<Self>, id: &str, base_url: &str) {
-        let path = match podman::laboratory::list(&self.podman, &self.state).await {
-            Ok(labs) => labs
-                .into_iter()
-                .find(|l| l.id == id)
-                .map(|l| l.cwd)
-                .filter(|cwd| !cwd.is_empty()),
-            Err(_) => None,
-        };
+        // The lab's mounts, from the container label (survives host
+        // restarts — podman's record is the source of truth): each one
+        // gets a host-side watch subscription, the native half of the
+        // unified tree. Container paths are POSIX strings — split on
+        // '/', never on host Path semantics.
+        if let Ok(labs) = podman::laboratory::list(&self.podman, &self.state).await
+            && let Some(lab) = labs.into_iter().find(|l| l.id == id)
+        {
+            for mount in &lab.mounts {
+                let mountpoint: Vec<String> = mount
+                    .container
+                    .split('/')
+                    .filter(|c| !c.is_empty())
+                    .map(String::from)
+                    .collect();
+                self.mounts.attach(self, id, &mount.host, mountpoint);
+            }
+        }
         let handle = tokio::spawn(crate::filetree::pump(
             Arc::clone(self),
             id.to_string(),
             base_url.to_string(),
-            path,
         ));
         if let Some(old) = self.filetree_pumps.insert(id.to_string(), handle) {
             old.abort();
@@ -671,6 +777,7 @@ impl HostServer {
             }
             self.filetree.remove(id);
         }
+        self.mounts.detach_lab(id);
         self.filetree_watchers.remove(id);
         self.lifecycle.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {

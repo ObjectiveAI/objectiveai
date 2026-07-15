@@ -3,13 +3,15 @@
 //!
 //! One pump per STARTED laboratory (spawned by the host's lazy
 //! `lab_server` init, aborted on delete). It opens the container's
-//! `/filetree` SSE scoped to the laboratory's cwd (its workspace) and,
+//! `/filetree` SSE — always the whole container, rooted at `/` — and,
 //! for every event — the connect-time snapshot and each live delta —
 //! folds it into the host's per-lab materialized tree and broadcasts
 //! it to every connected daemon as an unsolicited
 //! `laboratory_filetree` [`HostNotification`], the same fan-out
 //! create/delete use. Pure push: nothing polls, nothing is pulled; the
-//! open stream is the liveness.
+//! open stream is the liveness. Mounted host folders are absent from
+//! this stream — the host's own [`crate::mount_watch`] watches them
+//! natively and grafts them into the same materialized tree.
 //!
 //! The materialized tree exists so a LATE-attaching daemon starts
 //! current: `attach_channel` sends a synthesized snapshot per watched
@@ -30,21 +32,11 @@ use reqwest_eventsource::{Event, RequestBuilderExt};
 
 use crate::host::HostServer;
 
-/// Proxy `{base_url}/filetree?path={path}` to every connected daemon
-/// until aborted (laboratory delete / host shutdown). `path` is the
-/// laboratory's cwd; `None` falls back to the endpoint's default (the
-/// whole container).
-pub async fn pump(
-    host: Arc<HostServer>,
-    id: String,
-    base_url: String,
-    path: Option<String>,
-) {
+/// Proxy `{base_url}/filetree` (the whole container) to every
+/// connected daemon until aborted (laboratory delete / host shutdown).
+pub async fn pump(host: Arc<HostServer>, id: String, base_url: String) {
     loop {
-        let mut request = reqwest::Client::new().get(format!("{base_url}/filetree"));
-        if let Some(path) = &path {
-            request = request.query(&[("path", path)]);
-        }
+        let request = reqwest::Client::new().get(format!("{base_url}/filetree"));
         let Ok(mut source) = request.eventsource() else {
             // CannotCloneRequestError — a static builder bug, never
             // transient; retrying would spin.
