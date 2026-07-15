@@ -9,17 +9,32 @@
 //! `path` defaults to `/` (the whole container). The wire shapes are
 //! the SDK's shared `filetree` types.
 //!
-//! ## Virtual filesystems and unwatchable subtrees
+//! ## Mounted directories do not exist
 //!
-//! Kernel pseudo-filesystems ([`VIRTUAL_ROOTS`]: `/proc`, `/sys`,
-//! `/dev`) are NEVER walked into or watched — their magic files abort
-//! inotify registration wholesale (`watch /` used to die on
-//! `/proc/tty/driver` with EACCES, and one failure killed the whole
-//! stream), their contents churn constantly, and they aren't
-//! laboratory data. They appear in the tree as childless directories.
-//! Any OTHER subtree whose watch registration fails is skipped (its
-//! changes just don't stream) instead of failing the endpoint — see
+//! Every directory MOUNTPOINT strictly below the watched root (from
+//! `/proc/self/mountinfo`) is invisible to this stream, descendants
+//! included: absent from the snapshot, never walked, never watched,
+//! and any event whose path falls under one is dropped. Three reasons:
+//! user filesystem mounts (9p/virtiofs) deliver ZERO inotify events
+//! anyway (proven empirically — the mount protocol has no fsnotify
+//! path) while walking them is ~25× slower than native, so showing
+//! them would mean a minutes-long frozen snapshot; kernel
+//! pseudo-filesystems (`/proc`, `/sys`, `/dev`, all mounts in a
+//! container) churn constantly, aren't laboratory data, and their
+//! magic files abort inotify registration wholesale (`watch /` used
+//! to die on `/proc/tty/driver` with EACCES); and mounted host
+//! folders are the laboratory HOST's to watch natively, not the
+//! container's. FILE mountpoints (`/etc/hosts` and friends) stay
+//! visible — they're ordinary leaves of a real directory. The watched
+//! root itself is always included even when it is a mount (watching
+//! it was the caller's explicit ask).
+//!
+//! Any subtree whose watch registration fails is skipped (its changes
+//! just don't stream) instead of failing the endpoint — see
 //! [`watch_resilient`].
+//!
+//! On non-Linux dev hosts `/proc/self/mountinfo` doesn't exist and the
+//! exclusion set is simply empty.
 //!
 //! No auth (v1): rides the same loopback-published MCP port the
 //! conduit dials, so it's reachable only by the conduit — the same
@@ -46,7 +61,6 @@ use axum::{
     },
 };
 use futures::StreamExt;
-use notify::Watcher;
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use serde::Deserialize;
 
@@ -61,30 +75,62 @@ fn default_root() -> String {
     "/".to_string()
 }
 
-/// Kernel pseudo-filesystems — never walked into, never watched (see
-/// the module docs). Shown as childless directories.
-const VIRTUAL_ROOTS: [&str; 3] = ["/proc", "/sys", "/dev"];
-
-/// Whether `path` IS one of the virtual kernel filesystem roots.
-fn is_virtual(path: &Path) -> bool {
-    VIRTUAL_ROOTS.iter().any(|root| path == Path::new(root))
+/// The directory mountpoints strictly below `root`, from
+/// `/proc/self/mountinfo` — the exclusion set (see the module docs).
+/// The root itself is never in it (watching it was the explicit ask),
+/// file mountpoints are filtered out (ordinary leaves), and a missing
+/// or unparsable mountinfo (non-Linux dev host) yields an empty set.
+fn mounted_dirs_under(root: &Path) -> Vec<PathBuf> {
+    let Ok(mountinfo) = std::fs::read_to_string("/proc/self/mountinfo") else {
+        return Vec::new();
+    };
+    mountinfo
+        .lines()
+        .filter_map(|line| {
+            // Field 5 (1-based) is the mount point, octal-escaped for
+            // whitespace and backslash.
+            let raw = line.split(' ').nth(4)?;
+            let unescaped = raw
+                .replace("\\040", " ")
+                .replace("\\011", "\t")
+                .replace("\\012", "\n")
+                .replace("\\134", "\\");
+            let path = PathBuf::from(unescaped);
+            let strictly_below = path != root && path.starts_with(root);
+            let is_dir = std::fs::symlink_metadata(&path)
+                .is_ok_and(|m| m.is_dir());
+            (strictly_below && is_dir).then_some(path)
+        })
+        .collect()
 }
 
-/// Register watches for `root`, resiliently: virtual roots are never
-/// watched; a subtree whose RECURSIVE registration fails degrades to a
-/// non-recursive watch of the directory itself plus a resilient watch
-/// per child directory (so one unwatchable corner — historically
-/// `/proc/tty/driver` under `/` — skips that corner instead of killing
-/// the whole stream). Only a failure to watch `root` itself
-/// NON-recursively is an error.
+/// Whether `path` is a mounted directory or lives under one — i.e.
+/// does not exist as far as this stream is concerned.
+fn is_excluded(path: &Path, mounts: &[PathBuf]) -> bool {
+    mounts.iter().any(|m| path.starts_with(m))
+}
+
+/// Register watches for `root`, resiliently: excluded mounts are never
+/// watched; a subtree that CONTAINS a mount (or whose recursive
+/// registration fails) degrades to a non-recursive watch of the
+/// directory itself plus a resilient watch per child directory —
+/// notify's recursive mode walks everything indiscriminately, so it is
+/// only used for mount-free subtrees, and one unwatchable corner
+/// (historically `/proc/tty/driver` under `/`) skips that corner
+/// instead of killing the whole stream. Only a failure to watch
+/// `root` itself NON-recursively is an error.
 fn watch_resilient(
     watcher: &mut dyn notify::Watcher,
     root: &Path,
+    mounts: &[PathBuf],
 ) -> notify::Result<()> {
-    if is_virtual(root) {
+    if is_excluded(root, mounts) {
         return Ok(());
     }
-    if watcher.watch(root, notify::RecursiveMode::Recursive).is_ok() {
+    let contains_mount = mounts.iter().any(|m| m.starts_with(root));
+    if !contains_mount
+        && watcher.watch(root, notify::RecursiveMode::Recursive).is_ok()
+    {
         return Ok(());
     }
     watcher.watch(root, notify::RecursiveMode::NonRecursive)?;
@@ -97,7 +143,7 @@ fn watch_resilient(
         if is_dir {
             // Per-child failures are skipped — that child's changes
             // just don't stream.
-            let _ = watch_resilient(watcher, &path);
+            let _ = watch_resilient(watcher, &path, mounts);
         }
     }
     Ok(())
@@ -117,6 +163,11 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
         return (StatusCode::BAD_REQUEST, "path is not a directory").into_response();
     }
 
+    // The exclusion set is computed ONCE, at connect: mounts are fixed
+    // at container create, so a per-request snapshot of mountinfo is
+    // the lifetime truth.
+    let mounts = std::sync::Arc::new(mounted_dirs_under(&root));
+
     // Arm the watcher FIRST — events during the walk buffer in the
     // channel and replay when forwarding begins.
     let (tx, rx) = futures::channel::mpsc::unbounded::<notify::Result<notify::Event>>();
@@ -134,7 +185,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
                 .into_response();
         }
     };
-    if let Err(e) = watch_resilient(&mut watcher, &root) {
+    if let Err(e) = watch_resilient(&mut watcher, &root, &mounts) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("watch {}: {e}", root.display()),
@@ -149,7 +200,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
     // Build the recursive snapshot with async fs — no blocking thread
     // parked for the whole walk. The snapshot is the watched root's
     // child nodes (the root's own identity is the requested path).
-    let snapshot_children = build_children(&root).await;
+    let snapshot_children = build_children(&root, &mounts).await;
 
     // The SSE body: snapshot first, then each notify event mapped to a
     // delta. The `watcher` is moved into the stream's closure state so
@@ -164,9 +215,12 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
             // alive for exactly the stream's lifetime.
             let watcher = std::sync::Arc::clone(&watcher);
             let root = root.clone();
+            let mounts = std::sync::Arc::clone(&mounts);
             async move {
                 match res {
-                    Ok(event) => events_to_deltas(&root, event, &watcher).await,
+                    Ok(event) => {
+                        events_to_deltas(&root, event, &watcher, &mounts).await
+                    }
                     // A watch error — most importantly an inotify queue
                     // OVERFLOW (`IN_Q_OVERFLOW`: events were dropped
                     // faster than we drained, so we no longer know
@@ -177,7 +231,7 @@ pub async fn filetree(Query(q): Query<PathQuery>) -> Response {
                     // harmless — it replaces the tree with an identical
                     // one.
                     Err(_) => vec![sse_event(&FileTreeEvent::Snapshot {
-                        children: build_children(&root).await,
+                        children: build_children(&root, &mounts).await,
                     })],
                 }
             }
@@ -203,7 +257,10 @@ fn sse_event(event: &FileTreeEvent) -> Event {
 /// modify / rename-to builds the node at the path into an `Upserted`
 /// (a directory re-walks its whole subtree, so a moved-in populated
 /// dir arrives as ONE `Upserted` with its contents); a remove /
-/// rename-from emits `Removed`. Paths outside `root` are ignored.
+/// rename-from emits `Removed`. Paths outside `root` — and paths
+/// under an excluded mount, which do not exist for this stream (a
+/// mountpoint's parent IS watched, so events naming the mountpoint
+/// itself do fire) — are ignored.
 ///
 /// An upserted DIRECTORY also (re)registers a resilient watch on
 /// itself: inside a composite-watched region (a recursive
@@ -214,23 +271,27 @@ async fn events_to_deltas(
     root: &Path,
     event: notify::Event,
     watcher: &std::sync::Arc<std::sync::Mutex<notify::RecommendedWatcher>>,
+    mounts: &[PathBuf],
 ) -> Vec<Event> {
     use notify::EventKind;
     let mut out = Vec::new();
     match event.kind {
         EventKind::Create(_) | EventKind::Modify(_) => {
             for path in event.paths {
+                if is_excluded(&path, mounts) {
+                    continue;
+                }
                 let Some(components) = rel_components(root, &path) else {
                     continue;
                 };
                 // A rename's "from" side no longer exists → treat a
                 // failed stat as a removal.
-                match build_node(&path).await {
+                match build_node(&path, mounts).await {
                     Some(node) => {
                         if matches!(node, FileTreeNode::Directory { .. })
                             && let Ok(mut watcher) = watcher.lock()
                         {
-                            let _ = watch_resilient(&mut *watcher, &path);
+                            let _ = watch_resilient(&mut *watcher, &path, mounts);
                         }
                         out.push(sse_event(&FileTreeEvent::Upserted {
                             path: components,
@@ -245,6 +306,9 @@ async fn events_to_deltas(
         }
         EventKind::Remove(_) => {
             for path in event.paths {
+                if is_excluded(&path, mounts) {
+                    continue;
+                }
                 if let Some(components) = rel_components(root, &path) {
                     out.push(sse_event(&FileTreeEvent::Removed { path: components }));
                 }
@@ -271,9 +335,9 @@ fn rel_components(root: &Path, path: &Path) -> Option<Vec<String>> {
 }
 
 /// Build the [`FileTreeNode`] for a single path (symlink-aware; a
-/// directory carries its whole re-walked subtree). `None` when the
-/// path is gone.
-async fn build_node(path: &Path) -> Option<FileTreeNode> {
+/// directory carries its whole re-walked subtree, excluded mounts
+/// omitted). `None` when the path is gone.
+async fn build_node(path: &Path, mounts: &[PathBuf]) -> Option<FileTreeNode> {
     let meta = tokio::fs::symlink_metadata(path).await.ok()?;
     let name = path
         .file_name()
@@ -281,15 +345,7 @@ async fn build_node(path: &Path) -> Option<FileTreeNode> {
         .unwrap_or_default();
     let ft = meta.file_type();
     if ft.is_dir() {
-        // Virtual kernel filesystems stay childless here too (an
-        // attribute change on `/proc` itself can fire off the root's
-        // own watch even though its contents are never watched).
-        let children = if is_virtual(path) {
-            Vec::new()
-        } else {
-            build_children(path).await
-        };
-        Some(dir_node(path, name, &meta, children))
+        Some(dir_node(path, name, &meta, build_children(path, mounts).await))
     } else {
         Some(leaf_node(path, name, ft.is_symlink(), &meta))
     }
@@ -297,8 +353,12 @@ async fn build_node(path: &Path) -> Option<FileTreeNode> {
 
 /// Build the immediate children of a directory, recursing into
 /// subdirectories. Boxed because async recursion needs an indirected
-/// future. Entries that fail to stat are skipped.
-fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + '_>> {
+/// future. Entries that fail to stat are skipped; excluded mounts do
+/// not exist (see the module docs).
+fn build_children<'a>(
+    dir: &'a Path,
+    mounts: &'a [PathBuf],
+) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + 'a>> {
     Box::pin(async move {
         let mut children = Vec::new();
         let mut read = match tokio::fs::read_dir(dir).await {
@@ -307,6 +367,9 @@ fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> 
         };
         while let Ok(Some(entry)) = read.next_entry().await {
             let path = entry.path();
+            if is_excluded(&path, mounts) {
+                continue;
+            }
             // `symlink_metadata` so the KIND reflects the link itself
             // (never followed).
             let Ok(meta) = tokio::fs::symlink_metadata(&path).await else {
@@ -315,14 +378,7 @@ fn build_children(dir: &Path) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> 
             let name = entry.file_name().to_string_lossy().into_owned();
             let ft = meta.file_type();
             let child = if ft.is_dir() {
-                // Virtual kernel filesystems appear as childless
-                // directories — never walked (see the module docs).
-                let grandchildren = if is_virtual(&path) {
-                    Vec::new()
-                } else {
-                    build_children(&path).await
-                };
-                dir_node(&path, name, &meta, grandchildren)
+                dir_node(&path, name, &meta, build_children(&path, mounts).await)
             } else {
                 leaf_node(&path, name, ft.is_symlink(), &meta)
             };
