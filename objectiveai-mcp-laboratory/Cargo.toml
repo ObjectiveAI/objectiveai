@@ -38,12 +38,5 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 walkdir = "2"
 
-# Filesystem-change attribution (fanotify + xattr) is Linux-only — the
-# laboratory binary always runs in a Linux container. Target-gated so a
-# non-Linux dev host still builds (the module stubs out there).
-[target.'cfg(target_os = "linux")'.dependencies]
-nix = { version = "0.29", features = ["fanotify", "process"] }
-xattr = "1"
-
 [dev-dependencies]
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2"] }
