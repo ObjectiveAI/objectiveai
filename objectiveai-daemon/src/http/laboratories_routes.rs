@@ -272,6 +272,7 @@ fn status_from_identify(
         machine: Some(machine),
         machine_state: Some(machine_state),
         connected: true,
+        running: lab.running,
     }
 }
 

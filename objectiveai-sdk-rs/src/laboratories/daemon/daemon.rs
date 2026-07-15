@@ -64,6 +64,14 @@ pub struct Identify {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
+    /// Whether the laboratory's container is RUNNING right now. The
+    /// lifecycle starts and stops containers on demand, and the host
+    /// re-announces on every transition
+    /// ([`HostNotification::LaboratoryUpdated`]), so consumers hold
+    /// live state. Defaulted so frames from hosts predating this
+    /// field still parse (as not-running).
+    #[serde(default)]
+    pub running: bool,
 }
 
 /// The `/laboratory` connection's FIRST frame: who this HOST is. Sent
@@ -133,6 +141,12 @@ pub enum HostNotification {
     /// A laboratory was created on this host.
     #[schemars(title = "LaboratoryCreated")]
     LaboratoryCreated { laboratory: Identify },
+    /// A laboratory's identity CHANGED — today that means its
+    /// `running` state flipped (the lifecycle started or stopped its
+    /// container). Daemons upsert exactly like `LaboratoryCreated`,
+    /// so list subscribers hold live state.
+    #[schemars(title = "LaboratoryUpdated")]
+    LaboratoryUpdated { laboratory: Identify },
     /// A laboratory was deleted from this host.
     #[schemars(title = "LaboratoryDeleted")]
     LaboratoryDeleted { id: String },

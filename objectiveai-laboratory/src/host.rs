@@ -386,6 +386,7 @@ impl HostServer {
         }
         // Uninitialize: the next op (or watch) lazily starts again.
         self.labs.remove(id);
+        self.broadcast_updated(id).await;
     }
 
     /// The laboratory's server, starting its container on first use.
@@ -412,7 +413,10 @@ impl HostServer {
             .entry(id.to_string())
             .or_insert_with(|| Arc::new(tokio::sync::OnceCell::new()))
             .clone();
-        cell.get_or_try_init(|| async {
+        // A fresh start (vs. the already-initialized fast case) gets
+        // re-announced below so list subscribers see `running` flip.
+        let fresh_start = cell.get().is_none();
+        let server = cell.get_or_try_init(|| async {
             // Start-not-create: a stopped container resumes with its
             // filesystem intact.
             podman::laboratory::start(&self.podman, &self.state, id)
@@ -433,7 +437,11 @@ impl HostServer {
             }
         })
         .await
-        .cloned()
+        .cloned();
+        if fresh_start && server.is_ok() {
+            self.broadcast_updated(id).await;
+        }
+        server
     }
 
     /// Start the laboratory's filetree pump, watching its cwd (the
@@ -579,6 +587,8 @@ impl HostServer {
             cwd: req.cwd.clone(),
             created_at: None,
             agent_full_id: req.agent_full_id.clone(),
+            // Create never starts the container.
+            running: false,
         });
         self.broadcast(&HostNotification::LaboratoryCreated {
             laboratory: identify.clone(),
@@ -655,6 +665,25 @@ impl HostServer {
                     req.source_id, req.destination_id
                 ),
             ),
+        }
+    }
+
+    /// Re-announce one laboratory's CURRENT identity — podman's
+    /// record, notably its `running` state — to every connected
+    /// daemon, as [`HostNotification::LaboratoryUpdated`]. Called on
+    /// every lifecycle transition (lazy start, idle stop) so list
+    /// subscribers everywhere hold live state.
+    async fn broadcast_updated(&self, id: &str) {
+        let identify = match podman::laboratory::list(&self.podman, &self.state).await {
+            Ok(labs) => labs
+                .into_iter()
+                .find(|lab| lab.id == id)
+                .map(crate::identify_from_info),
+            Err(_) => None,
+        };
+        if let Some(laboratory) = identify {
+            self.broadcast(&HostNotification::LaboratoryUpdated { laboratory })
+                .await;
         }
     }
 

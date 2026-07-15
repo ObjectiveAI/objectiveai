@@ -93,6 +93,10 @@ pub enum LabRegistryChange {
     /// A connected host created this laboratory (a `laboratory_created`
     /// notification).
     LaboratoryCreated(String),
+    /// A connected host re-announced this laboratory (a
+    /// `laboratory_updated` notification — its `running` state
+    /// flipped).
+    LaboratoryUpdated(String),
     /// A connected host deleted this laboratory (a `laboratory_deleted`
     /// notification).
     LaboratoryDeleted(String),
@@ -190,7 +194,14 @@ impl LaboratoryRegistry {
             *entry
         };
         if count == 1 {
-            self.send_filetree_signal(key.clone(), true);
+            // AWAITED on the 0→1 edge: the host's reply lands only
+            // after its lazy container start completes, so the
+            // subscriber's first snapshot isn't a premature "no
+            // files" against a container that's still booting.
+            // Failure (host mid-restart, start error, timeout) is
+            // tolerated — the stream proceeds with what exists and
+            // live events flow when the container comes up.
+            let _ = self.send_filetree_signal_now(key.clone(), true).await;
         }
         Some(FiletreeWatchGuard {
             registry: self.clone(),
@@ -206,19 +217,29 @@ impl LaboratoryRegistry {
     fn send_filetree_signal(&self, key: (String, String, String), on: bool) {
         let registry = self.clone();
         tokio::spawn(async move {
-            let (machine_id, state, laboratory_id) = key;
-            let _ = registry
-                .forward_inner(
-                    &machine_id,
-                    &state,
-                    Some(laboratory_id),
-                    indexmap::IndexMap::new(),
-                    objectiveai_sdk::laboratories::daemon::RequestPayload::Filetree(
-                        objectiveai_sdk::laboratories::daemon::FiletreeRequest { on },
-                    ),
-                )
-                .await;
+            let _ = registry.send_filetree_signal_now(key, on).await;
         });
+    }
+
+    /// The awaited form of [`Self::send_filetree_signal`] — resolves
+    /// when the host replies (for `on: true`, after its lazy container
+    /// start finished), bounded by the forward timeout.
+    async fn send_filetree_signal_now(
+        &self,
+        key: (String, String, String),
+        on: bool,
+    ) -> Result<objectiveai_sdk::laboratories::daemon::ResponsePayload, String> {
+        let (machine_id, state, laboratory_id) = key;
+        self.forward_inner(
+            &machine_id,
+            &state,
+            Some(laboratory_id),
+            indexmap::IndexMap::new(),
+            objectiveai_sdk::laboratories::daemon::RequestPayload::Filetree(
+                objectiveai_sdk::laboratories::daemon::FiletreeRequest { on },
+            ),
+        )
+        .await
     }
 
     /// The current materialized file tree (the watched root's child
@@ -604,6 +625,14 @@ pub(crate) async fn laboratory_handler(
                                     .laboratories
                                     .events
                                     .send(LabRegistryChange::LaboratoryCreated(id));
+                            }
+                            HostNotification::LaboratoryUpdated { laboratory } => {
+                                let id = laboratory.id.clone();
+                                host.labs.write().await.insert(id.clone(), laboratory);
+                                let _ = state
+                                    .laboratories
+                                    .events
+                                    .send(LabRegistryChange::LaboratoryUpdated(id));
                             }
                             HostNotification::LaboratoryDeleted { id } => {
                                 host.labs.write().await.shift_remove(&id);

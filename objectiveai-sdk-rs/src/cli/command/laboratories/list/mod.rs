@@ -63,6 +63,11 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub machine_state: Option<String>,
+    /// Whether the laboratory's CONTAINER is running right now (the
+    /// lifecycle starts and stops containers on demand). Defaulted so
+    /// older daemons' items parse (as not-running).
+    #[serde(default)]
+    pub running: bool,
 }
 
 #[derive(clap::Args)]

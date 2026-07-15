@@ -49,6 +49,14 @@ pub struct LaboratoryStatus {
     /// Whether the serving host's `/laboratory` connection is live
     /// right now.
     pub connected: bool,
+    /// Whether the laboratory's CONTAINER is running right now. The
+    /// lifecycle starts and stops containers on demand (MCP
+    /// connections and filetree watchers are the demand), and every
+    /// transition streams as an upsert — subscribers hold live state.
+    /// Defaulted so frames predating this field parse (as
+    /// not-running).
+    #[serde(default)]
+    pub running: bool,
 }
 
 /// One event on the `/laboratories/list` stream. The first is always

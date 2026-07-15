@@ -152,6 +152,11 @@ pub struct LaboratoryInfo {
     /// For agent laboratories: the full id of the agent the laboratory
     /// derives from. `None` for user-created laboratories.
     pub agent_full_id: Option<String>,
+    /// Whether the container is RUNNING right now (podman's `State`),
+    /// so consumers can distinguish a live laboratory from a created/
+    /// stopped one — the lifecycle starts and stops containers on
+    /// demand.
+    pub running: bool,
 }
 
 /// The `objectiveai.laboratory` container label — the authoritative round-trip
@@ -557,6 +562,10 @@ pub async fn list(podman: &Podman, state: &str) -> Result<Vec<LaboratoryInfo>, E
             cwd: label.cwd,
             created_at: created_at_from_container(elem),
             agent_full_id: label.agent_full_id,
+            running: elem
+                .get("State")
+                .and_then(|s| s.as_str())
+                .is_some_and(|s| s.eq_ignore_ascii_case("running")),
         });
     }
     Ok(labs)

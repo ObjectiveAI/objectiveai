@@ -64,6 +64,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 agent_full_id: lab.agent_full_id,
                 machine: Some(machine),
                 machine_state: Some(machine_state),
+                running: lab.running,
             });
         }
     };

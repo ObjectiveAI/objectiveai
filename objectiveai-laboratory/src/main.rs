@@ -82,6 +82,7 @@ pub(crate) fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Ide
         cwd: lab.cwd,
         created_at: lab.created_at,
         agent_full_id: lab.agent_full_id,
+        running: lab.running,
     }
 }
 
