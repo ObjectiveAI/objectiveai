@@ -115,7 +115,7 @@ const TreeNode = memo(function TreeNode({
           )}
           {node.type === "symlink" && (
             <span className={cn("text-info-mid", "italic")}>
-              {node.name} →
+              {node.name} →{node.target != null && <> {node.target}</>}
             </span>
           )}
         </span>
