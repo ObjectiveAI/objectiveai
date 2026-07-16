@@ -117,31 +117,13 @@ async fn main() {
 
     let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
     let bin_dir = objectiveai_dir.join("bin");
-    let lock_dir = objectiveai_dir
-        .join("state")
-        .join(&args.objectiveai_state)
-        .join("locks");
-
-    // ── THE single host lock ─────────────────────────────────────
-    // One laboratory host per state, however many daemon connections
-    // it keeps: claim key `laboratories` in `<state>/locks` — exactly
-    // what the daemon spawner's `spawn_until_lock_published` probes.
-    // The host is a WS client (no listener), so the content is a plain
-    // readiness marker, not a URL. Simultaneous spawns race this
-    // try_acquire and exactly one wins (the loser's spawner re-probes
-    // the published lock — the api/mcp/viewer spawn discipline).
-    let Some(claim) = objectiveai_sdk::lockfile::try_acquire(
-        &lock_dir,
-        "laboratories",
-        "ready",
-    )
-    .await
-    else {
-        eprintln!(
-            "another laboratory host already holds the `laboratories` lock for this state — exiting"
-        );
-        std::process::exit(1);
-    };
+    // ── Readiness handshake ──────────────────────────────────────
+    // One laboratory host per (machine, state), enforced by the daemon
+    // being its sole spawner (one leashed child per key — no
+    // cross-process lock anymore). The host is a WS client (no
+    // listener), so the ready line carries no address; the daemon
+    // blocks on it before counting the host as up.
+    objectiveai_sdk::process::print_ready(None);
 
     // ── Identity + the shared host server ────────────────────────
     let machine = objectiveai_sdk::machine::machine_identity(&objectiveai_dir);
@@ -179,7 +161,6 @@ async fn main() {
         }
     }
     server.stop_started().await;
-    let _ = claim.release();
 }
 
 /// Resolves on a graceful-shutdown request: Ctrl+C everywhere, plus

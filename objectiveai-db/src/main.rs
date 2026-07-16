@@ -101,52 +101,36 @@ async fn main() {
 async fn run(env: &Args) -> Result<std::convert::Infallible, String> {
     let lock_dir = env.state_dir().join("locks");
 
-    // 1. Fail fast if this state's db lock is already held: exactly
-    //    like the api/mcp/viewer singletons, a supervisor that cannot
-    //    own the lock must never report success. (The loser's failure
-    //    exit is what the spawning cli's re-probe converts into
-    //    success on its side — by the time anyone observes a held
-    //    lock, its contents are published.)
-    fail_if_db_lock_held(&lock_dir).await?;
-
     ensure_installed(env).await?;
 
-    // 2. Blocking claim of the init gate. The state's db lock is only
-    //    claimed once postgres is READY, so without this gate two
-    //    concurrent spawns (two agents in one state) both pass the
-    //    spawner's try_read and race initdb / postgres against the
-    //    same data dir — the loser dies through the FILESYSTEM before
-    //    the winner publishes, which the spawner's re-probe can't
-    //    see. The gate serializes the whole init-to-claim window
-    //    (same pattern as `ensure_installed`'s shared-extract lock):
-    //    fail slow here, fail fast on the final lock.
+    // Blocking claim of the init gate: two concurrent supervisors
+    // (a respawn racing a straggler) must never run initdb / postgres
+    // against the same data dir concurrently — the gate serializes
+    // the whole init window (same pattern as `ensure_installed`'s
+    // shared-extract lock). This is cross-process SERIALIZATION, not
+    // readiness — readiness is the stdout handshake below, and a
+    // same-data-dir straggler is additionally backstopped by
+    // postgres's own postmaster.pid liveness check.
     let init_claim =
         objectiveai_sdk::lockfile::wait_acquire(&lock_dir, "db-init", "initializing")
             .await
             .map_err(|e| format!("wait_acquire(db-init lock): {e}"))?;
 
-    // 3. Recheck the final lock under the gate — a sibling may have
-    //    won while we waited.
-    if let Err(e) = fail_if_db_lock_held(&lock_dir).await {
-        init_claim
-            .release()
-            .map_err(|e| format!("release(db-init lock): {e}"))?;
-        return Err(e);
-    }
-
-    // 4. Init the database and claim+publish the final lock.
-    let started = init_and_claim(env, &lock_dir).await;
-    // 5. Drop the init gate explicitly — the init-to-claim window is
-    //    over whether or not it succeeded.
+    // Init the database under the gate.
+    let started = init_and_ready(env).await;
+    // Drop the init gate explicitly — the init window is over whether
+    // or not it succeeded.
     init_claim
         .release()
         .map_err(|e| format!("release(db-init lock): {e}"))?;
     let (mut child, port) = started?;
 
-    // The readiness line objectiveai-cli's `db spawn` waits for
-    // (`spawn_and_wait_for_listening` matches on "listening",
-    // case-insensitive) — same protocol as objectiveai-api and
-    // objectiveai-viewer.
+    // Readiness handshake: the daemon (this supervisor's sole spawner
+    // and leash-holder) blocks on this stdout line and parses the
+    // postgres coordinates out of the address. No lockfile readiness
+    // anymore. The daemon drains our pipes for our whole life, so the
+    // stderr notices below stay harmless.
+    objectiveai_sdk::process::print_ready(Some(&connection_string(env, port)));
     eprintln!("listening on 127.0.0.1:{port}");
 
     // Resident from here on: live exactly as long as the postmaster.
@@ -159,29 +143,10 @@ async fn run(env: &Args) -> Result<std::convert::Infallible, String> {
     Err(format!("postgres exited: {status}"))
 }
 
-/// Fail with the canonical already-held error when a live sibling
-/// owns this state's db lock.
-async fn fail_if_db_lock_held(lock_dir: &Path) -> Result<(), String> {
-    if objectiveai_sdk::lockfile::try_read(lock_dir, "db")
-        .await
-        .map_err(|e| format!("try_read(db lock): {e}"))?
-        .is_some()
-    {
-        return Err(
-            "another objectiveai-db instance already holds the db lock for this state"
-                .to_string(),
-        );
-    }
-    Ok(())
-}
-
-/// initdb (if needed) → spawn postgres → wait ready → claim the
-/// state's db lock with the connection string. Runs entirely inside
-/// the caller's `db-init` sibling lock.
-async fn init_and_claim(
-    env: &Args,
-    lock_dir: &Path,
-) -> Result<(tokio::process::Child, u16), String> {
+/// initdb (if needed) → spawn postgres → wait ready. Runs entirely
+/// inside the caller's `db-init` sibling lock. Readiness is announced
+/// by the caller's stdout handshake once this returns.
+async fn init_and_ready(env: &Args) -> Result<(tokio::process::Child, u16), String> {
     ensure_initdb(env).await?;
 
     let port = free_port()?;
@@ -190,23 +155,6 @@ async fn init_and_claim(
     if let Err(e) = wait_ready(port, &mut child).await {
         let _ = child.kill().await;
         return Err(e);
-    }
-
-    // Fast-acquire the state lock, publishing the connection string
-    // clients use (random port included). The claim is held until
-    // THIS process dies — and the postmaster dies with this process
-    // too, so lock liveness ⇔ postmaster liveness. Failure means a
-    // sibling objectiveai-db already serves this state.
-    let contents = connection_string(env, port);
-    if objectiveai_sdk::lockfile::try_acquire(lock_dir, "db", &contents)
-        .await
-        .is_none()
-    {
-        let _ = child.kill().await;
-        return Err(
-            "another objectiveai-db instance already holds the db lock for this state"
-                .to_string(),
-        );
     }
     Ok((child, port))
 }
