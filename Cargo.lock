@@ -4223,7 +4223,6 @@ dependencies = [
  "objectiveai-sdk",
  "serde",
  "serde_json",
- "sysinfo",
  "tokio",
 ]
 

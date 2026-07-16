@@ -296,17 +296,13 @@ async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
 }
 
 /// `kill-all` — client-side coordination. If the daemon is UP, it sweeps
-/// every OTHER lock owner over `/execute` — sparing its own WHOLE process
-/// tree, because killing a leashed resident plugin ends the daemon
-/// mid-response — and this side then reaps exactly that spared tree
-/// (daemon + every descendant) after the response lands cleanly. Killing
-/// only the daemon pid here once left a detached descendant (the
-/// laboratory host) alive holding a dead daemon's address, wedging every
-/// later create for the full host-connect timeout. If the daemon is
-/// DOWN, sweep the tree here. Either way the reported count includes the
-/// daemon and its tree. Any output transform on the request is ignored
-/// (esoteric for a lifecycle command; the merged count is emitted
-/// plainly).
+/// every OTHER lock owner over `/execute` (sparing only itself and its
+/// LEASHED plugins, whose death would end it mid-response); this side
+/// then kills the daemon after the response lands cleanly, and the OS
+/// leash takes the plugins down with it. If it's DOWN, sweep the tree
+/// here. Either way the reported count includes the daemon. Any output
+/// transform on the request is ignored (esoteric for a lifecycle
+/// command; the merged count is emitted plainly).
 async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i32 {
     let layout = resolve_layout();
     let daemon_up = match objectiveai_sdk::lockfile::try_read(&layout.lock_dir, DAEMON_LOCK_KEY)
@@ -320,8 +316,8 @@ async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i3
     };
 
     let killed = match daemon_up {
-        // Daemon up: it sweeps the others (excluding its own process
-        // tree); we reap that whole tree.
+        // Daemon up: it sweeps the others (sparing itself + leashed
+        // plugins); we kill it, and the leash reaps the plugins.
         Some(url) => {
             let others = match kill_all_via_daemon(&url, request).await {
                 Ok(n) => n,
@@ -342,7 +338,7 @@ async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i3
             };
             let daemon_killed: usize =
                 match objectiveai_sdk::lockfile::owners(&layout.lock_dir, DAEMON_LOCK_KEY).await {
-                    Ok(pids) => pids.into_iter().map(kill_process_tree).sum(),
+                    Ok(pids) => pids.into_iter().map(objectiveai_sdk::process::kill_pid).sum(),
                     // Best-effort: the sweep already ran; still report it.
                     Err(_) => 0,
                 };
@@ -389,62 +385,6 @@ async fn kill_all_via_daemon(url: &str, mut request: Request) -> Result<usize, S
 /// Sweep every lock owner under `dir` and signal it (skip self + pid 0),
 /// two passes with a de-duped tally — the client-side twin of the
 /// daemon's `kill_all` for when the daemon isn't running.
-/// Kill `root` and every DESCENDANT of it — the counterpart of the
-/// daemon's kill-all exemption. The daemon's sweep spares exactly its
-/// own process tree (a leashed resident plugin dying would end the
-/// daemon mid-response), so after its response lands this side must
-/// reap exactly that tree: the daemon, its leashed plugins (which its
-/// death takes down anyway), and its DETACHED children — notably the
-/// laboratory host, which otherwise survives holding a dead daemon's
-/// address and wedges every later create. Descendants are computed
-/// from one process-table snapshot BEFORE anything is signalled —
-/// killing the root first would orphan children and erase the
-/// ancestry this walk depends on. Never signals this process or pid 0.
-fn kill_process_tree(root: u32) -> usize {
-    let mut sys = sysinfo::System::new();
-    sys.refresh_processes_specifics(
-        sysinfo::ProcessesToUpdate::All,
-        true,
-        sysinfo::ProcessRefreshKind::nothing(),
-    );
-    let me = std::process::id();
-    let mut targets: Vec<u32> = sys
-        .processes()
-        .keys()
-        .map(|pid| pid.as_u32())
-        .filter(|&pid| pid != me && pid != 0 && in_process_tree(&sys, pid, root))
-        .collect();
-    if root != me && root != 0 {
-        targets.push(root);
-    }
-    targets
-        .into_iter()
-        .map(objectiveai_sdk::process::kill_pid)
-        .sum()
-}
-
-/// Whether `ancestor` appears in `pid`'s parent chain (per the given
-/// process-table snapshot). Hop-capped: pid reuse can make parent
-/// chains degenerate — err on bounded work, the chain is normally 2-3
-/// hops. The same walk the daemon's own kill-all sweep uses for its
-/// exemption, so the two sides agree on what "the daemon's tree" is.
-fn in_process_tree(sys: &sysinfo::System, pid: u32, ancestor: u32) -> bool {
-    let mut current = sysinfo::Pid::from_u32(pid);
-    for _ in 0..64 {
-        let Some(process) = sys.process(current) else {
-            return false;
-        };
-        let Some(parent) = process.parent() else {
-            return false;
-        };
-        if parent.as_u32() == ancestor {
-            return true;
-        }
-        current = parent;
-    }
-    false
-}
-
 async fn kill_tree_locally(dir: &Path) -> usize {
     let me = std::process::id();
     let mut killed: HashSet<u32> = HashSet::new();

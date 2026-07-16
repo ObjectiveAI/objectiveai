@@ -10,20 +10,22 @@
 //! postmasters with them), viewers, and mcp servers.
 //!
 //! It runs INSIDE the daemon (via `/execute`), and deliberately skips
-//! its OWN pid AND every DESCENDANT of it — not just because a
-//! self-`TerminateProcess` would drop the /execute stream before the
-//! response could be sent: the daemon's resident plugins are LEASHED
-//! children (any plugin exiting ends the whole daemon — see `daemon
-//! spawn`), and a resident plugin can hold locks under the tree (e.g.
-//! a plugin-local `locks/mcp.lock`). Sweeping such a child killed the
-//! daemon mid-response every time. So the sweep spares the daemon's
-//! whole process tree and SURVIVES; the thin CLI then reaps that
-//! EXACT tree — the daemon and every descendant, leashed or detached
-//! — right after this response returns cleanly. (Killing only the
-//! daemon pid was a bug: the laboratory HOST is a detached descendant
-//! that survived every kill-all holding the dead daemon's address,
-//! wedging every later create for the full host-connect timeout.) The
-//! reported count is the OTHERS killed; the CLI adds its tree reap in.
+//! its OWN pid and its LEASHED resident plugins — and nothing else.
+//! A self-`TerminateProcess` would drop the /execute stream before
+//! the response could be sent, and a resident plugin is a leashed
+//! child (any plugin exiting ends the whole daemon — see `daemon
+//! spawn`) that can hold locks under the tree (e.g. a plugin-local
+//! `locks/mcp.lock`); sweeping one killed the daemon mid-response
+//! every time. Everything else — INCLUDING the daemon's own detached
+//! children like the laboratory host, which hold locks of their own —
+//! is swept like any other owner. (An earlier exemption spared ALL
+//! descendants, which left the laboratory host alive across kill-all
+//! holding a dead daemon's address and wedged every later create for
+//! the full host-connect timeout.) The thin CLI kills the daemon
+//! itself right after this response returns cleanly, and the OS
+//! leash (job object / PDEATHSIG) takes the plugins down with it.
+//! The reported count is the OTHERS killed; the CLI adds the daemon
+//! back in.
 //!
 //! Two sweeps: killing a lock owner can orphan children that only
 //! surface as lock owners once their parent is gone (a hard-killed
@@ -49,22 +51,19 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         let pids = objectiveai_sdk::lockfile::owners_in_tree(&dir)
             .await
             .map_err(|e| Error::Spawn("read lock owners in tree".to_string(), e))?;
-        // One process-table snapshot per pass — ancestry is checked
-        // against it for every candidate.
-        let mut sys = sysinfo::System::new();
-        sys.refresh_processes_specifics(
-            sysinfo::ProcessesToUpdate::All,
-            true,
-            sysinfo::ProcessRefreshKind::nothing(),
-        );
+        // Snapshot per pass — a plugin could exit between passes.
+        let leashed = crate::command::plugins::run::leashed_plugin_pids()
+            .lock()
+            .expect("leashed pids lock")
+            .clone();
         for pid in pids {
-            // Never signal ourselves OR our descendants — the daemon
-            // holds the `plugins-daemon` lock (killing it here would
-            // truncate this very response; the CLI kills the daemon
-            // after it returns), and its leashed resident plugins are
-            // lock-holding children whose death ENDS the daemon. Also
-            // skip the kernel's pid 0.
-            if pid == me || pid == 0 || in_process_tree(&sys, pid, me) {
+            // Never signal ourselves (the daemon holds the
+            // `plugins-daemon` lock; killing it here would truncate
+            // this very response — the CLI kills the daemon after it
+            // returns) or a LEASHED plugin (its death ends the
+            // daemon). Also skip the kernel's pid 0. Everything else,
+            // detached daemon children included, is fair game.
+            if pid == me || pid == 0 || leashed.contains(&pid) {
                 continue;
             }
             if crate::spawn::kill_pid(pid) == 1 {
@@ -73,27 +72,6 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         }
     }
     Ok(Response { killed: killed.len() })
-}
-
-/// Whether `ancestor` appears in `pid`'s parent chain (per the given
-/// process-table snapshot). Hop-capped: pid reuse can make parent
-/// chains degenerate, and a missed skip only risks the daemon's own
-/// life — err on bounded work, the chain is normally 2-3 hops.
-fn in_process_tree(sys: &sysinfo::System, pid: u32, ancestor: u32) -> bool {
-    let mut current = sysinfo::Pid::from_u32(pid);
-    for _ in 0..64 {
-        let Some(process) = sys.process(current) else {
-            return false;
-        };
-        let Some(parent) = process.parent() else {
-            return false;
-        };
-        if parent.as_u32() == ancestor {
-            return true;
-        }
-        current = parent;
-    }
-    false
 }
 
 pub mod request_schema {
