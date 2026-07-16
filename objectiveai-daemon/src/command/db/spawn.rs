@@ -35,13 +35,12 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
         "objectiveai-db"
     };
     let exe = ctx.filesystem.bin_dir().join(bin);
-    let lock_dir = ctx.filesystem.state_dir().join("locks");
 
     // objectiveai-db is clap-args-only (no env): the layout
     // coordinates tell it to provision THIS cli's tree — postgres
     // binaries into the shared <dir>/bin/pg-bin, the cluster into
     // <dir>/state/<state>/db.
-    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "db", |cmd| {
+    let address = crate::spawn::spawn_leashed_until_ready(ctx, "db", &exe, |cmd| {
         cmd.arg("--objectiveai-dir")
             .arg(ctx.filesystem.dir())
             .arg("--objectiveai-state")
@@ -49,7 +48,13 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
             .arg("--pg-password")
             .arg(password);
     })
-    .await
+    .await?;
+    address.ok_or_else(|| {
+        Error::Spawn(
+            "objectiveai-db".to_string(),
+            std::io::Error::other("db announced ready with no address"),
+        )
+    })
 }
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {

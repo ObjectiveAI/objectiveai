@@ -30,7 +30,6 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
         "objectiveai-viewer"
     };
     let exe = ctx.filesystem.bin_dir().join(bin);
-    let lock_dir = ctx.filesystem.state_dir().join("locks");
 
     // The daemon auth signature: the daemon's own bare `SIGNATURE`
     // env when set, else derived one-way from its bare `SECRET`
@@ -52,23 +51,12 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // may know the signature without the secret). The daemon's own bind
     // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
     // distinct from these client-facing `DAEMON_` vars.
-    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
-        // The viewer is the one WINDOWED child in the spawn family — a
-        // Tauri shell the user is meant to SEE. The shared spawn
-        // suppresses console windows (`CREATE_NO_WINDOW |
-        // DETACHED_PROCESS`) for every service child; `configure` runs
-        // after those flags, so this override wins. `DETACHED_PROCESS`
-        // alone is kept: it detaches the viewer from any console the
-        // spawner might be running in (closing that terminal must not
-        // kill the viewer) without hiding anything — the release
-        // viewer is a GUI-subsystem binary (`windows_subsystem =
-        // "windows"` in its main.rs), which never allocates a console
-        // regardless.
-        #[cfg(windows)]
-        {
-            const DETACHED_PROCESS: u32 = 0x0000_0008;
-            cmd.creation_flags(DETACHED_PROCESS);
-        }
+    let _ = crate::spawn::spawn_leashed_until_ready(ctx, "viewer", &exe, |cmd| {
+        // The viewer is a WINDOWED child (the release binary is
+        // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
+        // only a console-subsystem dev build's console). It is leashed
+        // like every other resident child: the viewer dies with the
+        // daemon BY DESIGN now.
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true")
@@ -77,7 +65,8 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
             cmd.env("DAEMON_SIGNATURE", signature);
         }
     })
-    .await
+    .await?;
+    Ok("ready".to_string())
 }
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {

@@ -67,7 +67,6 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
         "objectiveai-api"
     };
     let exe = ctx.filesystem.bin_dir().join(bin);
-    let lock_dir = ctx.filesystem.bin_dir().join("locks");
 
     // Project the configured api knobs onto the spawned api's env —
     // each ONLY when the user explicitly set it (the keys are scrubbed
@@ -85,7 +84,7 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let connect_ms = ctx.resolve_mcp_connect_timeout_ms_opt().await?;
     let backoff_ms = ctx.resolve_backoff_max_elapsed_time_ms_opt().await?;
 
-    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
+    let address = crate::spawn::spawn_leashed_until_ready(ctx, "api", &exe, |cmd| {
         for key in API_CONFIG_ENV {
             cmd.env_remove(key);
         }
@@ -101,7 +100,13 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
                 .env("GITHUB_BACKOFF_MAX_ELAPSED_TIME", &v);
         }
     })
-    .await
+    .await?;
+    address.ok_or_else(|| {
+        Error::Spawn(
+            "objectiveai-api".to_string(),
+            std::io::Error::other("api announced ready with no address"),
+        )
+    })
 }
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {

@@ -73,8 +73,7 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
     } else {
         "objectiveai-laboratory"
     });
-    let lock_dir = ctx.filesystem.state_dir().join("locks");
-    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "laboratories", |cmd| {
+    let _ = crate::spawn::spawn_leashed_until_ready(ctx, "laboratories", &exe, |cmd| {
         // No subcommand — the binary IS the host; bare args only.
         for address in &addresses {
             cmd.arg("--address").arg(address);
@@ -91,10 +90,10 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
     .await?;
 
     // Readiness. LOCAL: connected = this machine's host visible in the
-    // daemon registry — poll it, failing fast if the host dies (its
-    // lock releases). Remote-only: this machine cannot see the remote
-    // registries; lock publication is the whole contract (the host
-    // retries its dials forever).
+    // daemon registry — poll it, failing fast if the leashed host
+    // child dies. Remote-only: this machine cannot see the remote
+    // registries; the stdout ready handshake is the whole contract
+    // (the host retries its dials forever).
     if local {
         let machine_id =
             objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
@@ -110,7 +109,7 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
             {
                 break;
             }
-            if !objectiveai_sdk::lockfile::try_held(&lock_dir, "laboratories").await {
+            if !ctx.server_child_alive("laboratories") {
                 return Err(Error::Laboratory(
                     "the laboratory host exited before connecting to the daemon"
                         .to_string(),
