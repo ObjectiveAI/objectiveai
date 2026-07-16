@@ -50,7 +50,9 @@
 //!   tree completes without it).
 
 use std::collections::{HashMap, HashSet};
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
@@ -106,7 +108,7 @@ impl MountRegistry {
     /// `source_mount_delivered` notifier AFTER registering the lab's
     /// source set, so a delivery can never race its own registration.
     /// Idempotent per (lab, host path, mountpoint).
-    pub fn attach(
+    pub async fn attach(
         &self,
         host: &Arc<HostServer>,
         lab_id: &str,
@@ -121,8 +123,8 @@ impl MountRegistry {
         // paths under the root as given, so strip_prefix stays exact;
         // this also merges case/`\\?\` variants (Windows) and
         // `/tmp` vs `/private/tmp` (macOS).
-        let canonical = std::fs::canonicalize(host_path).ok()?;
-        let meta = std::fs::symlink_metadata(&canonical).ok()?;
+        let canonical = tokio::fs::canonicalize(host_path).await.ok()?;
+        let meta = tokio::fs::symlink_metadata(&canonical).await.ok()?;
         let is_file = !meta.is_dir();
 
         let mut created = false;
@@ -261,30 +263,35 @@ impl MountWatch {
 }
 
 /// The mount-space walk: a dir mount's child nodes, a file mount's
-/// 0/1 node. One `spawn_blocking` task — plain sync recursion, no
-/// per-entry blocking-pool round trips.
+/// 0/1 node.
 async fn walk(watch: &MountWatch) -> Vec<FileTreeNode> {
-    let path = watch.host_path.clone();
-    let is_file = watch.is_file;
-    tokio::task::spawn_blocking(move || {
-        if is_file {
-            build_node_sync(&path).into_iter().collect()
-        } else {
-            build_children_sync(&path)
-        }
-    })
-    .await
-    .unwrap_or_default()
+    if watch.is_file {
+        build_node(watch.host_path.clone())
+            .await
+            .into_iter()
+            .collect()
+    } else {
+        build_children(&watch.host_path).await
+    }
 }
 
-/// Build one node (with its whole subtree for a directory) off the
-/// blocking pool — deltas re-walk moved-in directories, which is the
-/// initial-walk problem in miniature.
+/// Build one node (with its whole subtree for a directory —
+/// concurrently, like the walk it is in miniature). `None` when the
+/// path is gone. Symlinks and Windows junctions are leaves, never
+/// followed. Attribution fields stay `None` — mounts have no agent
+/// attribution.
 async fn build_node(path: PathBuf) -> Option<FileTreeNode> {
-    tokio::task::spawn_blocking(move || build_node_sync(&path))
-        .await
-        .ok()
-        .flatten()
+    let meta = tokio::fs::symlink_metadata(&path).await.ok()?;
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let ft = meta.file_type();
+    if ft.is_dir() {
+        Some(dir_node(name, &meta, build_children(&path).await))
+    } else {
+        Some(leaf_node(&path, name, ft.is_symlink(), &meta).await)
+    }
 }
 
 /// The per-watch event pump: fold each native event into the
@@ -472,51 +479,44 @@ fn rename(node: FileTreeNode, new_name: String) -> FileTreeNode {
     }
 }
 
-/// Build the node for a single host path (symlink-aware — links and
-/// Windows junctions are leaves, never followed; a directory carries
-/// its whole walked subtree). `None` when the path is gone.
-/// Attribution fields stay `None` — mounts have no agent attribution.
-fn build_node_sync(path: &Path) -> Option<FileTreeNode> {
-    let meta = std::fs::symlink_metadata(path).ok()?;
-    let name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let ft = meta.file_type();
-    if ft.is_dir() {
-        Some(dir_node(name, &meta, build_children_sync(path)))
-    } else {
-        Some(leaf_node(path, name, ft.is_symlink(), &meta))
-    }
-}
-
 /// Build the immediate children of a host directory, recursing into
-/// subdirectories — plain sync recursion on the blocking pool.
-/// Entries that fail to stat are skipped. `DirEntry::metadata()` is
-/// deliberate: it never traverses symlinks and (on Windows) is served
-/// from the directory enumeration itself, no extra stat per entry.
-fn build_children_sync(dir: &Path) -> Vec<FileTreeNode> {
-    let mut children = Vec::new();
-    let Ok(read) = std::fs::read_dir(dir) else {
-        return children;
-    };
-    for entry in read.flatten() {
-        let Ok(meta) = entry.metadata() else {
-            continue;
+/// subdirectories. MAXIMUM PARALLELISM: every entry's stat — and
+/// every subdirectory's entire walk — runs concurrently via
+/// `join_all`, saturating tokio's blocking pool with filesystem
+/// syscalls instead of paying their latency one at a time (`join_all`
+/// preserves entry order). Boxed because async recursion needs an
+/// indirected future. Entries that fail to stat are skipped.
+/// `DirEntry::metadata()` never traverses symlinks.
+fn build_children(
+    dir: &Path,
+) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + '_>> {
+    Box::pin(async move {
+        let Ok(mut read) = tokio::fs::read_dir(dir).await else {
+            return Vec::new();
         };
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let ft = meta.file_type();
-        let child = if ft.is_dir() {
-            dir_node(name, &meta, build_children_sync(&entry.path()))
-        } else {
-            leaf_node(&entry.path(), name, ft.is_symlink(), &meta)
-        };
-        children.push(child);
-    }
-    children
+        let mut entries = Vec::new();
+        while let Ok(Some(entry)) = read.next_entry().await {
+            entries.push(entry);
+        }
+        futures::future::join_all(entries.into_iter().map(|entry| async move {
+            let path = entry.path();
+            let meta = entry.metadata().await.ok()?;
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let ft = meta.file_type();
+            Some(if ft.is_dir() {
+                dir_node(name, &meta, build_children(&path).await)
+            } else {
+                leaf_node(&path, name, ft.is_symlink(), &meta).await
+            })
+        }))
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
+    })
 }
 
-fn leaf_node(
+async fn leaf_node(
     path: &Path,
     name: String,
     is_symlink: bool,
@@ -527,7 +527,8 @@ fn leaf_node(
     if is_symlink {
         FileTreeNode::Symlink {
             name,
-            target: std::fs::read_link(path)
+            target: tokio::fs::read_link(path)
+                .await
                 .ok()
                 .map(|t| t.to_string_lossy().into_owned()),
             created_at,

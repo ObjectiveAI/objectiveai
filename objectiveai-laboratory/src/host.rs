@@ -645,8 +645,10 @@ impl HostServer {
                     .filter(|c| !c.is_empty())
                     .map(String::from)
                     .collect();
-                if let Some(watch) =
-                    self.mounts.attach(self, id, &mount.host, mountpoint.clone())
+                if let Some(watch) = self
+                    .mounts
+                    .attach(self, id, &mount.host, mountpoint.clone())
+                    .await
                 {
                     sources.push((mountpoint, watch));
                 }

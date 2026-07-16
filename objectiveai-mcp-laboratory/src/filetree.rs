@@ -102,32 +102,56 @@ fn subtree_may_contain_excluded(dir: &Path) -> bool {
 /// only used for exclusion-free subtrees, and one unwatchable corner
 /// skips that corner instead of killing the whole stream. Only a
 /// failure to watch `dir` itself NON-recursively is an error.
-fn watch_resilient(
-    watcher: &mut dyn notify::Watcher,
-    dir: &Path,
-) -> notify::Result<()> {
-    if is_excluded(dir) {
-        return Ok(());
-    }
-    if !subtree_may_contain_excluded(dir)
-        && watcher.watch(dir, notify::RecursiveMode::Recursive).is_ok()
-    {
-        return Ok(());
-    }
-    watcher.watch(dir, notify::RecursiveMode::NonRecursive)?;
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return Ok(());
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
-        if is_dir {
-            // Per-child failures are skipped — that child's changes
-            // just don't stream.
-            let _ = watch_resilient(watcher, &path);
+///
+/// The directory enumeration is tokio fs with every child subtree
+/// registered concurrently (`join_all`) — the watch registrations
+/// themselves serialize on the watcher mutex (held only across each
+/// sync `watch()` call, never an await), but the stats and reads
+/// saturate the blocking pool in parallel.
+fn watch_resilient<'a>(
+    watcher: &'a std::sync::Mutex<notify::RecommendedWatcher>,
+    dir: &'a Path,
+) -> Pin<Box<dyn Future<Output = notify::Result<()>> + Send + 'a>> {
+    Box::pin(async move {
+        use notify::Watcher;
+        if is_excluded(dir) {
+            return Ok(());
         }
-    }
-    Ok(())
+        if !subtree_may_contain_excluded(dir)
+            && watcher
+                .lock()
+                .expect("watcher lock")
+                .watch(dir, notify::RecursiveMode::Recursive)
+                .is_ok()
+        {
+            return Ok(());
+        }
+        watcher
+            .lock()
+            .expect("watcher lock")
+            .watch(dir, notify::RecursiveMode::NonRecursive)?;
+        let Ok(mut read) = tokio::fs::read_dir(dir).await else {
+            return Ok(());
+        };
+        let mut entries = Vec::new();
+        while let Ok(Some(entry)) = read.next_entry().await {
+            entries.push(entry);
+        }
+        futures::future::join_all(entries.into_iter().map(|entry| async move {
+            let path = entry.path();
+            let is_dir = entry
+                .file_type()
+                .await
+                .is_ok_and(|t| t.is_dir());
+            if is_dir {
+                // Per-child failures are skipped — that child's
+                // changes just don't stream.
+                let _ = watch_resilient(watcher, &path).await;
+            }
+        }))
+        .await;
+        Ok(())
+    })
 }
 
 /// `GET /filetree` — snapshot-then-deltas SSE stream over the whole
@@ -138,7 +162,7 @@ pub async fn filetree() -> Response {
     // Arm the watcher FIRST — events during the walk buffer in the
     // channel and replay when forwarding begins.
     let (tx, rx) = futures::channel::mpsc::unbounded::<notify::Result<notify::Event>>();
-    let mut watcher = match notify::recommended_watcher(move |res| {
+    let watcher = match notify::recommended_watcher(move |res| {
         // Sync callback on notify's own thread; unbounded_send never
         // blocks. A closed receiver (client gone) just drops events.
         let _ = tx.unbounded_send(res);
@@ -152,17 +176,17 @@ pub async fn filetree() -> Response {
                 .into_response();
         }
     };
-    if let Err(e) = watch_resilient(&mut watcher, &root) {
+    // Shared + mutable for the stream's life: composite-watched
+    // regions (a recursive registration that degraded) need watches
+    // ADDED for directories created later — see the delta mapping.
+    let watcher = std::sync::Arc::new(std::sync::Mutex::new(watcher));
+    if let Err(e) = watch_resilient(&watcher, &root).await {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("watch {}: {e}", root.display()),
         )
             .into_response();
     }
-    // Shared + mutable for the stream's life: composite-watched
-    // regions (a recursive registration that degraded) need watches
-    // ADDED for directories created later — see the delta mapping.
-    let watcher = std::sync::Arc::new(std::sync::Mutex::new(watcher));
 
     // Build the recursive snapshot with async fs — no blocking thread
     // parked for the whole walk. The snapshot is the watched root's
@@ -251,10 +275,8 @@ async fn events_to_deltas(
                 // failed stat as a removal.
                 match build_node(&path).await {
                     Some(node) => {
-                        if matches!(node, FileTreeNode::Directory { .. })
-                            && let Ok(mut watcher) = watcher.lock()
-                        {
-                            let _ = watch_resilient(&mut *watcher, &path);
+                        if matches!(node, FileTreeNode::Directory { .. }) {
+                            let _ = watch_resilient(watcher, &path).await;
                         }
                         out.push(sse_event(&FileTreeEvent::Upserted {
                             path: components,
@@ -310,48 +332,53 @@ async fn build_node(path: &Path) -> Option<FileTreeNode> {
     if ft.is_dir() {
         Some(dir_node(path, name, &meta, build_children(path).await))
     } else {
-        Some(leaf_node(path, name, ft.is_symlink(), &meta))
+        Some(leaf_node(path, name, ft.is_symlink(), &meta).await)
     }
 }
 
 /// Build the immediate children of a directory, recursing into
-/// subdirectories. Boxed because async recursion needs an indirected
-/// future. Entries that fail to stat are skipped; excluded paths do
-/// not exist (see the module docs).
+/// subdirectories. MAXIMUM PARALLELISM: every entry's stat — and
+/// every subdirectory's entire walk — runs concurrently via
+/// `join_all`, saturating tokio's blocking pool with filesystem
+/// syscalls instead of paying their latency one at a time (`join_all`
+/// preserves entry order). Boxed because async recursion needs an
+/// indirected future. Entries that fail to stat are skipped; excluded
+/// paths do not exist (see the module docs). `DirEntry::metadata()`
+/// never traverses symlinks.
 fn build_children(
     dir: &Path,
 ) -> Pin<Box<dyn Future<Output = Vec<FileTreeNode>> + Send + '_>> {
     Box::pin(async move {
-        let mut children = Vec::new();
-        let mut read = match tokio::fs::read_dir(dir).await {
-            Ok(r) => r,
-            Err(_) => return children,
+        let Ok(mut read) = tokio::fs::read_dir(dir).await else {
+            return Vec::new();
         };
+        let mut entries = Vec::new();
         while let Ok(Some(entry)) = read.next_entry().await {
+            entries.push(entry);
+        }
+        futures::future::join_all(entries.into_iter().map(|entry| async move {
             let path = entry.path();
             if is_excluded(&path) {
-                continue;
+                return None;
             }
-            // `symlink_metadata` so the KIND reflects the link itself
-            // (never followed).
-            let Ok(meta) = tokio::fs::symlink_metadata(&path).await else {
-                continue;
-            };
+            let meta = entry.metadata().await.ok()?;
             let name = entry.file_name().to_string_lossy().into_owned();
             let ft = meta.file_type();
-            let child = if ft.is_dir() {
+            Some(if ft.is_dir() {
                 dir_node(&path, name, &meta, build_children(&path).await)
             } else {
-                leaf_node(&path, name, ft.is_symlink(), &meta)
-            };
-            children.push(child);
-        }
-        children
+                leaf_node(&path, name, ft.is_symlink(), &meta).await
+            })
+        }))
+        .await
+        .into_iter()
+        .flatten()
+        .collect()
     })
 }
 
 /// A `File` or `Symlink` leaf node from a path, name + metadata.
-fn leaf_node(
+async fn leaf_node(
     path: &Path,
     name: String,
     is_symlink: bool,
@@ -365,7 +392,8 @@ fn leaf_node(
             name,
             // The raw link contents — possibly relative, possibly
             // dangling; never resolved.
-            target: std::fs::read_link(path)
+            target: tokio::fs::read_link(path)
+                .await
                 .ok()
                 .map(|t| t.to_string_lossy().into_owned()),
             created_at,
