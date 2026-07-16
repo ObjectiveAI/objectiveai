@@ -46,9 +46,6 @@ use objectiveai_sdk::cli::command::SetScope;
 use objectiveai_sdk::cli::command::laboratories::config::addresses::add::{
     Path as AddrAddPath, Request as AddrAddReq, Response as AddrAddResp,
 };
-use objectiveai_sdk::cli::command::laboratories::spawn::{
-    Path as LabSpawnPath, Request as LabSpawnReq, Response as LabSpawnResp,
-};
 use objectiveai_sdk::cli::command::laboratories::create::{
     Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
@@ -838,14 +835,6 @@ async fn transfer_across_states() {
             scope: SetScope::State,
             key: addr_a.clone(),
             value: String::new(),
-            base: Default::default(),
-        },
-    )
-    .await;
-    let _: LabSpawnResp = cli_test_util::execute_one(
-        &exec_b,
-        LabSpawnReq {
-            path_type: LabSpawnPath::LaboratoriesSpawn,
             base: Default::default(),
         },
     )

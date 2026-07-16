@@ -272,42 +272,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::laboratories::config::local::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Config(crate::cli::command::laboratories::config::ListenerExecution::Local(crate::cli::command::laboratories::config::local::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
-        "laboratories/kill" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::Response>(path_type);
-            let execution = crate::cli::command::laboratories::kill::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Kill(execution)), feed))
-        }
-        "laboratories/kill/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::request_schema::Response>(path_type);
-            let execution = crate::cli::command::laboratories::kill::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::KillRequestSchema(execution)), feed))
-        }
-        "laboratories/kill/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::response_schema::Response>(path_type);
-            let execution = crate::cli::command::laboratories::kill::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::KillResponseSchema(execution)), feed))
-        }
-        "laboratories/spawn" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::Response>(path_type);
-            let execution = crate::cli::command::laboratories::spawn::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Spawn(execution)), feed))
-        }
-        "laboratories/spawn/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::request_schema::Response>(path_type);
-            let execution = crate::cli::command::laboratories::spawn::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::SpawnRequestSchema(execution)), feed))
-        }
-        "laboratories/spawn/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::response_schema::Response>(path_type);
-            let execution = crate::cli::command::laboratories::spawn::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::SpawnResponseSchema(execution)), feed))
-        }
         "laboratories/detach" => {
             let parsed = serde_json::from_str::<crate::cli::command::laboratories::detach::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::laboratories::detach::Response>(path_type);
@@ -1233,42 +1197,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::api::config::x_title::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Config(crate::cli::command::api::config::ListenerExecution::XTitle(crate::cli::command::api::config::x_title::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
-        "api/kill" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::kill::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::kill::Response>(path_type);
-            let execution = crate::cli::command::api::kill::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Kill(execution)), feed))
-        }
-        "api/kill/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::kill::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::kill::request_schema::Response>(path_type);
-            let execution = crate::cli::command::api::kill::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::KillRequestSchema(execution)), feed))
-        }
-        "api/kill/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::kill::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::kill::response_schema::Response>(path_type);
-            let execution = crate::cli::command::api::kill::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::KillResponseSchema(execution)), feed))
-        }
-        "api/spawn" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::spawn::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::spawn::Response>(path_type);
-            let execution = crate::cli::command::api::spawn::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::Spawn(execution)), feed))
-        }
-        "api/spawn/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::spawn::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::spawn::request_schema::Response>(path_type);
-            let execution = crate::cli::command::api::spawn::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::SpawnRequestSchema(execution)), feed))
-        }
-        "api/spawn/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::api::spawn::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::api::spawn::response_schema::Response>(path_type);
-            let execution = crate::cli::command::api::spawn::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Api(crate::cli::command::api::ListenerExecution::SpawnResponseSchema(execution)), feed))
-        }
         "daemon/kill" => {
             let parsed = serde_json::from_str::<crate::cli::command::daemon::kill::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::daemon::kill::Response>(path_type);
@@ -1467,24 +1395,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::db::config::user::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::User(crate::cli::command::db::config::user::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
-        "db/kill" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::kill::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::kill::Response>(path_type);
-            let execution = crate::cli::command::db::kill::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Kill(execution)), feed))
-        }
-        "db/kill/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::kill::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::kill::request_schema::Response>(path_type);
-            let execution = crate::cli::command::db::kill::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::KillRequestSchema(execution)), feed))
-        }
-        "db/kill/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::kill::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::kill::response_schema::Response>(path_type);
-            let execution = crate::cli::command::db::kill::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::KillResponseSchema(execution)), feed))
-        }
         "db/query" => {
             let parsed = serde_json::from_str::<crate::cli::command::db::query::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::db::query::Response>(path_type);
@@ -1502,24 +1412,6 @@ pub(crate) fn open_run(
             let (response, feed) = unary_feed::<crate::cli::command::db::query::response_schema::Response>(path_type);
             let execution = crate::cli::command::db::query::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::QueryResponseSchema(execution)), feed))
-        }
-        "db/spawn" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::spawn::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::spawn::Response>(path_type);
-            let execution = crate::cli::command::db::spawn::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Spawn(execution)), feed))
-        }
-        "db/spawn/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::spawn::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::spawn::request_schema::Response>(path_type);
-            let execution = crate::cli::command::db::spawn::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::SpawnRequestSchema(execution)), feed))
-        }
-        "db/spawn/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::spawn::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::spawn::response_schema::Response>(path_type);
-            let execution = crate::cli::command::db::spawn::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::SpawnResponseSchema(execution)), feed))
         }
         "functions/execute/standard" => {
             let parsed = serde_json::from_str::<crate::cli::command::functions::execute::standard::Request>(request.get()).ok()?;
@@ -1678,24 +1570,6 @@ pub(crate) fn open_run(
             let (response, feed) = unary_feed::<crate::cli::command::functions::publish::response_schema::Response>(path_type);
             let execution = crate::cli::command::functions::publish::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Functions(crate::cli::command::functions::ListenerExecution::PublishResponseSchema(execution)), feed))
-        }
-        "kill-all" => {
-            let parsed = serde_json::from_str::<crate::cli::command::kill_all::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::kill_all::Response>(path_type);
-            let execution = crate::cli::command::kill_all::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::KillAll(execution), feed))
-        }
-        "kill-all/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::kill_all::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::kill_all::request_schema::Response>(path_type);
-            let execution = crate::cli::command::kill_all::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::KillAllRequestSchema(execution), feed))
-        }
-        "kill-all/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::kill_all::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::kill_all::response_schema::Response>(path_type);
-            let execution = crate::cli::command::kill_all::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::KillAllResponseSchema(execution), feed))
         }
         "laboratories/create" => {
             let parsed = serde_json::from_str::<crate::cli::command::laboratories::create::Request>(request.get()).ok()?;

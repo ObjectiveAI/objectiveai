@@ -164,7 +164,7 @@ async fn main() {
 }
 
 /// Resolves on a graceful-shutdown request: Ctrl+C everywhere, plus
-/// SIGTERM on Unix (what `kill-all`'s Term attempt sends).
+/// SIGTERM on Unix (what the daemon's graceful kill sends).
 async fn shutdown_signal() {
     #[cfg(unix)]
     {

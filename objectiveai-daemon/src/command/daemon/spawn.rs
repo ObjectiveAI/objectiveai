@@ -1,8 +1,10 @@
 //! `daemon spawn` — launcher + resident foreground daemon.
 //!
-//! Launcher (`foreground` unset/false): the exact lock flow `api spawn`
-//! / `viewer spawn` use — `try_read` the lock, re-exec this cli as the
-//! foreground daemon if it isn't held, re-check on child exit.
+//! Launcher (`foreground` unset/false): the lock-published spawn flow
+//! — `try_read` the lock, re-exec this binary as the foreground daemon
+//! if it isn't held, re-check on child exit. (The daemon is the LAST
+//! lock-discovered process; its servers are leashed children with a
+//! stdout ready handshake instead.)
 //!
 //! Foreground (`foreground:true`): the resident daemon. Under a blocking
 //! init gate it binds the HTTP listener and acquires the
@@ -37,9 +39,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     if foreground {
         execute_foreground(ctx).await
     } else {
-        // Non-foreground: the exact lock flow `api spawn` / `viewer
-        // spawn` use — try_read, exec the foreground daemon if not held,
-        // re-check on child exit.
+        // Non-foreground: the lock-published spawn flow — try_read,
+        // exec the foreground daemon if not held, re-check on child
+        // exit.
         spawn(ctx).await?;
         Ok(Box::pin(futures::stream::once(async move {
             Ok::<ResponseItem, Error>(ResponseItem { ok: true })

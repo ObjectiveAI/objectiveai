@@ -276,7 +276,7 @@ impl Context {
     /// The API `HttpClient`, built on first use and memoized.
     ///
     /// Address resolution: `api.address` from the merged (`--final`)
-    /// config view when set, else the `api spawn` flow — which
+    /// config view when set, else the internal api spawn flow — which
     /// returns the lock-published URL of an already-running api
     /// without spawning, or starts one and waits for its lock.
     pub async fn api_client(&self) -> Result<&HttpClient, crate::error::Error> {
@@ -369,7 +369,7 @@ impl Context {
     /// [`crate::db::compartment`] needs to mint derived per-plugin
     /// connection strings. Connected on first use (ensuring the
     /// application database + schema exist) and memoized. Must NOT
-    /// connect eagerly: commands like `db config ...` and `db spawn`
+    /// connect eagerly: commands like `db config ...`
     /// have to work before any database exists — they're how you
     /// bring one up in the first place.
     ///
@@ -407,7 +407,7 @@ impl Context {
                         let (address, user, password) =
                             parse_spawn_db_url(&url).ok_or_else(|| {
                                 crate::error::Error::Instance(format!(
-                                    "db spawn published an unparseable URL: {url}"
+                                    "the db announced an unparseable URL: {url}"
                                 ))
                             })?;
                         (url, address, user, password)

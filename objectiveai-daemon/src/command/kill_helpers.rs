@@ -1,5 +1,8 @@
-//! Shared kill logic for the `{api,db,mcp,viewer,laboratories} kill`
-//! commands.
+//! Shared kill logic for the `{mcp,viewer} kill` commands and
+//! `update`'s pre-install teardown. (The api / db / laboratories kill
+//! commands and `kill-all` were retired — `daemon kill` is the
+//! whole-teardown path: killing the daemon takes every leashed
+//! resident child with it.)
 //!
 //! A server is one of the daemon's LEASHED resident children (held on
 //! [`Context`] since the stdout-readiness refactor — there are no

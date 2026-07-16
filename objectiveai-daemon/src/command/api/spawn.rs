@@ -1,11 +1,9 @@
-//! `api spawn` — start the `objectiveai-api` server in the background.
-//!
-//! The api is machine-wide (one per `OBJECTIVEAI_DIR`): its lock lives
-//! at `<dir>/bin/locks` key `api`, and the lock contents are the
-//! server's client-connect URL. If the lock is already held the server
-//! is already up and its published URL is returned as-is.
-
-use objectiveai_sdk::cli::command::api::spawn::{Request, Response};
+//! Internal api-server spawn — the daemon starts `objectiveai-api` as
+//! a leashed resident child when something needs it (there is no wire
+//! `api spawn` command anymore; `Context::api_client()` is the entry).
+//! The child announces its client-connect URL over the stdout ready
+//! handshake; a live resident child short-circuits to its cached
+//! address.
 
 use crate::context::Context;
 use crate::error::Error;
@@ -56,10 +54,9 @@ const API_CONFIG_ENV: &[&str] = &[
     "PORT",
 ];
 
-/// The spawn flow itself, callable in-process (used by
-/// `Context::api_client()` as well as the `api spawn` command).
-/// Idempotent and cheap when the server is already up: a try_read of
-/// the lock returns the published URL without spawning.
+/// The spawn flow itself (used by `Context::api_client()`).
+/// Idempotent and cheap when the server is already up: a live
+/// resident child returns its cached URL without spawning.
 pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let bin = if cfg!(windows) {
         "objectiveai-api.exe"
@@ -107,34 +104,4 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
             std::io::Error::other("api announced ready with no address"),
         )
     })
-}
-
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    Ok(Response {
-        listening: spawn(ctx).await?,
-    })
-}
-
-pub mod request_schema {
-    use objectiveai_sdk::cli::command::api::spawn as sdk;
-    use objectiveai_sdk::cli::command::api::spawn::request_schema::{Request, Response};
-
-    use crate::context::Context;
-    use crate::error::Error;
-
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
-    }
-}
-
-pub mod response_schema {
-    use objectiveai_sdk::cli::command::api::spawn as sdk;
-    use objectiveai_sdk::cli::command::api::spawn::response_schema::{Request, Response};
-
-    use crate::context::Context;
-    use crate::error::Error;
-
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
-    }
 }

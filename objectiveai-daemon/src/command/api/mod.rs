@@ -13,7 +13,6 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod config;
-pub mod kill;
 pub mod spawn;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<Response, Error>> + Send>>;
@@ -29,30 +28,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Config(req) => {
             let inner = config::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(Response::Config)))
-        }
-        Request::Kill(req) => {
-            let value = kill::execute(ctx, req).await?;
-            once(Ok(Response::Kill(value)))
-        }
-        Request::KillRequestSchema(req) => {
-            let value = kill::request_schema::execute(ctx, req).await?;
-            once(Ok(Response::KillRequestSchema(value)))
-        }
-        Request::KillResponseSchema(req) => {
-            let value = kill::response_schema::execute(ctx, req).await?;
-            once(Ok(Response::KillResponseSchema(value)))
-        }
-        Request::Spawn(req) => {
-            let value = spawn::execute(ctx, req).await?;
-            once(Ok(Response::Spawn(value)))
-        }
-        Request::SpawnRequestSchema(req) => {
-            let value = spawn::request_schema::execute(ctx, req).await?;
-            once(Ok(Response::SpawnRequestSchema(value)))
-        }
-        Request::SpawnResponseSchema(req) => {
-            let value = spawn::response_schema::execute(ctx, req).await?;
-            once(Ok(Response::SpawnResponseSchema(value)))
         }
     };
     Ok(stream)

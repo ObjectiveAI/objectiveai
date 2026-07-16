@@ -39,14 +39,8 @@ use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::laboratories::delete::{
     Kind as DeleteKind, Path as DeletePath, Request as DeleteReq, Response as DeleteResp,
 };
-use objectiveai_sdk::cli::command::laboratories::kill::{
-    Path as LabKillPath, Request as LabKillReq, Response as LabKillResp,
-};
 use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem,
-};
-use objectiveai_sdk::cli::command::laboratories::spawn::{
-    Path as LabSpawnPath, Request as LabSpawnReq, Response as LabSpawnResp,
 };
 use objectiveai_sdk::cli::laboratories_list_listener::LaboratoriesListListener;
 use objectiveai_sdk::cli::laboratories_listener::{
@@ -301,8 +295,11 @@ async fn laboratories_cross_daemon_propagation() {
     assert_ne!(addr_a, addr_b, "two daemons must bind distinct ports");
 
     // Point state A's host at daemon B too (empty value ⇒ dial
-    // unauthenticated — test daemons run secretless), then spawn it:
-    // ONE host process, TWO daemon connections.
+    // unauthenticated — test daemons run secretless) BEFORE anything
+    // spawns the host: the first create below auto-spawns it with this
+    // config in effect — ONE host process, TWO daemon connections
+    // (there is no wire `laboratories spawn` command; the dial list is
+    // verified by lab1 appearing on daemon B's stream).
     let _: AddrAddResp = cli_test_util::execute_one(
         &exec_a,
         AddrAddReq {
@@ -314,19 +311,6 @@ async fn laboratories_cross_daemon_propagation() {
         },
     )
     .await;
-    let spawned: LabSpawnResp = cli_test_util::execute_one(
-        &exec_a,
-        LabSpawnReq {
-            path_type: LabSpawnPath::LaboratoriesSpawn,
-            base: Default::default(),
-        },
-    )
-    .await;
-    assert_eq!(
-        spawned.addresses,
-        vec![addr_a.clone(), addr_b.clone()],
-        "the host dials the local daemon first, then the configured address"
-    );
 
     let list_a = LaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
         .connect()
@@ -398,18 +382,9 @@ async fn laboratories_cross_daemon_propagation() {
         });
     }
 
-    // Teardown: kill the host (state A's `laboratories` lock) and
-    // daemon B — best-effort, so a failed assert above still leaves
-    // the usual per-state cleanup to the suite scripts.
-    let _: LabKillResp = cli_test_util::execute_one(
-        &exec_a,
-        LabKillReq {
-            path_type: LabKillPath::LaboratoriesKill,
-            scope: SetScope::State,
-            base: Default::default(),
-        },
-    )
-    .await;
+    // Teardown: daemon B — best-effort. State A's host is a leashed
+    // child of state A's daemon and dies with it (the suite scripts'
+    // `daemon kill`); there is no per-host kill command anymore.
     let _ = exec_b
         .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
             objectiveai_sdk::cli::command::daemon::kill::Request {
@@ -487,19 +462,9 @@ async fn duplicate_ids_across_hosts() {
         !list_a.laboratories().await.iter().any(|l| l.id == dup)
     });
 
-    // Teardown: both hosts + daemon B (state A's daemon stays, like
-    // every other test).
-    for exec in [&exec_a, &exec_b] {
-        let _: LabKillResp = cli_test_util::execute_one(
-            exec,
-            LabKillReq {
-                path_type: LabKillPath::LaboratoriesKill,
-                scope: SetScope::State,
-                base: Default::default(),
-            },
-        )
-        .await;
-    }
+    // Teardown: daemon B (state A's daemon stays, like every other
+    // test). Each state's host is leashed to its daemon — B's host
+    // dies here, A's dies with the suite scripts' `daemon kill`.
     let _ = exec_b
         .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
             objectiveai_sdk::cli::command::daemon::kill::Request {

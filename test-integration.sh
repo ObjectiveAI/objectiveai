@@ -66,21 +66,40 @@ oai_bin() {
 }
 
 # ── Server teardown on exit ─────────────────────────────────────────
+# The suite's api server is a direct child (killed by pid); everything
+# else hangs off the daemon — `daemon kill` takes the daemon down and
+# the OS leash reaps its resident children (db, mcp, hosts, ...).
 cleanup() {
   local b
+  if [ -n "${API_PID:-}" ] && kill -0 "$API_PID" 2>/dev/null; then
+    echo "test-integration: stopping api server (pid $API_PID)"
+    kill "$API_PID" 2>/dev/null || true
+  fi
+  rm -f "$OAI_DIR/api.pid"
   b="$(oai_bin)"
   if [ -f "$b" ]; then
-    echo "test-integration: kill-all (post)"
-    OBJECTIVEAI_DIR="$OAI_DIR" "$b" kill-all || true
+    echo "test-integration: daemon kill (post)"
+    OBJECTIVEAI_DIR="$OAI_DIR" "$b" daemon kill || true
   fi
 }
 trap cleanup EXIT
 
-# ── Step 1: kill-all, only if the cli is already installed ──────────
+# ── Step 1: teardown, only if the cli is already installed ──────────
 BIN="$(oai_bin)"
 if [ -f "$BIN" ]; then
-  echo "test-integration: kill-all (pre)"
-  OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" kill-all || true
+  echo "test-integration: daemon kill (pre)"
+  OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" daemon kill || true
+fi
+# A previous run's directly-spawned api server is not daemon-leashed;
+# if it survived a crashed run (trap never fired), kill it by the pid
+# it recorded.
+if [ -f "$OAI_DIR/api.pid" ]; then
+  OLD_API_PID="$(cat "$OAI_DIR/api.pid" 2>/dev/null || true)"
+  if [ -n "$OLD_API_PID" ] && kill -0 "$OLD_API_PID" 2>/dev/null; then
+    echo "test-integration: killing stale api server (pid $OLD_API_PID)"
+    kill "$OLD_API_PID" 2>/dev/null || true
+  fi
+  rm -f "$OAI_DIR/api.pid"
 fi
 
 # ── Step 2: reset .objectiveai down to the keepers ──────────────────
@@ -105,17 +124,35 @@ OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-call-timeout-ms set --value 300
 OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set --value 0 --global \
   || { echo "test-integration: 'api config backoff-max-elapsed-time-ms set' failed" >&2; exit 1; }
 
-# ── Step 5: spawn the api server and publish its address ────────────
-# Every integration suite (the Rust crates AND the SDK importers) talks to
-# this one server. Spawn it (idempotent behind the api lockfile singleton)
-# and export its published base URL as OBJECTIVEAI_ADDRESS — the same env var
-# the objectiveai client reads — so every child suite inherits it.
-SPAWN_OUT="$(OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api spawn)" \
-  || { echo "test-integration: 'api spawn' failed" >&2; printf '%s\n' "$SPAWN_OUT" >&2; exit 1; }
-OBJECTIVEAI_ADDRESS="$(printf '%s' "$SPAWN_OUT" | grep -oE 'https?://[^"]+' | head -1)"
+# ── Step 5: start the api server and publish its address ────────────
+# Every integration suite (the Rust crates AND the SDK importers) talks
+# to this one server. There is no `api spawn` command anymore (the
+# daemon leashes its own api for CLI flows), so the suite runs its OWN
+# api binary directly and reads the base URL off the stdout ready
+# handshake ({"type":"ready","address":"http://..."}) — the same line
+# the daemon parses. Exported as OBJECTIVEAI_ADDRESS — the env var the
+# objectiveai client reads — so every child suite inherits it. Killed
+# by pid in the exit trap (api.pid covers a crashed run).
+API_BIN="$OAI_DIR/bin/objectiveai-api"
+[ -f "$API_BIN" ] || API_BIN="$OAI_DIR/bin/objectiveai-api.exe"
+API_OUT="$LOG_DIR/api-server-${TIMESTAMP}.txt"
+OBJECTIVEAI_DIR="$OAI_DIR" "$API_BIN" >"$API_OUT" 2>&1 &
+API_PID=$!
+printf '%s\n' "$API_PID" >"$OAI_DIR/api.pid"
+OBJECTIVEAI_ADDRESS=""
+for _ in $(seq 1 120); do
+  if ! kill -0 "$API_PID" 2>/dev/null; then
+    echo "test-integration: api server exited before announcing readiness:" >&2
+    cat "$API_OUT" >&2
+    exit 1
+  fi
+  OBJECTIVEAI_ADDRESS="$(grep -m1 '"type":"ready"' "$API_OUT" 2>/dev/null | grep -oE 'https?://[^"]+' | head -1 || true)"
+  [ -n "$OBJECTIVEAI_ADDRESS" ] && break
+  sleep 0.5
+done
 if [ -z "$OBJECTIVEAI_ADDRESS" ]; then
-  echo "test-integration: could not parse a URL from 'api spawn' output:" >&2
-  printf '%s\n' "$SPAWN_OUT" >&2
+  echo "test-integration: api server did not announce readiness in time:" >&2
+  cat "$API_OUT" >&2
   exit 1
 fi
 export OBJECTIVEAI_ADDRESS

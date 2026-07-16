@@ -227,7 +227,7 @@ fn format_http_error(err: &objectiveai_sdk::HttpError) -> String {
 address. the cli auto-spawns a local objectiveai-api when no address is \
 configured; if you set `api.address`, verify it \
 (`objectiveai api config address get --final`) or unset it to use the \
-local server. to (re)start the local server: `objectiveai api spawn`"
+local server (the daemon spawns and manages it automatically)"
         )
     } else {
         err.to_string()

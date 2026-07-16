@@ -545,8 +545,8 @@ pub(crate) fn config_url(address: &str, user: &str, password: &str) -> String {
 }
 
 /// Map a pool-connect failure to the actionable error: the database
-/// at the resolved URL isn't reachable, and the fix is either
-/// `objectiveai db spawn` (local objectiveai-db) or `db config
+/// at the resolved URL isn't reachable — the daemon spawns the local
+/// objectiveai-db on demand, so the fix is a retry or `db config
 /// address` (remote postgres). Non-connect errors (auth failures,
 /// TLS, ...) get the same wrapper — the remedy hint is still the
 /// right one.

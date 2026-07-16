@@ -108,15 +108,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // the cli even on a force-kill.
     let mut child =
         objectiveai_sdk::subprocess_reaper::spawn(&mut cmd).map_err(Error::PluginSpawn)?;
-    // Register the leashed child for kill-all's exemption: the sweep
-    // must spare exactly {the daemon, its leashed plugins} — a leashed
-    // plugin dying ends the daemon mid-response, and NOTHING else
-    // deserves sparing (detached children like the laboratory host
-    // hold locks and must be swept like any other owner).
-    let leashed_pid = child.id();
-    if let Some(pid) = leashed_pid {
-        leashed_plugin_pids().lock().expect("leashed pids lock").insert(pid);
-    }
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
     let stdin = child.stdin.take().expect("stdin was piped");
@@ -208,9 +199,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         drop(plugin_stdin);
 
         let waited = child.wait().await;
-        if let Some(pid) = leashed_pid {
-            leashed_plugin_pids().lock().expect("leashed pids lock").remove(&pid);
-        }
         match waited {
             Ok(status) if status.success() => {}
             Ok(status) => {
@@ -511,16 +499,4 @@ pub mod response_schema {
     pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
-}
-
-/// Pids of the currently-leashed resident plugin children — the ONLY
-/// processes (besides the daemon itself) that kill-all's sweep must
-/// spare: killing one ends the daemon mid-response (the leash cuts
-/// both ways). Registered at spawn, removed at exit.
-pub(crate) fn leashed_plugin_pids()
--> &'static std::sync::Mutex<std::collections::HashSet<u32>> {
-    static PIDS: std::sync::OnceLock<
-        std::sync::Mutex<std::collections::HashSet<u32>>,
-    > = std::sync::OnceLock::new();
-    PIDS.get_or_init(Default::default)
 }

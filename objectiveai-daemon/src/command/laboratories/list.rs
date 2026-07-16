@@ -6,7 +6,7 @@
 //! only provenance, the same logic regardless of where a host runs.
 //! The LOCAL host is auto-spawned first (best-effort, honoring
 //! `laboratories config local: false` by skipping) so this machine's
-//! laboratories appear without a prior `laboratories spawn`.
+//! laboratories appear without any prior command.
 //! Read-only. Only client-side laboratories are supported today.
 
 use std::pin::Pin;

@@ -414,7 +414,7 @@ pub fn run(
 /// (`daemon spawn --foreground`): its socket isn't bound and its lock
 /// isn't published yet when the tee runs, so teeing it would
 /// deadlock / fork-bomb daemon startup. Every real command — including the
-/// `daemon spawn` launcher, `daemon kill`, and `kill_all` — is teed.
+/// `daemon spawn` launcher and `daemon kill` — is teed.
 fn should_tee(request: &objectiveai_sdk::cli::command::Request) -> bool {
     use objectiveai_sdk::cli::command::{Request, daemon};
     !matches!(

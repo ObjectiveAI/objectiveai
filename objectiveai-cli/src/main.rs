@@ -17,8 +17,7 @@
 //! keyed on the per-state `plugins-daemon` lock, whose published
 //! contents are the daemon's connect `http://` URL.
 
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::command_executor::sse;
@@ -87,26 +86,13 @@ async fn run(args: Vec<String>) -> i32 {
         }
     };
 
-    // Daemon-lifecycle commands that would make the daemon kill ITSELF are
-    // handled client-side — the daemon can't `TerminateProcess` itself
-    // mid-`/execute` without truncating the response. Classify first (this
-    // borrow ends before `request` is moved below).
-    enum Special {
-        DaemonKill,
-        KillAll,
-        None,
-    }
-    let special = match &request {
-        Request::Daemon(objectiveai_sdk::cli::command::daemon::Request::Kill(_)) => {
-            Special::DaemonKill
-        }
-        Request::KillAll(_) => Special::KillAll,
-        _ => Special::None,
-    };
-    match special {
-        Special::DaemonKill => return handle_daemon_kill(&mut stdout).await,
-        Special::KillAll => return handle_kill_all(&mut stdout, request).await,
-        Special::None => {}
+    // `daemon kill` would make the daemon kill ITSELF over `/execute`
+    // (a self-`TerminateProcess` truncates the response), so it is
+    // handled client-side. With every server a leashed daemon child,
+    // this is also the whole-teardown command: the OS leash takes db /
+    // api / mcp / viewer / laboratory host down with the daemon.
+    if let Request::Daemon(objectiveai_sdk::cli::command::daemon::Request::Kill(_)) = &request {
+        return handle_daemon_kill(&mut stdout).await;
     }
 
     // Ensure the daemon is up and build the HTTP executor + identity bag.
@@ -293,115 +279,6 @@ async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
     )
     .await;
     0
-}
-
-/// `kill-all` — client-side coordination. If the daemon is UP, it sweeps
-/// every OTHER lock owner over `/execute` (sparing only itself and its
-/// LEASHED plugins, whose death would end it mid-response); this side
-/// then kills the daemon after the response lands cleanly, and the OS
-/// leash takes the plugins down with it. If it's DOWN, sweep the tree
-/// here. Either way the reported count includes the daemon. Any output
-/// transform on the request is ignored (esoteric for a lifecycle
-/// command; the merged count is emitted plainly).
-async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i32 {
-    let layout = resolve_layout();
-    let daemon_up = match objectiveai_sdk::lockfile::try_read(&layout.lock_dir, DAEMON_LOCK_KEY)
-        .await
-    {
-        Ok(url) => url,
-        Err(e) => {
-            write_error_line(stdout, format!("read daemon lock: {e}"), Some(true)).await;
-            return 1;
-        }
-    };
-
-    let killed = match daemon_up {
-        // Daemon up: it sweeps the others (sparing itself + leashed
-        // plugins); we kill it, and the leash reaps the plugins.
-        Some(url) => {
-            let others = match kill_all_via_daemon(&url, request).await {
-                Ok(n) => n,
-                Err(message) => {
-                    // The daemon died mid-sweep (or refused) — kill-all
-                    // must still finish the job. Degrade to the local
-                    // tree sweep (idempotent: whatever the daemon
-                    // already killed stays dead) and report what
-                    // happened as a non-fatal line.
-                    write_error_line(
-                        stdout,
-                        format!("{message}; finishing with a local sweep"),
-                        Some(false),
-                    )
-                    .await;
-                    kill_tree_locally(&layout.dir).await
-                }
-            };
-            let daemon_killed: usize =
-                match objectiveai_sdk::lockfile::owners(&layout.lock_dir, DAEMON_LOCK_KEY).await {
-                    Ok(pids) => pids.into_iter().map(objectiveai_sdk::process::kill_pid).sum(),
-                    // Best-effort: the sweep already ran; still report it.
-                    Err(_) => 0,
-                };
-            others + daemon_killed
-        }
-        // Daemon down: nothing to delegate to — sweep the tree locally
-        // (kills orphaned api/db/etc.), exactly as the daemon's `kill_all`
-        // would, minus the (absent) daemon.
-        None => kill_tree_locally(&layout.dir).await,
-    };
-
-    write_json_line(
-        stdout,
-        &objectiveai_sdk::cli::command::kill_all::Response { killed },
-    )
-    .await;
-    0
-}
-
-/// Send `kill-all` to the running daemon and return the OTHERS-killed
-/// count it reports. Strips any output transform so the reply decodes as
-/// the plain `{killed}` shape.
-async fn kill_all_via_daemon(url: &str, mut request: Request) -> Result<usize, String> {
-    if let Request::KillAll(kr) = &mut request {
-        kr.base.jq = None;
-        kr.base.python = None;
-    }
-    let executor = executor_for(url);
-    let mut stream = executor
-        .execute::<_, serde_json::Value>(request, Some(&agent_arguments_from_env()))
-        .await
-        .map_err(|e| format!("kill-all over daemon: {e}"))?;
-    match stream.next().await {
-        Some(Ok(value)) => Ok(value
-            .get("killed")
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(0) as usize),
-        Some(Err(e)) => Err(format!("kill-all over daemon: {e}")),
-        // No item — treat as zero others killed.
-        None => Ok(0),
-    }
-}
-
-/// Sweep every lock owner under `dir` and signal it (skip self + pid 0),
-/// two passes with a de-duped tally — the client-side twin of the
-/// daemon's `kill_all` for when the daemon isn't running.
-async fn kill_tree_locally(dir: &Path) -> usize {
-    let me = std::process::id();
-    let mut killed: HashSet<u32> = HashSet::new();
-    for _ in 0..2 {
-        let Ok(pids) = objectiveai_sdk::lockfile::owners_in_tree(dir).await else {
-            break;
-        };
-        for pid in pids {
-            if pid == me || pid == 0 {
-                continue;
-            }
-            if objectiveai_sdk::process::kill_pid(pid) == 1 {
-                killed.insert(pid);
-            }
-        }
-    }
-    killed.len()
 }
 
 /// Build the per-request identity from this process's environment.

@@ -1,8 +1,10 @@
 //! `laboratories` — top-level CLI dispatch for laboratory containers
 //! (podman containers the conduit dials as client-side MCP servers).
-//! `spawn`/`kill` manage the machine's resident laboratory HOST (one
-//! process per (machine, state), serving ALL of its laboratories over
-//! `/laboratory` connections to every configured daemon); `config`
+//! The machine's resident laboratory HOST (one process per (machine,
+//! state), serving ALL of its laboratories over `/laboratory`
+//! connections to every configured daemon) is spawned implicitly by
+//! the flows that need it (`ensure_host`/`ensure_local_host`) and
+//! dies with the daemon — no spawn/kill commands; `config`
 //! holds its dial list (`addresses`, each with an optional signature)
 //! and the `local` toggle. `create`/`delete` forward over the owning
 //! host's WS — podman runs host-side, wherever that is. `list` streams
@@ -27,7 +29,6 @@ pub mod config;
 pub mod create;
 pub mod delete;
 pub mod detach;
-pub mod kill;
 pub mod list;
 pub mod spawn;
 
@@ -68,30 +69,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Config(req) => {
             let inner = config::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
-        }
-        Request::Kill(req) => {
-            let value = kill::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Kill(value)))
-        }
-        Request::KillRequestSchema(req) => {
-            let value = kill::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::KillRequestSchema(value)))
-        }
-        Request::KillResponseSchema(req) => {
-            let value = kill::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::KillResponseSchema(value)))
-        }
-        Request::Spawn(req) => {
-            let value = spawn::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Spawn(value)))
-        }
-        Request::SpawnRequestSchema(req) => {
-            let value = spawn::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::SpawnRequestSchema(value)))
-        }
-        Request::SpawnResponseSchema(req) => {
-            let value = spawn::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::SpawnResponseSchema(value)))
         }
         Request::Create(req) => {
             let value = create::execute(ctx, req).await?;
@@ -160,8 +137,8 @@ pub(super) fn resolve_pair(
 
 /// Ensure a CONNECTED host for the exact `(machine id, state)` pair,
 /// auto-spawning when the pair IS this daemon's own (local machine +
-/// own state — `laboratories spawn` errors when `laboratories config
-/// local` is false, and waits for the host to register otherwise).
+/// own state — the spawn errors when `laboratories config local` is
+/// false, and waits for the host to register otherwise).
 /// Any other unconnected pair is an error: this daemon cannot spawn a
 /// host elsewhere (nor for another state).
 pub(super) async fn ensure_host(
@@ -185,8 +162,9 @@ pub(super) async fn ensure_host(
     } else {
         Err(Error::Laboratory(format!(
             "no laboratory host connected for machine '{machine}' state \
-             '{machine_state}' — run `laboratories spawn` on that machine/state \
-             with this daemon's address configured"
+             '{machine_state}' — run any laboratories command on that \
+             machine/state (its daemon auto-spawns the host) with this \
+             daemon's address configured"
         )))
     }
 }

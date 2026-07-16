@@ -7,7 +7,7 @@
 //! build-time xxhash3_128 of the embedded blob
 //! ([`crate::python_wasm::RUSTPYTHON_WASM_HASH`]). Creation is
 //! serialized by a BIN lock (`<bin>/locks`, key = the hash — machine-
-//! wide, like the api spawn lock): probe → `wait_acquire` → re-probe →
+//! wide): probe → `wait_acquire` → re-probe →
 //! decompress + JIT + serialize + atomic publish (tmp + rename) →
 //! explicit release. A stale-wasmtime or corrupt artifact fails
 //! deserialization and reads as a cache miss, so the cache self-heals
