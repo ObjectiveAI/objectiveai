@@ -1,5 +1,18 @@
-//! Shared process-lifecycle primitives for the `{api,viewer,mcp,db}
-//! spawn|kill` cli subcommands.
+//! Shared process-lifecycle primitives for the daemon's spawn
+//! commands.
+//!
+//! Two spawn disciplines live here:
+//!
+//! - [`spawn_leashed_until_ready`] — the daemon's five persistent
+//!   servers (`db`/`api`/`mcp`/`viewer`/`laboratories`): OS-leashed
+//!   children that die with the daemon and announce readiness over a
+//!   stdout JSON handshake.
+//! - [`spawn_until_lock_published`] — peer plugins-daemons only
+//!   (`daemon spawn`): deliberately DETACHED, because a daemon for
+//!   another state must outlive whichever daemon happened to spawn
+//!   it, and discovered through the `plugins-daemon` lockfile — the
+//!   one rendezvous that must work across unrelated processes (cli
+//!   bootstrap).
 
 use std::path::Path;
 
@@ -8,9 +21,9 @@ use tokio::process::Command;
 
 /// Send SIGTERM (Unix) / TerminateProcess (Windows) to one specific
 /// pid. Returns 1 if a live process with that pid existed and was
-/// targeted, 0 otherwise. Used by `db kill`, where the postmaster's
-/// pid comes from `postmaster.pid` and a name match would hit
-/// unrelated postgres servers.
+/// targeted, 0 otherwise. Kills strictly by pid — a name match would
+/// hit unrelated processes (e.g. other postgres servers). Used by the
+/// legacy lock-owner sweep in `command::kill_helpers`.
 pub fn kill_pid(pid: u32) -> usize {
     let mut sys = System::new();
     sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
@@ -49,37 +62,37 @@ pub fn resolve_program(program: String, cwd: &Path) -> std::ffi::OsString {
     }
 }
 
-/// Lock-based background spawn shared by the four `* spawn` commands.
+/// Lock-based DETACHED spawn — used only by `daemon spawn` for peer
+/// plugins-daemons (the persistent servers use
+/// [`spawn_leashed_until_ready`] instead).
 ///
-/// A server's readiness signal is its lockfile: once its listener is
-/// bound, each server claims `(lock_dir, key)` via
+/// The daemon's readiness signal is its lockfile: once its listener is
+/// bound, it claims `(lock_dir, key)` via
 /// [`objectiveai_sdk::lockfile`] and publishes its client-connect URL
 /// as the lock contents. The flow:
 ///
 /// 1. [`objectiveai_sdk::lockfile::try_read`] — if the lock is already
-///    held by a live owner, the server is already up; return its
+///    held by a live owner, the daemon is already up; return its
 ///    published URL without spawning anything.
-/// 2. Otherwise spawn `exe`. The child INHERITS the cli's environment
-///    — the dev/test `bin` entries are cargo-run shims, and a build
-///    needs the full machine environment (PATH, the MSVC toolchain
-///    discovery vars, cargo/rustup homes). Config isolation is the
-///    spawn commands' job instead: each `configure` explicitly
-///    `env_remove`s every env key its server binary's config struct
-///    reads that it doesn't deliberately set, so the spawning shell's
-///    configuration never leaks into a server other processes will
+/// 2. Otherwise spawn `exe`. The child INHERITS the spawner's
+///    environment — the dev/test `bin` entries are cargo-run shims,
+///    and a build needs the full machine environment (PATH, the MSVC
+///    toolchain discovery vars, cargo/rustup homes). Config isolation
+///    is the spawn command's job instead: `configure` explicitly
+///    `env_remove`s every env key the child's config struct reads
+///    that it doesn't deliberately set, so the spawning shell's
+///    configuration never leaks into a daemon other processes will
 ///    share. Null stdin; stdout/stderr are piped and drained so a
 ///    child that dies before publishing reports its own output in
 ///    the error; detached from the console on Windows
-///    (`CREATE_NO_WINDOW | DETACHED_PROCESS` — except the `viewer`
-///    spawn, whose `configure` overrides to `DETACHED_PROCESS` only:
-///    the viewer is a windowed app); `kill_on_drop` stays
-///    false everywhere so the child outlives the cli (Unix re-parents
-///    it to init when the cli exits).
+///    (`CREATE_NO_WINDOW | DETACHED_PROCESS`); `kill_on_drop` stays
+///    false so the child outlives its spawner (Unix re-parents it to
+///    init when the spawner exits).
 /// 3. Subscribe to the lock ([`objectiveai_sdk::lockfile::wait_read`]),
-///    racing the child's exit. Lock published → the server is up and
+///    racing the child's exit. Lock published → the daemon is up and
 ///    its URL is returned. Child exited first → one last `try_read`:
 ///    the child may have died because it lost the claim race to a
-///    concurrently spawned server, and a held lock now means one won
+///    concurrently spawned daemon, and a held lock now means one won
 ///    in reality — return its URL. Only a dead child AND a free lock
 ///    is a failure. (Without the child arm the subscribing read would
 ///    wait forever on a dead child.)
@@ -89,9 +102,9 @@ pub async fn spawn_until_lock_published(
     key: &str,
     configure: impl FnOnce(&mut Command),
 ) -> Result<String, crate::error::Error> {
-    // The discipline itself lives in the SDK (shared with the viewer
-    // shell's laboratory commands); this wrapper only maps errors into
-    // the cli's variants.
+    // The discipline itself lives in the SDK (shared with the cli's
+    // ensure-daemon bootstrap); this wrapper only maps errors into
+    // the daemon's variants.
     objectiveai_sdk::lockfile::spawn_until_published(exe, lock_dir, key, configure)
         .await
         .map_err(|e| match e {

@@ -28,7 +28,7 @@ cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:di
 cli-listener = ["cli", "dep:tokio", "dep:futures", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream"]
 laboratory-daemon = ["mcp"]
 lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys", "dep:dashmap", "dep:hostname"]
-machine = ["dep:hostname"]
+machine = ["dep:hostname", "dep:windows-sys"]
 subprocess-reaper = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
