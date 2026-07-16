@@ -1,0 +1,38 @@
+{
+  "title": "cli.command.agents.tags.remove.Removed",
+  "description": "The removed tag's shape — mirrors `lookup`'s two live states (a\nmissing tag is an error, not a state).",
+  "anyOf": [
+    {
+      "title": "Bound",
+      "description": "The tag was BOUND to this hierarchy.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "bound"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Grouped",
+      "description": "The tag was GROUPED. `tag_group_deleted` reports whether this\nremoval emptied — and so garbage-collected — the group.",
+      "type": "object",
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "grouped"
+          ]
+        },
+        "tag_group_deleted": {
+          "type": "boolean"
+        }
+      }
+    }
+  ]
+}

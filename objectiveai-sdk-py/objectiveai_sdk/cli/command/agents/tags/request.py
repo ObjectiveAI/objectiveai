@@ -9,6 +9,9 @@ from objectiveai_sdk.cli.command.agents.tags.apply.response_schema.request impor
 from objectiveai_sdk.cli.command.agents.tags.lookup.request import Request as CliCommandAgentsTagsLookupRequest
 from objectiveai_sdk.cli.command.agents.tags.lookup.request_schema.request import Request as CliCommandAgentsTagsLookupRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.tags.lookup.response_schema.request import Request as CliCommandAgentsTagsLookupResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.tags.remove.request import Request as CliCommandAgentsTagsRemoveRequest
+from objectiveai_sdk.cli.command.agents.tags.remove.request_schema.request import Request as CliCommandAgentsTagsRemoveRequestSchemaRequest
+from objectiveai_sdk.cli.command.agents.tags.remove.response_schema.request import Request as CliCommandAgentsTagsRemoveResponseSchemaRequest
 
 
 class RequestLookup(RootModel):
@@ -47,8 +50,26 @@ class RequestApplyResponseSchema(RootModel):
     root: CliCommandAgentsTagsApplyResponseSchemaRequest
 
 
+class RequestRemove(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Remove'})
+
+    root: CliCommandAgentsTagsRemoveRequest
+
+
+class RequestRemoveRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'RemoveRequestSchema'})
+
+    root: CliCommandAgentsTagsRemoveRequestSchemaRequest
+
+
+class RequestRemoveResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'RemoveResponseSchema'})
+
+    root: CliCommandAgentsTagsRemoveResponseSchemaRequest
+
+
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.tags.Request')
 
-    root: Union[RequestLookup, RequestLookupRequestSchema, RequestLookupResponseSchema, RequestApply, RequestApplyRequestSchema, RequestApplyResponseSchema]
+    root: Union[RequestLookup, RequestLookupRequestSchema, RequestLookupResponseSchema, RequestApply, RequestApplyRequestSchema, RequestApplyResponseSchema, RequestRemove, RequestRemoveRequestSchema, RequestRemoveResponseSchema]
 

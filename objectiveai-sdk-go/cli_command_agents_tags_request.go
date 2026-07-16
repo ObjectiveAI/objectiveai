@@ -14,6 +14,9 @@ type CliCommandAgentsTagsRequest struct {
 	Apply *CliCommandAgentsTagsApplyRequest 
 	ApplyRequestSchema *CliCommandAgentsTagsApplyRequestSchemaRequest 
 	ApplyResponseSchema *CliCommandAgentsTagsApplyResponseSchemaRequest 
+	Remove *CliCommandAgentsTagsRemoveRequest 
+	RemoveRequestSchema *CliCommandAgentsTagsRemoveRequestSchemaRequest 
+	RemoveResponseSchema *CliCommandAgentsTagsRemoveResponseSchemaRequest 
 }
 
 func (v CliCommandAgentsTagsRequest) MarshalJSON() ([]byte, error) {
@@ -34,6 +37,15 @@ func (v CliCommandAgentsTagsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.ApplyResponseSchema != nil {
 		return json.Marshal(v.ApplyResponseSchema)
+	}
+	if v.Remove != nil {
+		return json.Marshal(v.Remove)
+	}
+	if v.RemoveRequestSchema != nil {
+		return json.Marshal(v.RemoveRequestSchema)
+	}
+	if v.RemoveResponseSchema != nil {
+		return json.Marshal(v.RemoveResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -105,6 +117,39 @@ func (v *CliCommandAgentsTagsRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsTagsRemoveRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsTagsRequest{}
+			candidate.Remove = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsTagsRemoveRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsTagsRequest{}
+			candidate.RemoveRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsTagsRemoveResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsTagsRequest{}
+			candidate.RemoveResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsTagsRequest")
 }
 
@@ -116,6 +161,9 @@ func (v CliCommandAgentsTagsRequest) Validate() error {
 	if v.Apply != nil { count++ }
 	if v.ApplyRequestSchema != nil { count++ }
 	if v.ApplyResponseSchema != nil { count++ }
+	if v.Remove != nil { count++ }
+	if v.RemoveRequestSchema != nil { count++ }
+	if v.RemoveResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsTagsRequest: exactly one variant must be set, got %d", count)
 	}

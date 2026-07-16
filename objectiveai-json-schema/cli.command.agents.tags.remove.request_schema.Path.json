@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.tags.remove.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/tags/remove/request_schema"
+  ]
+}
