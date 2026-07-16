@@ -62,6 +62,15 @@ pub(crate) struct ResidentHubs {
     pub mcp_notifiers: Arc<DashMap<String, Notifier>>,
 }
 
+/// One leashed resident server: the held [`tokio::process::Child`]
+/// (its OS leash + `kill_on_drop` tie the server's life to the
+/// daemon's) and the address it announced in its stdout readiness
+/// handshake.
+pub(crate) struct ResidentChild {
+    pub(crate) child: tokio::process::Child,
+    pub(crate) address: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct Context {
     pub config: Config,
@@ -94,6 +103,26 @@ pub struct Context {
     /// exactly as a failed socket connect once did. Shared across clones
     /// (first set wins).
     resident_hubs: Arc<std::sync::OnceLock<ResidentHubs>>,
+    /// The persistent server subprocesses the resident daemon spawns —
+    /// `db` / `api` / `mcp` / `viewer` / `laboratories` — held here for
+    /// the daemon's whole life. They are LEASHED
+    /// ([`objectiveai_sdk::subprocess_reaper`]): the OS kills each one
+    /// when the daemon dies (job object / PDEATHSIG / kqueue
+    /// guardian), and holding the [`tokio::process::Child`] here keeps
+    /// it alive meanwhile (a dropped leashed child is killed by
+    /// `kill_on_drop`). The cached `address` is the server's stdout
+    /// readiness-handshake coordinate
+    /// ([`objectiveai_sdk::process::ServerReady`]) — there are no
+    /// server lockfiles anymore; this map IS the discovery state.
+    /// Shared across clones, so the transient `/execute` ctx that
+    /// triggers a lazy spawn parks the child on the same map the
+    /// resident daemon owns.
+    resident_children: Arc<DashMap<String, ResidentChild>>,
+    /// Per-key spawn serialization for [`Self::resident_children`]:
+    /// two concurrent `db_handle()` calls must not both spawn a db.
+    /// Clone the inner `Arc` out before locking — never hold a map
+    /// guard across an await.
+    spawn_gates: Arc<DashMap<String, Arc<tokio::sync::Mutex<()>>>>,
     /// When true, the embedded python's `objectiveai.execute(...)` host
     /// call raises instead of dispatching a CLI command. Read by
     /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
@@ -120,8 +149,64 @@ impl Context {
             python: Arc::new(OnceCell::new()),
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             resident_hubs: Arc::new(std::sync::OnceLock::new()),
+            resident_children: Arc::new(DashMap::new()),
+            spawn_gates: Arc::new(DashMap::new()),
             no_objectiveai: false,
         }
+    }
+
+    /// The per-key spawn gate — see [`Self::resident_children`]. The
+    /// `Arc` is cloned OUT of the map so the caller locks it with no
+    /// map guard held.
+    pub(crate) fn spawn_gate(&self, key: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.spawn_gates
+            .entry(key.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(())))
+            .clone()
+    }
+
+    /// Park a freshly-spawned leashed server child (+ its readiness
+    /// address) for the daemon's life. Only the spawn path calls this,
+    /// under the key's spawn gate, after confirming no live child —
+    /// so a live server is never displaced.
+    pub(crate) fn hold_resident_child(
+        &self,
+        key: &str,
+        child: tokio::process::Child,
+        address: Option<String>,
+    ) {
+        self.resident_children
+            .insert(key.to_string(), ResidentChild { child, address });
+    }
+
+    /// The cached readiness address of a LIVE resident child. `None`
+    /// when the key has no child, the child has exited (the dead entry
+    /// is removed on observation), or the server reported no address.
+    /// The liveness probe is `try_wait` — sync, no reaping race (the
+    /// child is exclusively ours).
+    pub(crate) fn resident_child_address(&self, key: &str) -> Option<Option<String>> {
+        let mut entry = self.resident_children.get_mut(key)?;
+        match entry.child.try_wait() {
+            Ok(None) => Some(entry.address.clone()),
+            // Exited (or errored — treat as gone): drop the corpse so
+            // the caller respawns.
+            _ => {
+                drop(entry);
+                self.resident_children.remove(key);
+                None
+            }
+        }
+    }
+
+    /// Whether the key currently holds a live resident child.
+    pub(crate) fn server_child_alive(&self, key: &str) -> bool {
+        self.resident_child_address(key).is_some()
+    }
+
+    /// Take the resident child out entirely (the kill commands own it
+    /// from here — killing, waiting, reporting).
+    pub(crate) fn take_resident_child(&self, key: &str) -> Option<tokio::process::Child> {
+        self.resident_children.remove(key).map(|(_, rc)| rc.child)
     }
 
     /// Record the daemon's published `http://` connect URL. Called by

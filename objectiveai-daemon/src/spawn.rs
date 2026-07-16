@@ -120,6 +120,143 @@ pub async fn spawn_until_lock_published(
         })
 }
 
+/// Spawn one of the daemon's persistent servers (`db` / `api` / `mcp`
+/// / `viewer` / `laboratories`) as an OS-LEASHED child and wait for
+/// its stdout readiness handshake
+/// ([`objectiveai_sdk::process::ServerReady`]). Returns the announced
+/// address (`None` for listener-less servers — viewer, laboratory
+/// host).
+///
+/// This replaced the lockfile-readiness spawn: the daemon is the sole
+/// spawner and OWNS the server's lifetime — the leash
+/// ([`objectiveai_sdk::subprocess_reaper`]) makes the OS kill the
+/// child when the daemon dies by ANY means, and the held
+/// [`tokio::process::Child`] on the [`Context`] keeps it alive
+/// meanwhile. Singleton-per-key is the `resident_children` map plus
+/// the per-key spawn gate (no cross-process lock: nothing else is
+/// allowed to spawn these).
+///
+/// Flow, under the key's spawn gate:
+/// 1. A LIVE cached child ⇒ return its cached address (idempotent).
+///    A dead one is dropped and respawned.
+/// 2. Spawn leashed: null stdin, piped stdout/stderr (the pipes ride
+///    [`crate::child_io::spawn_pipe_reader`] — reader tasks own them,
+///    so there is no partial-line or cancel-safety hazard), Windows
+///    `CREATE_NO_WINDOW` only — leashed children stay
+///    console-attached (the job object is the death leash; DETACHED
+///    would exempt them from Ctrl+C for no benefit, and they die with
+///    the daemon regardless).
+/// 3. Read stdout lines until one parses as the ready line, racing
+///    the child's exit — an exit first drains the pipes briefly and
+///    errors with the captured output.
+/// 4. Park the child (+ address) on the `Context` and hand the SAME
+///    pipe receiver to a persistent drain task for the child's life,
+///    so later server writes never block the pipe or EPIPE-kill
+///    anyone.
+pub async fn spawn_leashed_until_ready(
+    ctx: &crate::context::Context,
+    key: &str,
+    exe: &Path,
+    configure: impl FnOnce(&mut Command),
+) -> Result<Option<String>, crate::error::Error> {
+    let gate = ctx.spawn_gate(key);
+    let _guard = gate.lock().await;
+
+    if let Some(address) = ctx.resident_child_address(key) {
+        return Ok(address);
+    }
+
+    let name = exe
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| exe.display().to_string());
+
+    let mut cmd = Command::new(exe);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    configure(&mut cmd);
+
+    let mut child = objectiveai_sdk::subprocess_reaper::spawn(&mut cmd)
+        .map_err(|e| crate::error::Error::Spawn(name.clone(), e))?;
+    let stdout = child.stdout.take().expect("stdout was piped");
+    let stderr = child.stderr.take().expect("stderr was piped");
+    let mut events = crate::child_io::spawn_pipe_reader(stdout, stderr);
+
+    // Collected for the exited-before-ready error report only.
+    let mut seen_stdout: Vec<String> = Vec::new();
+    let mut seen_stderr: Vec<String> = Vec::new();
+    let address = loop {
+        tokio::select! {
+            event = events.recv() => match event {
+                Some(crate::child_io::PipeEvent::Stdout(line)) => {
+                    if let Some(ready) = objectiveai_sdk::process::parse_ready(&line) {
+                        break ready.address;
+                    }
+                    seen_stdout.push(line);
+                }
+                Some(crate::child_io::PipeEvent::Stderr(line)) => {
+                    seen_stderr.push(line);
+                }
+                // EOFs / read errors without a ready line: keep
+                // waiting — the child-exit arm is the terminal signal.
+                Some(_) => {}
+                None => {}
+            },
+            status = child.wait() => {
+                // Exited before announcing readiness. Give the reader
+                // tasks a moment to flush what the child wrote, then
+                // report it.
+                let deadline = tokio::time::Instant::now()
+                    + std::time::Duration::from_secs(2);
+                loop {
+                    match tokio::time::timeout_at(deadline, events.recv()).await {
+                        Ok(Some(crate::child_io::PipeEvent::Stdout(line))) => {
+                            seen_stdout.push(line);
+                        }
+                        Ok(Some(crate::child_io::PipeEvent::Stderr(line))) => {
+                            seen_stderr.push(line);
+                        }
+                        Ok(Some(_)) => {}
+                        Ok(None) | Err(_) => break,
+                    }
+                }
+                return Err(crate::error::Error::SpawnExitedBeforePublishing {
+                    name,
+                    status: status.map_err(|e| {
+                        crate::error::Error::Spawn(name_of(exe), e)
+                    })?,
+                    stdout: seen_stdout.join("\n"),
+                    stderr: seen_stderr.join("\n"),
+                });
+            }
+        }
+    };
+
+    // Persistent drain: the child's std handles stay live for its
+    // whole life — later writes (db's supervisor notices, api's cost
+    // lines) are consumed and DISCARDED instead of blocking the pipe
+    // or EPIPE-killing the server. Anything observable goes through
+    // the server's published channel or the DB, per the standing
+    // convention.
+    tokio::spawn(async move { while events.recv().await.is_some() {} });
+
+    ctx.hold_resident_child(key, child, address.clone());
+    Ok(address)
+}
+
+/// Basename-or-path display name for spawn errors.
+fn name_of(exe: &Path) -> String {
+    exe.file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| exe.display().to_string())
+}
+
 /// Stamp every field of the cli's [`crate::Config`] onto `cmd`'s env
 /// using the same env-var names the [`crate::run::EnvConfigBuilder`]
 /// reads on the receiving side. So a child cli (or any subprocess
