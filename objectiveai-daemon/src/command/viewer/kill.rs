@@ -1,17 +1,18 @@
-//! `viewer kill --global|--state` — terminate viewer server(s) by
-//! killing the owner(s) of their per-state lock at
-//! `<dir>/state/<state>/locks` key `viewer`. `--state` hits the
-//! current state; `--global` fans out across every state
-//! concurrently. Idempotent: a count of zero is not an error.
+//! `viewer kill` — terminate this daemon's resident viewer child.
+//! Idempotent: a count of zero is not an error.
 
 use objectiveai_sdk::cli::command::viewer::kill::{Request, Response};
 
-use crate::command::kill_helpers::kill_per_state;
+use crate::command::kill_helpers::kill_resident_child;
 use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let killed = kill_per_state(ctx, request.scope, "viewer").await?;
+    // `scope` is vestigial: other states' servers belong to other
+    // daemons and die with them — both scopes mean this daemon's
+    // resident child.
+    let _ = request.scope;
+    let killed = kill_resident_child(ctx, "viewer").await;
     Ok(Response { killed })
 }
 

@@ -1,18 +1,14 @@
-//! `api kill --global` — terminate the api server by killing the
-//! owner(s) of its machine-wide lock at `<dir>/bin/locks` key
-//! `api`. Idempotent: a count of zero is not an error. There is
-//! exactly one api lock, so no concurrency is needed.
+//! `api kill` — terminate this daemon's resident api child.
+//! Idempotent: a count of zero is not an error.
 
 use objectiveai_sdk::cli::command::api::kill::{Request, Response};
 
-use crate::command::kill_helpers::kill_lock_owners;
+use crate::command::kill_helpers::kill_resident_child;
 use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    // The SDK `TryFrom` already enforced --global.
-    let locks_dir = ctx.filesystem.bin_dir().join("locks");
-    let killed = kill_lock_owners(locks_dir, "api").await?;
+    let killed = kill_resident_child(ctx, "api").await;
     Ok(Response { killed })
 }
 

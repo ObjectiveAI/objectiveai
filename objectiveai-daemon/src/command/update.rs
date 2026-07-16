@@ -25,9 +25,10 @@
 //!    emits [`ResponseSkipReason::IncompleteRelease`].
 //! 2. Download the zip to a temp path (outside `bin/`, so the wipe
 //!    below can't clobber it).
-//! 3. Kill the running servers in-process: the machine-wide `api` (its
-//!    lock lives at `<bin_dir>/locks`) and the per-state `db` / `viewer`
-//!    across every state.
+//! 3. Kill the running servers: this daemon's leashed resident
+//!    children first, then a legacy lock-owner sweep (machine-wide
+//!    `api` at `<bin_dir>/locks`; per-state `db` / `viewer`) for
+//!    old-style detached servers left by ≤2.2.12 installs.
 //! 4. Rename the running updater aside (Windows can't overwrite a
 //!    running `.exe`; renaming frees the name — the process keeps
 //!    running from the renamed file).
@@ -39,9 +40,9 @@
 //!    same rename-aside swap so a still-locked straggler doesn't fail
 //!    the extraction.
 //!
-//! Caveat: `db`/`viewer` are killed across every state, but a server
-//! that comes back (or a binary still locked at unzip time) is left as
-//! a `.old`; the cli's own `.old` is swept on the next invocation.
+//! Caveat: a server that comes back mid-install (or a binary still
+//! locked at unzip time) is left as a `.old`; the cli's own `.old` is
+//! swept on the next invocation.
 
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -82,8 +83,10 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
         .get_github_authorization()
         .map(String::from);
 
+    let ctx = ctx.clone();
     tokio::spawn(async move {
         if let Err(e) = run(
+            &ctx,
             &bin_dir,
             &states_root,
             github_authorization.as_deref(),
@@ -101,6 +104,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
 }
 
 async fn run(
+    ctx: &Context,
     bin_dir: &Path,
     states_root: &Path,
     github_authorization: Option<&str>,
@@ -226,9 +230,16 @@ async fn run(
         return Err(e);
     }
 
-    // Kill the running servers in-process before touching bin/. The api
-    // lock is machine-wide at <bin>/locks; db + viewer are per-state.
-    // Best-effort: a kill failure shouldn't abort the install.
+    // Kill the running servers before touching bin/: on Windows a live
+    // child holds its .exe file-locked, which would defeat the wipe.
+    // First this daemon's leashed resident children, then a LEGACY
+    // lock-owner sweep (api in bin/locks; db/viewer per state) so an
+    // in-place update over a ≤2.2.12 install also reaps the old-style
+    // detached servers. Best-effort: a kill failure shouldn't abort the
+    // install.
+    for key in ["api", "db", "mcp", "viewer", "laboratories"] {
+        let _ = kill_resident_child(ctx, key).await;
+    }
     let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;
     kill_state_servers(states_root).await;
 
@@ -318,12 +329,13 @@ fn looks_like_dev_tree(current_exe: &Path) -> bool {
     })
 }
 
-// Reused for the api lock; see crate::command::kill_helpers.
-use crate::command::kill_helpers::kill_lock_owners;
+use crate::command::kill_helpers::{kill_lock_owners, kill_resident_child};
 
-/// Kill the per-state `db` and `viewer` lock owners across every state
-/// under `<dir>/state/<name>/locks`. Best-effort — failures are
-/// swallowed so a stuck state doesn't abort the install.
+/// LEGACY: kill the per-state `db` and `viewer` lock owners across
+/// every state under `<dir>/state/<name>/locks` — pre-2.2.13 detached
+/// servers only; current servers are this daemon's resident children.
+/// Best-effort — failures are swallowed so a stuck state doesn't abort
+/// the install.
 async fn kill_state_servers(states_root: &Path) {
     let mut rd = match tokio::fs::read_dir(states_root).await {
         Ok(rd) => rd,
