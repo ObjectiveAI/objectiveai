@@ -195,10 +195,11 @@ function CenterState({
 }
 
 /**
- * The window body: header bar (laboratory id + host), then the tree.
- * `children === null` = connecting; `[]` = the empty snapshot — the
- * container hasn't started (it starts lazily) or has no files: a real
- * state, NOT an error.
+ * The window body: the tree, edge to edge — the laboratory's identity
+ * lives in the window TITLE (`{os}/{machine id}/{lab id}`), no header
+ * bar. `children === null` = connecting; `[]` = the empty snapshot —
+ * the container hasn't started (it starts lazily) or has no files: a
+ * real state, NOT an error.
  */
 export function LaboratoryBrowser({
   transport,
@@ -215,27 +216,6 @@ export function LaboratoryBrowser({
 
   return (
     <div className={cn("flex-1", "min-h-0", "flex", "flex-col", "font-mono")}>
-      <div
-        className={cn(
-          "shrink-0",
-          "flex",
-          "items-baseline",
-          "gap-2",
-          "px-3",
-          "py-1.5",
-          "border-b",
-          "border-copper-mid/40",
-          "text-xs",
-        )}
-      >
-        <span className={cn("text-info-bright")}>{id}</span>
-        {(machine != null || machineState != null) && (
-          <span className={cn("text-info-dim", "truncate")} title={machine}>
-            {machine != null ? `${machine.slice(0, 16)}…` : "any host"}
-            {machineState != null ? ` · ${machineState}` : ""}
-          </span>
-        )}
-      </div>
       {children === null ? (
         <CenterState primary="connecting to laboratory…" />
       ) : children.length === 0 ? (

@@ -83,6 +83,7 @@ function openLaboratoryWindow(lab: DisplayLaboratory): void {
     id: lab.id,
     machine: lab.machine?.id ?? null,
     machineState: lab.machineState,
+    machineOs: lab.machine?.os ?? null,
   });
 }
 

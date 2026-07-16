@@ -143,6 +143,7 @@ fn open_laboratory_window_impl(
     id: &str,
     machine: Option<&str>,
     machine_state: Option<&str>,
+    machine_os: Option<&str>,
 ) -> tauri::Result<()> {
     use tauri::Manager;
     let label = laboratory_window_label(id, machine, machine_state);
@@ -156,13 +157,20 @@ fn open_laboratory_window_impl(
         "machineState": machine_state,
     })
     .to_string();
+    // `{os}/{machine id}/{lab id}` — the serving machine's identity as
+    // the window's name, unknown segments rendered as `?`.
+    let title = format!(
+        "{}/{}/{id}",
+        machine_os.unwrap_or("?"),
+        machine.unwrap_or("?"),
+    );
     tauri::WebviewWindowBuilder::new(
         app,
         &label,
         tauri::WebviewUrl::App("laboratory.html".into()),
     )
     .initialization_script(format!("window.__LABORATORY__ = {global};"))
-    .title(id)
+    .title(title)
     .inner_size(1024.0, 768.0)
     .build()?;
     Ok(())
@@ -178,9 +186,16 @@ async fn open_laboratory_window(
     id: String,
     machine: Option<String>,
     machine_state: Option<String>,
+    machine_os: Option<String>,
 ) -> Result<(), String> {
-    open_laboratory_window_impl(&app, &id, machine.as_deref(), machine_state.as_deref())
-        .map_err(|e| e.to_string())
+    open_laboratory_window_impl(
+        &app,
+        &id,
+        machine.as_deref(),
+        machine_state.as_deref(),
+        machine_os.as_deref(),
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[derive(Envconfig)]
