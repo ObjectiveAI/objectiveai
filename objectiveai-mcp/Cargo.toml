@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp"
-version = "2.2.11"
+version = "2.2.12"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "MCP (Model Context Protocol) server for ObjectiveAI"
@@ -24,7 +24,7 @@ futures = "0.3.32"
 humantime = "2"
 indexmap = "2.13"
 json-escape = { version = "0.3.1" }
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.11", features = ["lockfile"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.12", features = ["lockfile"] }
 dirs = { version = "6.0.0" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }

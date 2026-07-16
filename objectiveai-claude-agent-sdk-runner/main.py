@@ -48,7 +48,7 @@ MUST drain stdout promptly.
 
 from __future__ import annotations
 
-__version__ = "2.2.11"
+__version__ = "2.2.12"
 
 import asyncio
 import json
