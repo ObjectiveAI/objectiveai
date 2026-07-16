@@ -10,8 +10,8 @@ import { LogoMark } from "./shared/Logo";
 
 /**
  * The laboratory filesystem browser — a VSCode-style expandable tree
- * with details columns (name, size, created, modified, created by,
- * modified by). Browse only; no file opening yet.
+ * with details columns (name, size, created, modified). Browse only;
+ * no file opening yet.
  *
  * RE-RENDERS ARE REGION-LOCAL by construction: the filetree fold is
  * path-copying immutable (only the changed spine gets new object
@@ -26,17 +26,10 @@ import { LogoMark } from "./shared/Logo";
 /** The one shared column template — every row AND the header use it,
  * so columns align across depths without a <table>. */
 const GRID_COLS =
-  "grid-cols-[minmax(0,1fr)_6rem_9.5rem_9.5rem_12rem_12rem]";
+  "grid-cols-[minmax(0,1fr)_6rem_9.5rem_9.5rem]";
 
 /** The sortable columns, in header order. */
-const SORT_COLUMNS = [
-  "name",
-  "size",
-  "created",
-  "modified",
-  "created by",
-  "modified by",
-] as const;
+const SORT_COLUMNS = ["name", "size", "created", "modified"] as const;
 type SortColumn = (typeof SORT_COLUMNS)[number];
 
 /** The active sort: one column, one direction — or none (the default
@@ -55,10 +48,6 @@ function sortKey(node: FileTreeNode, column: SortColumn): string | number | null
       return node.created_at ?? null;
     case "modified":
       return node.modified_at ?? null;
-    case "created by":
-      return node.created_by ?? null;
-    case "modified by":
-      return node.modified_by ?? null;
   }
 }
 
@@ -193,11 +182,6 @@ const TreeNode = memo(function TreeNode({
           value={
             node.modified_at != null ? formatTimestamp(node.modified_at) : null
           }
-        />
-        <MetaCell value={node.created_by ?? null} title={node.created_by ?? undefined} />
-        <MetaCell
-          value={node.modified_by ?? null}
-          title={node.modified_by ?? undefined}
         />
       </div>
       {isDirectory && open && entries !== null && entries.length === 0 && (
