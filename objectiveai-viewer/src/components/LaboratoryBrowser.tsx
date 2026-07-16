@@ -28,13 +28,70 @@ import { LogoMark } from "./shared/Logo";
 const GRID_COLS =
   "grid-cols-[minmax(0,1fr)_6rem_9.5rem_9.5rem_12rem_12rem]";
 
-/** Directories first, then name order, per level. */
-function sortEntries(nodes: FileTreeNode[]): FileTreeNode[] {
-  return [...nodes].sort(
-    (a, b) =>
-      (a.type === "directory" ? 0 : 1) - (b.type === "directory" ? 0 : 1) ||
-      a.name.localeCompare(b.name),
-  );
+/** The sortable columns, in header order. */
+const SORT_COLUMNS = [
+  "name",
+  "size",
+  "created",
+  "modified",
+  "created by",
+  "modified by",
+] as const;
+type SortColumn = (typeof SORT_COLUMNS)[number];
+
+/** The active sort: one column, one direction — or none (the default
+ * name order). Cycled per column by header clicks: asc → desc → off. */
+type Sort = { column: SortColumn; descending: boolean } | null;
+
+/** A node's value under a sort column; `null` sorts LAST in both
+ * directions (missing metadata never floats to the top). */
+function sortKey(node: FileTreeNode, column: SortColumn): string | number | null {
+  switch (column) {
+    case "name":
+      return node.name;
+    case "size":
+      return node.type === "file" ? (node.size ?? null) : null;
+    case "created":
+      return node.created_at ?? null;
+    case "modified":
+      return node.modified_at ?? null;
+    case "created by":
+      return node.created_by ?? null;
+    case "modified by":
+      return node.modified_by ?? null;
+  }
+}
+
+/** Directories first always; within each group the active sort (name
+ * order when none), applied at EVERY level of the tree. */
+function sortEntries(nodes: FileTreeNode[], sort: Sort): FileTreeNode[] {
+  return [...nodes].sort((a, b) => {
+    const group =
+      (a.type === "directory" ? 0 : 1) - (b.type === "directory" ? 0 : 1);
+    if (group !== 0) {
+      return group;
+    }
+    if (sort !== null) {
+      const ka = sortKey(a, sort.column);
+      const kb = sortKey(b, sort.column);
+      if (ka !== kb) {
+        if (ka === null) {
+          return 1;
+        }
+        if (kb === null) {
+          return -1;
+        }
+        const cmp =
+          typeof ka === "number" && typeof kb === "number"
+            ? ka - kb
+            : String(ka).localeCompare(String(kb));
+        if (cmp !== 0) {
+          return sort.descending ? -cmp : cmp;
+        }
+      }
+    }
+    return a.name.localeCompare(b.name);
+  });
 }
 
 /** A metadata cell: the value, or a dim `—` placeholder. */
@@ -75,15 +132,17 @@ function MetaCell({
 const TreeNode = memo(function TreeNode({
   node,
   depth,
+  sort,
 }: {
   node: FileTreeNode;
   depth: number;
+  sort: Sort;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const isDirectory = node.type === "directory";
   const entries = useMemo(
-    () => (node.type === "directory" ? sortEntries(node.children) : null),
-    [node],
+    () => (node.type === "directory" ? sortEntries(node.children, sort) : null),
+    [node, sort],
   );
 
   const indent = { paddingLeft: `${0.75 + depth * 1.25}rem` };
@@ -159,7 +218,7 @@ const TreeNode = memo(function TreeNode({
         open &&
         entries !== null &&
         entries.map((child) => (
-          <TreeNode key={child.name} node={child} depth={depth + 1} />
+          <TreeNode key={child.name} node={child} depth={depth + 1} sort={sort} />
         ))}
     </>
   );
@@ -213,6 +272,17 @@ export function LaboratoryBrowser({
   machineState?: string;
 }): ReactElement {
   const children = useLaboratoryFiletree(transport, id, machine, machineState);
+  // One sorter at a time; a header click cycles ITS column asc → desc
+  // → off (and switching columns starts at asc).
+  const [sort, setSort] = useState<Sort>(null);
+  const cycleSort = (column: SortColumn) =>
+    setSort((current) =>
+      current === null || current.column !== column
+        ? { column, descending: false }
+        : current.descending
+          ? null
+          : { column, descending: true },
+    );
 
   return (
     <div className={cn("flex-1", "min-h-0", "flex", "flex-col", "font-mono")}>
@@ -237,15 +307,29 @@ export function LaboratoryBrowser({
               "text-info-dim",
             )}
           >
-            <span className={cn("px-3", "py-1.5", "pl-3")}>name</span>
-            <span className={cn("px-3", "py-1.5", "text-right")}>size</span>
-            <span className={cn("px-3", "py-1.5")}>created</span>
-            <span className={cn("px-3", "py-1.5")}>modified</span>
-            <span className={cn("px-3", "py-1.5")}>created by</span>
-            <span className={cn("px-3", "py-1.5")}>modified by</span>
+            {SORT_COLUMNS.map((column) => (
+              <button
+                key={column}
+                type="button"
+                onClick={() => cycleSort(column)}
+                className={cn(
+                  "px-3",
+                  "py-1.5",
+                  "text-left",
+                  "cursor-pointer",
+                  "select-none",
+                  "hover:text-copper-bright",
+                  column === "size" && "text-right",
+                  sort?.column === column && "text-copper-bright",
+                )}
+              >
+                {column}
+                {sort?.column === column && (sort.descending ? " ↓" : " ↑")}
+              </button>
+            ))}
           </div>
-          {sortEntries(children).map((node) => (
-            <TreeNode key={node.name} node={node} depth={0} />
+          {sortEntries(children, sort).map((node) => (
+            <TreeNode key={node.name} node={node} depth={0} sort={sort} />
           ))}
         </div>
       )}
