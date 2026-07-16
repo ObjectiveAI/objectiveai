@@ -368,16 +368,20 @@ function AgentNode({
   // nothing and schedules nothing.
   const lastActiveAgo = useAgo(lastActiveAt ?? "");
   return (
-    <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
+    <div
+      className={cn("flex", "flex-col", "items-stretch", "w-fit")}
+      // The menu belongs to the WHOLE node stack — agent box and the
+      // attached latest-message box alike.
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setAddingTag(false);
+        setMenu({ x: e.clientX, y: e.clientY });
+      }}
+    >
       <div
         data-node-kind={kind}
         data-node-name={name}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setAddingTag(false);
-          setMenu({ x: e.clientX, y: e.clientY });
-        }}
         className={cn(
           "flex",
           "flex-col",
