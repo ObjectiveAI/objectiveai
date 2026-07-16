@@ -3,8 +3,11 @@ import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
 import {
   agentsTagsApplyExecute,
+  agentsTagsRemoveExecute,
+  laboratoriesDetachExecute,
   type ViewerTransport,
 } from "@objectiveai/sdk";
+import { instanceSelector } from "../lib/aih";
 import { reportError } from "../lib/errors";
 import { daemonExecutor } from "../lib/executor";
 import { LoadingDots } from "./LoadingDots";
@@ -425,16 +428,39 @@ function AgentNode({
               </span>
             </BadgeRow>
             {agent.tags.map((tag) => (
-              <BadgeRow key={tag} badge="tag">
+              <ActionBadgeRow
+                key={tag}
+                badge="tag"
+                action="remove"
+                dataAttr="data-remove-tag"
+                onAction={async () => {
+                  const executor = await daemonExecutor();
+                  const result = await agentsTagsRemoveExecute(executor, {
+                    tag,
+                  });
+                  if ("type" in result && result.type === "error") {
+                    throw new Error(
+                      typeof result.message === "string"
+                        ? result.message
+                        : JSON.stringify(result.message),
+                    );
+                  }
+                }}
+                onError={(error) => reportError(`remove tag ${tag}`, error)}
+              >
                 <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
                   {tag}
                 </span>
-              </BadgeRow>
+              </ActionBadgeRow>
             ))}
             {/* ATTACHED laboratories only — the active set is
                 deliberately not shown here (yet). */}
             {agent.attached_laboratories.map((lab) => (
-              <AttachedLaboratoryBadge key={lab.id} lab={lab} />
+              <AttachedLaboratoryBadge
+                key={lab.id}
+                lab={lab}
+                hierarchy={hierarchy}
+              />
             ))}
           </>
         )}
@@ -802,15 +828,38 @@ type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
 
 /** One attached-laboratory row: the lab id plus a live "ago" for when
  * the attachment was made (`attached_at`, RFC3339). A component per
- * row because `useAgo` is a hook (can't run inside the map). */
+ * row because `useAgo` is a hook (can't run inside the map). The
+ * badge is the row's DROPDOWN button — its one action detaches the
+ * laboratory from this node's instance target. */
 function AttachedLaboratoryBadge({
   lab,
+  hierarchy,
 }: {
   lab: { id: string; attached_at: string };
+  hierarchy: string;
 }) {
   const attachedAgo = useAgo(lab.attached_at);
   return (
-    <BadgeRow badge="laboratory">
+    <ActionBadgeRow
+      badge="laboratory"
+      action="detach"
+      dataAttr="data-detach-laboratory"
+      onAction={async () => {
+        const executor = await daemonExecutor();
+        const result = await laboratoriesDetachExecute(executor, {
+          selector: instanceSelector(hierarchy),
+          laboratory_id: lab.id,
+        });
+        if ("type" in result && result.type === "error") {
+          throw new Error(
+            typeof result.message === "string"
+              ? result.message
+              : JSON.stringify(result.message),
+          );
+        }
+      }}
+      onError={(error) => reportError(`detach laboratory ${lab.id}`, error)}
+    >
       <span data-laboratory={lab.id} className={cn("text-[#c3bfbb]")}>
         {lab.id}
       </span>
@@ -822,7 +871,94 @@ function AttachedLaboratoryBadge({
           {attachedAgo}
         </span>
       )}
-    </BadgeRow>
+    </ActionBadgeRow>
+  );
+}
+
+/**
+ * A [`BadgeRow`] whose badge chip is a BUTTON: clicking it drops a
+ * one-item menu (`remove` / `detach`); selecting the action closes
+ * the menu and shows [`LoadingDots`] in the chip until the command
+ * resolves — the row itself disappears via the node's live instance
+ * record on success (never optimistically), and a failure reports
+ * through `onError` and restores the chip.
+ */
+function ActionBadgeRow({
+  badge,
+  action,
+  dataAttr,
+  onAction,
+  onError,
+  children,
+}: {
+  badge: string;
+  action: string;
+  dataAttr?: string;
+  onAction: () => Promise<void>;
+  onError: (error: unknown) => void;
+  children?: React.ReactNode;
+}) {
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div
+      className={cn(
+        "flex",
+        "flex-row",
+        "items-center",
+        "gap-1.5",
+        "self-start",
+        "mt-1",
+        "first:mt-0",
+        "text-sm",
+      )}
+    >
+      <button
+        type="button"
+        {...(dataAttr !== undefined ? { [dataAttr]: true } : {})}
+        aria-label={`${badge} actions`}
+        disabled={busy}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setMenu({ x: rect.left, y: rect.bottom + 2 });
+        }}
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "border",
+          "text-xs",
+          "border-copper-mid/70",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+          busy
+            ? "opacity-70"
+            : cn(
+                "cursor-pointer",
+                "hover:border-copper-hot",
+                "hover:text-copper-hot",
+              ),
+        )}
+      >
+        {busy ? <LoadingDots marker="data-badge-busy" /> : badge}
+      </button>
+      {children}
+      {menu !== null && (
+        <ContextMenu position={menu} onClose={() => setMenu(null)}>
+          <ContextMenuItem
+            label={action}
+            dataAttr="data-badge-action"
+            onSelect={() => {
+              setMenu(null);
+              setBusy(true);
+              void onAction()
+                .catch(onError)
+                .finally(() => setBusy(false));
+            }}
+          />
+        </ContextMenu>
+      )}
+    </div>
   );
 }
 
