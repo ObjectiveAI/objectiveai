@@ -91,6 +91,25 @@ impl ObjectiveAiMcpLaboratory {
         self.shell_state.init_snapshot().await;
     }
 
+    /// The composite id is the laboratory's assistant-facing identity
+    /// — what `laboratory_transfer` sources/destinations and the
+    /// daemon's `/laboratories/{id}` routes are addressed by — so the
+    /// tool hands it over verbatim. Standalone runs (no laboratory)
+    /// and legacy raw-id containers have no composite to report and
+    /// say so in plain text rather than inventing one.
+    #[tool(
+        name = "get_laboratory_id",
+        description = "Returns the full id of this laboratory"
+    )]
+    async fn get_laboratory_id(&self) -> Content {
+        match &self.composite_id {
+            Some(composite) => Content::text(composite.clone()),
+            None => Content::text(
+                "this server is not running inside an identified laboratory",
+            ),
+        }
+    }
+
     #[tool(name = "Bash", description = "Executes a given bash command and returns its output.")]
     async fn bash(
         &self,
