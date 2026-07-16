@@ -983,7 +983,14 @@ function AttachedLaboratoryBadge({
       {attachedAgo !== "" && (
         <span
           data-attached-ago
-          className={cn("text-xs", "text-info-mid", "tabular-nums")}
+          className={cn(
+            // Pushed to the row's right edge (the row stretches to
+            // the box's width).
+            "ml-auto",
+            "text-xs",
+            "text-info-mid",
+            "tabular-nums",
+          )}
         >
           {attachedAgo}
         </span>
@@ -1024,7 +1031,9 @@ function ActionBadgeRow({
         "flex-row",
         "items-center",
         "gap-1.5",
-        "self-start",
+        // Full box width (unlike BadgeRow's self-start) so trailing
+        // metadata can right-align via ml-auto.
+        "self-stretch",
         "mt-1",
         "first:mt-0",
         "text-sm",
