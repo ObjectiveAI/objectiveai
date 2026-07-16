@@ -4148,7 +4148,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4214,7 +4214,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "clap",
  "dirs",
@@ -4248,7 +4248,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-daemon"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "async-stream",
  "axum",
@@ -4310,7 +4310,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-db"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "clap",
  "objectiveai-sdk",
@@ -4320,7 +4320,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "objectiveai-sdk",
  "schemars 1.2.1",
@@ -4329,7 +4329,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-laboratory"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -4355,7 +4355,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4378,7 +4378,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-laboratory"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4409,7 +4409,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4434,7 +4434,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -4487,7 +4487,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-cffi"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4499,11 +4499,11 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.2.10"
+version = "2.2.11"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4517,7 +4517,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-wasm-js"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "arbitrary",
  "getrandom 0.4.2",
@@ -4540,7 +4540,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-viewer"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "clap",
  "dirs",

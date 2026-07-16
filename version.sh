@@ -221,6 +221,7 @@ CARGO_TOMLS=(
   objectiveai-daemon/Cargo.toml
   objectiveai-db/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
+  objectiveai-laboratory/Cargo.toml
   objectiveai-mcp/Cargo.toml
   objectiveai-mcp-laboratory/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml

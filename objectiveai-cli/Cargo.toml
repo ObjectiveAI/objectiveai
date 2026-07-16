@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-cli"
-version = "2.2.10"
+version = "2.2.11"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI CLI: a thin WebSocket client for the resident daemon"
@@ -19,7 +19,7 @@ name = "objectiveai"
 path = "src/main.rs"
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.10", features = ["cli-executor", "lockfile"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.11", features = ["cli-executor", "lockfile"] }
 clap = "4.6.0"
 tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "io-std", "io-util"] }
 futures = "0.3.32"
