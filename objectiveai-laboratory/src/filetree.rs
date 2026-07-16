@@ -52,7 +52,12 @@ pub async fn pump(host: Arc<HostServer>, id: String, base_url: String) {
                     else {
                         continue;
                     };
-                    host.filetree_event(&id, event).await;
+                    match event {
+                        FileTreeEvent::Snapshot { children } => {
+                            host.source_container_snapshot(&id, children).await;
+                        }
+                        event => host.source_container_delta(&id, event).await,
+                    }
                 }
                 // Transport error: the EventSource retries internally
                 // (its own policy paces reconnection); a fresh connect

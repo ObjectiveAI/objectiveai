@@ -87,14 +87,14 @@ pub struct HostServer {
     /// receiver lives; that retention is the bounded buffer, which is
     /// the point.
     filetree_events: tokio::sync::broadcast::Sender<String>,
-    /// Per-laboratory materialized file trees (the container root's
-    /// child list — the UNIFIED view: the lab's `/filetree` stream
-    /// folded by its pump, plus every mount subtree grafted by
-    /// [`Self::graft_mount`]). Read by [`Self::attach_channel`] to
-    /// open late daemons with a synthesized snapshot; all writers hold
-    /// `attach_lock`, so snapshot vs. delta ordering holds by
-    /// construction.
-    filetree: DashMap<String, Vec<FileTreeNode>>,
+    /// Per-laboratory unified trees as SOURCE SETS
+    /// ([`crate::lab_tree::LabTree`]): the container stream plus one
+    /// source per mount, registered BEFORE any data flows. Nothing is
+    /// ever emitted for an incomplete tree, and every emitted snapshot
+    /// is composed from ALL sources — complete and total by
+    /// construction. Created only by [`Self::register_lab_tree`],
+    /// removed only by delete; every mutation holds `attach_lock`.
+    filetree: DashMap<String, crate::lab_tree::LabTree>,
     /// The per-laboratory filetree pump tasks — aborted on delete and
     /// on idle stop (and dying with the process on shutdown).
     filetree_pumps: DashMap<String, tokio::task::JoinHandle<()>>,
@@ -205,124 +205,156 @@ impl HostServer {
         self.filetree
             .iter()
             .filter_map(|entry| {
+                // Incomplete trees are simply absent — the daemon has
+                // never seen them, and must not until they compose.
+                let children = entry.value().compose()?;
                 serde_json::to_string(&HostNotification::LaboratoryFiletree {
                     id: entry.key().clone(),
-                    event: FileTreeEvent::Snapshot {
-                        children: entry.value().clone(),
-                    },
+                    event: FileTreeEvent::Snapshot { children },
                 })
                 .ok()
             })
             .collect()
     }
 
-    /// One event off a laboratory's `/filetree` SSE (called by that
-    /// lab's pump): fold it into the materialized tree, then publish
-    /// the frame on the filetree ring — one `attach_lock` hold for
-    /// both, so an attaching channel either sees the fold in its
-    /// synthesized snapshot or receives the ring frame, never neither.
-    /// A send with no receivers (no daemon connected) just drops; the
-    /// materialized tree is the durable state.
-    ///
-    /// A container `Snapshot` REPLACES the lab's whole tree — and the
-    /// container never sees mounts — so every Snapshot fold is
-    /// followed, in the SAME lock hold, by re-grafting each of the
-    /// lab's mounts from its watch's cached tree. That one rule makes
-    /// every ordering of mount walks vs container snapshots correct.
-    pub(crate) async fn filetree_event(&self, id: &str, event: FileTreeEvent) {
-        let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
-            id: id.to_string(),
-            event: event.clone(),
-        }) else {
-            return;
-        };
-        let is_snapshot = matches!(event, FileTreeEvent::Snapshot { .. });
+    /// Register (or re-register, on restart) a laboratory's SOURCE SET
+    /// — one entry per mount — BEFORE its container pump spawns and
+    /// before any delivery notifier runs, so no source data can ever
+    /// race its own registration. Re-registration only adds missing
+    /// sources: existing ones keep their old watch and delivered flag,
+    /// so a frozen view stays complete across restarts until fresh
+    /// walks re-deliver.
+    async fn register_lab_tree(
+        &self,
+        id: &str,
+        sources: Vec<(Vec<String>, Arc<crate::mount_watch::MountWatch>)>,
+    ) {
         let _guard = self.attach_lock.lock().await;
-        event.apply(self.filetree.entry(id.to_string()).or_default().value_mut());
-        let _ = self.filetree_events.send(frame);
-        if is_snapshot {
-            for (mountpoint, node) in self.mounts.grafts_for(id) {
-                let graft = FileTreeEvent::Upserted {
-                    path: mountpoint,
-                    node,
-                };
-                let Ok(graft_frame) =
-                    serde_json::to_string(&HostNotification::LaboratoryFiletree {
-                        id: id.to_string(),
-                        event: graft.clone(),
-                    })
-                else {
-                    continue;
-                };
-                if let Some(mut entry) = self.filetree.get_mut(id) {
-                    graft.apply(entry.value_mut());
-                }
-                let _ = self.filetree_events.send(graft_frame);
+        match self.filetree.entry(id.to_string()) {
+            dashmap::mapref::entry::Entry::Occupied(mut entry) => {
+                entry.get_mut().merge_sources(sources);
+            }
+            dashmap::mapref::entry::Entry::Vacant(entry) => {
+                entry.insert(crate::lab_tree::LabTree::new(sources));
             }
         }
     }
 
-    /// One lab-space delta from a MOUNT watch (see
-    /// [`crate::mount_watch`]): like [`Self::filetree_event`] but the
-    /// fold happens ONLY if the lab already has a materialized tree —
-    /// mount watches are shared across labs and outlive any one lab's
-    /// delete, so they must never resurrect a deleted lab's entry (the
-    /// phantom-tree bug class). A pre-snapshot mount delta is safely
-    /// dropped: the Snapshot re-graft replays the mount's state from
-    /// its cached tree.
-    pub(crate) async fn mount_event(&self, id: &str, event: FileTreeEvent) {
+    /// Emit the lab's COMPOSED snapshot iff its source set is
+    /// complete. Must run under `attach_lock`; takes the map entry
+    /// guard briefly (clone the children, drop the guard, THEN
+    /// serialize — a whole-tree serde run must not hold the shard
+    /// lock) and sends inside the same `attach_lock` hold (a send
+    /// outside it could be clobbered daemon-side by an interleaved
+    /// delta's frame).
+    fn try_emit_composed(&self, id: &str) {
+        let Some(children) = self.filetree.get(id).and_then(|tree| tree.compose()) else {
+            return;
+        };
         let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
             id: id.to_string(),
-            event: event.clone(),
+            event: FileTreeEvent::Snapshot { children },
         }) else {
             return;
         };
-        let _guard = self.attach_lock.lock().await;
-        let Some(mut entry) = self.filetree.get_mut(id) else {
-            return;
-        };
-        event.apply(entry.value_mut());
-        drop(entry);
         let _ = self.filetree_events.send(frame);
     }
 
-    /// Graft one mount's whole cached tree into a lab's filetree at
-    /// `mountpoint` — used at attach time (after the initial walk) and
-    /// by mount resyncs. Everything under ONE `attach_lock` hold: the
-    /// subscription re-check (a graft can never land after detach),
-    /// the tree clone, the fold, and the ring send — which is what
-    /// guarantees a graft ordered after a delta contains that delta.
-    pub(crate) async fn graft_mount(
+    /// The container source's snapshot (called by the lab's pump on
+    /// every SSE connect): store it, and emit the composed snapshot if
+    /// that completed — or refreshed — the set. A container reconnect
+    /// therefore re-emits a COMPLETE tree; mounts can never flicker.
+    pub(crate) async fn source_container_snapshot(
         &self,
         id: &str,
-        mountpoint: &[String],
-        watch: &crate::mount_watch::MountWatch,
+        children: Vec<FileTreeNode>,
     ) {
         let _guard = self.attach_lock.lock().await;
-        if !watch.subscribed(id, mountpoint) {
-            return;
+        {
+            // Unregistered lab (delete raced the pump) — drop.
+            let Some(mut entry) = self.filetree.get_mut(id) else {
+                return;
+            };
+            entry.set_container(children);
         }
-        let Some(node) = watch.graft(mountpoint) else {
-            return;
-        };
-        let event = FileTreeEvent::Upserted {
-            path: mountpoint.to_vec(),
-            node,
-        };
+        self.try_emit_composed(id);
+    }
+
+    /// A container source delta: fold it, and pass it through verbatim
+    /// ONLY when the lab's tree is complete — an incomplete tree emits
+    /// nothing (the delta still folds, so it rides the eventual
+    /// composed snapshot).
+    pub(crate) async fn source_container_delta(&self, id: &str, event: FileTreeEvent) {
         let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
             id: id.to_string(),
             event: event.clone(),
         }) else {
             return;
         };
-        let Some(mut entry) = self.filetree.get_mut(id) else {
-            // No materialized tree yet (container snapshot pending) —
-            // the Snapshot re-graft will replay this.
+        let _guard = self.attach_lock.lock().await;
+        let complete = {
+            let Some(mut entry) = self.filetree.get_mut(id) else {
+                return;
+            };
+            if !entry.fold_container(event) {
+                // No container snapshot yet — a baseless delta.
+                return;
+            }
+            entry.complete()
+        };
+        if complete {
+            let _ = self.filetree_events.send(frame);
+        }
+    }
+
+    /// A mount source delivered (initial walk done, resync re-walk, or
+    /// a restarted watch's fresh walk): mark it — swapping the lab's
+    /// source to `watch` at THIS moment, never earlier — and emit the
+    /// composed snapshot if the set is (still or newly) complete.
+    pub(crate) async fn source_mount_delivered(
+        &self,
+        id: &str,
+        mountpoint: &[String],
+        watch: &Arc<crate::mount_watch::MountWatch>,
+    ) {
+        let _guard = self.attach_lock.lock().await;
+        {
+            let Some(mut entry) = self.filetree.get_mut(id) else {
+                return;
+            };
+            if !entry.mount_delivered(mountpoint, watch) {
+                return;
+            }
+        }
+        self.try_emit_composed(id);
+    }
+
+    /// A mount source delta, already in lab space (mountpoint-prefixed
+    /// path): pass-through ONLY when the lab's tree is complete AND
+    /// this mountpoint's source has delivered. Dropping is always
+    /// safe: the pump folds the mount's cached tree BEFORE emitting,
+    /// and compose reads that tree live under this same lock — every
+    /// dropped delta is inside the next composed snapshot.
+    pub(crate) async fn source_mount_delta(
+        &self,
+        id: &str,
+        mountpoint: &[String],
+        event: FileTreeEvent,
+    ) {
+        let Ok(frame) = serde_json::to_string(&HostNotification::LaboratoryFiletree {
+            id: id.to_string(),
+            event,
+        }) else {
             return;
         };
-        event.apply(entry.value_mut());
-        drop(entry);
-        let _ = self.filetree_events.send(frame);
+        let _guard = self.attach_lock.lock().await;
+        let pass = self
+            .filetree
+            .get(id)
+            .is_some_and(|tree| tree.complete() && tree.mount_ready(mountpoint));
+        if pass {
+            let _ = self.filetree_events.send(frame);
+        }
     }
 
     /// Detach a disconnected daemon channel: drop its notification
@@ -594,10 +626,15 @@ impl HostServer {
     /// and aborts — any predecessor for the id (delete + recreate).
     async fn spawn_filetree_pump(self: &Arc<Self>, id: &str, base_url: &str) {
         // The lab's mounts, from the container label (survives host
-        // restarts — podman's record is the source of truth): each one
-        // gets a host-side watch subscription, the native half of the
-        // unified tree. Container paths are POSIX strings — split on
-        // '/', never on host Path semantics.
+        // restarts — podman's record is the source of truth). Strict
+        // order, each step before the next: (1) attach the watches
+        // (subscriptions + walks, NO delivery notifiers yet), (2)
+        // register the lab's SOURCE SET, (3) spawn the delivery
+        // notifiers, (4) spawn the container pump — so no source can
+        // deliver before its registration exists, and the tree cannot
+        // complete before every source is declared. Container paths
+        // are POSIX strings — split on '/', never host Path semantics.
+        let mut sources: Vec<(Vec<String>, Arc<crate::mount_watch::MountWatch>)> = Vec::new();
         if let Ok(labs) = podman::laboratory::list(&self.podman, &self.state).await
             && let Some(lab) = labs.into_iter().find(|l| l.id == id)
         {
@@ -608,8 +645,21 @@ impl HostServer {
                     .filter(|c| !c.is_empty())
                     .map(String::from)
                     .collect();
-                self.mounts.attach(self, id, &mount.host, mountpoint);
+                if let Some(watch) =
+                    self.mounts.attach(self, id, &mount.host, mountpoint.clone())
+                {
+                    sources.push((mountpoint, watch));
+                }
             }
+        }
+        self.register_lab_tree(id, sources.clone()).await;
+        for (mountpoint, watch) in sources {
+            let host = Arc::clone(self);
+            let lab_id = id.to_string();
+            tokio::spawn(async move {
+                watch.ready().await;
+                host.source_mount_delivered(&lab_id, &mountpoint, &watch).await;
+            });
         }
         let handle = tokio::spawn(crate::filetree::pump(
             Arc::clone(self),
