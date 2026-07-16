@@ -1,8 +1,14 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
-import type { ViewerTransport } from "@objectiveai/sdk";
+import {
+  agentsTagsApplyExecute,
+  type ViewerTransport,
+} from "@objectiveai/sdk";
+import { reportError } from "../lib/errors";
+import { daemonExecutor } from "../lib/executor";
 import { LoadingDots } from "./LoadingDots";
+import { ContextMenu, ContextMenuItem } from "./shared/ContextMenu";
 import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
@@ -350,6 +356,10 @@ function AgentNode({
 }) {
   const hierarchy = status.agent_instance_hierarchy;
   const { agent, lastBlock } = useAgentInstance(transport, hierarchy);
+  // Right-click menu: position (viewport coords) + which pane is
+  // showing (the item list, or the add-tag input it swaps to).
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [addingTag, setAddingTag] = useState(false);
   const kind = status.active ? "agent-active" : "agent-inactive";
   // A live agent's last-active is implicitly "now" — while active the
   // status row reads `active`; inactive shows the record's timestamp.
@@ -362,6 +372,12 @@ function AgentNode({
       <div
         data-node-kind={kind}
         data-node-name={name}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setAddingTag(false);
+          setMenu({ x: e.clientX, y: e.clientY });
+        }}
         className={cn(
           "flex",
           "flex-col",
@@ -448,6 +464,111 @@ function AgentNode({
         )}
       </div>
       {lastBlock !== null && <LastItemView block={lastBlock} />}
+      {menu !== null && (
+        <ContextMenu position={menu} onClose={() => setMenu(null)}>
+          {!addingTag ? (
+            <>
+              <ContextMenuItem
+                label="add tag…"
+                dataAttr="data-menu-add-tag"
+                // A root-level hierarchy has no {parent}/{leaf} split
+                // for the apply target — nothing to bind to.
+                disabled={!hierarchy.includes("/")}
+                onSelect={() => setAddingTag(true)}
+              />
+              <ContextMenuItem
+                label="add laboratory…"
+                dataAttr="data-menu-add-laboratory"
+                // Stub — the attach flow lands in a later chunk.
+                disabled
+                onSelect={() => {}}
+              />
+            </>
+          ) : (
+            <AddTagInput
+              hierarchy={hierarchy}
+              onDone={() => setMenu(null)}
+            />
+          )}
+        </ContextMenu>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The add-tag pane the context menu swaps to: a single autofocused
+ * input. Enter runs `agents tags apply --agent-instance` targeting
+ * the node's `{parent}/{leaf}` and closes on success (the node's tag
+ * list refreshes itself through its live instance record — the
+ * `tags_changed` trigger); a failure toasts and keeps the input open
+ * for a retry. Escape closes via the menu's own handler.
+ */
+function AddTagInput({
+  hierarchy,
+  onDone,
+}: {
+  hierarchy: string;
+  onDone: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const commit = () => {
+    const name = value.trim();
+    if (!name || busy) {
+      return;
+    }
+    setBusy(true);
+    void (async () => {
+      try {
+        const executor = await daemonExecutor();
+        const slash = hierarchy.lastIndexOf("/");
+        const result = await agentsTagsApplyExecute(executor, {
+          name,
+          target: {
+            by: "agent_instance",
+            agent_instance: hierarchy.slice(slash + 1),
+            parent_agent_instance_hierarchy: hierarchy.slice(0, slash),
+          },
+        });
+        if ("type" in result && result.type === "error") {
+          throw new Error(
+            typeof result.message === "string"
+              ? result.message
+              : JSON.stringify(result.message),
+          );
+        }
+        onDone();
+      } catch (error) {
+        reportError(`apply tag to ${hierarchy}`, error);
+        setBusy(false);
+      }
+    })();
+  };
+  return (
+    <div className={cn("px-3", "py-1", "flex", "flex-col", "gap-1")}>
+      <span className={cn("text-info-dim")}>tag name</span>
+      <input
+        autoFocus
+        data-menu-tag-input
+        value={value}
+        disabled={busy}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+          }
+        }}
+        className={cn(
+          "bg-transparent",
+          "border-b",
+          "border-copper-mid/60",
+          "outline-none",
+          "text-info-bright",
+          "w-44",
+          busy && "opacity-50",
+        )}
+      />
     </div>
   );
 }
