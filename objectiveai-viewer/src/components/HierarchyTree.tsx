@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
 import {
@@ -16,7 +16,10 @@ import { ContextMenu, ContextMenuItem } from "./shared/ContextMenu";
 import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
-import { useLaboratoriesList } from "../hooks/useLaboratoriesList";
+import {
+  useLaboratoriesList,
+  type LaboratoryStatus,
+} from "../hooks/useLaboratoriesList";
 import {
   useAgentInstance,
   type ConversationBlock,
@@ -365,7 +368,6 @@ function AgentNode({
   // showing (the item list, the add-tag input, or the
   // attach-laboratory picker it swaps to).
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const [pane, setPane] = useState<"items" | "tag" | "laboratory">("items");
   const kind = status.active ? "agent-active" : "agent-inactive";
   // A live agent's last-active is implicitly "now" — while active the
   // status row reads `active`; inactive shows the record's timestamp.
@@ -381,7 +383,6 @@ function AgentNode({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        setPane("items");
         setMenu({ x: e.clientX, y: e.clientY });
       }}
     >
@@ -499,36 +500,12 @@ function AgentNode({
       {lastBlock !== null && <LastItemView block={lastBlock} />}
       {menu !== null && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
-          {pane === "items" && (
-            <>
-              <ContextMenuItem
-                label="add tag…"
-                dataAttr="data-menu-add-tag"
-                // A root-level hierarchy has no {parent}/{leaf} split
-                // for the apply target — nothing to bind to.
-                disabled={!hierarchy.includes("/")}
-                onSelect={() => setPane("tag")}
-              />
-              <ContextMenuItem
-                label="attach laboratory…"
-                dataAttr="data-menu-attach-laboratory"
-                onSelect={() => setPane("laboratory")}
-              />
-            </>
-          )}
-          {pane === "tag" && (
-            <AddTagInput
-              hierarchy={hierarchy}
-              onDone={() => setMenu(null)}
-            />
-          )}
-          {pane === "laboratory" && (
-            <AttachLaboratoryPane
-              hierarchy={hierarchy}
-              transport={transport}
-              onDone={() => setMenu(null)}
-            />
-          )}
+          <AgentContextMenuContent
+            hierarchy={hierarchy}
+            transport={transport}
+            attached={agent?.attached_laboratories ?? []}
+            onClose={() => setMenu(null)}
+          />
         </ContextMenu>
       )}
     </div>
@@ -613,6 +590,77 @@ function AddTagInput({
 }
 
 /**
+ * The agent context menu's CONTENT — mounted only while the menu is
+ * open, so the live laboratories-list connection
+ * ([`useLaboratoriesList`]) opens on demand, not one-per-agent-node.
+ * Owns the pane state (fresh `items` on every open) and computes the
+ * ATTACHABLE set: the daemon's laboratories minus the ones already
+ * attached to this agent (matched on the full `(id, machine, state)`
+ * identity — ids are only unique per machine+state). The "attach
+ * laboratory…" item greys out when nothing is attachable.
+ */
+function AgentContextMenuContent({
+  hierarchy,
+  transport,
+  attached,
+  onClose,
+}: {
+  hierarchy: string;
+  transport: ViewerTransport | null;
+  attached: { id: string; machine?: string | null; machine_state?: string | null }[];
+  onClose: () => void;
+}) {
+  const [pane, setPane] = useState<"items" | "tag" | "laboratory">("items");
+  const laboratories = useLaboratoriesList(transport);
+  const available = useMemo(
+    () =>
+      laboratories.filter(
+        (lab) =>
+          !attached.some(
+            (a) =>
+              a.id === lab.id &&
+              (a.machine ?? null) === (lab.machine?.id ?? null) &&
+              (a.machine_state ?? null) === (lab.machine_state ?? null),
+          ),
+      ),
+    [laboratories, attached],
+  );
+
+  if (pane === "tag") {
+    return <AddTagInput hierarchy={hierarchy} onDone={onClose} />;
+  }
+  if (pane === "laboratory") {
+    return (
+      <AttachLaboratoryPane
+        hierarchy={hierarchy}
+        laboratories={available}
+        onDone={onClose}
+      />
+    );
+  }
+  return (
+    <>
+      <ContextMenuItem
+        label="add tag…"
+        dataAttr="data-menu-add-tag"
+        // A root-level hierarchy has no {parent}/{leaf} split for the
+        // apply target — nothing to bind to.
+        disabled={!hierarchy.includes("/")}
+        onSelect={() => setPane("tag")}
+      />
+      <ContextMenuItem
+        label="attach laboratory…"
+        dataAttr="data-menu-attach-laboratory"
+        // Nothing left to attach — every live laboratory is already
+        // on this agent.
+        disabled={available.length === 0}
+        onSelect={() => setPane("laboratory")}
+      />
+    </>
+  );
+}
+
+/**
  * The attach-laboratory pane the context menu swaps to: the daemon's
  * LIVE laboratories list, one row per laboratory (id, dimmed machine
  * hostname when known). Clicking one runs `laboratories attach`
@@ -624,14 +672,13 @@ function AddTagInput({
  */
 function AttachLaboratoryPane({
   hierarchy,
-  transport,
+  laboratories,
   onDone,
 }: {
   hierarchy: string;
-  transport: ViewerTransport | null;
+  laboratories: LaboratoryStatus[];
   onDone: () => void;
 }) {
-  const laboratories = useLaboratoriesList(transport);
   // The (machine, state, id) key of the in-flight attach, if any.
   const [busyKey, setBusyKey] = useState<string | null>(null);
 
