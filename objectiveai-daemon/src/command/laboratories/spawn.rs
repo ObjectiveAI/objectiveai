@@ -13,7 +13,7 @@
 //! (`--address` repeated + `--signature ADDRESS=SIGNATURE` repeated) —
 //! the host binary reads NO environment variables, by design.
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 /// How long a LOCAL spawn waits for the host to appear in the daemon
@@ -24,8 +24,8 @@ const READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 /// `ensure_local_host` auto-spawns). Idempotent and cheap when the
 /// host is already up: a live resident child returns without
 /// spawning. Returns every address the host was told to dial.
-pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
-    let config = ctx
+pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec<String>, Error> {
+    let config = scoped
         .filesystem
         .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
         .await?
@@ -39,8 +39,8 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
         // Ensure the local daemon (idempotent) and dial it FIRST, with
         // the signature from the daemon's OWN config — never from the
         // addresses map.
-        let daemon_address = crate::command::daemon::spawn::spawn(ctx).await?;
-        if let Some(signature) = ctx.config.client_signature() {
+        let daemon_address = crate::command::daemon::spawn::spawn(global, scoped).await?;
+        if let Some(signature) = global.client_signature() {
             signatures.push(format!("{daemon_address}={signature}"));
         }
         addresses.push(daemon_address);
@@ -64,12 +64,12 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
         ));
     }
 
-    let exe = ctx.filesystem.bin_dir().join(if cfg!(windows) {
+    let exe = scoped.filesystem.bin_dir().join(if cfg!(windows) {
         "objectiveai-laboratory.exe"
     } else {
         "objectiveai-laboratory"
     });
-    let _ = crate::spawn::spawn_leashed_until_ready(ctx, "laboratories", &exe, |cmd| {
+    let _ = crate::spawn::spawn_leashed_until_ready(global, "laboratories", &exe, |cmd| {
         // No subcommand — the binary IS the host; bare args only.
         for address in &addresses {
             cmd.arg("--address").arg(address);
@@ -78,9 +78,9 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
             cmd.arg("--signature").arg(signature);
         }
         cmd.arg("--objectiveai-dir")
-            .arg(ctx.filesystem.dir())
+            .arg(scoped.filesystem.dir())
             .arg("--objectiveai-state")
-            .arg(ctx.filesystem.state())
+            .arg(scoped.filesystem.state())
             .arg("--suppress-output");
     })
     .await?;
@@ -92,20 +92,20 @@ pub async fn spawn(ctx: &Context) -> Result<Vec<String>, Error> {
     // (the host retries its dials forever).
     if local {
         let machine_id =
-            objectiveai_sdk::machine::machine_id(ctx.filesystem.dir());
+            objectiveai_sdk::machine::machine_id(scoped.filesystem.dir());
         let deadline = std::time::Instant::now() + READY_TIMEOUT;
         loop {
             // Readiness = OUR host — the exact (machine, OWN state)
             // pair; a same-machine host of another state is somebody
             // else's.
-            if let Some(hubs) = ctx.resident_hubs()
+            if let Some(hubs) = global.resident_hubs()
                 && hubs
                     .laboratories
-                    .has_host(&machine_id, ctx.filesystem.state())
+                    .has_host(&machine_id, scoped.filesystem.state())
             {
                 break;
             }
-            if !ctx.server_child_alive("laboratories") {
+            if !global.server_child_alive("laboratories") {
                 return Err(Error::Laboratory(
                     "the laboratory host exited before connecting to the daemon"
                         .to_string(),

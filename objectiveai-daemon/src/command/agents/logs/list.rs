@@ -7,15 +7,15 @@ use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use objectiveai_sdk::cli::command::agents::logs::list::{Request, ResponseItem, Target};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db::tags;
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let default_parent = ctx.config.agent_instance_hierarchy.clone();
-    let db = ctx.db_client().await?.clone();
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+    let default_parent = scoped.agent_instance_hierarchy().to_string();
+    let db = global.db_client().await?.clone();
     let after_id = request.after_id;
     let limit = request.limit;
     // `--pending` lists only unfinalized rows under the target (read
@@ -105,10 +105,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::logs::list as sdk;
     use objectiveai_sdk::cli::command::agents::logs::list::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -117,10 +117,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::logs::list as sdk;
     use objectiveai_sdk::cli::command::agents::logs::list::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

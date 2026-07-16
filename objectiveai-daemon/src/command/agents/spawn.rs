@@ -44,7 +44,7 @@ use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
     Request, RequestDangerousAdvanced, ResponseItem,
 };
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 use crate::http::agent_hierarchies::ChunkAgentHierarchies;
 use crate::http::agent_registry::AgentInstanceRegistry;
@@ -52,7 +52,7 @@ use crate::http::agent_registry::AgentInstanceRegistry;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     request: Request,
 ) -> Result<ItemStream, Error> {
     let want_stream = request
@@ -61,9 +61,9 @@ pub async fn execute(
         .and_then(|a| a.stream)
         .unwrap_or(false);
     if want_stream {
-        execute_streaming(ctx, request).await
+        execute_streaming(global, scoped, request).await
     } else {
-        execute_detached(ctx, request).await
+        execute_detached(global, scoped, request).await
     }
 }
 
@@ -72,7 +72,7 @@ pub async fn execute(
 /// the gated `Id`. The task outlives this call and drains to
 /// completion (see [`crate::command::detached::spawn_detached`]); the
 /// agent's lock family releases when its stream ends.
-async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+async fn execute_detached(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     // Re-invoke with stream=true so the detached run takes the real
     // streaming path (resolution + locking above run in the task).
     let mut child_request = request;
@@ -90,7 +90,8 @@ async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream,
     crate::command::reexec::strip_inherited(&mut child_request.base);
 
     Ok(crate::command::detached::spawn_detached::<Request, ResponseItem>(
-        ctx.clone(),
+        global.clone(),
+        scoped.clone(),
         child_request,
         |_| Some(true),
     ))
@@ -111,7 +112,7 @@ enum Mode {
 }
 
 async fn execute_streaming(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     request: Request,
 ) -> Result<ItemStream, Error> {
     // Required user-message slot — gets wrapped into a single
@@ -124,7 +125,7 @@ async fn execute_streaming(
     // EMPTY `messages` array — never a user message with an empty
     // string — and let the API drive from the continuation + the
     // conduit's queue drain.
-    let content = super::message::resolve_message(ctx, request.message).await?;
+    let content = super::message::resolve_message(global, scoped, request.message).await?;
     let messages = if content.is_empty() {
         Vec::new()
     } else {
@@ -149,14 +150,14 @@ async fn execute_streaming(
     let (mode, lab_targets, family): (Mode, Vec<Target>, Option<Family>) = match request.agent {
         AgentSelector::Ref { agent } => (
             Mode::Fresh {
-                agent: resolve_agent_ref(ctx, agent).await?,
+                agent: resolve_agent_ref(global, scoped, agent).await?,
                 tag: None,
             },
             Vec::new(),
             None,
         ),
         AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+            match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
                     let lab_targets = vec![
                         Target::Tag(agent_tag.clone()),
@@ -192,7 +193,7 @@ async fn execute_streaming(
         } => {
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
-                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+                .unwrap_or(scoped.agent_instance_hierarchy());
             let hierarchy = format!("{parent}/{agent_instance}");
             let lab_targets = vec![Target::Aih(hierarchy.clone())];
             (
@@ -217,17 +218,17 @@ async fn execute_streaming(
     // adopts each claim lazily on this first acquire, so they re-acquire
     // INSTANTLY rather than conflicting with the inherited handles. Mid-stream
     // best-effort AIH claims in `run_multi_pass` are unaffected.
-    let state_dir = ctx.filesystem.state_dir();
+    let state_dir = scoped.filesystem.state_dir();
     let mut registry = AgentInstanceRegistry::new(
         state_dir.clone(),
-        ctx.agent_locks_arc(),
-        ctx.resident_hubs().map(|h| h.active.clone()),
+        global.agent_locks_arc(),
+        global.resident_hubs().map(|h| h.active.clone()),
     );
     if let Some(family) = family {
         let is_group = matches!(family, Family::Group(_));
         match super::locks::try_acquire_family(
-            ctx.agent_locks(),
-            ctx.db_client().await?,
+            global.agent_locks(),
+            global.db_client().await?,
             &state_dir,
             family,
         )
@@ -266,7 +267,7 @@ async fn execute_streaming(
             // spawn-long tee is created inside `run_multi_pass`,
             // which this error prevents from ever starting.
             let lookup = async {
-                crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
+                crate::db::logs::lookup_session(global.db_client().await?, &hierarchy)
                     .await?
                     .ok_or(Error::AgentNoPriorRequest {
                         agent_instance_hierarchy: hierarchy.clone(),
@@ -277,8 +278,8 @@ async fn execute_streaming(
                 Ok(lookup) => lookup,
                 Err(e) => {
                     let tee =
-                        crate::db::logs::ConversationTee::spawn(ctx.resident_hubs().map(|h| h.conversations.clone()));
-                    note_error(ctx, &tee, Some(&hierarchy), None, &e).await;
+                        crate::db::logs::ConversationTee::spawn(global.resident_hubs().map(|h| h.conversations.clone()));
+                    note_error(global, scoped, &tee, Some(&hierarchy), None, &e).await;
                     return Err(e);
                 }
             };
@@ -309,9 +310,9 @@ async fn execute_streaming(
     //
     // `run_multi_pass` builds the create-params and resolves the laboratory
     // attachments (from `lab_targets`) internally.
-    let ctx_clone = ctx.clone();
     Ok(Box::pin(run_multi_pass(
-        ctx_clone,
+        global.clone(),
+        scoped.clone(),
         messages,
         agent,
         seed,
@@ -337,13 +338,13 @@ async fn execute_streaming(
 /// deliver` (both go through `run_multi_pass`). No liveness check — the conduit
 /// dials each laboratory on demand at MCP-initialize time.
 async fn resolve_laboratories(
-    ctx: &Context,
+    global: &GlobalContext, _scoped: &ScopedContext,
     lab_targets: &[crate::db::laboratory_attachments::Target],
 ) -> Result<Option<Vec<objectiveai_sdk::laboratories::Laboratory>>, Error> {
     if lab_targets.is_empty() {
         return Ok(None);
     }
-    let pool = ctx.db_client().await?;
+    let pool = global.db_client().await?;
     let lists = futures::future::try_join_all(
         lab_targets
             .iter()
@@ -388,7 +389,7 @@ async fn resolve_laboratories(
 /// spawn before the first chunk): the identity-minting site re-records
 /// as soon as the AIH exists.
 async fn record_active_laboratories(
-    ctx: &Context,
+    global: &GlobalContext,
     aih: Option<&str>,
     laboratories: &Option<Vec<objectiveai_sdk::laboratories::Laboratory>>,
 ) -> Result<(), Error> {
@@ -406,7 +407,7 @@ async fn record_active_laboratories(
             objectiveai_sdk::laboratories::Laboratory::Agent(agent) => agent.id.clone(),
         })
         .collect();
-    let pool = ctx.db_client().await?;
+    let pool = global.db_client().await?;
     crate::db::agent_active_laboratories::replace(pool, aih, &ids).await?;
     Ok(())
 }
@@ -419,14 +420,14 @@ async fn record_active_laboratories(
 /// first chunk) is a silent no-op by design. Best-effort: its own
 /// failure is swallowed — there is nowhere left to report it.
 pub(crate) async fn note_error(
-    ctx: &Context,
+    global: &GlobalContext, _scoped: &ScopedContext,
     tee: &crate::db::logs::ConversationTee,
     aih: Option<&str>,
     response_id: Option<&str>,
     error: &Error,
 ) {
     let Some(aih) = aih else { return };
-    let Ok(pool) = ctx.db_client().await else {
+    let Ok(pool) = global.db_client().await else {
         return;
     };
     let value = error.output_message();
@@ -451,7 +452,8 @@ pub(crate) async fn note_error(
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_multi_pass(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     messages: Vec<Message>,
     agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     seed: Option<i64>,
@@ -462,20 +464,23 @@ pub(crate) fn run_multi_pass(
     mut registry: AgentInstanceRegistry,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::try_stream! {
+        // Borrow the owned pair once — every use below is by-ref, and
+        // per-pass resource constructors clone off these refs.
+        let (global, scoped) = (&global, &scoped);
         let mut agent_ref = agent_ref;
         // One live-conversation tee for the whole spawn (created FIRST
         // so even pre-loop failures can ship their error frame): every
         // pass's log writer shares the one daemon socket connection.
         let conversation_tee =
-            crate::db::logs::ConversationTee::spawn(ctx.resident_hubs().map(|h| h.conversations.clone()));
+            crate::db::logs::ConversationTee::spawn(global.resident_hubs().map(|h| h.conversations.clone()));
         // Resolve the agent's laboratory attachments (from the named targets)
         // and assemble the create-params. `provider`/`response_format` are
         // always defaulted and `stream` is always true for the in-process WS
         // path; only `messages`/`continuation` change across restart passes.
-        let laboratories = match resolve_laboratories(&ctx, &lab_targets).await {
+        let laboratories = match resolve_laboratories(global, scoped, &lab_targets).await {
             Ok(laboratories) => laboratories,
             Err(e) => {
-                note_error(&ctx, &conversation_tee, registry.aih(), None, &e).await;
+                note_error(global, scoped, &conversation_tee, registry.aih(), None, &e).await;
                 Err(e)?;
                 unreachable!("Err(e)? diverges");
             }
@@ -483,9 +488,9 @@ pub(crate) fn run_multi_pass(
         // Record the ACTIVE set this pass will send (no-op while the
         // AIH is unknown — the identity-minting site covers that).
         if let Err(e) =
-            record_active_laboratories(&ctx, registry.aih(), &laboratories).await
+            record_active_laboratories(global, registry.aih(), &laboratories).await
         {
-            note_error(&ctx, &conversation_tee, registry.aih(), None, &e).await;
+            note_error(global, scoped, &conversation_tee, registry.aih(), None, &e).await;
             Err(e)?;
             unreachable!("Err(e)? diverges");
         }
@@ -514,10 +519,10 @@ pub(crate) fn run_multi_pass(
         // pass's conduit reuses it (cheap to pass per pass). No MCP
         // timeout — the daemon never bounds its own MCP calls.
         let backoff_max_elapsed_time_ms =
-            match ctx.resolve_backoff_max_elapsed_time_ms().await {
+            match crate::context::resolve_backoff_max_elapsed_time_ms(&scoped.filesystem).await {
                 Ok(v) => v,
                 Err(e) => {
-                    note_error(&ctx, &conversation_tee, registry.aih(), None, &e)
+                    note_error(global, scoped, &conversation_tee, registry.aih(), None, &e)
                         .await;
                     Err(e)?;
                     unreachable!("Err(e)? diverges");
@@ -532,11 +537,12 @@ pub(crate) fn run_multi_pass(
             // new conduit + MCP server. The registry survives across
             // passes (see above).
             let mcp_server =
-                crate::http::mcp_server::spawn(ctx.clone());
+                crate::http::mcp_server::spawn(global.clone(), scoped.clone());
             let conduit =
                 crate::http::conduit::ConduitMcpHandler::new(
                     mcp_server,
-                    ctx.clone(),
+                    global.clone(),
+                    scoped.clone(),
                     agent_tag.clone(),
                     backoff_max_elapsed_time_ms,
                 );
@@ -544,12 +550,13 @@ pub(crate) fn run_multi_pass(
             // it yields `ResponseItem::Id` from
             // `chunk.agent_instance_hierarchy` directly on the first
             // chunk. Drop the receiver.
-            let pool = match ctx.db_client().await {
+            let pool = match global.db_client().await {
                 Ok(pool) => pool,
                 Err(e) => {
                     let e = Error::from(e);
                     note_error(
-                        &ctx,
+                        global,
+                        scoped,
                         &conversation_tee,
                         identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                         last_response_id.as_deref(),
@@ -563,7 +570,7 @@ pub(crate) fn run_multi_pass(
             let (log_writer, _ready_rx) = match crate::db::logs::write_agent_completion(
                 pool,
                 &params,
-                ctx.config.agent_instance_hierarchy.clone(),
+                scoped.agent_instance_hierarchy().to_string(),
                 Some(conversation_tee.clone()),
             )
             .map_err(|e| Error::Instance(format!(
@@ -572,7 +579,8 @@ pub(crate) fn run_multi_pass(
                 Ok(writer) => writer,
                 Err(e) => {
                     note_error(
-                        &ctx,
+                        global,
+                        scoped,
                         &conversation_tee,
                         identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                         last_response_id.as_deref(),
@@ -586,7 +594,7 @@ pub(crate) fn run_multi_pass(
 
             let stream_open = async {
                 objectiveai_sdk::agent::completions::create_agent_completion_streaming(
-                    ctx.api_client().await?,
+                    scoped.api_client(global).await?,
                     params.clone(),
                     conduit.clone(),
                 )
@@ -600,7 +608,8 @@ pub(crate) fn run_multi_pass(
                 Ok(opened) => opened,
                 Err(e) => {
                     note_error(
-                        &ctx,
+                        global,
+                        scoped,
                         &conversation_tee,
                         identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                         last_response_id.as_deref(),
@@ -654,7 +663,7 @@ pub(crate) fn run_multi_pass(
                     if let Some(value) = agent_ref.take() {
                         let upsert = async {
                             crate::db::agent_refs::upsert(
-                                ctx.db_client().await?,
+                                global.db_client().await?,
                                 &hier,
                                 value,
                             )
@@ -676,7 +685,7 @@ pub(crate) fn run_multi_pass(
                     // (it had no AIH yet). Folds into the consolidated
                     // raise like the agent_refs upsert above.
                     if let Err(e) =
-                        record_active_laboratories(&ctx, Some(&hier), &params.laboratories)
+                        record_active_laboratories(global, Some(&hier), &params.laboratories)
                             .await
                     {
                         stream_err = Some(format!("active laboratories record: {e}"));
@@ -704,7 +713,7 @@ pub(crate) fn run_multi_pass(
                 for (hier, continuation) in chunk.agent_instance_hierarchies() {
                     if let Some(c) = continuation {
                         continuation_upserts.push(
-                            crate::db::agent_continuations::upsert(ctx.db_client().await?, hier, c),
+                            crate::db::agent_continuations::upsert(global.db_client().await?, hier, c),
                         );
                     }
                 }
@@ -784,7 +793,8 @@ pub(crate) fn run_multi_pass(
             if let Some(e) = stream_err {
                 let e = Error::Instance(e);
                 note_error(
-                    &ctx,
+                    global,
+                    scoped,
                     &conversation_tee,
                     identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                     last_response_id.as_deref(),
@@ -809,7 +819,7 @@ pub(crate) fn run_multi_pass(
                 break;
             };
             let pending = crate::db::message_queue::check_any_pending(
-                ctx.db_client().await?, hier,
+                global.db_client().await?, hier,
             )
             .await
             .unwrap_or(false);
@@ -825,11 +835,12 @@ pub(crate) fn run_multi_pass(
             // attached NOW.
             params.messages = Vec::new();
             params.continuation = last_continuation;
-            params.laboratories = match resolve_laboratories(&ctx, &lab_targets).await {
+            params.laboratories = match resolve_laboratories(global, scoped, &lab_targets).await {
                 Ok(laboratories) => laboratories,
                 Err(e) => {
                     note_error(
-                        &ctx,
+                        global,
+                        scoped,
                         &conversation_tee,
                         identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                         last_response_id.as_deref(),
@@ -842,14 +853,15 @@ pub(crate) fn run_multi_pass(
             };
             // Record the ACTIVE set this pass will send.
             if let Err(e) = record_active_laboratories(
-                &ctx,
+                global,
                 identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                 &params.laboratories,
             )
             .await
             {
                 note_error(
-                    &ctx,
+                    global,
+                    scoped,
                     &conversation_tee,
                     identity.as_ref().map(|(h, _)| h.as_str()).or(registry.aih()),
                     last_response_id.as_deref(),
@@ -869,7 +881,7 @@ pub(crate) fn run_multi_pass(
 /// slot is never populated for agent refs — `--agent <ref>`
 /// strings parse at the clap layer).
 pub(crate) async fn resolve_agent_ref(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     agent: AgentRef,
 ) -> Result<InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Error> {
     let (file, python_inline, python_file) = match agent {
@@ -879,7 +891,8 @@ pub(crate) async fn resolve_agent_ref(
         AgentRef::PythonFile(p) => (None, None, Some(p)),
     };
     crate::source_resolver::resolve_source(
-        ctx,
+        global,
+        scoped,
         None,
         None,
         file,
@@ -894,10 +907,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::spawn as sdk;
     use objectiveai_sdk::cli::command::agents::spawn::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -906,10 +919,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::spawn as sdk;
     use objectiveai_sdk::cli::command::agents::spawn::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

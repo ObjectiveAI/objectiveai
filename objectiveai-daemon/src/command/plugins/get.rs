@@ -3,11 +3,11 @@
 
 use objectiveai_sdk::cli::command::plugins::get::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    Ok(ctx
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    Ok(scoped
         .filesystem
         .get_plugin(&request.owner, &request.name, &request.version)
         .await
@@ -18,10 +18,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::plugins::get as sdk;
     use objectiveai_sdk::cli::command::plugins::get::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -30,10 +30,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::plugins::get as sdk;
     use objectiveai_sdk::cli::command::plugins::get::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

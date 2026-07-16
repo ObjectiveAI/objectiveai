@@ -9,19 +9,19 @@ use std::pin::Pin;
 use futures::Stream;
 use objectiveai_sdk::cli::command::agents::instances::get::{Request, ResponseItem};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let default_parent = ctx.config.agent_instance_hierarchy.clone();
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+    let default_parent = scoped.agent_instance_hierarchy().to_string();
 
     // Resolve each target to one exact AIH (GROUPED/ABSENT tags skip),
     // dedup preserving first-seen order.
     let mut aihs: Vec<String> = Vec::new();
     for target in request.targets {
-        if let Some(aih) = super::resolve_target(ctx.db_client().await?, target, &default_parent).await? {
+        if let Some(aih) = super::resolve_target(global.db_client().await?, target, &default_parent).await? {
             if !aihs.contains(&aih) {
                 aihs.push(aih);
             }
@@ -32,18 +32,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // that resolved to the same AIH.
     let mut merged: BTreeMap<String, ResponseItem> = BTreeMap::new();
     for aih in aihs {
-        let mut item = crate::db::instances::get_exact(ctx.db_client().await?, &aih).await?;
+        let mut item = crate::db::instances::get_exact(global.db_client().await?, &aih).await?;
         // The recorded definition source: agent_refs, with the
         // legacy request-blob fallback. None when neither knows the
         // agent.
-        item.agent = crate::db::logs::lookup_session(ctx.db_client().await?, &aih)
+        item.agent = crate::db::logs::lookup_session(global.db_client().await?, &aih)
             .await?
             .map(|lookup| lookup.agent);
         // The effective laboratory set the next spawn pass dials:
         // the AIH's own attachments UNION its bound tags'.
         item.laboratories = Some(
             crate::db::laboratory_attachments::effective_for_aih(
-                ctx.db_client().await?,
+                global.db_client().await?,
                 &aih,
                 &item.tags,
             )
@@ -72,10 +72,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::instances::get as sdk;
     use objectiveai_sdk::cli::command::agents::instances::get::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -84,10 +84,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::instances::get as sdk;
     use objectiveai_sdk::cli::command::agents::instances::get::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

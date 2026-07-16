@@ -30,7 +30,7 @@ use futures::StreamExt;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
 use objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 use crate::http::agent_hierarchies::ChunkAgentHierarchies;
 use crate::http::agent_registry::AgentInstanceRegistry;
@@ -56,27 +56,28 @@ pub enum Event {
 /// EOF. Yields `Event::Id` once + `Event::Chunk` per chunk in
 /// order.
 pub fn run(
-    ctx: Context,
+    global: GlobalContext, scoped: ScopedContext,
     params: FunctionExecutionCreateParams,
 ) -> impl Stream<Item = Result<Event, Error>> + Send {
     async_stream::try_stream! {
         let mut registry = AgentInstanceRegistry::new(
-            ctx.filesystem.state_dir(),
-            ctx.agent_locks_arc(),
-            ctx.resident_hubs().map(|h| h.active.clone()),
+            scoped.filesystem.state_dir(),
+            global.agent_locks_arc(),
+            global.resident_hubs().map(|h| h.active.clone()),
         );
 
         // Per-call resources.
-        let mcp_server = crate::http::mcp_server::spawn(ctx.clone());
+        let mcp_server = crate::http::mcp_server::spawn(global.clone(), scoped.clone());
         // Function execution doesn't bind a tag — that's only the
         // `agents spawn --agent-tag` path. Pass `None` so
         // the conduit's read-message-queue handler skips the fused
         // tag-group upgrade.
         let backoff_max_elapsed_time_ms =
-            ctx.resolve_backoff_max_elapsed_time_ms().await?;
+            crate::context::resolve_backoff_max_elapsed_time_ms(&scoped.filesystem).await?;
         let conduit = crate::http::conduit::ConduitMcpHandler::new(
             mcp_server,
-            ctx.clone(),
+            global.clone(),
+            scoped.clone(),
             None,
             backoff_max_elapsed_time_ms,
         );
@@ -87,13 +88,13 @@ pub fn run(
         // `written_once` has also been flipped, so we never await
         // this oneshot before the gate opens.
         let (log_writer, log_ready_rx) = crate::db::logs::write_function_execution(
-            ctx.db_client().await?,
+            global.db_client().await?,
             &params,
-            ctx.config.agent_instance_hierarchy.clone(),
+            scoped.agent_instance_hierarchy().to_string(),
             // Live-conversation tee: this one writer streams every
             // nested agent's rows; the daemon routes per-frame by AIH.
             Some(crate::db::logs::ConversationTee::spawn(
-                ctx.resident_hubs().map(|h| h.conversations.clone()),
+                global.resident_hubs().map(|h| h.conversations.clone()),
             )),
         )
         .map_err(|e| Error::Instance(format!(
@@ -105,7 +106,7 @@ pub fn run(
 
         let (sdk_stream, notifier) =
             objectiveai_sdk::functions::executions::create_function_execution_streaming(
-                ctx.api_client().await?,
+                scoped.api_client(&global).await?,
                 params,
                 conduit.clone(),
             )
@@ -151,7 +152,7 @@ pub fn run(
                         }
                         if let Some(c) = continuation {
                             continuation_upserts.push(
-                                crate::db::agent_continuations::upsert(ctx.db_client().await?, hier, c),
+                                crate::db::agent_continuations::upsert(global.db_client().await?, hier, c),
                             );
                         }
                     }

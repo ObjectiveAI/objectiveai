@@ -5,7 +5,7 @@ use futures::Stream;
 use objectiveai_sdk::cli::command::{CommandRequest, ResponseItem, parse_request};
 use objectiveai_sdk::cli::broadcast_listener::ListenerEnd;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 /// Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
@@ -226,18 +226,9 @@ pub struct Config {
     pub daemon_signature: Option<String>,
 }
 
-impl Config {
-    /// The signature clients of THIS daemon should present: the bare
-    /// `SIGNATURE` env when set, else derived one-way from the bare
-    /// `SECRET`, else `None` (open server — no auth to present).
-    pub fn client_signature(&self) -> Option<String> {
-        self.daemon_signature.clone().or_else(|| {
-            self.daemon_secret
-                .as_deref()
-                .map(crate::http::daemon_auth::derive_signature)
-        })
-    }
-}
+// NOTE: `client_signature()` lives on `GlobalContext` — `Config` is
+// only the env-parse artifact, consumed by `GlobalContext::new` +
+// `ScopedContext::boot`.
 
 /// What [`run`] yields, mirroring the two SDK root dispatch entry
 /// points. The arm is chosen by whether the parsed request carries an
@@ -272,8 +263,9 @@ pub fn is_informational(e: &clap::Error) -> bool {
 /// Run the CLI command tree.
 ///
 /// Clap-parse argv against the SDK's top-level command surface;
-/// `TryFrom` it into [`Request`]; resolve [`Context`] (caller-
-/// supplied or built from env); dispatch through the in-process
+/// `TryFrom` it into [`Request`]; resolve the
+/// [`GlobalContext`]/[`ScopedContext`] pair (caller-supplied or built
+/// from env); dispatch through the in-process
 /// [`crate::executor::DaemonCommandExecutor`] via the SDK root
 /// `execute` / `execute_transform` (the latter when the request
 /// carries an output transform). Returns a [`RunStream`] whose
@@ -298,16 +290,18 @@ pub fn is_informational(e: &clap::Error) -> bool {
 // to terminate on.
 pub fn run(
     args: Vec<String>,
-    ctx: Option<Context>,
+    ctx: Option<(GlobalContext, ScopedContext)>,
 ) -> Pin<Box<dyn std::future::Future<Output = Result<RunStream, Error>> + Send>> {
     Box::pin(async move {
-    // `Context::new` is synchronous and IO-free; the API client,
-    // viewer client, and db pool connect lazily on first use via
-    // `ctx.{api,viewer,db}_client()`. No explicit setup call needed
-    // here.
-    let ctx = match ctx {
-        Some(c) => c,
-        None => Context::new(load_config()),
+    // Context construction is synchronous and IO-free; the API client
+    // and db pool connect lazily on first use. No explicit setup call
+    // needed here.
+    let (global, scoped) = match ctx {
+        Some(pair) => pair,
+        None => {
+            let config = load_config();
+            (GlobalContext::new(&config), ScopedContext::boot(&config))
+        }
     };
 
     // `args[0]` is the program name however the binary was invoked —
@@ -332,7 +326,7 @@ pub fn run(
     // best-effort: any failure yields `None` and the command runs
     // unaffected. The daemon foreground itself is skipped (see
     // `should_tee`).
-    let feed = start_tee(&ctx, &request).await;
+    let feed = start_tee(&global, &scoped, &request).await;
 
     // Decouple broadcast writes from stream yielding: the executor
     // sends each PRE-transform item into an UNBOUNDED channel (a send
@@ -374,7 +368,7 @@ pub fn run(
     // request and yields the post-transform JSON, whereas `execute`
     // yields the typed root items.
     let transform = request.request_base().transform();
-    let executor = crate::executor::DaemonCommandExecutor::new(ctx, tee_tx);
+    let executor = crate::executor::DaemonCommandExecutor::new(global, scoped, tee_tx);
     match transform {
         Some(transform) => {
             let stream =
@@ -426,21 +420,21 @@ fn should_tee(request: &objectiveai_sdk::cli::command::Request) -> bool {
 
 /// The producer's agent/plugin context object — exactly the fields the
 /// `ListenerRequest<T>` wrapper carries. `None`s are omitted.
-fn tee_context(config: &Config) -> serde_json::Value {
+fn tee_context(scoped: &ScopedContext) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     map.insert(
         "agent_instance_hierarchy".to_string(),
-        serde_json::Value::String(config.agent_instance_hierarchy.clone()),
+        serde_json::Value::String(scoped.agent_instance_hierarchy().to_string()),
     );
     for (key, value) in [
-        ("agent_id", &config.agent_id),
-        ("agent_full_id", &config.agent_full_id),
-        ("agent_remote", &config.agent_remote),
-        ("response_id", &config.response_id),
-        ("response_ids", &config.response_ids),
+        ("agent_id", scoped.agent_id()),
+        ("agent_full_id", scoped.agent_full_id()),
+        ("agent_remote", scoped.agent_remote()),
+        ("response_id", scoped.response_id()),
+        ("response_ids", scoped.response_ids()),
     ] {
         if let Some(val) = value {
-            map.insert(key.to_string(), serde_json::Value::String(val.clone()));
+            map.insert(key.to_string(), serde_json::Value::String(val.to_string()));
         }
     }
     serde_json::Value::Object(map)
@@ -459,22 +453,23 @@ struct TeeHandle {
 /// Best-effort: returns `None` (no teeing) for a non-teed request or when
 /// this context isn't the resident daemon (no hubs → the same silent
 /// fallback the failed socket connect gave).
-async fn start_tee(ctx: &Context, request: &objectiveai_sdk::cli::command::Request) -> Option<TeeHandle> {
+async fn start_tee(global: &GlobalContext, scoped: &ScopedContext, request: &objectiveai_sdk::cli::command::Request) -> Option<TeeHandle> {
     if !should_tee(request) {
         return None;
     }
-    // Idempotent: records the daemon's published `http://` URL on the ctx
-    // (used by `viewer spawn`). In-process this is a lock read — the
-    // daemon is already up (we are it), so no spawn happens.
-    if let Ok(url) = crate::command::daemon::spawn::spawn(ctx).await {
-        ctx.set_daemon_address(url);
+    // Idempotent: records the daemon's published `http://` URL on the
+    // global context (used by `viewer spawn`). In-process this is a
+    // lock read — the daemon is already up (we are it), so no spawn
+    // happens.
+    if let Ok(url) = crate::command::daemon::spawn::spawn(global, scoped).await {
+        global.set_daemon_address(url);
     }
-    let broadcast = ctx.resident_hubs()?.broadcast.clone();
+    let broadcast = global.resident_hubs()?.broadcast.clone();
     let id = uuid::Uuid::new_v4().to_string();
     // Opening frame: the `ListenerRequest` shape — the producer context
     // map with `id` + `value` (the request) stamped in. (Was framed by
     // the daemon socket's `handle_feed`; now it is in-process.)
-    let mut envelope = match tee_context(&ctx.config) {
+    let mut envelope = match tee_context(scoped) {
         serde_json::Value::Object(map) => map,
         _ => serde_json::Map::new(),
     };

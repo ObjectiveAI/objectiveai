@@ -63,15 +63,15 @@ pub(crate) enum LabsChange {
 #[derive(Clone)]
 pub(crate) struct LaboratoriesHub {
     registry: LaboratoryRegistry,
-    ctx: crate::context::Context,
+    global: crate::context::GlobalContext,
     changes: broadcast::Sender<LabsChange>,
 }
 
 impl LaboratoriesHub {
-    pub(crate) fn new(registry: LaboratoryRegistry, ctx: crate::context::Context) -> Self {
+    pub(crate) fn new(registry: LaboratoryRegistry, global: crate::context::GlobalContext) -> Self {
         Self {
             registry,
-            ctx,
+            global,
             changes: broadcast::channel(1024).0,
         }
     }
@@ -115,7 +115,7 @@ impl LaboratoriesHub {
         use std::time::Duration;
         loop {
             let reconnect = async {
-                let pool = self.ctx.db_client().await.ok()?;
+                let pool = self.global.db_client().await.ok()?;
                 let mut listener =
                     sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
                 listener.listen("laboratory_attachments_changed").await.ok()?;
@@ -175,7 +175,7 @@ impl LaboratoriesHub {
             });
         let connected = identity.is_some();
 
-        let pool = self.ctx.db_client().await.ok()?;
+        let pool = self.global.db_client().await.ok()?;
         let rows =
             crate::db::laboratory_attachments::list_for_laboratory(pool, id, host)
                 .await

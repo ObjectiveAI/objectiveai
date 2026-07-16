@@ -14,14 +14,14 @@ use objectiveai_sdk::cli::{Error as CliError, ErrorType};
 use tokio::process::Command;
 
 use crate::child_io::{PipeEvent, spawn_pipe_reader};
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
-    let (exec, cwd) = ctx
+    let (exec, cwd) = scoped
         .filesystem
         .resolve_tool(&request.owner, &request.name, &request.version)
         .await
@@ -44,7 +44,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Per-tool scratch space inside the (transient) state tree —
     // tools that persist files write here, never into their own
     // (possibly committed) version folder.
-    let state_dir = ctx
+    let state_dir = scoped
         .filesystem
         .state_dir()
         .join("tools")
@@ -61,7 +61,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // failure fails the run loudly rather than spawning a child with
     // a silently missing database.
     let postgres_url = crate::db::compartment::ensure(
-        ctx.db_handle().await?,
+        global.db_handle().await?,
         crate::db::compartment::Kind::Tool,
         &request.owner,
         &request.name,
@@ -79,7 +79,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    crate::spawn::apply_config_env(&mut cmd, &ctx.config);
+    crate::spawn::apply_config_env(&mut cmd, global, scoped);
 
     // Leash the tool to the cli process: it must die when the cli dies
     // by any means (force-kill included), enforced at the OS level — not
@@ -131,10 +131,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::tools::run as sdk;
     use objectiveai_sdk::cli::command::tools::run::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -143,10 +143,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::tools::run as sdk;
     use objectiveai_sdk::cli::command::tools::run::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

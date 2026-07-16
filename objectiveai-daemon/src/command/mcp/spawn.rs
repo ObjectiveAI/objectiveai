@@ -9,11 +9,11 @@
 
 use objectiveai_sdk::cli::command::mcp::spawn::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let mut config = ctx
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+    let mut config = scoped
         .filesystem
         .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
         .await?;
@@ -25,7 +25,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     } else {
         "objectiveai-mcp"
     };
-    let exe = ctx.filesystem.bin_dir().join(bin);
+    let exe = scoped.filesystem.bin_dir().join(bin);
 
     // The child inherits the cli's environment; every env key the mcp
     // server's config reads (`EnvConfigBuilder` in
@@ -34,11 +34,11 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     // here or scrubbed, so the spawning shell's settings can't leak
     // in. ADDRESS/PORT come from on-disk config, each scrubbed when
     // unset so the server falls back to its own defaults.
-    let listening = crate::spawn::spawn_leashed_until_ready(ctx, "mcp", &exe, |cmd| {
+    let listening = crate::spawn::spawn_leashed_until_ready(global, "mcp", &exe, |cmd| {
         cmd.env_remove("ADDRESS");
         cmd.env_remove("PORT");
-        cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
-            .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
+        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
+            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true");
         if let Some(address) = address {
             cmd.env("ADDRESS", address);
@@ -61,10 +61,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::mcp::spawn as sdk;
     use objectiveai_sdk::cli::command::mcp::spawn::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -73,10 +73,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::mcp::spawn as sdk;
     use objectiveai_sdk::cli::command::mcp::spawn::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

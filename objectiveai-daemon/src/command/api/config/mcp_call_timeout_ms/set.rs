@@ -6,17 +6,17 @@
 
 use objectiveai_sdk::cli::command::api::config::mcp_call_timeout_ms::set::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     let timeout_ms: u64 = {
         let mut de = serde_json::Deserializer::from_str(&request.value);
         serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)?
     };
-    let mut config = ctx.filesystem.read_config_at(request.scope).await?;
+    let mut config = scoped.filesystem.read_config_at(request.scope).await?;
     config.api().set_mcp_call_timeout_ms(timeout_ms);
-    ctx.filesystem.write_config_at(request.scope, &config).await?;
+    scoped.filesystem.write_config_at(request.scope, &config).await?;
     Ok(Response::Ok)
 }
 
@@ -24,10 +24,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::api::config::mcp_call_timeout_ms::set as sdk;
     use objectiveai_sdk::cli::command::api::config::mcp_call_timeout_ms::set::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -36,10 +36,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::api::config::mcp_call_timeout_ms::set as sdk;
     use objectiveai_sdk::cli::command::api::config::mcp_call_timeout_ms::set::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

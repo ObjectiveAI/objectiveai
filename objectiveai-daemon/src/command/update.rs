@@ -6,7 +6,7 @@
 //! of the machine-wide `bin/` directory wholesale. Emits one
 //! [`ResponseItem`] per stage as the run progresses.
 //!
-//! Layout on disk (resolved via `ctx.filesystem.bin_dir()` — every
+//! Layout on disk (resolved via `scoped.filesystem.bin_dir()` — every
 //! binary is machine-wide, shared across states):
 //!
 //! ```text
@@ -51,7 +51,7 @@ use std::time::Duration;
 use futures::Stream;
 use objectiveai_sdk::cli::command::update::{Request, ResponseItem, ResponseSkipReason};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -68,14 +68,14 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 /// tools, plus the machine-wide config.
 const WIPE_KEEP: &[&str] = &["plugins", "tools", "config.json"];
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
-    let bin_dir = ctx.filesystem.bin_dir();
+    let bin_dir = scoped.filesystem.bin_dir();
     // db/viewer locks are per-state under <dir>/state/<name>/locks.
-    let states_root = ctx.filesystem.dir().join("state");
+    let states_root = scoped.filesystem.dir().join("state");
     // The GitHub credential lives in the on-disk json config only
     // (`api config github-authorization set`), not the env Config.
-    let github_authorization = ctx
+    let github_authorization = scoped
         .filesystem
         .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
         .await?
@@ -83,10 +83,10 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
         .get_github_authorization()
         .map(String::from);
 
-    let ctx = ctx.clone();
+    let global = global.clone();
     tokio::spawn(async move {
         if let Err(e) = run(
-            &ctx,
+            &global,
             &bin_dir,
             &states_root,
             github_authorization.as_deref(),
@@ -104,7 +104,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
 }
 
 async fn run(
-    ctx: &Context,
+    global: &GlobalContext,
     bin_dir: &Path,
     states_root: &Path,
     github_authorization: Option<&str>,
@@ -238,7 +238,7 @@ async fn run(
     // detached servers. Best-effort: a kill failure shouldn't abort the
     // install.
     for key in ["api", "db", "mcp", "viewer", "laboratories"] {
-        let _ = kill_resident_child(ctx, key).await;
+        let _ = kill_resident_child(global, key).await;
     }
     let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;
     kill_state_servers(states_root).await;
@@ -550,10 +550,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::update as sdk;
     use objectiveai_sdk::cli::command::update::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -562,10 +562,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::update as sdk;
     use objectiveai_sdk::cli::command::update::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

@@ -10,11 +10,11 @@
 
 use objectiveai_sdk::cli::command::plugins::install::github::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let manifest = ctx
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    let manifest = scoped
         .filesystem
         .fetch_plugin_manifest(
             &request.owner,
@@ -50,7 +50,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         &request.repository,
         request.commit_sha.as_deref(),
     );
-    let installed = ctx
+    let installed = scoped
         .filesystem
         .install_plugin_from_manifest(
             &request.owner,
@@ -68,10 +68,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::plugins::install::github as sdk;
     use objectiveai_sdk::cli::command::plugins::install::github::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -80,10 +80,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::plugins::install::github as sdk;
     use objectiveai_sdk::cli::command::plugins::install::github::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

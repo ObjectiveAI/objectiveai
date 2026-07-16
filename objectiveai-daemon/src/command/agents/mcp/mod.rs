@@ -8,7 +8,7 @@ use std::pin::Pin;
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::agents::mcp::{Request, ResponseItem};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub mod resources;
@@ -17,18 +17,18 @@ pub mod tools;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Resources(req) => {
-            let inner = resources::execute(ctx, req).await?;
+            let inner = resources::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Resources)))
         }
         Request::Servers(req) => {
-            let inner = servers::execute(ctx, req).await?;
+            let inner = servers::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Servers)))
         }
         Request::Tools(req) => {
-            let inner = tools::execute(ctx, req).await?;
+            let inner = tools::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
         }
     };

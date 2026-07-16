@@ -25,24 +25,24 @@ use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::daemon::spawn::{Request, ResponseItem};
 use objectiveai_sdk::cli::command::plugins::run::{Path as RunPath, Request as RunRequest};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let foreground = request
         .dangerous_advanced
         .as_ref()
         .and_then(|a| a.foreground)
         .unwrap_or(false);
     if foreground {
-        execute_foreground(ctx).await
+        execute_foreground(global, scoped).await
     } else {
         // Non-foreground: the lock-published spawn flow — try_read,
         // exec the foreground daemon if not held, re-check on child
         // exit.
-        spawn(ctx).await?;
+        spawn(global, scoped).await?;
         Ok(Box::pin(futures::stream::once(async move {
             Ok::<ResponseItem, Error>(ResponseItem { ok: true })
         })))
@@ -53,8 +53,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 /// content. Mirrors [`crate::command::viewer::spawn::spawn`]: re-execs
 /// THIS cli as the foreground daemon via the shared
 /// `spawn_until_lock_published` helper.
-pub async fn spawn(ctx: &Context) -> Result<String, Error> {
-    let lock_dir = ctx.filesystem.state_dir().join("locks");
+pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<String, Error> {
+    let lock_dir = scoped.filesystem.state_dir().join("locks");
     let exe = std::env::current_exe().map_err(|e| Error::Spawn("current_exe".into(), e))?;
     crate::spawn::spawn_until_lock_published(
         &exe,
@@ -65,11 +65,11 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
                 .arg("spawn")
                 .arg("--dangerous-advanced")
                 .arg("{\"foreground\":true}");
-            crate::spawn::apply_config_env(cmd, &ctx.config);
+            crate::spawn::apply_config_env(cmd, global, scoped);
             // The foreground daemon reads its bind config as bare
             // `ADDRESS`/`PORT`/`SECRET`; stamp them here (never for
             // plugins/tools).
-            crate::spawn::apply_daemon_env(cmd, &ctx.config);
+            crate::spawn::apply_daemon_env(cmd, global);
             // The resident daemon is a per-state singleton service, not
             // part of any agent's lineage. Since the producer tee makes
             // ANY command auto-spawn it, scrub the transient identity
@@ -99,8 +99,8 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
 }
 
 /// Foreground: the resident daemon.
-async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
-    let lock_dir = ctx.filesystem.state_dir().join("locks");
+async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> Result<ItemStream, Error> {
+    let lock_dir = scoped.filesystem.state_dir().join("locks");
     let lock_err = |e: std::io::Error| Error::Lockfile {
         key: super::DAEMON_LOCK_KEY.to_string(),
         source: e,
@@ -120,8 +120,8 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // lock content. Binding happens under the init gate, which
     // serializes startup — at most one foreground races here at a time.
     let http_listener = match tokio::net::TcpListener::bind((
-        ctx.config.daemon_address.as_str(),
-        ctx.config.daemon_port,
+        global.daemon_bind_address.as_str(),
+        global.daemon_bind_port,
     ))
     .await
     {
@@ -156,7 +156,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         }
     };
 
-    let state_dir = ctx.filesystem.state_dir();
+    let state_dir = scoped.filesystem.state_dir();
 
     // Publish the client-connect `http://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
@@ -181,8 +181,8 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     init.release().map_err(lock_err)?;
 
     // Bring up the broadcast hub: in-process producers (the run tee)
-    // push pre-serialized frames onto this channel via `ctx`'s resident
-    // hubs, and they fan out to every connected `/listen` SSE
+    // push pre-serialized frames onto this channel via the global
+    // context's resident hubs, and they fan out to every connected `/listen` SSE
     // client. The `_rx` clone keeps the channel open for the daemon's
     // whole life.
     let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
@@ -190,7 +190,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // connection's first-message auth preamble must carry a valid
     // signature; when unset, the server is open (the preamble is consumed
     // regardless).
-    let secret = ctx.config.daemon_secret.clone().map(std::sync::Arc::new);
+    let secret = global.daemon_secret.clone().map(std::sync::Arc::new);
     // The live agent-status hub: its own broadcast of `AgentEvent` frames,
     // fed by AIH-lock announcements on `agents.sock` and watched for
     // release. Held in scope for the daemon's life (its sender clone keeps
@@ -201,7 +201,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     let active = crate::http::agents_routes::ActiveAgents::new(
         state_dir.clone(),
         agents_tx,
-        ctx.clone(),
+        global.clone(),
     );
     // The live-conversation hub: log-writer tee frames arriving on
     // `conversation.sock` fan out per-AIH to `/agents/instances/{*aih}`
@@ -212,7 +212,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     )>(1024);
     let conversations = crate::http::agent_instance_route::ConversationHub::new(
         conversation_tx,
-        ctx.clone(),
+        global.clone(),
     );
     let laboratories =
         crate::http::websocket_laboratory::LaboratoryRegistry::new();
@@ -222,16 +222,17 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // watcher) live for the daemon's life.
     let labs_hub = crate::http::laboratories_routes::LaboratoriesHub::new(
         laboratories.clone(),
-        ctx.clone(),
+        global.clone(),
     );
     labs_hub.spawn_tasks();
-    // Publish the in-process hubs on the shared `Context` so every
-    // in-process producer reaches its consumer directly (the former
-    // unix sockets). Every `/execute`-derived ctx and `DaemonHttpState.ctx`
-    // is an Arc-sibling of this one, so this single set is visible
-    // everywhere. `mcp_notifiers` replaces the per-response mcp sockets.
+    // Publish the in-process hubs on the shared `GlobalContext` so
+    // every in-process producer reaches its consumer directly (the
+    // former unix sockets). Every `/execute`-derived pair and
+    // `DaemonHttpState` shares Arc-siblings of this one, so this
+    // single set is visible everywhere. `mcp_notifiers` replaces the
+    // per-response mcp sockets.
     let mcp_notifiers = std::sync::Arc::new(dashmap::DashMap::new());
-    ctx.set_resident_hubs(crate::context::ResidentHubs {
+    global.set_resident_hubs(crate::context::ResidentHubs {
         broadcast: tx.clone(),
         active: active.clone(),
         conversations: conversations.clone(),
@@ -243,7 +244,8 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         http_listener,
         tx.clone(),
         secret,
-        ctx.clone(),
+        global.clone(),
+        scoped.clone(),
         active.clone(),
         conversations.clone(),
         laboratories.clone(),
@@ -272,7 +274,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed
     // and drives the full nested-command protocol; we consume (drive) its
     // stream below.
-    let manifests: Vec<crate::filesystem::plugins::Manifest> = ctx
+    let manifests: Vec<crate::filesystem::plugins::Manifest> = scoped
         .filesystem
         .list_plugins(0, usize::MAX)
         .await
@@ -289,7 +291,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             args: vec!["daemon".to_string(), "begin".to_string()],
             base: Default::default(),
         };
-        let stream = crate::command::plugins::run::execute(ctx, request).await?;
+        let stream = crate::command::plugins::run::execute(global, scoped, request).await?;
         streams.push(stream);
     }
 
@@ -329,10 +331,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::daemon::spawn as sdk;
     use objectiveai_sdk::cli::command::daemon::spawn::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -341,10 +343,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::daemon::spawn as sdk;
     use objectiveai_sdk::cli::command::daemon::spawn::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

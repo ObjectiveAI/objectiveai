@@ -44,15 +44,15 @@ pub(crate) struct ConversationHub {
     /// Resident context — DB pool resolved lazily (`db_client`), used
     /// to resolve message-queue notification content (the writer only
     /// knows the content id) and for connect-time snapshots.
-    ctx: crate::context::Context,
+    global: crate::context::GlobalContext,
 }
 
 impl ConversationHub {
     pub(crate) fn new(
         events: broadcast::Sender<(Arc<str>, Arc<str>)>,
-        ctx: crate::context::Context,
+        global: crate::context::GlobalContext,
     ) -> Self {
-        Self { events, ctx }
+        Self { events, global }
     }
 
     pub(crate) fn subscribe(&self) -> broadcast::Receiver<(Arc<str>, Arc<str>)> {
@@ -85,7 +85,7 @@ impl ConversationHub {
         message_queue_content_id: i64,
         delivered_at: String,
     ) -> Option<AgentInstanceEvent> {
-        let pool = self.ctx.db_client().await.ok()?;
+        let pool = self.global.db_client().await.ok()?;
         let row = sqlx::query(
             "SELECT mqc.kind::text AS kind, \
                     mq.id AS mq_id, \
@@ -237,7 +237,7 @@ fn instance_stream(
             }
         }
 
-        if let Ok(pool) = hub.ctx.db_client().await {
+        if let Ok(pool) = hub.global.db_client().await {
             let mut after_id: Option<i64> = None;
             loop {
                 let page = crate::db::logs::read_conversation_page(

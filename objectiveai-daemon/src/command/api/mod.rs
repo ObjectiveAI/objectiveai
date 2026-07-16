@@ -9,7 +9,7 @@ use std::pin::Pin;
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::api::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub mod config;
@@ -23,10 +23,10 @@ fn once<T: Send + 'static>(
     Box::pin(futures::stream::once(async move { item }))
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Config(req) => {
-            let inner = config::execute(ctx, req).await?;
+            let inner = config::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(Response::Config)))
         }
     };

@@ -113,13 +113,16 @@ struct Inner {
     /// after the WS-creating call returns the notifier. Pump
     /// closures read it at fire time.
     notifier: OnceLock<Notifier>,
-    /// Base [`crate::context::Context`] the conduit clones+mutates
-    /// per `dial_plugin_upstream` call to stamp the transient
-    /// header values (five required + `AGENT-REMOTE` for remote
-    /// agents) into [`crate::Config`] before calling
-    /// [`crate::command::plugins::run::execute`]. Carries the
-    /// filesystem client used to resolve installed plugin binaries.
-    ctx: crate::context::Context,
+    /// The conduit's context pair. `scoped` is the BASE scope each
+    /// `dial_plugin_upstream` / script dispatch derives its
+    /// per-call scope from ([`ScopedContext::for_request`], stamping
+    /// the transient header identities — five required +
+    /// `AGENT-REMOTE` for remote agents) before calling
+    /// [`crate::command::plugins::run::execute`]; its filesystem
+    /// client resolves installed plugin binaries. `global` carries
+    /// the shared services (hubs, db, python).
+    global: crate::context::GlobalContext,
+    scoped: crate::context::ScopedContext,
     /// Tag the spawn resolved against, if any. Threaded into
     /// every `dispatch_read_message_queue` call so
     /// `db::message_queue::read_pending_and_upgrade_tag` can fuse
@@ -152,15 +155,16 @@ type LabSessionKey = (String, Option<String>, Option<String>);
 
 impl ConduitMcpHandler {
     /// Construct a handler over the given in-process `objectiveai-mcp`
-    /// server. `ctx` is the base [`crate::context::Context`] the
-    /// conduit clones+mutates per plugin dial to thread the
-    /// transient header values into [`crate::Config`]. `agent_tag`
-    /// is the tag the spawn resolved against (if any); when present,
-    /// each `dispatch_read_message_queue` call fuses the tag-group
-    /// upgrade with the row read in one transaction.
+    /// server. `scoped` is the BASE scope the conduit derives a fresh
+    /// per-dial scope from (threading the transient header identities);
+    /// `global` carries the shared services. `agent_tag` is the tag the
+    /// spawn resolved against (if any); when present, each
+    /// `dispatch_read_message_queue` call fuses the tag-group upgrade
+    /// with the row read in one transaction.
     pub fn new(
         mcp_server: crate::http::mcp_server::McpServerHandle,
-        ctx: crate::context::Context,
+        global: crate::context::GlobalContext,
+        scoped: crate::context::ScopedContext,
         agent_tag: Option<String>,
         backoff_max_elapsed_time_ms: u64,
     ) -> Self {
@@ -194,7 +198,8 @@ impl ConduitMcpHandler {
                 connections: DashMap::new(),
                 transfer_routes: DashMap::new(),
                 notifier: OnceLock::new(),
-                ctx,
+                global,
+                scoped,
                 agent_tag,
                 listener_ids: DashSet::new(),
                 laboratory_sessions: DashMap::new(),
@@ -244,7 +249,7 @@ impl ConduitMcpHandler {
         // down. Absent resident hubs (not the daemon) → no-op, as the
         // socket bind was best-effort.
         if self.inner.listener_ids.insert(response_id.clone())
-            && let Some(hubs) = self.inner.ctx.resident_hubs()
+            && let Some(hubs) = self.inner.global.resident_hubs()
         {
             hubs.mcp_notifiers.insert(response_id, notifier);
         }
@@ -269,7 +274,7 @@ impl Drop for Inner {
     /// detach sweep clears per-channel sessions) answers
     /// `dropped: false` harmlessly.
     fn drop(&mut self) {
-        if let Some(hubs) = self.ctx.resident_hubs() {
+        if let Some(hubs) = self.global.resident_hubs() {
             for id in self.listener_ids.iter() {
                 hubs.mcp_notifiers.remove(id.key());
             }
@@ -804,7 +809,7 @@ impl ConduitMcpHandler {
         }
         // In-process: forward straight to the connected laboratory's
         // registry entry (was the laboratories.sock `Forward`).
-        let Some(hubs) = self.inner.ctx.resident_hubs() else {
+        let Some(hubs) = self.inner.global.resident_hubs() else {
             return shape.error(
                 -32603,
                 "laboratory forward requires the resident daemon".to_string(),
@@ -830,7 +835,8 @@ impl ConduitMcpHandler {
                     }
                     None => {
                         if let Err(e) = crate::command::laboratories::ensure_local_host(
-                            &self.inner.ctx,
+                            &self.inner.global,
+                            &self.inner.scoped,
                         )
                         .await
                         {
@@ -843,10 +849,10 @@ impl ConduitMcpHandler {
                             );
                         }
                         let machine = objectiveai_sdk::machine::machine_id(
-                            self.inner.ctx.filesystem.dir(),
+                            self.inner.scoped.filesystem.dir(),
                         );
                         let machine_state =
-                            self.inner.ctx.filesystem.state().to_string();
+                            self.inner.scoped.filesystem.state().to_string();
                         let create = objectiveai_sdk::laboratories::daemon::RequestPayload::Create(
                             objectiveai_sdk::laboratories::daemon::CreateRequest {
                                 id: target.id.clone(),
@@ -1023,7 +1029,7 @@ impl ConduitMcpHandler {
         use server_response::Payload as R;
         let err =
             |code: i64, message: String| R::LaboratoryTransfer(rpc_err(code, message));
-        let Some(hubs) = self.inner.ctx.resident_hubs() else {
+        let Some(hubs) = self.inner.global.resident_hubs() else {
             return err(
                 -32603,
                 "laboratory transfer requires the resident daemon".to_string(),
@@ -1641,7 +1647,7 @@ async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
 ) -> server_response::Payload {
-    let pool = match inner.ctx.db_client().await {
+    let pool = match inner.global.db_client().await {
         Ok(pool) => pool,
         Err(e) => {
             return server_response::Payload::ReadMessageQueue(JsonRpcResult::Err {
@@ -1692,7 +1698,7 @@ fn script_err(message: impl Into<String>) -> server_response::Payload {
 }
 
 /// Run a SCRIPT agent's code in-process on the embedded runtime — the
-/// SAME shared `ctx.python()` the `python` command uses. The FULL
+/// SAME shared `global.python()` the `python` command uses. The FULL
 /// conversation rides in as the script's `input` global; the script's
 /// output deserializes as the assistant/tool-only messages array. No
 /// timeout — the runtime's existing posture (the API side owns any
@@ -1707,21 +1713,30 @@ async fn dispatch_script(
     inner: &Arc<Inner>,
     req: server_request::ScriptRequest,
 ) -> server_response::Payload {
-    let mut exec_ctx = inner.ctx.clone();
-    exec_ctx.config.agent_instance_hierarchy = req.agent_instance_hierarchy.clone();
-    exec_ctx.config.agent_id = Some(req.agent_id.clone());
-    exec_ctx.config.agent_full_id = Some(req.agent_full_id.clone());
-    exec_ctx.config.agent_remote = req.agent_remote.clone();
-    exec_ctx.config.response_id = Some(req.response_id.clone());
-    exec_ctx.config.response_ids = req.response_ids.clone();
-    exec_ctx.reset_api_client();
-    let python = match exec_ctx.python().await {
+    // A fresh scope carrying the request's typed identity — the base
+    // scope's mcp_session_id is PRESERVED (this path never touched it).
+    let exec_scope = inner
+        .scoped
+        .for_request(crate::context::ScopeIdentity {
+            agent_instance_hierarchy: req.agent_instance_hierarchy.clone(),
+            agent_id: Some(req.agent_id.clone()),
+            agent_full_id: Some(req.agent_full_id.clone()),
+            agent_remote: req.agent_remote.clone(),
+            response_id: Some(req.response_id.clone()),
+            response_ids: req.response_ids.clone(),
+            mcp_session_id: inner.scoped.mcp_session_id().map(String::from),
+        })
+        .await;
+    let python = match inner.global.python().await {
         Ok(python) => python,
         Err(e) => return script_err(format!("python runtime: {e}")),
     };
     let objectiveai_sdk::agent::script::Script::Python { python: code } = &req.script;
     let output: Option<Vec<objectiveai_sdk::agent::script::OutputMessage>> =
-        match python.exec_code(&exec_ctx, code, Some(&req.messages)).await {
+        match python
+            .exec_code(&inner.global, &exec_scope, code, Some(&req.messages))
+            .await
+        {
             Ok(output) => output,
             Err(e) => return script_err(format!("script: {e}")),
         };
@@ -1746,7 +1761,7 @@ fn retrieve_err(message: impl Into<String>) -> server_response::Payload {
 /// Resolve a `Client` remote from the CLI's own local storage on
 /// behalf of the API, which forwarded the request because the remote
 /// is `client`. Reads the base definition (or resolves the latest
-/// commit) via the filesystem client carried on the conduit's ctx.
+/// commit) via the filesystem client carried on the conduit's scope.
 async fn dispatch_retrieve(
     inner: &Arc<Inner>,
     req: objectiveai_sdk::client_objectiveai_mcp::retrieve::Request,
@@ -1754,7 +1769,7 @@ async fn dispatch_retrieve(
     use crate::filesystem::publish::Kind;
     use objectiveai_sdk::client_objectiveai_mcp::retrieve;
 
-    let fs = &inner.ctx.filesystem;
+    let fs = &inner.scoped.filesystem;
     let response: retrieve::Response = match req {
         retrieve::Request::GetAgent { path } => {
             let Some((owner, repository, commit)) = retrieve_client_fields(&path) else {
@@ -1949,7 +1964,7 @@ where
 // ────────────────────────────────────────────────────────────────
 
 /// Dial a plugin's MCP upstream: clone the base
-/// [`crate::context::Context`] from `inner.ctx`, stamp the six
+/// scope from `inner.scoped`, stamp the six
 /// transient header values into `Config`, then call the shared
 /// [`crate::command::plugins::run::execute`] with
 /// `Request { name: plugin, args: ["mcp", mcp_name, "begin", …], base: default }`.
@@ -1995,26 +2010,31 @@ async fn dial_plugin_upstream(
         reason,
     };
 
-    // Clone base ctx and stamp the transient headers into Config.
-    // `crate::spawn::apply_config_env` (called inside
+    // Derive the per-dial scope carrying the transient header
+    // identities. `crate::spawn::apply_config_env` (called inside
     // `command::plugins::run::execute`) projects these onto the
     // plugin subprocess env so the plugin's MCP server can
     // re-stamp them on any outbound calls it makes downstream.
     // `agent_remote` is `None` for inline agents (the api omits
     // the header entirely; empty-string transients are forbidden),
     // which `apply_config_env` translates into an `env_remove` of
-    // `OBJECTIVEAI_AGENT_REMOTE` on the spawned subprocess.
-    let mut dial_ctx = inner.ctx.clone();
-    dial_ctx.config.agent_instance_hierarchy = transient.agent_instance_hierarchy.clone();
-    dial_ctx.config.agent_id = Some(transient.agent_id.clone());
-    dial_ctx.config.agent_full_id = Some(transient.agent_full_id.clone());
-    dial_ctx.config.agent_remote = transient.agent_remote.clone();
-    dial_ctx.config.response_id = Some(transient.response_id.clone());
-    dial_ctx.config.response_ids = Some(transient.response_ids.clone());
-    // Nested plugin commands run in-process against this ctx; the
-    // transient identity must not reuse (or poison) the conduit
-    // owner's memoized API client.
-    dial_ctx.reset_api_client();
+    // `OBJECTIVEAI_AGENT_REMOTE` on the spawned subprocess. The
+    // base scope's mcp_session_id is PRESERVED (this path never
+    // touched it); the fresh scope's api cell is born with the
+    // transient identity, so the conduit owner's memoized client
+    // can neither be reused nor poisoned.
+    let dial_scope = inner
+        .scoped
+        .for_request(crate::context::ScopeIdentity {
+            agent_instance_hierarchy: transient.agent_instance_hierarchy.clone(),
+            agent_id: Some(transient.agent_id.clone()),
+            agent_full_id: Some(transient.agent_full_id.clone()),
+            agent_remote: transient.agent_remote.clone(),
+            response_id: Some(transient.response_id.clone()),
+            response_ids: Some(transient.response_ids.clone()),
+            mcp_session_id: inner.scoped.mcp_session_id().map(String::from),
+        })
+        .await;
 
     // Build argv: `mcp <mcp_name> begin [--<k> [<v>]]…`. Manifest /
     // binary resolution is `command::plugins::run::execute`'s job;
@@ -2037,7 +2057,7 @@ async fn dial_plugin_upstream(
         base: Default::default(),
     };
 
-    let stream = crate::command::plugins::run::execute(&dial_ctx, request)
+    let stream = crate::command::plugins::run::execute(&inner.global, &dial_scope, request)
         .await
         .map_err(|e| fail(format!("plugin spawn failed: {e}")))?;
 

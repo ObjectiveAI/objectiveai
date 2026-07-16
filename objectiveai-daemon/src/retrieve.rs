@@ -22,7 +22,7 @@ use objectiveai_sdk::functions::{FullRemoteFunction, RemoteProfile};
 use objectiveai_sdk::swarm::RemoteSwarmBase;
 use objectiveai_sdk::{HttpClient, RemotePath, RemotePathCommitOptional};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 use crate::filesystem::publish::Kind;
 
@@ -30,54 +30,54 @@ use crate::filesystem::publish::Kind;
 
 /// Streams locally-published repositories of `kind`. GitHub has no list.
 pub async fn list(
-    ctx: &Context,
+    _global: &GlobalContext, scoped: &ScopedContext,
     kind: Kind,
 ) -> Pin<Box<dyn Stream<Item = RemotePath> + Send>> {
-    ctx.filesystem.list(kind).await
+    scoped.filesystem.list(kind).await
 }
 
 // ── get ────────────────────────────────────────────────────────────────
 
 pub async fn get_agent(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     path: RemotePathCommitOptional,
 ) -> Result<GetAgentResponse, Error> {
-    let http = ctx.github_http_client().await?;
-    let (inner, path) = fetch_agent_base(ctx, &http, &path).await?;
+    let http = scoped.github_http_client(global).await?;
+    let (inner, path) = fetch_agent_base(global, scoped, &http, &path).await?;
     Ok(GetAgentResponse { path, inner })
 }
 
 pub async fn get_swarm(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     path: RemotePathCommitOptional,
 ) -> Result<GetSwarmResponse, Error> {
-    let http = ctx.github_http_client().await?;
-    let (inner, path) = fetch_swarm_base(ctx, &http, &path).await?;
+    let http = scoped.github_http_client(global).await?;
+    let (inner, path) = fetch_swarm_base(global, scoped, &http, &path).await?;
     Ok(GetSwarmResponse { path, inner })
 }
 
 pub async fn get_function(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     path: RemotePathCommitOptional,
 ) -> Result<GetFunctionResponse, Error> {
-    let http = ctx.github_http_client().await?;
-    let (inner, path) = fetch_function(ctx, &http, &path).await?;
+    let http = scoped.github_http_client(global).await?;
+    let (inner, path) = fetch_function(global, scoped, &http, &path).await?;
     Ok(GetFunctionResponse { path, inner })
 }
 
 pub async fn get_profile(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     path: RemotePathCommitOptional,
 ) -> Result<GetProfileResponse, Error> {
-    let http = ctx.github_http_client().await?;
-    let (inner, path) = fetch_profile(ctx, &http, &path).await?;
+    let http = scoped.github_http_client(global).await?;
+    let (inner, path) = fetch_profile(global, scoped, &http, &path).await?;
     Ok(GetProfileResponse { path, inner })
 }
 
 // ── base fetchers (github / filesystem; mock rejected) ──────────────────
 
 async fn fetch_agent_base(
-    ctx: &Context,
+    _global: &GlobalContext, scoped: &ScopedContext,
     http: &HttpClient,
     path: &RemotePathCommitOptional,
 ) -> Result<(RemoteAgentBaseWithFallbacks, RemotePath), Error> {
@@ -93,7 +93,7 @@ async fn fetch_agent_base(
             Ok((base, github_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Client { owner, repository, commit } => {
-            let (base, commit) = ctx
+            let (base, commit) = scoped
                 .filesystem
                 .read_json::<RemoteAgentBaseWithFallbacks>(
                     Kind::Agents,
@@ -112,7 +112,7 @@ async fn fetch_agent_base(
 }
 
 async fn fetch_swarm_base(
-    ctx: &Context,
+    _global: &GlobalContext, scoped: &ScopedContext,
     http: &HttpClient,
     path: &RemotePathCommitOptional,
 ) -> Result<(RemoteSwarmBase, RemotePath), Error> {
@@ -128,7 +128,7 @@ async fn fetch_swarm_base(
             Ok((base, github_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Client { owner, repository, commit } => {
-            let (base, commit) = ctx
+            let (base, commit) = scoped
                 .filesystem
                 .read_json::<RemoteSwarmBase>(
                     Kind::Swarms,
@@ -147,7 +147,7 @@ async fn fetch_swarm_base(
 }
 
 async fn fetch_function(
-    ctx: &Context,
+    _global: &GlobalContext, scoped: &ScopedContext,
     http: &HttpClient,
     path: &RemotePathCommitOptional,
 ) -> Result<(FullRemoteFunction, RemotePath), Error> {
@@ -163,7 +163,7 @@ async fn fetch_function(
             Ok((inner, github_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Client { owner, repository, commit } => {
-            let (inner, commit) = ctx
+            let (inner, commit) = scoped
                 .filesystem
                 .read_json::<FullRemoteFunction>(
                     Kind::Functions,
@@ -182,7 +182,7 @@ async fn fetch_function(
 }
 
 async fn fetch_profile(
-    ctx: &Context,
+    _global: &GlobalContext, scoped: &ScopedContext,
     http: &HttpClient,
     path: &RemotePathCommitOptional,
 ) -> Result<(RemoteProfile, RemotePath), Error> {
@@ -198,7 +198,7 @@ async fn fetch_profile(
             Ok((inner, github_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Client { owner, repository, commit } => {
-            let (inner, commit) = ctx
+            let (inner, commit) = scoped
                 .filesystem
                 .read_json::<RemoteProfile>(
                     Kind::Profiles,

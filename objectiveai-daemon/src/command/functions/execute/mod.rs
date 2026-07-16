@@ -15,7 +15,7 @@ use objectiveai_sdk::functions::{
     FullInlineFunctionOrRemoteCommitOptional, InlineProfileOrRemoteCommitOptional,
 };
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub(super) mod runner;
@@ -23,26 +23,26 @@ pub mod standard;
 pub mod swiss_system;
 
 pub(super) async fn resolve_function(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     spec: FunctionSpec,
 ) -> Result<FullInlineFunctionOrRemoteCommitOptional, Error> {
     match spec {
         FunctionSpec::Resolved(r) => Ok(r),
         FunctionSpec::File(path) => read_json_file(&path),
-        FunctionSpec::PythonInline(code) => ctx.python().await?.exec_code(ctx, &code, None::<()>).await?.ok_or(Error::PythonNoOutput),
-        FunctionSpec::PythonFile(path) => ctx.python().await?.exec_file(ctx, &path, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        FunctionSpec::PythonInline(code) => global.python().await?.exec_code(global, scoped, &code, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        FunctionSpec::PythonFile(path) => global.python().await?.exec_file(global, scoped, &path, None::<()>).await?.ok_or(Error::PythonNoOutput),
     }
 }
 
 pub(super) async fn resolve_profile(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     spec: ProfileSpec,
 ) -> Result<InlineProfileOrRemoteCommitOptional, Error> {
     match spec {
         ProfileSpec::Resolved(r) => Ok(r),
         ProfileSpec::File(path) => read_json_file(&path),
-        ProfileSpec::PythonInline(code) => ctx.python().await?.exec_code(ctx, &code, None::<()>).await?.ok_or(Error::PythonNoOutput),
-        ProfileSpec::PythonFile(path) => ctx.python().await?.exec_file(ctx, &path, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        ProfileSpec::PythonInline(code) => global.python().await?.exec_code(global, scoped, &code, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        ProfileSpec::PythonFile(path) => global.python().await?.exec_file(global, scoped, &path, None::<()>).await?.ok_or(Error::PythonNoOutput),
     }
 }
 
@@ -51,17 +51,17 @@ pub(super) fn resolve_input_file(path: PathBuf) -> Result<InputValue, Error> {
 }
 
 pub(super) async fn resolve_input_python_inline(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     code: String,
 ) -> Result<InputValue, Error> {
-    ctx.python().await?.exec_code(ctx, &code, None::<()>).await?.ok_or(Error::PythonNoOutput)
+    global.python().await?.exec_code(global, scoped, &code, None::<()>).await?.ok_or(Error::PythonNoOutput)
 }
 
 pub(super) async fn resolve_input_python_file(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     path: PathBuf,
 ) -> Result<InputValue, Error> {
-    ctx.python().await?.exec_file(ctx, &path, None::<()>).await?.ok_or(Error::PythonNoOutput)
+    global.python().await?.exec_file(global, scoped, &path, None::<()>).await?.ok_or(Error::PythonNoOutput)
 }
 
 /// Read a JSON file and deserialize as `T`. Used by every `*-file`
@@ -83,30 +83,30 @@ fn once<T: Send + 'static>(
     Box::pin(futures::stream::once(async move { item }))
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Standard(req) => {
-            let inner = standard::execute(ctx, req).await?;
+            let inner = standard::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Standard)))
         }
         Request::StandardRequestSchema(req) => {
-            let value = standard::request_schema::execute(ctx, req).await?;
+            let value = standard::request_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::StandardRequestSchema(value)))
         }
         Request::StandardResponseSchema(req) => {
-            let value = standard::response_schema::execute(ctx, req).await?;
+            let value = standard::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::StandardResponseSchema(value)))
         }
         Request::SwissSystem(req) => {
-            let inner = swiss_system::execute(ctx, req).await?;
+            let inner = swiss_system::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::SwissSystem)))
         }
         Request::SwissSystemRequestSchema(req) => {
-            let value = swiss_system::request_schema::execute(ctx, req).await?;
+            let value = swiss_system::request_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::SwissSystemRequestSchema(value)))
         }
         Request::SwissSystemResponseSchema(req) => {
-            let value = swiss_system::response_schema::execute(ctx, req).await?;
+            let value = swiss_system::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::SwissSystemResponseSchema(value)))
         }
     };

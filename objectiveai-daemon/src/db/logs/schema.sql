@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_completion_requests (
     body                            JSONB NOT NULL,
     created_at                      BIGINT NOT NULL,
     -- AIH of the caller who issued this completion request
-    -- (from `ctx.config.agent_instance_hierarchy` at request
+    -- (from the request scope's `agent_instance_hierarchy` at request
     -- time). Denormalized into `objectiveai.messages.sender_*` for
     -- fast filtering on the read-all path.
     sender_agent_instance_hierarchy TEXT NOT NULL,

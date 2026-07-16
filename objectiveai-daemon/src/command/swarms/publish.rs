@@ -8,10 +8,10 @@ use objectiveai_sdk::cli::command::swarms::publish::{
 };
 use objectiveai_sdk::swarm::RemoteSwarmBase;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     let Request {
         repository,
         body,
@@ -20,10 +20,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         ..
     } = request;
 
-    let swarm: RemoteSwarmBase = resolve_body(ctx, body).await?;
+    let swarm: RemoteSwarmBase = resolve_body(global, scoped, body).await?;
     let msg = resolve_message(message)?;
     let sha = crate::filesystem::publish::publish_swarm(
-        &ctx.filesystem,
+        &scoped.filesystem,
         &repository,
         &swarm,
         &msg,
@@ -33,7 +33,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     Ok(Response { sha })
 }
 
-async fn resolve_body(ctx: &Context, body: RequestBody) -> Result<RemoteSwarmBase, Error> {
+async fn resolve_body(global: &GlobalContext, scoped: &ScopedContext, body: RequestBody) -> Result<RemoteSwarmBase, Error> {
     match body {
         RequestBody::Inline(swarm) => Ok(swarm),
         RequestBody::File(path) => {
@@ -42,8 +42,8 @@ async fn resolve_body(ctx: &Context, body: RequestBody) -> Result<RemoteSwarmBas
             let mut de = serde_json::Deserializer::from_str(&contents);
             serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)
         }
-        RequestBody::PythonInline(code) => ctx.python().await?.exec_code(ctx, &code, None::<()>).await?.ok_or(Error::PythonNoOutput),
-        RequestBody::PythonFile(path) => ctx.python().await?.exec_file(ctx, &path, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        RequestBody::PythonInline(code) => global.python().await?.exec_code(global, scoped, &code, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        RequestBody::PythonFile(path) => global.python().await?.exec_file(global, scoped, &path, None::<()>).await?.ok_or(Error::PythonNoOutput),
     }
 }
 
@@ -59,10 +59,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::swarms::publish as sdk;
     use objectiveai_sdk::cli::command::swarms::publish::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -71,10 +71,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::swarms::publish as sdk;
     use objectiveai_sdk::cli::command::swarms::publish::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

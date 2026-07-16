@@ -9,7 +9,7 @@ use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::agents::instances::list::Target;
 use objectiveai_sdk::cli::command::agents::instances::{Request, ResponseItem};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db::tags;
 use crate::error::Error;
 
@@ -52,30 +52,30 @@ async fn resolve_target(
     }
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Get(req) => {
-            let inner = get::execute(ctx, req).await?;
+            let inner = get::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Get)))
         }
         Request::GetRequestSchema(req) => {
-            let value = get::request_schema::execute(ctx, req).await?;
+            let value = get::request_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::GetRequestSchema(value)))
         }
         Request::GetResponseSchema(req) => {
-            let value = get::response_schema::execute(ctx, req).await?;
+            let value = get::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::GetResponseSchema(value)))
         }
         Request::List(req) => {
-            let inner = list::execute(ctx, req).await?;
+            let inner = list::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::List)))
         }
         Request::ListRequestSchema(req) => {
-            let value = list::request_schema::execute(ctx, req).await?;
+            let value = list::request_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::ListRequestSchema(value)))
         }
         Request::ListResponseSchema(req) => {
-            let value = list::response_schema::execute(ctx, req).await?;
+            let value = list::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::ListResponseSchema(value)))
         }
     };

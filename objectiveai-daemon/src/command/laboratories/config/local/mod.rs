@@ -5,7 +5,7 @@ use std::pin::Pin;
 use futures::Stream;
 use objectiveai_sdk::cli::command::laboratories::config::local::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub mod get;
@@ -19,30 +19,30 @@ fn once<T: Send + 'static>(
     Box::pin(futures::stream::once(async move { item }))
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Get(req) => {
-            let value = get::execute(ctx, req).await?;
+            let value = get::execute(global, scoped, req).await?;
             once(Ok(Response::Get(value)))
         }
         Request::GetRequestSchema(req) => {
-            let value = get::request_schema::execute(ctx, req).await?;
+            let value = get::request_schema::execute(global, scoped, req).await?;
             once(Ok(Response::GetRequestSchema(value)))
         }
         Request::GetResponseSchema(req) => {
-            let value = get::response_schema::execute(ctx, req).await?;
+            let value = get::response_schema::execute(global, scoped, req).await?;
             once(Ok(Response::GetResponseSchema(value)))
         }
         Request::Set(req) => {
-            let value = set::execute(ctx, req).await?;
+            let value = set::execute(global, scoped, req).await?;
             once(Ok(Response::Set(value)))
         }
         Request::SetRequestSchema(req) => {
-            let value = set::request_schema::execute(ctx, req).await?;
+            let value = set::request_schema::execute(global, scoped, req).await?;
             once(Ok(Response::SetRequestSchema(value)))
         }
         Request::SetResponseSchema(req) => {
-            let value = set::response_schema::execute(ctx, req).await?;
+            let value = set::response_schema::execute(global, scoped, req).await?;
             once(Ok(Response::SetResponseSchema(value)))
         }
     };

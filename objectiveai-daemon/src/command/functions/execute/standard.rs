@@ -22,37 +22,37 @@ use objectiveai_sdk::functions::executions::request::{
     FunctionExecutionCreateParams, Strategy,
 };
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let want_stream = request
         .dangerous_advanced
         .as_ref()
         .and_then(|a| a.stream)
         .unwrap_or(false);
     if want_stream {
-        execute_streaming(ctx, request).await
+        execute_streaming(global, scoped, request).await
     } else {
-        execute_detached(ctx, request).await
+        execute_detached(global, scoped, request).await
     }
 }
 
 async fn execute_streaming(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     request: Request,
 ) -> Result<ItemStream, Error> {
     let (function, profile) = tokio::try_join!(
-        super::resolve_function(ctx, request.function),
-        super::resolve_profile(ctx, request.profile),
+        super::resolve_function(global, scoped, request.function),
+        super::resolve_profile(global, scoped, request.profile),
     )?;
     let input = match request.input {
         RequestInput::Inline(v) => v,
         RequestInput::File(path) => super::resolve_input_file(path)?,
-        RequestInput::PythonInline(code) => super::resolve_input_python_inline(ctx, code).await?,
-        RequestInput::PythonFile(path) => super::resolve_input_python_file(ctx, path).await?,
+        RequestInput::PythonInline(code) => super::resolve_input_python_inline(global, scoped, code).await?,
+        RequestInput::PythonFile(path) => super::resolve_input_python_file(global, scoped, path).await?,
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
     let params = FunctionExecutionCreateParams {
@@ -68,7 +68,7 @@ async fn execute_streaming(
         stream: Some(true),
         continuation: request.continuation,
     };
-    let inner = super::runner::run(ctx.clone(), params);
+    let inner = super::runner::run(global.clone(), scoped.clone(), params);
     Ok(Box::pin(inner.map(|r| {
         r.map(|ev| match ev {
             super::runner::Event::Id(id) => ResponseItem::Id(id),
@@ -88,7 +88,7 @@ async fn execute_streaming(
 /// ([`crate::command::detached::spawn_detached`]), surface its first
 /// item (the gated `Id`), and return. The task outlives this call and
 /// drives the execution to completion on the daemon's runtime.
-async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+async fn execute_detached(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let mut child_request = request;
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream = Some(true),
@@ -103,7 +103,8 @@ async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream,
     // parent-only envelope fields.
     crate::command::reexec::strip_inherited(&mut child_request.base);
     Ok(crate::command::detached::spawn_detached::<Request, ResponseItem>(
-        ctx.clone(),
+        global.clone(),
+        scoped.clone(),
         child_request,
         |_| Some(true),
     ))
@@ -113,10 +114,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::functions::execute::standard as sdk;
     use objectiveai_sdk::cli::command::functions::execute::standard::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -125,10 +126,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::functions::execute::standard as sdk;
     use objectiveai_sdk::cli::command::functions::execute::standard::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

@@ -78,20 +78,20 @@ pub(crate) struct ActiveAgents {
     state_dir: PathBuf,
     /// Resident context — the DB pool is resolved lazily (`db_client`), as
     /// the daemon boots before a DB necessarily exists.
-    ctx: crate::context::Context,
+    global: crate::context::GlobalContext,
 }
 
 impl ActiveAgents {
     pub(crate) fn new(
         state_dir: PathBuf,
         events: broadcast::Sender<StatusChange>,
-        ctx: crate::context::Context,
+        global: crate::context::GlobalContext,
     ) -> Self {
         Self {
             active: Arc::new(Mutex::new(HashSet::new())),
             events,
             state_dir,
-            ctx,
+            global,
         }
     }
 
@@ -133,12 +133,12 @@ impl ActiveAgents {
             crate::command::agents::locks::agent_instance_lock(&self.state_dir, &aih);
         loop {
             // Wakes when the AIH's in-process mutex is released.
-            crate::command::agents::locks::wait_released(self.ctx.agent_locks(), &dir, &key).await;
+            crate::command::agents::locks::wait_released(self.global.agent_locks(), &dir, &key).await;
             let mut active = self.active.lock().await;
             // A new holder may have acquired during the wake gap (fast
             // reacquire). Under the lock so `activate` cannot interleave
             // and lose the transition.
-            if crate::command::agents::locks::try_held(self.ctx.agent_locks(), &dir, &key) {
+            if crate::command::agents::locks::try_held(self.global.agent_locks(), &dir, &key) {
                 drop(active);
                 continue;
             }
@@ -159,7 +159,7 @@ impl ActiveAgents {
     /// not yet in the DB (brand-new). Nothing but the AIH + flag —
     /// this endpoint's whole payload.
     async fn snapshot(&self) -> Vec<AgentStatus> {
-        let items = match self.ctx.db_client().await {
+        let items = match self.global.db_client().await {
             Ok(pool) => crate::db::instances::list_all(pool).await.unwrap_or_default(),
             Err(_) => Vec::new(),
         };
@@ -191,7 +191,7 @@ impl ActiveAgents {
     /// `/agents/instances/{*aih}` route for its per-agent status frames.
     pub(crate) async fn build_record_for(&self, aih: &str) -> Option<AgentRecord> {
         let active = self.active.lock().await.contains(aih);
-        let pool = self.ctx.db_client().await.ok()?;
+        let pool = self.global.db_client().await.ok()?;
         let item = crate::db::instances::get_exact(pool, aih).await.ok()?;
         // ATTACHED laboratories — the effective union (AIH ∪ bound tags).
         let attached =
@@ -218,7 +218,7 @@ impl ActiveAgents {
         use std::time::Duration;
         loop {
             let reconnect = async {
-                let pool = self.ctx.db_client().await.ok()?;
+                let pool = self.global.db_client().await.ok()?;
                 let mut listener =
                     sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
                 listener.listen("tags_changed").await.ok()?;
@@ -251,7 +251,7 @@ impl ActiveAgents {
         use std::time::Duration;
         loop {
             let reconnect = async {
-                let pool = self.ctx.db_client().await.ok()?;
+                let pool = self.global.db_client().await.ok()?;
                 let mut listener =
                     sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
                 listener.listen("laboratory_attachments_changed").await.ok()?;
@@ -269,7 +269,7 @@ impl ActiveAgents {
                         agent_instance_hierarchy: aih.to_string(),
                     });
                 } else if let Some(tag) = payload.strip_prefix("tag:") {
-                    let Ok(pool) = self.ctx.db_client().await else {
+                    let Ok(pool) = self.global.db_client().await else {
                         continue;
                     };
                     if let Ok(crate::db::tags::LookupState::Bound {
@@ -297,7 +297,7 @@ impl ActiveAgents {
         use std::time::Duration;
         loop {
             let reconnect = async {
-                let pool = self.ctx.db_client().await.ok()?;
+                let pool = self.global.db_client().await.ok()?;
                 let mut listener =
                     sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
                 listener.listen("agent_active_laboratories_changed").await.ok()?;
@@ -326,7 +326,7 @@ impl ActiveAgents {
     /// nothing — it stays for the mid-life "before first client" case and
     /// as a harmless invariant. Errors are ignored.
     pub(crate) async fn reconcile_startup(&self) {
-        let Ok(pool) = self.ctx.db_client().await else {
+        let Ok(pool) = self.global.db_client().await else {
             return;
         };
         let Ok(items) = crate::db::instances::list_all(pool).await else {
@@ -337,7 +337,7 @@ impl ActiveAgents {
                 &self.state_dir,
                 &item.agent_instance_hierarchy,
             );
-            if crate::command::agents::locks::try_held(self.ctx.agent_locks(), &dir, &key) {
+            if crate::command::agents::locks::try_held(self.global.agent_locks(), &dir, &key) {
                 self.activate(item.agent_instance_hierarchy).await;
             }
         }

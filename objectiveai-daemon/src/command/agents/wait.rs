@@ -21,15 +21,15 @@
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 use objectiveai_sdk::cli::command::agents::wait::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    wait(ctx, request.agent).await
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    wait(global, scoped, request.agent).await
 }
 
-async fn wait(ctx: &Context, agent: AgentSelector) -> Result<Response, Error> {
-    let state_dir = ctx.filesystem.state_dir();
+async fn wait(global: &GlobalContext, scoped: &ScopedContext, agent: AgentSelector) -> Result<Response, Error> {
+    let state_dir = scoped.filesystem.state_dir();
 
     let hierarchy = match agent {
         AgentSelector::Instance {
@@ -38,16 +38,16 @@ async fn wait(ctx: &Context, agent: AgentSelector) -> Result<Response, Error> {
         } => {
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
-                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+                .unwrap_or(scoped.agent_instance_hierarchy());
             format!("{parent}/{agent_instance}")
         }
         AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+            match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound {
                     agent_instance_hierarchy,
                 } => agent_instance_hierarchy,
                 crate::db::tags::LookupState::Grouped { .. } => {
-                    match wait_for_tag_upgrade(ctx, &state_dir, agent_tag).await? {
+                    match wait_for_tag_upgrade(global, scoped, &state_dir, agent_tag).await? {
                         Some(agent_instance_hierarchy) => agent_instance_hierarchy,
                         // Nothing is materializing the tag — done.
                         None => return Ok(Response::Ok),
@@ -62,7 +62,7 @@ async fn wait(ctx: &Context, agent: AgentSelector) -> Result<Response, Error> {
     };
 
     let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
-    super::locks::wait_released(ctx.agent_locks(), &dir, &key).await;
+    super::locks::wait_released(global.agent_locks(), &dir, &key).await;
     Ok(Response::Ok)
 }
 
@@ -71,18 +71,18 @@ async fn wait(ctx: &Context, agent: AgentSelector) -> Result<Response, Error> {
 /// holds the tag lock and the DB still says GROUPED (no spawn in
 /// flight, nothing to wait for).
 async fn wait_for_tag_upgrade(
-    ctx: &Context,
+    global: &GlobalContext, _scoped: &ScopedContext,
     state_dir: &std::path::Path,
     agent_tag: String,
 ) -> Result<Option<String>, Error> {
     let (dir, key) = super::locks::agent_tag_lock(state_dir, &agent_tag);
 
-    if super::locks::try_held(ctx.agent_locks(), &dir, &key) {
-        super::locks::wait_released(ctx.agent_locks(), &dir, &key).await;
+    if super::locks::try_held(global.agent_locks(), &dir, &key) {
+        super::locks::wait_released(global.agent_locks(), &dir, &key).await;
         // The spawn flow upgrades GROUPED→BOUND strictly before
         // releasing the tag lock — a still-GROUPED tag here means
         // that invariant is broken somewhere.
-        match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+        match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
             crate::db::tags::LookupState::Bound {
                 agent_instance_hierarchy,
             } => Ok(Some(agent_instance_hierarchy)),
@@ -95,7 +95,7 @@ async fn wait_for_tag_upgrade(
         // Unlocked. Re-check the DB before concluding "idle": a
         // racer may have upgraded AND released between the caller's
         // lookup and our probe.
-        match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+        match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
             crate::db::tags::LookupState::Bound {
                 agent_instance_hierarchy,
             } => Ok(Some(agent_instance_hierarchy)),
@@ -109,10 +109,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::wait as sdk;
     use objectiveai_sdk::cli::command::agents::wait::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -121,10 +121,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::wait as sdk;
     use objectiveai_sdk::cli::command::agents::wait::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

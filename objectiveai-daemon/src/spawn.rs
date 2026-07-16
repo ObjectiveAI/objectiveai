@@ -144,7 +144,7 @@ pub async fn spawn_until_lock_published(
 /// spawner and OWNS the server's lifetime — the leash
 /// ([`objectiveai_sdk::subprocess_reaper`]) makes the OS kill the
 /// child when the daemon dies by ANY means, and the held
-/// [`tokio::process::Child`] on the [`Context`] keeps it alive
+/// [`tokio::process::Child`] on the [`crate::context::GlobalContext`] keeps it alive
 /// meanwhile. Singleton-per-key is the `resident_children` map plus
 /// the per-key spawn gate (no cross-process lock: nothing else is
 /// allowed to spawn these).
@@ -162,20 +162,20 @@ pub async fn spawn_until_lock_published(
 /// 3. Read stdout lines until one parses as the ready line, racing
 ///    the child's exit — an exit first drains the pipes briefly and
 ///    errors with the captured output.
-/// 4. Park the child (+ address) on the `Context` and hand the SAME
+/// 4. Park the child (+ address) on the `GlobalContext` and hand the SAME
 ///    pipe receiver to a persistent drain task for the child's life,
 ///    so later server writes never block the pipe or EPIPE-kill
 ///    anyone.
 pub async fn spawn_leashed_until_ready(
-    ctx: &crate::context::Context,
+    global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    let gate = ctx.spawn_gate(key);
+    let gate = global.spawn_gate(key);
     let _guard = gate.lock().await;
 
-    if let Some(address) = ctx.resident_child_address(key) {
+    if let Some(address) = global.resident_child_address(key) {
         return Ok(address);
     }
 
@@ -259,7 +259,7 @@ pub async fn spawn_leashed_until_ready(
     // convention.
     tokio::spawn(async move { while events.recv().await.is_some() {} });
 
-    ctx.hold_resident_child(key, child, address.clone());
+    global.hold_resident_child(key, child, address.clone());
     Ok(address)
 }
 
@@ -270,11 +270,13 @@ fn name_of(exe: &Path) -> String {
         .unwrap_or_else(|| exe.display().to_string())
 }
 
-/// Stamp every field of the cli's [`crate::Config`] onto `cmd`'s env
-/// using the same env-var names the [`crate::run::EnvConfigBuilder`]
-/// reads on the receiving side. So a child cli (or any subprocess
-/// that uses the same `Envconfig`-based loader) round-trips its
-/// parent's config byte-identically.
+/// Stamp the context pair onto `cmd`'s env using the same env-var
+/// names the [`crate::run::EnvConfigBuilder`] reads on the receiving
+/// side. So a child cli (or any subprocess that uses the same
+/// `Envconfig`-based loader) round-trips its parent's configuration
+/// byte-identically: the GLOBAL half supplies the layout + author +
+/// forbidden-flag keys, the SCOPED half the seven per-request identity
+/// keys.
 ///
 /// `Option`-typed fields are skipped on `None`, EXCEPT the six
 /// per-request transient identity keys (`OBJECTIVEAI_AGENT_ID`,
@@ -282,24 +284,31 @@ fn name_of(exe: &Path) -> String {
 /// `MCP_SESSION_ID`), which are `env_remove`'d on `None` so the
 /// child cannot inherit a stale identity from the parent's startup
 /// environment. Boolean fields are stamped only when `true`.
-pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
-    if cfg.config_set_forbidden {
+pub fn apply_config_env(
+    cmd: &mut Command,
+    global: &crate::context::GlobalContext,
+    scoped: &crate::context::ScopedContext,
+) {
+    if global.config_set_forbidden {
         cmd.env("CONFIG_SET_FORBIDDEN", "true");
     }
-    if let Some(v) = cfg.objectiveai_dir.as_deref() {
+    if let Some(v) = global.objectiveai_dir.as_deref() {
         cmd.env("OBJECTIVEAI_DIR", v);
     }
-    if let Some(v) = cfg.objectiveai_state.as_deref() {
+    if let Some(v) = global.objectiveai_state.as_deref() {
         cmd.env("OBJECTIVEAI_STATE", v);
     }
-    if let Some(v) = cfg.commit_author_name.as_deref() {
+    if let Some(v) = global.commit_author_name.as_deref() {
         cmd.env("COMMIT_AUTHOR_NAME", v);
     }
-    if let Some(v) = cfg.commit_author_email.as_deref() {
+    if let Some(v) = global.commit_author_email.as_deref() {
         cmd.env("COMMIT_AUTHOR_EMAIL", v);
     }
-    cmd.env("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY", &cfg.agent_instance_hierarchy);
-    match cfg.agent_id.as_deref() {
+    cmd.env(
+        "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
+        scoped.agent_instance_hierarchy(),
+    );
+    match scoped.agent_id() {
         Some(v) => {
             cmd.env("OBJECTIVEAI_AGENT_ID", v);
         }
@@ -307,7 +316,7 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_AGENT_ID");
         }
     }
-    match cfg.agent_full_id.as_deref() {
+    match scoped.agent_full_id() {
         Some(v) => {
             cmd.env("OBJECTIVEAI_AGENT_FULL_ID", v);
         }
@@ -315,7 +324,7 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_AGENT_FULL_ID");
         }
     }
-    match cfg.agent_remote.as_deref() {
+    match scoped.agent_remote() {
         Some(v) => {
             cmd.env("OBJECTIVEAI_AGENT_REMOTE", v);
         }
@@ -323,7 +332,7 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_AGENT_REMOTE");
         }
     }
-    match cfg.response_id.as_deref() {
+    match scoped.response_id() {
         Some(v) => {
             cmd.env("OBJECTIVEAI_RESPONSE_ID", v);
         }
@@ -331,7 +340,7 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_RESPONSE_ID");
         }
     }
-    match cfg.response_ids.as_deref() {
+    match scoped.response_ids() {
         Some(v) => {
             cmd.env("OBJECTIVEAI_RESPONSE_IDS", v);
         }
@@ -339,7 +348,7 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_RESPONSE_IDS");
         }
     }
-    match cfg.mcp_session_id.as_deref() {
+    match scoped.mcp_session_id() {
         Some(v) => {
             cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
         }
@@ -360,10 +369,10 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
 /// these generic-named vars. Address/port always carry resolved
 /// defaults; the secret and pre-derived client signature are set when
 /// present and cleared otherwise so the child can't inherit stale ones.
-pub fn apply_daemon_env(cmd: &mut Command, cfg: &crate::Config) {
-    cmd.env("ADDRESS", &cfg.daemon_address);
-    cmd.env("PORT", cfg.daemon_port.to_string());
-    match cfg.daemon_secret.as_deref() {
+pub fn apply_daemon_env(cmd: &mut Command, global: &crate::context::GlobalContext) {
+    cmd.env("ADDRESS", &global.daemon_bind_address);
+    cmd.env("PORT", global.daemon_bind_port.to_string());
+    match global.daemon_secret.as_deref() {
         Some(v) => {
             cmd.env("SECRET", v);
         }
@@ -371,7 +380,7 @@ pub fn apply_daemon_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("SECRET");
         }
     }
-    match cfg.daemon_signature.as_deref() {
+    match global.daemon_signature.as_deref() {
         Some(v) => {
             cmd.env("SIGNATURE", v);
         }

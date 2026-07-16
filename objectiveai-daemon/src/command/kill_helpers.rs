@@ -5,7 +5,7 @@
 //! resident child with it.)
 //!
 //! A server is one of the daemon's LEASHED resident children (held on
-//! [`Context`] since the stdout-readiness refactor — there are no
+//! [`crate::context::GlobalContext`] since the stdout-readiness refactor — there are no
 //! server lockfiles to resolve pids through anymore). Killing one
 //! means taking its [`tokio::process::Child`] off the map and
 //! terminating it: SIGTERM first (the laboratory host's handler stops
@@ -28,7 +28,7 @@
 
 use std::path::PathBuf;
 
-use crate::context::Context;
+use crate::context::GlobalContext;
 use crate::error::Error;
 
 /// How long the graceful SIGTERM gets before the hard kill.
@@ -37,8 +37,8 @@ const TERM_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
 /// Kill this daemon's resident `key` child, if any: SIGTERM → bounded
 /// wait → hard kill. Returns the count terminated (0 or 1) —
 /// idempotent, a missing/already-dead child is a zero.
-pub async fn kill_resident_child(ctx: &Context, key: &str) -> usize {
-    let Some(mut child) = ctx.take_resident_child(key) else {
+pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
+    let Some(mut child) = global.take_resident_child(key) else {
         return 0;
     };
     let Some(pid) = child.id() else {

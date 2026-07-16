@@ -32,7 +32,7 @@
 //! the only provenance, one code path wherever the host runs. The
 //! conduit and the `laboratories` commands reach laboratories by
 //! calling [`LaboratoryRegistry::forward`] / [`LaboratoryRegistry::list`]
-//! directly on the resident daemon's registry (via `Context`'s resident
+//! directly on the resident daemon's registry (via `GlobalContext`'s resident
 //! hubs) — in-process, no socket.
 
 use std::sync::Arc;

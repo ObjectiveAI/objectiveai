@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.message_queue (
     agent_instance_hierarchy        TEXT,
     agent_tag                       TEXT,
     -- AIH of the caller who enqueued this row (sourced from
-    -- `ctx.config.agent_instance_hierarchy` at enqueue time).
+    -- `scoped.agent_instance_hierarchy()` at enqueue time).
     -- Surfaced on `agents queue read pending` so callers can
     -- audit "who asked for this" without a join.
     sender_agent_instance_hierarchy TEXT   NOT NULL,

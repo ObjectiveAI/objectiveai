@@ -1,11 +1,14 @@
 //! Internal api-server spawn — the daemon starts `objectiveai-api` as
 //! a leashed resident child when something needs it (there is no wire
-//! `api spawn` command anymore; `Context::api_client()` is the entry).
+//! `api spawn` command anymore; `ScopedContext::api_client()` is the
+//! entry). Identity-blind: the api server is one shared child, so this
+//! flow takes only the [`GlobalContext`] and reads the BOOT filesystem
+//! — the first spawn's config view decides for the daemon's life.
 //! The child announces its client-connect URL over the stdout ready
 //! handshake; a live resident child short-circuits to its cached
 //! address.
 
-use crate::context::Context;
+use crate::context::GlobalContext;
 use crate::error::Error;
 
 /// Every env key the api's config reads (`EnvConfigBuilder` in
@@ -54,16 +57,16 @@ const API_CONFIG_ENV: &[&str] = &[
     "PORT",
 ];
 
-/// The spawn flow itself (used by `Context::api_client()`).
+/// The spawn flow itself (used by `ScopedContext::api_client()`).
 /// Idempotent and cheap when the server is already up: a live
 /// resident child returns its cached URL without spawning.
-pub async fn spawn(ctx: &Context) -> Result<String, Error> {
+pub async fn spawn(global: &GlobalContext) -> Result<String, Error> {
     let bin = if cfg!(windows) {
         "objectiveai-api.exe"
     } else {
         "objectiveai-api"
     };
-    let exe = ctx.filesystem.bin_dir().join(bin);
+    let exe = global.boot_filesystem().bin_dir().join(bin);
 
     // Project the configured api knobs onto the spawned api's env —
     // each ONLY when the user explicitly set it (the keys are scrubbed
@@ -78,14 +81,16 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // per-request `X-MCP-CALL-TIMEOUT` header the daemon's OWN HTTP
     // client sends from `api.mcp_call_timeout_ms` (see
     // `context::build_http_client`).
-    let connect_ms = ctx.resolve_mcp_connect_timeout_ms_opt().await?;
-    let backoff_ms = ctx.resolve_backoff_max_elapsed_time_ms_opt().await?;
+    let connect_ms =
+        crate::context::resolve_mcp_connect_timeout_ms_opt(global.boot_filesystem()).await?;
+    let backoff_ms =
+        crate::context::resolve_backoff_max_elapsed_time_ms_opt(global.boot_filesystem()).await?;
 
-    let address = crate::spawn::spawn_leashed_until_ready(ctx, "api", &exe, |cmd| {
+    let address = crate::spawn::spawn_leashed_until_ready(global, "api", &exe, |cmd| {
         for key in API_CONFIG_ENV {
             cmd.env_remove(key);
         }
-        cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
+        cmd.env("OBJECTIVEAI_DIR", global.boot_filesystem().dir())
             .env("SUPPRESS_OUTPUT", "true");
         if let Some(connect_ms) = connect_ms {
             cmd.env("MCP_CONNECT_TIMEOUT", connect_ms.to_string());

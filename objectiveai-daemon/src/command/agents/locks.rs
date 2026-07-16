@@ -12,7 +12,7 @@
 //!
 //! Since the daemon is a single long-lived process, exclusion is a plain
 //! per-key [`tokio::sync::Mutex`] in the [`AgentLockMap`] on
-//! [`crate::context::Context`] (shared across every ctx clone — so it is
+//! [`crate::context::GlobalContext`] (shared across every clone — so it is
 //! the single authoritative exclusion for every agent/tag key). Each entry
 //! also carries a release [`Notify`], so observers can await a key going
 //! free ([`wait_released`]) or probe it ([`try_held`]) WITHOUT acquiring it
@@ -60,7 +60,7 @@ pub struct LockEntry {
 
 /// Per-key in-process gate for agent locks, keyed by the SAME `(dir, key)`
 /// [`agent_instance_lock`]/[`agent_tag_lock`] compute. Lives on
-/// [`crate::context::Context`], shared across clones.
+/// [`crate::context::GlobalContext`], shared across clones.
 pub type AgentLockMap = DashMap<(PathBuf, String), Arc<LockEntry>>;
 
 /// A held agent lock: an owned guard of the per-key in-process [`Mutex`].

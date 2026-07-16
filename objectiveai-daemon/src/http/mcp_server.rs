@@ -8,7 +8,7 @@ use futures::FutureExt;
 use futures::future::Shared;
 use tokio::sync::oneshot;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::executor::DaemonCommandExecutor;
 
 /// Handle to the in-process `objectiveai-mcp` server. `port`
@@ -23,7 +23,7 @@ pub struct McpServerHandle {
 /// Spawn the server. Returns immediately with the handle; the
 /// shared oneshot resolves after `objectiveai_mcp::setup` has
 /// bound the listener. `axum::serve` runs in the same spawned task.
-pub fn spawn(ctx: Context) -> McpServerHandle {
+pub fn spawn(global: GlobalContext, scoped: ScopedContext) -> McpServerHandle {
     let (port_tx, port_rx) = oneshot::channel::<u16>();
     // The layout coordinates come from the cli's own resolved
     // filesystem client (not the raw Option<String> env config) so
@@ -33,10 +33,10 @@ pub fn spawn(ctx: Context) -> McpServerHandle {
         address: "127.0.0.1".to_string(),
         port: 0,
         suppress_output: true,
-        objectiveai_dir: ctx.filesystem.dir().clone(),
-        objectiveai_state: ctx.filesystem.state().to_string(),
+        objectiveai_dir: scoped.filesystem.dir().clone(),
+        objectiveai_state: scoped.filesystem.state().to_string(),
     };
-    let executor = DaemonCommandExecutor::new(ctx, None);
+    let executor = DaemonCommandExecutor::new(global, scoped, None);
     tokio::spawn(async move {
         match objectiveai_mcp::setup(config, executor).await {
             Ok((listener, app)) => {

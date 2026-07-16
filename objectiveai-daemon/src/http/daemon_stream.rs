@@ -44,13 +44,15 @@ use tokio::sync::broadcast;
 
 /// Shared state for the daemon's HTTP routes: the broadcast
 /// sender `/listen` subscribers drain, the resident
-/// [`crate::context::Context`] that `/execute` runs commands against,
-/// and the optional secret every connection's auth preamble is
-/// verified against.
+/// [`crate::context::GlobalContext`] plus the daemon's BASE
+/// [`crate::context::ScopedContext`] that `/execute` derives each
+/// request's scope from, and the optional secret every connection's
+/// auth preamble is verified against.
 #[derive(Clone)]
 pub(crate) struct DaemonHttpState {
     pub(crate) tx: broadcast::Sender<String>,
-    pub(crate) ctx: crate::context::Context,
+    pub(crate) global: crate::context::GlobalContext,
+    pub(crate) scoped: crate::context::ScopedContext,
     pub(crate) secret: Option<std::sync::Arc<String>>,
     /// The live agent-status registry backing the `/agents/instances/list` route.
     pub(crate) active: crate::http::agents_routes::ActiveAgents,
@@ -72,7 +74,7 @@ pub(crate) struct DaemonHttpState {
 ///   future frame. Pure push.
 /// - **`POST /execute`** — request-per-command execution
 ///   ([`crate::http::daemon_execute`]): the client's request runs
-///   in-process against `ctx`, and its items stream back on that
+///   in-process against the resident context pair, and its items stream back on that
 ///   response only — never onto the broadcast. (The run's tee still
 ///   lands on `/listen` like any other CLI activity, via the producer
 ///   socket.)
@@ -91,7 +93,8 @@ pub fn serve_http(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
     secret: Option<std::sync::Arc<String>>,
-    ctx: crate::context::Context,
+    global: crate::context::GlobalContext,
+    scoped: crate::context::ScopedContext,
     active: crate::http::agents_routes::ActiveAgents,
     conversations: crate::http::agent_instance_route::ConversationHub,
     laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
@@ -148,7 +151,8 @@ pub fn serve_http(
         )
         .with_state(DaemonHttpState {
             tx,
-            ctx,
+            global,
+            scoped,
             secret,
             active,
             conversations,

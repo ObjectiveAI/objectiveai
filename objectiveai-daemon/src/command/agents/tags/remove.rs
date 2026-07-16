@@ -7,24 +7,24 @@
 
 use objectiveai_sdk::cli::command::agents::tags::remove::{Removed, Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     // Resolve the db handle before taking the lock so an error there
     // can't skip the explicit release below.
-    let pool = ctx.db_client().await?;
+    let pool = global.db_client().await?;
     // Same discipline as apply, same reason: a tag is load-bearing
     // identity, and deleting it out from under a live agent (whose
     // spawn holds the tag lock as part of its family) would rewrite
     // what that agent is called mid-flight. NON-BLOCKING: a held lock
     // means a live owner, and the remove is rejected.
-    let state_dir = ctx.filesystem.state_dir();
+    let state_dir = scoped.filesystem.state_dir();
     let (lock_dir, lock_key) =
         crate::command::agents::locks::agent_tag_lock(&state_dir, &request.tag);
     let Some(claim) =
-        crate::command::agents::locks::try_acquire(ctx.agent_locks(), &lock_dir, &lock_key).await
+        crate::command::agents::locks::try_acquire(global.agent_locks(), &lock_dir, &lock_key).await
     else {
         return Err(Error::TagRemoveAgentActive { tag: request.tag });
     };
@@ -58,10 +58,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::tags::remove as sdk;
     use objectiveai_sdk::cli::command::agents::tags::remove::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -72,10 +72,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::tags::remove as sdk;
     use objectiveai_sdk::cli::command::agents::tags::remove::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))

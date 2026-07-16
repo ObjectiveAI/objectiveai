@@ -26,7 +26,7 @@ use objectiveai_sdk::cli::command::agents::logs::subscribe::{
     AgentsInactiveTag, KindFilter, Request, ResponseItem, Target,
 };
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db::logs::MessageTable;
 use crate::db::tags;
 use crate::error::Error;
@@ -42,10 +42,10 @@ struct Resolved {
     lock_key: String,
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let default_parent = ctx.config.agent_instance_hierarchy.clone();
-    let db = ctx.db_client().await?.clone();
-    let state_dir = ctx.filesystem.state_dir();
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+    let default_parent = scoped.agent_instance_hierarchy().to_string();
+    let db = global.db_client().await?.clone();
+    let state_dir = scoped.filesystem.state_dir();
 
     // Resolve every target up front. Tags resolve via tags::lookup;
     // PENDING/GROUPED/ABSENT raises a structured error before we
@@ -67,7 +67,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let limit = request.limit;
     // The shared in-process agent-lock map, moved into the stream so the
     // held-set probe + release wait observe the same mutexes the spawns hold.
-    let agent_locks = ctx.agent_locks_arc();
+    let agent_locks = global.agent_locks_arc();
 
     let stream = async_stream::stream! {
         loop {
@@ -253,10 +253,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::logs::subscribe as sdk;
     use objectiveai_sdk::cli::command::agents::logs::subscribe::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -265,10 +265,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::logs::subscribe as sdk;
     use objectiveai_sdk::cli::command::agents::logs::subscribe::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

@@ -20,18 +20,18 @@ use objectiveai_sdk::cli::command::agents::tags::apply::{
     AgentTagResolution, Request, Response, Target,
 };
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     let resolved = match request.target {
         Target::AgentInstance {
             agent_instance,
             parent_agent_instance_hierarchy,
         } => {
             let parent = parent_agent_instance_hierarchy
-                .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
+                .unwrap_or_else(|| scoped.agent_instance_hierarchy().to_string());
             db::tags::ResolvedApplyTarget::AgentInstance {
                 parent_agent_instance_hierarchy: parent,
                 agent_instance,
@@ -42,7 +42,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             parent_agent_instance_hierarchy,
         } => {
             let parent = parent_agent_instance_hierarchy
-                .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
+                .unwrap_or_else(|| scoped.agent_instance_hierarchy().to_string());
             db::tags::ResolvedApplyTarget::Agent {
                 parent_agent_instance_hierarchy: parent,
                 agent_spec,
@@ -60,7 +60,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
     // Resolve the db handle before taking the lock so an error there can't
     // skip the explicit release below.
-    let pool = ctx.db_client().await?;
+    let pool = global.db_client().await?;
     // A tag binding is load-bearing identity: relocating it rewrites which
     // agent the tag names — message-queue routing, spawn identity resolution,
     // and the lock FAMILY a spawn acquires all key on it — so a tag may not
@@ -71,11 +71,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // means a live process owns that tag, and the apply is rejected.
     // Released right after the write — this command isn't an active agent,
     // it just needs exclusivity for the relocation itself.
-    let state_dir = ctx.filesystem.state_dir();
+    let state_dir = scoped.filesystem.state_dir();
     let (lock_dir, lock_key) =
         crate::command::agents::locks::agent_tag_lock(&state_dir, &request.name);
     let Some(claim) =
-        crate::command::agents::locks::try_acquire(ctx.agent_locks(), &lock_dir, &lock_key).await
+        crate::command::agents::locks::try_acquire(global.agent_locks(), &lock_dir, &lock_key).await
     else {
         return Err(Error::TagApplyAgentActive { tag: request.name });
     };
@@ -137,10 +137,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::tags::apply as sdk;
     use objectiveai_sdk::cli::command::agents::tags::apply::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -151,10 +151,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::tags::apply as sdk;
     use objectiveai_sdk::cli::command::agents::tags::apply::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))
