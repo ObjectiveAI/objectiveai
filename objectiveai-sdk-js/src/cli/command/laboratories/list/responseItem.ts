@@ -3,12 +3,19 @@
 import { z } from "zod";
 import { CliCommandLaboratoriesCreateEnvVarSchema } from "../create/envVar";
 import { CliCommandLaboratoriesCreateMountSchema } from "../create/mount";
+import { LaboratoriesLaboratoryImageSchema } from "../../../../laboratories/laboratoryImage";
+import { MachineMachineIdentitySchema } from "../../../../machine/machineIdentity";
 
 export const CliCommandLaboratoriesListResponseItemSchema = z.object({
+  agent_full_id: z.string().nullable().describe("For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.").meta({ omitempty: true }).optional(),
+  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.").meta({ omitempty: true }).optional(),
   cwd: z.string(),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string(),
-  image: z.string(),
+  image: LaboratoriesLaboratoryImageSchema,
+  machine: MachineMachineIdentitySchema.nullable().describe("The machine whose laboratory host serves this laboratory.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
-}).describe("One laboratory container, reconstructed from its `objectiveai.laboratory`\nlabel. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.").meta({ title: "cli.command.laboratories.list.ResponseItem" });
+  running: z.boolean().default(false).describe("Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running)."),
+}).describe("One laboratory served by a connected laboratory HOST. There is no\nlocal-vs-remote split — machine identity is the only provenance,\nthe same logic regardless of where the host runs.").meta({ title: "cli.command.laboratories.list.ResponseItem" });
 export type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;

@@ -27,6 +27,10 @@ type AgentUpstreamMock string
 
 func (AgentUpstreamMock) SchemaVariantTitle() string { return "Mock" }
 
+type AgentUpstreamScript string
+
+func (AgentUpstreamScript) SchemaVariantTitle() string { return "Script" }
+
 // Supported agent upstreams.
 type AgentUpstream struct {
 	// Unknown Upstream.
@@ -39,6 +43,8 @@ type AgentUpstream struct {
 	CodexSdk *AgentUpstreamCodexSdk `validate:"omitempty,oneof=codex_sdk"`
 	// Mock Upstream.
 	Mock *AgentUpstreamMock `validate:"omitempty,oneof=mock"`
+	// Script Upstream.
+	Script *AgentUpstreamScript `validate:"omitempty,oneof=script"`
 }
 
 func (v AgentUpstream) MarshalJSON() ([]byte, error) {
@@ -56,6 +62,9 @@ func (v AgentUpstream) MarshalJSON() ([]byte, error) {
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
+	}
+	if v.Script != nil {
+		return json.Marshal(v.Script)
 	}
 	return []byte("null"), nil
 }
@@ -116,6 +125,17 @@ func (v *AgentUpstream) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try AgentUpstreamScript
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentUpstream{}
+			candidate.Script = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of AgentUpstream")
 }
 
@@ -126,6 +146,7 @@ func (v AgentUpstream) Validate() error {
 	if v.ClaudeAgentSdk != nil { count++ }
 	if v.CodexSdk != nil { count++ }
 	if v.Mock != nil { count++ }
+	if v.Script != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentUpstream: exactly one variant must be set, got %d", count)
 	}

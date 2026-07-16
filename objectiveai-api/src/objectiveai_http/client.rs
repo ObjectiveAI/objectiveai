@@ -86,6 +86,10 @@ impl Client {
             // its own session id when relevant; this http client is
             // for upstream LLM/SDK calls.
             mcp_session_id: None,
+            // Propagate the caller's MCP CALL budget downstream so a
+            // nested ObjectiveAI call applies the same per-request
+            // timeout the original caller asked for.
+            mcp_call_timeout_ms: ctx.mcp_call_timeout_ms(),
         }
     }
 }

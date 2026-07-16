@@ -32,16 +32,42 @@ impl CommandRequest for Request {
     }
 }
 
-/// One laboratory container, reconstructed from its `objectiveai.laboratory`
-/// label. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.
+/// One laboratory served by a connected laboratory HOST. There is no
+/// local-vs-remote split — machine identity is the only provenance,
+/// the same logic regardless of where the host runs.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.laboratories.list.ResponseItem")]
 pub struct ResponseItem {
     pub id: String,
-    pub image: String,
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<super::create::Mount>,
     pub env: Vec<super::create::EnvVar>,
     pub cwd: String,
+    /// Unix seconds when the laboratory container was created, from
+    /// podman's container record. `None` when the host didn't report
+    /// it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub created_at: Option<i64>,
+    /// For agent laboratories: the full id of the agent the
+    /// laboratory derives from. `None` for user-created laboratories.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_full_id: Option<String>,
+    /// The machine whose laboratory host serves this laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<crate::machine::MachineIdentity>,
+    /// The state (on that machine) the serving host serves —
+    /// laboratory ids are only unique per (machine, state).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
+    /// Whether the laboratory's CONTAINER is running right now (the
+    /// lifecycle starts and stops containers on demand). Defaulted so
+    /// older daemons' items parse (as not-running).
+    #[serde(default)]
+    pub running: bool,
 }
 
 #[derive(clap::Args)]
@@ -124,10 +150,10 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `laboratories list`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// response-item stream. See [`crate::cli::websocket_listener`].
+/// response-item stream. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
     pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
 }

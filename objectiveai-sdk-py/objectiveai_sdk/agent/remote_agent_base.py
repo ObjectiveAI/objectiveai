@@ -8,6 +8,7 @@ from objectiveai_sdk.agent.codex_sdk.agent_base import AgentBase as AgentCodexSd
 from objectiveai_sdk.agent.inline_agent_base import InlineAgentBase
 from objectiveai_sdk.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai_sdk.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
+from objectiveai_sdk.agent.script.agent_base import AgentBase as AgentScriptAgentBase
 
 
 class RemoteAgentBaseOpenrouter(AgentOpenrouterAgentBase):
@@ -26,11 +27,15 @@ class RemoteAgentBaseMock(AgentMockAgentBase):
     description: str
 
 
+class RemoteAgentBaseScript(AgentScriptAgentBase):
+    description: str
+
+
 class RemoteAgentBase(RootModel):
     """A remote agent base definition with metadata.
 
 Like [`InlineAgentBase`] but includes a description field for remote storage."""
     model_config = ConfigDict(title='agent.RemoteAgentBase', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBase', '_expanded_ref_props': ['description']})
 
-    root: Union[RemoteAgentBaseOpenrouter, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseCodexSdk, RemoteAgentBaseMock]
+    root: Union[RemoteAgentBaseOpenrouter, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseCodexSdk, RemoteAgentBaseMock, RemoteAgentBaseScript]
 

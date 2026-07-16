@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.laboratories.config.Request",
+  "anyOf": [
+    {
+      "title": "Addresses",
+      "$ref": "cli.command.laboratories.config.addresses.Request"
+    },
+    {
+      "title": "Local",
+      "$ref": "cli.command.laboratories.config.local.Request"
+    }
+  ]
+}

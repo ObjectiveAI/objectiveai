@@ -7,14 +7,31 @@ import (
 	"fmt"
 )
 
-// One laboratory container, reconstructed from its `objectiveai.laboratory`
-// label. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.
+// One laboratory served by a connected laboratory HOST. There is no
+// local-vs-remote split — machine identity is the only provenance,
+// the same logic regardless of where the host runs.
 type CliCommandLaboratoriesListResponseItem struct {
+	// For agent laboratories: the full id of the agent the
+	// laboratory derives from. `None` for user-created laboratories.
+	AgentFullID *string `json:"agent_full_id,omitempty"`
+	// Unix seconds when the laboratory container was created, from
+	// podman's container record. `None` when the host didn't report
+	// it.
+	CreatedAt *int64 `json:"created_at,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Cwd string `json:"cwd"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
-	Image string `json:"image"`
+	Image LaboratoriesLaboratoryImage `json:"image"`
+	// The machine whose laboratory host serves this laboratory.
+	Machine *MachineMachineIdentity `json:"machine,omitempty"`
+	// The state (on that machine) the serving host serves —
+	// laboratory ids are only unique per (machine, state).
+	MachineState *string `json:"machine_state,omitempty"`
 	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
+	// Whether the laboratory's CONTAINER is running right now (the
+	// lifecycle starts and stops containers on demand). Defaulted so
+	// older daemons' items parse (as not-running).
+	Running bool `json:"running" default:"false"`
 }
 
 func (CliCommandLaboratoriesListResponseItem) SchemaTitle() string { return "cli.command.laboratories.list.ResponseItem" }
@@ -27,7 +44,7 @@ func (v *CliCommandLaboratoriesListResponseItem) UnmarshalJSON(data []byte) erro
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"cwd", "env", "id", "image", "mounts"} {
+	for _, key := range []string{"cwd", "env", "id", "image", "mounts", "running"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandLaboratoriesListResponseItem: missing required field %q", key)
 		}

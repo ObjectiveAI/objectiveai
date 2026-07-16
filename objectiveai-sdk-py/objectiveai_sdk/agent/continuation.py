@@ -7,6 +7,7 @@ from objectiveai_sdk.agent.claude_agent_sdk.continuation import Continuation as 
 from objectiveai_sdk.agent.codex_sdk.continuation import Continuation as AgentCodexSdkContinuation
 from objectiveai_sdk.agent.mock.continuation import Continuation as AgentMockContinuation
 from objectiveai_sdk.agent.openrouter.continuation import Continuation as AgentOpenrouterContinuation
+from objectiveai_sdk.agent.script.continuation import Continuation as AgentScriptContinuation
 
 
 class ContinuationOpenrouter(RootModel):
@@ -33,6 +34,12 @@ class ContinuationMock(RootModel):
     root: AgentMockContinuation
 
 
+class ContinuationScript(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Script'})
+
+    root: AgentScriptContinuation
+
+
 class Continuation(RootModel):
     """Continuation state for multi-turn agent completions.
 
@@ -41,5 +48,5 @@ Pass it back in the next request to continue the conversation.
 Serialized as base64-encoded JSON."""
     model_config = ConfigDict(title='agent.Continuation')
 
-    root: Union[ContinuationOpenrouter, ContinuationClaudeAgentSdk, ContinuationCodexSdk, ContinuationMock]
+    root: Union[ContinuationOpenrouter, ContinuationClaudeAgentSdk, ContinuationCodexSdk, ContinuationMock, ContinuationScript]
 

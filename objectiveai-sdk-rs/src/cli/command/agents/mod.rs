@@ -1,7 +1,6 @@
 pub mod enqueue;
 pub mod get;
 pub mod instances;
-pub mod laboratories;
 pub mod list;
 pub mod logs;
 pub mod mcp;
@@ -25,11 +24,6 @@ pub enum Command {
     Instances {
         #[command(subcommand)]
         command: instances::Command,
-    },
-    /// Attach/detach/list laboratory ids on an agent target.
-    Laboratories {
-        #[command(subcommand)]
-        command: laboratories::Command,
     },
     /// List remote agents available from a given source.
     List(list::Command),
@@ -86,8 +80,6 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "Instances")]
     Instances(instances::Request),
-    #[schemars(title = "Laboratories")]
-    Laboratories(laboratories::Request),
     #[schemars(title = "List")]
     List(list::Request),
     #[schemars(title = "ListRequestSchema")]
@@ -149,8 +141,6 @@ pub enum ResponseItem {
     GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "Instances")]
     Instances(instances::ResponseItem),
-    #[schemars(title = "Laboratories")]
-    Laboratories(laboratories::ResponseItem),
     #[schemars(title = "List")]
     List(list::ResponseItem),
     #[schemars(title = "ListRequestSchema")]
@@ -202,7 +192,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
             ResponseItem::Instances(v) => v.into_mcp(),
-            ResponseItem::Laboratories(v) => v.into_mcp(),
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
@@ -246,8 +235,6 @@ impl TryFrom<Command> for Request {
             },
             Command::Instances { command } =>
                 Ok(Request::Instances(instances::Request::try_from(command)?)),
-            Command::Laboratories { command } =>
-                Ok(Request::Laboratories(laboratories::Request::try_from(command)?)),
             Command::List(cmd) => match cmd.schema {
                 None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
                 Some(list::Schema::RequestSchema(args)) =>
@@ -305,7 +292,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.request_base(),
             Request::GetResponseSchema(inner) => inner.request_base(),
             Request::Instances(inner) => inner.request_base(),
-            Request::Laboratories(inner) => inner.request_base(),
             Request::List(inner) => inner.request_base(),
             Request::ListRequestSchema(inner) => inner.request_base(),
             Request::ListResponseSchema(inner) => inner.request_base(),
@@ -337,7 +323,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.request_base_mut(),
             Request::GetResponseSchema(inner) => inner.request_base_mut(),
             Request::Instances(inner) => inner.request_base_mut(),
-            Request::Laboratories(inner) => inner.request_base_mut(),
             Request::List(inner) => inner.request_base_mut(),
             Request::ListRequestSchema(inner) => inner.request_base_mut(),
             Request::ListResponseSchema(inner) => inner.request_base_mut(),
@@ -413,10 +398,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Instances(req) => {
                 let inner = instances::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Instances)))
-            }
-            Request::Laboratories(req) => {
-                let inner = laboratories::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
             }
             Request::List(req) => {
                 let inner = list::execute(executor, req, agent_arguments).await?;
@@ -579,10 +560,6 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 let inner = instances::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
-            Request::Laboratories(req) => {
-                let inner = laboratories::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
             Request::List(req) => {
                 let inner = list::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
@@ -680,7 +657,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::websocket_listener`].
+/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub enum ListenerExecution {
     Enqueue(enqueue::ListenerExecution),
@@ -690,7 +667,6 @@ pub enum ListenerExecution {
     GetRequestSchema(get::request_schema::ListenerExecution),
     GetResponseSchema(get::response_schema::ListenerExecution),
     Instances(instances::ListenerExecution),
-    Laboratories(laboratories::ListenerExecution),
     List(list::ListenerExecution),
     ListRequestSchema(list::request_schema::ListenerExecution),
     ListResponseSchema(list::response_schema::ListenerExecution),

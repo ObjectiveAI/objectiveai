@@ -23,6 +23,7 @@
         "total_tokens": 425,
         "cost": 0.0,
         "total_cost": 0.0,
+        "upstream_duration_ms": {},
         "cost_multiplier": 1.0,
         "is_byok": false
       }
@@ -34,7 +35,8 @@
     "prompt_tokens": 57,
     "total_tokens": 425,
     "cost": 0.0,
-    "total_cost": 0.0
+    "total_cost": 0.0,
+    "upstream_duration_ms": {}
   },
   "upstream": "mock",
   "error": null,

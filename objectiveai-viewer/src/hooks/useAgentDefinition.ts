@@ -4,7 +4,7 @@ import {
   type CliCommandAgentsInstancesListResponseItem,
 } from "@objectiveai/sdk";
 import { logsTarget } from "../lib/aih";
-import { websocketExecutor } from "../lib/websocket-executor";
+import { daemonExecutor } from "../lib/executor";
 
 /** The recorded agent definition: the remote path or the inline WF
  * spec, exactly as `agents instances get` returns it. */
@@ -40,7 +40,7 @@ export function useAgentDefinition(hierarchy: string): AgentDefinitionResult {
 
     void (async () => {
       try {
-        const executor = await websocketExecutor();
+        const executor = await daemonExecutor();
         for await (const item of agentsInstancesGetExecute(executor, {
           targets: [logsTarget(hierarchy)],
         })) {

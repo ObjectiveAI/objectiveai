@@ -72,7 +72,7 @@ fn spawn_drop_losers(
 
 // ---------------------------------------------------------------------------
 
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> {
     /// MCP Client
     pub mcp_client: Arc<objectiveai_sdk::mcp::Client>,
     /// Lazy in-process mcp-proxy used for every per-agent MCP connection.
@@ -91,6 +91,8 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub codex_sdk: Arc<CODEXSDK>,
     /// Upstream client for Mock agents.
     pub mock: Arc<MOCK>,
+    /// Upstream client for Script agents.
+    pub script: Arc<SCRIPT>,
 
     /// Current backoff interval for retry logic.
     pub backoff_current_interval: Duration,
@@ -104,14 +106,16 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub backoff_max_interval: Duration,
     /// Maximum total time to spend on retries.
     pub backoff_max_elapsed_time: Duration,
-    /// Maximum wait time for the first chunk in a streaming response.
+    /// Cancellation grace window while awaiting the first chunk of a
+    /// streaming response. NOT a timeout: absent cancellation the wait
+    /// is unbounded. A cancel that lands before this window elapses is
+    /// held; once it elapses, a prior or later cancel aborts the wait
+    /// immediately.
     pub first_chunk_timeout: Duration,
-    /// Maximum wait time between subsequent chunks in a streaming response.
-    pub other_chunk_timeout: Duration,
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> {
     pub fn new(
         mcp_client: Arc<objectiveai_sdk::mcp::Client>,
         proxy_spawner: Arc<super::ProxyFactory>,
@@ -122,6 +126,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
         claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
         codex_sdk: Arc<CODEXSDK>,
         mock: Arc<MOCK>,
+        script: Arc<SCRIPT>,
         backoff_current_interval: Duration,
         backoff_initial_interval: Duration,
         backoff_randomization_factor: f64,
@@ -129,7 +134,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
         backoff_max_interval: Duration,
         backoff_max_elapsed_time: Duration,
         first_chunk_timeout: Duration,
-        other_chunk_timeout: Duration,
     ) -> Self {
         Self {
             mcp_client,
@@ -141,6 +145,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             claude_agent_sdk,
             codex_sdk,
             mock,
+            script,
             backoff_current_interval,
             backoff_initial_interval,
             backoff_randomization_factor,
@@ -148,14 +153,13 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_interval,
             backoff_max_elapsed_time,
             first_chunk_timeout,
-            other_chunk_timeout,
             _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
-    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> Clone
+    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG>
 {
     fn clone(&self) -> Self {
         Self {
@@ -168,6 +172,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             claude_agent_sdk: self.claude_agent_sdk.clone(),
             codex_sdk: self.codex_sdk.clone(),
             mock: self.mock.clone(),
+            script: self.script.clone(),
             backoff_current_interval: self.backoff_current_interval,
             backoff_initial_interval: self.backoff_initial_interval,
             backoff_randomization_factor: self.backoff_randomization_factor,
@@ -175,19 +180,19 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             backoff_max_interval: self.backoff_max_interval,
             backoff_max_elapsed_time: self.backoff_max_elapsed_time,
             first_chunk_timeout: self.first_chunk_timeout,
-            other_chunk_timeout: self.other_chunk_timeout,
             _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, CUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: super::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: super::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: super::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: super::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
+    SCRIPT: super::UpstreamClient<objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRM: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -206,6 +211,7 @@ where
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
                 MOCK::State,
+                SCRIPT::State,
             >,
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -245,6 +251,7 @@ where
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
                 MOCK::State,
+                SCRIPT::State,
             >,
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -259,6 +266,7 @@ where
                     CLAUDEAGENTSDK::State,
                     CODEXSDK::State,
                     MOCK::State,
+                    SCRIPT::State,
                 >,
             >,
         > + Send
@@ -328,6 +336,7 @@ where
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
                 MOCK::State,
+                SCRIPT::State,
             >,
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -347,21 +356,12 @@ where
                     CLAUDEAGENTSDK::State,
                     CODEXSDK::State,
                     MOCK::State,
+                    SCRIPT::State,
                 >,
             >,
         > + Send,
         super::Error,
     > {
-
-        // Cancellation check closure factory — creates a new closure
-        // that shares the same underlying AtomicBool via ctx's Arc.
-        let make_is_cancelled = {
-            let ctx = ctx.clone();
-            move || {
-                let ctx = ctx.clone();
-                move || ctx.is_cancelled()
-            }
-        };
 
         // Parse request continuation from base64 string if provided.
         let request_continuation = match &params.continuation {
@@ -401,20 +401,24 @@ where
             mut cont_items_cas,
             mut cont_items_cdx,
             mut cont_items_mock,
+            mut cont_items_script,
         ) = match continuation {
             Some(super::Continuation::Openrouter { items, .. }) => {
-                (items, vec![], vec![], vec![])
+                (items, vec![], vec![], vec![], vec![])
             }
             Some(super::Continuation::ClaudeAgentSdk { items, .. }) => {
-                (vec![], items, vec![], vec![])
+                (vec![], items, vec![], vec![], vec![])
             }
             Some(super::Continuation::CodexSdk { items, .. }) => {
-                (vec![], vec![], items, vec![])
+                (vec![], vec![], items, vec![], vec![])
             }
             Some(super::Continuation::Mock { items, .. }) => {
-                (vec![], vec![], vec![], items)
+                (vec![], vec![], vec![], items, vec![])
             }
-            None => (vec![], vec![], vec![], vec![]),
+            Some(super::Continuation::Script { items, .. }) => {
+                (vec![], vec![], vec![], vec![], items)
+            }
+            None => (vec![], vec![], vec![], vec![], vec![]),
         };
 
         // 3. Always resolve agents from params.agent.
@@ -497,9 +501,14 @@ where
             let factory = self.proxy_spawner.clone();
             let reverse_channel = ctx.reverse_channel().cloned();
             let queue_delegate = ctx.queue_delegate();
+            // Per-request MCP CALL budget from `X-MCP-CALL-TIMEOUT`
+            // (None = no header = no call timeout).
+            let mcp_call_timeout_ms = ctx.mcp_call_timeout_ms();
             ctx.proxy_cell()
                 .get_or_try_init(|| async move {
-                    factory.boot(reverse_channel, queue_delegate).await
+                    factory
+                        .boot(reverse_channel, queue_delegate, mcp_call_timeout_ms)
+                        .await
                 })
                 .await
                 .map(Arc::clone)
@@ -558,6 +567,7 @@ where
             .iter()
             .map(|agent| {
                 (agent.base().client_objectiveai_mcp().is_some()
+                    || agent.base().laboratories().is_some()
                     || has_laboratories)
                     && ctx.reverse_channel().is_some()
             })
@@ -674,13 +684,53 @@ where
                 if needs_reverse_attach {
                     if let Some(labs) = &params.laboratories {
                         for lab in labs {
-                            let objectiveai_sdk::laboratories::Laboratory::Client(c) = lab;
+                            let id = match lab {
+                                objectiveai_sdk::laboratories::Laboratory::Client(c) => &c.id,
+                                objectiveai_sdk::laboratories::Laboratory::Agent(a) => &a.id,
+                            };
                             let url = format!(
                                 "ws://laboratory/{}",
-                                percent_encode_segment(&c.id)
+                                percent_encode_segment(id)
                             );
                             client_mcp_synthetic_urls.push((url.clone(), None));
                             laboratories_by_url.insert(url, lab.clone());
+                        }
+                    }
+                }
+                // Agent-embedded laboratories: each spec on the ATTEMPTED
+                // agent becomes a laboratory upstream whose id DERIVES from
+                // the agent's full id plus the spec — no pre-existing lab,
+                // no pinned (machine, state). The typed `Agent` marker
+                // carries the spec so the CLI conduit can create the lab on
+                // the spot when no connected host serves the derived id.
+                // Deduped by URL (which embeds the id).
+                if needs_reverse_attach {
+                    if let Some(agent_labs) = agent.base().laboratories() {
+                        let agent_full_id = agent.id();
+                        for lab in agent_labs {
+                            let id = objectiveai_sdk::agent::laboratories::derived_id(
+                                agent_full_id,
+                                lab,
+                            );
+                            let url = format!(
+                                "ws://laboratory/{}",
+                                percent_encode_segment(&id)
+                            );
+                            if laboratories_by_url.contains_key(&url) {
+                                continue;
+                            }
+                            client_mcp_synthetic_urls.push((url.clone(), None));
+                            laboratories_by_url.insert(
+                                url,
+                                objectiveai_sdk::laboratories::Laboratory::Agent(
+                                    objectiveai_sdk::laboratories::AgentLaboratory {
+                                        r#type: objectiveai_sdk::laboratories::AgentLaboratoryType::Agent,
+                                        id,
+                                        agent_full_id: agent_full_id.to_string(),
+                                        laboratory: lab.clone(),
+                                    },
+                                ),
+                            );
                         }
                     }
                 }
@@ -963,6 +1013,7 @@ where
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
                     || !extra_mcp_servers.is_empty()
                     || attempt.agent.base().client_objectiveai_mcp().is_some()
+                    || attempt.agent.base().laboratories().is_some()
                     || has_laboratories;
                 let mcp_connection: Option<objectiveai_sdk::mcp::Connection> =
                     attempt_connections[idx].clone();
@@ -1001,6 +1052,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                ctx.openrouter_duration_cost,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Openrouter {
@@ -1011,7 +1063,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::Openrouter(&or_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1037,6 +1089,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                ctx.claude_agent_sdk_duration_cost,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::ClaudeAgentSdk {
@@ -1047,7 +1100,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::ClaudeAgentSdk(&cas_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1073,6 +1126,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                ctx.codex_sdk_duration_cost,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::CodexSdk {
@@ -1083,7 +1137,7 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1109,6 +1163,7 @@ where
                                 ctx.queue_delegate(),
                                 &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
+                                rust_decimal::Decimal::ZERO,
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Mock {
@@ -1119,7 +1174,44 @@ where
                                 objectiveai_sdk::agent::InlineAgentRef::Mock(&mock_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
-                                make_is_cancelled(),
+                                ctx.cancellation_token(),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
+                            ).await {
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
+                                Err(e) => e,
+                            }
+                        }
+                        objectiveai_sdk::agent::InlineAgent::Script(script_agent) => {
+                            let rc = match &request_continuation {
+                                Some(objectiveai_sdk::agent::Continuation::Script(c)) => Some(c),
+                                _ => None,
+                            };
+                            match self.run_agent_loop(
+                                self.script.clone(), script_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
+                                ctx.queue_delegate(),
+                                &mut cont_items_script, &attempt.id, created,
+                                *byok_attempt, ctx.cost_multiplier,
+                                ctx.script_duration_cost,
+                                {
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
+                                    move |items| super::Continuation::Script {
+                                        items, agent_instance_hierarchy,
+                                    }
+                                },
+                                |e| super::Error::UpstreamScript(Box::new(e)),
+                                objectiveai_sdk::agent::InlineAgentRef::Script(&script_agent.base),
+                                disable_tools.clone(),
+                                agent_transform,
+                                ctx.cancellation_token(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
@@ -1136,6 +1228,13 @@ where
                         }
                     };
                     errors.push(err);
+                    // Cancellation is terminal: a StreamCancelled from
+                    // the first-chunk grace-window race (or a cancel
+                    // observed alongside any other failure) must not
+                    // roll to the next BYOK attempt or agent candidate.
+                    if ctx.is_cancelled() {
+                        return Err(super::Error::StreamCancelled);
+                    }
                 }
             }
 
@@ -1145,6 +1244,11 @@ where
             }
             use backoff::backoff::Backoff;
             match backoff.next_backoff() {
+                // A cancel landing between rounds must not start
+                // another round of grace-window waits.
+                Some(_) if ctx.is_cancelled() => {
+                    return Err(super::Error::StreamCancelled);
+                }
                 Some(d) => tokio::time::sleep(d).await,
                 None => {
                     return Err(if errors.len() == 1 {
@@ -1159,10 +1263,19 @@ where
 
     /// Creates an upstream stream and runs the tool-calling loop.
     ///
-    /// 1. Calls `upstream.create()` with `first_chunk_timeout`.
+    /// 1. Awaits `upstream.create()`'s first chunk, racing it against
+    ///    cancellation gated by the `first_chunk_timeout` grace window:
+    ///    a cancel landing BEFORE the window elapses is held (the wait
+    ///    continues); once the window elapses, a prior or later cancel
+    ///    aborts the wait immediately with `Error::StreamCancelled`.
+    ///    Absent cancellation the wait is unbounded — the window alone
+    ///    never errors.
     /// 2. Returns a stream that yields chunks as they arrive, executes
     ///    callable tools (MCP), and re-invokes the upstream for each
     ///    continuation until no more callable tool calls remain.
+    ///    Mid-stream chunk waits are unbounded (no inter-chunk timeout);
+    ///    cancellation is observed between turns and stamped as a 499
+    ///    on the final chunk.
     /// 3. The final stream item is always `StreamItem::State(CONT)`.
     ///
     /// On success, takes ownership of `cont_items` (via `std::mem::take`).
@@ -1181,12 +1294,16 @@ where
         created: u64,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
+        // per-1-SECOND wall-time rate for THIS upstream, forwarded into
+        // every `upstream.create()` (each tool-turn re-creates); the
+        // upstream stamps its own `upstream_duration_ms` field and bills.
+        duration_cost: rust_decimal::Decimal,
         wrap_continuation: impl FnOnce(Vec<super::ContinuationItem<U::State>>) -> CONT + Send + 'static,
         map_upstream_err: impl Fn(U::Error) -> super::Error + Send + 'static,
         agent_base: objectiveai_sdk::agent::InlineAgentRef<'_>,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
         transform_messages: Option<&(dyn Fn(Vec<objectiveai_sdk::agent::completions::message::Message>) -> Vec<objectiveai_sdk::agent::completions::message::Message> + Send + Sync)>,
-        is_cancelled: impl Fn() -> bool + Send + Sync + 'static,
+        cancel_token: tokio_util::sync::CancellationToken,
         agent_instance_hierarchy_header: &str,
         agent_id: &str,
         agent_full_id: &str,
@@ -1366,20 +1483,40 @@ where
             params,
             &messages,
             mcp_connection.clone(),
+            reverse_attach.clone(),
             cont_ref,
             byok,
             cost_multiplier,
+            duration_cost,
             true,
             agent_instance_hierarchy_header,
             agent_id,
             agent_full_id,
             agent_remote,
         );
-        let initial_stream =
-            tokio::time::timeout(self.first_chunk_timeout, create_fut)
-                .await
-                .map_err(|_| super::Error::Timeout)?
-                .map_err(&map_upstream_err)?;
+        // --- Await the first chunk, racing against cancellation gated
+        // by the `first_chunk_timeout` grace window. The window alone
+        // never errors: absent cancellation the wait is unbounded. A
+        // cancel that lands BEFORE the window elapses does not abort
+        // the wait; once the window elapses, a prior cancel aborts
+        // immediately (`.cancelled()` on an already-cancelled token is
+        // instantly ready) and a later cancel aborts the moment it
+        // fires. `biased` prefers a first chunk that is ready in the
+        // same poll as the cancel — data beats cancellation. If the
+        // grace arm wins, dropping `create_fut` aborts the upstream
+        // request, exactly as the old `tokio::time::timeout` expiry
+        // did.
+        let initial_stream = {
+            let cancel_after_grace = async {
+                tokio::time::sleep(self.first_chunk_timeout).await;
+                cancel_token.cancelled().await;
+            };
+            tokio::select! {
+                biased;
+                created = create_fut => created.map_err(&map_upstream_err)?,
+                _ = cancel_after_grace => return Err(super::Error::StreamCancelled),
+            }
+        };
 
         // Resolve the proxy's tool name set once upfront. Used to
         // distinguish tool calls the orchestrator should dispatch
@@ -1398,7 +1535,6 @@ where
 
         // Success — take ownership of continuation items and build the stream.
         let mut continuation_items = std::mem::take(cont_items);
-        let other_chunk_timeout = self.other_chunk_timeout;
         let agent = agent.clone();
         let params = params.clone();
         let id = id.to_string();
@@ -1416,6 +1552,7 @@ where
         // state, so the queue rows re-issue on the next loop.
         let _delegate_guard = delegate_guard;
         let queue_delegate_for_stream = queue_delegate.clone();
+        let reverse_attach_for_stream = reverse_attach.clone();
 
         Ok(Box::pin(async_stream::stream! {
             let mut aggregate: Option<
@@ -1450,8 +1587,11 @@ where
                 > = None;
 
                 loop {
-                    match tokio::time::timeout(other_chunk_timeout, stream.next()).await {
-                        Ok(Some(super::StreamItem::Chunk(mut chunk))) => {
+                    // Mid-stream chunk waits are unbounded — there is
+                    // deliberately no inter-chunk timeout; the upstream
+                    // transport's own limits are the only bound.
+                    match stream.next().await {
+                        Some(super::StreamItem::Chunk(mut chunk)) => {
                             // Identity (`agent_instance_hierarchy`,
                             // `agent_id`, `agent_full_id`, `agent_remote`)
                             // is stamped at the upstream-client level
@@ -1507,15 +1647,11 @@ where
                                 yield super::StreamItem::Chunk(prev);
                             }
                         }
-                        Ok(Some(super::StreamItem::State(state))) => {
+                        Some(super::StreamItem::State(state)) => {
                             current_state = Some(state);
                             break;
                         }
-                        Ok(None) => break,
-                        Err(_) => {
-                            had_error = true;
-                            break;
-                        }
+                        None => break,
                     }
                 }
 
@@ -1544,7 +1680,7 @@ where
                     continuation_items.push(super::ContinuationItem::State(state));
                 }
 
-                if had_error || is_cancelled() {
+                if had_error || cancel_token.is_cancelled() {
                     break;
                 }
 
@@ -1710,9 +1846,11 @@ where
                         &params,
                         &messages,
                         mcp_connection.clone(),
+                        reverse_attach_for_stream.clone(),
                         Some(&continuation_items),
                         byok.as_deref(),
                         cost_multiplier,
+                        duration_cost,
                         tools_enabled,
                         agent_instance_hierarchy_header.as_str(),
                         agent_id.as_str(),
@@ -1750,7 +1888,7 @@ where
             let continuation_token = continuation_token.to_string();
 
             // Set cancellation error if the stream was cancelled.
-            if is_cancelled() && final_error.is_none() {
+            if cancel_token.is_cancelled() && final_error.is_none() {
                 final_error = Some(objectiveai_sdk::error::ResponseError::from(
                     &super::Error::StreamCancelled,
                 ));
@@ -1826,11 +1964,6 @@ fn extract_callable_tool_calls(
     callable
 }
 
-// The time budget for one `read_message_queue` round-trip over the
-// WS reverse-attach is the shared configured reverse-channel budget,
-// carried by the handle itself —
-// `ReverseAttachHandle::reverse_channel_timeout`.
-
 /// Issue a `ReadMessageQueue` server-request over the WS reverse-
 /// attach and return the joined `(rich_content, ids)` payload.
 ///
@@ -1838,9 +1971,12 @@ fn extract_callable_tool_calls(
 /// (with `"\n\n"` separators between entries) and returns the
 /// content-id refs (id + kind) for every consumed
 /// `message_queue_contents` row. The envelope carries no
-/// `mcp_kind` and the headers map is empty. Failures (channel
-/// closed, dropped, timed out, or CLI-side JSON-RPC error) collapse
-/// to [`super::Error::MessageQueueRead`].
+/// `mcp_kind` and the headers map is empty. NO deadline: the API
+/// waits forever on the CLI client for its own requests — the await
+/// resolves when the reply arrives or errors when the WS drops (the
+/// recv loop's teardown drops the pending oneshot). Failures (channel
+/// closed, dropped, or CLI-side JSON-RPC error) collapse to
+/// [`super::Error::MessageQueueRead`].
 async fn read_message_queue_via_ws(
     handle: &std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>,
     agent_instance_hierarchy: &str,
@@ -1862,16 +1998,11 @@ async fn read_message_queue_via_ws(
     let rx = crate::objectiveai_mcp::send_server_request(&rc.sink, &rc.pending, request)
         .await
         .map_err(|()| super::Error::MessageQueueRead("reverse channel closed".to_string()))?;
-    let response = match tokio::time::timeout(handle.reverse_channel_timeout(), rx).await {
-        Ok(Ok(response)) => response,
-        Ok(Err(_)) => {
-            return Err(super::Error::MessageQueueRead(
-                "reverse channel dropped before reply".to_string(),
-            ));
-        }
+    let response = match rx.await {
+        Ok(response) => response,
         Err(_) => {
             return Err(super::Error::MessageQueueRead(
-                "reverse channel timed out".to_string(),
+                "reverse channel dropped before reply".to_string(),
             ));
         }
     };

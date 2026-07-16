@@ -22,12 +22,14 @@
 //! Timeout bound: tests 1 & 2 hinge on a deterministic MCP failure
 //! erroring within the harness's hang watchdog — the conduit's MCP client
 //! otherwise retries every failure for the full default window. Each test
-//! first writes a bounded `api.mcp_timeout_ms` (5000ms) into its own
-//! state config, which the conduit reads (and, when this test happens to
-//! spawn the shared api, is also projected onto the api's `MCP_*` timeout
-//! env). Per-state config overrides the global `bin/config.json`. The
-//! shared api/proxy side is otherwise kept fast by the test `.env`'s
-//! `MCP_BACKOFF_*=0`.
+//! first writes bounded budgets (5000ms) into its own state config:
+//! `api.backoff_max_elapsed_time_ms` (the conduit's retry budget — the
+//! daemon's own MCP calls carry no timeouts), plus the split
+//! `api.mcp_call_timeout_ms` (the `X-MCP-CALL-TIMEOUT` header) and
+//! `api.mcp_connect_timeout_ms` (projected onto a daemon-spawned api's
+//! `MCP_CONNECT_TIMEOUT` env). Per-state config overrides the global
+//! `bin/config.json`. The shared api/proxy side is otherwise kept fast
+//! by the test `.env`'s `MCP_BACKOFF_*=0`.
 //!
 //! Plugin lifecycle: the plugin writes its PID to `OAI_TEST_MCP_PID_FILE`
 //! before announcing its URL; a `Drop` guard force-kills it so its RMCP
@@ -82,26 +84,31 @@ impl Drop for PluginGuard {
     }
 }
 
-/// Bound this test's MCP timeout via its per-state `api.mcp_timeout_ms`.
-/// The single value fans out to connect timeout, call timeout, AND the
-/// backoff max-elapsed-time, so 5000ms is the deliberate compromise: big
-/// enough that the successful connect/list/call in the call-fail tests
-/// completes (locally a few ms, but generous for loaded CI), and small
-/// enough that the connect/list-fail tests give up in ~5s instead of the
-/// default 60s — well under the harness's hang watchdog, and without the
-/// no-output stall a fallback-less agent would otherwise hit. Per-state
-/// config overrides the global `bin/config.json`. Written via the
-/// filesystem `Client` directly (not the cli command), mirroring
-/// `viewer_send_e2e`.
+/// Bound this test's MCP give-up budgets via its per-state api config.
+/// The daemon's own MCP calls carry NO timeouts anymore (it waits
+/// forever), so the bound that makes the connect/list-fail tests give
+/// up fast is the RETRY budget (`api.backoff_max_elapsed_time_ms`);
+/// the split call/connect knobs cover the API-side path (per-request
+/// `X-MCP-CALL-TIMEOUT` header + spawned-api `MCP_CONNECT_TIMEOUT`).
+/// 5000ms is the deliberate compromise: big enough that the successful
+/// connect/list/call in the call-fail tests completes (locally a few
+/// ms, but generous for loaded CI), and small enough that the fail
+/// tests give up in ~5s instead of the default 60s — well under the
+/// harness's hang watchdog, and without the no-output stall a
+/// fallback-less agent would otherwise hit. Per-state config overrides
+/// the global `bin/config.json`. Written via the filesystem `Client`
+/// directly (not the cli command), mirroring `viewer_send_e2e`.
 async fn set_test_mcp_timeout() {
-    let fs = objectiveai_cli::filesystem::Client::new(
+    let fs = objectiveai_daemon::filesystem::Client::new(
         Some(cli_test_util::objectiveai_dir()),
         Some(cli_test_util::test_state_name()),
         None::<String>,
         None::<String>,
     );
     let mut config = fs.read_config().await.expect("read_config failed");
-    config.api().set_mcp_timeout_ms(5_000);
+    config.api().set_mcp_call_timeout_ms(5_000);
+    config.api().set_mcp_connect_timeout_ms(5_000);
+    config.api().set_backoff_max_elapsed_time_ms(5_000);
     fs.write_config(&config).await.expect("write_config failed");
 }
 

@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.completions.message.message import Message
+from objectiveai_sdk.agent.laboratory import Laboratory
 from objectiveai_sdk.agent.mcp_server import McpServer
 from objectiveai_sdk.agent.openrouter.context_compression import ContextCompression
 from objectiveai_sdk.agent.openrouter.output_mode import OutputMode
@@ -24,6 +25,7 @@ class Agent(BaseModel):
     context_compression: Optional[ContextCompression] = Field(None, description='Context compression engine for long contexts. When set, the\nupstream client emits the matching `plugins` entry on the\noutgoing OpenRouter chat-completions request.', json_schema_extra={'omitempty': True})
     frequency_penalty: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).', json_schema_extra={'omitempty': True})
     id: str = Field(..., description='The deterministic content-addressed ID (22-character base62 string).')
+    laboratories: Optional[list[Laboratory]] = Field(None, description="Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).", json_schema_extra={'omitempty': True})
     logit_bias: Optional[dict[str, Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]]] = Field(None, description='Token ID to bias mapping (-100 to 100). Positive values increase likelihood.', json_schema_extra={'omitempty': True})
     max_completion_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Maximum tokens in the completion.', json_schema_extra={'omitempty': True})
     max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Maximum tokens (OpenRouter variant of max_completion_tokens).', json_schema_extra={'omitempty': True})

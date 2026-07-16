@@ -144,22 +144,45 @@ pub async fn execute_bash(
 
     let mut command_parts: Vec<String> = Vec::new();
 
-    // 1. Source the shell snapshot (if available)
+    // 1. Source the shell snapshot (if available).
+    //
+    // EVERY file replay below uses the guarded POSIX dot form
+    // `[ -r X ] && . X 2>/dev/null || true` — never bare `source` or
+    // bare `.`:
+    // - `source` doesn't exist in dash (silently loses the replay on
+    //   debian-slim images; busybox ash happens to accept it).
+    // - a bare `. X` on a MISSING file ABORTS a non-interactive
+    //   dash/ash before `|| true` can apply (POSIX dot is a special
+    //   built-in; XCU 2.14/2.8.1) — and the per-AIH env file
+    //   legitimately doesn't exist on an AIH's first command. bash
+    //   merely returns non-zero, which is how `source … || true`
+    //   masked all of this.
+    // The `[ -r … ]` guard matches POSIX's "no readable file" abort
+    // condition, and the chain stays correct inside the ` && ` join
+    // (left-associative: the trailing `|| true` never swallows the
+    // next part).
     if let Some(ref snap) = snapshot_path {
-        command_parts.push(format!("source {} 2>/dev/null || true", shell_quote(snap)));
+        command_parts.push(format!(
+            "[ -r {p} ] && . {p} 2>/dev/null || true",
+            p = shell_quote(snap)
+        ));
     }
 
-    // 1b. Replay the exported env persisted after this AIH's previous command.
-    // The file won't exist on the first call — `|| true` shrugs that off.
+    // 1b. Replay the exported env persisted after this AIH's previous
+    // command. The file won't exist on the first call — the readable
+    // guard shrugs that off (see the dot-abort note above).
     command_parts.push(format!(
-        "source {} 2>/dev/null || true",
-        shell_quote(&env_path)
+        "[ -r {p} ] && . {p} 2>/dev/null || true",
+        p = shell_quote(&env_path)
     ));
 
     // 3. Source CLAUDE_ENV_FILE if set (for venv/conda activation, parent process env persistence)
     if let Ok(env_file) = std::env::var("CLAUDE_ENV_FILE") {
         if !env_file.is_empty() && std::path::Path::new(&env_file).exists() {
-            command_parts.push(format!("source {} 2>/dev/null || true", shell_quote(&env_file)));
+            command_parts.push(format!(
+                "[ -r {p} ] && . {p} 2>/dev/null || true",
+                p = shell_quote(&env_file)
+            ));
         }
     }
 
@@ -240,6 +263,14 @@ pub async fn execute_bash(
         .stdin(Stdio::null())
         .stdout(Stdio::from(stdout_file))
         .stderr(Stdio::from(output_file));
+    // Give this exec its OWN process group (pgid == child pid), so
+    // every descendant it spawns shares that group — the handle the
+    // attribution engine maps back to this AIH. Inherited across fork;
+    // unchanged for the child's own signal handling. Linux-only (the
+    // laboratory always runs in a Linux container; attribution is
+    // Linux-only too).
+    #[cfg(target_os = "linux")]
+    cmd.process_group(0);
 
     // Apply session env var overrides
     for (key, value) in &env_overrides {
@@ -250,17 +281,33 @@ pub async fn execute_bash(
         .spawn()
         .map_err(|e| format!("Failed to spawn command: {e}"))?;
 
+    // Register this exec's process group under the caller's AIH for the
+    // exec's lifetime, so filesystem writes it (and its descendants)
+    // make are attributed to this agent. `child.id()` == the new pgid.
+    let pgid = child.id().map(|p| p as i32);
+    if let Some(pgid) = pgid {
+        crate::attribution::register_session(pgid, aih);
+    }
+
     // Wait for child to exit (output is in the file, not pipes)
     let (exit_code, interrupted) = match tokio::time::timeout(timeout_duration, child.wait()).await
     {
         Ok(Ok(status)) => (status.code(), false),
-        Ok(Err(e)) => return Err(format!("Command failed: {e}")),
+        Ok(Err(e)) => {
+            if let Some(pgid) = pgid {
+                crate::attribution::unregister_session(pgid);
+            }
+            return Err(format!("Command failed: {e}"));
+        }
         Err(_) => {
             // Timeout — kill the child, then read whatever output was written
             let _ = child.kill().await;
             (None, true)
         }
     };
+    if let Some(pgid) = pgid {
+        crate::attribution::unregister_session(pgid);
+    }
 
     // Read the output file
     let full_output = fs::read_to_string(&output_file_path).await.unwrap_or_default();
@@ -348,21 +395,15 @@ fn detect_shell() -> String {
         }
     }
 
-    // 3. On Windows (msys/git-bash), try common paths then `which`
+    // 3. On Windows (msys/git-bash — LOCAL DEV ONLY, the shipped
+    //    binary is always musl-linux), try the common paths. No
+    //    `which` subprocess fallback: this detector is sync (called
+    //    from ShellState's constructor) and the repo spawns
+    //    subprocesses through tokio only.
     if cfg!(windows) {
         for candidate in &["/usr/bin/bash", "/bin/bash"] {
             if std::path::Path::new(candidate).exists() {
                 return candidate.to_string();
-            }
-        }
-        // Fall back to `which bash`
-        if let Ok(output) = std::process::Command::new("which")
-            .arg("bash")
-            .output()
-        {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                return path;
             }
         }
     }
@@ -591,8 +632,14 @@ async fn create_shell_snapshot(shell_path: &str) -> Result<String, String> {
             .as_millis(),
     );
 
+    // Guarded POSIX dot — same rule as the per-command preamble: bare
+    // `.` on a missing/unreadable file ABORTS non-interactive
+    // dash/ash, and `source` doesn't exist in dash.
     let source_line = if has_config {
-        format!("source {} 2>/dev/null", shell_quote(&config_file))
+        format!(
+            "[ -r {p} ] && . {p} 2>/dev/null || true",
+            p = shell_quote(&config_file)
+        )
     } else {
         "true".into()
     };
@@ -614,7 +661,7 @@ SNAPSHOT_FILE={snapshot}
             snapshot = shell_quote(&snapshot_path),
             source = source_line,
         )
-    } else {
+    } else if shell_type == "bash" {
         // On Windows (msys/git-bash), filter out winpty aliases
         let alias_cmd = if is_windows {
             r#"alias | grep -v "='winpty " | sed 's/^alias //g' | sed 's/^/alias -- /'"#
@@ -640,6 +687,36 @@ unalias -a 2>/dev/null || true
             source = source_line,
             alias_cmd = alias_cmd,
         )
+    } else {
+        // Plain POSIX sh (busybox ash on alpine, dash on debian-slim):
+        // capture ALIASES ONLY.
+        // - No functions: POSIX sh has no `declare -f`/`typeset -f` —
+        //   there is no way to dump them.
+        // - No `shopt`/`expand_aliases`: bash-only, and a failing
+        //   special built-in INSIDE a dot-file ABORTS non-interactive
+        //   dash — a bash line in the snapshot would kill every later
+        //   command, silently.
+        // - No `set -o` replay: dash's `set -o` output is a header +
+        //   `name on/off` table, so the bash arm's pipeline would emit
+        //   `set -o Current` — the abort trap above. ash/dash expand
+        //   aliases non-interactively, so nothing more is needed.
+        // The sed pair normalizes both alias output formats (POSIX
+        // `name='v'` and bash-style `alias name='v'`) into re-`.`-able
+        // `alias name='v'` lines — NO `alias --`: dash treats `--` as
+        // an alias NAME to look up.
+        format!(
+            r#"
+SNAPSHOT_FILE={snapshot}
+unalias -a 2>/dev/null || true
+{source}
+{{
+  echo '# Shell snapshot (sh)'
+  alias | sed -e 's/^alias //' -e 's/^/alias /'
+}} > "$SNAPSHOT_FILE" 2>/dev/null
+"#,
+            snapshot = shell_quote(&snapshot_path),
+            source = source_line,
+        )
     };
 
     let result = tokio::time::timeout(
@@ -664,13 +741,20 @@ unalias -a 2>/dev/null || true
     Ok(snapshot_path)
 }
 
-/// Get the shell config file path based on shell type.
+/// Get the shell config file path based on shell type: `.zshrc` /
+/// `.bashrc` for the shells that read those, `~/.profile` for plain
+/// POSIX sh (the sh-conventional file; `$ENV` is interactive-only and
+/// our snapshot shell is neither interactive nor login). The `"~"`
+/// HOME-unset fallback is safe — the literal path never exists, so
+/// the snapshot simply skips sourcing.
 fn get_config_file(shell_path: &str) -> String {
     let home = std::env::var("HOME").unwrap_or_else(|_| "~".into());
     if shell_path.contains("zsh") {
         format!("{home}/.zshrc")
-    } else {
+    } else if shell_path.contains("bash") {
         format!("{home}/.bashrc")
+    } else {
+        format!("{home}/.profile")
     }
 }
 

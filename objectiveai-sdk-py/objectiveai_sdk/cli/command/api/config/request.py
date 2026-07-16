@@ -13,7 +13,8 @@ from objectiveai_sdk.cli.command.api.config.get.response_schema.request import R
 from objectiveai_sdk.cli.command.api.config.github_authorization.request import Request as CliCommandApiConfigGithubAuthorizationRequest
 from objectiveai_sdk.cli.command.api.config.http_referer.request import Request as CliCommandApiConfigHttpRefererRequest
 from objectiveai_sdk.cli.command.api.config.mcp_authorization.request import Request as CliCommandApiConfigMcpAuthorizationRequest
-from objectiveai_sdk.cli.command.api.config.mcp_timeout_ms.request import Request as CliCommandApiConfigMcpTimeoutMsRequest
+from objectiveai_sdk.cli.command.api.config.mcp_call_timeout_ms.request import Request as CliCommandApiConfigMcpCallTimeoutMsRequest
+from objectiveai_sdk.cli.command.api.config.mcp_connect_timeout_ms.request import Request as CliCommandApiConfigMcpConnectTimeoutMsRequest
 from objectiveai_sdk.cli.command.api.config.objectiveai_authorization.request import Request as CliCommandApiConfigObjectiveaiAuthorizationRequest
 from objectiveai_sdk.cli.command.api.config.openrouter_authorization.request import Request as CliCommandApiConfigOpenrouterAuthorizationRequest
 from objectiveai_sdk.cli.command.api.config.user_agent.request import Request as CliCommandApiConfigUserAgentRequest
@@ -68,10 +69,16 @@ class RequestMcpAuthorization(RootModel):
     root: CliCommandApiConfigMcpAuthorizationRequest
 
 
-class RequestMcpTimeoutMs(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'McpTimeoutMs'})
+class RequestMcpCallTimeoutMs(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'McpCallTimeoutMs'})
 
-    root: CliCommandApiConfigMcpTimeoutMsRequest
+    root: CliCommandApiConfigMcpCallTimeoutMsRequest
+
+
+class RequestMcpConnectTimeoutMs(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'McpConnectTimeoutMs'})
+
+    root: CliCommandApiConfigMcpConnectTimeoutMsRequest
 
 
 class RequestBackoffMaxElapsedTimeMs(RootModel):
@@ -113,5 +120,5 @@ class RequestCommitAuthorEmail(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.api.config.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestAddress, RequestObjectiveaiAuthorization, RequestOpenrouterAuthorization, RequestGithubAuthorization, RequestMcpAuthorization, RequestMcpTimeoutMs, RequestBackoffMaxElapsedTimeMs, RequestUserAgent, RequestHttpReferer, RequestXTitle, RequestCommitAuthorName, RequestCommitAuthorEmail]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestAddress, RequestObjectiveaiAuthorization, RequestOpenrouterAuthorization, RequestGithubAuthorization, RequestMcpAuthorization, RequestMcpCallTimeoutMs, RequestMcpConnectTimeoutMs, RequestBackoffMaxElapsedTimeMs, RequestUserAgent, RequestHttpReferer, RequestXTitle, RequestCommitAuthorName, RequestCommitAuthorEmail]
 

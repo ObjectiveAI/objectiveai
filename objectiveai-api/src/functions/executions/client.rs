@@ -375,6 +375,7 @@ pub struct Client<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     ACUSG,
     VUSG,
     RETRG,
@@ -383,7 +384,7 @@ pub struct Client<
     FUSG,
 > {
     /// Agent completions client for reasoning summaries.
-    pub agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
+    pub agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, ACUSG>>,
     /// Vector completions client for executing Vector Completion tasks.
     pub vector_client: Arc<
         vector::completions::Client<
@@ -392,6 +393,7 @@ pub struct Client<
             CLAUDEAGENTSDK,
             CODEXSDK,
             MOCK,
+            SCRIPT,
             RETRG,
             RETRF,
             RETRM,
@@ -412,6 +414,7 @@ impl<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     ACUSG,
     VUSG,
     RETRG,
@@ -425,6 +428,7 @@ impl<
         CLAUDEAGENTSDK,
         CODEXSDK,
         MOCK,
+        SCRIPT,
         ACUSG,
         VUSG,
         RETRG,
@@ -435,7 +439,7 @@ impl<
 {
     /// Creates a new Function execution client.
     pub fn new(
-        agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
+        agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT, RETRG, RETRF, RETRM, ACUSG>>,
         vector_client: Arc<
             vector::completions::Client<
                 CTXEXT,
@@ -443,6 +447,7 @@ impl<
                 CLAUDEAGENTSDK,
                 CODEXSDK,
                 MOCK,
+                SCRIPT,
                 RETRG,
                 RETRF,
                 RETRM,
@@ -470,6 +475,7 @@ impl<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     ACUSG,
     VUSG,
     RETRG,
@@ -483,6 +489,7 @@ impl<
         CLAUDEAGENTSDK,
         CODEXSDK,
         MOCK,
+        SCRIPT,
         ACUSG,
         VUSG,
         RETRG,
@@ -496,6 +503,7 @@ where
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
+    SCRIPT: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation> + Send + Sync + 'static,
     ACUSG: crate::agent::completions::usage_handler::UsageHandler<CTXEXT>
         + Send
         + Sync
@@ -613,6 +621,7 @@ impl<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     ACUSG,
     VUSG,
     RETRG,
@@ -626,6 +635,7 @@ impl<
         CLAUDEAGENTSDK,
         CODEXSDK,
         MOCK,
+        SCRIPT,
         ACUSG,
         VUSG,
         RETRG,
@@ -639,6 +649,7 @@ where
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
+    SCRIPT: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation> + Send + Sync + 'static,
     ACUSG: crate::agent::completions::usage_handler::UsageHandler<CTXEXT>
         + Send
         + Sync

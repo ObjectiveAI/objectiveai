@@ -8,7 +8,7 @@
 mod cli_test_util;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::laboratories::attach::{
+use objectiveai_sdk::cli::command::laboratories::attach::{
     Path as AttachPath, Request as AttachReq, Response as AttachResp,
 };
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
@@ -25,7 +25,20 @@ use objectiveai_sdk::cli::command::laboratories::create::{
 };
 use serde_json::json;
 
-const BASE_IMAGE: &str = "docker.io/library/bash:latest";
+/// The split base image every lab in this file uses —
+/// `docker.io/library/bash:latest`, as parts (a joined reference string
+/// is unrepresentable in the API).
+fn base_image() -> objectiveai_sdk::laboratories::LaboratoryImage {
+    objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+        objectiveai_sdk::laboratories::RegistryLaboratoryImage {
+        registry: "docker.io".to_string(),
+        name: "library/bash".to_string(),
+            pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                "latest".to_string(),
+            ),
+        },
+    )
+}
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
 
@@ -36,7 +49,11 @@ fn nanos() -> u128 {
         .as_nanos()
 }
 
-/// Create a laboratory with explicit mounts/env/cwd.
+/// Create a laboratory with explicit mounts/env/cwd. Creation runs on
+/// this machine's laboratory HOST (auto-spawned by the daemon when
+/// absent) and announces the lab to the registry — no separate
+/// connect step exists; the container starts lazily on its first
+/// routed op.
 async fn create_lab(
     executor: &Exec,
     id: &str,
@@ -50,10 +67,12 @@ async fn create_lab(
             path_type: CreatePath::LaboratoriesCreate,
             kind: Kind::Client,
             id: id.to_string(),
-            image: BASE_IMAGE.to_string(),
+            image: base_image(),
             mounts,
             env,
             cwd: cwd.to_string(),
+            machine: None,
+            machine_state: None,
             base: Default::default(),
         },
     )
@@ -89,11 +108,13 @@ async fn spawn_lab_session(
         let _: AttachResp = cli_test_util::execute_one(
             executor,
             AttachReq {
-                path_type: AttachPath::AgentsLaboratoriesAttach,
+                path_type: AttachPath::LaboratoriesAttach,
                 selector: AgentSelector::Tag {
                     agent_tag: tag.to_string(),
                 },
                 laboratory_id: lab.to_string(),
+                machine: None,
+                machine_state: None,
                 base: Default::default(),
             },
         )
@@ -154,7 +175,20 @@ async fn tool_result_texts(executor: &Exec, response_id: &str) -> Vec<String> {
 
 /// Build a one-turn agent that calls the lab's `Bash` tool with `command`.
 fn bash_agent(lab_id: &str, command: &str) -> serde_json::Value {
-    let bash_tool = format!("oail-{lab_id}_Bash");
+    let bash_tool = {
+        use objectiveai_sdk::laboratories::{ClientLaboratory, ClientLaboratoryType};
+        let server_name = ClientLaboratory {
+            r#type: ClientLaboratoryType::Client,
+            id: lab_id.to_string(),
+            machine: Some(objectiveai_sdk::machine::machine_id(
+                &cli_test_util::objectiveai_dir(),
+            )),
+            machine_state: Some(cli_test_util::test_state_name()),
+        }
+        .server_name()
+        .expect("machine + state present");
+        format!("{server_name}_Bash")
+    };
     let args = serde_json::to_string(&json!({ "command": command })).unwrap();
     json!({
         "upstream": "mock",

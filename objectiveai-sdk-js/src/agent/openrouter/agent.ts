@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { AgentClientObjectiveaiMcpSchema } from "../clientObjectiveaiMcp";
 import { AgentCompletionsMessageMessageSchema } from "../completions/message/message";
+import { AgentLaboratorySchema } from "../laboratory";
 import { AgentMcpServerSchema } from "../mcpServer";
 import { AgentOpenrouterContextCompressionSchema } from "./contextCompression";
 import { AgentOpenrouterOutputModeSchema } from "./outputMode";
@@ -18,6 +19,7 @@ export const AgentOpenrouterAgentSchema = z.object({
   context_compression: AgentOpenrouterContextCompressionSchema.nullable().describe("Context compression engine for long contexts. When set, the\nupstream client emits the matching `plugins` entry on the\noutgoing OpenRouter chat-completions request.").meta({ omitempty: true }).optional(),
   frequency_penalty: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).").meta({ omitempty: true }).optional(),
   id: z.string().describe("The deterministic content-addressed ID (22-character base62 string)."),
+  laboratories: z.array(AgentLaboratorySchema).nullable().describe("Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).").meta({ omitempty: true }).optional(),
   logit_bias: z.record(z.string(), z.number().int().min(-9223372036854776000).max(9223372036854776000)).nullable().describe("Token ID to bias mapping (-100 to 100). Positive values increase likelihood.").meta({ omitempty: true }).optional(),
   max_completion_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Maximum tokens in the completion.").meta({ omitempty: true }).optional(),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Maximum tokens (OpenRouter variant of max_completion_tokens).").meta({ omitempty: true }).optional(),

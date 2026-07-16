@@ -22,12 +22,27 @@ pub struct Request {
     pub path_type: Path,
     pub kind: Kind,
     pub id: String,
-    pub image: String,
+    /// The base image, split (`registry` + `name` + tag XOR digest) —
+    /// a joined reference string is never accepted, so unqualified
+    /// short names are unrepresentable.
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
     /// Default working directory new agents start in; defaults to `/`.
     #[serde(default = "default_cwd")]
     pub cwd: String,
+    /// The EXACT machine id (as `laboratories list` reports it) whose
+    /// laboratory host should own the container. Provided together
+    /// with `machine_state` or not at all; neither ⇒ the current
+    /// machine + the daemon's own state.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state (on `machine`) whose laboratory host should own the
+    /// container. Paired with `machine` — both or neither.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -118,22 +133,37 @@ impl CommandRequest for Request {
     }
 }
 
-/// Echo of the created laboratory.
+/// Echo of the created laboratory, from the owning host's reply.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.laboratories.create.Response")]
 pub struct Response {
     pub id: String,
-    pub image: String,
+    pub image: crate::laboratories::LaboratoryImage,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
     pub cwd: String,
+    /// Unix seconds when the container was created, from podman's own
+    /// record on the owning host. `None` when the host didn't report
+    /// it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub created_at: Option<i64>,
+    /// The machine whose laboratory host owns the container.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<crate::machine::MachineIdentity>,
+    /// The state (on that machine) whose laboratory host owns the
+    /// container.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 #[derive(clap::Args)]
 #[command(
     group(clap::ArgGroup::new("side").required(true).args(["client"])),
     group(clap::ArgGroup::new("id_required").required(true).args(["id"])),
-    group(clap::ArgGroup::new("image_required").required(true).args(["image"])),
+    group(clap::ArgGroup::new("image_source").required(true).args(["registry", "image_inline"])),
 )]
 pub struct Args {
     /// Create a client-side laboratory (an MCP server the conduit dials).
@@ -143,9 +173,31 @@ pub struct Args {
     /// Laboratory id — names the per-state container.
     #[arg(long)]
     pub id: Option<String>,
-    /// Container image to base the laboratory on.
+    /// The image host — e.g. `docker.io`, `ghcr.io`,
+    /// `registry.example.com:5000`. Must be unambiguously a registry
+    /// (domain, host:port, or localhost) — short names are refused.
+    /// Mutually exclusive with `--image-inline`.
+    #[arg(long, requires = "name")]
+    pub registry: Option<String>,
+    /// The image repository path — e.g. `library/bash`. Requires
+    /// `--registry`.
+    #[arg(long, requires = "registry")]
+    pub name: Option<String>,
+    /// Image tag (mutually exclusive with `--digest`; requires
+    /// `--registry`).
+    #[arg(long, conflicts_with_all = ["digest", "image_inline"], requires = "registry")]
+    pub tag: Option<String>,
+    /// Image digest, `<algorithm>:<64 hex>` (mutually exclusive with
+    /// `--tag`; requires `--registry`).
+    #[arg(long, conflicts_with = "image_inline", requires = "registry")]
+    pub digest: Option<String>,
+    /// The image spec INLINE, as a JSON string literal of
+    /// Containerfile content (quoted + escaped on the command line;
+    /// e.g. `--image-inline "\"FROM docker.io/library/bash:latest\n\""`).
+    /// The host builds it on every create against an empty context.
+    /// Mutually exclusive with the `--registry` family.
     #[arg(long)]
-    pub image: Option<String>,
+    pub image_inline: Option<String>,
     /// Repeatable `--mount host=…,container=…` bind mount.
     #[arg(long = "mount")]
     pub mounts: Vec<String>,
@@ -155,6 +207,15 @@ pub struct Args {
     /// Default working directory new agents start in; defaults to `/`.
     #[arg(long)]
     pub cwd: Option<String>,
+    /// The EXACT machine id (from `laboratories list`) whose host
+    /// should own the container. Requires `--machine-state`; neither ⇒
+    /// the current machine + the daemon's own state.
+    #[arg(long, requires = "machine_state")]
+    pub machine: Option<String>,
+    /// The state (on `--machine`) whose host should own the container.
+    /// Requires `--machine` — both or neither.
+    #[arg(long, requires = "machine")]
+    pub machine_state: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -182,12 +243,66 @@ impl TryFrom<Args> for Request {
         let id = args.id.ok_or_else(|| {
             crate::cli::command::FromArgsError::path_parse("id", "--id is required".to_string())
         })?;
-        let image = args.image.ok_or_else(|| {
-            crate::cli::command::FromArgsError::path_parse(
-                "image",
-                "--image is required".to_string(),
-            )
-        })?;
+        // The image source: --image-inline XOR the --registry family.
+        // Clap enforces the coarse exclusivity; this is the friendly
+        // authoritative pass.
+        let image = match (args.image_inline, args.registry) {
+            (Some(inline_json), None) => {
+                // The ARGV value is a JSON string literal; the typed
+                // Request holds the PLAIN decoded Containerfile text.
+                let containerfile: String = serde_json::from_str(&inline_json)
+                    .map_err(|e| {
+                        crate::cli::command::FromArgsError::path_parse(
+                            "image-inline",
+                            format!(
+                                "--image-inline must be a JSON string literal \
+                                 (quoted + escaped): {e}"
+                            ),
+                        )
+                    })?;
+                crate::laboratories::LaboratoryImage::Inline(
+                    crate::laboratories::InlineLaboratoryImage { containerfile },
+                )
+            }
+            (None, Some(registry)) => {
+                let name = args.name.ok_or_else(|| {
+                    crate::cli::command::FromArgsError::path_parse(
+                        "name",
+                        "--name is required with --registry".to_string(),
+                    )
+                })?;
+                let pin = match (args.tag, args.digest) {
+                    (Some(tag), None) => {
+                        crate::laboratories::LaboratoryImagePin::Tag(tag)
+                    }
+                    (None, Some(digest)) => {
+                        crate::laboratories::LaboratoryImagePin::Digest(digest)
+                    }
+                    _ => {
+                        return Err(crate::cli::command::FromArgsError::path_parse(
+                            "image",
+                            "exactly one of --tag, --digest is required \
+                             with --registry"
+                                .to_string(),
+                        ));
+                    }
+                };
+                crate::laboratories::LaboratoryImage::Registry(
+                    crate::laboratories::RegistryLaboratoryImage {
+                        registry,
+                        name,
+                        pin,
+                    },
+                )
+            }
+            _ => {
+                return Err(crate::cli::command::FromArgsError::path_parse(
+                    "image",
+                    "exactly one of --image-inline, --registry is required"
+                        .to_string(),
+                ));
+            }
+        };
         if !args.client {
             return Err(crate::cli::command::FromArgsError::path_parse(
                 "client",
@@ -211,6 +326,14 @@ impl TryFrom<Args> for Request {
             })
             .collect::<Result<Vec<_>, _>>()?;
         let cwd = args.cwd.unwrap_or_else(default_cwd);
+        // Both-or-neither, re-validated beyond clap's mutual
+        // `requires` (which only runs for argv-built requests).
+        if args.machine.is_some() != args.machine_state.is_some() {
+            return Err(crate::cli::command::FromArgsError::path_parse(
+                "machine",
+                "--machine and --machine-state must be provided together".to_string(),
+            ));
+        }
         Ok(Self {
             path_type: Path::LaboratoriesCreate,
             kind: Kind::Client,
@@ -219,6 +342,8 @@ impl TryFrom<Args> for Request {
             mounts,
             env,
             cwd,
+            machine: args.machine,
+            machine_state: args.machine_state,
             base: args.base.into(),
         })
     }
@@ -259,10 +384,10 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `laboratories create`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// unary response future. See [`crate::cli::websocket_listener`].
+/// unary response future. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
     pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
 }

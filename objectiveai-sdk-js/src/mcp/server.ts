@@ -8,6 +8,7 @@ import { McpPluginSchema } from "./plugin";
 export const McpServerSchema = z.object({
   initialize_result: McpInitializeResultSchema.describe("The server's `initialize` response: capabilities, `server_info`\n(name, version, title, description), instructions, protocol version."),
   laboratory: LaboratoriesLaboratorySchema.nullable().describe("Set only when this upstream is genuinely a laboratory — i.e. a\nclient (websocket) laboratory today. Non-laboratory servers (plain\nHTTP, the primary `objectiveai` MCP, plugins) leave this `None`.").meta({ omitempty: true }).optional(),
+  laboratory_id: z.string().nullable().describe("The laboratory's ASSISTANT-FACING composite id —\n`{machineID}/{base62(state)}/{base62(laboratoryID)}`\n([`ClientLaboratory::composite_id`](crate::laboratories::ClientLaboratory::composite_id)),\nwhat `laboratory_transfer` takes as `source`/`destination`.\nPresent exactly when `laboratory` is (and its marker carries\nthe machine pair).").meta({ omitempty: true }).optional(),
   name: z.string().describe("The proxy's routing prefix for this server (matches the `<prefix>_`\nprepended to its tools/resources in the aggregated surface)."),
   plugin: McpPluginSchema.nullable().describe("Set only when this upstream is a plugin-hosted MCP server. Other\nservers (plain HTTP, the primary `objectiveai` MCP, laboratories)\nleave this `None`.").meta({ omitempty: true }).optional(),
   url: z.string().describe("The upstream server's URL."),

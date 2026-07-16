@@ -19,6 +19,18 @@
       ],
       "omitempty": true
     },
+    "laboratory_id": {
+      "description": "The laboratory's ASSISTANT-FACING composite id —\n`{machineID}/{base62(state)}/{base62(laboratoryID)}`\n([`ClientLaboratory::composite_id`](crate::laboratories::ClientLaboratory::composite_id)),\nwhat `laboratory_transfer` takes as `source`/`destination`.\nPresent exactly when `laboratory` is (and its marker carries\nthe machine pair).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "name": {
       "description": "The proxy's routing prefix for this server (matches the `<prefix>_`\nprepended to its tools/resources in the aggregated surface).",
       "type": "string"

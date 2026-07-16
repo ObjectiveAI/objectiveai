@@ -82,6 +82,7 @@ empty_dir() {
 # ---------------------------------------------------------------------------
 RUST_TARGETS=(
   target
+  target-integration
   target-objectiveai-mcp-laboratory
   target-objectiveai-mcp-proxy
   target-objectiveai-viewer

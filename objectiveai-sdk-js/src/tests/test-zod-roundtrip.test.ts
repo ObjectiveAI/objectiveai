@@ -275,12 +275,17 @@ function convertArray(
   if (schema._zod.def.element) {
     result.items = convert(schema._zod.def.element, allTitles, rootTitle, seen);
   }
-  // Check for minItems/maxItems in checks
+  // Check for minItems/maxItems in checks. Zod v4 arrays carry
+  // `.min()/.max()` as min_length/max_length checks (with
+  // minimum/maximum values); min_size/max_size kept for Set-style
+  // checks.
   if (schema._zod.def.checks) {
     for (const check of schema._zod.def.checks) {
       const cdef = check._zod?.def;
       if (cdef?.check === "min_size") result.minItems = cdef.value;
       if (cdef?.check === "max_size") result.maxItems = cdef.value;
+      if (cdef?.check === "min_length") result.minItems = cdef.minimum;
+      if (cdef?.check === "max_length") result.maxItems = cdef.maximum;
     }
   }
   return result;

@@ -25,6 +25,8 @@ struct EnvConfigBuilder {
     laboratory_id: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_LABORATORY_CWD")]
     laboratory_cwd: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_FILETREE_IGNORE")]
+    filetree_ignore: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -37,6 +39,7 @@ impl EnvConfigBuilder {
             }),
             laboratory_id: self.laboratory_id,
             laboratory_cwd: self.laboratory_cwd,
+            filetree_ignore: self.filetree_ignore,
         }
     }
 }
@@ -48,6 +51,7 @@ pub struct ConfigBuilder {
     pub suppress_output: Option<bool>,
     pub laboratory_id: Option<String>,
     pub laboratory_cwd: Option<String>,
+    pub filetree_ignore: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -75,6 +79,7 @@ impl ConfigBuilder {
             suppress_output: self.suppress_output.unwrap_or(false),
             laboratory_id: self.laboratory_id,
             laboratory_cwd: self.laboratory_cwd,
+            filetree_ignore: self.filetree_ignore,
         }
     }
 }
@@ -91,6 +96,11 @@ pub struct Config {
     /// defaulting to `/`). `None` when run standalone → falls back to the
     /// process cwd.
     pub laboratory_cwd: Option<String>,
+    /// The `/filetree` ignore set (env `OBJECTIVEAI_FILETREE_IGNORE`):
+    /// colon-separated absolute paths, each ignoring that path and
+    /// everything under it; other entries are skipped. What goes in
+    /// the set — and why — is the launcher's business, not ours.
+    pub filetree_ignore: Option<String>,
 }
 
 pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
@@ -100,7 +110,12 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         suppress_output: _,
         laboratory_id,
         laboratory_cwd,
+        filetree_ignore,
     } = config;
+
+    // Parsed once — the environment cannot change for the process
+    // lifetime.
+    crate::filetree::init_ignore_env(filetree_ignore.as_deref());
 
     // Env wins; standalone runs (no env) keep the process cwd → `/` behavior.
     let default_cwd = laboratory_cwd
@@ -133,6 +148,7 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     let router = axum::Router::new()
         .route("/export", axum::routing::get(crate::transfer::export))
         .route("/import", axum::routing::post(crate::transfer::import))
+        .route("/filetree", axum::routing::get(crate::filetree::filetree))
         .fallback_service(service);
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
 

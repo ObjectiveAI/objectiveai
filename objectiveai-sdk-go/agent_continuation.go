@@ -17,6 +17,7 @@ type AgentContinuation struct {
 	ClaudeAgentSdk *AgentClaudeAgentSdkContinuation 
 	CodexSdk *AgentCodexSdkContinuation 
 	Mock *AgentMockContinuation 
+	Script *AgentScriptContinuation 
 }
 
 func (v AgentContinuation) MarshalJSON() ([]byte, error) {
@@ -31,6 +32,9 @@ func (v AgentContinuation) MarshalJSON() ([]byte, error) {
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
+	}
+	if v.Script != nil {
+		return json.Marshal(v.Script)
 	}
 	return []byte("null"), nil
 }
@@ -80,6 +84,17 @@ func (v *AgentContinuation) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try AgentScriptContinuation
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentContinuation{}
+			candidate.Script = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of AgentContinuation")
 }
 
@@ -89,6 +104,7 @@ func (v AgentContinuation) Validate() error {
 	if v.ClaudeAgentSdk != nil { count++ }
 	if v.CodexSdk != nil { count++ }
 	if v.Mock != nil { count++ }
+	if v.Script != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentContinuation: exactly one variant must be set, got %d", count)
 	}

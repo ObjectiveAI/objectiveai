@@ -447,6 +447,7 @@ fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String
     let postgres = postgres_binary(env)?;
 
     let mut cmd = tokio::process::Command::new(&postgres);
+    objectiveai_sdk::process::no_window(&mut cmd);
     cmd.arg("-D")
         .arg(&data_dir)
         .arg("-p")

@@ -10,7 +10,8 @@ import { type CliCommandApiConfigGetResponseSchemaListenerExecution } from "./ge
 import { type CliCommandApiConfigGithubAuthorizationListenerExecution } from "./github_authorization/listenerExecution";
 import { type CliCommandApiConfigHttpRefererListenerExecution } from "./http_referer/listenerExecution";
 import { type CliCommandApiConfigMcpAuthorizationListenerExecution } from "./mcp_authorization/listenerExecution";
-import { type CliCommandApiConfigMcpTimeoutMsListenerExecution } from "./mcp_timeout_ms/listenerExecution";
+import { type CliCommandApiConfigMcpCallTimeoutMsListenerExecution } from "./mcp_call_timeout_ms/listenerExecution";
+import { type CliCommandApiConfigMcpConnectTimeoutMsListenerExecution } from "./mcp_connect_timeout_ms/listenerExecution";
 import { type CliCommandApiConfigObjectiveaiAuthorizationListenerExecution } from "./objectiveai_authorization/listenerExecution";
 import { type CliCommandApiConfigOpenrouterAuthorizationListenerExecution } from "./openrouter_authorization/listenerExecution";
 import { type CliCommandApiConfigUserAgentListenerExecution } from "./user_agent/listenerExecution";
@@ -26,7 +27,8 @@ export type CliCommandApiConfigListenerExecution =
   | CliCommandApiConfigOpenrouterAuthorizationListenerExecution
   | CliCommandApiConfigGithubAuthorizationListenerExecution
   | CliCommandApiConfigMcpAuthorizationListenerExecution
-  | CliCommandApiConfigMcpTimeoutMsListenerExecution
+  | CliCommandApiConfigMcpCallTimeoutMsListenerExecution
+  | CliCommandApiConfigMcpConnectTimeoutMsListenerExecution
   | CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution
   | CliCommandApiConfigUserAgentListenerExecution
   | CliCommandApiConfigHttpRefererListenerExecution

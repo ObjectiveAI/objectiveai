@@ -66,6 +66,13 @@ pub struct ResponseItem {
     pub last_active_at: Option<String>,
     /// Total `logs.messages` rows for this agent over all time.
     pub logged: u64,
+    /// Currently attached laboratories — the EFFECTIVE set the next
+    /// spawn pass dials: the AIH's own attachments UNION its bound
+    /// tags'. Populated by `agents instances get`; `agents instances
+    /// list` leaves it unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub laboratories: Option<Vec<LaboratoryAttachment>>,
     /// The agent definition recorded for this AIH — from
     /// `objectiveai.agent_refs`, with the legacy most-recent-request
     /// fallback (`lookup_session`). Populated by `agents instances
@@ -73,6 +80,32 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent: Option<crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional>,
+}
+
+/// One laboratory attachment on an agent, as surfaced by
+/// `agents instances get`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.instances.list.LaboratoryAttachment")]
+pub struct LaboratoryAttachment {
+    /// The attached laboratory's id.
+    pub id: String,
+    /// RFC3339 — when it was attached.
+    pub attached_at: String,
+    /// The AIH that ran the attach. `None` on attachments predating
+    /// attacher tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub attached_by: Option<String>,
+    /// The machine id of the laboratory host the attachment row
+    /// records — laboratory ids are only unique per (machine, state).
+    /// `None` on rows predating machine tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state the attachment row records, paired with `machine`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -165,10 +198,10 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `agents instances list`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// response-item stream. See [`crate::cli::websocket_listener`].
+/// response-item stream. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
     pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
 }

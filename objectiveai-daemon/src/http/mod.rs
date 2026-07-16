@@ -1,0 +1,58 @@
+//! The daemon's HTTP server — the SSE routes, the ONE WebSocket
+//! (`/laboratory`), and the process-level infrastructure shared
+//! between the `agents spawn` and `functions execute` command leaves
+//! (each agent-completion / function-execution call opens a single
+//! upstream WebSocket connection to the API server and drives chunks
+//! through it):
+//!
+//! - [`agent_registry`] — process-owned lock claims keyed by
+//!   `agent_instance_hierarchy`. Mutual exclusion across processes
+//!   for a given agent slot. Backed by [`objectiveai_sdk::lockfile`]
+//!   at the per-agent layout in [`crate::command::agents::locks`].
+//! - [`mcp_server`] — the in-process `objectiveai-mcp` server handle
+//!   the conduit forwards plugin tool calls to.
+//! - [`conduit`] — the MCP reverse-attach proxy that routes upstream
+//!   WS request frames out to upstream plugin MCPs.
+//! - [`agent_hierarchies`] — recursive iterator trait that yields
+//!   every `agent_instance_hierarchy` referenced by a chunk; used
+//!   by the per-chunk claim hook.
+//! - [`mcp_listener`] — per-`response_id` local-socket MCP endpoint
+//!   that forwards ops to the API over the chunk-stream WS; spawned
+//!   the first time a chunk surfaces a given agent-completion id.
+//! - [`daemon_stream`] — the resident daemon's broadcast hub: a
+//!   fixed-name local socket that producers feed CLI request/response
+//!   streams into, fanned out to every client of the HTTP server's
+//!   `GET /listen` SSE route; also the axum router for every route
+//!   below.
+//! - [`daemon_execute`] — the daemon's `POST /execute` SSE route:
+//!   request-per-command in-process execution for remote consumers
+//!   (the SDK's `SseCommandExecutor`, notably the viewer).
+//! - [`agents_routes`] — the daemon's `/agents/instances/list` SSE
+//!   route + its dedicated `agents.sock` producer socket: a live
+//!   all-agents active/inactive stream, driven by AIH-lockfile
+//!   release.
+//! - [`agent_instance_route`] — the daemon's
+//!   `/agents/instances/{*aih}` SSE route + its dedicated
+//!   `conversation.sock` producer socket: one agent's full
+//!   conversation, DB history + live rows teed from the log writer.
+//! - [`websocket_laboratory`] — the daemon's `/laboratory` WebSocket
+//!   route (laboratory managers dial in, identify, then authorize) +
+//!   the `laboratories.sock` request/response socket the conduit uses
+//!   to reach connected laboratories.
+//! - [`laboratories_routes`] — the daemon's `/laboratories/list` +
+//!   `/laboratories/{id}` SSE routes: the live laboratories
+//!   merge (connected ∪ local scan) and per-laboratory records with
+//!   attachments.
+
+pub mod agent_hierarchies;
+pub mod agent_registry;
+pub mod conduit;
+pub mod daemon_auth;
+pub mod daemon_execute;
+pub mod daemon_stream;
+pub mod mcp_listener;
+pub mod mcp_server;
+pub mod agent_instance_route;
+pub mod agents_routes;
+pub mod laboratories_routes;
+pub mod websocket_laboratory;

@@ -7,7 +7,6 @@ import { type CliCommandAgentsGetListenerExecution } from "./get/listenerExecuti
 import { type CliCommandAgentsGetRequestSchemaListenerExecution } from "./get/request_schema/listenerExecution";
 import { type CliCommandAgentsGetResponseSchemaListenerExecution } from "./get/response_schema/listenerExecution";
 import { type CliCommandAgentsInstancesListenerExecution } from "./instances/listenerExecution";
-import { type CliCommandAgentsLaboratoriesListenerExecution } from "./laboratories/listenerExecution";
 import { type CliCommandAgentsListListenerExecution } from "./list/listenerExecution";
 import { type CliCommandAgentsListRequestSchemaListenerExecution } from "./list/request_schema/listenerExecution";
 import { type CliCommandAgentsListResponseSchemaListenerExecution } from "./list/response_schema/listenerExecution";
@@ -37,7 +36,6 @@ export type CliCommandAgentsListenerExecution =
   | CliCommandAgentsGetRequestSchemaListenerExecution
   | CliCommandAgentsGetResponseSchemaListenerExecution
   | CliCommandAgentsInstancesListenerExecution
-  | CliCommandAgentsLaboratoriesListenerExecution
   | CliCommandAgentsListListenerExecution
   | CliCommandAgentsListRequestSchemaListenerExecution
   | CliCommandAgentsListResponseSchemaListenerExecution

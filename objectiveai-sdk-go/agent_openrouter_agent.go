@@ -21,6 +21,11 @@ type AgentOpenrouterAgent struct {
 	FrequencyPenalty *float64 `json:"frequency_penalty,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// The deterministic content-addressed ID (22-character base62 string).
 	ID string `json:"id"`
+	// Laboratories provisioned for the agent — each becomes a
+	// client-side laboratory MCP server whose id DERIVES from the
+	// agent's full id plus the spec (see
+	// [`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).
+	Laboratories *[]AgentLaboratory `json:"laboratories,omitempty"`
 	// Token ID to bias mapping (-100 to 100). Positive values increase likelihood.
 	LogitBias *OrderedMap[string, int64] `json:"logit_bias,omitempty" validate:"omitempty,dive,min=-9223372036854775808,max=9223372036854775807"`
 	// Maximum tokens in the completion.

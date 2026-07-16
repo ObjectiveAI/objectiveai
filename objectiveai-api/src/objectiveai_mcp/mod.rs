@@ -11,7 +11,7 @@ mod registry;
 mod send;
 
 pub use registry::{
-    PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle, ReverseChannel,
+    PendingRequests, ReverseAttachGuard, ReverseAttachHandle, ReverseChannel,
     SharedSink, new_pending_requests,
 };
 pub use send::send_server_request;

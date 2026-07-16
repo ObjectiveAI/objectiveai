@@ -54,6 +54,14 @@ export const ObjectiveAIOptionsSchema = z
       .record(z.string(), z.string())
       .nullish()
       .describe("X-MCP-AUTHORIZATION header (JSON-encoded map of MCP authorization headers)."),
+    xMcpCallTimeout: z
+      .number()
+      .int()
+      .nonnegative()
+      .nullish()
+      .describe(
+        "X-MCP-CALL-TIMEOUT header (integer milliseconds): per-request budget the API applies to each MCP call its proxy makes on this request's behalf. Unset means the API applies NO call timeout.",
+      ),
     xViewerSignature: z
       .string()
       .nullish()
@@ -105,6 +113,7 @@ export class ObjectiveAI {
   readonly xGithubAuthorization: string | undefined;
   readonly xOpenrouterAuthorization: string | undefined;
   readonly xMcpAuthorization: Record<string, string> | undefined;
+  readonly xMcpCallTimeout: number | undefined;
   readonly xViewerSignature: string | undefined;
   readonly xViewerAddress: string | undefined;
   readonly agentId: string | undefined;
@@ -135,6 +144,8 @@ export class ObjectiveAI {
         } catch {}
         return undefined;
       })();
+    // Option-only (no env fallback), mirroring the Rust SDK client.
+    this.xMcpCallTimeout = options?.xMcpCallTimeout ?? undefined;
     this.xViewerSignature =
       options?.xViewerSignature ?? readEnv("VIEWER_SIGNATURE") ?? undefined;
     this.xViewerAddress =
@@ -172,6 +183,9 @@ export class ObjectiveAI {
     }
     if (this.xMcpAuthorization) {
       headers.set("X-MCP-AUTHORIZATION", JSON.stringify(this.xMcpAuthorization));
+    }
+    if (this.xMcpCallTimeout !== undefined) {
+      headers.set("X-MCP-CALL-TIMEOUT", String(this.xMcpCallTimeout));
     }
     if (this.xViewerSignature) {
       headers.set("X-VIEWER-SIGNATURE", this.xViewerSignature);

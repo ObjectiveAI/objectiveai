@@ -34,8 +34,12 @@
       "$ref": "cli.command.api.config.mcp_authorization.Request"
     },
     {
-      "title": "McpTimeoutMs",
-      "$ref": "cli.command.api.config.mcp_timeout_ms.Request"
+      "title": "McpCallTimeoutMs",
+      "$ref": "cli.command.api.config.mcp_call_timeout_ms.Request"
+    },
+    {
+      "title": "McpConnectTimeoutMs",
+      "$ref": "cli.command.api.config.mcp_connect_timeout_ms.Request"
     },
     {
       "title": "BackoffMaxElapsedTimeMs",

@@ -3,6 +3,7 @@ import type { AgentCompletionsResponseUpstreamUsage } from "./upstreamUsage";
 import { agentCompletionsResponseCompletionTokensDetailsMerged } from "./completionTokensDetailsMerged";
 import { agentCompletionsResponsePromptTokensDetailsMerged } from "./promptTokensDetailsMerged";
 import { agentCompletionsResponseCostDetailsMerged } from "./costDetailsMerged";
+import { agentCompletionsResponseUpstreamDurationMsMerged } from "./upstreamDurationMsMerged";
 
 export function agentCompletionsResponseUpstreamUsageMerged(
   a: AgentCompletionsResponseUpstreamUsage,
@@ -33,6 +34,11 @@ export function agentCompletionsResponseUpstreamUsageMerged(
 
   const total_cost = a.total_cost + b.total_cost;
 
+  const [upstream_duration_ms] = agentCompletionsResponseUpstreamDurationMsMerged(
+    a.upstream_duration_ms,
+    b.upstream_duration_ms,
+  );
+
   return [{
     completion_tokens,
     prompt_tokens,
@@ -42,6 +48,7 @@ export function agentCompletionsResponseUpstreamUsageMerged(
     cost,
     ...(cost_details != null ? { cost_details } : {}),
     total_cost,
+    upstream_duration_ms,
     cost_multiplier: a.cost_multiplier,
     is_byok: a.is_byok,
   }, true];

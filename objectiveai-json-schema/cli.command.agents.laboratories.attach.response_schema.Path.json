@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.laboratories.attach.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/laboratories/attach/response_schema"
-  ]
-}

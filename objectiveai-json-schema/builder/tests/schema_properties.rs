@@ -888,3 +888,46 @@ fn all_refs_resolve() {
         "$ref targets not found as schema titles: {unresolved:?}"
     );
 }
+
+/// Recursively collect every `"default"` whose value is the empty
+/// string, with its JSON path.
+fn collect_empty_string_defaults(
+    value: &serde_json::Value,
+    path: &str,
+    found: &mut Vec<String>,
+) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                if k == "default" && v.as_str() == Some("") {
+                    found.push(format!("{path}/default"));
+                }
+                collect_empty_string_defaults(v, &format!("{path}/{k}"), found);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                collect_empty_string_defaults(v, &format!("{path}/{i}"), found);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Empty-STRING schema defaults are banned: `""` is indistinguishable
+/// from "no default" to tag-based consumers (Go struct tags read via
+/// `StructTag.Get` cannot tell `default:""` from no tag at all), so a
+/// field wanting empty-when-omitted semantics must require the value
+/// explicitly instead of defaulting it. Non-string defaults (`"/"`,
+/// `[]`, `{}`, numbers) are fine.
+#[test]
+fn no_empty_string_defaults() {
+    for (name, schema) in load_schemas() {
+        let mut found = Vec::new();
+        collect_empty_string_defaults(&schema, "", &mut found);
+        assert!(
+            found.is_empty(),
+            "{name} contains empty-string default(s) at: {found:?}"
+        );
+    }
+}

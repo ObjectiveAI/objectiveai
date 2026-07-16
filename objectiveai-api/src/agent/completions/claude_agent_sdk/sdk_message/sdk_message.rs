@@ -49,6 +49,10 @@ impl SDKMessage {
         assistant_index: u64,
         is_byok: bool,
         cost_multiplier: rust_decimal::Decimal,
+        // per-1-SECOND duration rate + this upstream's create→finish
+        // elapsed; used only by the terminal ResultMessage.
+        duration_cost: rust_decimal::Decimal,
+        elapsed_ms: u64,
         upstream: objectiveai_sdk::agent::Upstream,
         agent_instance_hierarchy: String,
         agent_id: String,
@@ -75,7 +79,8 @@ impl SDKMessage {
             }
             Self::ResultMessage(msg) => {
                 Some(Ok(msg.into_downstream(
-                    id, created, assistant_index, is_byok, cost_multiplier, upstream,
+                    id, created, assistant_index, is_byok, cost_multiplier,
+                    duration_cost, elapsed_ms, upstream,
                     agent_instance_hierarchy, agent_id, agent_full_id, agent_remote,
                 )))
             }

@@ -17,6 +17,11 @@ type AgentCodexSdkAgent struct {
 	Effort *AgentCodexSdkEffort `json:"effort,omitempty"`
 	// The deterministic content-addressed ID (22-character base62 string).
 	ID string `json:"id"`
+	// Laboratories provisioned for the agent — each becomes a
+	// client-side laboratory MCP server whose id DERIVES from the
+	// agent's full id plus the spec (see
+	// [`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).
+	Laboratories *[]AgentLaboratory `json:"laboratories,omitempty"`
 	// MCP servers the agent can connect to.
 	MCPServers *[]AgentMcpServer `json:"mcp_servers,omitempty"`
 	// The upstream language model identifier (e.g. `gpt-5`).

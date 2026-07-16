@@ -1,17 +1,11 @@
 # objectiveai-cli
 
-Command-line interface for [ObjectiveAI](https://objectiveai.dev), the agentic collective-judgment harness.
+The user-facing `objectiveai` command-line client.
 
-Distributed two ways:
-
-- **Library + binary** on [crates.io](https://crates.io/crates/objectiveai-cli): `cargo install objectiveai-cli`. Build from source; default features include the local viewer (requires the monorepo's `objectiveai-viewer` build artifacts).
-- **Pre-compiled binary** via [GitHub Releases](https://github.com/ObjectiveAI/objectiveai/releases) (cross-platform; viewer bundled).
-
-Most users want the GitHub Release. The crates.io publish is for downstream Rust crates (notably [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp)) that link against the CLI as a library.
-
-## Links
-
-- Homepage: <https://objectiveai.dev>
-- Repository: <https://github.com/ObjectiveAI/objectiveai>
-- Docs: <https://docs.rs/objectiveai-cli>
-- Releases: <https://github.com/ObjectiveAI/objectiveai/releases>
+This is a thin WebSocket client: it clap-parses argv into a typed
+`cli::command::Request`, ensures the resident `objectiveai-daemon` is
+running, and ships the request over the daemon's `/execute` WebSocket.
+The daemon runs every command in-process and streams the result back;
+this client drains those JSON lines to stdout. All command logic,
+state, the database, and the WebSocket server live in the
+`objectiveai-daemon` crate.

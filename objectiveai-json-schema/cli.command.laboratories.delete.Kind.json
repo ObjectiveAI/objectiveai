@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.laboratories.delete.Kind",
+  "description": "Which side of the conduit the laboratory serves. Only `Client`\nexists today; the tag-by-`by` shape leaves room to add `Server`\nlater.",
+  "type": "object",
+  "properties": {
+    "by": {
+      "type": "string",
+      "enum": [
+        "client"
+      ]
+    }
+  }
+}

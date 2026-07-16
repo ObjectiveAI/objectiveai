@@ -1,0 +1,17 @@
+{
+  "title": "agent.script.Script",
+  "description": "Python code executed on the client's embedded runtime — the\nSAME shared runtime the `python` command uses. The code\nreceives the FULL conversation (a messages array, continuation\nincluded) as the `input` global and must output an array of\n[`OutputMessage`](super::OutputMessage)s (assistant/tool only).",
+  "type": "object",
+  "properties": {
+    "python": {
+      "description": "The python source. Preserved verbatim — never normalized\n(whitespace is significant).",
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "python"
+      ]
+    }
+  }
+}

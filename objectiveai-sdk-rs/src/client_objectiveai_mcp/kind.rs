@@ -44,7 +44,41 @@ pub enum McpKind {
     },
 
     /// A laboratory-hosted MCP server, identified by an opaque `id`.
-    /// Mirrors the proxy URL `ws://laboratory/{id}`.
+    /// Mirrors the proxy URL `ws://laboratory/{id}`. Laboratory ids
+    /// are only unique per (machine, state); `machine` +
+    /// `machine_state` pin the exact laboratory host so the CLI
+    /// conduit forwards precisely — an absent pair falls back to
+    /// legacy first-match-by-id resolution.
     #[schemars(title = "Laboratory")]
-    Laboratory { id: String },
+    Laboratory {
+        id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        machine_state: Option<String>,
+        /// For agent-embedded laboratories: the seed the CLI conduit
+        /// needs to CREATE the laboratory when no connected host
+        /// serves the derived `id` yet (reuse needs only the id).
+        /// `None` for user-created laboratories.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        agent: Option<AgentLaboratorySeed>,
+    },
+}
+
+/// The seed of an agent-embedded laboratory, riding
+/// [`McpKind::Laboratory`]: the source agent's full id plus the
+/// embedded spec — everything the CLI conduit's on-the-fly create
+/// needs.
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
+)]
+#[schemars(rename = "client_objectiveai_mcp.AgentLaboratorySeed")]
+pub struct AgentLaboratorySeed {
+    /// The full id of the agent the laboratory derives from.
+    pub agent_full_id: String,
+    /// The embedded laboratory spec (image, env, cwd).
+    pub laboratory: crate::agent::Laboratory,
 }

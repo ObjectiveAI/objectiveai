@@ -1,0 +1,16 @@
+{
+  "title": "laboratories.LaboratoryImage",
+  "description": "One laboratory base image: inline Containerfile text, or a split\nregistry reference. Untagged — the variants' keys are disjoint\n(`containerfile` vs `registry`/`name`), mirroring the agent\ninline-vs-remote idiom.",
+  "anyOf": [
+    {
+      "title": "Inline",
+      "description": "The image spec provided inline as Containerfile content. The\nhost builds it on EVERY create (podman's layer cache still\napplies) against an empty context — `COPY`/`ADD` of local\nfiles fails by construction.",
+      "$ref": "laboratories.InlineLaboratoryImage"
+    },
+    {
+      "title": "Registry",
+      "description": "A reference to an image hosted on a registry.",
+      "$ref": "laboratories.RegistryLaboratoryImage"
+    }
+  ]
+}

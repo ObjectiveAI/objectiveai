@@ -1,5 +1,5 @@
 #[derive(Debug, Clone)]
-pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
+pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT> {
     Openrouter {
         items: Vec<ContinuationItem<OPENROUTER>>,
         /// Full slash-separated lineage of the agent this continuation
@@ -23,10 +23,14 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
         items: Vec<ContinuationItem<MOCK>>,
         agent_instance_hierarchy: String,
     },
+    Script {
+        items: Vec<ContinuationItem<SCRIPT>>,
+        agent_instance_hierarchy: String,
+    },
 }
 
-impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
-    Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
+impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT>
+    Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, SCRIPT>
 {
     pub fn push_user_message(&mut self, message: objectiveai_sdk::agent::completions::message::UserMessage) {
         match self {
@@ -34,6 +38,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::CodexSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::Mock { items, .. } => items.push(ContinuationItem::UserMessage(message)),
+            Self::Script { items, .. } => items.push(ContinuationItem::UserMessage(message)),
         }
     }
 
@@ -43,6 +48,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::CodexSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::Mock { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
+            Self::Script { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
         }
     }
 
@@ -52,6 +58,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::ClaudeAgentSdk { .. } => objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             Self::CodexSdk { .. } => objectiveai_sdk::agent::Upstream::CodexSdk,
             Self::Mock { .. } => objectiveai_sdk::agent::Upstream::Mock,
+            Self::Script { .. } => objectiveai_sdk::agent::Upstream::Script,
         }
     }
 
@@ -63,7 +70,8 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::Openrouter { agent_instance_hierarchy, .. }
             | Self::ClaudeAgentSdk { agent_instance_hierarchy, .. }
             | Self::CodexSdk { agent_instance_hierarchy, .. }
-            | Self::Mock { agent_instance_hierarchy, .. } => agent_instance_hierarchy.as_str(),
+            | Self::Mock { agent_instance_hierarchy, .. }
+            | Self::Script { agent_instance_hierarchy, .. } => agent_instance_hierarchy.as_str(),
         }
     }
 }

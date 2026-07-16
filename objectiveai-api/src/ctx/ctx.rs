@@ -7,6 +7,32 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 
+/// The three per-1-SECOND per-upstream duration billing rates carried by
+/// [`Context`], bundled so the server initializer can define them as one
+/// `const`. See the field docs on [`Context`] for the exact math and rules.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DurationCosts {
+    /// Rate for OpenRouter upstream wall time.
+    pub openrouter_duration_cost: rust_decimal::Decimal,
+    /// Rate for Claude Agent SDK upstream wall time.
+    pub claude_agent_sdk_duration_cost: rust_decimal::Decimal,
+    /// Rate for Codex SDK upstream wall time.
+    pub codex_sdk_duration_cost: rust_decimal::Decimal,
+    /// Rate for Script upstream wall time (client-side script
+    /// execution over the reverse channel).
+    pub script_duration_cost: rust_decimal::Decimal,
+}
+
+impl DurationCosts {
+    /// All rates zero — duration is tracked but not billed.
+    pub const ZERO: DurationCosts = DurationCosts {
+        openrouter_duration_cost: rust_decimal::Decimal::ZERO,
+        claude_agent_sdk_duration_cost: rust_decimal::Decimal::ZERO,
+        codex_sdk_duration_cost: rust_decimal::Decimal::ZERO,
+        script_duration_cost: rust_decimal::Decimal::ZERO,
+    };
+}
+
 /// Per-request context containing user-specific state and deduplication caches.
 ///
 /// The context is generic over `CTXEXT`, allowing custom extensions for
@@ -23,6 +49,19 @@ pub struct Context<CTXEXT> {
     pub ext: Arc<CTXEXT>,
     /// Multiplier applied to costs for this request.
     pub cost_multiplier: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of OpenRouter upstream wall time
+    /// (`usage.upstream_duration_ms.openrouter`), charged raw (no
+    /// `cost_multiplier`), BYOK included.
+    pub openrouter_duration_cost: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of Claude Agent SDK upstream wall time
+    /// (`usage.upstream_duration_ms.claude_agent_sdk`).
+    pub claude_agent_sdk_duration_cost: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of Codex SDK upstream wall time
+    /// (`usage.upstream_duration_ms.codex_sdk`).
+    pub codex_sdk_duration_cost: rust_decimal::Decimal,
+    /// Per-1-SECOND cost of Script upstream wall time
+    /// (`usage.upstream_duration_ms.script`).
+    pub script_duration_cost: rust_decimal::Decimal,
     /// Whether to suppress output (eprintln, logging, etc).
     pub suppress_output: bool,
     /// Per-request ObjectiveAI authorization token.
@@ -33,6 +72,11 @@ pub struct Context<CTXEXT> {
     github_authorization: Option<Arc<String>>,
     /// Per-request MCP authorization headers.
     mcp_authorization: Option<Arc<HashMap<String, String>>>,
+    /// Per-request MCP CALL budget (`X-MCP-CALL-TIMEOUT`, integer ms):
+    /// applied to every MCP call the request's proxy makes (HTTP and
+    /// ws:// upstreams alike). Absent or unparseable ⇒ `None` ⇒ NO call
+    /// timeout. Never applies to connects or laboratory transfers.
+    mcp_call_timeout_ms: Option<u64>,
     /// Per-request caller-supplied agent id (`X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`).
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
@@ -67,8 +111,12 @@ pub struct Context<CTXEXT> {
     github_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved MCP authorization (self + ext merged).
     mcp_authorization_cached: Arc<OnceCell<Option<Arc<HashMap<String, String>>>>>,
-    /// Cancellation signal — set to true when the client disconnects.
-    cancelled: Arc<std::sync::atomic::AtomicBool>,
+    /// Cancellation signal — cancelled when the client disconnects.
+    /// A `CancellationToken` rather than an `AtomicBool` so consumers
+    /// can both peek synchronously (`is_cancelled`) and await the
+    /// signal (`cancellation_token().cancelled()`); clones share one
+    /// linked state.
+    cancelled: tokio_util::sync::CancellationToken,
     /// Cache for agent fetches, keyed by RemotePath.
     agent_cache: Arc<
         DashMap<
@@ -146,11 +194,16 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
         Self {
             ext: self.ext.clone(),
             cost_multiplier: self.cost_multiplier,
+            openrouter_duration_cost: self.openrouter_duration_cost,
+            claude_agent_sdk_duration_cost: self.claude_agent_sdk_duration_cost,
+            codex_sdk_duration_cost: self.codex_sdk_duration_cost,
+            script_duration_cost: self.script_duration_cost,
             suppress_output: self.suppress_output,
             objectiveai_authorization: self.objectiveai_authorization.clone(),
             openrouter_authorization: self.openrouter_authorization.clone(),
             github_authorization: self.github_authorization.clone(),
             mcp_authorization: self.mcp_authorization.clone(),
+            mcp_call_timeout_ms: self.mcp_call_timeout_ms,
             agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
             reverse_attach: self.reverse_attach.clone(),
             reverse_channel: self.reverse_channel.clone(),
@@ -172,12 +225,20 @@ impl<CTXEXT> Clone for Context<CTXEXT> {
 impl<CTXEXT> Context<CTXEXT> {
     /// Returns whether this context has been cancelled.
     pub fn is_cancelled(&self) -> bool {
-        self.cancelled.load(std::sync::atomic::Ordering::Relaxed)
+        self.cancelled.is_cancelled()
     }
 
     /// Marks this context as cancelled.
     pub fn cancel(&self) {
-        self.cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.cancelled.cancel();
+    }
+
+    /// A clone of this request's cancellation token — the awaitable
+    /// side of [`Self::is_cancelled`] (`token.cancelled().await`
+    /// resolves when [`Self::cancel`] fires, immediately if it already
+    /// has). Clones are linked to the same state.
+    pub fn cancellation_token(&self) -> tokio_util::sync::CancellationToken {
+        self.cancelled.clone()
     }
 
     /// Creates a new context by extracting authorization headers from the request.
@@ -191,6 +252,7 @@ impl<CTXEXT> Context<CTXEXT> {
     pub fn new(
         ext: Arc<CTXEXT>,
         cost_multiplier: rust_decimal::Decimal,
+        duration_costs: DurationCosts,
         suppress_output: bool,
         headers: &axum::http::HeaderMap,
     ) -> Self {
@@ -220,6 +282,14 @@ impl<CTXEXT> Context<CTXEXT> {
             .and_then(|s| serde_json::from_str::<HashMap<String, String>>(s).ok())
             .map(Arc::new);
 
+        // Absent OR unparseable ⇒ None ⇒ no MCP call timeout — the
+        // `.ok()` chain gives the parse-failure fallback for free.
+        let mcp_call_timeout_ms = headers
+            .get("X-MCP-CALL-TIMEOUT")
+            .or_else(|| headers.get("MCP-CALL-TIMEOUT"))
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.trim().parse::<u64>().ok());
+
         let agent_instance_hierarchy = headers
             .get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY")
             .or_else(|| headers.get("OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
@@ -229,10 +299,15 @@ impl<CTXEXT> Context<CTXEXT> {
         Self {
             ext,
             cost_multiplier,
+            openrouter_duration_cost: duration_costs.openrouter_duration_cost,
+            claude_agent_sdk_duration_cost: duration_costs.claude_agent_sdk_duration_cost,
+            codex_sdk_duration_cost: duration_costs.codex_sdk_duration_cost,
+            script_duration_cost: duration_costs.script_duration_cost,
             suppress_output,
             openrouter_authorization,
             github_authorization,
             mcp_authorization,
+            mcp_call_timeout_ms,
             objectiveai_authorization,
             agent_instance_hierarchy,
             reverse_attach: None,
@@ -244,7 +319,7 @@ impl<CTXEXT> Context<CTXEXT> {
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
-            cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            cancelled: tokio_util::sync::CancellationToken::new(),
             swarm_cache: Arc::new(DashMap::new()),
             agent_cache: Arc::new(DashMap::new()),
             function_cache: Arc::new(DashMap::new()),
@@ -265,6 +340,13 @@ impl<CTXEXT> Context<CTXEXT> {
     /// agent id we forward to the MCP proxy.
     pub fn agent_instance_hierarchy(&self) -> Option<&str> {
         self.agent_instance_hierarchy.as_deref().map(|s| s.as_str())
+    }
+
+    /// The per-request MCP CALL budget from `X-MCP-CALL-TIMEOUT`
+    /// (integer ms). `None` (absent or unparseable) ⇒ the proxy applies
+    /// NO call timeout.
+    pub fn mcp_call_timeout_ms(&self) -> Option<u64> {
+        self.mcp_call_timeout_ms
     }
 
     /// Returns the shared reverse-attach handle for registering

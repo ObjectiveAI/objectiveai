@@ -257,6 +257,9 @@ pub async fn connect_through_proxy(
         .boot(
             None,
             std::sync::Arc::new(crate::agent::completions::ApiQueueDelegate::new()),
+            // Bounded MCP calls in tests: a wedged upstream should fail
+            // the test, not hang the suite.
+            Some(crate::test_clients::MCP_CALL_TIMEOUT_MS),
         )
         .await
         .expect("proxy bootstrap");

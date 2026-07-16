@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "objectiveai-api",
     "objectiveai-db",
+    "objectiveai-laboratory",
     "objectiveai-mcp",
     "objectiveai-mcp-laboratory",
     "objectiveai-mcp-proxy",
@@ -11,7 +12,7 @@ members = [
     "objectiveai-sdk-rs-wasm-js",
     "objectiveai-sdk-rs-macros",
     "objectiveai-sdk-rs-pyo3",
-    "objectiveai-sdk-rs-cffi", "objectiveai-cli",
+    "objectiveai-sdk-rs-cffi", "objectiveai-daemon", "objectiveai-cli",
     # Integration-test fixture crates — plugin and tool stubs the cli
     # integration tests build and exec. Grouped under tests/ by kind:
     # plugins under tests/plugins/, tools under tests/tools/.
@@ -32,7 +33,7 @@ members = [
     "tests/objectiveai-cli-tests",
 ]
 
-# Built only for wasm32-wasip1 by objectiveai-cli/build.rs — excluded so the
+# Built only for wasm32-wasip1 by objectiveai-daemon/build.rs — excluded so the
 # host-target workspace build never tries to compile its wasm-only host import.
 exclude = ["objectiveai-rustpython-wasm"]
 

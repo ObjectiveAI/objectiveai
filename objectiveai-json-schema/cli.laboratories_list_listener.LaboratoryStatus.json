@@ -1,0 +1,88 @@
+{
+  "title": "cli.laboratories_list_listener.LaboratoryStatus",
+  "description": "One laboratory on the `/laboratories/list` stream: its spec, the\nmachine whose host serves it, and whether that host is connected\nright now. There is no local-vs-remote split — machine identity is\nthe only provenance.",
+  "type": "object",
+  "properties": {
+    "agent_full_id": {
+      "description": "For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "connected": {
+      "description": "Whether the serving host's `/laboratory` connection is live\nright now.",
+      "type": "boolean"
+    },
+    "created_at": {
+      "description": "Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "env": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.EnvVar"
+      }
+    },
+    "id": {
+      "description": "Raw (state-agnostic) laboratory id.",
+      "type": "string"
+    },
+    "image": {
+      "$ref": "laboratories.LaboratoryImage"
+    },
+    "machine": {
+      "description": "The machine whose laboratory host serves this laboratory.",
+      "anyOf": [
+        {
+          "$ref": "machine.MachineIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state), so the\nstream may legitimately carry several same-id items that\ndiffer here.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.Mount"
+      }
+    },
+    "running": {
+      "description": "Whether the laboratory's CONTAINER is running right now. The\nlifecycle starts and stops containers on demand (MCP\nconnections and filetree watchers are the demand), and every\ntransition streams as an upsert — subscribers hold live state.\nDefaulted so frames predating this field parse (as\nnot-running).",
+      "type": "boolean",
+      "default": false
+    }
+  }
+}

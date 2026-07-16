@@ -31,6 +31,21 @@
       ],
       "omitempty": true
     },
+    "laboratories": {
+      "description": "Currently attached laboratories — the EFFECTIVE set the next\nspawn pass dials: the AIH's own attachments UNION its bound\ntags'. Populated by `agents instances get`; `agents instances\nlist` leaves it unset.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.instances.list.LaboratoryAttachment"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "last_active_at": {
       "description": "RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).",
       "anyOf": [

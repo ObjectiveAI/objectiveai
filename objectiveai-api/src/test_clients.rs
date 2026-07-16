@@ -154,6 +154,7 @@ pub(crate) type AgentClient = crate::agent::completions::Client<
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
+    crate::agent::completions::script::Client,
     StubRetrieveClient,
     StubRetrieveClient,
     crate::retrieval::retrieve::mock::MockClient,
@@ -166,6 +167,7 @@ pub(crate) type VectorClient = crate::vector::completions::Client<
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
+    crate::agent::completions::script::Client,
     StubRetrieveClient,
     StubRetrieveClient,
     crate::retrieval::retrieve::mock::MockClient,
@@ -179,6 +181,7 @@ pub(crate) type FunctionExecutionsClient = crate::functions::executions::Client<
     UnimplementedUpstreamClient,
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
+    crate::agent::completions::script::Client,
     StubAgentUsageHandler,
     StubVectorUsageHandler,
     StubRetrieveClient,
@@ -276,7 +279,7 @@ static AGENT_RETRIEVE_ROUTER: LazyLock<Arc<AgentRetrieveRouter>> = LazyLock::new
 // performance regression (a >60s `list_tools` against the local
 // mock would still surface).
 const MCP_CONNECT_TIMEOUT_MS: u64 = 30_000;
-const MCP_CALL_TIMEOUT_MS: u64 = 60_000;
+pub(crate) const MCP_CALL_TIMEOUT_MS: u64 = 60_000;
 const MCP_BACKOFF_CURRENT_INTERVAL_MS: u64 = 100;
 const MCP_BACKOFF_INITIAL_INTERVAL_MS: u64 = 100;
 const MCP_BACKOFF_RANDOMIZATION_FACTOR: f64 = 0.5;
@@ -303,14 +306,14 @@ static MCP_CLIENT: LazyLock<Arc<objectiveai_sdk::mcp::Client>> = LazyLock::new(|
         String::new(),
         String::new(),
         String::new(),
-        Duration::from_millis(MCP_CONNECT_TIMEOUT_MS),
+        Some(Duration::from_millis(MCP_CONNECT_TIMEOUT_MS)),
         Duration::from_millis(MCP_BACKOFF_CURRENT_INTERVAL_MS),
         Duration::from_millis(MCP_BACKOFF_INITIAL_INTERVAL_MS),
         MCP_BACKOFF_RANDOMIZATION_FACTOR,
         MCP_BACKOFF_MULTIPLIER,
         Duration::from_millis(MCP_BACKOFF_MAX_INTERVAL_MS),
         Duration::from_millis(MCP_BACKOFF_MAX_ELAPSED_TIME_MS),
-        Duration::from_millis(MCP_CALL_TIMEOUT_MS),
+        Some(Duration::from_millis(MCP_CALL_TIMEOUT_MS)),
     ))
 });
 
@@ -345,6 +348,9 @@ static UNIMPLEMENTED_CLAUDE_AGENT_SDK: LazyLock<Arc<UnimplementedUpstreamClient>
 static UNIMPLEMENTED_CODEX_SDK: LazyLock<Arc<UnimplementedUpstreamClient>> =
     LazyLock::new(|| Arc::new(UnimplementedUpstreamClient));
 
+static SCRIPT_UPSTREAM: LazyLock<Arc<crate::agent::completions::script::Client>> =
+    LazyLock::new(|| Arc::new(crate::agent::completions::script::Client));
+
 // --- the API client singletons, each constructed once, ever ---
 
 static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
@@ -358,13 +364,13 @@ static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
         UNIMPLEMENTED_CLAUDE_AGENT_SDK.clone(),
         UNIMPLEMENTED_CODEX_SDK.clone(),
         MOCK_UPSTREAM.clone(),
+        SCRIPT_UPSTREAM.clone(),
         Duration::ZERO,
         Duration::ZERO,
         0.0,
         1.0,
         Duration::ZERO,
         Duration::ZERO,
-        Duration::from_secs(1800),
         Duration::from_secs(1800),
     ))
 });

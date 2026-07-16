@@ -5,14 +5,17 @@ import { CliCommandLaboratoriesCreateEnvVarSchema } from "./envVar";
 import { CliCommandLaboratoriesCreateKindSchema } from "./kind";
 import { CliCommandLaboratoriesCreateMountSchema } from "./mount";
 import { CliCommandLaboratoriesCreatePathSchema } from "./path";
+import { LaboratoriesLaboratoryImageSchema } from "../../../../laboratories/laboratoryImage";
 
 export const CliCommandLaboratoriesCreateRequestSchema = z.object({
   cwd: z.string().default("/").describe("Default working directory new agents start in; defaults to `/`."),
   env: z.array(CliCommandLaboratoriesCreateEnvVarSchema),
   id: z.string(),
-  image: z.string(),
+  image: LaboratoriesLaboratoryImageSchema.describe("The base image, split (`registry` + `name` + tag XOR digest) —\na joined reference string is never accepted, so unqualified\nshort names are unrepresentable."),
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
   kind: CliCommandLaboratoriesCreateKindSchema,
+  machine: z.string().nullable().describe("The EXACT machine id (as `laboratories list` reports it) whose\nlaboratory host should own the container. Provided together\nwith `machine_state` or not at all; neither ⇒ the current\nmachine + the daemon's own state.").meta({ omitempty: true }).optional(),
+  machine_state: z.string().nullable().describe("The state (on `machine`) whose laboratory host should own the\ncontainer. Paired with `machine` — both or neither.").meta({ omitempty: true }).optional(),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema),
   path_type: CliCommandLaboratoriesCreatePathSchema,

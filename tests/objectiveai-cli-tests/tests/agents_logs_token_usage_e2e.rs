@@ -6,7 +6,7 @@
 //! against the agent's instance-lock release.
 //!
 //! Most tests drive the command **in-process**: they build an
-//! `objectiveai_cli::Context` bound to this test's dir/state (so it
+//! `objectiveai_daemon::Context` bound to this test's dir/state (so it
 //! resolves the SAME per-state postgres the cli subprocess uses), get a
 //! `&Pool`, write token values directly via
 //! `db::logs::update_agent_token_usage` (the cli's `db query` command is
@@ -22,7 +22,7 @@ use std::time::Duration;
 
 use futures::StreamExt;
 
-use objectiveai_cli::db::logs::{
+use objectiveai_daemon::db::logs::{
     get_agent_token_usage, update_agent_token_usage, wait_for_token_usage_change,
 };
 
@@ -31,8 +31,8 @@ use objectiveai_sdk::cli::command::agents::logs::token_usage::get as sdk_get;
 use objectiveai_sdk::cli::command::agents::logs::token_usage::subscribe as sdk_sub;
 
 // cli-side command executors under test.
-use objectiveai_cli::command::agents::logs::token_usage::get as cli_get;
-use objectiveai_cli::command::agents::logs::token_usage::subscribe as cli_sub;
+use objectiveai_daemon::command::agents::logs::token_usage::get as cli_get;
+use objectiveai_daemon::command::agents::logs::token_usage::subscribe as cli_sub;
 
 // ── helpers ────────────────────────────────────────────────────────
 
@@ -46,19 +46,19 @@ use objectiveai_cli::command::agents::logs::token_usage::subscribe as cli_sub;
 /// starting under the full suite's parallel load can exceed 30s; the
 /// subprocess still gets the harness's 120s inactivity hang-guard, so a
 /// genuine hang fails fast while a slow-but-progressing spawn survives.
-async fn setup() -> objectiveai_cli::context::Context {
+async fn setup() -> objectiveai_daemon::context::Context {
     let executor = cli_test_util::executor().await;
     // Cold-spawns (or attaches to) this state's postgres via the proven
     // cli path. 180s absorbs a slow cold start under load.
     let _ = cli_test_util::db_query_with_timeout(&executor, "SELECT 1", 180).await;
 
-    let config = objectiveai_cli::ConfigBuilder {
+    let config = objectiveai_daemon::ConfigBuilder {
         objectiveai_dir: Some(cli_test_util::objectiveai_dir().to_string_lossy().into_owned()),
         objectiveai_state: Some(cli_test_util::test_state_name()),
         ..Default::default()
     }
     .build();
-    let ctx = objectiveai_cli::context::Context::new(config);
+    let ctx = objectiveai_daemon::context::Context::new(config);
     // The cluster is up now, so this just connects (never cold-spawns).
     ctx.db_client().await.expect("connect to per-state postgres");
     ctx
@@ -83,7 +83,7 @@ fn get_request(aih: &str) -> sdk_get::Request {
 
 /// Run `subscribe::execute` and drain its (single-item) stream.
 async fn run_subscribe(
-    ctx: &objectiveai_cli::context::Context,
+    ctx: &objectiveai_daemon::context::Context,
     req: sdk_sub::Request,
 ) -> Vec<sdk_sub::ResponseItem> {
     let mut stream = cli_sub::execute(ctx, req)
@@ -168,13 +168,19 @@ async fn subscribe_wakes_on_change_while_locked() {
     let aih = "wake-on-change-aih";
 
     // Hold the agent's instance lock so `wait_released` parks.
-    let (lock_dir, lock_key) = objectiveai_cli::command::agents::locks::agent_instance_lock(
+    let (lock_dir, lock_key) = objectiveai_daemon::command::agents::locks::agent_instance_lock(
         &ctx.filesystem.state_dir(),
         aih,
     );
-    let claim = objectiveai_sdk::lockfile::wait_acquire(&lock_dir, &lock_key, "")
-        .await
-        .expect("acquire instance lock");
+    // Post-split, agent locks are the daemon's IN-PROCESS AgentLockMap
+    // (nothing on disk) — hold the in-process lock the subscribe's
+    // release arm actually watches.
+    let claim = objectiveai_daemon::command::agents::locks::wait_acquire(
+        ctx.agent_locks(),
+        &lock_dir,
+        &lock_key,
+    )
+    .await;
 
     update_agent_token_usage(&pool, aih, 10).await.unwrap(); // baseline
 
@@ -189,7 +195,7 @@ async fn subscribe_wakes_on_change_while_locked() {
     let tu = expect_item(&items);
     assert_eq!(tu.total_tokens, 77);
 
-    claim.release().expect("release instance lock");
+    claim.release();
 }
 
 /// When the instance lock drops with no pending token change, subscribe
@@ -199,13 +205,19 @@ async fn subscribe_agents_inactive_on_lock_release() {
     let ctx = setup().await;
     let aih = "inactive-aih"; // fresh: no agent_token_usage row
 
-    let (lock_dir, lock_key) = objectiveai_cli::command::agents::locks::agent_instance_lock(
+    let (lock_dir, lock_key) = objectiveai_daemon::command::agents::locks::agent_instance_lock(
         &ctx.filesystem.state_dir(),
         aih,
     );
-    let claim = objectiveai_sdk::lockfile::wait_acquire(&lock_dir, &lock_key, "")
-        .await
-        .expect("acquire instance lock");
+    // Post-split, agent locks are the daemon's IN-PROCESS AgentLockMap
+    // (nothing on disk) — hold the in-process lock the subscribe's
+    // release arm actually watches.
+    let claim = objectiveai_daemon::command::agents::locks::wait_acquire(
+        ctx.agent_locks(),
+        &lock_dir,
+        &lock_key,
+    )
+    .await;
 
     let sub_ctx = ctx.clone();
     let handle =
@@ -214,7 +226,7 @@ async fn subscribe_agents_inactive_on_lock_release() {
     // Let subscribe reach its blocking `wait_released`, then release with
     // no token change → it must resolve to agents_inactive.
     tokio::time::sleep(Duration::from_millis(150)).await;
-    claim.release().expect("release instance lock");
+    claim.release();
 
     let items = handle.await.expect("subscribe task join");
     assert_eq!(items.len(), 1);

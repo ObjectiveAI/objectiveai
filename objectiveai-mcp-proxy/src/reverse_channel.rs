@@ -53,9 +53,12 @@ struct Inner {
     /// each request onto the shared WS sink.
     tx: mpsc::UnboundedSender<ServerRequest>,
     /// Outstanding requests awaiting their `server_response`, by id.
+    /// There is NO channel-level round-trip budget: each op passes its
+    /// own `Option<Duration>` to [`ReverseChannel::request`] — ws-MCP
+    /// calls use the per-request `X-MCP-CALL-TIMEOUT` value, connects
+    /// use the connect timeout, and laboratory transfers + drops run
+    /// timeout-free.
     pending: DashMap<String, oneshot::Sender<ServerResponse>>,
-    /// Per-upstream round-trip budget.
-    timeout: Duration,
     /// list-changed callbacks per upstream `McpKind`: `(tools, resources)`.
     /// Fired when a matching `client_request::McpListChanged` arrives.
     list_changed: DashMap<McpKind, (Option<ListChangedCb>, Option<ListChangedCb>)>,
@@ -80,12 +83,11 @@ impl std::fmt::Debug for ReverseChannel {
 impl ReverseChannel {
     /// Build a channel. Returns the channel plus the receiver the API
     /// drains (serializing each `server_request` onto the shared WS sink).
-    pub fn new(timeout: Duration) -> (Self, mpsc::UnboundedReceiver<ServerRequest>) {
+    pub fn new() -> (Self, mpsc::UnboundedReceiver<ServerRequest>) {
         let (tx, rx) = mpsc::unbounded_channel();
         let inner = Inner {
             tx,
             pending: DashMap::new(),
-            timeout,
             list_changed: DashMap::new(),
             sessions: OnceLock::new(),
         };
@@ -123,12 +125,17 @@ impl ReverseChannel {
     }
 
     /// Emit a `server_request` and await its matching `server_response`,
-    /// bounded by the configured timeout. `id` is minted here; the API's
-    /// recv loop routes the reply back via [`Self::deliver_response`].
+    /// bounded by the CALLER-supplied per-op `timeout` — `None` awaits
+    /// with no deadline (resolves on reply, errors on channel drop).
+    /// ws-MCP ops pass the per-request call timeout, connects pass the
+    /// connect timeout, laboratory transfers and drops pass `None`.
+    /// `id` is minted here; the API's recv loop routes the reply back
+    /// via [`Self::deliver_response`].
     async fn request(
         &self,
         payload: server_request::Payload,
         headers: IndexMap<String, String>,
+        timeout: Option<Duration>,
     ) -> Result<ServerResponse, McpError> {
         let id = uuid::Uuid::new_v4().to_string();
         let (resp_tx, resp_rx) = oneshot::channel();
@@ -142,15 +149,24 @@ impl ReverseChannel {
             self.0.pending.remove(&id);
             return Err(transport_error("reverse channel closed before send"));
         }
-        match tokio::time::timeout(self.0.timeout, resp_rx).await {
-            Ok(Ok(response)) => Ok(response),
-            Ok(Err(_)) => {
-                self.0.pending.remove(&id);
-                Err(transport_error("reverse channel dropped before response"))
-            }
+        let received = match timeout {
+            Some(timeout) => match tokio::time::timeout(timeout, resp_rx).await
+            {
+                Ok(received) => received,
+                Err(_) => {
+                    self.0.pending.remove(&id);
+                    return Err(transport_error(
+                        "reverse channel timed out waiting for response",
+                    ));
+                }
+            },
+            None => resp_rx.await,
+        };
+        match received {
+            Ok(response) => Ok(response),
             Err(_) => {
                 self.0.pending.remove(&id);
-                Err(transport_error("reverse channel timed out waiting for response"))
+                Err(transport_error("reverse channel dropped before response"))
             }
         }
     }
@@ -164,37 +180,36 @@ impl ReverseChannel {
             .request(
                 server_request::Payload::Drop(server_request::DropRequest { response_id }),
                 IndexMap::new(),
+                None,
             )
             .await;
     }
 
-    /// Stream a file/folder from one laboratory to another. The conduit
-    /// splices the source laboratory's `/export` straight into the
-    /// destination's `/import`; both laboratories are on the same conduit,
-    /// so this rides the session's reverse channel like any other op.
-    pub async fn transfer_laboratories(
+    /// `LaboratoryExportBegin`: start an export on the conduit and get
+    /// its transfer id. Each transfer op below is ONE id-correlated
+    /// request/response exchange awaited WITHOUT a deadline — laboratory
+    /// transfers are timeout-free unconditionally (never bounded by the
+    /// per-request MCP call timeout).
+    /// `LaboratoryTransfer`: hand the WHOLE cross-host client-to-client
+    /// transfer to the CLI daemon, which drives the export/import
+    /// splice itself. One request, one `{bytes}` reply — the proxy
+    /// never touches payload bytes. Timeout-free like every transfer
+    /// op.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn laboratory_transfer(
         &self,
-        source_id: String,
-        dest_id: String,
-        source_path: String,
-        dest_path: String,
-    ) -> Result<server_response::LaboratoryTransferResult, McpError> {
+        request: server_request::LaboratoryTransferRequest,
+    ) -> Result<u64, McpError> {
         let response = self
             .request(
-                server_request::Payload::LaboratoryTransfer(
-                    server_request::LaboratoryTransferRequest {
-                        source_id,
-                        dest_id,
-                        source_path,
-                        dest_path,
-                    },
-                ),
+                server_request::Payload::LaboratoryTransfer(request),
                 IndexMap::new(),
+                None,
             )
             .await?;
         match response.payload {
             server_response::Payload::LaboratoryTransfer(result) => {
-                unwrap_rpc("laboratory_transfer", result)
+                unwrap_rpc("laboratory_transfer", result).map(|r| r.bytes)
             }
             other => Err(variant_mismatch(
                 "laboratory_transfer",
@@ -202,6 +217,207 @@ impl ReverseChannel {
                 &other,
             )),
         }
+    }
+
+    /// `LaboratoryLocalTransfer`: both endpoints share one (machine,
+    /// state) — the CLI daemon forwards this verbatim to that one
+    /// laboratory host, which pipes the bytes container-to-container.
+    pub async fn laboratory_local_transfer(
+        &self,
+        request: server_request::LaboratoryLocalTransferRequest,
+    ) -> Result<u64, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryLocalTransfer(request),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryLocalTransfer(result) => {
+                unwrap_rpc("laboratory_local_transfer", result).map(|r| r.bytes)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_local_transfer",
+                "laboratory_local_transfer",
+                &other,
+            )),
+        }
+    }
+
+    pub async fn laboratory_export_begin(
+        &self,
+        laboratory_id: String,
+        machine: Option<String>,
+        machine_state: Option<String>,
+        path: String,
+    ) -> Result<String, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryExportBegin(
+                    server_request::LaboratoryExportBeginRequest {
+                        laboratory_id,
+                        machine,
+                        machine_state,
+                        path,
+                    },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryExportBegin(result) => {
+                unwrap_rpc("laboratory_export_begin", result)
+                    .map(|r| r.transfer_id)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_export_begin",
+                "laboratory_export_begin",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryExportRead`: pull the next chunk.
+    pub async fn laboratory_export_read(
+        &self,
+        transfer_id: String,
+    ) -> Result<server_response::LaboratoryExportChunk, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryExportRead(
+                    server_request::LaboratoryExportReadRequest { transfer_id },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryExportRead(result) => {
+                unwrap_rpc("laboratory_export_read", result)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_export_read",
+                "laboratory_export_read",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryExportAbort`: best-effort early cleanup.
+    pub async fn laboratory_export_abort(&self, transfer_id: String) {
+        let _ = self
+            .request(
+                server_request::Payload::LaboratoryExportAbort(
+                    server_request::LaboratoryExportAbortRequest { transfer_id },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await;
+    }
+
+    /// `LaboratoryImportBegin`: start an import on the conduit and get
+    /// its transfer id.
+    pub async fn laboratory_import_begin(
+        &self,
+        laboratory_id: String,
+        machine: Option<String>,
+        machine_state: Option<String>,
+        path: String,
+    ) -> Result<String, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryImportBegin(
+                    server_request::LaboratoryImportBeginRequest {
+                        laboratory_id,
+                        machine,
+                        machine_state,
+                        path,
+                    },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryImportBegin(result) => {
+                unwrap_rpc("laboratory_import_begin", result)
+                    .map(|r| r.transfer_id)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_import_begin",
+                "laboratory_import_begin",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryImportWrite`: push one chunk.
+    pub async fn laboratory_import_write(
+        &self,
+        transfer_id: String,
+        data: String,
+    ) -> Result<(), McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryImportWrite(
+                    server_request::LaboratoryImportWriteRequest { transfer_id, data },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryImportWrite(result) => {
+                unwrap_rpc("laboratory_import_write", result).map(|_| ())
+            }
+            other => Err(variant_mismatch(
+                "laboratory_import_write",
+                "laboratory_import_write",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryImportEnd`: close the body and get the byte total.
+    pub async fn laboratory_import_end(
+        &self,
+        transfer_id: String,
+    ) -> Result<u64, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryImportEnd(
+                    server_request::LaboratoryImportEndRequest { transfer_id },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryImportEnd(result) => {
+                unwrap_rpc("laboratory_import_end", result).map(|r| r.bytes)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_import_end",
+                "laboratory_import_end",
+                &other,
+            )),
+        }
+    }
+
+    /// `LaboratoryImportAbort`: best-effort early cleanup.
+    pub async fn laboratory_import_abort(&self, transfer_id: String) {
+        let _ = self
+            .request(
+                server_request::Payload::LaboratoryImportAbort(
+                    server_request::LaboratoryImportAbortRequest { transfer_id },
+                ),
+                IndexMap::new(),
+                None,
+            )
+            .await;
     }
 
     /// Hand a proxy-bound `server_response` (one of the 6 MCP variants)
@@ -339,6 +555,11 @@ impl ReverseChannel {
 pub struct WsUpstream {
     channel: ReverseChannel,
     mcp_kind: McpKind,
+    /// Per-MCP-CALL budget for this upstream's reverse-channel ops
+    /// (from the request's `X-MCP-CALL-TIMEOUT` via the proxy config).
+    /// `None` ⇒ calls wait forever. Never applied to the connect
+    /// (`initialize`) — that uses the connect timeout.
+    call_timeout: Option<Duration>,
     /// The `ws://…` URL this upstream was dialed with (used for filtering).
     pub url: String,
     /// Upstream `Mcp-Session-Id` returned by the CLI on `initialize`.
@@ -426,6 +647,7 @@ impl WsUpstream {
                     params: ListToolsRequest { cursor: None },
                 },
                 headers,
+                self.call_timeout,
             )
             .await
             .map_err(Arc::new)?;
@@ -453,6 +675,7 @@ impl WsUpstream {
                     params: ListResourcesRequest { cursor: None },
                 },
                 headers,
+                self.call_timeout,
             )
             .await
             .map_err(Arc::new)?;
@@ -477,6 +700,7 @@ impl WsUpstream {
                     params: params.clone(),
                 },
                 headers,
+                self.call_timeout,
             )
             .await?;
         match response.payload {
@@ -497,6 +721,7 @@ impl WsUpstream {
                     },
                 },
                 headers,
+                self.call_timeout,
             )
             .await?;
         match response.payload {
@@ -514,6 +739,7 @@ impl WsUpstream {
                     mcp_kind: self.mcp_kind.clone(),
                 },
                 headers,
+                self.call_timeout,
             )
             .await?;
         match response.payload {
@@ -752,6 +978,10 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
 /// request — the session-global transient identity headers, plus (on
 /// resume) the upstream `Mcp-Session-Id` and any auth. `args` carries
 /// plugin init arguments (empty for `objectiveai`).
+///
+/// `connect_timeout` bounds the `initialize` round-trip (the per-request
+/// call timeout NEVER applies to connects); `call_timeout` is stored on
+/// the [`WsUpstream`] for every later op.
 pub async fn connect_ws(
     channel: ReverseChannel,
     url: String,
@@ -759,6 +989,8 @@ pub async fn connect_ws(
     args: IndexMap<String, Option<String>>,
     mut headers: IndexMap<String, String>,
     laboratory: Option<objectiveai_sdk::laboratories::Laboratory>,
+    connect_timeout: Option<Duration>,
+    call_timeout: Option<Duration>,
 ) -> Result<WsUpstream, McpError> {
     let response = channel
         .request(
@@ -767,6 +999,7 @@ pub async fn connect_ws(
                 params: InitializeRequest { args },
             },
             headers.clone(),
+            connect_timeout,
         )
         .await?;
     let reply = match response.payload {
@@ -787,6 +1020,7 @@ pub async fn connect_ws(
     Ok(WsUpstream {
         channel,
         mcp_kind,
+        call_timeout,
         url,
         session_id,
         server_name,
@@ -860,7 +1094,16 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::SessionTerminate { .. } => "session_terminate",
         P::ReadMessageQueue(_) => "read_message_queue",
         P::Retrieve(_) => "retrieve",
+        P::Script(_) => "script",
         P::Drop(_) => "drop",
         P::LaboratoryTransfer(_) => "laboratory_transfer",
+        P::LaboratoryLocalTransfer(_) => "laboratory_local_transfer",
+        P::LaboratoryExportBegin(_) => "laboratory_export_begin",
+        P::LaboratoryExportRead(_) => "laboratory_export_read",
+        P::LaboratoryExportAbort(_) => "laboratory_export_abort",
+        P::LaboratoryImportBegin(_) => "laboratory_import_begin",
+        P::LaboratoryImportWrite(_) => "laboratory_import_write",
+        P::LaboratoryImportEnd(_) => "laboratory_import_end",
+        P::LaboratoryImportAbort(_) => "laboratory_import_abort",
     }
 }

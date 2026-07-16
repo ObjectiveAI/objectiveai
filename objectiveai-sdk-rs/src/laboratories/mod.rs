@@ -11,6 +11,14 @@
 //! json-schema coverage test derives the `laboratories.` title prefix from
 //! the directory — matching these types' `#[schemars(rename = "laboratories.…")]`.
 
+#[cfg(feature = "laboratory-daemon")]
+pub mod daemon;
+
+mod composite;
+pub mod filetree;
+mod image;
 mod laboratories;
 
+pub use composite::*;
+pub use image::*;
 pub use laboratories::*;

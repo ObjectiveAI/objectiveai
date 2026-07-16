@@ -536,6 +536,7 @@ pub fn parse_request(args: &[String]) -> Result<Request, ParseError> {
 #[derive(clap::Parser)]
 #[command(
     name = "objectiveai",
+    version,
     args_conflicts_with_subcommands = true,
     arg_required_else_help = true
 )]
@@ -583,7 +584,7 @@ impl From<super::FromArgsError> for ParseError {
 }
 
 /// `/listen` mirror of [`Request`] — the root of the distributed
-/// `ListenerExecution` tree ([`crate::cli::websocket_listener`]'s
+/// `ListenerExecution` tree ([`crate::cli::broadcast_listener`]'s
 /// stream item): one variant per child wrapping its
 /// `ListenerExecution`. The broadcast always carries the typed
 /// PRE-transform items (the producer tee sits below the CLI's

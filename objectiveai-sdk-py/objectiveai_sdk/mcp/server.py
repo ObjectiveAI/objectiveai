@@ -14,6 +14,7 @@ class Server(BaseModel):
 
     initialize_result: InitializeResult = Field(..., description="The server's `initialize` response: capabilities, `server_info`\n(name, version, title, description), instructions, protocol version.")
     laboratory: Optional[Laboratory] = Field(None, description='Set only when this upstream is genuinely a laboratory — i.e. a\nclient (websocket) laboratory today. Non-laboratory servers (plain\nHTTP, the primary `objectiveai` MCP, plugins) leave this `None`.', json_schema_extra={'omitempty': True})
+    laboratory_id: Optional[str] = Field(None, description="The laboratory's ASSISTANT-FACING composite id —\n`{machineID}/{base62(state)}/{base62(laboratoryID)}`\n([`ClientLaboratory::composite_id`](crate::laboratories::ClientLaboratory::composite_id)),\nwhat `laboratory_transfer` takes as `source`/`destination`.\nPresent exactly when `laboratory` is (and its marker carries\nthe machine pair).", json_schema_extra={'omitempty': True})
     name: str = Field(..., description="The proxy's routing prefix for this server (matches the `<prefix>_`\nprepended to its tools/resources in the aggregated surface).")
     plugin: Optional[Plugin] = Field(None, description='Set only when this upstream is a plugin-hosted MCP server. Other\nservers (plain HTTP, the primary `objectiveai` MCP, laboratories)\nleave this `None`.', json_schema_extra={'omitempty': True})
     url: str = Field(..., description="The upstream server's URL.")

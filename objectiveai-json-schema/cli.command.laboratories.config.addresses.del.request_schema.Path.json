@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.laboratories.config.addresses.del.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "laboratories/config/addresses/del/request_schema"
+  ]
+}

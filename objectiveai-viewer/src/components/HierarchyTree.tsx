@@ -1,10 +1,25 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
-import type { DaemonConnection } from "../lib/daemon";
+import {
+  agentsTagsApplyExecute,
+  agentsTagsRemoveExecute,
+  laboratoriesAttachExecute,
+  laboratoriesDetachExecute,
+  type ViewerTransport,
+} from "@objectiveai/sdk";
+import { instanceSelector } from "../lib/aih";
+import { reportError } from "../lib/errors";
+import { daemonExecutor } from "../lib/executor";
 import { LoadingDots } from "./LoadingDots";
+import { ContextMenu, ContextMenuItem } from "./shared/ContextMenu";
+import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
+import {
+  useLaboratoriesList,
+  type LaboratoryStatus,
+} from "../hooks/useLaboratoriesList";
 import {
   useAgentInstance,
   type ConversationBlock,
@@ -13,7 +28,8 @@ import {
   useAgentDefinition,
   type AgentDefinition,
 } from "../hooks/useAgentDefinition";
-import { formatAgo } from "../lib/formatAgo";
+import { useAgo } from "../hooks/useAgo";
+import { useOrientation } from "../hooks/useOrientation";
 
 /** One agent scoped under a tree node: the path segments REMAINING
  * below that node, plus the agent itself. `rest` empty means the
@@ -38,17 +54,21 @@ interface ScopedAgent {
  * both ways.
  */
 export function HierarchyTree({
-  connection,
+  transport,
   agents,
   zoom = 1,
 }: {
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   agents: AgentStatus[];
   /** Canvas zoom factor from the footer slider. Applied as the CSS
    * `zoom` property (Chromium reflows layout under it, so the scroll
    * extents stay correct — unlike `transform: scale`). */
   zoom?: number;
 }) {
+  // Canvas orientation (footer toggle): vertical = tiers top-down,
+  // horizontal = the transpose. Every scaffold axis below derives
+  // from this.
+  const orientation = useOrientation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     x: number;
@@ -139,7 +159,7 @@ export function HierarchyTree({
           "font-mono",
           "text-xs",
           "flex",
-          "flex-row",
+          orientation === "vertical" ? "flex-row" : "flex-col",
           "items-start",
           "gap-6",
         )}
@@ -149,7 +169,7 @@ export function HierarchyTree({
             key={name}
             name={name}
             members={members}
-            connection={connection}
+            transport={transport}
             onOpen={openAgentWindow}
           />
         ))}
@@ -176,14 +196,16 @@ function openAgentWindow(hierarchy: string): void {
 function HierarchyNode({
   name,
   members,
-  connection,
+  transport,
   onOpen,
 }: {
   name: string;
   members: ScopedAgent[];
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   onOpen: (hierarchy: string) => void;
 }) {
+  const orientation = useOrientation();
+  const vertical = orientation === "vertical";
   // The agent AT this node, if any (hierarchies are unique — at most
   // one member terminates here).
   const self =
@@ -192,12 +214,12 @@ function HierarchyNode({
     members.filter((member) => member.rest.length > 0),
   );
   return (
-    <div className={cn("flex", "flex-col", "items-start")}>
+    <div className={cn("flex", vertical ? "flex-col" : "flex-row", "items-start")}>
       {self !== null ? (
         <AgentNode
           name={name}
           status={self}
-          connection={connection}
+          transport={transport}
           onOpen={onOpen}
         />
       ) : (
@@ -222,49 +244,62 @@ function HierarchyNode({
             "text-info-bright",
           )}
         >
-          <span className={cn("text-[11px]")}>{name}</span>
+          <span className={cn("text-sm")}>{name}</span>
         </div>
       )}
       {children.length > 0 && (
         <>
-          {/* Stem from this node down to its children's rail —
-              anchored left, under the parent's leading edge. */}
+          {/* Stem from this node toward its children's rail —
+              anchored at the parent's leading edge (12px in from the
+              descent-side corner). */}
           <div
             className={cn(
-              "w-px",
-              "h-3",
-              "ml-3",
+              vertical ? cn("w-px", "h-3", "ml-3") : cn("h-px", "w-3", "mt-3"),
               "bg-copper-hot",
             )}
           />
-          <div className={cn("flex", "flex-row", "items-start")}>
+          <div
+            className={cn(
+              "flex",
+              vertical ? "flex-row" : "flex-col",
+              "items-start",
+            )}
+          >
             {children.map(([child, group], i) => {
               const first = i === 0;
               const last = i === children.length - 1;
               return (
                 <div
                   key={child}
-                  className={cn("flex", "flex-col", "items-stretch")}
+                  className={cn(
+                    "flex",
+                    vertical ? "flex-col" : "flex-row",
+                    "items-stretch",
+                  )}
                 >
                   {/* The rail, built per-child so it CAPS at the
-                      first and last drop points: a left piece up to
-                      this child's stem (skipped on the first child)
-                      and a right piece onward to the next sibling
-                      (skipped on the last). A single child renders
-                      neither — just the straight vertical. */}
+                      first and last drop points: a leading piece up
+                      to this child's stem (skipped on the first
+                      child) and a trailing piece onward to the next
+                      sibling (skipped on the last). A single child
+                      renders neither — just the straight stem. */}
                   {children.length > 1 && (
-                    <div className={cn("flex", "flex-row")}>
+                    <div
+                      className={cn(
+                        "flex",
+                        vertical ? "flex-row" : "flex-col",
+                      )}
+                    >
                       <div
                         className={cn(
-                          "h-px",
-                          "w-3",
+                          vertical ? cn("h-px", "w-3") : cn("w-px", "h-3"),
                           "shrink-0",
                           !first && "bg-copper-hot",
                         )}
                       />
                       <div
                         className={cn(
-                          "h-px",
+                          vertical ? "h-px" : "w-px",
                           "flex-1",
                           !last && "bg-copper-hot",
                         )}
@@ -274,21 +309,26 @@ function HierarchyNode({
                   <div
                     className={cn(
                       "flex",
-                      "flex-col",
+                      vertical ? "flex-col" : "flex-row",
                       "items-start",
                       // Sibling spacing lives INSIDE the cell so the
-                      // rail's right piece spans the whole gap.
-                      !last && "pr-4",
+                      // rail's trailing piece spans the whole gap.
+                      !last && (vertical ? "pr-4" : "pb-4"),
                     )}
                   >
-                    {/* Stem from the rail down INTO this child. */}
+                    {/* Stem from the rail INTO this child. */}
                     <div
-                      className={cn("w-px", "h-3", "ml-3", "bg-copper-hot")}
+                      className={cn(
+                        vertical
+                          ? cn("w-px", "h-3", "ml-3")
+                          : cn("h-px", "w-3", "mt-3"),
+                        "bg-copper-hot",
+                      )}
                     />
                     <HierarchyNode
                       name={child}
                       members={group}
-                      connection={connection}
+                      transport={transport}
                       onOpen={onOpen}
                     />
                   </div>
@@ -314,22 +354,38 @@ function HierarchyNode({
 function AgentNode({
   name,
   status,
-  connection,
+  transport,
   onOpen,
 }: {
   name: string;
   status: AgentStatus;
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   onOpen: (hierarchy: string) => void;
 }) {
   const hierarchy = status.agent_instance_hierarchy;
-  const { agent, lastBlock } = useAgentInstance(connection, hierarchy);
+  const { agent, lastBlock } = useAgentInstance(transport, hierarchy);
+  // Right-click menu: position (viewport coords) + which pane is
+  // showing (the item list, the add-tag input, or the
+  // attach-laboratory picker it swaps to).
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const kind = status.active ? "agent-active" : "agent-inactive";
   // A live agent's last-active is implicitly "now" — while active the
   // status row reads `active`; inactive shows the record's timestamp.
   const lastActiveAt = !status.active ? (agent?.last_active_at ?? null) : null;
+  // Live-updating relative date; "" (active / no record) renders
+  // nothing and schedules nothing.
+  const lastActiveAgo = useAgo(lastActiveAt ?? "");
   return (
-    <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
+    <div
+      className={cn("flex", "flex-col", "items-stretch", "w-fit")}
+      // The menu belongs to the WHOLE node stack — agent box and the
+      // attached latest-message box alike.
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setMenu({ x: e.clientX, y: e.clientY });
+      }}
+    >
       <div
         data-node-kind={kind}
         data-node-name={name}
@@ -357,38 +413,15 @@ function AgentNode({
       >
         {/* The EXPLICIT opener, on its own line above the instance
             chip — the only way to open the conversation (no whole-box
-            click). */}
-        <button
-          type="button"
-          data-open-agent
+            click). Positioned as a corner tab: pulled up/right through
+            this box's padding so its border merges 1px with the box's
+            top-right border. */}
+        <OpenTab
+          dataAttr="data-open-agent"
           onClick={() => onOpen(hierarchy)}
-          aria-label={`Open ${hierarchy} conversation`}
-          className={cn(
-            "self-end",
-            // A corner TAB: pulled up/right through the box padding so
-            // its border merges 1px with the box's top-right border —
-            // rounded only where it matches the box corner (tr) and
-            // where it faces the content (bl).
-            "-mt-[7px]",
-            "-mr-[11px]",
-            "rounded-tr-sm",
-            "rounded-bl-sm",
-            "rounded-tl-none",
-            "rounded-br-none",
-            "px-1.5",
-            "py-px",
-            "border",
-            "border-copper-mid",
-            "bg-copper-warm/10",
-            "text-copper-bright",
-            "text-[11px]",
-            "hover:border-copper-hot",
-            "hover:text-copper-hot",
-            "cursor-pointer",
-          )}
-        >
-          open ↗
-        </button>
+          ariaLabel={`Open ${hierarchy} conversation`}
+          className={cn("self-end", "-mt-[7px]", "-mr-[11px]")}
+        />
         {agent === null ? (
           <LoadingDots marker="data-tags-loading" />
         ) : (
@@ -399,11 +432,39 @@ function AgentNode({
               </span>
             </BadgeRow>
             {agent.tags.map((tag) => (
-              <BadgeRow key={tag} badge="tag">
+              <ActionBadgeRow
+                key={tag}
+                badge="tag"
+                action="remove"
+                dataAttr="data-remove-tag"
+                onAction={async () => {
+                  const executor = await daemonExecutor();
+                  const result = await agentsTagsRemoveExecute(executor, {
+                    tag,
+                  });
+                  if ("type" in result && result.type === "error") {
+                    throw new Error(
+                      typeof result.message === "string"
+                        ? result.message
+                        : JSON.stringify(result.message),
+                    );
+                  }
+                }}
+                onError={(error) => reportError(`remove tag ${tag}`, error)}
+              >
                 <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
                   {tag}
                 </span>
-              </BadgeRow>
+              </ActionBadgeRow>
+            ))}
+            {/* ATTACHED laboratories only — the active set is
+                deliberately not shown here (yet). */}
+            {agent.attached_laboratories.map((lab) => (
+              <AttachedLaboratoryBadge
+                key={lab.id}
+                lab={lab}
+                hierarchy={hierarchy}
+              />
             ))}
           </>
         )}
@@ -416,7 +477,7 @@ function AgentNode({
               "flex",
               "items-center",
               "gap-1.5",
-              "text-[9px]",
+              "text-xs",
               "text-info-mid",
               "tabular-nums",
             )}
@@ -432,11 +493,276 @@ function AgentNode({
                   : "bg-info-dim",
               )}
             />
-            {status.active ? "active" : formatAgo(lastActiveAt ?? "")}
+            {status.active ? "active" : lastActiveAgo}
           </span>
         )}
       </div>
       {lastBlock !== null && <LastItemView block={lastBlock} />}
+      {menu !== null && (
+        <ContextMenu position={menu} onClose={() => setMenu(null)}>
+          <AgentContextMenuContent
+            hierarchy={hierarchy}
+            transport={transport}
+            attached={agent?.attached_laboratories ?? []}
+            onClose={() => setMenu(null)}
+          />
+        </ContextMenu>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The add-tag pane the context menu swaps to: a single autofocused
+ * input. Enter runs `agents tags apply --agent-instance` targeting
+ * the node's `{parent}/{leaf}` and closes on success (the node's tag
+ * list refreshes itself through its live instance record — the
+ * `tags_changed` trigger); a failure toasts and keeps the input open
+ * for a retry. Escape closes via the menu's own handler.
+ */
+function AddTagInput({
+  hierarchy,
+  onDone,
+}: {
+  hierarchy: string;
+  onDone: () => void;
+}) {
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const commit = () => {
+    const name = value.trim();
+    if (!name || busy) {
+      return;
+    }
+    setBusy(true);
+    void (async () => {
+      try {
+        const executor = await daemonExecutor();
+        const slash = hierarchy.lastIndexOf("/");
+        const result = await agentsTagsApplyExecute(executor, {
+          name,
+          target: {
+            by: "agent_instance",
+            agent_instance: hierarchy.slice(slash + 1),
+            parent_agent_instance_hierarchy: hierarchy.slice(0, slash),
+          },
+        });
+        if ("type" in result && result.type === "error") {
+          throw new Error(
+            typeof result.message === "string"
+              ? result.message
+              : JSON.stringify(result.message),
+          );
+        }
+        onDone();
+      } catch (error) {
+        reportError(`apply tag to ${hierarchy}`, error);
+        setBusy(false);
+      }
+    })();
+  };
+  return (
+    <div className={cn("px-3", "py-1", "flex", "flex-col", "gap-1")}>
+      <span className={cn("text-info-dim")}>tag name</span>
+      <input
+        autoFocus
+        data-menu-tag-input
+        value={value}
+        disabled={busy}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+          }
+        }}
+        className={cn(
+          "bg-transparent",
+          "border-b",
+          "border-copper-mid/60",
+          "outline-none",
+          "text-info-bright",
+          "w-44",
+          busy && "opacity-50",
+        )}
+      />
+    </div>
+  );
+}
+
+/**
+ * The agent context menu's CONTENT — mounted only while the menu is
+ * open, so the live laboratories-list connection
+ * ([`useLaboratoriesList`]) opens on demand, not one-per-agent-node.
+ * Owns the pane state (fresh `items` on every open) and computes the
+ * ATTACHABLE set: the daemon's laboratories minus the ones already
+ * attached to this agent (matched on the full `(id, machine, state)`
+ * identity — ids are only unique per machine+state). The "attach
+ * laboratory…" item greys out when nothing is attachable.
+ */
+function AgentContextMenuContent({
+  hierarchy,
+  transport,
+  attached,
+  onClose,
+}: {
+  hierarchy: string;
+  transport: ViewerTransport | null;
+  attached: { id: string; machine?: string | null; machine_state?: string | null }[];
+  onClose: () => void;
+}) {
+  const [pane, setPane] = useState<"items" | "tag" | "laboratory">("items");
+  const laboratories = useLaboratoriesList(transport);
+  const available = useMemo(
+    () =>
+      laboratories.filter(
+        (lab) =>
+          !attached.some(
+            (a) =>
+              a.id === lab.id &&
+              (a.machine ?? null) === (lab.machine?.id ?? null) &&
+              (a.machine_state ?? null) === (lab.machine_state ?? null),
+          ),
+      ),
+    [laboratories, attached],
+  );
+
+  if (pane === "tag") {
+    return <AddTagInput hierarchy={hierarchy} onDone={onClose} />;
+  }
+  if (pane === "laboratory") {
+    return (
+      <AttachLaboratoryPane
+        hierarchy={hierarchy}
+        laboratories={available}
+        onDone={onClose}
+      />
+    );
+  }
+  return (
+    <>
+      <ContextMenuItem
+        label="add tag…"
+        dataAttr="data-menu-add-tag"
+        // A root-level hierarchy has no {parent}/{leaf} split for the
+        // apply target — nothing to bind to.
+        disabled={!hierarchy.includes("/")}
+        onSelect={() => setPane("tag")}
+      />
+      <ContextMenuItem
+        label="attach laboratory…"
+        dataAttr="data-menu-attach-laboratory"
+        // Nothing left to attach — every live laboratory is already
+        // on this agent.
+        disabled={available.length === 0}
+        onSelect={() => setPane("laboratory")}
+      />
+    </>
+  );
+}
+
+/**
+ * The attach-laboratory pane the context menu swaps to: the daemon's
+ * LIVE laboratories list, one row per laboratory (id, dimmed machine
+ * hostname when known). Clicking one runs `laboratories attach`
+ * against this node's instance target — pinned to the laboratory's
+ * exact (machine, state) when reported — with the row showing
+ * [`LoadingDots`] until the command resolves; the attachment row then
+ * appears on the node through its live instance record. A failure
+ * toasts and re-enables the pane.
+ */
+function AttachLaboratoryPane({
+  hierarchy,
+  laboratories,
+  onDone,
+}: {
+  hierarchy: string;
+  laboratories: LaboratoryStatus[];
+  onDone: () => void;
+}) {
+  // The (machine, state, id) key of the in-flight attach, if any.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const attach = (lab: (typeof laboratories)[number], key: string) => {
+    if (busyKey !== null) {
+      return;
+    }
+    setBusyKey(key);
+    void (async () => {
+      try {
+        const executor = await daemonExecutor();
+        const machine = lab.machine?.id ?? null;
+        const result = await laboratoriesAttachExecute(executor, {
+          selector: instanceSelector(hierarchy),
+          laboratory_id: lab.id,
+          // Pin the exact laboratory when its host reported machine
+          // identity — ids are only unique per (machine, state).
+          ...(machine !== null && lab.machine_state != null
+            ? { machine, machine_state: lab.machine_state }
+            : {}),
+        });
+        if ("type" in result && result.type === "error") {
+          throw new Error(
+            typeof result.message === "string"
+              ? result.message
+              : JSON.stringify(result.message),
+          );
+        }
+        onDone();
+      } catch (error) {
+        reportError(`attach laboratory ${lab.id}`, error);
+        setBusyKey(null);
+      }
+    })();
+  };
+
+  return (
+    <div className={cn("flex", "flex-col")}>
+      <span className={cn("px-3", "py-1", "text-info-dim", "select-none")}>
+        attach laboratory
+      </span>
+      {laboratories.length === 0 && (
+        <span className={cn("px-3", "py-1", "text-info-dim/60", "italic")}>
+          no laboratories
+        </span>
+      )}
+      {laboratories.map((lab) => {
+        const key = `${lab.machine?.id ?? ""}\n${lab.machine_state ?? ""}\n${lab.id}`;
+        const busy = busyKey === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            data-menu-laboratory={lab.id}
+            disabled={busyKey !== null}
+            onClick={() => attach(lab, key)}
+            className={cn(
+              "flex",
+              "flex-row",
+              "items-baseline",
+              "gap-2",
+              "w-full",
+              "px-3",
+              "py-1",
+              "text-left",
+              busyKey !== null && !busy
+                ? "text-info-dim/60"
+                : cn(
+                    "cursor-pointer",
+                    "hover:bg-copper-warm/10",
+                    "hover:text-copper-bright",
+                  ),
+            )}
+          >
+            <span className={cn("truncate")}>{lab.id}</span>
+            {lab.machine?.hostname != null && (
+              <span className={cn("text-info-dim", "truncate")}>
+                {lab.machine.hostname}
+              </span>
+            )}
+            {busy && <LoadingDots marker="data-attach-busy" />}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -495,7 +821,7 @@ function LastItemView({ block }: { block: ConversationBlock }) {
         "rounded-t-none",
         "border",
         "border-copper-mid",
-        "text-[10px]",
+        "text-xs",
         // Between info-bright (#d6d3d1) and info-mid (#a8a29e).
         "text-[#c3bfbb]",
         "text-left",
@@ -520,7 +846,7 @@ function LastItemView({ block }: { block: ConversationBlock }) {
           "border-copper-mid/70",
           "bg-copper-warm/10",
           "text-copper-bright",
-          "text-[9px]",
+          "text-xs",
         )}
       >
         {label}
@@ -628,7 +954,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         "border-copper-mid/70",
         // The label's tint clips to the border at the top-left.
         "overflow-hidden",
-        "text-[11px]",
+        "text-sm",
         "text-copper-bright",
       )}
     >
@@ -636,6 +962,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         className={cn(
           "px-1.5",
           "py-px",
+          "text-xs",
           "bg-copper-warm/10",
           "rounded-br-sm",
         )}
@@ -645,7 +972,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
       <pre
         data-agent-definition
         className={cn(
-          "text-[9px]",
+          "text-xs",
           "text-[#c3bfbb]",
           "text-left",
           "whitespace-pre",
@@ -662,6 +989,151 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
 
 /** The remote variants of the definition union. */
 type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
+
+/** One attached-laboratory row: the lab id plus a live "ago" for when
+ * the attachment was made (`attached_at`, RFC3339). A component per
+ * row because `useAgo` is a hook (can't run inside the map). The
+ * badge is the row's DROPDOWN button — its one action detaches the
+ * laboratory from this node's instance target. */
+function AttachedLaboratoryBadge({
+  lab,
+  hierarchy,
+}: {
+  lab: { id: string; attached_at: string };
+  hierarchy: string;
+}) {
+  const attachedAgo = useAgo(lab.attached_at);
+  return (
+    <ActionBadgeRow
+      badge="laboratory"
+      action="detach"
+      dataAttr="data-detach-laboratory"
+      onAction={async () => {
+        const executor = await daemonExecutor();
+        const result = await laboratoriesDetachExecute(executor, {
+          selector: instanceSelector(hierarchy),
+          laboratory_id: lab.id,
+        });
+        if ("type" in result && result.type === "error") {
+          throw new Error(
+            typeof result.message === "string"
+              ? result.message
+              : JSON.stringify(result.message),
+          );
+        }
+      }}
+      onError={(error) => reportError(`detach laboratory ${lab.id}`, error)}
+    >
+      <span data-laboratory={lab.id} className={cn("text-[#c3bfbb]")}>
+        {lab.id}
+      </span>
+      {attachedAgo !== "" && (
+        <span
+          data-attached-ago
+          className={cn(
+            // Pushed to the row's right edge (the row stretches to
+            // the box's width).
+            "ml-auto",
+            "text-xs",
+            "text-info-mid",
+            "tabular-nums",
+          )}
+        >
+          {attachedAgo}
+        </span>
+      )}
+    </ActionBadgeRow>
+  );
+}
+
+/**
+ * A [`BadgeRow`] whose badge chip is a BUTTON: clicking it drops a
+ * one-item menu (`remove` / `detach`); selecting the action closes
+ * the menu and shows [`LoadingDots`] in the chip until the command
+ * resolves — the row itself disappears via the node's live instance
+ * record on success (never optimistically), and a failure reports
+ * through `onError` and restores the chip.
+ */
+function ActionBadgeRow({
+  badge,
+  action,
+  dataAttr,
+  onAction,
+  onError,
+  children,
+}: {
+  badge: string;
+  action: string;
+  dataAttr?: string;
+  onAction: () => Promise<void>;
+  onError: (error: unknown) => void;
+  children?: React.ReactNode;
+}) {
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div
+      className={cn(
+        "flex",
+        "flex-row",
+        "items-center",
+        "gap-1.5",
+        // Full box width (unlike BadgeRow's self-start) so trailing
+        // metadata can right-align via ml-auto.
+        "self-stretch",
+        "mt-1",
+        "first:mt-0",
+        "text-sm",
+      )}
+    >
+      <button
+        type="button"
+        {...(dataAttr !== undefined ? { [dataAttr]: true } : {})}
+        aria-label={`${badge} actions`}
+        disabled={busy}
+        onClick={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          setMenu({ x: rect.left, y: rect.bottom + 2 });
+        }}
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "border",
+          "text-xs",
+          "border-copper-mid/70",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+          busy
+            ? "opacity-70"
+            : cn(
+                "cursor-pointer",
+                "hover:border-copper-hot",
+                "hover:text-copper-hot",
+              ),
+        )}
+      >
+        {busy ? <LoadingDots marker="data-badge-busy" /> : badge}
+      </button>
+      {children}
+      {menu !== null && (
+        <ContextMenu position={menu} onClose={() => setMenu(null)}>
+          <ContextMenuItem
+            label={action}
+            dataAttr="data-badge-action"
+            onSelect={() => {
+              setMenu(null);
+              setBusy(true);
+              void onAction()
+                .catch(onError)
+                .finally(() => setBusy(false));
+            }}
+          />
+        </ContextMenu>
+      )}
+    </div>
+  );
+}
 
 /** The uniform badge-plus-value row every definition-ish line uses:
  * a copper badge chip naming the KIND (`instance` / `tag` / `client` /
@@ -687,7 +1159,7 @@ function BadgeRow({
         // box's own padding).
         "mt-1",
         "first:mt-0",
-        "text-[11px]",
+        "text-sm",
       )}
     >
       <span
@@ -696,6 +1168,7 @@ function BadgeRow({
           "py-px",
           "rounded-sm",
           "border",
+          "text-xs",
           "border-copper-mid/70",
           "bg-copper-warm/10",
           "text-copper-bright",

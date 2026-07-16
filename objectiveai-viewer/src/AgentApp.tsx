@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
 import cn from "classnames";
-import { daemonConnection, type DaemonConnection } from "./lib/daemon";
+import { viewerTransport } from "./lib/viewer-transport";
+import type { ViewerTransport } from "@objectiveai/sdk";
+import { AgentChat } from "./components/AgentChat";
 import { ConversationView } from "./components/ConversationView";
 import { ErrorToast } from "./components/ErrorToast";
 
 /**
  * The agent conversation WINDOW — the `agent.html` entry. One AIH's
- * whole conversation, fullscreen: no tabs, no footer, just the
- * [`ConversationView`] (plus the error toast — failures stay loud).
- * The AIH arrives via the shell-injected global (`open_agent_window`
- * / `--agent-instance-hierarchy`), with an `aih` query-param fallback
+ * whole conversation, fullscreen: the [`ConversationView`] with the
+ * [`AgentChat`] composer + queued area under it (plus the error
+ * toast — failures stay loud). The AIH arrives via the
+ * shell-injected global (`open_agent_window` /
+ * `--agent-instance-hierarchy`), with an `aih` query-param fallback
  * for plain-browser dev; the window title is the AIH itself.
  */
 function AgentApp() {
@@ -20,11 +23,11 @@ function AgentApp() {
     (window as { __AGENT_INSTANCE_HIERARCHY__?: string })
       .__AGENT_INSTANCE_HIERARCHY__ ??
     new URLSearchParams(window.location.search).get("aih");
-  const [connection, setConnection] = useState<DaemonConnection | null>(null);
+  const [transport, setTransport] = useState<ViewerTransport | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void daemonConnection().then((config) => {
-      if (!cancelled && config !== null) setConnection(config);
+    void viewerTransport().then((t) => {
+      if (!cancelled && t !== null) setTransport(t);
     });
     return () => {
       cancelled = true;
@@ -52,8 +55,9 @@ function AgentApp() {
   return (
     <div className={cn("h-screen", "flex", "flex-col")}>
       <div className={cn("flex-1", "min-h-0")}>
-        <ConversationView connection={connection} hierarchy={aih} />
+        <ConversationView transport={transport} hierarchy={aih} />
       </div>
+      <AgentChat hierarchy={aih} />
       <ErrorToast />
     </div>
   );

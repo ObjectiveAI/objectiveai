@@ -1,12 +1,12 @@
 export * from "./binary";
 export * from "./plugin";
-export * from "./viewerPlugin";
-export * from "./websocket";
+export * from "./sse";
+export * from "./viewer";
 
 import type { BinaryCommandExecutor } from "./binary";
 import type { PluginCommandExecutor } from "./plugin";
-import type { ViewerPluginExecutor } from "./viewerPlugin";
-import type { WebSocketExecutor } from "./websocket";
+import type { SseCommandExecutor } from "./sse";
+import type { ViewerCommandExecutor } from "./viewer";
 
 /**
  * Any of the CLI command executors. The generated per-command execute
@@ -15,5 +15,5 @@ import type { WebSocketExecutor } from "./websocket";
 export type CommandExecutor =
   | BinaryCommandExecutor
   | PluginCommandExecutor
-  | ViewerPluginExecutor
-  | WebSocketExecutor;
+  | SseCommandExecutor
+  | ViewerCommandExecutor;

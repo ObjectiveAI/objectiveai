@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AgentCompletionsResponseCompletionTokensDetailsSchema } from "./completionTokensDetails";
 import { AgentCompletionsResponseCostDetailsSchema } from "./costDetails";
 import { AgentCompletionsResponsePromptTokensDetailsSchema } from "./promptTokensDetails";
+import { AgentCompletionsResponseUpstreamDurationMsSchema } from "./upstreamDurationMs";
 
 export const AgentCompletionsResponseUsageSchema = z.object({
   completion_tokens: z.number().int().min(0).max(18446744073709552000).describe("Total tokens generated across all assistant responses."),
@@ -14,5 +15,6 @@ export const AgentCompletionsResponseUsageSchema = z.object({
   prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Breakdown of prompt tokens (cached, audio, etc.) if available.").meta({ omitempty: true }).optional(),
   total_cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key)."),
   total_tokens: z.number().int().min(0).max(18446744073709552000).describe("Sum of completion and prompt tokens."),
+  upstream_duration_ms: AgentCompletionsResponseUpstreamDurationMsSchema.default({}).describe("Wall-clock milliseconds spent inside each upstream client,\nsummed across turns, fallbacks, and parallel agents."),
 }).describe("Aggregated token and cost usage for an agent completion.\n\nThis is the \"primary\" usage type that aggregates across all upstream\nassistant responses within a single agent completion.").meta({ title: "agent.completions.response.Usage" });
 export type AgentCompletionsResponseUsage = z.infer<typeof AgentCompletionsResponseUsageSchema>;

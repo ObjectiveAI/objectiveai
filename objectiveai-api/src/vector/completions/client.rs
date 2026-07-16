@@ -64,6 +64,7 @@ pub struct Client<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     RETRG,
     RETRF,
     RETRM,
@@ -78,6 +79,7 @@ pub struct Client<
             CLAUDEAGENTSDK,
             CODEXSDK,
             MOCK,
+            SCRIPT,
             RETRG,
             RETRF,
             RETRM,
@@ -97,6 +99,7 @@ impl<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     RETRG,
     RETRF,
     RETRM,
@@ -109,6 +112,7 @@ impl<
         CLAUDEAGENTSDK,
         CODEXSDK,
         MOCK,
+        SCRIPT,
         RETRG,
         RETRF,
         RETRM,
@@ -125,6 +129,7 @@ impl<
                 CLAUDEAGENTSDK,
                 CODEXSDK,
                 MOCK,
+                SCRIPT,
                 RETRG,
                 RETRF,
                 RETRM,
@@ -150,6 +155,7 @@ impl<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     RETRG,
     RETRF,
     RETRM,
@@ -162,6 +168,7 @@ impl<
         CLAUDEAGENTSDK,
         CODEXSDK,
         MOCK,
+        SCRIPT,
         RETRG,
         RETRF,
         RETRM,
@@ -191,6 +198,12 @@ where
     MOCK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent,
             objectiveai_sdk::agent::mock::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    SCRIPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent,
+            objectiveai_sdk::agent::script::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -298,6 +311,7 @@ impl<
     CLAUDEAGENTSDK,
     CODEXSDK,
     MOCK,
+    SCRIPT,
     RETRG,
     RETRF,
     RETRM,
@@ -310,6 +324,7 @@ impl<
         CLAUDEAGENTSDK,
         CODEXSDK,
         MOCK,
+        SCRIPT,
         RETRG,
         RETRF,
         RETRM,
@@ -339,6 +354,12 @@ where
     MOCK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent,
             objectiveai_sdk::agent::mock::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    SCRIPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent,
+            objectiveai_sdk::agent::script::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -684,6 +705,7 @@ where
             objectiveai_sdk::agent::InlineAgent::ClaudeAgentSdk(_) => false,
             objectiveai_sdk::agent::InlineAgent::CodexSdk(_) => false,
             objectiveai_sdk::agent::InlineAgent::Mock(_) => false,
+            objectiveai_sdk::agent::InlineAgent::Script(_) => false,
         };
 
         // Build per-agent response formats for json_schema and tool_call modes

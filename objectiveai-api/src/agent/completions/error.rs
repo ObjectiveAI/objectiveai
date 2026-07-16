@@ -54,14 +54,14 @@ pub enum Error {
     #[error("upstream mock error: {0}")]
     UpstreamMock(Box<dyn super::UpstreamError>),
 
+    #[error("upstream script error: {0}")]
+    UpstreamScript(Box<dyn super::UpstreamError>),
+
     #[error("no agents resolved")]
     NoAgentsResolved,
 
     #[error("all agents failed: {0:?}")]
     MultipleErrors(Vec<Error>),
-
-    #[error("timeout")]
-    Timeout,
 
     #[error("empty stream")]
     EmptyStream,
@@ -87,12 +87,12 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)
             | Self::UpstreamCodexSdk(e)
-            | Self::UpstreamMock(e) => e.status(),
+            | Self::UpstreamMock(e)
+            | Self::UpstreamScript(e) => e.status(),
             Self::NoAgentsResolved => 400,
             Self::MultipleErrors(errors) => {
                 errors.first().map(|e| e.status()).unwrap_or(500)
             }
-            Self::Timeout => 504,
             Self::EmptyStream => 502,
             Self::StreamCancelled => 499,
         }
@@ -105,7 +105,8 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::UpstreamOpenrouter(e)
             | Self::UpstreamClaudeAgentSdk(e)
             | Self::UpstreamCodexSdk(e)
-            | Self::UpstreamMock(e) => e.message(),
+            | Self::UpstreamMock(e)
+            | Self::UpstreamScript(e) => e.message(),
             _ => Some(serde_json::Value::String(self.to_string())),
         }
     }

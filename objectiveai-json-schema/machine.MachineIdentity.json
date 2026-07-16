@@ -1,0 +1,27 @@
+{
+  "title": "machine.MachineIdentity",
+  "description": "The machine a process runs on: stable hashed `id` (the identity),\nplus `os` and `hostname` display metadata.",
+  "type": "object",
+  "properties": {
+    "hostname": {
+      "description": "The machine's hostname — display label only, never identity.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "description": "`hex(sha256(\"objectiveai-machine-id\" || <os machine id>))` —\nstable per machine, never the raw OS identifier.",
+      "type": "string"
+    },
+    "os": {
+      "description": "`std::env::consts::OS` (\"windows\" / \"linux\" / \"macos\" / …).\nDisplay discriminator; render unknown values generically.",
+      "type": "string"
+    }
+  }
+}

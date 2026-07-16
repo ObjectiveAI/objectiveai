@@ -12,11 +12,22 @@ type CliCommandLaboratoriesCreateRequest struct {
 	Cwd string `json:"cwd" default:"/"`
 	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
 	ID string `json:"id"`
-	Image string `json:"image"`
+	// The base image, split (`registry` + `name` + tag XOR digest) —
+	// a joined reference string is never accepted, so unqualified
+	// short names are unrepresentable.
+	Image LaboratoriesLaboratoryImage `json:"image"`
 	// jq filter applied to the JSON output. Ignored when `python`
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
 	Kind CliCommandLaboratoriesCreateKind `json:"kind"`
+	// The EXACT machine id (as `laboratories list` reports it) whose
+	// laboratory host should own the container. Provided together
+	// with `machine_state` or not at all; neither ⇒ the current
+	// machine + the daemon's own state.
+	Machine *string `json:"machine,omitempty"`
+	// The state (on `machine`) whose laboratory host should own the
+	// container. Paired with `machine` — both or neither.
+	MachineState *string `json:"machine_state,omitempty"`
 	// Response token budget, `>= 1` (`0` is rejected at parse
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.

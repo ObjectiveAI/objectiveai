@@ -51,8 +51,7 @@
 //! **Dropping a [`LockClaim`] does NOT release it.** The OS objects
 //! are held in [`std::mem::ManuallyDrop`], so an acquired claim
 //! persists until process death unless explicitly ended via
-//! [`LockClaim::release`] or handed to a child via
-//! [`LockClaim::transfer`]. `let _ = try_acquire(..)` therefore
+//! [`LockClaim::release`]. `let _ = try_acquire(..)` therefore
 //! means "claim this for the rest of the process's life."
 //!
 //! Every fallible op is best-effort at the API boundary —
@@ -65,21 +64,16 @@ use std::sync::LazyLock;
 use dashmap::DashMap;
 
 /// Process-global registry of locks this process currently holds, keyed
-/// by `(dir, key)`. Makes acquisition REENTRANT within an ownership
-/// lineage:
-///
-/// - **In-process**: a 2nd `try_acquire`/`wait_acquire` for a key this
-///   process already owns succeeds instantly (refcounted) rather than
-///   conflicting with our own OS lock — both platforms deny a
-///   same-process re-acquire at the OS level (Unix flock on a fresh fd;
-///   Windows `LockFileEx` on a fresh handle).
-/// - **Inherited**: a child whose parent transferred a lock in adopts it
-///   lazily on its first acquisition (see `ensure_inherited_adopted`) and
-///   then acquires instantly.
+/// by `(dir, key)`. Makes acquisition REENTRANT in-process: a 2nd
+/// `try_acquire`/`wait_acquire` for a key this process already owns
+/// succeeds instantly (refcounted) rather than conflicting with our own
+/// OS lock — both platforms deny a same-process re-acquire at the OS
+/// level (Unix flock on a fresh fd; Windows `LockFileEx` on a fresh
+/// handle).
 ///
 /// The OS files live HERE (not on the [`LockClaim`]) so they outlive every
 /// outstanding claim for the key and are released only when the last
-/// `Owned` claim is `release`d.
+/// claim is `release`d.
 ///
 /// A [`DashMap`] (sharded locking, per-key `entry` atomicity) — never hold
 /// one of its guards across an `.await`.
@@ -94,72 +88,13 @@ enum Entry {
         announce: std::mem::ManuallyDrop<std::fs::File>,
         refs: usize,
     },
-    /// Adopted from a parent via transfer. The OS lock is held by the
-    /// anonymous inherited fd/HANDLE (CLOEXEC-cleared on Unix,
-    /// `DuplicateHandle`d on Windows) and is freed only when this process
-    /// exits — exactly as before this process re-acquires it. A marker
-    /// only: acquisition is instant, and `release` is a no-op.
-    Inherited,
-}
-
-/// Register an adopted (inherited-from-parent) lock so subsequent
-/// `try_acquire`/`wait_acquire` for `(dir, key)` succeed instantly.
-/// Idempotent; never downgrades an existing `Owned` entry.
-fn adopt(dir: &Path, key: &str) {
-    HELD.entry((dir.to_path_buf(), key.to_string()))
-        .or_insert(Entry::Inherited);
-}
-
-/// Env var carrying the `(dir, key)` list of locks transferred into a
-/// spawned child, as JSON `[[dir, key], ...]`. Set by
-/// [`LockClaim::prepare_transfer`] on the child's command; consumed by
-/// [`adopt_inherited_from_env`] (lazily, on the child's first acquisition).
-const INHERITED_LOCKS_ENV: &str = "OBJECTIVEAI_INHERITED_LOCKS";
-
-/// Adopt every lock our parent transferred into us (named in
-/// [`INHERITED_LOCKS_ENV`]). Run exactly once, lazily, by
-/// [`ensure_inherited_adopted`] on the first acquisition.
-fn adopt_inherited_from_env() {
-    let Ok(value) = std::env::var(INHERITED_LOCKS_ENV) else {
-        return;
-    };
-    let Ok(list) = serde_json::from_str::<Vec<(String, String)>>(&value) else {
-        return;
-    };
-    for (dir, key) in list {
-        adopt(Path::new(&dir), &key);
-    }
-}
-
-/// Populate the inherited-lock markers from the environment exactly once,
-/// the first time any lock is acquired in this process. Self-triggered
-/// from [`try_acquire`]/[`wait_acquire`] so the markers are present before
-/// the registry is consulted — no caller need invoke adoption explicitly.
-fn ensure_inherited_adopted() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(adopt_inherited_from_env);
-}
-
-/// Re-insert an `Owned` entry (used to hand a claim back on a transfer
-/// error). `refs` resets to 1 — a failed transfer means the caller still
-/// solely holds it.
-fn reinsert_owned(dir: PathBuf, key: String, gate: std::fs::File, announce: std::fs::File) {
-    HELD.insert(
-        (dir, key),
-        Entry::Owned {
-            gate: std::mem::ManuallyDrop::new(gate),
-            announce: std::mem::ManuallyDrop::new(announce),
-            refs: 1,
-        },
-    );
 }
 
 /// A handle to a held claim, identified by `(dir, key)`. The OS files
 /// live in the process-global [`HELD`] registry; this value is just a key
 /// into it. Dropping the value does NOT release the claim — release is
-/// explicit ([`Self::release`]) or hand-off ([`Self::transfer`]),
-/// preserving the original "leak until process death unless ended"
-/// contract.
+/// explicit ([`Self::release`]), preserving the original "leak until
+/// process death unless ended" contract.
 pub struct LockClaim {
     dir: PathBuf,
     key: String,
@@ -180,87 +115,10 @@ impl LockClaim {
         (self.dir.clone(), self.key.clone())
     }
 
-    /// Transfer step 1 of 2 — call BEFORE spawning, with the
-    /// [`tokio::process::Command`] of the one child that is to own
-    /// this claim. (No-op unless this is a registry-`Owned` claim.)
-    ///
-    /// - **Unix**: attaches a `pre_exec` hook that clears
-    ///   `FD_CLOEXEC` on both lock fds *inside the forked child
-    ///   only*. Every fd Rust opens is CLOEXEC by default, so no
-    ///   other child this process ever spawns inherits the claim —
-    ///   only this command's child does. Because `flock` locks
-    ///   belong to the open file description (shared by inherited
-    ///   fds), the child holds the *same locks* from the instant of
-    ///   spawn — at no point are they released and re-acquired.
-    /// - **Windows**: no-op. The handles are never inheritable;
-    ///   step 2 injects them post-spawn via `DuplicateHandle`.
-    ///
-    /// The claim must stay alive until [`Self::transfer`]. Pair with
-    /// [`add_inherited_env`] so the child registers an adopted marker.
-    pub fn prepare_transfer(&self, cmd: &mut tokio::process::Command) {
-        // Append this claim's (dir, key) to the child's inherited-lock env
-        // so it adopts the claim and re-acquires it instantly on its first
-        // acquisition (instead of conflicting with the inherited handles).
-        // Accumulates rather than overwrites: reading the value already on
-        // the command and pushing onto it lets several `prepare_transfer`
-        // calls hand multiple locks to one child — mirroring how the unix
-        // CLOEXEC `pre_exec` hooks stack.
-        let mut locks: Vec<(String, String)> = cmd
-            .as_std()
-            .get_envs()
-            .find_map(|(k, v)| {
-                if k == std::ffi::OsStr::new(INHERITED_LOCKS_ENV) {
-                    v
-                } else {
-                    None
-                }
-            })
-            .and_then(|v| serde_json::from_str::<Vec<(String, String)>>(&v.to_string_lossy()).ok())
-            .unwrap_or_default();
-        locks.push((self.dir.to_string_lossy().into_owned(), self.key.clone()));
-        if let Ok(value) = serde_json::to_string(&locks) {
-            cmd.env(INHERITED_LOCKS_ENV, value);
-        }
-        #[cfg(unix)]
-        {
-            use std::os::unix::io::AsRawFd;
-            let (gate_fd, announce_fd) = {
-                let Some(entry) = HELD.get(&self.map_key()) else {
-                    return;
-                };
-                match entry.value() {
-                    Entry::Owned { gate, announce, .. } => {
-                        (gate.as_raw_fd(), announce.as_raw_fd())
-                    }
-                    Entry::Inherited => return,
-                }
-            };
-            // SAFETY: the hook runs post-fork pre-exec in the child;
-            // `fcntl(F_SETFD)` is async-signal-safe and both fds are
-            // plain integers valid in the child's inherited fd table.
-            unsafe {
-                cmd.pre_exec(move || {
-                    for fd in [gate_fd, announce_fd] {
-                        nix::fcntl::fcntl(
-                            fd,
-                            nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::empty()),
-                        )
-                        .map_err(std::io::Error::from)?;
-                    }
-                    Ok(())
-                });
-            }
-        }
-        // Windows: nothing further here — the env above plus the
-        // `DuplicateHandle` in `transfer` (step 2) complete the handoff.
-    }
-
-    /// Release the claim NOW, on purpose. Consumes it. For an `Owned`
-    /// claim, decrements the registry refcount and, when it reaches 0,
-    /// closes the OS files (announce first — the claim stops being "held"
-    /// at that single kernel event — then the gate). For an `Inherited`
-    /// (adopted) claim this is a no-op: the OS lock rides the anonymous
-    /// inherited fd and frees on process exit. Idempotent if the entry is
+    /// Release the claim NOW, on purpose. Consumes it. Decrements the
+    /// registry refcount and, when it reaches 0, closes the OS files
+    /// (announce first — the claim stops being "held" at that single
+    /// kernel event — then the gate). Idempotent if the entry is
     /// already gone.
     ///
     /// On Unix the claim FILES deliberately stay on disk — deleting flock
@@ -275,107 +133,16 @@ impl LockClaim {
                     *refs -= 1;
                     *refs == 0
                 }
-                // Inherited: no-op (freed on process exit).
-                Entry::Inherited => false,
             };
             if remove {
-                if let Entry::Owned { gate, announce, .. } = occupied.remove() {
-                    let announce = std::mem::ManuallyDrop::into_inner(announce);
-                    let gate = std::mem::ManuallyDrop::into_inner(gate);
-                    release_file(announce)?;
-                    release_file(gate)?;
-                }
+                let Entry::Owned { gate, announce, .. } = occupied.remove();
+                let announce = std::mem::ManuallyDrop::into_inner(announce);
+                let gate = std::mem::ManuallyDrop::into_inner(gate);
+                release_file(announce)?;
+                release_file(gate)?;
             }
         }
         Ok(())
-    }
-
-    /// Transfer step 2 of 2 — call AFTER a successful spawn, with
-    /// the child from step 1's command. Consumes the claim, removing it
-    /// from this process's registry (the child becomes the sole owner via
-    /// the inherited OS handles).
-    ///
-    /// - **Windows**: `DuplicateHandle`s both lock handles directly
-    ///   into the child's handle table (surgical — no inheritance),
-    ///   then closes the parent's. The byte-range lock rides the shared
-    ///   file object, so the child holds it continuously (no
-    ///   release/reacquire). On `Err` the entry is re-registered and
-    ///   the claim handed back.
-    /// - **Unix**: nothing left to inject — the child already shares
-    ///   both locks via the inherited fds (step 1); this closes the
-    ///   parent's fds (a close is NOT an unlock), leaving the child sole
-    ///   owner.
-    ///
-    /// A non-`Owned` claim (e.g. an adopted/inherited marker) has nothing
-    /// of ours to hand off and returns `Ok(())`.
-    pub fn transfer(
-        self,
-        child: &tokio::process::Child,
-    ) -> Result<(), (Self, std::io::Error)> {
-        let entry = HELD.remove(&self.map_key());
-        let (gate, announce) = match entry {
-            Some((_, Entry::Owned { gate, announce, .. })) => (
-                std::mem::ManuallyDrop::into_inner(gate),
-                std::mem::ManuallyDrop::into_inner(announce),
-            ),
-            // Inherited or absent: nothing of ours to hand off (the OS
-            // lock, if any, rides the anonymous inherited fd).
-            _ => return Ok(()),
-        };
-        #[cfg(windows)]
-        {
-            use std::os::windows::io::AsRawHandle;
-            use windows_sys::Win32::Foundation::{
-                DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE,
-            };
-            use windows_sys::Win32::System::Threading::GetCurrentProcess;
-
-            let Some(child_handle) = child.raw_handle() else {
-                reinsert_owned(self.dir.clone(), self.key.clone(), gate, announce);
-                return Err((
-                    self,
-                    std::io::Error::other("child has no process handle (already reaped)"),
-                ));
-            };
-            for source in [gate.as_raw_handle(), announce.as_raw_handle()] {
-                let mut injected: HANDLE = std::ptr::null_mut();
-                // SAFETY: all handles are live for the call — ours via the
-                // owned `gate`/`announce`, the child's via the `&Child`
-                // borrow. `injected` is a valid out-pointer.
-                let ok = unsafe {
-                    DuplicateHandle(
-                        GetCurrentProcess(),
-                        source as HANDLE,
-                        child_handle as HANDLE,
-                        &mut injected,
-                        0,
-                        0, // bInheritHandle = FALSE — children of the child don't get it
-                        DUPLICATE_SAME_ACCESS,
-                    )
-                };
-                if ok == 0 {
-                    let err = std::io::Error::last_os_error();
-                    reinsert_owned(self.dir.clone(), self.key.clone(), gate, announce);
-                    return Err((self, err));
-                }
-            }
-            // The child's handle table now keeps both file objects alive;
-            // closing our handles (plain `File` drop = `CloseHandle`)
-            // leaves the child sole owner.
-            drop(gate);
-            drop(announce);
-            Ok(())
-        }
-        #[cfg(unix)]
-        {
-            let _ = child;
-            // The child shares both open file descriptions since spawn
-            // (step 1 cleared CLOEXEC). Closing our fds (a close is NOT an
-            // unlock) makes the child sole owner.
-            drop(gate);
-            drop(announce);
-            Ok(())
-        }
     }
 }
 
@@ -410,7 +177,6 @@ fn release_file(file: std::fs::File) -> std::io::Result<()> {
 /// genuinely releases).
 pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockClaim> {
     use dashmap::mapref::entry::Entry as DmEntry;
-    ensure_inherited_adopted();
     // Create the dir before touching the registry — never hold a DashMap
     // guard across an `.await`.
     tokio::fs::create_dir_all(dir).await.ok()?;
@@ -420,10 +186,10 @@ pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockCl
     // instead of conflicting at the OS level.
     match HELD.entry(map_key.clone()) {
         DmEntry::Occupied(mut occupied) => {
-            // Reentrant: this process already owns it (in-process or
-            // adopted) → succeed instantly.
-            if let Entry::Owned { refs, .. } = occupied.get_mut() {
-                *refs += 1;
+            // Reentrant: this process already owns it → succeed instantly
+            // (refcounted) instead of conflicting with our own OS lock.
+            match occupied.get_mut() {
+                Entry::Owned { refs, .. } => *refs += 1,
             }
             Some(LockClaim { dir: map_key.0, key: map_key.1 })
         }
@@ -460,12 +226,11 @@ pub async fn wait_acquire(
     key: &str,
     contents: &str,
 ) -> std::io::Result<LockClaim> {
-    ensure_inherited_adopted();
     let map_key = (dir.to_path_buf(), key.to_string());
     // Reentrant: this process already owns it → instant (no blocking wait).
     if let Some(mut entry) = HELD.get_mut(&map_key) {
-        if let Entry::Owned { refs, .. } = entry.value_mut() {
-            *refs += 1;
+        match entry.value_mut() {
+            Entry::Owned { refs, .. } => *refs += 1,
         }
         return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
     }
@@ -488,8 +253,8 @@ pub async fn wait_acquire(
                     // key while we blocked — our freshly-won OS lock is
                     // redundant; refcount the existing entry and release it.
                     DmEntry::Occupied(mut occupied) => {
-                        if let Entry::Owned { refs, .. } = occupied.get_mut() {
-                            *refs += 1;
+                        match occupied.get_mut() {
+                            Entry::Owned { refs, .. } => *refs += 1,
                         }
                         drop(occupied);
                         let _ = release_file(announce);
@@ -1088,6 +853,235 @@ fn gate_path(dir: &Path, key: &str) -> PathBuf {
 /// collide with another key's announce.
 fn announce_path(dir: &Path, key: &str) -> PathBuf {
     dir.join(format!("{}.live.lock", filename_escape(key)))
+}
+
+/// Why [`spawn_until_published`] failed.
+#[derive(Debug)]
+pub enum SpawnPublishError {
+    /// A lockfile operation failed.
+    Lock(std::io::Error),
+    /// Spawning the executable failed.
+    Spawn(std::io::Error),
+    /// The child exited without the lock ever being published (and no
+    /// concurrent winner published it either). Carries the child's
+    /// captured output for the error report.
+    ExitedBeforePublishing {
+        name: String,
+        status: std::process::ExitStatus,
+        stdout: String,
+        stderr: String,
+    },
+}
+
+impl std::fmt::Display for SpawnPublishError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Lock(e) => write!(f, "lockfile: {e}"),
+            Self::Spawn(e) => write!(f, "spawn: {e}"),
+            Self::ExitedBeforePublishing { name, status, stdout, stderr } => write!(
+                f,
+                "{name} exited ({status}) before publishing its lock; stdout: {stdout}; stderr: {stderr}"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for SpawnPublishError {}
+
+/// Lock-based background spawn: the detached-server discipline shared
+/// by every `* spawn` flow (api/db/mcp/daemon/laboratories in the CLI,
+/// laboratory managers in the viewer shell).
+///
+/// A server's readiness signal is its lockfile: once up, it claims
+/// `(dir, key)` and publishes its client-connect content. The flow:
+///
+/// 1. [`try_read`] — already held by a live owner ⇒ return its
+///    published content without spawning.
+/// 2. Otherwise spawn `exe` (caller's `configure` sets args/env; the
+///    child inherits the parent environment): null stdin,
+///    piped-and-drained stdout/stderr (a child that dies before
+///    publishing reports its own output in the error; the drains are
+///    dropped the moment the lock publishes, closing both pipes — a
+///    published server must never write to its std handles), detached from
+///    the console on Windows (`CREATE_NO_WINDOW | DETACHED_PROCESS`),
+///    `kill_on_drop` false so the child outlives the caller.
+/// 3. Race [`wait_read`] against the child's exit. Published ⇒ return
+///    the content. Child exited first ⇒ re-probe (it may have LOST the
+///    claim race to a concurrent winner — a held lock now is success);
+///    only a dead child AND a free lock is a failure.
+pub async fn spawn_until_published(
+    exe: &Path,
+    dir: &Path,
+    key: &str,
+    configure: impl FnOnce(&mut tokio::process::Command),
+) -> Result<String, SpawnPublishError> {
+    if let Some(listening) = try_read(dir, key).await.map_err(SpawnPublishError::Lock)? {
+        return Ok(listening);
+    }
+
+    let name = exe
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| exe.display().to_string());
+
+    let mut cmd = tokio::process::Command::new(exe);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(windows)]
+    {
+        // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008):
+        // service children are windowless. `configure` runs AFTER this
+        // and may override the creation flags — the daemon's `viewer`
+        // spawn does, because the viewer is a windowed app the user is
+        // meant to see.
+        cmd.creation_flags(0x0800_0008);
+    }
+    configure(&mut cmd);
+
+    // Windows: a child created with piped stdio runs under
+    // `bInheritHandles=TRUE`, which copies EVERY inheritable handle in
+    // THIS process into it — including our own std handles, not just
+    // the three pipes prepared for the child. When this process was
+    // itself spawned with piped stdio (a test harness / `BinaryExecutor`
+    // tailing our stdout), the detached long-lived server would keep
+    // that pipe's write end open after we exit, so whoever tails us
+    // never sees EOF and waits forever. Clear `HANDLE_FLAG_INHERIT` on
+    // our std handles before the spawn: it keeps them out of the child
+    // without affecting our own use of them, and `Stdio::inherit`
+    // children elsewhere are unaffected (std re-duplicates the handle
+    // inheritable at spawn time).
+    #[cfg(windows)]
+    crate::win_handles::disinherit_std_handles();
+
+    let mut child = cmd.spawn().map_err(SpawnPublishError::Spawn)?;
+
+    // Drain both pipes from the moment of spawn: a failing child can
+    // spew more than a pipe buffer before exiting, and an undrained
+    // pipe would wedge it before it ever reports.
+    let mut stdout_pipe = child.stdout.take();
+    let mut stderr_pipe = child.stderr.take();
+    let stdout_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(pipe) = stdout_pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut buf).await;
+        }
+        buf
+    });
+    let stderr_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(pipe) = stderr_pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut buf).await;
+        }
+        buf
+    });
+
+    let listening = tokio::select! {
+        read = wait_read(dir, key) => read.map_err(SpawnPublishError::Lock)?,
+        status = child.wait() => {
+            return match try_read(dir, key).await.map_err(SpawnPublishError::Lock)? {
+                Some(listening) => Ok(listening),
+                None => {
+                    // The dead child's pipes EOF promptly; the timeout
+                    // guards a still-living grandchild holding the
+                    // write ends open.
+                    let drain_timeout = std::time::Duration::from_secs(2);
+                    let stdout = match tokio::time::timeout(drain_timeout, stdout_task).await {
+                        Ok(Ok(buf)) => buf,
+                        _ => Vec::new(),
+                    };
+                    let stderr = match tokio::time::timeout(drain_timeout, stderr_task).await {
+                        Ok(Ok(buf)) => buf,
+                        _ => Vec::new(),
+                    };
+                    // One last probe: the drain gave a concurrent
+                    // winner extra time to publish.
+                    if let Some(listening) =
+                        try_read(dir, key).await.map_err(SpawnPublishError::Lock)?
+                    {
+                        return Ok(listening);
+                    }
+                    Err(SpawnPublishError::ExitedBeforePublishing {
+                        name,
+                        status: status.map_err(SpawnPublishError::Spawn)?,
+                        stdout: String::from_utf8_lossy(&stdout).trim().to_string(),
+                        stderr: String::from_utf8_lossy(&stderr).trim().to_string(),
+                    })
+                }
+            };
+        }
+    };
+
+    // The lock is published — the server is up and this process is
+    // done with its pipes. Abort the drain tasks: their capture exists
+    // only for the exited-before-publishing error report, and letting
+    // them run on would accumulate everything the server ever writes
+    // into buffers nobody reads, for the whole lifetime of a resident
+    // spawner (the CLI daemon). Aborting drops the pipe read ends, so
+    // the server's stdout/stderr are DEAD from here on: a later write
+    // fails, and a `println!` would panic it. That is the standing
+    // convention anyway — detached servers must not write to their std
+    // handles after publishing; anything observable goes through their
+    // published channel or the DB.
+    stdout_task.abort();
+    stderr_task.abort();
+
+    // Child drops without killing (kill_on_drop false): detached.
+    drop(child);
+
+    Ok(listening)
+}
+
+/// Invert [`filename_escape`]: `%XX` → byte, everything else verbatim.
+/// `None` on malformed escapes (foreign files in the dir).
+fn filename_unescape(escaped: &str) -> Option<String> {
+    let bytes = escaped.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let hex = bytes.get(i + 1..i + 3)?;
+            let hi = (hex[0] as char).to_digit(16)?;
+            let lo = (hex[1] as char).to_digit(16)?;
+            out.push((hi * 16 + lo) as u8);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).ok()
+}
+
+/// Every claim KEY with files in `dir`, recovered from the gate
+/// filenames (`<escape(key)>.lock`; the `.live.lock` announces are
+/// skipped so each key appears once). Purely an enumeration — no
+/// locks are taken, no liveness is implied; pair with [`try_held`].
+/// Filenames that aren't gate files or don't unescape are skipped.
+pub async fn keys_in_dir(dir: &Path) -> std::io::Result<Vec<String>> {
+    let mut keys = Vec::new();
+    let mut entries = match tokio::fs::read_dir(dir).await {
+        Ok(entries) => entries,
+        // No dir = no keys.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(keys),
+        Err(e) => return Err(e),
+    };
+    while let Some(entry) = entries.next_entry().await? {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if name.ends_with(".live.lock") {
+            continue;
+        }
+        let Some(escaped) = name.strip_suffix(".lock") else {
+            continue;
+        };
+        if let Some(key) = filename_unescape(escaped) {
+            keys.push(key);
+        }
+    }
+    Ok(keys)
 }
 
 /// Percent-escape `key` into a filename-safe token: `[A-Za-z0-9_-]`

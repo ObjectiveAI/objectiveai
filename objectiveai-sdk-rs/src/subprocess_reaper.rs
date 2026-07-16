@@ -274,6 +274,9 @@ const GUARDIAN_FLAG: &str = "--__objectiveai-subprocess-reaper-guardian";
 #[cfg(target_os = "macos")]
 fn spawn_guardian(parent_pid: u32, child_pid: u32) -> std::io::Result<()> {
     let exe = std::env::current_exe()?;
+    // DELIBERATE std (not tokio) subprocess — the guardian launches
+    // during process TEARDOWN, when no tokio runtime is guaranteed to
+    // exist; a sync spawn is the whole point (it must outlive us).
     std::process::Command::new(exe)
         .arg(GUARDIAN_FLAG)
         .arg(parent_pid.to_string())

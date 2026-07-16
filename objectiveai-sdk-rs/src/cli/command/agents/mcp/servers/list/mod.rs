@@ -10,7 +10,12 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.mcp.servers.list.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub response_id: String,
+    /// Objectiveai response id of the live agent to address. `None` ⇒
+    /// resolved from the caller's contextual agent arguments
+    /// (`OBJECTIVEAI_RESPONSE_ID`); an error if absent there too.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -35,10 +40,11 @@ impl CommandRequest for Request {
 pub type Response = crate::mcp::server::ListServersResult;
 
 #[derive(clap::Args)]
-#[command(group(clap::ArgGroup::new("response_id_required").required(true).args(["response_id"])))]
 pub struct Args {
     /// Objectiveai response id of the live agent whose connected MCP
     /// servers to list (the socket at `<state>/socks/<response_id>.sock`).
+    /// Omit to use the invoking agent's own response id (from the
+    /// contextual agent arguments).
     #[arg(long)]
     pub response_id: Option<String>,
     #[command(flatten)]
@@ -65,15 +71,9 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let response_id = args.response_id.ok_or_else(|| {
-            crate::cli::command::FromArgsError::path_parse(
-                "response_id",
-                "--response-id is required".to_string(),
-            )
-        })?;
         Ok(Self {
             path_type: Path::AgentsMcpServersList,
-            response_id,
+            response_id: args.response_id,
             base: args.base.into(),
         })
     }
@@ -114,10 +114,10 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `agents mcp servers list`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// unary response future. See [`crate::cli::websocket_listener`].
+/// unary response future. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
     pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
 }

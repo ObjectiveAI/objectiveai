@@ -1,0 +1,58 @@
+{
+  "title": "agent.script.AgentBase",
+  "description": "The base configuration for a Script Agent (without computed ID).",
+  "type": "object",
+  "$ref": "agent.script.Script",
+  "properties": {
+    "client_objectiveai_mcp": {
+      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
+      "anyOf": [
+        {
+          "$ref": "agent.ClientObjectiveaiMcp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "laboratories": {
+      "description": "Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.Laboratory"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "mcp_servers": {
+      "description": "MCP servers the agent can connect to.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.McpServer"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "output_mode": {
+      "description": "The output mode for vector completions. Ignored for agent completions.",
+      "$ref": "agent.script.OutputMode"
+    },
+    "upstream": {
+      "description": "The upstream provider marker.",
+      "$ref": "agent.script.Upstream"
+    }
+  }
+}

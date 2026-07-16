@@ -9,7 +9,7 @@ publish = false
 # empty library target to hang it off. All deps are dev-only.
 [dev-dependencies]
 objectiveai-sdk = { path = "../../objectiveai-sdk-rs", features = ["lockfile", "subprocess-reaper"] }
-objectiveai-cli = { path = "../../objectiveai-cli" }
+objectiveai-daemon = { path = "../../objectiveai-daemon" }
 # Used by schema_commands_e2e to walk the cli's clap command tree
 # (CommandFactory) and enumerate request-schema / response-schema commands.
 clap = { version = "4.6.0", features = ["derive"] }

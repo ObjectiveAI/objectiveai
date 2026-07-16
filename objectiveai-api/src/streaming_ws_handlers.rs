@@ -8,8 +8,12 @@
 //! 3. Splits the socket into a `SharedSink` (mutex-wrapped sender) and
 //!    a `SplitStream` (receiver).
 //! 4. Runs two concurrent futures under `tokio::select!`:
-//!    - **send**: drains the chunk stream and forwards each chunk as a
-//!      JSON text frame. Closes 1000 at end of stream.
+//!    - **send**: drains the chunk stream through a one-ahead buffer,
+//!      forwarding each chunk as a JSON text frame while HOLDING the
+//!      newest one back. At end of stream the held FINAL chunk is
+//!      returned to the select arm, which drains every in-flight
+//!      client_request handler first, then emits the final chunk and
+//!      `Close(1000)` back-to-back — last chunk = connection end.
 //!    - **recv**: parses incoming text frames as
 //!      [`client_request::Request`](objectiveai_sdk::client_objectiveai_mcp::client_request::Request)
 //!      or [`server_response::Response`](objectiveai_sdk::client_objectiveai_mcp::server_response::Response)
@@ -27,7 +31,7 @@
 //! opening a WS implies streaming intent.
 
 use axum::extract::ws::{WebSocketUpgrade, close_code};
-use futures::{SinkExt as _, StreamExt as _};
+use futures::StreamExt as _;
 use objectiveai_sdk::error::ResponseError;
 use std::sync::Arc;
 
@@ -52,13 +56,15 @@ pub(crate) async fn create_agent_completion_ws(
             impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send + Sync + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+            > + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -89,10 +95,14 @@ pub(crate) async fn create_agent_completion_ws(
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
         let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -122,15 +132,29 @@ pub(crate) async fn create_agent_completion_ws(
                         &ResponseError::from(&e),
                     )
                     .await;
-                    return;
+                    return None;
                 }
             };
             let mut stream = Box::pin(stream);
+            // One-ahead buffer: hold the newest frame, send its
+            // predecessor. The frame still held at end-of-stream is the
+            // FINAL chunk — returned (not sent) so the select arm can
+            // drain in-flight MCP stragglers before emitting it. Last
+            // chunk = connection end.
+            let mut held: Option<String> = None;
             while let Some(item) = stream.next().await {
-                let agent::completions::StreamItem::Chunk(chunk) = item else { continue };                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
-                    return;
+                let agent::completions::StreamItem::Chunk(chunk) = item else { continue };
+                let frame = match serde_json::to_string(&chunk) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                if let Some(prev) = held.replace(frame) {
+                    if streaming_ws::send_frame_split(&send_sink, prev).await.is_err() {
+                        return None;
+                    }
                 }
             }
+            held
         };
 
         let recv = streaming_ws::recv_loop(
@@ -142,10 +166,13 @@ pub(crate) async fn create_agent_completion_ws(
         );
 
         tokio::select! {
-            // Send won: agent stream done. Drain any in-flight
-            // client_request handlers (write their replies) before the
-            // Close frame + sink drop close the WS.
-            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Send won: agent stream done, its FINAL chunk still in hand.
+            // Drain any in-flight client_request handlers (write their
+            // replies), THEN emit the final chunk + Close — last chunk =
+            // connection end.
+            final_frame = send => {
+                streaming_ws::drain_send_final_and_close(tasks, &sink, final_frame).await
+            }
             // Recv won: peer closed / recv error — nothing to deliver.
             _ = recv => {}
         }
@@ -153,19 +180,18 @@ pub(crate) async fn create_agent_completion_ws(
 }
 
 pub(crate) async fn create_vector_completion_ws<
-    OR, CAG, CX, MK, RG, RF, RM, AU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, MK, SPT, RG, RF, RM, AU, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         vector::completions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, RG, RF, RM, AU,
+            OR, CAG, CX, MK, SPT, RG, RF, RM, AU,
             impl vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -183,6 +209,9 @@ where
     MK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         > + Send + Sync + 'static,
+    SPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+        > + Send + Sync + 'static,
     RG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     RF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     RM: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -198,6 +227,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -223,10 +255,14 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
         let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -248,14 +284,25 @@ where
                         &ResponseError::from(&e),
                     )
                     .await;
-                    return;
+                    return None;
                 }
             };
             let mut stream = Box::pin(stream);
-            while let Some(chunk) = stream.next().await {                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
-                    return;
+            // One-ahead buffer — the held frame at end-of-stream is the
+            // FINAL chunk, withheld for the drain (see the agent handler).
+            let mut held: Option<String> = None;
+            while let Some(chunk) = stream.next().await {
+                let frame = match serde_json::to_string(&chunk) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                if let Some(prev) = held.replace(frame) {
+                    if streaming_ws::send_frame_split(&send_sink, prev).await.is_err() {
+                        return None;
+                    }
                 }
             }
+            held
         };
 
         let recv = streaming_ws::recv_loop(
@@ -267,10 +314,11 @@ where
         );
 
         tokio::select! {
-            // Send won: agent stream done. Drain any in-flight
-            // client_request handlers (write their replies) before the
-            // Close frame + sink drop close the WS.
-            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Send won: stream done, FINAL chunk in hand. Drain in-flight
+            // client_request handlers, then emit the final chunk + Close.
+            final_frame = send => {
+                streaming_ws::drain_send_final_and_close(tasks, &sink, final_frame).await
+            }
             // Recv won: peer closed / recv error — nothing to deliver.
             _ = recv => {}
         }
@@ -278,18 +326,17 @@ where
 }
 
 pub(crate) async fn execute_function_ws<
-    OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, MK, SPT, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         functions::executions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU,
+            OR, CAG, CX, MK, SPT, AU, VAU, RG, RF, RM, FAU,
         >,
     >,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -306,6 +353,9 @@ where
         > + Send + Sync + 'static,
     MK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    SPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     AU: agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
     VAU: vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -324,6 +374,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -349,10 +402,14 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
         let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -370,14 +427,25 @@ where
                         &ResponseError::from(&e),
                     )
                     .await;
-                    return;
+                    return None;
                 }
             };
             let mut stream = Box::pin(stream);
-            while let Some(chunk) = stream.next().await {                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
-                    return;
+            // One-ahead buffer — the held frame at end-of-stream is the
+            // FINAL chunk, withheld for the drain (see the agent handler).
+            let mut held: Option<String> = None;
+            while let Some(chunk) = stream.next().await {
+                let frame = match serde_json::to_string(&chunk) {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                if let Some(prev) = held.replace(frame) {
+                    if streaming_ws::send_frame_split(&send_sink, prev).await.is_err() {
+                        return None;
+                    }
                 }
             }
+            held
         };
 
         let recv = streaming_ws::recv_loop(
@@ -389,22 +457,22 @@ where
         );
 
         tokio::select! {
-            // Send won: agent stream done. Drain any in-flight
-            // client_request handlers (write their replies) before the
-            // Close frame + sink drop close the WS.
-            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Send won: stream done, FINAL chunk in hand. Drain in-flight
+            // client_request handlers, then emit the final chunk + Close.
+            final_frame = send => {
+                streaming_ws::drain_send_final_and_close(tasks, &sink, final_frame).await
+            }
             // Recv won: peer closed / recv error — nothing to deliver.
             _ = recv => {}
         }
     })
 }
 
-pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
+pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>(
     client: Arc<functions::profiles::computations::ObjectiveAiClient>,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -421,6 +489,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -446,10 +517,14 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
         let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -463,32 +538,32 @@ where
                 Ok(s) => s,
                 Err(e) => {
                     streaming_ws::fatal_setup_error_split(&send_sink, &e).await;
-                    return;
+                    return None;
                 }
             };
             let mut stream = Box::pin(stream);
+            // One-ahead buffer — the held frame at end-of-stream (chunk
+            // or error alike) is the FINAL frame, withheld for the drain
+            // (see the agent handler).
+            let mut held: Option<String> = None;
             while let Some(item) = stream.next().await {
                 let frame = match &item {
-                    Ok(chunk) => {                        match serde_json::to_string(chunk) {
-                            Ok(s) => s,
-                            Err(_) => continue,
-                        }
-                    }
+                    Ok(chunk) => match serde_json::to_string(chunk) {
+                        Ok(s) => s,
+                        Err(_) => continue,
+                    },
                     Err(err) => match serde_json::to_string(err) {
                         Ok(s) => s,
                         Err(_) => continue,
                     },
                 };
-                let mut guard = send_sink.lock().await;
-                if guard
-                    .send(axum::extract::ws::Message::Text(frame.into()))
-                    .await
-                    .is_err()
-                {
-                    return;
+                if let Some(prev) = held.replace(frame) {
+                    if streaming_ws::send_frame_split(&send_sink, prev).await.is_err() {
+                        return None;
+                    }
                 }
-                drop(guard);
             }
+            held
         };
 
         let recv = streaming_ws::recv_loop(
@@ -500,22 +575,22 @@ where
         );
 
         tokio::select! {
-            // Send won: agent stream done. Drain any in-flight
-            // client_request handlers (write their replies) before the
-            // Close frame + sink drop close the WS.
-            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Send won: stream done, FINAL frame in hand. Drain in-flight
+            // client_request handlers, then emit the final frame + Close.
+            final_frame = send => {
+                streaming_ws::drain_send_final_and_close(tasks, &sink, final_frame).await
+            }
             // Recv won: peer closed / recv error — nothing to deliver.
             _ = recv => {}
         }
     })
 }
 
-pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
+pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>(
     client: Arc<crate::error::Client>,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NSPT, NRG, NRF, NRM, NAU>,
     >,
-    reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
     suppress_output: bool,
     ws: WebSocketUpgrade,
@@ -532,6 +607,9 @@ where
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+        > + Send + Sync + 'static,
+    NSPT: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
         > + Send + Sync + 'static,
     NRG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     NRF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -557,10 +635,14 @@ where
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
             sink.clone(),
             pending.clone(),
-            reverse_attach.reverse_channel_timeout,
         );
+        // No channel-level budget: every reverse-channel op passes its
+        // own per-op timeout (ws-MCP calls use the request's
+        // `X-MCP-CALL-TIMEOUT`; connects use the connect timeout;
+        // laboratory transfers and the API's OWN server_requests wait
+        // forever on the CLI).
         let (reverse_channel, reverse_req_rx) =
-            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+            objectiveai_mcp_proxy::ReverseChannel::new();
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
@@ -576,6 +658,10 @@ where
         let send_sink = sink.clone();
         let send = async move {
             let mut stream = Box::pin(stream);
+            // One-ahead buffer — the held frame at end-of-stream (chunk
+            // or error alike) is the FINAL frame, withheld for the drain
+            // (see the agent handler).
+            let mut held: Option<String> = None;
             while let Some(item) = stream.next().await {
                 let frame = match item {
                     Ok(chunk) => match serde_json::to_string(&chunk) {
@@ -587,16 +673,13 @@ where
                         Err(_) => continue,
                     },
                 };
-                let mut guard = send_sink.lock().await;
-                if guard
-                    .send(axum::extract::ws::Message::Text(frame.into()))
-                    .await
-                    .is_err()
-                {
-                    return;
+                if let Some(prev) = held.replace(frame) {
+                    if streaming_ws::send_frame_split(&send_sink, prev).await.is_err() {
+                        return None;
+                    }
                 }
-                drop(guard);
             }
+            held
         };
 
         let recv = streaming_ws::recv_loop(
@@ -608,10 +691,11 @@ where
         );
 
         tokio::select! {
-            // Send won: agent stream done. Drain any in-flight
-            // client_request handlers (write their replies) before the
-            // Close frame + sink drop close the WS.
-            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Send won: stream done, FINAL frame in hand. Drain in-flight
+            // client_request handlers, then emit the final frame + Close.
+            final_frame = send => {
+                streaming_ws::drain_send_final_and_close(tasks, &sink, final_frame).await
+            }
             // Recv won: peer closed / recv error — nothing to deliver.
             _ = recv => {}
         }

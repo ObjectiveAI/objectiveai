@@ -6,7 +6,7 @@
 
 2. **No empty streams.** If the upstream produces no chunks at all, it must return `Err(...)` from `create` instead of an empty stream.
 
-These rules apply to all `UpstreamClient` implementations (openrouter, claude_agent_sdk, mock).
+These rules apply to all `UpstreamClient` implementations (openrouter, claude_agent_sdk, codex_sdk, mock, script).
 
 ## Continuation
 

@@ -9,7 +9,10 @@ import (
 
 // The queue row reached a live agent (its row flipped to
 // inactive — the API stamped its id onto an assistant chunk's
-// `request_message_ids`) before the agent's lock freed up.
+// `request_message_ids`). The only resolution for instance and
+// tag targets: whether the handler found the agent live or
+// spawned it, the message rides the queue and this fires when
+// its own row is consumed.
 type CliCommandAgentsMessageResponseDelivered struct {
 	Type string `json:"type" validate:"oneof=delivered"`
 }
@@ -34,10 +37,10 @@ func (v *CliCommandAgentsMessageResponseDelivered) UnmarshalJSON(data []byte) er
 }
 func (CliCommandAgentsMessageResponseDelivered) SchemaVariantTitle() string { return "Delivered" }
 
-// The handler execed a detached `agents spawn` child (with the
-// agent's lock transferred into it) and the child yielded its
-// `Id` first item — the bare `agent_instance_hierarchy` the
-// runner just minted or resumed.
+// Plain-ref targets only: the handler execed a detached
+// `agents spawn` child carrying the message inline and the
+// child yielded its `Id` first item — the bare
+// `agent_instance_hierarchy` the runner just minted.
 type CliCommandAgentsMessageResponseID struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	Type string `json:"type" validate:"oneof=id"`
@@ -69,12 +72,15 @@ func (CliCommandAgentsMessageResponseID) SchemaVariantTitle() string { return "I
 type CliCommandAgentsMessageResponse struct {
 	// The queue row reached a live agent (its row flipped to
 	// inactive — the API stamped its id onto an assistant chunk's
-	// `request_message_ids`) before the agent's lock freed up.
+	// `request_message_ids`). The only resolution for instance and
+	// tag targets: whether the handler found the agent live or
+	// spawned it, the message rides the queue and this fires when
+	// its own row is consumed.
 	Delivered *CliCommandAgentsMessageResponseDelivered `outerObject:"true"`
-	// The handler execed a detached `agents spawn` child (with the
-	// agent's lock transferred into it) and the child yielded its
-	// `Id` first item — the bare `agent_instance_hierarchy` the
-	// runner just minted or resumed.
+	// Plain-ref targets only: the handler execed a detached
+	// `agents spawn` child carrying the message inline and the
+	// child yielded its `Id` first item — the bare
+	// `agent_instance_hierarchy` the runner just minted.
 	ID *CliCommandAgentsMessageResponseID `outerObject:"true" variantTitle:"Id"`
 }
 

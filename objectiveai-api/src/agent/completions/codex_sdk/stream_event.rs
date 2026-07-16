@@ -34,6 +34,8 @@ fn upstream_usage(
     usage: &Usage,
     is_byok: bool,
     cost_multiplier: rust_decimal::Decimal,
+    duration_cost: rust_decimal::Decimal,
+    elapsed_ms: u64,
 ) -> UpstreamUsage {
     let prompt_tokens = usage.input_tokens;
     let completion_tokens = usage.output_tokens;
@@ -69,6 +71,13 @@ fn upstream_usage(
         (total_cost, None, total_cost)
     };
 
+    // Bill our measured wall time RAW (no cost_multiplier), BYOK
+    // included. For Codex this is typically the ONLY per-call cost.
+    let duration_charge =
+        crate::duration::duration_charge(elapsed_ms, duration_cost);
+    let cost = cost + duration_charge;
+    let total_cost = total_cost + duration_charge;
+
     UpstreamUsage {
         completion_tokens,
         prompt_tokens,
@@ -78,6 +87,11 @@ fn upstream_usage(
         cost,
         cost_details,
         total_cost,
+        upstream_duration_ms:
+            objectiveai_sdk::agent::completions::response::UpstreamDurationMs {
+                codex_sdk: Some(elapsed_ms),
+                ..Default::default()
+            },
         cost_multiplier,
         is_byok,
     }
@@ -140,6 +154,10 @@ pub fn into_downstream(
     assistant_index: u64,
     is_byok: bool,
     cost_multiplier: rust_decimal::Decimal,
+    // per-1-SECOND duration rate + this upstream's create→finish elapsed;
+    // used only by the terminal TurnCompleted event.
+    duration_cost: rust_decimal::Decimal,
+    elapsed_ms: u64,
     upstream: Upstream,
     thread_id: &str,
     agent_instance_hierarchy: String,
@@ -156,7 +174,13 @@ pub fn into_downstream(
         KnownThreadEvent::ThreadStarted(_) | KnownThreadEvent::TurnStarted(_) => None,
 
         KnownThreadEvent::TurnCompleted(c) => {
-            let usage = upstream_usage(&c.usage, is_byok, cost_multiplier);
+            let usage = upstream_usage(
+                &c.usage,
+                is_byok,
+                cost_multiplier,
+                duration_cost,
+                elapsed_ms,
+            );
             Some(Ok(assistant_chunk(
                 id,
                 created,

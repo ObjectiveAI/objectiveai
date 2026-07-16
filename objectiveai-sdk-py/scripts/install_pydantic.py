@@ -445,7 +445,18 @@ def _convert_single_type(
             _naming_context.append("Item")
             inner = _convert_inner_type(schema["items"], self_title, all_titles)
             _naming_context.pop()
-            return f"list[{inner}]"
+            base = f"list[{inner}]"
+            # Length bounds (e.g. the fixed-2 `[key, value]` pairs from
+            # Rust `[String; 2]`) — carried as Annotated Field metadata
+            # so the roundtrip reconstructs minItems/maxItems.
+            field_args: list[str] = []
+            if "minItems" in schema:
+                field_args.append(f"min_length={schema['minItems']!r}")
+            if "maxItems" in schema:
+                field_args.append(f"max_length={schema['maxItems']!r}")
+            if field_args:
+                return f"Annotated[{base}, Field({', '.join(field_args)})]"
+            return base
         return "list[JsonValue]"
     if type_ == "object":
         return _convert_object_type(schema, self_title, all_titles)

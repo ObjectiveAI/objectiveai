@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.laboratories.config.local.get.Response",
+  "type": "object",
+  "properties": {
+    "local": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

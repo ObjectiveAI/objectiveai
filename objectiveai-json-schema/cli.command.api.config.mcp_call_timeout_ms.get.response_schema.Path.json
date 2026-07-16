@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.api.config.mcp_call_timeout_ms.get.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "api/config/mcp_call_timeout_ms/get/response_schema"
+  ]
+}

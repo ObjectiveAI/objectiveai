@@ -40,9 +40,16 @@ class UpstreamMock(RootModel):
     root: Literal['mock']
 
 
+class UpstreamScript(RootModel):
+    """Script Upstream."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Script'})
+
+    root: Literal['script']
+
+
 class Upstream(RootModel):
     """Supported agent upstreams."""
     model_config = ConfigDict(title='agent.Upstream')
 
-    root: Union[UpstreamUnknown, UpstreamOpenrouter, UpstreamClaudeAgentSdk, UpstreamCodexSdk, UpstreamMock]
+    root: Union[UpstreamUnknown, UpstreamOpenrouter, UpstreamClaudeAgentSdk, UpstreamCodexSdk, UpstreamMock, UpstreamScript]
 

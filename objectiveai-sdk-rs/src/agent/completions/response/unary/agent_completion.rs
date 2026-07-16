@@ -50,10 +50,17 @@ impl AgentCompletion {
         self.id = String::new();
         self.agent_instance_hierarchy = String::new();
         self.created = 0;
+        // Durations AND costs vary run-to-run (script agents record
+        // real wall time, and the duration charge lands in the cost
+        // figures); strip both from the aggregate AND from each
+        // assistant turn's usage so duration-recording upstreams are
+        // valid snapshot targets.
+        self.usage.normalize_for_tests();
         for msg in &mut self.messages {
             if let super::Message::Assistant(asst) = msg {
                 asst.upstream_id = String::new();
                 asst.created = 0;
+                asst.usage.normalize_for_tests();
             }
         }
 

@@ -27,22 +27,61 @@ pub struct BashRequest {
 pub struct ObjectiveAiMcpLaboratory {
     pub tool_router: ToolRouter<Self>,
     shell_state: crate::bash::ShellState,
-    /// MCP server name reported in `get_info`: `oail-<id>` from the laboratory
-    /// id (env `OBJECTIVEAI_LABORATORY_ID`), or `oail` when run standalone.
+    /// MCP server name reported in `get_info`:
+    /// `oail-<base62(fnv1a32(OBJECTIVEAI_LABORATORY_ID))>` — a fixed
+    /// 11-char hash token (the env value is the COMPOSITE laboratory
+    /// id `{machine}/{state}/{id}`; the raw id has arbitrary
+    /// length/charset and the composite carries a 64-hex machine id,
+    /// so NEITHER can ride the server name: it feeds the proxy's
+    /// tool-name prefix, which is bound by provider tool-name
+    /// limits). `oail` when run standalone.
     server_name: String,
+    /// The full composite laboratory id, verbatim from the env —
+    /// surfaced via the server `instructions` so the assistant can
+    /// quote it (e.g. as `laboratory_transfer` source/destination).
+    /// `None` standalone or on a legacy (raw-id) env value.
+    composite_id: Option<String>,
 }
 
 #[tool_router]
 impl ObjectiveAiMcpLaboratory {
     pub fn new(laboratory_id: Option<String>, default_cwd: std::path::PathBuf) -> Self {
-        let server_name = match laboratory_id {
-            Some(id) => format!("oail-{id}"),
-            None => "oail".to_string(),
+        let (server_name, composite_id) = match laboratory_id {
+            Some(value) => {
+                // Hash whatever the env carries (the composite on
+                // every current container; a legacy raw id hashes the
+                // same way — uniformly name-safe either way). The
+                // composite is surfaced in instructions only when it
+                // actually parses.
+                let server_name = crate::composite::server_name(&value);
+                let composite_id =
+                    crate::composite::parse_composite_laboratory_id(&value)
+                        .map(|_| value);
+                (server_name, composite_id)
+            }
+            None => ("oail".to_string(), None),
         };
+        let mut tool_router = Self::tool_router();
+        // Stamp the laboratory's FULL id into the Bash tool's
+        // description — descriptions are value-carrying (no provider
+        // name limits), so the composite rides verbatim; the static
+        // attribute text stays as the standalone/legacy fallback.
+        if let Some(composite) = &composite_id {
+            if let Some(route) = tool_router.map.get_mut("Bash") {
+                route.attr.description = Some(
+                    format!(
+                        "Executes a given command on laboratory {composite} and \
+                         returns its output."
+                    )
+                    .into(),
+                );
+            }
+        }
         Self {
-            tool_router: Self::tool_router(),
+            tool_router,
             shell_state: crate::bash::ShellState::new(default_cwd),
             server_name,
+            composite_id,
         }
     }
 
@@ -50,6 +89,25 @@ impl ObjectiveAiMcpLaboratory {
     /// Should be called once after construction.
     pub async fn init(&self) {
         self.shell_state.init_snapshot().await;
+    }
+
+    /// The composite id is the laboratory's assistant-facing identity
+    /// — what `laboratory_transfer` sources/destinations and the
+    /// daemon's `/laboratories/{id}` routes are addressed by — so the
+    /// tool hands it over verbatim. Standalone runs (no laboratory)
+    /// and legacy raw-id containers have no composite to report and
+    /// say so in plain text rather than inventing one.
+    #[tool(
+        name = "get_laboratory_id",
+        description = "Returns the full id of this laboratory"
+    )]
+    async fn get_laboratory_id(&self) -> Content {
+        match &self.composite_id {
+            Some(composite) => Content::text(composite.clone()),
+            None => Content::text(
+                "this server is not running inside an identified laboratory",
+            ),
+        }
     }
 
     #[tool(name = "Bash", description = "Executes a given bash command and returns its output.")]
@@ -95,7 +153,16 @@ impl ServerHandler for ObjectiveAiMcpLaboratory {
         info.protocol_version = ProtocolVersion::V_2025_06_18;
         info.capabilities = ServerCapabilities::builder().enable_tools().build();
         info.server_info = server_info;
-        info.instructions = None;
+        // The assistant's in-band way to learn this laboratory's FULL
+        // id (machine/state/id — ids are only unique per (machine,
+        // state)): quote it verbatim, e.g. for `laboratory_transfer`.
+        info.instructions = self.composite_id.as_ref().map(|composite| {
+            format!(
+                "This laboratory's id is `{composite}`. Use it verbatim wherever \
+                 a laboratory id is required (e.g. `laboratory_transfer` \
+                 source/destination)."
+            )
+        });
         info
     }
 }

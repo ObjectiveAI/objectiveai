@@ -1,6 +1,10 @@
 import cn from "classnames";
 import type { Entry } from "../../types";
 import { formatCost } from "../../lib/format";
+import {
+  toggleOrientation,
+  useOrientation,
+} from "../../hooks/useOrientation";
 
 export function StatusBar({
   entries,
@@ -44,8 +48,9 @@ export function StatusBar({
       )}
       {totalTokens > 0 && <span className={cn("shrink-0")}>{totalTokens.toLocaleString()} tokens</span>}
       {totalCost > 0 && <span className={cn("shrink-0")}>{formatCost(totalCost)}</span>}
-      {/* Canvas zoom — pinned to the footer's right edge. */}
-      <div className={cn("ml-auto", "flex", "items-center", "gap-1.5", "shrink-0")}>
+      {/* Canvas view controls — pinned to the footer's right edge. */}
+      <div className={cn("ml-auto", "flex", "items-center", "gap-3", "shrink-0")}>
+        <OrientationToggle />
         <input
           type="range"
           data-zoom-slider
@@ -74,5 +79,25 @@ export function StatusBar({
         </button>
       </div>
     </footer>
+  );
+}
+
+/** The hierarchy-orientation toggle: shows the CURRENT descent
+ * direction ("↓ deep" = tiers top-down, "→ wide" = tiers
+ * left-to-right); clicking flips it. State lives in the
+ * [`useOrientation`] module store so the tree consumes it as a hook
+ * with no prop threading. */
+function OrientationToggle() {
+  const orientation = useOrientation();
+  return (
+    <button
+      type="button"
+      data-orientation-toggle
+      onClick={toggleOrientation}
+      title="Toggle hierarchy orientation"
+      className={cn("hover:text-info-bright", "cursor-pointer")}
+    >
+      {orientation === "vertical" ? "↓ deep" : "→ wide"}
+    </button>
   );
 }

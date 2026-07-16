@@ -26,7 +26,7 @@
 #   artifacts (pnpm workspace link for js, module graph for go, the py venv for
 #   py). Ordered after the SDK build; under --no-sdk it runs against the
 #   existing artifacts. Skipped by --no-test-integration.
-# Final: wait for phase 1, then package the HOST platform's 7 binaries into
+# Final: wait for phase 1, then package the HOST platform's 8 binaries into
 #        the same per-platform zip the release ships
 #        (objectiveai-<version>-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
 #        so the installer / `objectiveai update` can use it locally. Host
@@ -56,8 +56,14 @@
 # These fixtures ride phase 1, so --no-zip already excludes them;
 # --no-test-integration only matters on a run that IS building the zip.
 #
+# Pass --skip-viewer to leave the Tauri viewer out of an otherwise-normal
+# build: phase 1 skips objectiveai-viewer/build.sh and packaging stages a
+# zip WITHOUT objectiveai-viewer (an install then keeps whatever viewer
+# binary it already has). Errors under --no-zip — the viewer is only ever
+# built as part of the zip phase, so there is nothing to skip there.
+#
 # Usage:
-#   bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration]
+#   bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration] [--skip-viewer]
 
 set -euo pipefail
 
@@ -71,17 +77,27 @@ RELEASE=0
 NO_ZIP=0
 NO_SDK=0
 NO_TEST_INTEGRATION=0
-USAGE="Usage: bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration]"
+SKIP_VIEWER=0
+USAGE="Usage: bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration] [--skip-viewer]"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --release) RELEASE=1; shift ;;
     --no-zip)  NO_ZIP=1; shift ;;
     --no-sdk)  NO_SDK=1; shift ;;
     --no-test-integration) NO_TEST_INTEGRATION=1; shift ;;
+    --skip-viewer) SKIP_VIEWER=1; shift ;;
     -h|--help) echo "$USAGE"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; echo "$USAGE" >&2; exit 1 ;;
   esac
 done
+
+# --skip-viewer only makes sense when the viewer would otherwise be built,
+# and the viewer is only ever built as part of the zip phase.
+if [ "$SKIP_VIEWER" = "1" ] && [ "$NO_ZIP" = "1" ]; then
+  echo "--skip-viewer conflicts with --no-zip: the viewer is not built when the zip phase is skipped — nothing to skip" >&2
+  exit 1
+fi
+VIEWER_PID=""
 if [ "$RELEASE" = "1" ]; then
   export OBJECTIVEAI_BUILD_RELEASE=1
   echo "Build profile: release"
@@ -245,7 +261,7 @@ if [ "$NO_ZIP" != "1" ]; then
     # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
     # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
     # `--no-test-integration` case (FIXTURE_CRATES left empty).
-    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
+    for crate in objectiveai-cli objectiveai-daemon objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
@@ -269,7 +285,7 @@ if [ "$NO_ZIP" != "1" ]; then
   #   • building both zip + SDK: DEFER the viewer until after phase 4's
   #     sdk-js build, so it embeds the freshly-built SDK rather than racing
   #     the dist that phase 4 is regenerating.
-  if [ "$NO_SDK" = "1" ]; then
+  if [ "$NO_SDK" = "1" ] && [ "$SKIP_VIEWER" != "1" ]; then
     bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
     VIEWER_PID=$!
   fi
@@ -318,7 +334,7 @@ if [ "$NO_SDK" != "1" ]; then
 
   # Deferred viewer (building both zip + SDK): the fresh sdk-js dist now
   # exists, so the viewer embeds the new SDK. Runs concurrently with py/go.
-  if [ "$NO_ZIP" != "1" ]; then
+  if [ "$NO_ZIP" != "1" ] && [ "$SKIP_VIEWER" != "1" ]; then
     bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
     VIEWER_PID=$!
   fi
@@ -375,14 +391,15 @@ if [ "$NO_ZIP" != "1" ]; then
   fi
 fi
 
-# ── Package the host's 7 binaries into <dir>/bin/<release-asset>.zip ─────
+# ── Package the host's 8 binaries into <dir>/bin/<release-asset>.zip ─────
 # Bundles the freshly-built binaries into the same per-platform zip the
 # GitHub Release ships (objectiveai-<version>-<os>-<arch>.zip) and drops
 # it in <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can
 # pick it up locally. Host platform only — not the other 5. Uses `python
-# -m zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The cli
-# crate builds as `objectiveai-cli` but ships as `objectiveai`. The
-# version is read from objectiveai-cli/Cargo.toml — the canonical release
+# -m zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The thin
+# `objectiveai-cli` crate builds the `objectiveai` binary; the resident
+# `objectiveai-daemon` crate builds its own like-named binary. The
+# version is read from objectiveai-daemon/Cargo.toml — the canonical release
 # version (release.yml gates on it, version.sh keeps install.sh in sync).
 package_host_zip() {
   local os arch ext profile host_triple
@@ -407,23 +424,24 @@ package_host_zip() {
   [ -n "$py" ] || { echo "package: need python3 to build the zip" >&2; return 1; }
 
   local version
-  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$REPO_ROOT/objectiveai-cli/Cargo.toml" | head -1)
-  [ -n "$version" ] || { echo "package: could not read version from objectiveai-cli/Cargo.toml" >&2; return 1; }
+  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$REPO_ROOT/objectiveai-daemon/Cargo.toml" | head -1)
+  [ -n "$version" ] || { echo "package: could not read version from objectiveai-daemon/Cargo.toml" >&2; return 1; }
 
   local asset="objectiveai-${version}-${os}-${arch}.zip"
   local install_dir="${OBJECTIVEAI_DIR:-$HOME/.objectiveai}"
   local bin_dir="$install_dir/bin"
   mkdir -p "$bin_dir"
 
-  # Stage the 7 binaries under their shipped names (built-name -> ship-name).
+  # Stage the 10 binaries under their shipped names (built-name -> ship-name).
   local stage="$REPO_ROOT/target/.package-stage.$$"
   rm -rf "$stage"; mkdir -p "$stage"
 
   local cargo_dir="$REPO_ROOT/target/$profile"
   local src
-  # The four CLI/server crates from the cargo build (built-name -> ship-name;
-  # the cli crate builds as objectiveai-cli but ships as objectiveai).
-  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db"
+  # The CLI + daemon + server crates from the cargo build (built-name ->
+  # ship-name; the thin objectiveai-cli crate builds the `objectiveai`
+  # binary, and the daemon crate builds/ships `objectiveai-daemon`).
+  local pairs="objectiveai|objectiveai objectiveai-daemon|objectiveai-daemon objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
   local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"
@@ -436,11 +454,15 @@ package_host_zip() {
 
   # The viewer comes from its `tauri build` (objectiveai-viewer/build.sh),
   # which places it in objectiveai-viewer/embed/<profile>/ — NOT target/.
-  src="$REPO_ROOT/objectiveai-viewer/embed/$profile/objectiveai-viewer$ext"
-  if [ ! -f "$src" ]; then
-    echo "package: missing $src (run objectiveai-viewer/build.sh)" >&2; rm -rf "$stage"; return 1
+  # Under --skip-viewer the zip simply ships without it (an install keeps
+  # whatever viewer binary it already has).
+  if [ "$SKIP_VIEWER" != "1" ]; then
+    src="$REPO_ROOT/objectiveai-viewer/embed/$profile/objectiveai-viewer$ext"
+    if [ ! -f "$src" ]; then
+      echo "package: missing $src (run objectiveai-viewer/build.sh)" >&2; rm -rf "$stage"; return 1
+    fi
+    cp "$src" "$stage/objectiveai-viewer$ext"
   fi
-  cp "$src" "$stage/objectiveai-viewer$ext"
 
   local r
   for r in objectiveai-claude-agent-sdk-runner objectiveai-codex-sdk-runner; do

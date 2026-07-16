@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.laboratories.detach.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/laboratories/detach/response_schema"
-  ]
-}

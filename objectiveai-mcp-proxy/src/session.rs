@@ -10,7 +10,8 @@ use dashmap::DashMap;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
 use std::sync::Arc;
-use objectiveai_sdk::laboratories::Laboratory;
+use objectiveai_sdk::laboratories::{ClientLaboratory, Laboratory};
+use objectiveai_sdk::client_objectiveai_mcp::server_request;
 use objectiveai_sdk::mcp::{
     JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
@@ -294,12 +295,25 @@ impl Session {
         let mut servers: Vec<Server> = self
             .connections
             .iter()
-            .map(|(prefix, up)| Server {
-                name: prefix.clone(),
-                url: up.url().to_string(),
-                initialize_result: up.initialize_result().clone(),
-                laboratory: up.laboratory(),
-                plugin: up.plugin(),
+            .map(|(prefix, up)| {
+                let laboratory = up.laboratory();
+                // The assistant-facing composite id — what
+                // `laboratory_transfer` takes. `None` for markers
+                // predating machine tracking (nothing to compose).
+                let laboratory_id = laboratory.as_ref().and_then(|lab| match lab {
+                    Laboratory::Client(c) => c.composite_id(),
+                    // Agent laboratories carry no (machine, state) —
+                    // nothing to compose; not transfer-addressable.
+                    Laboratory::Agent(_) => None,
+                });
+                Server {
+                    name: prefix.clone(),
+                    url: up.url().to_string(),
+                    initialize_result: up.initialize_result().clone(),
+                    laboratory,
+                    laboratory_id,
+                    plugin: up.plugin(),
+                }
             })
             .collect();
         servers.sort_by(|a, b| a.name.cmp(&b.name));
@@ -402,20 +416,37 @@ impl Session {
             .count()
     }
 
-    /// Find the upstream that IS the laboratory with this id (matched on
-    /// the typed laboratory id, never a routing prefix / name).
-    fn find_laboratory(&self, id: &str) -> Option<&Upstream> {
-        self.connections.values().find(|u| {
-            matches!(u.laboratory(), Some(Laboratory::Client(c)) if c.id == id)
+    /// Find the upstream that IS the laboratory `target` — matched on
+    /// the FULL identity (id + machine + machine_state; laboratory ids
+    /// are only unique per (machine, state)), never a routing prefix,
+    /// a name, or a bare id. Returns the upstream and its typed
+    /// marker, whose (machine, machine_state) pair pins the exact
+    /// host for downstream routing.
+    fn find_laboratory(&self, target: &ClientLaboratory) -> Option<(&Upstream, Laboratory)> {
+        self.connections.values().find_map(|u| match u.laboratory() {
+            Some(Laboratory::Client(c)) if c == *target => {
+                Some((u, Laboratory::Client(c)))
+            }
+            _ => None,
         })
     }
 
     /// Handle the proxy-native `laboratory_transfer` tool: copy a
-    /// file/folder from one laboratory to another. Source/destination are
-    /// identified by laboratory **id** (the `laboratory.id` from
-    /// `agents mcp servers list`), resolved against the typed markers — no
-    /// prefix/name strings. The actual byte movement is delegated to the
-    /// conduit over the session reverse channel (a streamed tar splice).
+    /// file/folder from one laboratory to another. Source/destination
+    /// are the COMPOSITE `{machineID}/{state}/{laboratoryID}` full
+    /// identity (the `laboratory_id` from `agents mcp servers list`),
+    /// REQUIRED: laboratory ids are only unique per (machine, state),
+    /// so a bare id is ambiguous and rejected. Resolved against the
+    /// typed markers on all three fields.
+    /// The byte movement is DELEGATED: the proxy matches the two
+    /// laboratories' enum variants and, for client↔client, sends ONE
+    /// combined request down the reverse channel — `local_transfer`
+    /// when both share a (machine, state) pair (the one laboratory
+    /// host pipes container-to-container), plain `transfer` otherwise
+    /// (the CLI daemon drives the export/import splice, one chunk in
+    /// transit). The proxy never touches payload bytes. Future
+    /// `Laboratory::Server` variants extend the match with their own
+    /// (more involved) orchestration.
     async fn laboratory_transfer(&self, params: &CallToolRequestParams) -> CallToolResult {
         let arg = |key: &str| -> Option<&str> {
             params
@@ -438,17 +469,42 @@ impl Session {
                 );
             }
         };
-        if source == destination {
+        // The composite is REQUIRED: `{machineID}/{state}/{labID}`
+        // with the state and laboratory id base62-encoded — the full
+        // identity, since laboratory ids are only unique per
+        // (machine, state). Malformed args (a bare id included) fail
+        // here with the expected shape.
+        let composite_error = |which: &str, value: &str| {
+            transfer_error(format!(
+                "{which} '{value}' is not a composite laboratory id — expected \
+                 `{{machineID}}/{{state}}/{{laboratoryID}}` (state and laboratory id \
+                 base62-encoded), exactly as `laboratory_id` from \
+                 `agents mcp servers list` reports it"
+            ))
+        };
+        let Some(source_target) = ClientLaboratory::from_composite_id(source) else {
+            return composite_error("source", source);
+        };
+        let Some(dest_target) = ClientLaboratory::from_composite_id(destination) else {
+            return composite_error("destination", destination);
+        };
+        // Compare the PARSED identities (canonical), not the raw arg
+        // strings.
+        if source_target == dest_target {
             return transfer_error("source and destination must be different laboratories");
         }
-        if self.find_laboratory(source).is_none() {
-            return transfer_error(format!("no laboratory with id '{source}' in this session"));
-        }
-        // Any laboratory's reverse channel reaches the conduit that hosts
-        // both (one conduit per session).
-        let channel = match self.find_laboratory(destination) {
-            Some(u) => match u.reverse_channel() {
-                Some(c) => c,
+        let (source_channel, source_marker) = match self.find_laboratory(&source_target) {
+            Some((u, marker)) => match u.reverse_channel() {
+                Some(c) => (c, marker),
+                None => return transfer_error("source laboratory has no reverse channel"),
+            },
+            None => {
+                return transfer_error(format!("no laboratory with id '{source}' in this session"));
+            }
+        };
+        let (dest_channel, dest_marker) = match self.find_laboratory(&dest_target) {
+            Some((u, marker)) => match u.reverse_channel() {
+                Some(c) => (c, marker),
                 None => return transfer_error("destination laboratory has no reverse channel"),
             },
             None => {
@@ -457,21 +513,65 @@ impl Session {
                 ));
             }
         };
-        match channel
-            .transfer_laboratories(
-                source.to_string(),
-                destination.to_string(),
-                source_path.to_string(),
-                destination_path.to_string(),
-            )
-            .await
-        {
-            Ok(result) => transfer_text(format!(
-                "transferred {} bytes: {source}:{source_path} → {destination}:{destination_path}",
-                result.bytes
-            )),
-            Err(e) => transfer_error(format!("transfer failed: {e}")),
-        }
+
+        // Dispatch by the two markers' enum variants. Client↔client
+        // collapses to ONE combined request on the SOURCE upstream's
+        // reverse channel (both channels reach the same client today;
+        // source is the documented pick). Adding a Laboratory::Server
+        // variant makes this match non-exhaustive — its arms carry
+        // their own orchestration, they are NOT a forwarded request.
+        let bytes = match (source_marker, dest_marker) {
+            (Laboratory::Client(src), Laboratory::Client(dst)) => {
+                let local = src.machine.is_some()
+                    && src.machine == dst.machine
+                    && src.machine_state.is_some()
+                    && src.machine_state == dst.machine_state;
+                if local {
+                    let request = server_request::LaboratoryLocalTransferRequest {
+                        source_id: src.id,
+                        source_machine: src.machine,
+                        source_machine_state: src.machine_state,
+                        source_path: source_path.to_string(),
+                        destination_id: dst.id,
+                        destination_machine: dst.machine,
+                        destination_machine_state: dst.machine_state,
+                        destination_path: destination_path.to_string(),
+                    };
+                    match source_channel.laboratory_local_transfer(request).await {
+                        Ok(bytes) => bytes,
+                        Err(e) => return transfer_error(format!("transfer failed: {e}")),
+                    }
+                } else {
+                    let request = server_request::LaboratoryTransferRequest {
+                        source_id: src.id,
+                        source_machine: src.machine,
+                        source_machine_state: src.machine_state,
+                        source_path: source_path.to_string(),
+                        destination_id: dst.id,
+                        destination_machine: dst.machine,
+                        destination_machine_state: dst.machine_state,
+                        destination_path: destination_path.to_string(),
+                    };
+                    match source_channel.laboratory_transfer(request).await {
+                        Ok(bytes) => bytes,
+                        Err(e) => return transfer_error(format!("transfer failed: {e}")),
+                    }
+                }
+            }
+            // `find_laboratory` matches only `Client` markers against the
+            // composite-id target, so an `Agent` marker can never reach
+            // this match today — this arm is the enum-totality floor. If
+            // it ever fires, report not-supported rather than guess an
+            // orchestration.
+            _ => {
+                return transfer_error(
+                    "laboratory_transfer does not support agent laboratories",
+                );
+            }
+        };
+        transfer_text(format!(
+            "transferred {bytes} bytes: {source}:{source_path} → {destination}:{destination_path}",
+        ))
     }
 
     /// Forward `resources/read` to whichever upstream owns the URI. Same
@@ -512,7 +612,10 @@ fn prefix_name(server_name: &str, name: &str) -> String {
 
 /// The proxy-native `laboratory_transfer` tool definition, injected into
 /// `tools/list` when a session has 2+ laboratories. Source/destination are
-/// laboratory ids (from `agents mcp servers list`).
+/// COMPOSITE laboratory ids `{machineID}/{state}/{laboratoryID}` — the
+/// `laboratory_id` from `agents mcp servers list`, also stated in each
+/// laboratory server's instructions. Quoted verbatim, never constructed
+/// by hand (the state and laboratory id segments are base62-encoded).
 fn laboratory_transfer_tool() -> Tool {
     fn string_prop(description: &str) -> serde_json::Value {
         serde_json::json!({ "type": "string", "description": description })
@@ -521,8 +624,9 @@ fn laboratory_transfer_tool() -> Tool {
     properties.insert(
         "source".to_string(),
         string_prop(
-            "Laboratory id of the source (the `laboratory.id` from \
-             `agents mcp servers list`).",
+            "The source laboratory's full id — the `laboratory_id` from \
+             `agents mcp servers list` (`{machine}/{state}/{id}`), quoted \
+             verbatim.",
         ),
     );
     properties.insert(
@@ -531,7 +635,10 @@ fn laboratory_transfer_tool() -> Tool {
     );
     properties.insert(
         "destination".to_string(),
-        string_prop("Laboratory id of the destination."),
+        string_prop(
+            "The destination laboratory's full id — same form as `source`, \
+             quoted verbatim.",
+        ),
     );
     properties.insert(
         "destination_path".to_string(),
@@ -545,7 +652,9 @@ fn laboratory_transfer_tool() -> Tool {
         title: Some("Laboratory Transfer".to_string()),
         description: Some(
             "Copy a file or folder from one laboratory to another (streamed). \
-             Identify the laboratories by their id from `agents mcp servers list`."
+             Identify the laboratories by their FULL `laboratory_id` from \
+             `agents mcp servers list` (`{machine}/{state}/{id}` — also stated \
+             in each laboratory server's instructions), quoted verbatim."
                 .to_string(),
         ),
         icons: None,

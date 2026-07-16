@@ -404,6 +404,9 @@ fn test_usage_with_cost_multiplier() {
                         cost: Decimal::from_str("0.0015").unwrap(),
                         cost_details: None,
                         total_cost: Decimal::from_str("0.0015").unwrap(),
+                        // Duration is stamped later in create_streaming_stream,
+                        // not in this per-chunk conversion.
+                        upstream_duration_ms: Default::default(),
                         cost_multiplier: multiplier,
                         is_byok: false,
                     }),
@@ -599,6 +602,9 @@ fn test_byok_cost_splitting() {
                             upstream_upstream_inference_cost: Decimal::from_str("0.008").unwrap(),
                         }),
                         total_cost: Decimal::from_str("0.036").unwrap(),
+                        // Duration is stamped later in create_streaming_stream,
+                        // not in this per-chunk conversion.
+                        upstream_duration_ms: Default::default(),
                         cost_multiplier: multiplier,
                         is_byok: true,
                     }),

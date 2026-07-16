@@ -19,7 +19,13 @@
 //!   deserializes from the POST body.
 //! - Server → client: N text frames, one chunk per frame, JSON
 //!   encoded — same `*Chunk` types each endpoint already emits.
-//! - End of stream: server sends `Close(1000)`. No `[DONE]` sentinel.
+//! - End of stream: the FINAL chunk is withheld until every in-flight
+//!   client-initiated MCP handler has completed and written its reply
+//!   (a one-ahead buffer in each `_ws` send loop +
+//!   [`drain_send_final_and_close`]), then sent as the last text frame
+//!   immediately followed by `Close(1000)`. Last chunk ⇒ the
+//!   connection is ending; nothing else follows it. No `[DONE]`
+//!   sentinel.
 //! - Error mid-stream: server sends one final text frame containing
 //!   the JSON `ResponseError`, then `Close(1011)`.
 //! - Body parse failure: error text frame, `Close(1003)`.
@@ -30,16 +36,12 @@
 //!
 //! Stage 1 of #193; #194 tracks the migration.
 
-use std::sync::Arc;
-
 use axum::extract::FromRequestParts;
 use axum::extract::ws::{CloseCode, CloseFrame, Message, WebSocket, close_code};
 use axum::http::request::Parts;
-use axum::response::Response;
 use futures::{SinkExt, StreamExt};
 use futures::stream::SplitStream;
 use objectiveai_sdk::error::ResponseError;
-use serde::Serialize;
 
 // The reverse-attach / pending-request types are now canonical in
 // `crate::objectiveai_mcp`. The `pub use` shims keep
@@ -47,8 +49,8 @@ use serde::Serialize;
 // call site in the api — the underlying type IS the objectiveai_mcp
 // one.
 pub use crate::objectiveai_mcp::{
-    PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle, ReverseChannel,
-    SharedSink, new_pending_requests,
+    PendingRequests, ReverseAttachGuard, ReverseAttachHandle, SharedSink,
+    new_pending_requests,
 };
 
 /// Transport the client wants. Inferred from the request itself: an
@@ -173,19 +175,16 @@ pub async fn fatal_setup_error_split(sink: &SharedSink, err: &ResponseError) {
 // responder) can write through the same socket concurrently.
 // ────────────────────────────────────────────────────────────────────
 
-/// Send one chunk as a text frame. Caller observes the chunk into the
-/// session tracker beforehand. Returns `Err(())` if the peer hung up.
-pub async fn send_chunk_split<C: Serialize>(sink: &SharedSink, chunk: &C) -> Result<(), ()> {
-    let json = match serde_json::to_string(chunk) {
-        Ok(s) => s,
-        Err(_) => return Ok(()), // chunk types are infallible to serialize in practice
-    };
+/// Send one pre-serialized chunk frame. The `_ws` handlers serialize
+/// before sending because their one-ahead buffer holds the NEWEST frame
+/// back (see [`drain_send_final_and_close`]) — the held value must
+/// already be wire-ready. Returns `Err(())` if the peer hung up.
+pub async fn send_frame_split(sink: &SharedSink, frame: String) -> Result<(), ()> {
     let mut guard = sink.lock().await;
-    let result = guard
-        .send(Message::Text(json.into()))
+    guard
+        .send(Message::Text(frame.into()))
         .await
-        .map_err(|_| ());
-    result
+        .map_err(|_| ())
 }
 
 /// Drain this request's reverse channel: write each `server_request` the
@@ -222,19 +221,41 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
 }
 
 /// Drain any in-flight client_request handlers (the tasks `recv_loop`
-/// spawned into `tasks`), then send the `NORMAL` Close frame.
+/// spawned into `tasks`), THEN send the withheld FINAL chunk frame, then
+/// the `NORMAL` Close — final chunk and Close go out under ONE sink lock
+/// so nothing can interleave between them.
 ///
-/// Called on the send-won path so a client-initiated request still being
-/// served writes its reply on the (still-open) `sink` before the WS
-/// closes. Bounded by the proxy's per-op timeout — every spawned handler
-/// resolves eventually — so the wait can't hang indefinitely. `close()`
-/// stops further tracking (`recv_loop` is already dropped by the
-/// `select!`, so no new handlers arrive); `wait()` blocks until the count
-/// hits zero.
-pub async fn drain_and_close(tasks: tokio_util::task::TaskTracker, sink: &SharedSink) {
+/// This is what makes "last chunk = connection end" hold on the wire:
+/// the `_ws` handlers' send loops run a one-ahead buffer and hand the
+/// stream's LAST frame here instead of sending it inline, so every
+/// straggler (a client-initiated MCP op still being served) writes its
+/// reply BEFORE the final chunk. A client may therefore treat the final
+/// chunk as the end of the whole connection.
+///
+/// Called on the send-won path. Bounded by the proxy's per-op timeout —
+/// every spawned handler resolves eventually — so the wait can't hang
+/// indefinitely. `close()` stops further tracking (`recv_loop` is
+/// already dropped by the `select!`, so no new handlers arrive);
+/// `wait()` blocks until the count hits zero. `final_frame` is `None`
+/// when the stream produced nothing (empty stream, setup error already
+/// reported, or the peer hung up mid-stream).
+pub async fn drain_send_final_and_close(
+    tasks: tokio_util::task::TaskTracker,
+    sink: &SharedSink,
+    final_frame: Option<String>,
+) {
     tasks.close();
     tasks.wait().await;
-    send_close_split(sink, close_code::NORMAL).await;
+    let mut guard = sink.lock().await;
+    if let Some(frame) = final_frame {
+        let _ = guard.send(Message::Text(frame.into())).await;
+    }
+    let _ = guard
+        .send(Message::Close(Some(CloseFrame {
+            code: close_code::NORMAL,
+            reason: "".into(),
+        })))
+        .await;
 }
 
 // PendingRequests, ReverseChannel, ReverseAttachConfig,
@@ -310,7 +331,8 @@ pub async fn recv_loop(
             let channel = channel.clone();
             let sink = sink.clone();
             // Tracked (not detached) so the handler can keep the WS open
-            // until this reply is written — see `drain_and_close`.
+            // — and the FINAL chunk withheld — until this reply is
+            // written; see `drain_send_final_and_close`.
             tasks.spawn(async move {
                 let response = channel.deliver_client_request(request).await;
                 let frame = match serde_json::to_string(&response) {
@@ -327,17 +349,13 @@ pub async fn recv_loop(
             // Demux by type: the 6 MCP variants (`mcp_kind().is_some()`)
             // belong to this request's proxy; `ReadMessageQueue`/`Retrieve`
             // (no mcp_kind) are the API's own (queue delegate + retrieval),
-            // awaited on `pending`. `LaboratoryTransfer` is ALSO proxy-bound
-            // (issued on the proxy's reverse channel via
-            // `ReverseChannel::transfer_laboratories`) but carries no
-            // `mcp_kind`, so it must be routed to the proxy explicitly —
-            // otherwise it falls through to the API `pending` map, is not
-            // found, and gets dropped (hanging the transfer waiter).
+            // awaited on `pending`. The laboratory-transfer ops are ALSO
+            // proxy-bound (issued on the proxy's reverse channel) but carry
+            // no `mcp_kind`, so they must be routed to the proxy explicitly —
+            // otherwise they fall through to the API `pending` map, are not
+            // found, and get dropped (hanging the transfer waiter).
             let proxy_bound = response.payload.mcp_kind().is_some()
-                || matches!(
-                    response.payload,
-                    objectiveai_sdk::client_objectiveai_mcp::server_response::Payload::LaboratoryTransfer(_)
-                );
+                || is_laboratory_transfer_response(&response.payload);
             if proxy_bound {
                 channel.deliver_response(response);
             } else {
@@ -358,4 +376,23 @@ pub async fn recv_loop(
 
         eprintln!("dropping unparseable WS frame (matched neither client_request nor server_response)");
     }
+}
+
+/// The proxy-bound laboratory-transfer replies: no `mcp_kind`, but every
+/// one was issued on the proxy's reverse channel and must route back to
+/// its `pending` map rather than the API's.
+fn is_laboratory_transfer_response(
+    payload: &objectiveai_sdk::client_objectiveai_mcp::server_response::Payload,
+) -> bool {
+    use objectiveai_sdk::client_objectiveai_mcp::server_response::Payload;
+    matches!(
+        payload,
+        Payload::LaboratoryExportBegin(_)
+            | Payload::LaboratoryExportRead(_)
+            | Payload::LaboratoryExportAbort(_)
+            | Payload::LaboratoryImportBegin(_)
+            | Payload::LaboratoryImportWrite(_)
+            | Payload::LaboratoryImportEnd(_)
+            | Payload::LaboratoryImportAbort(_)
+    )
 }

@@ -36,6 +36,9 @@ pub enum Upstream {
     /// Mock Upstream.
     #[schemars(title = "Mock")]
     Mock,
+    /// Script Upstream.
+    #[schemars(title = "Script")]
+    Script,
 }
 
 pub mod validate {

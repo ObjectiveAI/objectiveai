@@ -16,6 +16,13 @@ type McpServer struct {
 	// client (websocket) laboratory today. Non-laboratory servers (plain
 	// HTTP, the primary `objectiveai` MCP, plugins) leave this `None`.
 	Laboratory *LaboratoriesLaboratory `json:"laboratory,omitempty"`
+	// The laboratory's ASSISTANT-FACING composite id —
+	// `{machineID}/{base62(state)}/{base62(laboratoryID)}`
+	// ([`ClientLaboratory::composite_id`](crate::laboratories::ClientLaboratory::composite_id)),
+	// what `laboratory_transfer` takes as `source`/`destination`.
+	// Present exactly when `laboratory` is (and its marker carries
+	// the machine pair).
+	LaboratoryID *string `json:"laboratory_id,omitempty"`
 	// The proxy's routing prefix for this server (matches the `<prefix>_`
 	// prepended to its tools/resources in the aggregated surface).
 	Name string `json:"name"`

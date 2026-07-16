@@ -1,15 +1,15 @@
 //! Viewer lifecycle: env config, the event bus, and the Tauri shell.
 //!
-//! The Rust side holds NO daemon stream: the JS frontend connects to
-//! the daemon's published `ws://` endpoint directly (native
-//! WebSockets to `/listen` and `/execute`), and the Rust side only
-//! hands it the variables it needs via the [`websocket_config`]
-//! command (address, optional first-message auth signature, and the
-//! viewer's agent arguments). The `"viewer"` lock is a per-state
-//! singleton marker (content `"ready"`).
+//! The Rust side owns ALL daemon traffic: the JS frontend never sees
+//! the daemon's address, auth signature, or the viewer's agent
+//! identity — every daemon stream rides the
+//! [`crate::daemon_proxy`] Tauri commands over IPC channels (the
+//! webview's per-origin HTTP connection cap starved the old
+//! direct-fetch model). The `"viewer"` lock is a per-state singleton
+//! marker (content `"ready"`).
 
 use envconfig::Envconfig;
-use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
+use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -19,24 +19,6 @@ use crate::plugins::serve_plugin_asset;
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
     state.notify_one();
-}
-
-/// Everything the JS frontend's own WebSocket clients take: the
-/// published base `ws://` address, the optional first-message auth
-/// signature, and the agent arguments identifying viewer-initiated
-/// executions. The frontend appends `/listen` / `/execute` and
-/// connects with native WebSockets — no daemon traffic flows through
-/// the Rust side.
-#[derive(Clone, serde::Serialize)]
-pub struct WebSocketConfig {
-    pub address: String,
-    pub signature: Option<String>,
-    pub agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
-}
-
-#[tauri::command]
-fn websocket_config(state: tauri::State<'_, WebSocketConfig>) -> WebSocketConfig {
-    state.inner().clone()
 }
 
 /// The per-state agents root the `client` remote links open:
@@ -132,6 +114,90 @@ async fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), Str
     open_agent_window_impl(&app, &aih).map_err(|e| e.to_string())
 }
 
+/// The deterministic-within-one-process window label for one
+/// laboratory. Lab ids are only unique per (machine, machine_state),
+/// so all three feed the hash; `Hash for str` is length-prefixed, so
+/// sequential hashing needs no separators.
+fn laboratory_window_label(
+    id: &str,
+    machine: Option<&str>,
+    machine_state: Option<&str>,
+) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut hasher);
+    machine.unwrap_or("").hash(&mut hasher);
+    machine_state.unwrap_or("").hash(&mut hasher);
+    format!("laboratory-{:016x}", hasher.finish())
+}
+
+/// Create — or focus, when already open — the laboratory filesystem
+/// window for one laboratory: the `laboratory.html` entry. The
+/// identity reaches the page via an initialization script (a global
+/// set before any page script runs) — NOT a URL query:
+/// `WebviewUrl::App` is a PathBuf, so a query string would be treated
+/// as part of the asset path and 404 to a white window (same as
+/// [`open_agent_window_impl`]).
+fn open_laboratory_window_impl(
+    app: &tauri::AppHandle,
+    id: &str,
+    machine: Option<&str>,
+    machine_state: Option<&str>,
+    machine_os: Option<&str>,
+) -> tauri::Result<()> {
+    use tauri::Manager;
+    let label = laboratory_window_label(id, machine, machine_state);
+    if let Some(existing) = app.get_webview_window(&label) {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    let global = serde_json::json!({
+        "id": id,
+        "machine": machine,
+        "machineState": machine_state,
+    })
+    .to_string();
+    // `{os}/{machine id}/{lab id}` — the serving machine's identity as
+    // the window's name, unknown segments rendered as `?`.
+    let title = format!(
+        "{}/{}/{id}",
+        machine_os.unwrap_or("?"),
+        machine.unwrap_or("?"),
+    );
+    tauri::WebviewWindowBuilder::new(
+        app,
+        &label,
+        tauri::WebviewUrl::App("laboratory.html".into()),
+    )
+    .initialization_script(format!("window.__LABORATORY__ = {global};"))
+    .title(title)
+    .inner_size(1024.0, 768.0)
+    .build()?;
+    Ok(())
+}
+
+/// Open (or focus) the laboratory filesystem window — the laboratory
+/// card's `open` tab calls this. ASYNC on purpose, same as
+/// [`open_agent_window`]: a sync command white-screens webview
+/// creation on Windows.
+#[tauri::command]
+async fn open_laboratory_window(
+    app: tauri::AppHandle,
+    id: String,
+    machine: Option<String>,
+    machine_state: Option<String>,
+    machine_os: Option<String>,
+) -> Result<(), String> {
+    open_laboratory_window_impl(
+        &app,
+        &id,
+        machine.as_deref(),
+        machine_state.as_deref(),
+        machine_os.as_deref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "DAEMON_ADDRESS")]
@@ -206,15 +272,14 @@ impl ConfigBuilder {
 }
 
 pub struct Config {
-    /// The daemon's `ws://` connect URL (`DAEMON_ADDRESS`). REQUIRED —
+    /// The daemon's `http://` connect URL (`DAEMON_ADDRESS`). REQUIRED —
     /// [`run`] errors out when unset. Provided by `objectiveai viewer
     /// spawn`, which resolves it from the daemon it just ensured.
     /// `Option` only so `ConfigBuilder::build` stays infallible.
     pub daemon_address: Option<String>,
-    /// Optional daemon WebSocket auth signature
-    /// (`DAEMON_SIGNATURE`): the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>` sent verbatim in the
-    /// first-message auth preamble on every connection. `None` =
+    /// Optional daemon auth signature (`DAEMON_SIGNATURE`): the
+    /// pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>` sent as the
+    /// `X-OBJECTIVEAI-SIGNATURE` header on every request. `None` =
     /// connect unauthenticated (the daemon must be open).
     pub daemon_signature: Option<String>,
     pub suppress_output: bool,
@@ -230,15 +295,15 @@ pub struct Config {
     pub agent_instance_hierarchy: Option<String>,
 }
 
-/// The one Rust-side WebSocket executor: `list_plugins_with_viewer`
+/// The one Rust-side command executor: `list_plugins_with_viewer`
 /// discovers plugins through it at startup. Everything else is
 /// JS-native. Commands travel to the daemon's `/execute` route and
 /// run in-process there — the viewer never spawns the cli binary, so
 /// it can live on a different machine than the CLI. `daemon_address`
-/// is the daemon's published base `ws://` URL (the same one the JS
+/// is the daemon's published base `http://` URL (the same one the JS
 /// frontend connects to).
-pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> WebSocketExecutor {
-    let executor = WebSocketExecutor::new(format!("{daemon_address}/execute"));
+pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> SseCommandExecutor {
+    let executor = SseCommandExecutor::new(format!("{daemon_address}/execute"));
     match signature {
         Some(signature) => executor.signature(signature),
         None => executor,
@@ -262,35 +327,47 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 ///
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
-    executor: WebSocketExecutor,
-    websocket_config_state: WebSocketConfig,
+    executor: SseCommandExecutor,
+    proxy: crate::daemon_proxy::DaemonProxy,
     agents_dir: AgentsDir,
     plugins_dir: PathBuf,
+    lab_env: crate::laboratories::LabEnv,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
     agent_window: Option<String>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
-    // notification today (the JS frontend talks to the daemon
-    // directly); the command is kept as a startup signal for later.
+    // notification today; the command is kept as a startup signal
+    // for later.
     let ready = Arc::new(Notify::new());
 
     let plugins_dir_for_protocol = plugins_dir.clone();
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(executor)
-        .manage(websocket_config_state)
+        .manage(proxy)
         .manage(agents_dir)
+        .manage(lab_env)
         .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
         });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
-        websocket_config,
         open_agent_remote,
         open_url,
         open_agent_window,
+        open_laboratory_window,
+        crate::daemon_proxy::daemon_listen,
+        crate::daemon_proxy::daemon_execute,
+        crate::daemon_proxy::daemon_agents_instances_list,
+        crate::daemon_proxy::daemon_agents_instance,
+        crate::daemon_proxy::daemon_laboratories_list,
+        crate::daemon_proxy::daemon_laboratory,
+        crate::daemon_proxy::daemon_laboratory_filetree,
+        crate::daemon_proxy::daemon_stream_close,
         crate::plugins::list_plugins_with_viewer,
+        crate::laboratories::machine_identity,
+        crate::laboratories::laboratories_spawn_host,
     ]);
     builder
         .setup(move |tauri_app| {
@@ -331,7 +408,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     let daemon_address = config.daemon_address.clone().ok_or_else(|| {
         std::io::Error::other(
             "DAEMON_ADDRESS is not set — start the viewer via `objectiveai viewer spawn`, \
-             which passes the daemon's ws:// address",
+             which passes the daemon's http:// address",
         )
     })?;
 
@@ -345,7 +422,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
 
     // There is only ever ONE viewer per STATE (unlike the api, which
     // is one per OBJECTIVEAI_DIR): claim key "viewer" in
-    // <dir>/state/<state>/locks. The viewer is a WebSocket client (no
+    // <dir>/state/<state>/locks. The viewer is an HTTP client of the daemon (no
     // listener), so the content is a plain readiness marker, not a
     // URL. The claim is held until process death (LockClaim leaks on
     // drop by design) and the kernel releases it on any exit, crash
@@ -362,15 +439,13 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         ));
     }
 
-    // No Rust-side daemon streams: the JS frontend connects to the
-    // daemon directly with native WebSockets, using the variables the
-    // `websocket_config` command hands it — the same viewer identity
-    // the Rust-side executor stamps on its own calls.
-    let websocket_config_state = WebSocketConfig {
-        address: daemon_address,
-        signature: config.daemon_signature.clone(),
-        agent_arguments: crate::plugins::viewer_agent_arguments(),
-    };
+    // ALL daemon streams flow through the Rust-side proxy commands
+    // (`crate::daemon_proxy`) — the JS frontend never holds the
+    // address or signature.
+    let proxy = crate::daemon_proxy::DaemonProxy::new(
+        daemon_address,
+        config.daemon_signature.clone(),
+    );
 
     let agents_dir = AgentsDir(
         config
@@ -380,11 +455,17 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
             .join("agents"),
     );
 
+    let lab_env = crate::laboratories::LabEnv {
+        objectiveai_dir: config.objectiveai_dir.clone(),
+        state: config.objectiveai_state.clone(),
+    };
+
     Ok(serve(
         executor,
-        websocket_config_state,
+        proxy,
         agents_dir,
         plugins_dir,
+        lab_env,
         None,
         config.agent_instance_hierarchy.clone(),
     ))

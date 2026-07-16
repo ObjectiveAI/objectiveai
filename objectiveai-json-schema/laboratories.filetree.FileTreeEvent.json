@@ -1,0 +1,70 @@
+{
+  "title": "laboratories.filetree.FileTreeEvent",
+  "description": "One event on the `/filetree` SSE stream. The first is always a\n[`Snapshot`](FileTreeEvent::Snapshot); every later one upserts or\nremoves a single node as the filesystem changes.",
+  "anyOf": [
+    {
+      "title": "Snapshot",
+      "description": "The full tree — the watched root's child nodes — sent once\nimmediately on connect.",
+      "type": "object",
+      "properties": {
+        "children": {
+          "description": "The watched root's entries (its own identity is implicit —\nthe caller knows the watched path).",
+          "type": "array",
+          "items": {
+            "$ref": "laboratories.filetree.FileTreeNode"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "snapshot"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Upserted",
+      "description": "A single node came into existence or changed. A directory\ncarries its whole (re-walked) subtree.",
+      "type": "object",
+      "properties": {
+        "node": {
+          "description": "The new/updated node.",
+          "$ref": "laboratories.filetree.FileTreeNode"
+        },
+        "path": {
+          "description": "The FULL component path to the node, relative to the\nwatched root (the last element equals `node`'s name).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "upserted"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Removed",
+      "description": "A single node (and, if a directory, its whole subtree) was\nremoved.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "The FULL component path to the vanished node, relative to\nthe watched root.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "removed"
+          ]
+        }
+      }
+    }
+  ]
+}

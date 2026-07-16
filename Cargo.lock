@@ -2666,6 +2666,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "hostname"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "617aaa3557aef3810a6369d0a99fac8a080891b68bd9f9812a1eeda0c0730cbd"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "html5ever"
 version = "0.29.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4137,7 +4148,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4203,7 +4214,41 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli"
-version = "2.2.10"
+version = "2.2.11"
+dependencies = [
+ "clap",
+ "dirs",
+ "dotenv",
+ "futures",
+ "objectiveai-sdk",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "objectiveai-cli-tests"
+version = "2.2.3"
+dependencies = [
+ "axum",
+ "clap",
+ "futures",
+ "insta",
+ "notify",
+ "objectiveai-daemon",
+ "objectiveai-sdk",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+ "wiremock",
+]
+
+[[package]]
+name = "objectiveai-daemon"
+version = "2.2.11"
 dependencies = [
  "async-stream",
  "axum",
@@ -4215,7 +4260,6 @@ dependencies = [
  "dirs",
  "dotenv",
  "envconfig",
- "flate2",
  "futures",
  "git2",
  "hashbrown 0.15.5",
@@ -4248,12 +4292,12 @@ dependencies = [
  "sqlx-postgres",
  "subtle",
  "sysinfo",
- "tar",
  "tempfile",
  "thiserror 2.0.18",
  "tiktoken-rs",
  "tokio",
  "tokio-stream",
+ "tower-http",
  "twox-hash",
  "uuid",
  "wasmtime",
@@ -4265,28 +4309,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai-cli-tests"
-version = "2.2.3"
-dependencies = [
- "axum",
- "clap",
- "futures",
- "insta",
- "notify",
- "objectiveai-cli",
- "objectiveai-sdk",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-stream",
- "uuid",
- "wiremock",
-]
-
-[[package]]
 name = "objectiveai-db"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "clap",
  "objectiveai-sdk",
@@ -4296,7 +4320,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "objectiveai-sdk",
  "schemars 1.2.1",
@@ -4304,8 +4328,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-laboratory"
+version = "2.2.11"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "dashmap",
+ "dirs",
+ "flate2",
+ "futures",
+ "indexmap 2.14.0",
+ "notify",
+ "objectiveai-sdk",
+ "reqwest 0.12.28",
+ "reqwest-eventsource",
+ "serde",
+ "serde_json",
+ "tar",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite 0.24.0",
+ "uuid",
+ "zip",
+]
+
+[[package]]
 name = "objectiveai-mcp"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4328,7 +4378,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-laboratory"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4340,6 +4390,8 @@ dependencies = [
  "glob",
  "http",
  "indexmap 2.14.0",
+ "notify",
+ "objectiveai-sdk",
  "pathdiff",
  "regex",
  "reqwest 0.12.28",
@@ -4357,7 +4409,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4382,7 +4434,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -4397,6 +4449,8 @@ dependencies = [
  "futures",
  "futures-util",
  "getrandom 0.3.4",
+ "hex",
+ "hostname",
  "humantime",
  "indexmap 2.14.0",
  "jmespath",
@@ -4416,6 +4470,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "sha2",
  "starlark",
  "syn 2.0.117",
  "tempfile",
@@ -4432,7 +4487,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-cffi"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4444,11 +4499,11 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.2.10"
+version = "2.2.11"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4462,7 +4517,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-wasm-js"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "arbitrary",
  "getrandom 0.4.2",
@@ -4485,21 +4540,24 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-viewer"
-version = "2.2.10"
+version = "2.2.11"
 dependencies = [
  "clap",
  "dirs",
  "dotenv",
  "envconfig",
+ "eventsource-stream",
  "futures",
  "mime_guess",
  "objectiveai-sdk",
  "open",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

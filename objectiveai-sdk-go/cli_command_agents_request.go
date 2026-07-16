@@ -15,7 +15,6 @@ type CliCommandAgentsRequest struct {
 	GetRequestSchema *CliCommandAgentsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandAgentsGetResponseSchemaRequest 
 	Instances *CliCommandAgentsInstancesRequest 
-	Laboratories *CliCommandAgentsLaboratoriesRequest 
 	List *CliCommandAgentsListRequest 
 	ListRequestSchema *CliCommandAgentsListRequestSchemaRequest 
 	ListResponseSchema *CliCommandAgentsListResponseSchemaRequest 
@@ -58,9 +57,6 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Instances != nil {
 		return json.Marshal(v.Instances)
-	}
-	if v.Laboratories != nil {
-		return json.Marshal(v.Laboratories)
 	}
 	if v.List != nil {
 		return json.Marshal(v.List)
@@ -194,17 +190,6 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
 			candidate.Instances = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsLaboratoriesRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsRequest{}
-			candidate.Laboratories = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -432,7 +417,6 @@ func (v CliCommandAgentsRequest) Validate() error {
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
 	if v.Instances != nil { count++ }
-	if v.Laboratories != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }

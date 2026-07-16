@@ -26,5 +26,7 @@ func (v *AgentCompletionsResponseUpstreamUsage) Push(other *AgentCompletionsResp
 		v.CostDetails = other.CostDetails
 	}
 
+	v.UpstreamDurationMs.Push(&other.UpstreamDurationMs)
+
 	// cost_multiplier and is_byok are immutable
 }

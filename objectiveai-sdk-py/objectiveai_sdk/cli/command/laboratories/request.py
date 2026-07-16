@@ -3,12 +3,52 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.cli.command.laboratories.attach.request import Request as CliCommandLaboratoriesAttachRequest
+from objectiveai_sdk.cli.command.laboratories.attach.request_schema.request import Request as CliCommandLaboratoriesAttachRequestSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.attach.response_schema.request import Request as CliCommandLaboratoriesAttachResponseSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.config.request import Request as CliCommandLaboratoriesConfigRequest
 from objectiveai_sdk.cli.command.laboratories.create.request import Request as CliCommandLaboratoriesCreateRequest
 from objectiveai_sdk.cli.command.laboratories.create.request_schema.request import Request as CliCommandLaboratoriesCreateRequestSchemaRequest
 from objectiveai_sdk.cli.command.laboratories.create.response_schema.request import Request as CliCommandLaboratoriesCreateResponseSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.delete.request import Request as CliCommandLaboratoriesDeleteRequest
+from objectiveai_sdk.cli.command.laboratories.delete.request_schema.request import Request as CliCommandLaboratoriesDeleteRequestSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.delete.response_schema.request import Request as CliCommandLaboratoriesDeleteResponseSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.detach.request import Request as CliCommandLaboratoriesDetachRequest
+from objectiveai_sdk.cli.command.laboratories.detach.request_schema.request import Request as CliCommandLaboratoriesDetachRequestSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.detach.response_schema.request import Request as CliCommandLaboratoriesDetachResponseSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.kill.request import Request as CliCommandLaboratoriesKillRequest
+from objectiveai_sdk.cli.command.laboratories.kill.request_schema.request import Request as CliCommandLaboratoriesKillRequestSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.kill.response_schema.request import Request as CliCommandLaboratoriesKillResponseSchemaRequest
 from objectiveai_sdk.cli.command.laboratories.list.request import Request as CliCommandLaboratoriesListRequest
 from objectiveai_sdk.cli.command.laboratories.list.request_schema.request import Request as CliCommandLaboratoriesListRequestSchemaRequest
 from objectiveai_sdk.cli.command.laboratories.list.response_schema.request import Request as CliCommandLaboratoriesListResponseSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.spawn.request import Request as CliCommandLaboratoriesSpawnRequest
+from objectiveai_sdk.cli.command.laboratories.spawn.request_schema.request import Request as CliCommandLaboratoriesSpawnRequestSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.spawn.response_schema.request import Request as CliCommandLaboratoriesSpawnResponseSchemaRequest
+
+
+class RequestAttach(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Attach'})
+
+    root: CliCommandLaboratoriesAttachRequest
+
+
+class RequestAttachRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'AttachRequestSchema'})
+
+    root: CliCommandLaboratoriesAttachRequestSchemaRequest
+
+
+class RequestAttachResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'AttachResponseSchema'})
+
+    root: CliCommandLaboratoriesAttachResponseSchemaRequest
+
+
+class RequestConfig(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Config'})
+
+    root: CliCommandLaboratoriesConfigRequest
 
 
 class RequestCreate(RootModel):
@@ -29,6 +69,60 @@ class RequestCreateResponseSchema(RootModel):
     root: CliCommandLaboratoriesCreateResponseSchemaRequest
 
 
+class RequestDelete(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Delete'})
+
+    root: CliCommandLaboratoriesDeleteRequest
+
+
+class RequestDeleteRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'DeleteRequestSchema'})
+
+    root: CliCommandLaboratoriesDeleteRequestSchemaRequest
+
+
+class RequestDeleteResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'DeleteResponseSchema'})
+
+    root: CliCommandLaboratoriesDeleteResponseSchemaRequest
+
+
+class RequestDetach(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Detach'})
+
+    root: CliCommandLaboratoriesDetachRequest
+
+
+class RequestDetachRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'DetachRequestSchema'})
+
+    root: CliCommandLaboratoriesDetachRequestSchemaRequest
+
+
+class RequestDetachResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'DetachResponseSchema'})
+
+    root: CliCommandLaboratoriesDetachResponseSchemaRequest
+
+
+class RequestKill(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Kill'})
+
+    root: CliCommandLaboratoriesKillRequest
+
+
+class RequestKillRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'KillRequestSchema'})
+
+    root: CliCommandLaboratoriesKillRequestSchemaRequest
+
+
+class RequestKillResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'KillResponseSchema'})
+
+    root: CliCommandLaboratoriesKillResponseSchemaRequest
+
+
 class RequestList(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'List'})
 
@@ -47,8 +141,26 @@ class RequestListResponseSchema(RootModel):
     root: CliCommandLaboratoriesListResponseSchemaRequest
 
 
+class RequestSpawn(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Spawn'})
+
+    root: CliCommandLaboratoriesSpawnRequest
+
+
+class RequestSpawnRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SpawnRequestSchema'})
+
+    root: CliCommandLaboratoriesSpawnRequestSchemaRequest
+
+
+class RequestSpawnResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SpawnResponseSchema'})
+
+    root: CliCommandLaboratoriesSpawnResponseSchemaRequest
+
+
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.laboratories.Request')
 
-    root: Union[RequestCreate, RequestCreateRequestSchema, RequestCreateResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema]
+    root: Union[RequestAttach, RequestAttachRequestSchema, RequestAttachResponseSchema, RequestConfig, RequestCreate, RequestCreateRequestSchema, RequestCreateResponseSchema, RequestDelete, RequestDeleteRequestSchema, RequestDeleteResponseSchema, RequestDetach, RequestDetachRequestSchema, RequestDetachResponseSchema, RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
 

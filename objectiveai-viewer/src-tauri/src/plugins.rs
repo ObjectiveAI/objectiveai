@@ -4,14 +4,14 @@
 //!
 //! Plugin discovery goes through the daemon: [`list_all_plugins`]
 //! drives the SDK's typed `plugins list` leaf over the
-//! [`WebSocketExecutor`] — the one piece of daemon traffic still
-//! initiated from Rust (everything else is JS-native; plugin
-//! cli-executions run through the host bridge's own JS
-//! `WebSocketExecutor`, and `plugins/run` delivery to plugin tabs
-//! comes later).
+//! [`SseCommandExecutor`]. Plugin iframes currently have NO daemon
+//! access — the webview no longer holds daemon coordinates (every
+//! daemon stream rides [`crate::daemon_proxy`]'s Tauri commands,
+//! which a sandboxed iframe cannot invoke); see the TODO(plugins) in
+//! `src/PluginPane.tsx`.
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
+use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
 use objectiveai_sdk::cli::command::plugins::list as plugins_list;
 use objectiveai_sdk::cli::command::plugins::list::ResponseItem as PluginManifest;
 
@@ -40,7 +40,7 @@ pub(crate) fn plugins_dir(objectiveai_dir: &std::path::Path) -> std::path::PathB
 /// purpose: a missing binary or a malformed line is logged to stderr
 /// and yields an empty/partial list rather than failing viewer
 /// startup — a viewer with zero plugin tabs is still a working viewer.
-pub(crate) async fn list_all_plugins(executor: &WebSocketExecutor) -> Vec<PluginManifest> {
+pub(crate) async fn list_all_plugins(executor: &SseCommandExecutor) -> Vec<PluginManifest> {
     let request = plugins_list::Request {
         path_type: plugins_list::Path::PluginsList,
         offset: None,
@@ -112,12 +112,10 @@ pub(crate) struct ViewerPluginInfo {
 /// `viewer_url`, or an extracted on-disk bundle (an `index.html` under
 /// `<plugins_dir>/<owner>/<name>/<version>/viewer/`). The get response
 /// no longer carries `viewer_zip`, so bundle presence is read from
-/// disk. Plugins without a viewer source don't get a tab (and, with no
-/// tab, daemon-stream `plugins/run` frames for them have nowhere to
-/// route on the JS side).
+/// disk. Plugins without a viewer source don't get a tab.
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
-    executor: tauri::State<'_, WebSocketExecutor>,
+    executor: tauri::State<'_, SseCommandExecutor>,
     plugins_dir: tauri::State<'_, PluginsDir>,
 ) -> Result<Vec<ViewerPluginInfo>, String> {
     let plugins = list_all_plugins(executor.inner()).await;

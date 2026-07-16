@@ -92,6 +92,13 @@ pub enum Payload {
     #[schemars(title = "Retrieve")]
     Retrieve(JsonRpcResult<super::super::retrieve::Response>),
 
+    /// Reply to
+    /// [`super::super::server_request::Payload::Script`]. On success
+    /// carries the script's output messages (assistant/tool only); on
+    /// failure surfaces the execution error. Non-MCP — no `mcp_kind`.
+    #[schemars(title = "Script")]
+    Script(JsonRpcResult<ScriptResult>),
+
     /// Acknowledges
     /// [`super::super::server_request::Payload::Drop`]. Infallible — no
     /// `JsonRpcResult` wrapper; carries `dropped`: whether a bucket for
@@ -100,11 +107,46 @@ pub enum Payload {
     Drop(DropResult),
 
     /// Reply to
-    /// [`super::super::server_request::Payload::LaboratoryTransfer`].
-    /// On success carries the byte count streamed; on failure the
-    /// conduit's transfer error. Non-MCP — no `mcp_kind`.
+    /// [`super::super::server_request::Payload::LaboratoryExportBegin`].
+    /// Non-MCP — no `mcp_kind` (same for every transfer variant below).
+    #[schemars(title = "LaboratoryExportBegin")]
+    LaboratoryExportBegin(JsonRpcResult<LaboratoryTransferBeginResult>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryExportRead`].
+    #[schemars(title = "LaboratoryExportRead")]
+    LaboratoryExportRead(JsonRpcResult<LaboratoryExportChunk>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryExportAbort`].
+    #[schemars(title = "LaboratoryExportAbort")]
+    LaboratoryExportAbort(JsonRpcResult<LaboratoryTransferAck>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryImportBegin`].
+    #[schemars(title = "LaboratoryImportBegin")]
+    LaboratoryImportBegin(JsonRpcResult<LaboratoryTransferBeginResult>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryImportWrite`].
+    #[schemars(title = "LaboratoryImportWrite")]
+    LaboratoryImportWrite(JsonRpcResult<LaboratoryTransferAck>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryImportEnd`].
+    /// On success carries the total bytes fed into the laboratory.
+    #[schemars(title = "LaboratoryImportEnd")]
+    LaboratoryImportEnd(JsonRpcResult<LaboratoryImportEndResult>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryImportAbort`].
+    #[schemars(title = "LaboratoryImportAbort")]
+    LaboratoryImportAbort(JsonRpcResult<LaboratoryTransferAck>),
+
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryTransfer`] —
+    /// the byte total the destination ingested.
     #[schemars(title = "LaboratoryTransfer")]
     LaboratoryTransfer(JsonRpcResult<LaboratoryTransferResult>),
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryLocalTransfer`].
+    #[schemars(title = "LaboratoryLocalTransfer")]
+    LaboratoryLocalTransfer(JsonRpcResult<LaboratoryTransferResult>),
+
 }
 
 impl Payload {
@@ -121,8 +163,17 @@ impl Payload {
             | Payload::SessionTerminate { mcp_kind, .. } => Some(mcp_kind.clone()),
             Payload::ReadMessageQueue(_)
             | Payload::Retrieve(_)
+            | Payload::Script(_)
             | Payload::Drop(_)
-            | Payload::LaboratoryTransfer(_) => None,
+            | Payload::LaboratoryExportBegin(_)
+            | Payload::LaboratoryExportRead(_)
+            | Payload::LaboratoryExportAbort(_)
+            | Payload::LaboratoryImportBegin(_)
+            | Payload::LaboratoryImportWrite(_)
+            | Payload::LaboratoryImportEnd(_)
+            | Payload::LaboratoryImportAbort(_)
+            | Payload::LaboratoryTransfer(_)
+            | Payload::LaboratoryLocalTransfer(_) => None,
         }
     }
 }
@@ -165,8 +216,44 @@ pub struct DropResult {
     pub dropped: bool,
 }
 
-/// Successful payload for [`Payload::LaboratoryTransfer`] — the number of
-/// archive bytes streamed from the source laboratory into the destination.
+/// Successful payload for [`Payload::LaboratoryExportBegin`] /
+/// [`Payload::LaboratoryImportBegin`] — the conduit-minted id the
+/// requester uses for every subsequent op on this transfer half.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryTransferBeginResult")]
+pub struct LaboratoryTransferBeginResult {
+    pub transfer_id: String,
+}
+
+/// Successful payload for [`Payload::LaboratoryExportRead`] — one
+/// pulled chunk. `eof: true` means the export completed and its entry
+/// is gone (this final chunk's `data` may still be non-empty).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryExportChunk")]
+pub struct LaboratoryExportChunk {
+    /// Base64-encoded tar bytes.
+    pub data: String,
+    pub eof: bool,
+}
+
+/// Successful payload for the transfer acknowledgement replies
+/// ([`Payload::LaboratoryExportAbort`], [`Payload::LaboratoryImportWrite`],
+/// [`Payload::LaboratoryImportAbort`]) — no fields, the `Ok` is the ack.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryTransferAck")]
+pub struct LaboratoryTransferAck {}
+
+/// Successful payload for [`Payload::LaboratoryImportEnd`] — the total
+/// archive bytes fed into the destination laboratory.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryImportEndResult")]
+pub struct LaboratoryImportEndResult {
+    pub bytes: u64,
+}
+
+/// Successful payload for [`Payload::LaboratoryTransfer`] /
+/// [`Payload::LaboratoryLocalTransfer`]: the total bytes the
+/// destination laboratory ingested.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryTransferResult")]
 pub struct LaboratoryTransferResult {
@@ -223,4 +310,14 @@ pub enum JsonRpcResult<R> {
         #[schemars(extend("omitempty" = true))]
         data: Option<serde_json::Value>,
     },
+}
+
+/// Successful payload for [`Payload::Script`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.ScriptResult")]
+pub struct ScriptResult {
+    /// The script's output: the messages it appends to the
+    /// conversation. Assistant/tool roles only — a script never puts
+    /// words in the user's mouth.
+    pub messages: Vec<crate::agent::script::OutputMessage>,
 }

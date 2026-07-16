@@ -38,6 +38,7 @@ pub mod error;
 pub mod functions;
 mod json_schema;
 pub mod laboratories;
+pub mod machine;
 pub mod swarm;
 pub use json_schema::*;
 pub mod prefixed_uuid;
@@ -69,6 +70,23 @@ pub mod mcp;
 
 #[cfg(feature = "lockfile")]
 pub mod lockfile;
+
+#[cfg(windows)]
+pub(crate) mod win_handles;
+
+// Every feature whose code spawns a subprocess calls
+// `process::no_window`, so the module exists for their union — not
+// just the lock/reaper features whose deps back `kill_pid` (that
+// function carries its own narrower gate).
+#[cfg(any(
+    feature = "http",
+    feature = "mcp",
+    feature = "cli-executor",
+    feature = "cli-listener",
+    feature = "lockfile",
+    feature = "subprocess-reaper"
+))]
+pub mod process;
 
 #[cfg(feature = "subprocess-reaper")]
 pub mod subprocess_reaper;

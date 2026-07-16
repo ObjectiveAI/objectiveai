@@ -121,10 +121,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 /// One `/listen` broadcast run of `api config commit_author_email set`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// unary response future. See [`crate::cli::websocket_listener`].
+/// unary response future. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
     pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
 }

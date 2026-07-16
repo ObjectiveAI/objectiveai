@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -24,10 +25,16 @@ type Client struct {
 	XGithubAuthorization     string
 	XOpenrouterAuthorization string
 	XMCPAuthorization        map[string]string
-	XViewerSignature         string
-	XViewerAddress           string
-	AgentID                  string
-	HTTPClient               *http.Client
+	// XMCPCallTimeout is the X-MCP-CALL-TIMEOUT header (integer
+	// milliseconds): the per-request budget the API applies to each MCP
+	// call its proxy makes on this request's behalf. nil means no
+	// header — the API applies NO call timeout. Option-only (no env
+	// fallback), mirroring the Rust SDK client.
+	XMCPCallTimeout *uint64
+	XViewerSignature string
+	XViewerAddress   string
+	AgentID          string
+	HTTPClient       *http.Client
 }
 
 // NewClient creates a new ObjectiveAI client.
@@ -108,6 +115,9 @@ func (c *Client) buildHeaders() http.Header {
 	if len(c.XMCPAuthorization) > 0 {
 		data, _ := json.Marshal(c.XMCPAuthorization)
 		h.Set("X-MCP-AUTHORIZATION", string(data))
+	}
+	if c.XMCPCallTimeout != nil {
+		h.Set("X-MCP-CALL-TIMEOUT", strconv.FormatUint(*c.XMCPCallTimeout, 10))
 	}
 	if c.XViewerSignature != "" {
 		h.Set("X-VIEWER-SIGNATURE", c.XViewerSignature)

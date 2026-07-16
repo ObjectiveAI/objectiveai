@@ -27,11 +27,22 @@ use serde::{Deserialize, Serialize};
 #[schemars(transform = crate::json_schema::ref_wrapper_object)]
 pub enum Laboratory {
     /// A client-resolved laboratory, identified by an opaque `id`.
+    #[schemars(title = "Client")]
     Client(ClientLaboratory),
+    /// An agent-embedded laboratory: the spec rides the marker so the
+    /// CLI conduit can materialize the laboratory on demand.
+    #[schemars(title = "Agent")]
+    Agent(AgentLaboratory),
 }
 
 /// A client-resolved laboratory: a client-side MCP server keyed by an
 /// opaque `id`. Wire shape: `{"type":"client","id":"…"}`.
+///
+/// Laboratory ids are only unique per (machine, state) — the same id
+/// can exist on different laboratory hosts. `machine` + `machine_state`
+/// pin THE laboratory this value means, so downstream routing (the
+/// CLI conduit's `/laboratory` forward) is exact rather than
+/// first-match-by-id. Absent pair ⇒ legacy id-only resolution.
 #[derive(
     Debug,
     Clone,
@@ -48,6 +59,14 @@ pub struct ClientLaboratory {
     pub r#type: ClientLaboratoryType,
     /// The opaque laboratory id.
     pub id: String,
+    /// The machine id of the laboratory host serving this laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine: Option<String>,
+    /// The state (on that machine) the laboratory host serves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub machine_state: Option<String>,
 }
 
 /// Discriminator for [`ClientLaboratory`]. Ser/de's to the static string
@@ -75,4 +94,60 @@ pub enum ClientLaboratoryType {
     // the type's `rename` drive the title, matching its siblings.
     /// Serializes to `"client"`.
     Client,
+}
+
+/// An agent-embedded laboratory: identified by its DERIVED id (the
+/// reserved `oai-agent-` namespace — see
+/// [`agent::laboratories::derived_id`](crate::agent::laboratories::derived_id)),
+/// carrying the source agent's full id and the embedded spec so the
+/// CLI conduit can create the laboratory on the spot when no connected
+/// host serves the id yet. No pinned (machine, state): an agent
+/// laboratory lives wherever the conduit finds — or creates — it.
+/// Wire shape:
+/// `{"type":"agent","id":"…","agent_full_id":"…","laboratory":{…}}`.
+#[derive(
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(rename = "laboratories.AgentLaboratory")]
+pub struct AgentLaboratory {
+    /// Discriminator — always `"agent"`.
+    pub r#type: AgentLaboratoryType,
+    /// The derived laboratory id, under the reserved `oai-agent-`
+    /// prefix.
+    pub id: String,
+    /// The full id of the agent the laboratory derives from.
+    pub agent_full_id: String,
+    /// The embedded laboratory spec (image, env, cwd).
+    pub laboratory: crate::agent::Laboratory,
+}
+
+/// Discriminator for [`AgentLaboratory`]. Ser/de's to the static
+/// string `"agent"`.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "laboratories.AgentLaboratoryType")]
+pub enum AgentLaboratoryType {
+    // NOTE: no variant-level `#[schemars(title = "...")]` — the same
+    // single-variant-unit-enum title-hoisting hazard as
+    // [`ClientLaboratoryType`].
+    /// Serializes to `"agent"`.
+    Agent,
 }

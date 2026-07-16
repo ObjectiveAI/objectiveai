@@ -8,17 +8,20 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 class ResponseDelivered(BaseModel):
     """The queue row reached a live agent (its row flipped to
 inactive — the API stamped its id onto an assistant chunk's
-`request_message_ids`) before the agent's lock freed up."""
+`request_message_ids`). The only resolution for instance and
+tag targets: whether the handler found the agent live or
+spawned it, the message rides the queue and this fires when
+its own row is consumed."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Delivered'})
 
     type_: Literal['delivered'] = Field(..., alias='type')
 
 
 class ResponseId(BaseModel):
-    """The handler execed a detached `agents spawn` child (with the
-agent's lock transferred into it) and the child yielded its
-`Id` first item — the bare `agent_instance_hierarchy` the
-runner just minted or resumed."""
+    """Plain-ref targets only: the handler execed a detached
+`agents spawn` child carrying the message inline and the
+child yielded its `Id` first item — the bare
+`agent_instance_hierarchy` the runner just minted."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Id'})
 
     agent_instance_hierarchy: str

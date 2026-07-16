@@ -5,6 +5,7 @@ import { AgentClaudeAgentSdkAgentSchema } from "./claude_agent_sdk/agent";
 import { AgentCodexSdkAgentSchema } from "./codex_sdk/agent";
 import { AgentMockAgentSchema } from "./mock/agent";
 import { AgentOpenrouterAgentSchema } from "./openrouter/agent";
+import { AgentScriptAgentSchema } from "./script/agent";
 
-export const AgentInlineAgentSchema = z.union([AgentOpenrouterAgentSchema.meta({"title":"agent.openrouter.Agent","variantTitle":"Openrouter"}), AgentClaudeAgentSdkAgentSchema.meta({"title":"agent.claude_agent_sdk.Agent","variantTitle":"ClaudeAgentSdk"}), AgentCodexSdkAgentSchema.meta({"title":"agent.codex_sdk.Agent","variantTitle":"CodexSdk"}), AgentMockAgentSchema.meta({"title":"agent.mock.Agent","variantTitle":"Mock"})]).describe("A validated inline Agent with its computed content-addressed ID.\n\nThis is an untagged enum that dispatches to the per-upstream Agent.").meta({ title: "agent.InlineAgent" });
+export const AgentInlineAgentSchema = z.union([AgentOpenrouterAgentSchema.meta({"title":"agent.openrouter.Agent","variantTitle":"Openrouter"}), AgentClaudeAgentSdkAgentSchema.meta({"title":"agent.claude_agent_sdk.Agent","variantTitle":"ClaudeAgentSdk"}), AgentCodexSdkAgentSchema.meta({"title":"agent.codex_sdk.Agent","variantTitle":"CodexSdk"}), AgentMockAgentSchema.meta({"title":"agent.mock.Agent","variantTitle":"Mock"}), AgentScriptAgentSchema.meta({"title":"agent.script.Agent","variantTitle":"Script"})]).describe("A validated inline Agent with its computed content-addressed ID.\n\nThis is an untagged enum that dispatches to the per-upstream Agent.").meta({ title: "agent.InlineAgent" });
 export type AgentInlineAgent = z.infer<typeof AgentInlineAgentSchema>;

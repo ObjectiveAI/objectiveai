@@ -16,7 +16,8 @@ type CliCommandApiConfigRequest struct {
 	OpenrouterAuthorization *CliCommandApiConfigOpenrouterAuthorizationRequest 
 	GithubAuthorization *CliCommandApiConfigGithubAuthorizationRequest 
 	McpAuthorization *CliCommandApiConfigMcpAuthorizationRequest 
-	McpTimeoutMs *CliCommandApiConfigMcpTimeoutMsRequest 
+	McpCallTimeoutMs *CliCommandApiConfigMcpCallTimeoutMsRequest 
+	McpConnectTimeoutMs *CliCommandApiConfigMcpConnectTimeoutMsRequest 
 	BackoffMaxElapsedTimeMs *CliCommandApiConfigBackoffMaxElapsedTimeMsRequest 
 	UserAgent *CliCommandApiConfigUserAgentRequest 
 	HttpReferer *CliCommandApiConfigHttpRefererRequest 
@@ -50,8 +51,11 @@ func (v CliCommandApiConfigRequest) MarshalJSON() ([]byte, error) {
 	if v.McpAuthorization != nil {
 		return json.Marshal(v.McpAuthorization)
 	}
-	if v.McpTimeoutMs != nil {
-		return json.Marshal(v.McpTimeoutMs)
+	if v.McpCallTimeoutMs != nil {
+		return json.Marshal(v.McpCallTimeoutMs)
+	}
+	if v.McpConnectTimeoutMs != nil {
+		return json.Marshal(v.McpConnectTimeoutMs)
 	}
 	if v.BackoffMaxElapsedTimeMs != nil {
 		return json.Marshal(v.BackoffMaxElapsedTimeMs)
@@ -164,10 +168,21 @@ func (v *CliCommandApiConfigRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandApiConfigMcpTimeoutMsRequest
+		var try CliCommandApiConfigMcpCallTimeoutMsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandApiConfigRequest{}
-			candidate.McpTimeoutMs = &try
+			candidate.McpCallTimeoutMs = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandApiConfigMcpConnectTimeoutMsRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandApiConfigRequest{}
+			candidate.McpConnectTimeoutMs = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -253,7 +268,8 @@ func (v CliCommandApiConfigRequest) Validate() error {
 	if v.OpenrouterAuthorization != nil { count++ }
 	if v.GithubAuthorization != nil { count++ }
 	if v.McpAuthorization != nil { count++ }
-	if v.McpTimeoutMs != nil { count++ }
+	if v.McpCallTimeoutMs != nil { count++ }
+	if v.McpConnectTimeoutMs != nil { count++ }
 	if v.BackoffMaxElapsedTimeMs != nil { count++ }
 	if v.UserAgent != nil { count++ }
 	if v.HttpReferer != nil { count++ }

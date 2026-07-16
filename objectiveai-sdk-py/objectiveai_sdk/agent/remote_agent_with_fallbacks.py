@@ -9,6 +9,7 @@ from objectiveai_sdk.agent.inline_agent import InlineAgent
 from objectiveai_sdk.agent.inline_agent_with_fallbacks import InlineAgentWithFallbacks
 from objectiveai_sdk.agent.mock.agent import Agent as AgentMockAgent
 from objectiveai_sdk.agent.openrouter.agent import Agent as AgentOpenrouterAgent
+from objectiveai_sdk.agent.script.agent import Agent as AgentScriptAgent
 
 
 class RemoteAgentWithFallbacksOpenrouter(AgentOpenrouterAgent):
@@ -31,9 +32,14 @@ class RemoteAgentWithFallbacksMock(AgentMockAgent):
     description: str
 
 
+class RemoteAgentWithFallbacksScript(AgentScriptAgent):
+    fallbacks: Optional[list[InlineAgent]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
+    description: str
+
+
 class RemoteAgentWithFallbacks(RootModel):
     """A validated remote agent with description and optional fallbacks."""
     model_config = ConfigDict(title='agent.RemoteAgentWithFallbacks', json_schema_extra={'_expanded_ref': 'agent.InlineAgentWithFallbacks', '_expanded_ref_props': ['description']})
 
-    root: Union[RemoteAgentWithFallbacksOpenrouter, RemoteAgentWithFallbacksClaudeAgentSdk, RemoteAgentWithFallbacksCodexSdk, RemoteAgentWithFallbacksMock]
+    root: Union[RemoteAgentWithFallbacksOpenrouter, RemoteAgentWithFallbacksClaudeAgentSdk, RemoteAgentWithFallbacksCodexSdk, RemoteAgentWithFallbacksMock, RemoteAgentWithFallbacksScript]
 

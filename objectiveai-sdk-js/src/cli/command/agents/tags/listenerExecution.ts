@@ -6,6 +6,9 @@ import { type CliCommandAgentsTagsApplyResponseSchemaListenerExecution } from ".
 import { type CliCommandAgentsTagsLookupListenerExecution } from "./lookup/listenerExecution";
 import { type CliCommandAgentsTagsLookupRequestSchemaListenerExecution } from "./lookup/request_schema/listenerExecution";
 import { type CliCommandAgentsTagsLookupResponseSchemaListenerExecution } from "./lookup/response_schema/listenerExecution";
+import { type CliCommandAgentsTagsRemoveListenerExecution } from "./remove/listenerExecution";
+import { type CliCommandAgentsTagsRemoveRequestSchemaListenerExecution } from "./remove/request_schema/listenerExecution";
+import { type CliCommandAgentsTagsRemoveResponseSchemaListenerExecution } from "./remove/response_schema/listenerExecution";
 
 /** `/listen` mirror of `agents tags`'s request aggregate: one member per child listener execution. */
 export type CliCommandAgentsTagsListenerExecution =
@@ -14,4 +17,7 @@ export type CliCommandAgentsTagsListenerExecution =
   | CliCommandAgentsTagsLookupResponseSchemaListenerExecution
   | CliCommandAgentsTagsApplyListenerExecution
   | CliCommandAgentsTagsApplyRequestSchemaListenerExecution
-  | CliCommandAgentsTagsApplyResponseSchemaListenerExecution;
+  | CliCommandAgentsTagsApplyResponseSchemaListenerExecution
+  | CliCommandAgentsTagsRemoveListenerExecution
+  | CliCommandAgentsTagsRemoveRequestSchemaListenerExecution
+  | CliCommandAgentsTagsRemoveResponseSchemaListenerExecution;

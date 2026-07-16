@@ -8,7 +8,7 @@ When the viewer starts up, it reads the persisted manifests in `<plugins_dir>/*.
 
 Clicking a plugin tab mounts a sandboxed `<iframe>` pointed at the plugin's UI bundle, served by the host through a custom `plugin://` URI scheme. Each iframe is allow-listed to talk back to the host via a postMessage bridge.
 
-The viewer's data path is JS-native: the main viewer's frontend connects to the CLI daemon directly over native WebSockets (`/listen` and `/execute`); the Rust side holds no daemon stream and only hands the frontend the daemon address + auth signature via the `websocket_config` Tauri command. Plugins never see those credentials — their only channel is the postMessage bridge with the host window. A plugin's iframe receives the responses to requests it runs through the plugin executor, plus every `plugins/run` run targeting it (forwarded from the host's broadcast connection).
+The viewer's data path runs through the Rust side: every daemon stream rides the `daemon_*` Tauri proxy commands over IPC channels (the webview holds no daemon connections, address, or credentials). Plugins never see the daemon at all — TODO(plugins): the `daemon_address`/`daemon_signature` iframe query params are gone, so plugin daemon access is BROKEN until a postMessage bridge (or plugin-scoped proxy commands) lands. A plugin's iframe receives the responses to requests it runs through the plugin executor, plus every `plugins/run` run targeting it (forwarded from the host's broadcast connection).
 
 ## The viewer bundle
 
@@ -45,7 +45,7 @@ Each `inbound` event's `value` is one standard broadcast-envelope frame of a `pl
 
 ## The TypeScript SDK
 
-Plugin UIs use `@objectiveai/sdk`. To run commands, use the `ViewerPluginExecutor` with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. To receive the plugin's own `plugins/run` runs, use the `ViewerPluginListener` — an async-iterable of `{id, request, agentArguments, response}` runs (the `id` is host-minted per run; `response` streams the run's items). Both are plugin-only and throw outside an iframe; in the main viewer, use `WebSocketExecutor`/`WebSocketListener` (the daemon is directly reachable there).
+Plugin UIs use `@objectiveai/sdk`. To run commands, use the `ViewerPluginExecutor` with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. To receive the plugin's own `plugins/run` runs, use the `ViewerPluginListener` — an async-iterable of `{id, request, agentArguments, response}` runs (the `id` is host-minted per run; `response` streams the run's items). Both are plugin-only and throw outside an iframe; in the main viewer, use the viewer-mode SDK surface (`ViewerCommandExecutor` / the listeners’ `connectViewer`) over the Rust proxy.
 
 `ViewerPluginExecutor` detects context by `window.parent !== window` — inside the host viewer's iframe it talks postMessage with the host; anywhere else it throws (there is no host to serve the request). Plugin authors develop against the real host and ship the built `dist/` as `<repo>-viewer.zip`.
 
@@ -57,7 +57,7 @@ plugin iframe                    host React shell                 CLI daemon
 executor.execute(request)
         │ postMessage
         │ {kind:"cli-execute",    resolve iframe identity,   ──►  /execute
-        │  id, request}           run via JS WebSocketExecutor    (native WS)
+        │  id, request}           run via ViewerCommandExecutor  (IPC)
         ▲
         │ postMessage
         │ {kind:"plugin-event",   every response line + the  ◄──  JSONL lines
@@ -68,7 +68,7 @@ executor.execute(request)
 The bridge lives in [`objectiveai-viewer/src/plugin-bridge.ts`](src/plugin-bridge.ts). Its responsibilities:
 
 - Track which iframe corresponds to which plugin coordinates (`registerIframe` / `unregisterIframe`).
-- Carry executions: iframes post `cli-execute` (a typed `cli::command::Request`) messages with a self-minted invocation `id`; the bridge resolves the originating iframe via `MessageEvent.source` (a plugin never claims an identity itself; unknown windows and id-less messages are dropped), runs the request through the host's own JS-native `WebSocketExecutor` — daemon address + signature from the Rust `websocket_config` command, fetched once — and posts every line + the end marker back into that iframe only. Failures surface as one in-band `{"type":"error",…}` line, then the end marker.
+- Carry executions: iframes post `cli-execute` (a typed `cli::command::Request`) messages with a self-minted invocation `id`; the bridge resolves the originating iframe via `MessageEvent.source` (a plugin never claims an identity itself; unknown windows and id-less messages are dropped), runs the request through the host's own `ViewerCommandExecutor` — daemon address + signature from the Rust `daemon_config` command, fetched once — and posts every line + the end marker back into that iframe only. Failures surface as one in-band `{"type":"error",…}` line, then the end marker.
 
 ## `mobile_ready`
 

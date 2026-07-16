@@ -68,6 +68,11 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 18446744073709551615
+    },
+    "upstream_duration_ms": {
+      "description": "Wall-clock milliseconds spent inside each upstream client,\nsummed across turns, fallbacks, and parallel agents.",
+      "$ref": "agent.completions.response.UpstreamDurationMs",
+      "default": {}
     }
   }
 }

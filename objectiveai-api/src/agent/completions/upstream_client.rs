@@ -45,6 +45,11 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         // this connection (e.g. via `list_tools`); the orchestrator no
         // longer pre-resolves tool names or maps for the upstream.
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        // the per-request reverse-attach handle (the WS to the calling
+        // client), when one exists. Script agents run their code on
+        // the client over this channel; every other upstream ignores
+        // it.
+        reverse_attach: Option<std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         // a continuation from a previous agent completion
         // the upstream client can continue conversations from previous state
         // the agent may change
@@ -53,6 +58,13 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         byok: Option<&str>,
         // cost multiplier for usage reporting
         cost_multiplier: rust_decimal::Decimal,
+        // per-1-SECOND rate for this upstream's wall time. The upstream
+        // measures its own create→finish elapsed, stamps it on its
+        // `upstream_duration_ms` field of the terminal usage chunk, and
+        // adds `elapsed_ms × duration_cost ÷ 1000` (exact Decimal math)
+        // to BOTH `cost` and `total_cost` — raw (no cost_multiplier),
+        // BYOK included: duration is infra time, not a provider charge.
+        duration_cost: rust_decimal::Decimal,
         // when false, the model should not be allowed to call tools
         tools_enabled: bool,
         // Composite per-slot agent instance hierarchy
@@ -115,9 +127,11 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         _mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        _reverse_attach: Option<std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,
         _byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
+        _duration_cost: rust_decimal::Decimal,
         _tools_enabled: bool,
         _agent_instance_hierarchy: &str,
         _agent_id: &str,

@@ -30,6 +30,20 @@ OAI_DIR="$REPO_ROOT/.objectiveai"
 LOG_DIR="$REPO_ROOT/.logs/tests"
 mkdir -p "$LOG_DIR"
 
+# The integration crates build in their OWN target dir (the repo's
+# target-* convention — mcp-laboratory/proxy/viewer do the same).
+# Sharing target/ with the concurrently-running unit suite is unsound:
+# the two invocations select different packages, so cargo unifies
+# dependency features differently (e.g. objectiveai-cli-tests' tokio
+# "full" vs the unit graphs), yet workspace-lib units like
+# objectiveai-daemon land on the SAME artifact filename — the suites
+# alternately clobber it and whichever links second dies with E0460
+# ("found possibly newer version of crate ..."). Isolation makes every
+# integration build self-consistent, at the cost of a second debug
+# build tree (junction target-integration to the big drive like
+# target/ if system-disk space matters).
+export CARGO_TARGET_DIR="$REPO_ROOT/target-integration"
+
 # Host nextest (whatever `cargo nextest` resolves to on PATH).
 if ! cargo nextest --version >/dev/null 2>&1; then
   echo "test-integration: host cargo-nextest not found on PATH; install it (cargo install cargo-nextest)" >&2
@@ -86,8 +100,8 @@ fi
 
 # ── Step 4: configure for testing ───────────────────────────────────
 BIN="$(oai_bin)"
-OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-timeout-ms set --value 300000 --global \
-  || { echo "test-integration: 'api config mcp-timeout-ms set' failed" >&2; exit 1; }
+OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-call-timeout-ms set --value 300000 --global \
+  || { echo "test-integration: 'api config mcp-call-timeout-ms set' failed" >&2; exit 1; }
 OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set --value 0 --global \
   || { echo "test-integration: 'api config backoff-max-elapsed-time-ms set' failed" >&2; exit 1; }
 
@@ -157,24 +171,28 @@ for n in sorted(names):
 ' | tr -d '\r'
 )
 
-# Build each crate's test binaries up front, ONE AT A TIME, so the parallel
-# run phase below only executes (not rebuilds concurrently against the
-# shared target dir). Every crate is attempted so one failure doesn't hide
-# the rest.
+# Build every crate's test binaries up front in ONE cargo invocation.
+# One invocation = one feature unification: separate per-crate builds
+# select different package sets, so cargo resolves shared dependencies
+# (rand, windows, tokio, ...) with different features yet writes them to
+# the SAME artifact filenames -- alternating builds clobber each other
+# and the next link dies with E0460/E0462. The run phase below reuses
+# the exact same package selection (filtersets pick which crate's tests
+# execute), so nothing is ever rebuilt against a foreign graph.
 BUILD_LOG_DIR="$REPO_ROOT/.logs/build"
 mkdir -p "$BUILD_LOG_DIR"
-prebuild_failed=0
+PKG_ARGS=()
 for crate in ${CRATES[@]+"${CRATES[@]}"}; do
-  echo "test-integration: build $crate ..."
-  if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" \
-       >"$BUILD_LOG_DIR/${crate}-integration-nextest-${TIMESTAMP}.txt" 2>&1; then
-    echo "test-integration: BUILD FAILED: $crate (see .logs/build/${crate}-integration-nextest-${TIMESTAMP}.txt)" >&2
-    prebuild_failed=1
-  fi
+  PKG_ARGS+=(-p "$crate")
 done
-if [ "$prebuild_failed" -ne 0 ]; then
-  echo "test-integration: one or more test builds failed; aborting" >&2
-  exit 1
+if [ "${#PKG_ARGS[@]}" -gt 0 ]; then
+  echo "test-integration: build ${CRATES[*]} ..."
+  if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" "${PKG_ARGS[@]}" \
+       >"$BUILD_LOG_DIR/integration-nextest-${TIMESTAMP}.txt" 2>&1; then
+    echo "test-integration: BUILD FAILED (see .logs/build/integration-nextest-${TIMESTAMP}.txt)" >&2
+    echo "test-integration: one or more test builds failed; aborting" >&2
+    exit 1
+  fi
 fi
 
 # ── Step 8: run all integration suites in parallel ──────────────────
@@ -192,7 +210,10 @@ launch() {  # launch <name> <command...>
 }
 
 for crate in ${CRATES[@]+"${CRATES[@]}"}; do
-  launch "$crate" cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate"
+  # The SAME package selection as the prebuild (identical feature
+  # unification -- see above); the filterset picks this crate's tests.
+  launch "$crate" cargo nextest run --no-tests=pass --no-fail-fast --manifest-path "$REPO_ROOT/Cargo.toml" \
+    "${PKG_ARGS[@]}" -E "package($crate)"
 done
 
 # SDK importer projects. OBJECTIVEAI_ADDRESS is exported above; each suite's

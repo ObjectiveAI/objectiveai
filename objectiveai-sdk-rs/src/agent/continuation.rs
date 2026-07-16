@@ -19,6 +19,8 @@ pub enum Continuation {
     CodexSdk(super::codex_sdk::Continuation),
     #[schemars(title = "Mock")]
     Mock(super::mock::Continuation),
+    #[schemars(title = "Script")]
+    Script(super::script::Continuation),
 }
 
 impl From<super::openrouter::Continuation> for Continuation {
@@ -45,6 +47,12 @@ impl From<super::mock::Continuation> for Continuation {
     }
 }
 
+impl From<super::script::Continuation> for Continuation {
+    fn from(inner: super::script::Continuation) -> Self {
+        Self::Script(inner)
+    }
+}
+
 impl Continuation {
     /// Full slash-separated lineage of the agent this continuation
     /// belongs to. See per-upstream struct docs for the semantic.
@@ -56,6 +64,7 @@ impl Continuation {
             Self::ClaudeAgentSdk(c) => c.agent_instance_hierarchy.as_str(),
             Self::CodexSdk(c) => c.agent_instance_hierarchy.as_str(),
             Self::Mock(c) => c.agent_instance_hierarchy.as_str(),
+            Self::Script(c) => c.agent_instance_hierarchy.as_str(),
         }
     }
 
@@ -68,6 +77,7 @@ impl Continuation {
             Self::ClaudeAgentSdk(c) => c.agent_instance_hierarchy = id,
             Self::CodexSdk(c) => c.agent_instance_hierarchy = id,
             Self::Mock(c) => c.agent_instance_hierarchy = id,
+            Self::Script(c) => c.agent_instance_hierarchy = id,
         }
     }
 
@@ -78,6 +88,7 @@ impl Continuation {
             Self::ClaudeAgentSdk(_) => super::Upstream::ClaudeAgentSdk,
             Self::CodexSdk(_) => super::Upstream::CodexSdk,
             Self::Mock(_) => super::Upstream::Mock,
+            Self::Script(_) => super::Upstream::Script,
         }
     }
 

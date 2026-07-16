@@ -20,7 +20,10 @@ type CliCommandAgentsMcpToolsCallRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
-	ResponseID string `json:"response_id"`
+	// Objectiveai response id of the live agent to address. `None` ⇒
+	// resolved from the caller's contextual agent arguments
+	// (`OBJECTIVEAI_RESPONSE_ID`); an error if absent there too.
+	ResponseID *string `json:"response_id,omitempty"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
 	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
 	// enforced at parse time. `db query` threads it to postgres
@@ -38,7 +41,7 @@ func (v *CliCommandAgentsMcpToolsCallRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"params", "path_type", "response_id"} {
+	for _, key := range []string{"params", "path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsMcpToolsCallRequest: missing required field %q", key)
 		}

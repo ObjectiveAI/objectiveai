@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
+from objectiveai_sdk.cli.command.agents.instances.list.laboratory_attachment import LaboratoryAttachment
 
 
 class ResponseItem(BaseModel):
@@ -14,6 +15,7 @@ class ResponseItem(BaseModel):
     agent: Optional[InlineAgentBaseWithFallbacksOrRemoteCommitOptional] = Field(None, description='The agent definition recorded for this AIH — from\n`objectiveai.agent_refs`, with the legacy most-recent-request\nfallback (`lookup_session`). Populated by `agents instances\nget`; `agents instances list` leaves it unset.', json_schema_extra={'omitempty': True})
     agent_instance_hierarchy: str = Field(..., description='Full hierarchy of this agent instance.')
     created_at: Optional[str] = Field(None, description='RFC3339 timestamp of the first `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).', json_schema_extra={'omitempty': True})
+    laboratories: Optional[list[LaboratoryAttachment]] = Field(None, description="Currently attached laboratories — the EFFECTIVE set the next\nspawn pass dials: the AIH's own attachments UNION its bound\ntags'. Populated by `agents instances get`; `agents instances\nlist` leaves it unset.", json_schema_extra={'omitempty': True})
     last_active_at: Optional[str] = Field(None, description='RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).', json_schema_extra={'omitempty': True})
     logged: int = Field(..., description='Total `logs.messages` rows for this agent over all time.', ge=0, le=18446744073709551615)
     queued: int = Field(..., description='Active `message_queue` rows targeting this agent — counting\nboth direct-AIH rows and rows whose tag is bound to this AIH.', ge=0, le=18446744073709551615)

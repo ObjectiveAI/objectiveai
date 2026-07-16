@@ -1,0 +1,42 @@
+{
+  "title": "laboratories.RegistryLaboratoryImage",
+  "description": "One registry-hosted laboratory base image, split into its\nreference parts.",
+  "anyOf": [
+    {
+      "title": "Tag",
+      "description": "`registry/name:tag`.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The repository path — e.g. `library/bash`, `myorg/myimage`.",
+          "type": "string"
+        },
+        "registry": {
+          "description": "The image host — e.g. `docker.io`, `ghcr.io`,\n`registry.example.com:5000`, `localhost:5000`. Required and\nvalidated to be unambiguously a registry, so short-name\nresolution never happens.",
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Digest",
+      "description": "`registry/name@digest` — content-addressed, immutable.",
+      "type": "object",
+      "properties": {
+        "digest": {
+          "type": "string"
+        },
+        "name": {
+          "description": "The repository path — e.g. `library/bash`, `myorg/myimage`.",
+          "type": "string"
+        },
+        "registry": {
+          "description": "The image host — e.g. `docker.io`, `ghcr.io`,\n`registry.example.com:5000`, `localhost:5000`. Required and\nvalidated to be unambiguously a registry, so short-name\nresolution never happens.",
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

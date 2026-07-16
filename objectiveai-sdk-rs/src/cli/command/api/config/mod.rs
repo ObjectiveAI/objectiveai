@@ -6,7 +6,8 @@ pub mod get;
 pub mod github_authorization;
 pub mod http_referer;
 pub mod mcp_authorization;
-pub mod mcp_timeout_ms;
+pub mod mcp_call_timeout_ms;
+pub mod mcp_connect_timeout_ms;
 pub mod objectiveai_authorization;
 pub mod openrouter_authorization;
 pub mod user_agent;
@@ -35,9 +36,13 @@ pub enum Command {
         #[command(subcommand)]
         command: mcp_authorization::Command,
     },
-    McpTimeoutMs {
+    McpCallTimeoutMs {
         #[command(subcommand)]
-        command: mcp_timeout_ms::Command,
+        command: mcp_call_timeout_ms::Command,
+    },
+    McpConnectTimeoutMs {
+        #[command(subcommand)]
+        command: mcp_connect_timeout_ms::Command,
     },
     BackoffMaxElapsedTimeMs {
         #[command(subcommand)]
@@ -85,8 +90,10 @@ pub enum Request {
     GithubAuthorization(github_authorization::Request),
     #[schemars(title = "McpAuthorization")]
     McpAuthorization(mcp_authorization::Request),
-    #[schemars(title = "McpTimeoutMs")]
-    McpTimeoutMs(mcp_timeout_ms::Request),
+    #[schemars(title = "McpCallTimeoutMs")]
+    McpCallTimeoutMs(mcp_call_timeout_ms::Request),
+    #[schemars(title = "McpConnectTimeoutMs")]
+    McpConnectTimeoutMs(mcp_connect_timeout_ms::Request),
     #[schemars(title = "BackoffMaxElapsedTimeMs")]
     BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::Request),
     #[schemars(title = "UserAgent")]
@@ -124,8 +131,10 @@ pub enum Response {
     GithubAuthorization(github_authorization::Response),
     #[schemars(title = "McpAuthorization")]
     McpAuthorization(mcp_authorization::Response),
-    #[schemars(title = "McpTimeoutMs")]
-    McpTimeoutMs(mcp_timeout_ms::Response),
+    #[schemars(title = "McpCallTimeoutMs")]
+    McpCallTimeoutMs(mcp_call_timeout_ms::Response),
+    #[schemars(title = "McpConnectTimeoutMs")]
+    McpConnectTimeoutMs(mcp_connect_timeout_ms::Response),
     #[schemars(title = "BackoffMaxElapsedTimeMs")]
     BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::Response),
     #[schemars(title = "UserAgent")]
@@ -152,7 +161,8 @@ impl crate::cli::command::CommandResponse for Response {
             Response::OpenrouterAuthorization(v) => v.into_mcp(),
             Response::GithubAuthorization(v) => v.into_mcp(),
             Response::McpAuthorization(v) => v.into_mcp(),
-            Response::McpTimeoutMs(v) => v.into_mcp(),
+            Response::McpCallTimeoutMs(v) => v.into_mcp(),
+            Response::McpConnectTimeoutMs(v) => v.into_mcp(),
             Response::BackoffMaxElapsedTimeMs(v) => v.into_mcp(),
             Response::UserAgent(v) => v.into_mcp(),
             Response::HttpReferer(v) => v.into_mcp(),
@@ -184,8 +194,10 @@ impl TryFrom<Command> for Request {
                 Ok(Request::GithubAuthorization(github_authorization::Request::try_from(command)?)),
             Command::McpAuthorization { command } =>
                 Ok(Request::McpAuthorization(mcp_authorization::Request::try_from(command)?)),
-            Command::McpTimeoutMs { command } =>
-                Ok(Request::McpTimeoutMs(mcp_timeout_ms::Request::try_from(command)?)),
+            Command::McpCallTimeoutMs { command } =>
+                Ok(Request::McpCallTimeoutMs(mcp_call_timeout_ms::Request::try_from(command)?)),
+            Command::McpConnectTimeoutMs { command } =>
+                Ok(Request::McpConnectTimeoutMs(mcp_connect_timeout_ms::Request::try_from(command)?)),
             Command::BackoffMaxElapsedTimeMs { command } =>
                 Ok(Request::BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::Request::try_from(command)?)),
             Command::UserAgent { command } =>
@@ -213,7 +225,8 @@ impl crate::cli::command::CommandRequest for Request {
             Request::OpenrouterAuthorization(inner) => inner.request_base(),
             Request::GithubAuthorization(inner) => inner.request_base(),
             Request::McpAuthorization(inner) => inner.request_base(),
-            Request::McpTimeoutMs(inner) => inner.request_base(),
+            Request::McpCallTimeoutMs(inner) => inner.request_base(),
+            Request::McpConnectTimeoutMs(inner) => inner.request_base(),
             Request::BackoffMaxElapsedTimeMs(inner) => inner.request_base(),
             Request::UserAgent(inner) => inner.request_base(),
             Request::HttpReferer(inner) => inner.request_base(),
@@ -233,7 +246,8 @@ impl crate::cli::command::CommandRequest for Request {
             Request::OpenrouterAuthorization(inner) => inner.request_base_mut(),
             Request::GithubAuthorization(inner) => inner.request_base_mut(),
             Request::McpAuthorization(inner) => inner.request_base_mut(),
-            Request::McpTimeoutMs(inner) => inner.request_base_mut(),
+            Request::McpCallTimeoutMs(inner) => inner.request_base_mut(),
+            Request::McpConnectTimeoutMs(inner) => inner.request_base_mut(),
             Request::BackoffMaxElapsedTimeMs(inner) => inner.request_base_mut(),
             Request::UserAgent(inner) => inner.request_base_mut(),
             Request::HttpReferer(inner) => inner.request_base_mut(),
@@ -295,9 +309,13 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let inner = mcp_authorization::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::McpAuthorization)))
             }
-            Request::McpTimeoutMs(req) => {
-                let inner = mcp_timeout_ms::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::McpTimeoutMs)))
+            Request::McpCallTimeoutMs(req) => {
+                let inner = mcp_call_timeout_ms::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(Response::McpCallTimeoutMs)))
+            }
+            Request::McpConnectTimeoutMs(req) => {
+                let inner = mcp_connect_timeout_ms::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(Response::McpConnectTimeoutMs)))
             }
             Request::BackoffMaxElapsedTimeMs(req) => {
                 let inner = backoff_max_elapsed_time_ms::execute(executor, req, agent_arguments).await?;
@@ -372,8 +390,12 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 let inner = mcp_authorization::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
-            Request::McpTimeoutMs(req) => {
-                let inner = mcp_timeout_ms::execute_transform(executor, req, transform, agent_arguments).await?;
+            Request::McpCallTimeoutMs(req) => {
+                let inner = mcp_call_timeout_ms::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::McpConnectTimeoutMs(req) => {
+                let inner = mcp_connect_timeout_ms::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::BackoffMaxElapsedTimeMs(req) => {
@@ -405,7 +427,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::websocket_listener`].
+/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub enum ListenerExecution {
     Get(get::ListenerExecution),
@@ -416,7 +438,8 @@ pub enum ListenerExecution {
     OpenrouterAuthorization(openrouter_authorization::ListenerExecution),
     GithubAuthorization(github_authorization::ListenerExecution),
     McpAuthorization(mcp_authorization::ListenerExecution),
-    McpTimeoutMs(mcp_timeout_ms::ListenerExecution),
+    McpCallTimeoutMs(mcp_call_timeout_ms::ListenerExecution),
+    McpConnectTimeoutMs(mcp_connect_timeout_ms::ListenerExecution),
     BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::ListenerExecution),
     UserAgent(user_agent::ListenerExecution),
     HttpReferer(http_referer::ListenerExecution),

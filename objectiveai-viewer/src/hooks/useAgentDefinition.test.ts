@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 
 /**
  * Tests for useAgentDefinition: the one-off `agents instances get`
- * read of the recorded agent definition (websocket executor + SDK
+ * read of the recorded agent definition (SSE executor + SDK
  * execute mocked). No live half — definitions only change on
  * respawn-by-spec.
  */
@@ -29,8 +29,8 @@ const harness = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../lib/websocket-executor", () => ({
-  websocketExecutor: async () => {
+vi.mock("../lib/executor", () => ({
+  daemonExecutor: async () => {
     if (harness.failConnect) throw new Error("daemon unavailable");
     return {
       execute(request: unknown) {

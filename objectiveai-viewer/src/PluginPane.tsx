@@ -1,30 +1,21 @@
-import { useEffect, useRef, type ReactElement } from "react";
+import { type ReactElement } from "react";
 import cn from "classnames";
 import type { ViewerPluginInfo } from "./App";
-import { registerIframe, unregisterIframe } from "./plugin-bridge";
+
+// TODO(plugins): plugin iframes lost their daemon access when the
+// daemon_address/daemon_signature query params were removed — the
+// webview no longer holds daemon coordinates (every daemon stream
+// rides the Rust proxy's Tauri commands, which a sandboxed iframe
+// cannot invoke). Plugins need a postMessage bridge to the host
+// window or plugin-scoped proxy commands.
 
 interface PluginPaneProps {
   info: ViewerPluginInfo;
 }
 
-export function PluginPane({ info }: PluginPaneProps): ReactElement {
-  const ref = useRef<HTMLIFrameElement | null>(null);
-
-  useEffect(() => {
-    const iframe = ref.current;
-    if (!iframe) return;
-    const coords = {
-      owner: info.owner,
-      name: info.name,
-      version: info.version,
-    };
-    registerIframe(coords, iframe, info.iframe_src);
-    return () => unregisterIframe(coords);
-  }, [info.owner, info.name, info.version, info.iframe_src]);
-
+export function PluginPane({ info }: PluginPaneProps): ReactElement | null {
   return (
     <iframe
-      ref={ref}
       title={info.name}
       src={info.iframe_src}
       sandbox="allow-scripts allow-forms"

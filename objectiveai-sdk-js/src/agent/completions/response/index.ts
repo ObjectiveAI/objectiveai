@@ -5,3 +5,4 @@ export * from "./promptTokensDetailsMerged";
 export * from "./logprobsMerged";
 export * from "./usageMerged";
 export * from "./upstreamUsageMerged";
+export * from "./upstreamDurationMsMerged";

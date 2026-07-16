@@ -224,6 +224,7 @@ stream_push_test!(
                 cost: rust_decimal::Decimal::new(5, 3),
                 cost_details: None,
                 total_cost: rust_decimal::Decimal::new(5, 3),
+                upstream_duration_ms: Default::default(),
             }),
         },
     ],
@@ -245,6 +246,7 @@ stream_push_test!(
             cost: rust_decimal::Decimal::new(5, 3),
             cost_details: None,
             total_cost: rust_decimal::Decimal::new(5, 3),
+            upstream_duration_ms: Default::default(),
         }),
     }
 );

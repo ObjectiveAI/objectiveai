@@ -1,0 +1,8 @@
+{
+  "title": "agent.script.OutputMode",
+  "description": "The script is instructed via the prompt to output a specific key.\n\nThis is the default and most widely supported mode.",
+  "type": "string",
+  "enum": [
+    "instruction"
+  ]
+}

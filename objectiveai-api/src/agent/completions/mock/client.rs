@@ -156,9 +156,13 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
+        _reverse_attach: Option<std::sync::Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
+        // Mock stamps no upstream duration (deterministic snapshots), so
+        // this rate is unused — accepted to satisfy the trait.
+        _duration_cost: rust_decimal::Decimal,
         tools_enabled: bool,
         agent_instance_hierarchy: &str,
         agent_id_arg: &str,
@@ -454,6 +458,9 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                 cost: rust_decimal::Decimal::ZERO,
                 cost_details: None,
                 total_cost: rust_decimal::Decimal::ZERO,
+                // Mock records no upstream duration (keeps snapshots
+                // deterministic); all-`None`.
+                upstream_duration_ms: Default::default(),
                 cost_multiplier,
                 is_byok,
             };

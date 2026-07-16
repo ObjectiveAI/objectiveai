@@ -24,6 +24,18 @@
     {
       "title": "ApplyResponseSchema",
       "$ref": "cli.command.agents.tags.apply.response_schema.Request"
+    },
+    {
+      "title": "Remove",
+      "$ref": "cli.command.agents.tags.remove.Request"
+    },
+    {
+      "title": "RemoveRequestSchema",
+      "$ref": "cli.command.agents.tags.remove.request_schema.Request"
+    },
+    {
+      "title": "RemoveResponseSchema",
+      "$ref": "cli.command.agents.tags.remove.response_schema.Request"
     }
   ]
 }

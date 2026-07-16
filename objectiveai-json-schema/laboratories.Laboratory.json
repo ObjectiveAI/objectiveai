@@ -1,6 +1,18 @@
 {
   "title": "laboratories.Laboratory",
-  "description": "A client-resolved laboratory, identified by an opaque `id`.",
-  "type": "object",
-  "$ref": "laboratories.ClientLaboratory"
+  "description": "A laboratory attached to an agent completion — dialed by the proxy as a\nclient-side MCP upstream across every agent (and fallback).\n\nUntagged: each variant's payload carries its own `type` discriminator\nfield, so the wire shape is exactly that of the inner struct (e.g.\n`{\"type\":\"client\",\"id\":\"…\"}`).",
+  "anyOf": [
+    {
+      "title": "Client",
+      "description": "A client-resolved laboratory, identified by an opaque `id`.",
+      "type": "object",
+      "$ref": "laboratories.ClientLaboratory"
+    },
+    {
+      "title": "Agent",
+      "description": "An agent-embedded laboratory: the spec rides the marker so the\nCLI conduit can materialize the laboratory on demand.",
+      "type": "object",
+      "$ref": "laboratories.AgentLaboratory"
+    }
+  ]
 }

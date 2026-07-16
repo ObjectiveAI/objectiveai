@@ -197,7 +197,29 @@ async fn connect_upstream(
     // a parse of the URL path. Everything else falls back to URL-derived
     // kinds (objectiveai / plugin) or plain HTTP.
     let ws_kind = match &laboratory {
-        Some(Laboratory::Client(c)) => Some(McpKind::Laboratory { id: c.id.clone() }),
+        Some(Laboratory::Client(c)) => Some(McpKind::Laboratory {
+            id: c.id.clone(),
+            // Laboratory ids are only unique per (machine, state) —
+            // the marker's pair rides the kind so the CLI conduit
+            // forwards to the exact host.
+            machine: c.machine.clone(),
+            machine_state: c.machine_state.clone(),
+            agent: None,
+        }),
+        // Agent-embedded laboratory: no pinned (machine, state) — the
+        // CLI conduit resolves (or creates) the laboratory from the
+        // seed at Initialize.
+        Some(Laboratory::Agent(a)) => Some(McpKind::Laboratory {
+            id: a.id.clone(),
+            machine: None,
+            machine_state: None,
+            agent: Some(
+                objectiveai_sdk::client_objectiveai_mcp::AgentLaboratorySeed {
+                    agent_full_id: a.agent_full_id.clone(),
+                    laboratory: a.laboratory.clone(),
+                },
+            ),
+        }),
         None => crate::reverse_channel::parse_ws_mcp_kind(url),
     };
     if let Some(mcp_kind) = ws_kind {
@@ -225,6 +247,10 @@ async fn connect_upstream(
             .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-ARGUMENTS"))
             .and_then(|(_, v)| serde_json::from_str(v).ok())
             .unwrap_or_default();
+        // Timeouts come from the per-request proxy config via the SDK
+        // client: the connect timeout bounds the `initialize`, the call
+        // timeout (per-request `X-MCP-CALL-TIMEOUT`; `None` = unbounded)
+        // bounds every later op.
         let upstream = crate::reverse_channel::connect_ws(
             channel,
             url.to_string(),
@@ -232,6 +258,8 @@ async fn connect_upstream(
             args,
             headers,
             laboratory,
+            client.connect_timeout,
+            client.call_timeout,
         )
         .await
         .map_err(|source| BadInit::UpstreamConnectFailed {

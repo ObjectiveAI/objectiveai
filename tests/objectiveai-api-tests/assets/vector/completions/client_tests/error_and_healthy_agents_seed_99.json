@@ -16,7 +16,8 @@
         "prompt_tokens": 0,
         "total_tokens": 0,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": {
@@ -61,6 +62,7 @@
             "total_tokens": 1307,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -72,7 +74,8 @@
         "prompt_tokens": 875,
         "total_tokens": 1307,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -105,6 +108,7 @@
             "total_tokens": 2230,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -116,7 +120,8 @@
         "prompt_tokens": 1464,
         "total_tokens": 2230,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -158,6 +163,7 @@
             "total_tokens": 997,
             "cost": 0.0,
             "total_cost": 0.0,
+            "upstream_duration_ms": {},
             "cost_multiplier": 1.0,
             "is_byok": false
           }
@@ -169,7 +175,8 @@
         "prompt_tokens": 780,
         "total_tokens": 997,
         "cost": 0.0,
-        "total_cost": 0.0
+        "total_cost": 0.0,
+        "upstream_duration_ms": {}
       },
       "upstream": "mock",
       "error": null,
@@ -215,6 +222,7 @@
     "prompt_tokens": 3119,
     "total_tokens": 4534,
     "cost": 0.0,
-    "total_cost": 0.0
+    "total_cost": 0.0,
+    "upstream_duration_ms": {}
   }
 }

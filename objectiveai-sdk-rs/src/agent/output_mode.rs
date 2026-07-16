@@ -84,3 +84,11 @@ impl From<super::mock::OutputMode> for OutputMode {
         }
     }
 }
+
+impl From<super::script::OutputMode> for OutputMode {
+    fn from(mode: super::script::OutputMode) -> Self {
+        match mode {
+            super::script::OutputMode::Instruction => OutputMode::Instruction,
+        }
+    }
+}

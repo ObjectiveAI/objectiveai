@@ -1,0 +1,34 @@
+{
+  "title": "agent.script.OutputMessage",
+  "description": "One message in a script agent's OUTPUT — the conversation shape\nminus the `user` role, since a script speaks only as the assistant\n(or records tool results); it never puts words in the user's mouth.\nThe script's output deserializes as an array of these.",
+  "anyOf": [
+    {
+      "title": "Assistant",
+      "description": "An assistant message.",
+      "type": "object",
+      "$ref": "agent.completions.message.AssistantMessage",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "assistant"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Tool",
+      "description": "A tool message containing the result of a tool call.",
+      "type": "object",
+      "$ref": "agent.completions.message.ToolMessage",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "tool"
+          ]
+        }
+      }
+    }
+  ]
+}

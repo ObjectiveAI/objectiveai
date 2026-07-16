@@ -29,6 +29,9 @@ type AgentCompletionsResponseUsage struct {
 	TotalCost float64 `json:"total_cost" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Sum of completion and prompt tokens.
 	TotalTokens uint64 `json:"total_tokens" validate:"min=0,max=18446744073709551615"`
+	// Wall-clock milliseconds spent inside each upstream client,
+	// summed across turns, fallbacks, and parallel agents.
+	UpstreamDurationMs AgentCompletionsResponseUpstreamDurationMs `json:"upstream_duration_ms" default:"{}"`
 }
 
 func (AgentCompletionsResponseUsage) SchemaTitle() string { return "agent.completions.response.Usage" }
@@ -41,7 +44,7 @@ func (v *AgentCompletionsResponseUsage) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"completion_tokens", "cost", "prompt_tokens", "total_cost", "total_tokens"} {
+	for _, key := range []string{"completion_tokens", "cost", "prompt_tokens", "total_cost", "total_tokens", "upstream_duration_ms"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCompletionsResponseUsage: missing required field %q", key)
 		}

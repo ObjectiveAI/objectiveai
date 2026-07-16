@@ -1,8 +1,34 @@
 {
   "title": "cli.command.laboratories.list.ResponseItem",
-  "description": "One laboratory container, reconstructed from its `objectiveai.laboratory`\nlabel. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.",
+  "description": "One laboratory served by a connected laboratory HOST. There is no\nlocal-vs-remote split — machine identity is the only provenance,\nthe same logic regardless of where the host runs.",
   "type": "object",
   "properties": {
+    "agent_full_id": {
+      "description": "For agent laboratories: the full id of the agent the\nlaboratory derives from. `None` for user-created laboratories.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "created_at": {
+      "description": "Unix seconds when the laboratory container was created, from\npodman's container record. `None` when the host didn't report\nit.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "cwd": {
       "type": "string"
     },
@@ -16,13 +42,42 @@
       "type": "string"
     },
     "image": {
-      "type": "string"
+      "$ref": "laboratories.LaboratoryImage"
+    },
+    "machine": {
+      "description": "The machine whose laboratory host serves this laboratory.",
+      "anyOf": [
+        {
+          "$ref": "machine.MachineIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "mounts": {
       "type": "array",
       "items": {
         "$ref": "cli.command.laboratories.create.Mount"
       }
+    },
+    "running": {
+      "description": "Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running).",
+      "type": "boolean",
+      "default": false
     }
   }
 }

@@ -25,4 +25,6 @@ func (v *AgentCompletionsResponseUsage) Push(other *AgentCompletionsResponseUsag
 	} else if other.CostDetails != nil {
 		v.CostDetails = other.CostDetails
 	}
+
+	v.UpstreamDurationMs.Push(&other.UpstreamDurationMs)
 }

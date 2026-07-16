@@ -1,14 +1,15 @@
 import { Fragment, useState } from "react";
 import cn from "classnames";
-import type { DaemonConnection } from "../lib/daemon";
+import type { ViewerTransport } from "@objectiveai/sdk";
 import {
   useAgentInstance,
   type ConversationBlock,
 } from "../hooks/useAgentInstance";
 import type { AssistantPart, PartContent } from "./conversationContent";
-import { formatAgo } from "../lib/formatAgo";
+import { useAgo } from "../hooks/useAgo";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
+import { JsonBlock } from "./shared/JsonBlock";
 
 /**
  * The per-agent conversation popup: near-fullscreen panel over a dim
@@ -37,13 +38,13 @@ import { Markdown } from "./Markdown";
  * `tool_call_id` inside one [`ToolSection`]. Media renders for real.
  */
 export function ConversationView({
-  connection,
+  transport,
   hierarchy,
 }: {
-  connection: DaemonConnection | null;
+  transport: ViewerTransport | null;
   hierarchy: string;
 }) {
-  const { blocks, live } = useAgentInstance(connection, hierarchy);
+  const { blocks, live } = useAgentInstance(transport, hierarchy);
   return (
     <div
       data-conversation-view
@@ -62,7 +63,7 @@ export function ConversationView({
         "py-3",
         "gap-3",
         "font-mono",
-        "text-[11px]",
+        "text-sm",
         "text-[#c3bfbb]",
       )}
     >
@@ -83,6 +84,9 @@ function KindLabel({
   note?: string;
   at?: string;
 }) {
+  // Live-updating relative date; "" (no `at`) renders nothing and
+  // schedules nothing.
+  const ago = useAgo(at ?? "");
   return (
     <div className={cn("flex", "items-center", "gap-1.5", "self-stretch")}>
       <span
@@ -91,6 +95,7 @@ function KindLabel({
           "py-px",
           "rounded-sm",
           "border",
+          "text-xs",
           "border-copper-mid/70",
           "bg-copper-warm/10",
           "text-copper-bright",
@@ -99,19 +104,21 @@ function KindLabel({
         {children}
       </span>
       {note !== undefined && (
-        <span className={cn("text-info-dim", "truncate")}>{note}</span>
+        <span className={cn("text-xs", "text-info-dim", "truncate")}>
+          {note}
+        </span>
       )}
       {at !== undefined && (
         <span
           data-badge-ago
           className={cn(
             "ml-auto",
-            "text-[9px]",
+            "text-xs",
             "text-info-dim",
             "tabular-nums",
           )}
         >
-          {formatAgo(at)}
+          {ago}
         </span>
       )}
     </div>
@@ -553,16 +560,6 @@ function assistantPartNode(
   }
 }
 
-/** Pretty-print a JSON text body; unparsable input passes through
- * verbatim. */
-function prettyJson(text: string): string {
-  try {
-    return JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    return text;
-  }
-}
-
 /** The normalized media descriptor every inlined content maps to, so
  * one renderer ([`MediaView`]) serves everything. */
 type Media =
@@ -616,18 +613,12 @@ function MediaView({ media }: { media: Media }) {
     case "text":
       if (media.json) {
         return (
-          <pre
-            data-json-part
-            className={cn(
-              "text-[10px]",
-              "text-left",
-              "whitespace-pre-wrap",
-              "break-words",
-              "leading-snug",
-            )}
-          >
-            {prettyJson(media.text)}
-          </pre>
+          <div data-json-part>
+            <JsonBlock
+              value={media.text}
+              className={cn("text-left", "leading-snug")}
+            />
+          </div>
         );
       }
       return <Markdown>{media.text}</Markdown>;

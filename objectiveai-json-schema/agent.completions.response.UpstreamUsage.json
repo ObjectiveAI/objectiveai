@@ -78,6 +78,11 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 18446744073709551615
+    },
+    "upstream_duration_ms": {
+      "description": "Wall-clock milliseconds this upstream spent producing the\nresponse, measured create→finish by the upstream client itself\nand stamped on its own field of the terminal usage chunk.",
+      "$ref": "agent.completions.response.UpstreamDurationMs",
+      "default": {}
     }
   }
 }

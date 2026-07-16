@@ -6,11 +6,13 @@ import { AgentClaudeAgentSdkOutputModeSchema } from "./outputMode";
 import { AgentClaudeAgentSdkUpstreamSchema } from "./upstream";
 import { AgentClientObjectiveaiMcpSchema } from "../clientObjectiveaiMcp";
 import { AgentCompletionsMessageRichContentSchema } from "../completions/message/richContent";
+import { AgentLaboratorySchema } from "../laboratory";
 import { AgentMcpServerSchema } from "../mcpServer";
 
 export const AgentClaudeAgentSdkAgentBaseSchema = z.object({
   client_objectiveai_mcp: AgentClientObjectiveaiMcpSchema.nullable().describe("Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).").meta({ omitempty: true }).optional(),
   effort: AgentClaudeAgentSdkEffortSchema.nullable().describe("The effort level for model output.").meta({ omitempty: true }).optional(),
+  laboratories: z.array(AgentLaboratorySchema).nullable().describe("Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).").meta({ omitempty: true }).optional(),
   mcp_servers: z.array(AgentMcpServerSchema).nullable().describe("MCP servers the agent can connect to.").meta({ omitempty: true }).optional(),
   model: z.string().describe("The upstream language model identifier."),
   output_mode: AgentClaudeAgentSdkOutputModeSchema.describe("The output mode for vector completions. Ignored for agent completions."),

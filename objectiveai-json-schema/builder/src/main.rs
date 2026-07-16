@@ -469,6 +469,20 @@ fn main() {
         normalize(&mut json, false, &title);
         order_keys(&mut json, false);
 
+        // The SDK generators key files AND cross-references by the
+        // top-level title. If a transform replaced it — e.g. a
+        // single-variant enum collapse hoisting a variant-level
+        // `#[schemars(title)]` — every `$ref` to this type dangles in
+        // the generated SDKs. Fail the build loudly instead.
+        let final_title = json
+            .get("title")
+            .and_then(|t| t.as_str())
+            .unwrap_or_default();
+        assert_eq!(
+            final_title, title,
+            "schema title changed during normalization: {title:?} became {final_title:?} — a variant-level #[schemars(title)] on a single-variant enum? Drop it (see ClientLaboratoryType)."
+        );
+
         let filename = format!("{title}.json");
         let path = out_dir.join(&filename);
         let contents = serde_json::to_string_pretty(&json).unwrap();

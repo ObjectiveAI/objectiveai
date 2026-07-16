@@ -5,6 +5,7 @@ mod error;
 mod extra_mcp_server;
 pub mod mock;
 pub mod openrouter;
+pub mod script;
 mod continuation;
 mod proxy;
 mod queue_delegate;

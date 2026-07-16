@@ -680,6 +680,15 @@ func buildStructTags(jsonTag string, propSchema Schema, selfTitle string, allTit
 	if v, ok := cs["maximum"]; ok {
 		validates = append(validates, "max="+formatTagNumber(v))
 	}
+	// Array length bounds: the validator's min=/max= mean LENGTH on a
+	// slice, so minItems/maxItems ride the same tag parts (the
+	// roundtrip picks the JSON Schema keyword back by the Go type).
+	if v, ok := cs["minItems"]; ok {
+		validates = append(validates, "min="+formatTagNumber(v))
+	}
+	if v, ok := cs["maxItems"]; ok {
+		validates = append(validates, "max="+formatTagNumber(v))
+	}
 
 	// Array items / map value constraints via dive (recursive for nested arrays)
 	// Each nesting level adds a "dive" before the final min/max constraints.
@@ -696,20 +705,26 @@ func buildStructTags(jsonTag string, propSchema Schema, selfTitle string, allTit
 			break
 		}
 		diveDepth++
-		if _, hasMin := next["minimum"]; hasMin {
+		_, hasMin := next["minimum"]
+		_, hasMax := next["maximum"]
+		_, hasMinItems := next["minItems"]
+		_, hasMaxItems := next["maxItems"]
+		if hasMin || hasMax || hasMinItems || hasMaxItems {
 			for i := 0; i < diveDepth; i++ {
 				validates = append(validates, "dive")
 			}
-			validates = append(validates, "min="+formatTagNumber(next["minimum"]))
-			if v, ok := next["maximum"]; ok {
-				validates = append(validates, "max="+formatTagNumber(v))
+			if hasMin {
+				validates = append(validates, "min="+formatTagNumber(next["minimum"]))
+			} else if hasMinItems {
+				// Slice length bounds — same tag part, keyword
+				// re-derived from the Go type on roundtrip.
+				validates = append(validates, "min="+formatTagNumber(next["minItems"]))
 			}
-			break
-		} else if _, hasMax := next["maximum"]; hasMax {
-			for i := 0; i < diveDepth; i++ {
-				validates = append(validates, "dive")
+			if hasMax {
+				validates = append(validates, "max="+formatTagNumber(next["maximum"]))
+			} else if hasMaxItems {
+				validates = append(validates, "max="+formatTagNumber(next["maxItems"]))
 			}
-			validates = append(validates, "max="+formatTagNumber(next["maximum"]))
 			break
 		}
 		cur = next

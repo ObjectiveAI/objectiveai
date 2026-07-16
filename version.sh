@@ -218,9 +218,10 @@ set_install_sh_version() {
 CARGO_TOMLS=(
   objectiveai-api/Cargo.toml
   objectiveai-cli/Cargo.toml
-  objectiveai-cli/test-fixtures/hello-plugin/Cargo.toml
+  objectiveai-daemon/Cargo.toml
   objectiveai-db/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
+  objectiveai-laboratory/Cargo.toml
   objectiveai-mcp/Cargo.toml
   objectiveai-mcp-laboratory/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml

@@ -19,4 +19,4 @@ pub mod retrieve;
 pub mod server_request;
 pub mod server_response;
 
-pub use kind::McpKind;
+pub use kind::*;

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.agent.completions.response.completion_tokens_details import CompletionTokensDetails
 from objectiveai_sdk.agent.completions.response.cost_details import CostDetails
 from objectiveai_sdk.agent.completions.response.prompt_tokens_details import PromptTokensDetails
+from objectiveai_sdk.agent.completions.response.upstream_duration_ms import UpstreamDurationMs
 
 
 class Usage(BaseModel):
@@ -23,4 +24,5 @@ assistant responses within a single agent completion."""
     prompt_tokens_details: Optional[PromptTokensDetails] = Field(None, description='Breakdown of prompt tokens (cached, audio, etc.) if available.', json_schema_extra={'omitempty': True})
     total_cost: float = Field(..., description='Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key).', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     total_tokens: int = Field(..., description='Sum of completion and prompt tokens.', ge=0, le=18446744073709551615)
+    upstream_duration_ms: UpstreamDurationMs = Field({}, description='Wall-clock milliseconds spent inside each upstream client,\nsummed across turns, fallbacks, and parallel agents.')
 

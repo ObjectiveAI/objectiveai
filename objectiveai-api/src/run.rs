@@ -79,14 +79,8 @@ struct EnvConfigBuilder {
     github_backoff_max_elapsed_time: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT")]
     agent_completions_first_chunk_timeout: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_OTHER_CHUNK_TIMEOUT")]
-    agent_completions_other_chunk_timeout: Option<u64>,
     #[envconfig(from = "MCP_CONNECT_TIMEOUT")]
     mcp_connect_timeout: Option<u64>,
-    #[envconfig(from = "MCP_CALL_TIMEOUT")]
-    mcp_call_timeout: Option<u64>,
-    #[envconfig(from = "REVERSE_CHANNEL_TIMEOUT")]
-    reverse_channel_timeout: Option<u64>,
     #[envconfig(from = "MCP_ENCRYPTION_KEY")]
     mcp_encryption_key: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_DIR")]
@@ -136,10 +130,7 @@ impl EnvConfigBuilder {
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time,
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time,
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout,
-            agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
             mcp_connect_timeout: self.mcp_connect_timeout,
-            mcp_call_timeout: self.mcp_call_timeout,
-            reverse_channel_timeout: self.reverse_channel_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
             objectiveai_dir: self.objectiveai_dir,
             logs: self.logs.map(|s| parse_bool(&s)),
@@ -177,10 +168,7 @@ pub struct ConfigBuilder {
     pub mcp_backoff_max_elapsed_time: Option<u64>,
     pub github_backoff_max_elapsed_time: Option<u64>,
     pub agent_completions_first_chunk_timeout: Option<u64>,
-    pub agent_completions_other_chunk_timeout: Option<u64>,
     pub mcp_connect_timeout: Option<u64>,
-    pub mcp_call_timeout: Option<u64>,
-    pub reverse_channel_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
     pub objectiveai_dir: Option<String>,
     pub logs: Option<bool>,
@@ -232,10 +220,7 @@ impl ConfigBuilder {
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout.unwrap_or(60000),
-            agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(1_800_000),
-            mcp_call_timeout: self.mcp_call_timeout.unwrap_or(1_800_000),
-            reverse_channel_timeout: self.reverse_channel_timeout.unwrap_or(1_800_000),
             mcp_encryption_key: self.mcp_encryption_key,
             // Layout root (OBJECTIVEAI_DIR). Kept on Config for the
             // paths that live OUTSIDE the state dir — e.g. the
@@ -283,15 +268,7 @@ pub struct Config {
     pub mcp_backoff_max_elapsed_time: u64,
     pub github_backoff_max_elapsed_time: u64,
     pub agent_completions_first_chunk_timeout: u64,
-    pub agent_completions_other_chunk_timeout: u64,
     pub mcp_connect_timeout: u64,
-    pub mcp_call_timeout: u64,
-    /// Budget (ms) for one WS reverse-channel round-trip — how long
-    /// a forwarded MCP server-request or a message-queue read may
-    /// wait for the CLI's reply. Long enough that a healthy but
-    /// heavily loaded CLI answers in time, short enough that a
-    /// wedged WS doesn't stall callers indefinitely.
-    pub reverse_channel_timeout: u64,
     /// Base64-encoded 32-byte key. Forwarded to the spawned proxy as
     /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
     /// per process.
@@ -336,10 +313,7 @@ pub async fn setup(
         mcp_backoff_max_elapsed_time,
         github_backoff_max_elapsed_time,
         agent_completions_first_chunk_timeout,
-        agent_completions_other_chunk_timeout,
         mcp_connect_timeout,
-        mcp_call_timeout,
-        reverse_channel_timeout,
         mcp_encryption_key,
         objectiveai_dir,
         logs,
@@ -349,12 +323,6 @@ pub async fn setup(
         port,
         suppress_output,
     } = config;
-
-    // The WS reverse-channel budget, threaded to its two consumers:
-    // the MCP routes (via router state → McpRequestContext) and the
-    // agent client's message-queue reads (via ReverseAttachConfig →
-    // ReverseAttachHandle).
-    let reverse_channel_timeout = std::time::Duration::from_millis(reverse_channel_timeout);
 
     // HTTP Client
     let http_client = reqwest::Client::new();
@@ -409,14 +377,16 @@ pub async fn setup(
         user_agent.clone(),
         x_title.clone(),
         http_referer.clone(),
-        std::time::Duration::from_millis(mcp_connect_timeout),
+        Some(std::time::Duration::from_millis(mcp_connect_timeout)),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         BACKOFF_RANDOMIZATION_FACTOR,
         BACKOFF_MULTIPLIER,
         std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         std::time::Duration::from_millis(mcp_backoff_max_elapsed_time),
-        std::time::Duration::from_millis(mcp_call_timeout),
+        // NO per-call timeout: the API's own MCP calls wait forever.
+        // (The in-process mcp-proxy keeps its own timeouts.)
+        None,
     ));
 
     // Lazy in-process mcp-proxy. Each per-agent MCP connection goes
@@ -425,9 +395,11 @@ pub async fn setup(
     //
     // Propagate the api's loaded MCP config into the in-process proxy's
     // ConfigBuilder so the proxy honours the same env vars
-    // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_MAX_ELAPSED_TIME`)
-    // the api itself reads — without this the proxy would fall back to its
-    // own crate-internal defaults.
+    // (`MCP_CONNECT_TIMEOUT`, `MCP_BACKOFF_MAX_ELAPSED_TIME`) the api
+    // itself reads. The per-CALL timeout is deliberately NOT projected —
+    // `MCP_CALL_TIMEOUT` no longer exists as an api env; the proxy keeps
+    // its own crate-internal default call timeout (proxy code and
+    // behavior untouched).
     // The proxy is PER-REQUEST (one per `Context`), so a session id
     // minted by one request's proxy must still decode in the NEXT
     // request's proxy for an MCP continuation to resume. That requires
@@ -475,7 +447,11 @@ pub async fn setup(
         objectiveai_mcp_proxy::ConfigBuilder {
             logs_dir: proxy_logs_dir.clone(),
             mcp_connect_timeout: Some(mcp_connect_timeout),
-            mcp_call_timeout: Some(mcp_call_timeout),
+            // Recipe value is irrelevant on this path: `ProxyFactory::boot`
+            // overrides the BUILT config's call timeout per request with
+            // the `X-MCP-CALL-TIMEOUT` header value (absent ⇒ None ⇒ no
+            // call timeout).
+            mcp_call_timeout: None,
             mcp_backoff_max_elapsed_time: Some(mcp_backoff_max_elapsed_time),
             mcp_encryption_key: Some(proxy_encryption_key),
             ..Default::default()
@@ -503,6 +479,7 @@ pub async fn setup(
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
         }),
+        Arc::new(agent::completions::script::Client),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         BACKOFF_RANDOMIZATION_FACTOR,
@@ -510,7 +487,6 @@ pub async fn setup(
         std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         std::time::Duration::from_millis(agent_completions_backoff_max_elapsed_time),
         std::time::Duration::from_millis(agent_completions_first_chunk_timeout),
-        std::time::Duration::from_millis(agent_completions_other_chunk_timeout),
     ));
 
     // Single public listener. There is no loopback MCP listener: each
@@ -519,10 +495,6 @@ pub async fn setup(
     // over loopback.
     let listener =
         tokio::net::TcpListener::bind(format!("{}:{}", address, port)).await?;
-
-    let reverse_attach = streaming_ws::ReverseAttachConfig {
-        reverse_channel_timeout,
-    };
 
     // Vector Completions Client
     let vector_completions_client = Arc::new(vector::completions::Client::new(
@@ -559,11 +531,9 @@ pub async fn setup(
             "/agent/completions",
             axum::routing::any({
                 let agent_completions_client = agent_completions_client.clone();
-                let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let agent_completions_client = agent_completions_client.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
+                        async move {
                         use axum::extract::FromRequest;
                         use axum::extract::FromRequestParts;
                         let (mut parts, body) = req.into_parts();
@@ -578,7 +548,7 @@ pub async fn setup(
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_agent_completion_ws(agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_agent_completion_ws(agent_completions_client, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -593,12 +563,10 @@ pub async fn setup(
             axum::routing::any({
                 let vector_completions_client = vector_completions_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let vector_completions_client = vector_completions_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
+                        async move {
                         use axum::extract::FromRequest;
                         use axum::extract::FromRequestParts;
                         let (mut parts, body) = req.into_parts();
@@ -613,7 +581,7 @@ pub async fn setup(
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_vector_completion_ws(vector_completions_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_vector_completion_ws(vector_completions_client, agent_completions_client, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -628,12 +596,10 @@ pub async fn setup(
             axum::routing::any({
                 let function_executions_client = function_executions_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let function_executions_client = function_executions_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
+                        async move {
                         use axum::extract::FromRequest;
                         use axum::extract::FromRequestParts;
                         let (mut parts, body) = req.into_parts();
@@ -648,7 +614,7 @@ pub async fn setup(
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::execute_function_ws(function_executions_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::execute_function_ws(function_executions_client, agent_completions_client, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -664,12 +630,10 @@ pub async fn setup(
                 let profile_computations_client =
                     profile_computations_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let profile_computations_client = profile_computations_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
+                        async move {
                         use axum::extract::FromRequest;
                         use axum::extract::FromRequestParts;
                         let (mut parts, body) = req.into_parts();
@@ -684,7 +648,7 @@ pub async fn setup(
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_profile_computation_ws(profile_computations_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_profile_computation_ws(profile_computations_client, agent_completions_client, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -775,12 +739,10 @@ pub async fn setup(
             axum::routing::any({
                 let error_client = Arc::new(crate::error::Client::new());
                 let agent_completions_client = agent_completions_client.clone();
-                let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let error_client = error_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
+                        async move {
                         use axum::extract::FromRequest;
                         use axum::extract::FromRequestParts;
                         let (mut parts, body) = req.into_parts();
@@ -795,7 +757,7 @@ pub async fn setup(
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_error_ws(error_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_error_ws(error_client, agent_completions_client, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -866,10 +828,16 @@ pub async fn run(config: Config) -> std::io::Result<()> {
 
 // Create Context
 
+/// The server's per-1-second duration billing rates. ZERO for now —
+/// durations are tracked and reported in usage, but bill nothing until
+/// real rates are configured here.
+const DURATION_COSTS: ctx::DurationCosts = ctx::DurationCosts::ZERO;
+
 pub(crate) fn context(headers: &axum::http::HeaderMap, suppress_output: bool) -> ctx::Context<ctx::DefaultContextExt> {
     ctx::Context::new(
         Arc::new(ctx::DefaultContextExt),
         rust_decimal::Decimal::ONE,
+        DURATION_COSTS,
         suppress_output,
         headers,
     )
@@ -898,6 +866,11 @@ async fn create_agent_completion(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
             > + Send
             + Sync
             + 'static,
@@ -1003,6 +976,11 @@ async fn create_vector_completion(
             > + Send
             + Sync
             + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
+            > + Send
+            + Sync
+            + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt>
             + Send
             + Sync
@@ -1083,6 +1061,11 @@ async fn execute_function(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::script::Agent, objectiveai_sdk::agent::script::Continuation,
             > + Send
             + Sync
             + 'static,

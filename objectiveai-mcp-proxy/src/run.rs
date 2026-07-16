@@ -150,9 +150,13 @@ impl ConfigBuilder {
                 .unwrap_or_else(|| "ObjectiveAI MCP Proxy".to_string()),
             // Defaults match `objectiveai-api/src/run.rs` so the same
             // env vars produce the same effective config when read by
-            // either binary independently.
+            // either binary independently. The call timeout folds to
+            // `Some(default)` for the STANDALONE binary; the API's
+            // per-request boot overrides the built `Config` field
+            // directly (with the `X-MCP-CALL-TIMEOUT` header value, or
+            // `None` = no call timeout) — see `ProxyFactory::boot`.
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(1_800_000),
-            mcp_call_timeout: self.mcp_call_timeout.unwrap_or(1_800_000),
+            mcp_call_timeout: Some(self.mcp_call_timeout.unwrap_or(1_800_000)),
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             mcp_encryption_key: self.mcp_encryption_key,
             suppress_output: self.suppress_output.unwrap_or(false),
@@ -168,7 +172,9 @@ pub struct Config {
     pub http_referer: String,
     pub x_title: String,
     pub mcp_connect_timeout: u64,
-    pub mcp_call_timeout: u64,
+    /// Per-MCP-CALL timeout (ms). `None` ⇒ NO call timeout (wait
+    /// forever). Never applies to connects or laboratory transfers.
+    pub mcp_call_timeout: Option<u64>,
     pub mcp_backoff_max_elapsed_time: u64,
     /// `None` → caller / proxy will generate one ephemeral key.
     pub mcp_encryption_key: Option<[u8; 32]>,
@@ -208,14 +214,14 @@ pub async fn setup(
         user_agent,
         x_title,
         http_referer,
-        Duration::from_millis(mcp_connect_timeout),
+        Some(Duration::from_millis(mcp_connect_timeout)),
         Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
         BACKOFF_RANDOMIZATION_FACTOR,
         BACKOFF_MULTIPLIER,
         Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         Duration::from_millis(mcp_backoff_max_elapsed_time),
-        Duration::from_millis(mcp_call_timeout),
+        mcp_call_timeout.map(Duration::from_millis),
     );
 
     let sessions = Arc::new(SessionManager::new());

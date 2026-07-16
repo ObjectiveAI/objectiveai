@@ -1,8 +1,8 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and agent conversation windows",
-  "windows": ["main", "agent-*"],
+  "description": "Capability for the main window, agent conversation windows, and laboratory filesystem windows",
+  "windows": ["main", "agent-*", "laboratory-*"],
   "permissions": [
     "core:default"
   ]

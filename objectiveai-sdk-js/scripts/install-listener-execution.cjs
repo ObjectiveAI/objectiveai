@@ -459,7 +459,7 @@ function main() {
     addImport("cli/command/agentArguments", "type CliCommandAgentArguments");
     addImport(requestModule.srcRelative, `type ${requestModule.pascal}`);
     if (primaryPayload.streaming || twinPayload) {
-      addImport("cli/websocketListener", "type ResponseItemStream");
+      addImport("cli/broadcastListener", "type ResponseItemStream");
     }
 
     const docPath = scopeSegments.join(" ");

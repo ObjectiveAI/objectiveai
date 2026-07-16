@@ -1,0 +1,35 @@
+{
+  "title": "cli.command.laboratories.attach.Response",
+  "description": "Confirmation — attach succeeded; echoes the laboratory id that was\nattached.",
+  "type": "object",
+  "properties": {
+    "laboratory_id": {
+      "description": "The laboratory id that was attached to the target.",
+      "type": "string"
+    },
+    "machine": {
+      "description": "The machine id of the laboratory host the attachment row\nrecords (the provided pair, or the auto-filled local one).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state the attachment row records, paired with `machine`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}
