@@ -4,6 +4,7 @@ import { tauriInvoke } from "../lib/tauri";
 import {
   agentsTagsApplyExecute,
   agentsTagsRemoveExecute,
+  laboratoriesAttachExecute,
   laboratoriesDetachExecute,
   type ViewerTransport,
 } from "@objectiveai/sdk";
@@ -15,6 +16,7 @@ import { ContextMenu, ContextMenuItem } from "./shared/ContextMenu";
 import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
+import { useLaboratoriesList } from "../hooks/useLaboratoriesList";
 import {
   useAgentInstance,
   type ConversationBlock,
@@ -360,9 +362,10 @@ function AgentNode({
   const hierarchy = status.agent_instance_hierarchy;
   const { agent, lastBlock } = useAgentInstance(transport, hierarchy);
   // Right-click menu: position (viewport coords) + which pane is
-  // showing (the item list, or the add-tag input it swaps to).
+  // showing (the item list, the add-tag input, or the
+  // attach-laboratory picker it swaps to).
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const [addingTag, setAddingTag] = useState(false);
+  const [pane, setPane] = useState<"items" | "tag" | "laboratory">("items");
   const kind = status.active ? "agent-active" : "agent-inactive";
   // A live agent's last-active is implicitly "now" — while active the
   // status row reads `active`; inactive shows the record's timestamp.
@@ -378,7 +381,7 @@ function AgentNode({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        setAddingTag(false);
+        setPane("items");
         setMenu({ x: e.clientX, y: e.clientY });
       }}
     >
@@ -496,7 +499,7 @@ function AgentNode({
       {lastBlock !== null && <LastItemView block={lastBlock} />}
       {menu !== null && (
         <ContextMenu position={menu} onClose={() => setMenu(null)}>
-          {!addingTag ? (
+          {pane === "items" && (
             <>
               <ContextMenuItem
                 label="add tag…"
@@ -504,19 +507,25 @@ function AgentNode({
                 // A root-level hierarchy has no {parent}/{leaf} split
                 // for the apply target — nothing to bind to.
                 disabled={!hierarchy.includes("/")}
-                onSelect={() => setAddingTag(true)}
+                onSelect={() => setPane("tag")}
               />
               <ContextMenuItem
-                label="add laboratory…"
-                dataAttr="data-menu-add-laboratory"
-                // Stub — the attach flow lands in a later chunk.
-                disabled
-                onSelect={() => {}}
+                label="attach laboratory…"
+                dataAttr="data-menu-attach-laboratory"
+                onSelect={() => setPane("laboratory")}
               />
             </>
-          ) : (
+          )}
+          {pane === "tag" && (
             <AddTagInput
               hierarchy={hierarchy}
+              onDone={() => setMenu(null)}
+            />
+          )}
+          {pane === "laboratory" && (
+            <AttachLaboratoryPane
+              hierarchy={hierarchy}
+              transport={transport}
               onDone={() => setMenu(null)}
             />
           )}
@@ -599,6 +608,114 @@ function AddTagInput({
           busy && "opacity-50",
         )}
       />
+    </div>
+  );
+}
+
+/**
+ * The attach-laboratory pane the context menu swaps to: the daemon's
+ * LIVE laboratories list, one row per laboratory (id, dimmed machine
+ * hostname when known). Clicking one runs `laboratories attach`
+ * against this node's instance target — pinned to the laboratory's
+ * exact (machine, state) when reported — with the row showing
+ * [`LoadingDots`] until the command resolves; the attachment row then
+ * appears on the node through its live instance record. A failure
+ * toasts and re-enables the pane.
+ */
+function AttachLaboratoryPane({
+  hierarchy,
+  transport,
+  onDone,
+}: {
+  hierarchy: string;
+  transport: ViewerTransport | null;
+  onDone: () => void;
+}) {
+  const laboratories = useLaboratoriesList(transport);
+  // The (machine, state, id) key of the in-flight attach, if any.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+
+  const attach = (lab: (typeof laboratories)[number], key: string) => {
+    if (busyKey !== null) {
+      return;
+    }
+    setBusyKey(key);
+    void (async () => {
+      try {
+        const executor = await daemonExecutor();
+        const machine = lab.machine?.id ?? null;
+        const result = await laboratoriesAttachExecute(executor, {
+          selector: instanceSelector(hierarchy),
+          laboratory_id: lab.id,
+          // Pin the exact laboratory when its host reported machine
+          // identity — ids are only unique per (machine, state).
+          ...(machine !== null && lab.machine_state != null
+            ? { machine, machine_state: lab.machine_state }
+            : {}),
+        });
+        if ("type" in result && result.type === "error") {
+          throw new Error(
+            typeof result.message === "string"
+              ? result.message
+              : JSON.stringify(result.message),
+          );
+        }
+        onDone();
+      } catch (error) {
+        reportError(`attach laboratory ${lab.id}`, error);
+        setBusyKey(null);
+      }
+    })();
+  };
+
+  return (
+    <div className={cn("flex", "flex-col")}>
+      <span className={cn("px-3", "py-1", "text-info-dim", "select-none")}>
+        attach laboratory
+      </span>
+      {laboratories.length === 0 && (
+        <span className={cn("px-3", "py-1", "text-info-dim/60", "italic")}>
+          no laboratories
+        </span>
+      )}
+      {laboratories.map((lab) => {
+        const key = `${lab.machine?.id ?? ""}\n${lab.machine_state ?? ""}\n${lab.id}`;
+        const busy = busyKey === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            data-menu-laboratory={lab.id}
+            disabled={busyKey !== null}
+            onClick={() => attach(lab, key)}
+            className={cn(
+              "flex",
+              "flex-row",
+              "items-baseline",
+              "gap-2",
+              "w-full",
+              "px-3",
+              "py-1",
+              "text-left",
+              busyKey !== null && !busy
+                ? "text-info-dim/60"
+                : cn(
+                    "cursor-pointer",
+                    "hover:bg-copper-warm/10",
+                    "hover:text-copper-bright",
+                  ),
+            )}
+          >
+            <span className={cn("truncate")}>{lab.id}</span>
+            {lab.machine?.hostname != null && (
+              <span className={cn("text-info-dim", "truncate")}>
+                {lab.machine.hostname}
+              </span>
+            )}
+            {busy && <LoadingDots marker="data-attach-busy" />}
+          </button>
+        );
+      })}
     </div>
   );
 }
