@@ -693,6 +693,24 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::agents::tags::lookup::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Agents(crate::cli::command::agents::ListenerExecution::Tags(crate::cli::command::agents::tags::ListenerExecution::LookupResponseSchema(execution))), feed))
         }
+        "agents/tags/remove" => {
+            let parsed = serde_json::from_str::<crate::cli::command::agents::tags::remove::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::agents::tags::remove::Response>(path_type);
+            let execution = crate::cli::command::agents::tags::remove::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Agents(crate::cli::command::agents::ListenerExecution::Tags(crate::cli::command::agents::tags::ListenerExecution::Remove(execution))), feed))
+        }
+        "agents/tags/remove/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::agents::tags::remove::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::agents::tags::remove::request_schema::Response>(path_type);
+            let execution = crate::cli::command::agents::tags::remove::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Agents(crate::cli::command::agents::ListenerExecution::Tags(crate::cli::command::agents::tags::ListenerExecution::RemoveRequestSchema(execution))), feed))
+        }
+        "agents/tags/remove/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::agents::tags::remove::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::agents::tags::remove::response_schema::Response>(path_type);
+            let execution = crate::cli::command::agents::tags::remove::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Agents(crate::cli::command::agents::ListenerExecution::Tags(crate::cli::command::agents::tags::ListenerExecution::RemoveResponseSchema(execution))), feed))
+        }
         "agents/wait" => {
             let parsed = serde_json::from_str::<crate::cli::command::agents::wait::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::agents::wait::Response>(path_type);

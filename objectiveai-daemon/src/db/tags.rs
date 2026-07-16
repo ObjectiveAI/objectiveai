@@ -357,3 +357,93 @@ pub async fn apply(
     tx.commit().await?;
     Ok(state)
 }
+
+/// What a removed tag was, plus the cleanup that rode the same
+/// transaction. `Absent` = no such tag (the handler maps it to
+/// [`Error::TagNotFound`](crate::error::Error)).
+pub enum Removed {
+    Absent,
+    Bound {
+        agent_instance_hierarchy: String,
+        detached_laboratories: u64,
+    },
+    Grouped {
+        tag_group_deleted: bool,
+        detached_laboratories: u64,
+    },
+}
+
+/// Delete a tag registration by name, whatever its shape, in ONE
+/// transaction with its cleanup:
+///
+/// 1. `DELETE FROM tags … RETURNING` — the row's shape decides the
+///    rest (the BOUND delete's row trigger fires `tags_changed` for
+///    the vacated hierarchy; GROUPED deletes notify nothing, matching
+///    their absence from instance records).
+/// 2. Detach the tag's laboratory attachments (no FK exists;
+///    attachments target existing tags, and orphans would silently
+///    resurrect under a reused name). The attachments row trigger
+///    notifies `laboratory_attachments_changed` per row.
+/// 3. For a GROUPED tag, garbage-collect the now-possibly-empty
+///    `tag_groups` row — with `SELECT … FOR UPDATE` FIRST: a bare
+///    conditional DELETE races a concurrent `apply --agent-tag`
+///    joining the group (the joiner holds only FOR KEY SHARE, so the
+///    remover's NOT EXISTS evaluates against a pre-join snapshot and
+///    the delete would CASCADE the freshly-committed sibling away).
+///    FOR UPDATE conflicts with FOR KEY SHARE, so it blocks until any
+///    in-flight join commits; the conditional DELETE's fresh READ
+///    COMMITTED snapshot then sees the joiner and skips. A join that
+///    starts after the lock instead fails its FK check — an error,
+///    never a dangling reference. Two last-member removers racing can
+///    both skip the GC and leave an orphan group: the same tolerated
+///    outcome the GROUPED→BOUND upgrade path already produces.
+pub async fn remove(pool: &Pool, name: &str) -> Result<Removed, Error> {
+    let mut tx = pool.begin().await?;
+    let Some(row) = sqlx::query(
+        "DELETE FROM objectiveai.tags WHERE name = $1          RETURNING agent_instance_hierarchy, tag_group",
+    )
+    .bind(name)
+    .fetch_optional(&mut *tx)
+    .await?
+    else {
+        return Ok(Removed::Absent);
+    };
+    let hierarchy: Option<String> = row.get("agent_instance_hierarchy");
+    let tag_group: Option<i64> = row.get("tag_group");
+
+    let detached_laboratories =
+        sqlx::query("DELETE FROM objectiveai.laboratory_attachments WHERE tag = $1")
+            .bind(name)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
+
+    let removed = match (hierarchy, tag_group) {
+        (Some(agent_instance_hierarchy), None) => Removed::Bound {
+            agent_instance_hierarchy,
+            detached_laboratories,
+        },
+        (None, Some(group)) => {
+            sqlx::query("SELECT id FROM objectiveai.tag_groups WHERE id = $1 FOR UPDATE")
+                .bind(group)
+                .fetch_optional(&mut *tx)
+                .await?;
+            let tag_group_deleted = sqlx::query(
+                "DELETE FROM objectiveai.tag_groups WHERE id = $1                  AND NOT EXISTS (SELECT 1 FROM objectiveai.tags WHERE tag_group = $1)",
+            )
+            .bind(group)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected()
+                > 0;
+            Removed::Grouped {
+                tag_group_deleted,
+                detached_laboratories,
+            }
+        }
+        // The tags CHECK constraint makes any other shape impossible.
+        _ => unreachable!("tags row is BOUND xor GROUPED by CHECK constraint"),
+    };
+    tx.commit().await?;
+    Ok(removed)
+}

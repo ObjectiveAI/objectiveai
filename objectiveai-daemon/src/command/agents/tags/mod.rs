@@ -10,6 +10,7 @@ use crate::error::Error;
 
 pub mod apply;
 pub mod lookup;
+pub mod remove;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -44,6 +45,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::ApplyResponseSchema(req) => {
             let value = apply::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::ApplyResponseSchema(value)))
+        }
+        Request::Remove(req) => {
+            let value = remove::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Remove(value)))
+        }
+        Request::RemoveRequestSchema(req) => {
+            let value = remove::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::RemoveRequestSchema(value)))
+        }
+        Request::RemoveResponseSchema(req) => {
+            let value = remove::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::RemoveResponseSchema(value)))
         }
     };
     Ok(stream)

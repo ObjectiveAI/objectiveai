@@ -4,6 +4,9 @@
 //!
 //! - `lookup` — look up by `agent_instance_hierarchy` (returns the
 //!   tag, if any) or by `tag` (returns the bound hierarchy, if any).
+//! - `remove` — delete a tag registration by name (BOUND or
+//!   GROUPED), detaching its laboratory attachments and
+//!   garbage-collecting an emptied group.
 //! - `apply` — bind a tag to a target. Three target shapes:
 //!   - `--me`: BOUND immediately to the cli's own
 //!     `Config.agent_instance_hierarchy`.
@@ -20,6 +23,7 @@ use crate::cli::command::CommandRequest;
 
 pub mod apply;
 pub mod lookup;
+pub mod remove;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -28,6 +32,9 @@ pub enum Command {
     /// Bind a tag to a target (`--me`, `--agent-full-id`, or
     /// `--agent-instance`). Replaces any existing binding silently.
     Apply(apply::Command),
+    /// Delete a tag registration by name (whatever its shape),
+    /// detaching its laboratory attachments with it.
+    Remove(remove::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -46,6 +53,12 @@ pub enum Request {
     ApplyRequestSchema(apply::request_schema::Request),
     #[schemars(title = "ApplyResponseSchema")]
     ApplyResponseSchema(apply::response_schema::Request),
+    #[schemars(title = "Remove")]
+    Remove(remove::Request),
+    #[schemars(title = "RemoveRequestSchema")]
+    RemoveRequestSchema(remove::request_schema::Request),
+    #[schemars(title = "RemoveResponseSchema")]
+    RemoveResponseSchema(remove::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -67,6 +80,12 @@ pub enum ResponseItem {
     ApplyRequestSchema(apply::request_schema::Response),
     #[schemars(title = "ApplyResponseSchema")]
     ApplyResponseSchema(apply::response_schema::Response),
+    #[schemars(title = "Remove")]
+    Remove(remove::Response),
+    #[schemars(title = "RemoveRequestSchema")]
+    RemoveRequestSchema(remove::request_schema::Response),
+    #[schemars(title = "RemoveResponseSchema")]
+    RemoveResponseSchema(remove::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -79,6 +98,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Apply(v) => v.into_mcp(),
             ResponseItem::ApplyRequestSchema(v) => v.into_mcp(),
             ResponseItem::ApplyResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Remove(v) => v.into_mcp(),
+            ResponseItem::RemoveRequestSchema(v) => v.into_mcp(),
+            ResponseItem::RemoveResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -105,6 +127,15 @@ impl TryFrom<Command> for Request {
                     Request::ApplyResponseSchema(apply::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::Remove(cmd) => match cmd.schema {
+                None => Ok(Request::Remove(remove::Request::try_from(cmd.args)?)),
+                Some(remove::Schema::RequestSchema(args)) => Ok(
+                    Request::RemoveRequestSchema(remove::request_schema::Request::try_from(args)?),
+                ),
+                Some(remove::Schema::ResponseSchema(args)) => Ok(
+                    Request::RemoveResponseSchema(remove::response_schema::Request::try_from(args)?),
+                ),
+            },
         }
     }
 }
@@ -118,6 +149,9 @@ impl CommandRequest for Request {
             Request::Apply(inner) => inner.request_base(),
             Request::ApplyRequestSchema(inner) => inner.request_base(),
             Request::ApplyResponseSchema(inner) => inner.request_base(),
+            Request::Remove(inner) => inner.request_base(),
+            Request::RemoveRequestSchema(inner) => inner.request_base(),
+            Request::RemoveResponseSchema(inner) => inner.request_base(),
         }
     }
 
@@ -129,6 +163,9 @@ impl CommandRequest for Request {
             Request::Apply(inner) => inner.request_base_mut(),
             Request::ApplyRequestSchema(inner) => inner.request_base_mut(),
             Request::ApplyResponseSchema(inner) => inner.request_base_mut(),
+            Request::Remove(inner) => inner.request_base_mut(),
+            Request::RemoveRequestSchema(inner) => inner.request_base_mut(),
+            Request::RemoveResponseSchema(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -177,6 +214,22 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::ApplyResponseSchema(value),
             )))
         }
+        Request::Remove(req) => {
+            let value = remove::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::Remove(value))))
+        }
+        Request::RemoveRequestSchema(req) => {
+            let value = remove::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::RemoveRequestSchema(value),
+            )))
+        }
+        Request::RemoveResponseSchema(req) => {
+            let value = remove::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::RemoveResponseSchema(value),
+            )))
+        }
     };
     Ok(stream)
 }
@@ -222,6 +275,20 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 apply::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
+        Request::Remove(req) => {
+            let value = remove::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::RemoveRequestSchema(req) => {
+            let value =
+                remove::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::RemoveResponseSchema(req) => {
+            let value =
+                remove::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
     };
     Ok(stream)
 }
@@ -236,4 +303,7 @@ pub enum ListenerExecution {
     Apply(apply::ListenerExecution),
     ApplyRequestSchema(apply::request_schema::ListenerExecution),
     ApplyResponseSchema(apply::response_schema::ListenerExecution),
+    Remove(remove::ListenerExecution),
+    RemoveRequestSchema(remove::request_schema::ListenerExecution),
+    RemoveResponseSchema(remove::response_schema::ListenerExecution),
 }

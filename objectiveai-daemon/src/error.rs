@@ -138,6 +138,10 @@ pub enum Error {
         "cannot apply tag {tag:?} while an agent holding it is active (its tag lock is held by a live process)"
     )]
     TagApplyAgentActive { tag: String },
+    #[error(
+        "cannot remove tag {tag:?} while an agent holding it is active (its tag lock is held by a live process)"
+    )]
+    TagRemoveAgentActive { tag: String },
     #[error("cannot enqueue against an agent ref; enqueue targets an instance or a tag")]
     EnqueueRefTarget,
     #[error("cannot wait on an agent ref; wait targets an instance or a tag")]
