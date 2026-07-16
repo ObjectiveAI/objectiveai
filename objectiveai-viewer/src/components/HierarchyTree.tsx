@@ -1,15 +1,8 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
-import {
-  agentsTagsApplyExecute,
-  agentsTagsRemoveExecute,
-  type ViewerTransport,
-} from "@objectiveai/sdk";
-import { reportError } from "../lib/errors";
-import { daemonExecutor } from "../lib/executor";
+import type { ViewerTransport } from "@objectiveai/sdk";
 import { LoadingDots } from "./LoadingDots";
-import { EditBox, EditBoxRemove } from "./shared/EditBox";
 import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
@@ -376,11 +369,9 @@ function AgentNode({
           "px-2.5",
           "py-1.5",
           "rounded-sm",
-          // Square the bottom IFF an attached box follows (the tags
-          // box or the message box) — the stack's LAST box carries
-          // the bottom rounding.
+          // Square the bottom IFF a message box is attached below —
+          // the message box carries the bottom rounding then.
           "[&:has(+[data-latest-text])]:rounded-b-none",
-          "[&:has(+[data-edit-box])]:rounded-b-none",
           "border",
           "whitespace-nowrap",
           "select-none",
@@ -413,6 +404,13 @@ function AgentNode({
                 {name}
               </span>
             </BadgeRow>
+            {agent.tags.map((tag) => (
+              <BadgeRow key={tag} badge="tag">
+                <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
+                  {tag}
+                </span>
+              </BadgeRow>
+            ))}
             {/* ATTACHED laboratories only — the active set is
                 deliberately not shown here (yet). */}
             {agent.attached_laboratories.map((lab) => (
@@ -449,7 +447,6 @@ function AgentNode({
           </span>
         )}
       </div>
-      {agent !== null && <TagsBox hierarchy={hierarchy} tags={agent.tags} />}
       {lastBlock !== null && <LastItemView block={lastBlock} />}
     </div>
   );
@@ -677,99 +674,6 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
 
 /** The remote variants of the definition union. */
 type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
-
-/**
- * The agent's TAGS as their own attached box ([`EditBox`] — the
- * shared pattern the laboratories box will reuse), chained between
- * the agent box and the latest-message box: one tag per line with a
- * remove `×` (`agents tags remove`), and a typed add input (`agents
- * tags apply --agent-instance` targeting THIS node). The list itself
- * refreshes through the node's live instance record — a bound-tag
- * insert/delete fires the `tags_changed` trigger, so no local state
- * mirrors it here. Nothing renders when there are no tags AND no add
- * affordance.
- *
- * Adding needs the node's hierarchy split into `{parent}/{leaf}`
- * (the apply target's shape); a root-level hierarchy has no parent
- * to name, so the add affordance is hidden there.
- */
-function TagsBox({
-  hierarchy,
-  tags,
-}: {
-  hierarchy: string;
-  tags: string[];
-}) {
-  const slash = hierarchy.lastIndexOf("/");
-  const addTag =
-    slash <= 0
-      ? undefined
-      : async (name: string) => {
-          try {
-            const executor = await daemonExecutor();
-            const result = await agentsTagsApplyExecute(executor, {
-              name,
-              target: {
-                by: "agent_instance",
-                agent_instance: hierarchy.slice(slash + 1),
-                parent_agent_instance_hierarchy: hierarchy.slice(0, slash),
-              },
-            });
-            if ("type" in result && result.type === "error") {
-              throw new Error(
-                typeof result.message === "string"
-                  ? result.message
-                  : JSON.stringify(result.message),
-              );
-            }
-          } catch (error) {
-            reportError(`apply tag to ${hierarchy}`, error);
-          }
-        };
-  const removeTag = async (tag: string) => {
-    try {
-      const executor = await daemonExecutor();
-      const result = await agentsTagsRemoveExecute(executor, { tag });
-      if ("type" in result && result.type === "error") {
-        throw new Error(
-          typeof result.message === "string"
-            ? result.message
-            : JSON.stringify(result.message),
-        );
-      }
-    } catch (error) {
-      reportError(`remove tag ${tag}`, error);
-    }
-  };
-  if (tags.length === 0 && addTag === undefined) {
-    return null;
-  }
-  return (
-    <EditBox label="tags" addPlaceholder="tag name" onAdd={addTag}>
-      {tags.map((tag) => (
-        <div
-          key={tag}
-          className={cn(
-            "flex",
-            "flex-row",
-            "items-center",
-            "justify-between",
-            "gap-2",
-          )}
-        >
-          <span data-tag={tag} className={cn("text-[#c3bfbb]", "truncate")}>
-            {tag}
-          </span>
-          <EditBoxRemove
-            ariaLabel={`Remove tag ${tag}`}
-            dataAttr="data-remove-tag"
-            onRemove={() => removeTag(tag)}
-          />
-        </div>
-      ))}
-    </EditBox>
-  );
-}
 
 /** One attached-laboratory row: the lab id plus a live "ago" for when
  * the attachment was made (`attached_at`, RFC3339). A component per
