@@ -17,10 +17,13 @@
 //! spawn`), and a resident plugin can hold locks under the tree (e.g.
 //! a plugin-local `locks/mcp.lock`). Sweeping such a child killed the
 //! daemon mid-response every time. So the sweep spares the daemon's
-//! whole process tree and SURVIVES; the thin CLI kills the daemon
-//! itself right after this response returns, and the subprocess
-//! reaper takes the leashed children down with it. The reported count
-//! is the OTHERS killed; the CLI adds the daemon back in.
+//! whole process tree and SURVIVES; the thin CLI then reaps that
+//! EXACT tree — the daemon and every descendant, leashed or detached
+//! — right after this response returns cleanly. (Killing only the
+//! daemon pid was a bug: the laboratory HOST is a detached descendant
+//! that survived every kill-all holding the dead daemon's address,
+//! wedging every later create for the full host-connect timeout.) The
+//! reported count is the OTHERS killed; the CLI adds its tree reap in.
 //!
 //! Two sweeps: killing a lock owner can orphan children that only
 //! surface as lock owners once their parent is gone (a hard-killed
