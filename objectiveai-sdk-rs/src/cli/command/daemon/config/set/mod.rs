@@ -1,21 +1,40 @@
-//! `daemon config signature set` — async handler stub.
+//! `daemon config set` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.daemon.config.signature.set.Request")]
+#[schemars(rename = "cli.command.daemon.config.set.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
-    pub value: String,
+    pub value: Value,
+}
+
+/// The whole `daemon` config section as one object — the daemon's
+/// client-facing coordinates are LINKED (a secret and its derived
+/// signature, the address they authorize), so they are set together,
+/// atomically. FULL-REPLACE semantics: this object becomes the
+/// section verbatim; omitted fields are cleared.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.daemon.config.set.Value")]
+pub struct Value {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub address: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub secret: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub signature: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.daemon.config.signature.set.Path")]
+#[schemars(rename = "cli.command.daemon.config.set.Path")]
 pub enum Path {
-    #[serde(rename = "daemon/config/signature/set")]
-    DaemonConfigSignatureSet,
+    #[serde(rename = "daemon/config/set")]
+    DaemonConfigSet,
 }
 
 impl CommandRequest for Request {
@@ -35,7 +54,8 @@ pub type Response = crate::cli::command::Ok;
 pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
-    /// New value.
+    /// The whole section as inline JSON (full replace — omitted
+    /// fields are cleared).
     #[arg(long)]
     pub value: Option<String>,
 }
@@ -60,14 +80,19 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let raw = args.value.ok_or_else(|| {
+            crate::cli::command::FromArgsError::path_parse(
+                "value",
+                "--value is required".to_string(),
+            )
+        })?;
+        let mut de = serde_json::Deserializer::from_str(&raw);
+        let value = serde_path_to_error::deserialize(&mut de)
+            .map_err(|e| crate::cli::command::FromArgsError::json("value", e))?;
         Ok(Self {
-            base: args.base.into(), path_type: Path::DaemonConfigSignatureSet,
-            value: args.value.ok_or_else(|| {
-                crate::cli::command::FromArgsError::path_parse(
-                    "value",
-                    "--value is required".to_string(),
-                )
-            })?,
+            base: args.base.into(),
+            path_type: Path::DaemonConfigSet,
+            value,
         })
     }
 }
@@ -98,7 +123,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     Ok(serde_json::to_value(resp).expect("Response serializes"))
 }
 
-/// One `/listen` broadcast run of `mcp config signature set`: the actual
+/// One `/listen` broadcast run of `daemon config set`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::broadcast_listener`].

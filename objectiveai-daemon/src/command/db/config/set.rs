@@ -1,6 +1,12 @@
-//! `config db address set` — write `db.address` to on-disk config.
+//! `db config set` — FULL-REPLACE the whole `db` config section from
+//! one wire object. The section's values are LINKED (an address, the
+//! user/password that authenticate there, the database they open), so
+//! per-field wire setters were retired: every mutation states one
+//! complete consistent object, and omitted fields are cleared. The
+//! write keeps the per-field setters' kill bracket — the running db
+//! was spawned under the config this replaces.
 
-use objectiveai_sdk::cli::command::db::config::address::set::{Request, Response};
+use objectiveai_sdk::cli::command::db::config::set::{Request, Response};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -13,7 +19,12 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // the same gate-held section.
     crate::command::kill_helpers::kill_db_before_config_change(global).await?;
     let mut config = scoped.filesystem.read_config().await?;
-    config.db().set_address(request.value);
+    config.db = Some(crate::filesystem::config::DbConfig {
+        address: request.value.address,
+        user: request.value.user,
+        password: request.value.password,
+        database: request.value.database,
+    });
     scoped.filesystem.write_config(&config).await?;
     // Sweep again after the write (best-effort): a concurrent rebuild
     // may have respawned the db against the OLD config mid-set.
@@ -22,8 +33,8 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::db::config::address::set as sdk;
-    use objectiveai_sdk::cli::command::db::config::address::set::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::db::config::set as sdk;
+    use objectiveai_sdk::cli::command::db::config::set::request_schema::{Request, Response};
 
     use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
@@ -34,8 +45,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::db::config::address::set as sdk;
-    use objectiveai_sdk::cli::command::db::config::address::set::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::db::config::set as sdk;
+    use objectiveai_sdk::cli::command::db::config::set::response_schema::{Request, Response};
 
     use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;

@@ -12,6 +12,7 @@ pub mod address;
 pub mod get;
 pub mod refresh_secret_signature_pair;
 pub mod secret;
+pub mod set;
 pub mod signature;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<Response, Error>> + Send>>;
@@ -35,6 +36,18 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
         Request::GetResponseSchema(req) => {
             let value = get::response_schema::execute(global, scoped, req).await?;
             once(Ok(Response::GetResponseSchema(value)))
+        }
+        Request::Set(req) => {
+            let value = set::execute(global, scoped, req).await?;
+            once(Ok(Response::Set(value)))
+        }
+        Request::SetRequestSchema(req) => {
+            let value = set::request_schema::execute(global, scoped, req).await?;
+            once(Ok(Response::SetRequestSchema(value)))
+        }
+        Request::SetResponseSchema(req) => {
+            let value = set::response_schema::execute(global, scoped, req).await?;
+            once(Ok(Response::SetResponseSchema(value)))
         }
         Request::Address(req) => {
             let inner = address::execute(global, scoped, req).await?;

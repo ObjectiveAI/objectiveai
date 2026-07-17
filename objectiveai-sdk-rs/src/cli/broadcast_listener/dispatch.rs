@@ -1215,24 +1215,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::daemon::config::address::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Address(crate::cli::command::daemon::config::address::ListenerExecution::GetResponseSchema(execution)))), feed))
         }
-        "daemon/config/address/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::address::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::address::set::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::address::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Address(crate::cli::command::daemon::config::address::ListenerExecution::Set(execution)))), feed))
-        }
-        "daemon/config/address/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::address::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::address::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::address::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Address(crate::cli::command::daemon::config::address::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "daemon/config/address/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::address::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::address::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::address::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Address(crate::cli::command::daemon::config::address::ListenerExecution::SetResponseSchema(execution)))), feed))
-        }
         "daemon/config/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::daemon::config::get::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::daemon::config::get::Response>(path_type);
@@ -1250,6 +1232,24 @@ pub(crate) fn open_run(
             let (response, feed) = unary_feed::<crate::cli::command::daemon::config::get::response_schema::Response>(path_type);
             let execution = crate::cli::command::daemon::config::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::GetResponseSchema(execution))), feed))
+        }
+        "daemon/config/set" => {
+            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::set::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::set::Response>(path_type);
+            let execution = crate::cli::command::daemon::config::set::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Set(execution))), feed))
+        }
+        "daemon/config/set/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::set::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::set::request_schema::Response>(path_type);
+            let execution = crate::cli::command::daemon::config::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::SetRequestSchema(execution))), feed))
+        }
+        "daemon/config/set/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::set::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::set::response_schema::Response>(path_type);
+            let execution = crate::cli::command::daemon::config::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::SetResponseSchema(execution))), feed))
         }
         "daemon/config/refresh_secret_signature_pair" => {
             let parsed = serde_json::from_str::<crate::cli::command::daemon::config::refresh_secret_signature_pair::Request>(request.get()).ok()?;
@@ -1287,24 +1287,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::daemon::config::secret::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Secret(crate::cli::command::daemon::config::secret::ListenerExecution::GetResponseSchema(execution)))), feed))
         }
-        "daemon/config/secret/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::secret::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::secret::set::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::secret::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Secret(crate::cli::command::daemon::config::secret::ListenerExecution::Set(execution)))), feed))
-        }
-        "daemon/config/secret/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::secret::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::secret::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::secret::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Secret(crate::cli::command::daemon::config::secret::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "daemon/config/secret/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::secret::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::secret::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::secret::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Secret(crate::cli::command::daemon::config::secret::ListenerExecution::SetResponseSchema(execution)))), feed))
-        }
         "daemon/config/signature/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::daemon::config::signature::get::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::daemon::config::signature::get::Response>(path_type);
@@ -1322,24 +1304,6 @@ pub(crate) fn open_run(
             let (response, feed) = unary_feed::<crate::cli::command::daemon::config::signature::get::response_schema::Response>(path_type);
             let execution = crate::cli::command::daemon::config::signature::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Signature(crate::cli::command::daemon::config::signature::ListenerExecution::GetResponseSchema(execution)))), feed))
-        }
-        "daemon/config/signature/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::signature::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::signature::set::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::signature::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Signature(crate::cli::command::daemon::config::signature::ListenerExecution::Set(execution)))), feed))
-        }
-        "daemon/config/signature/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::signature::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::signature::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::signature::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Signature(crate::cli::command::daemon::config::signature::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "daemon/config/signature/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::daemon::config::signature::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::daemon::config::signature::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::daemon::config::signature::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Daemon(crate::cli::command::daemon::ListenerExecution::Config(crate::cli::command::daemon::config::ListenerExecution::Signature(crate::cli::command::daemon::config::signature::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
         "daemon/kill" => {
             let parsed = serde_json::from_str::<crate::cli::command::daemon::kill::Request>(request.get()).ok()?;
@@ -1395,24 +1359,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::db::config::address::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Address(crate::cli::command::db::config::address::ListenerExecution::GetResponseSchema(execution)))), feed))
         }
-        "db/config/address/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::address::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::address::set::Response>(path_type);
-            let execution = crate::cli::command::db::config::address::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Address(crate::cli::command::db::config::address::ListenerExecution::Set(execution)))), feed))
-        }
-        "db/config/address/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::address::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::address::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::address::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Address(crate::cli::command::db::config::address::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "db/config/address/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::address::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::address::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::address::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Address(crate::cli::command::db::config::address::ListenerExecution::SetResponseSchema(execution)))), feed))
-        }
         "db/config/database/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::db::config::database::get::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::db::config::database::get::Response>(path_type);
@@ -1430,24 +1376,6 @@ pub(crate) fn open_run(
             let (response, feed) = unary_feed::<crate::cli::command::db::config::database::get::response_schema::Response>(path_type);
             let execution = crate::cli::command::db::config::database::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Database(crate::cli::command::db::config::database::ListenerExecution::GetResponseSchema(execution)))), feed))
-        }
-        "db/config/database/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::database::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::database::set::Response>(path_type);
-            let execution = crate::cli::command::db::config::database::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Database(crate::cli::command::db::config::database::ListenerExecution::Set(execution)))), feed))
-        }
-        "db/config/database/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::database::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::database::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::database::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Database(crate::cli::command::db::config::database::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "db/config/database/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::database::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::database::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::database::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Database(crate::cli::command::db::config::database::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
         "db/config/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::db::config::get::Request>(request.get()).ok()?;
@@ -1467,6 +1395,24 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::db::config::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::GetResponseSchema(execution))), feed))
         }
+        "db/config/set" => {
+            let parsed = serde_json::from_str::<crate::cli::command::db::config::set::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::db::config::set::Response>(path_type);
+            let execution = crate::cli::command::db::config::set::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Set(execution))), feed))
+        }
+        "db/config/set/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::db::config::set::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::db::config::set::request_schema::Response>(path_type);
+            let execution = crate::cli::command::db::config::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::SetRequestSchema(execution))), feed))
+        }
+        "db/config/set/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::db::config::set::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::db::config::set::response_schema::Response>(path_type);
+            let execution = crate::cli::command::db::config::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::SetResponseSchema(execution))), feed))
+        }
         "db/config/password/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::db::config::password::get::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::db::config::password::get::Response>(path_type);
@@ -1485,24 +1431,6 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::db::config::password::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Password(crate::cli::command::db::config::password::ListenerExecution::GetResponseSchema(execution)))), feed))
         }
-        "db/config/password/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::password::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::password::set::Response>(path_type);
-            let execution = crate::cli::command::db::config::password::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Password(crate::cli::command::db::config::password::ListenerExecution::Set(execution)))), feed))
-        }
-        "db/config/password/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::password::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::password::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::password::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Password(crate::cli::command::db::config::password::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "db/config/password/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::password::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::password::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::password::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::Password(crate::cli::command::db::config::password::ListenerExecution::SetResponseSchema(execution)))), feed))
-        }
         "db/config/user/get" => {
             let parsed = serde_json::from_str::<crate::cli::command::db::config::user::get::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::db::config::user::get::Response>(path_type);
@@ -1520,24 +1448,6 @@ pub(crate) fn open_run(
             let (response, feed) = unary_feed::<crate::cli::command::db::config::user::get::response_schema::Response>(path_type);
             let execution = crate::cli::command::db::config::user::get::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::User(crate::cli::command::db::config::user::ListenerExecution::GetResponseSchema(execution)))), feed))
-        }
-        "db/config/user/set" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::user::set::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::user::set::Response>(path_type);
-            let execution = crate::cli::command::db::config::user::set::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::User(crate::cli::command::db::config::user::ListenerExecution::Set(execution)))), feed))
-        }
-        "db/config/user/set/request_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::user::set::request_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::user::set::request_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::user::set::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::User(crate::cli::command::db::config::user::ListenerExecution::SetRequestSchema(execution)))), feed))
-        }
-        "db/config/user/set/response_schema" => {
-            let parsed = serde_json::from_str::<crate::cli::command::db::config::user::set::response_schema::Request>(request.get()).ok()?;
-            let (response, feed) = unary_feed::<crate::cli::command::db::config::user::set::response_schema::Response>(path_type);
-            let execution = crate::cli::command::db::config::user::set::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Db(crate::cli::command::db::ListenerExecution::Config(crate::cli::command::db::config::ListenerExecution::User(crate::cli::command::db::config::user::ListenerExecution::SetResponseSchema(execution)))), feed))
         }
         "db/query" => {
             let parsed = serde_json::from_str::<crate::cli::command::db::query::Request>(request.get()).ok()?;
