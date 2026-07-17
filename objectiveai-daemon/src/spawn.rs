@@ -134,11 +134,11 @@ pub async fn spawn_until_lock_published(
 }
 
 /// Spawn one of the daemon's persistent servers (`db` / `api` / `mcp`
-/// / `viewer` / `laboratories`) as an OS-LEASHED child and wait for
-/// its stdout readiness handshake
-/// ([`objectiveai_sdk::process::ServerReady`]). Returns the announced
-/// address (`None` for listener-less servers — viewer, laboratory
-/// host).
+/// / `viewer`) as an OS-LEASHED child and wait for its stdout
+/// readiness handshake ([`objectiveai_sdk::process::ServerReady`]).
+/// Returns the announced address (`None` for listener-less servers —
+/// the viewer). The laboratory host uses
+/// [`spawn_leashed_until_ready_with_stdio`] instead.
 ///
 /// This replaced the lockfile-readiness spawn: the daemon is the sole
 /// spawner and OWNS the server's lifetime — the leash
@@ -152,7 +152,8 @@ pub async fn spawn_until_lock_published(
 /// Flow, under the key's spawn gate:
 /// 1. A LIVE cached child ⇒ return its cached address (idempotent).
 ///    A dead one is dropped and respawned.
-/// 2. Spawn leashed: null stdin, piped stdout/stderr (the pipes ride
+/// 2. Spawn leashed: null stdin (piped in the stdio variant), piped
+///    stdout/stderr (the pipes ride
 ///    [`crate::child_io::spawn_pipe_reader`] — reader tasks own them,
 ///    so there is no partial-line or cancel-safety hazard), Windows
 ///    `CREATE_NO_WINDOW` only — leashed children stay
@@ -163,20 +164,54 @@ pub async fn spawn_until_lock_published(
 ///    the child's exit — an exit first drains the pipes briefly and
 ///    errors with the captured output.
 /// 4. Park the child (+ address) on the `GlobalContext` and hand the SAME
-///    pipe receiver to a persistent drain task for the child's life,
-///    so later server writes never block the pipe or EPIPE-kill
-///    anyone.
+///    pipe receiver to a persistent drain task (the ack router, in
+///    the stdio variant) for the child's life, so later server writes
+///    never block the pipe or EPIPE-kill anyone.
 pub async fn spawn_leashed_until_ready(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
+    spawn_leashed_inner(global, key, exe, configure, false)
+        .await
+        .map(|(address, _freshly_spawned)| address)
+}
+
+/// [`spawn_leashed_until_ready`] for the laboratory host: stdin is
+/// PIPED (the host's stdin dial-list channel) and, after the ready
+/// line, the pipe receiver goes to an ack ROUTER task (stdout lines
+/// parsing as [`objectiveai_sdk::laboratories::daemon::HostStdioAck`]
+/// are forwarded to the [`crate::context::LabHostStdio`] parked on the
+/// resident entry; everything else is discarded as before). Also
+/// returns whether THIS call spawned the child — the caller seeds the
+/// dial list over stdio only then (a reused live child already has
+/// its list; config changes reach it through the config handlers).
+pub async fn spawn_leashed_until_ready_with_stdio(
+    global: &crate::context::GlobalContext,
+    key: &str,
+    exe: &Path,
+    configure: impl FnOnce(&mut Command),
+) -> Result<(Option<String>, bool), crate::error::Error> {
+    spawn_leashed_inner(global, key, exe, configure, true).await
+}
+
+/// The shared core of the two spawn entry points; `stdio` selects the
+/// laboratory host's piped-stdin + ack-router mode. Returns the ready
+/// address and whether a child was actually spawned (`false` = a live
+/// resident child was reused).
+async fn spawn_leashed_inner(
+    global: &crate::context::GlobalContext,
+    key: &str,
+    exe: &Path,
+    configure: impl FnOnce(&mut Command),
+    stdio: bool,
+) -> Result<(Option<String>, bool), crate::error::Error> {
     let gate = global.spawn_gate(key);
     let _guard = gate.lock().await;
 
     if let Some(address) = global.resident_child_address(key) {
-        return Ok(address);
+        return Ok((address, false));
     }
 
     let name = exe
@@ -185,9 +220,13 @@ pub async fn spawn_leashed_until_ready(
         .unwrap_or_else(|| exe.display().to_string());
 
     let mut cmd = Command::new(exe);
-    cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
+    cmd.stdin(if stdio {
+        std::process::Stdio::piped()
+    } else {
+        std::process::Stdio::null()
+    })
+    .stdout(std::process::Stdio::piped())
+    .stderr(std::process::Stdio::piped());
     #[cfg(windows)]
     {
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -251,16 +290,46 @@ pub async fn spawn_leashed_until_ready(
         }
     };
 
-    // Persistent drain: the child's std handles stay live for its
-    // whole life — later writes (db's supervisor notices, api's cost
-    // lines) are consumed and DISCARDED instead of blocking the pipe
-    // or EPIPE-killing the server. Anything observable goes through
-    // the server's published channel or the DB, per the standing
-    // convention.
-    tokio::spawn(async move { while events.recv().await.is_some() {} });
+    let stdio_handle = if stdio {
+        let stdin = child.stdin.take().expect("stdin was piped");
+        // Ack ROUTER, replacing the discard drain: stdout lines that
+        // parse as dial-list acks are forwarded to the LabHostStdio
+        // parked below; everything else (stderr, stray output) is
+        // consumed and discarded exactly as before, so the pipes stay
+        // drained for the child's life.
+        let (ack_tx, ack_rx) = tokio::sync::mpsc::unbounded_channel();
+        tokio::spawn(async move {
+            while let Some(event) = events.recv().await {
+                if let crate::child_io::PipeEvent::Stdout(line) = event {
+                    if let Some(ack) =
+                        objectiveai_sdk::laboratories::daemon::parse_host_stdio_ack(&line)
+                    {
+                        if ack_tx.send(ack).is_err() {
+                            // LabHostStdio dropped (child retired) —
+                            // degrade to a plain drain.
+                            break;
+                        }
+                    }
+                }
+            }
+            while events.recv().await.is_some() {}
+        });
+        Some(std::sync::Arc::new(crate::context::LabHostStdio::new(
+            stdin, ack_rx,
+        )))
+    } else {
+        // Persistent drain: the child's std handles stay live for its
+        // whole life — later writes (db's supervisor notices, api's
+        // cost lines) are consumed and DISCARDED instead of blocking
+        // the pipe or EPIPE-killing the server. Anything observable
+        // goes through the server's published channel or the DB, per
+        // the standing convention.
+        tokio::spawn(async move { while events.recv().await.is_some() {} });
+        None
+    };
 
-    global.hold_resident_child(key, child, address.clone());
-    Ok(address)
+    global.hold_resident_child(key, child, address.clone(), stdio_handle);
+    Ok((address, true))
 }
 
 /// Basename-or-path display name for spawn errors.

@@ -1,8 +1,11 @@
 //! One daemon channel: dial `<daemon>/laboratory`, attach, then serve
 //! [`ChannelRequest`]s until the socket drops — forever, with a 1s
-//! reconnect pause, so a daemon restart just re-registers us. The host
-//! runs one `run` task per configured daemon address, all sharing one
-//! [`HostServer`].
+//! reconnect pause, so a daemon restart just re-registers us — or
+//! until the `cancel` watch fires (the stdin dial-list removed this
+//! address), which tears down through the SAME detach path as a
+//! natural disconnect and then ends the task instead of reconnecting.
+//! The host runs one `run` task per stdin-added daemon address, all
+//! sharing one [`HostServer`].
 //!
 //! Wire order is load-bearing: the FIRST text frame is the
 //! `HostIdentify` (who this HOST is — state, machine identity, and its
@@ -61,6 +64,7 @@ pub async fn run(
     signature: Option<String>,
     host: Arc<HostServer>,
     suppress_output: bool,
+    mut cancel: tokio::sync::watch::Receiver<bool>,
 ) {
     // The daemon publishes an `http://` address — its command channel,
     // broadcast, and SSE watcher routes are all plain HTTP. `/laboratory`
@@ -73,7 +77,16 @@ pub async fn run(
     let auth_frame = serde_json::json!({ "signature": signature }).to_string();
 
     loop {
-        match tokio_tungstenite::connect_async(&url).await {
+        // Cooperative cancel (a stdin `remove_address`): checked at
+        // every await point so a removed address's task ends instead
+        // of reconnecting — and, when connected, tears down through
+        // the SAME detach path a natural disconnect takes, so no
+        // channel registration ever leaks.
+        let connect = tokio::select! {
+            _ = cancel.changed() => return,
+            connect = tokio_tungstenite::connect_async(&url) => connect,
+        };
+        match connect {
             Ok((ws, _)) => {
                 if !suppress_output {
                     eprintln!("connected: {url}");
@@ -136,7 +149,18 @@ pub async fn run(
                         }
                     }
                 });
-                while let Some(frame) = stream.next().await {
+                let mut cancelled = false;
+                loop {
+                    let frame = tokio::select! {
+                        _ = cancel.changed() => {
+                            cancelled = true;
+                            break;
+                        }
+                        frame = stream.next() => match frame {
+                            Some(frame) => frame,
+                            None => break,
+                        },
+                    };
                     let text = match frame {
                         Ok(Message::Text(text)) => text,
                         Ok(Message::Close(_)) | Err(_) => break,
@@ -163,6 +187,10 @@ pub async fn run(
                 host.detach_channel(channel_id);
                 drop(reply_tx);
                 let _ = writer.await;
+                if cancelled {
+                    // Removed from the dial list — done, no retry.
+                    return;
+                }
                 if !suppress_output {
                     eprintln!("disconnected: {url}; retrying");
                 }
@@ -173,6 +201,9 @@ pub async fn run(
                 }
             }
         }
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::select! {
+            _ = cancel.changed() => return,
+            _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {}
+        }
     }
 }

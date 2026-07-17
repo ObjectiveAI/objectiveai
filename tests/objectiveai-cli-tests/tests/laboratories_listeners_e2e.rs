@@ -394,6 +394,77 @@ async fn laboratories_cross_daemon_propagation() {
         .await;
 }
 
+/// `laboratories config addresses add` reaches a LIVE host: the host
+/// spawns FIRST (dialing only its local daemon A), then daemon B's
+/// address is added — the daemon forwards the change over the host's
+/// stdio dial-list channel, the host dials B and announces its full
+/// laboratory set on connect, and the existing lab appears on daemon
+/// B's `/laboratories/list` stream WITHOUT any respawn.
+#[tokio::test(flavor = "multi_thread")]
+async fn addresses_add_reaches_live_host() {
+    let _base = cli_test_util::test_base_dir();
+    let state_a = cli_test_util::test_state_name();
+    let state_b = format!("{state_a}-b");
+    let exec_a = cli_test_util::executor().await;
+    let exec_b = cli_test_util::executor_for_state(&state_b).await;
+
+    let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
+
+    // Create FIRST: this auto-spawns state A's host with daemon B
+    // nowhere in its config — the host is up, dialing A only.
+    let lab = format!("e2e-live-add-lab-{}", nanos());
+    create_lab(&exec_a, &lab).await;
+
+    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
+        .connect()
+        .await
+        .expect("connect daemon B /laboratories/list");
+    assert!(
+        !list_b.laboratories().await.iter().any(|l| l.id == lab),
+        "daemon B must not see the lab before the host dials it"
+    );
+
+    // Add daemon B to the RUNNING host's dial list (empty value ⇒
+    // dial unauthenticated). The ack-gated stdio forward is the only
+    // mechanism that can make this land without a respawn.
+    let _: AddrAddResp = cli_test_util::execute_one(
+        &exec_a,
+        AddrAddReq {
+            path_type: AddrAddPath::LaboratoriesConfigAddressesAdd,
+            key: addr_b.clone(),
+            value: String::new(),
+            base: Default::default(),
+        },
+    )
+    .await;
+
+    // The host dials B and its HostIdentify announces the full
+    // laboratory set — the existing lab surfaces on B's stream.
+    let machine_id = local_machine_id();
+    wait_for!("existing lab on daemon B's list stream after live add", {
+        list_b.laboratories().await.iter().any(|l| {
+            l.id == lab
+                && l.connected
+                && l.machine.as_ref().map(|m| m.id.as_str()) == Some(machine_id.as_str())
+        })
+    });
+
+    delete_lab(&exec_a, &lab).await;
+
+    // Teardown: daemon B — best-effort, like the other cross-daemon
+    // tests (state A's host and daemon belong to the suite scripts'
+    // `daemon kill`).
+    let _ = exec_b
+        .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
+            objectiveai_sdk::cli::command::daemon::kill::Request {
+                path_type: objectiveai_sdk::cli::command::daemon::kill::Path::DaemonKill,
+                base: Default::default(),
+            },
+            None,
+        )
+        .await;
+}
+
 /// The SAME laboratory id on TWO hosts (one machine, two states —
 /// each daemon's default pair targets its own host): the second
 /// create must NOT error (ids are only unique per (machine, state);

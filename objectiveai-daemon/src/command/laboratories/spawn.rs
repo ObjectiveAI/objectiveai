@@ -5,13 +5,19 @@
 //! are the entries). The host is a WebSocket client (no listener), so
 //! its stdout ready line carries no address — pure readiness.
 //!
-//! The dial list comes from config: unless `laboratories config local`
-//! is false, the LOCAL daemon is ensured and dialed first (with the
-//! signature from the DAEMON's own config — bare `SIGNATURE` env, else
-//! derived from `SECRET`); then every `laboratories config addresses`
-//! entry, each with its own optional signature. Everything rides argv
-//! (`--address` repeated + `--signature ADDRESS=SIGNATURE` repeated) —
-//! the host binary reads NO environment variables, by design.
+//! The dial list comes from config but rides STDIN, not argv: unless
+//! `laboratories config local` is false, the LOCAL daemon is ensured
+//! and dialed first (with the signature from the DAEMON's own config —
+//! bare `SIGNATURE` env, else derived from `SECRET`); then every
+//! `laboratories config addresses` entry, each with its own optional
+//! signature. A FRESHLY spawned host is seeded with one ack-gated
+//! [`objectiveai_sdk::laboratories::daemon::HostStdioCommand::AddAddress`]
+//! per entry right after its ready line; a reused live child is NOT
+//! re-seeded — config changes reach it through the `laboratories
+//! config` handlers' stdio sends. Argv is layout-only
+//! (`--objectiveai-dir` / `--objectiveai-state` /
+//! `--suppress-output`); the host binary reads NO environment
+//! variables, by design.
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -33,30 +39,24 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
         .unwrap_or_default();
     let local = config.local != Some(false);
 
-    let mut addresses: Vec<String> = Vec::new();
-    let mut signatures: Vec<String> = Vec::new();
+    let mut entries: Vec<(String, Option<String>)> = Vec::new();
     if local {
         // Ensure the local daemon (idempotent) and dial it FIRST, with
         // the signature from the daemon's OWN config — never from the
         // addresses map.
         let daemon_address = crate::command::daemon::spawn::spawn(global, scoped).await?;
-        if let Some(signature) = global.client_signature() {
-            signatures.push(format!("{daemon_address}={signature}"));
-        }
-        addresses.push(daemon_address);
+        entries.push((daemon_address, global.client_signature()));
     }
     for (address, signature) in config.addresses.unwrap_or_default() {
         // The local daemon may also be a configured entry — one
         // connection per address, local signature wins.
-        if addresses.contains(&address) {
+        if entries.iter().any(|(a, _)| a == &address) {
             continue;
         }
-        if !signature.is_empty() {
-            signatures.push(format!("{address}={signature}"));
-        }
-        addresses.push(address);
+        let signature = (!signature.is_empty()).then_some(signature);
+        entries.push((address, signature));
     }
-    if addresses.is_empty() {
+    if entries.is_empty() {
         return Err(Error::Laboratory(
             "laboratories config local is false and no addresses are configured — \
              the host would have nothing to dial"
@@ -69,27 +69,48 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     } else {
         "objectiveai-laboratory"
     });
-    let _ = crate::spawn::spawn_leashed_until_ready(global, "laboratories", &exe, |cmd| {
-        // No subcommand — the binary IS the host; bare args only.
-        for address in &addresses {
-            cmd.arg("--address").arg(address);
-        }
-        for signature in &signatures {
-            cmd.arg("--signature").arg(signature);
-        }
-        cmd.arg("--objectiveai-dir")
-            .arg(scoped.filesystem.dir())
-            .arg("--objectiveai-state")
-            .arg(scoped.filesystem.state())
-            .arg("--suppress-output");
-    })
+    let (_, freshly_spawned) = crate::spawn::spawn_leashed_until_ready_with_stdio(
+        global,
+        "laboratories",
+        &exe,
+        |cmd| {
+            // No subcommand — the binary IS the host; layout args
+            // only (the dial list rides stdin below).
+            cmd.arg("--objectiveai-dir")
+                .arg(scoped.filesystem.dir())
+                .arg("--objectiveai-state")
+                .arg(scoped.filesystem.state())
+                .arg("--suppress-output");
+        },
+    )
     .await?;
+
+    // Seed the fresh host's dial list, ack-gated per address. A host
+    // that cannot accept its seed list is broken — propagate.
+    if freshly_spawned {
+        let stdio = global.lab_host_stdio().ok_or_else(|| {
+            Error::Laboratory(
+                "the laboratory host exited before its dial list could be seeded"
+                    .to_string(),
+            )
+        })?;
+        for (address, signature) in &entries {
+            stdio
+                .send_host_stdio(
+                    &objectiveai_sdk::laboratories::daemon::HostStdioCommand::AddAddress {
+                        address: address.clone(),
+                        signature: signature.clone(),
+                    },
+                )
+                .await?;
+        }
+    }
 
     // Readiness. LOCAL: connected = this machine's host visible in the
     // daemon registry — poll it, failing fast if the leashed host
     // child dies. Remote-only: this machine cannot see the remote
-    // registries; the stdout ready handshake is the whole contract
-    // (the host retries its dials forever).
+    // registries; the stdout ready handshake plus the acked seed is
+    // the whole contract (the host retries its dials forever).
     if local {
         let machine_id =
             objectiveai_sdk::machine::machine_id(scoped.filesystem.dir());
@@ -121,5 +142,5 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
         }
     }
 
-    Ok(addresses)
+    Ok(entries.into_iter().map(|(address, _)| address).collect())
 }

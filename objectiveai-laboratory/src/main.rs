@@ -2,22 +2,33 @@
 //! (machine, state).
 //!
 //! No subcommands: the binary IS the host, and the laboratory works
-//! entirely over WebSocket. It holds the single `laboratories` lock in
-//! `<state>/locks` (one host per state, however many daemon
-//! connections it keeps), stops any containers a hard-killed
-//! predecessor leaked, then dials `<address>/laboratory` for EVERY
-//! `--address` — HostIdentify first (state + machine identity + the
-//! full laboratory set), authorize second — serving MCP + transfer +
-//! create/delete requests for ALL of the state's laboratories until
-//! killed. Containers start lazily on their first routed op; on
-//! graceful shutdown every container the host started is STOPPED
-//! (never removed). All podman work (create/list/delete included)
-//! happens in-process, driven by the daemons' forwarded requests.
+//! entirely over WebSocket. The daemon is its sole spawner and holds
+//! its pipes; the host stops any containers a hard-killed predecessor
+//! leaked, then serves MCP + transfer + create/delete requests for ALL
+//! of the state's laboratories until killed.
 //!
-//! EVERYTHING is a clap argument — this binary reads NO environment
-//! variables, by design: authorization signatures ride repeatable
-//! `--signature ADDRESS=SIGNATURE` pairs alongside the repeatable
-//! `--address` list.
+//! **The dial list rides STDIN, not argv.** The host is born with ZERO
+//! daemon connections. The daemon writes one
+//! [`objectiveai_sdk::laboratories::daemon::HostStdioRequest`] JSON
+//! object per stdin line — `add_address` dials
+//! `<address>/laboratory` (HostIdentify first, authorize second),
+//! `remove_address` cancels that connection cooperatively (through the
+//! same detach path a natural disconnect takes) — and the host answers
+//! each with one ack line on stdout, echoing the request's
+//! daemon-generated id for correlation. Adding an existing address
+//! REPLACES its connection, old torn down before the new dial — the
+//! host never holds two connections to one address; removing an
+//! absent one still acks. Stdin EOF means the daemon dropped the pipe
+//! (kill under way / daemon death) — treated as a graceful-shutdown
+//! request.
+//!
+//! Argv is layout-only (`--objectiveai-dir`, `--objectiveai-state`,
+//! `--suppress-output`) — this binary reads NO environment variables,
+//! by design.
+//!
+//! Containers start lazily on their first routed op; on graceful
+//! shutdown every container the host started is STOPPED (never
+//! removed).
 
 mod channel;
 mod cleaner;
@@ -32,21 +43,13 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use objectiveai_sdk::laboratories::daemon::{Identify, IdentifyMount};
+use objectiveai_sdk::laboratories::daemon::{
+    HostStdioAck, HostStdioCommand, Identify, IdentifyMount,
+};
 
 #[derive(Parser)]
 #[command(name = "objectiveai-laboratory", version)]
 struct Args {
-    /// A daemon `http://` base address to connect to (its `/laboratory`
-    /// route is appended). Repeatable — one resident connection per
-    /// address.
-    #[arg(long = "address")]
-    addresses: Vec<String>,
-    /// Authorization for one address: `ADDRESS=SIGNATURE`, split on
-    /// the FIRST `=` (signatures themselves contain `=`). Repeatable.
-    /// An address with no entry dials unauthenticated.
-    #[arg(long = "signature")]
-    signatures: Vec<String>,
     /// ObjectiveAI home; defaults to `~/.objectiveai`.
     #[arg(long)]
     objectiveai_dir: Option<PathBuf>,
@@ -88,32 +91,80 @@ pub(crate) fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Ide
     }
 }
 
+/// One live dial-list entry: the cancel handle for its
+/// [`channel::run`] task, plus the task itself so a replace/remove can
+/// await the old connection's full teardown (channel detached) before
+/// acking.
+struct Connection {
+    cancel: tokio::sync::watch::Sender<bool>,
+    task: tokio::task::JoinHandle<()>,
+}
+
+/// Cancel `connection` and wait for its channel task to finish its
+/// teardown (detach from the host, close the socket).
+async fn stop_connection(connection: Connection) {
+    let _ = connection.cancel.send(true);
+    let _ = connection.task.await;
+}
+
+/// The stdin command loop — the host's whole dial-list authority. One
+/// [`objectiveai_sdk::laboratories::daemon::HostStdioRequest`] JSON
+/// object per line; each applied mutation is acked on stdout with the
+/// request's id echoed. Unparseable lines are ignored (nothing to
+/// correlate an ack to). The `connections` map is keyed by address —
+/// the uniqueness guarantee: the host never holds two connections to
+/// one address (a re-add tears the old one down, awaiting its full
+/// teardown, BEFORE dialing anew). Returns on stdin EOF.
+async fn stdin_loop(server: Arc<host::HostServer>, suppress_output: bool) {
+    use tokio::io::AsyncBufReadExt;
+    let mut connections: std::collections::HashMap<String, Connection> =
+        std::collections::HashMap::new();
+    let mut lines = tokio::io::BufReader::new(tokio::io::stdin()).lines();
+    while let Ok(Some(line)) = lines.next_line().await {
+        let Some(request) =
+            objectiveai_sdk::laboratories::daemon::parse_host_stdio_request(&line)
+        else {
+            continue;
+        };
+        match request.command {
+            HostStdioCommand::AddAddress { address, signature } => {
+                // Replace semantics, disconnect-first: the old
+                // connection is fully torn down before the new dial,
+                // so a signature change re-dials with the new
+                // preamble and two connections to one address can
+                // never coexist.
+                if let Some(old) = connections.remove(&address) {
+                    stop_connection(old).await;
+                }
+                let (cancel, cancel_rx) = tokio::sync::watch::channel(false);
+                let task = tokio::spawn(channel::run(
+                    address.clone(),
+                    signature,
+                    Arc::clone(&server),
+                    suppress_output,
+                    cancel_rx,
+                ));
+                connections.insert(address, Connection { cancel, task });
+            }
+            HostStdioCommand::RemoveAddress { address } => {
+                // Idempotent: absent still acks — the daemon's intent
+                // ("don't dial this") already holds.
+                if let Some(old) = connections.remove(&address) {
+                    stop_connection(old).await;
+                }
+            }
+        }
+        objectiveai_sdk::laboratories::daemon::print_host_stdio_ack(&HostStdioAck {
+            id: request.id,
+        });
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // No dotenv, no env reads — this binary's whole configuration is
-    // its argv (see the module docs).
+    // its argv plus the stdin dial-list channel (see the module docs).
     let args = Args::parse();
-
-    // Per-address signatures from the repeatable `--signature
-    // ADDRESS=SIGNATURE` args, split on the FIRST `=` (the signature
-    // itself contains one — `sha256=<hex>`).
-    let signatures: std::collections::HashMap<String, String> = args
-        .signatures
-        .iter()
-        .filter_map(|entry| {
-            entry
-                .split_once('=')
-                .map(|(address, signature)| (address.to_string(), signature.to_string()))
-        })
-        .collect();
-
-    // A host with nothing to dial is a caller bug (`laboratories
-    // spawn` always passes at least one address) — fail loudly rather
-    // than idle as an unreachable singleton.
-    if args.addresses.is_empty() {
-        eprintln!("no --address given — the host needs at least one daemon to serve");
-        std::process::exit(1);
-    }
 
     let objectiveai_dir = resolve_objectiveai_dir(&args.objectiveai_dir);
     let bin_dir = objectiveai_dir.join("bin");
@@ -122,7 +173,8 @@ async fn main() {
     // being its sole spawner (one leashed child per key — no
     // cross-process lock anymore). The host is a WS client (no
     // listener), so the ready line carries no address; the daemon
-    // blocks on it before counting the host as up.
+    // blocks on it before counting the host as up, then seeds the
+    // dial list over stdin.
     objectiveai_sdk::process::print_ready(None);
 
     // ── Identity + the shared host server ────────────────────────
@@ -138,22 +190,22 @@ async fn main() {
     // up (see the cleaner's module docs).
     cleaner::sweep(bin_dir, args.objectiveai_state.clone()).await;
 
-    // ── Serve every address until killed ─────────────────────────
-    // One reconnect-forever channel per daemon address, all sharing
-    // the one host server. On graceful shutdown every container the
-    // host started is STOPPED (never removed): they and their
-    // filesystems survive for the next host to `start` again. A hard
-    // kill skips this — the next host's sweep stops them instead.
-    let channels = futures::future::join_all(args.addresses.iter().map(|address| {
-        channel::run(
-            address.clone(),
-            signatures.get(address).cloned(),
-            Arc::clone(&server),
-            args.suppress_output,
-        )
-    }));
+    // ── Serve until killed ───────────────────────────────────────
+    // The stdin loop owns the dial list — one reconnect-forever
+    // channel task per added address, all sharing the one host
+    // server. Zero addresses just idles (the loop keeps waiting on
+    // stdin). On graceful shutdown — signal OR stdin EOF — every
+    // container the host started is STOPPED (never removed): they and
+    // their filesystems survive for the next host to `start` again. A
+    // hard kill skips this — the next host's sweep stops them
+    // instead. The channel tasks are left to die with the process;
+    // their sockets drop with it.
     tokio::select! {
-        _ = channels => {}
+        _ = stdin_loop(Arc::clone(&server), args.suppress_output) => {
+            if !args.suppress_output {
+                eprintln!("stdin closed: stopping started laboratories");
+            }
+        }
         _ = shutdown_signal() => {
             if !args.suppress_output {
                 eprintln!("shutting down: stopping started laboratories");

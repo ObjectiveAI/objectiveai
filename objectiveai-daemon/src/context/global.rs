@@ -65,10 +65,98 @@ pub(crate) struct ResidentHubs {
 /// One leashed resident server: the held [`tokio::process::Child`]
 /// (its OS leash + `kill_on_drop` tie the server's life to the
 /// daemon's) and the address it announced in its stdout readiness
-/// handshake.
+/// handshake. The laboratory host additionally carries its stdio
+/// dial-list channel — dropped with the entry on every kill path,
+/// which closes the child's stdin (EOF = the host's graceful-shutdown
+/// signal, container-stop included, even on Windows).
 pub(crate) struct ResidentChild {
     pub(crate) child: tokio::process::Child,
     pub(crate) address: Option<String>,
+    pub(crate) stdio: Option<Arc<LabHostStdio>>,
+}
+
+/// The laboratory host's stdin/stdout dial-list channel (see
+/// [`objectiveai_sdk::laboratories::daemon::HostStdioRequest`]). ONE
+/// mutex over both halves serializes commands, so at most one is ever
+/// outstanding and correlation degenerates to "recv until the ack
+/// echoing this request's id" — no pending map.
+pub(crate) struct LabHostStdio {
+    io: tokio::sync::Mutex<(
+        tokio::process::ChildStdin,
+        tokio::sync::mpsc::UnboundedReceiver<
+            objectiveai_sdk::laboratories::daemon::HostStdioAck,
+        >,
+    )>,
+}
+
+/// How long one dial-list command gets before the send errors. The
+/// host's mutation is in-memory (spawn/cancel a task) — seconds means
+/// the pipe or the host is broken, not slow.
+const HOST_STDIO_ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+impl LabHostStdio {
+    pub(crate) fn new(
+        stdin: tokio::process::ChildStdin,
+        acks: tokio::sync::mpsc::UnboundedReceiver<
+            objectiveai_sdk::laboratories::daemon::HostStdioAck,
+        >,
+    ) -> Self {
+        Self {
+            io: tokio::sync::Mutex::new((stdin, acks)),
+        }
+    }
+
+    /// Send one dial-list command (wrapped in a fresh random request
+    /// id) and await the ack echoing that id — the host applied the
+    /// mutation (NOT connectivity; dialing retries forever). Errors
+    /// mean the channel is broken (write failed, ack stream closed) or
+    /// the host wedged past [`HOST_STDIO_ACK_TIMEOUT`].
+    pub(crate) async fn send_host_stdio(
+        &self,
+        command: &objectiveai_sdk::laboratories::daemon::HostStdioCommand,
+    ) -> Result<(), crate::error::Error> {
+        use tokio::io::AsyncWriteExt;
+        let request = objectiveai_sdk::laboratories::daemon::HostStdioRequest {
+            id: uuid::Uuid::new_v4().to_string(),
+            command: command.clone(),
+        };
+        let mut io = self.io.lock().await;
+        let (stdin, acks) = &mut *io;
+        let mut line = serde_json::to_string(&request)
+            .expect("HostStdioRequest serializes");
+        line.push('\n');
+        stdin.write_all(line.as_bytes()).await.map_err(|e| {
+            crate::error::Error::Laboratory(format!(
+                "laboratory host stdin write failed: {e}"
+            ))
+        })?;
+        stdin.flush().await.map_err(|e| {
+            crate::error::Error::Laboratory(format!(
+                "laboratory host stdin flush failed: {e}"
+            ))
+        })?;
+        let deadline = tokio::time::Instant::now() + HOST_STDIO_ACK_TIMEOUT;
+        loop {
+            let ack = tokio::time::timeout_at(deadline, acks.recv())
+                .await
+                .map_err(|_| {
+                    crate::error::Error::Laboratory(
+                        "laboratory host did not ack the dial-list command in time"
+                            .to_string(),
+                    )
+                })?
+                .ok_or_else(|| {
+                    crate::error::Error::Laboratory(
+                        "laboratory host stdio channel closed".to_string(),
+                    )
+                })?;
+            // A non-matching id is a stale ack from a timed-out
+            // predecessor — skip it and keep reading.
+            if ack.id == request.id {
+                return Ok(());
+            }
+        }
+    }
 }
 
 /// One cached db handle plus how it was built — the validity signal
@@ -254,17 +342,42 @@ impl GlobalContext {
     }
 
     /// Park a freshly-spawned leashed server child (+ its readiness
-    /// address) for the daemon's life. Only the spawn path calls this,
-    /// under the key's spawn gate, after confirming no live child —
-    /// so a live server is never displaced.
+    /// address, + the laboratory host's stdio channel) for the
+    /// daemon's life. Only the spawn path calls this, under the key's
+    /// spawn gate, after confirming no live child — so a live server
+    /// is never displaced.
     pub(crate) fn hold_resident_child(
         &self,
         key: &str,
         child: tokio::process::Child,
         address: Option<String>,
+        stdio: Option<Arc<LabHostStdio>>,
     ) {
-        self.resident_children
-            .insert(key.to_string(), ResidentChild { child, address });
+        self.resident_children.insert(
+            key.to_string(),
+            ResidentChild {
+                child,
+                address,
+                stdio,
+            },
+        );
+    }
+
+    /// The LIVE laboratory host's stdio dial-list channel. `None` when
+    /// no host child is running (liveness via the same `try_wait`
+    /// probe as [`Self::resident_child_address`]) — callers then fall
+    /// back to write-only config semantics; the next spawn seeds from
+    /// config.
+    pub(crate) fn lab_host_stdio(&self) -> Option<Arc<LabHostStdio>> {
+        let mut entry = self.resident_children.get_mut("laboratories")?;
+        match entry.child.try_wait() {
+            Ok(None) => entry.stdio.clone(),
+            _ => {
+                drop(entry);
+                self.resident_children.remove("laboratories");
+                None
+            }
+        }
     }
 
     /// The cached readiness address of a LIVE resident child. `None`
