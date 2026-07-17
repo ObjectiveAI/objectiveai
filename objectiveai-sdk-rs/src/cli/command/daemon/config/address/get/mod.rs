@@ -1,21 +1,23 @@
-//! `viewer generate-secret-signature-pair` — async handler stub.
+//! `daemon config address get` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.viewer.generate_secret_signature_pair.Request")]
+#[schemars(rename = "cli.command.daemon.config.address.get.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub scope: crate::cli::command::GetScope,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.viewer.generate_secret_signature_pair.Path")]
+#[schemars(rename = "cli.command.daemon.config.address.get.Path")]
 pub enum Path {
-    #[serde(rename = "viewer/generate_secret_signature_pair")]
-    ViewerGenerateSecretSignaturePair,
+    #[serde(rename = "daemon/config/address/get")]
+    DaemonConfigAddressGet,
 }
+
 impl CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
@@ -27,14 +29,24 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.viewer.generate_secret_signature_pair.Response")]
+#[schemars(rename = "cli.command.daemon.config.address.get.Response")]
 pub struct Response {
-    pub secret: String,
-    pub signature: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub address: Option<String>,
 }
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// Read the global config layer.
+    #[arg(long)]
+    pub global: bool,
+    /// Read the state config layer.
+    #[arg(long)]
+    pub state: bool,
+    /// Read the final merged config view.
+    #[arg(long)]
+    pub r#final: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -59,7 +71,23 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ViewerGenerateSecretSignaturePair, base: args.base.into() })
+        let scope = match (args.global, args.state, args.r#final) {
+            (true, false, false) => crate::cli::command::GetScope::Global,
+            (false, true, false) => crate::cli::command::GetScope::State,
+            (false, false, true) => crate::cli::command::GetScope::Final,
+            _ => {
+                return Err(crate::cli::command::FromArgsError {
+                    field: "scope",
+                    source: crate::cli::command::FromArgsErrorSource::Plain(
+                        "exactly one of --global, --state, --final is required".to_string(),
+                    ),
+                });
+            }
+        };
+        Ok(Self { path_type: Path::DaemonConfigAddressGet,
+            scope,
+            base: args.base.into(),
+        })
     }
 }
 
@@ -97,7 +125,7 @@ pub mod request_schema;
 
 pub mod response_schema;
 
-/// One `/listen` broadcast run of `viewer generate_secret_signature_pair`: the actual
+/// One `/listen` broadcast run of `mcp config address get`: the actual
 /// [`Request`], the producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
 /// unary response future. See [`crate::cli::broadcast_listener`].

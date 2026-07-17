@@ -8,6 +8,9 @@ pub struct Config {
     #[serde(skip_serializing_if = "super::ApiConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub api: Option<super::ApiConfig>,
+    #[serde(skip_serializing_if = "super::DaemonConfig::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub daemon: Option<super::DaemonConfig>,
     #[serde(skip_serializing_if = "super::DbConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub db: Option<super::DbConfig>,
@@ -22,6 +25,10 @@ pub struct Config {
 impl Config {
     pub fn api(&mut self) -> &mut super::ApiConfig {
         self.api.get_or_insert_with(super::ApiConfig::default)
+    }
+
+    pub fn daemon(&mut self) -> &mut super::DaemonConfig {
+        self.daemon.get_or_insert_with(super::DaemonConfig::default)
     }
 
     pub fn db(&mut self) -> &mut super::DbConfig {

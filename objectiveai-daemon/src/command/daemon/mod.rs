@@ -11,6 +11,7 @@ use objectiveai_sdk::cli::command::daemon::{Request, ResponseItem};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
+pub mod config;
 pub mod kill;
 pub mod spawn;
 
@@ -31,6 +32,10 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
+        Request::Config(req) => {
+            let inner = config::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
+        }
         Request::Spawn(req) => {
             let inner = spawn::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Spawn)))

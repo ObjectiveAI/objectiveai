@@ -1,8 +1,13 @@
+pub mod config;
 pub mod kill;
 pub mod spawn;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
+    Config {
+        #[command(subcommand)]
+        command: config::Command,
+    },
     Spawn(spawn::Command),
     Kill(kill::Command),
 }
@@ -11,6 +16,8 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.daemon.Request")]
 pub enum Request {
+    #[schemars(title = "Config")]
+    Config(config::Request),
     #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
     #[schemars(title = "SpawnRequestSchema")]
@@ -32,6 +39,8 @@ pub enum Request {
 #[schemars(rename = "cli.command.daemon.ResponseItem")]
 #[serde(untagged)]
 pub enum ResponseItem {
+    #[schemars(title = "Config")]
+    Config(config::Response),
     #[schemars(title = "Spawn")]
     Spawn(spawn::ResponseItem),
     #[schemars(title = "SpawnRequestSchema")]
@@ -50,6 +59,7 @@ pub enum ResponseItem {
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
+            ResponseItem::Config(v) => v.into_mcp(),
             ResponseItem::Spawn(v) => v.into_mcp(),
             ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
             ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
@@ -64,6 +74,8 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
+            Command::Config { command } =>
+                Ok(Request::Config(config::Request::try_from(command)?)),
             Command::Spawn(cmd) => match cmd.schema {
                 None => Ok(Request::Spawn(spawn::Request::try_from(cmd.args)?)),
                 Some(spawn::Schema::RequestSchema(args)) =>
@@ -85,6 +97,7 @@ impl TryFrom<Command> for Request {
 impl crate::cli::command::CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
+            Request::Config(inner) => inner.request_base(),
             Request::Spawn(inner) => inner.request_base(),
             Request::SpawnRequestSchema(inner) => inner.request_base(),
             Request::SpawnResponseSchema(inner) => inner.request_base(),
@@ -96,6 +109,7 @@ impl crate::cli::command::CommandRequest for Request {
 
     fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
         match self {
+            Request::Config(inner) => inner.request_base_mut(),
             Request::Spawn(inner) => inner.request_base_mut(),
             Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
             Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
@@ -118,6 +132,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
+            Request::Config(req) => {
+                let inner = config::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
+            }
             Request::Spawn(req) => {
                 let inner = spawn::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Spawn)))
@@ -168,6 +186,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
+            Request::Config(req) => {
+                let inner = config::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
             Request::Spawn(req) => {
                 let inner = spawn::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
@@ -200,6 +222,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 /// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub enum ListenerExecution {
+    Config(config::ListenerExecution),
     Spawn(spawn::ListenerExecution),
     SpawnRequestSchema(spawn::request_schema::ListenerExecution),
     SpawnResponseSchema(spawn::response_schema::ListenerExecution),

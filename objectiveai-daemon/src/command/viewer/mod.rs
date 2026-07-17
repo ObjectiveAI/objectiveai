@@ -10,7 +10,6 @@ use objectiveai_sdk::cli::command::viewer::{Request, Response};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub mod generate_secret_signature_pair;
 pub mod kill;
 pub mod spawn;
 
@@ -24,18 +23,6 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
-        Request::GenerateSecretSignaturePair(req) => {
-            let value = generate_secret_signature_pair::execute(global, scoped, req).await?;
-            once(Ok(Response::GenerateSecretSignaturePair(value)))
-        }
-        Request::GenerateSecretSignaturePairRequestSchema(req) => {
-            let value = generate_secret_signature_pair::request_schema::execute(global, scoped, req).await?;
-            once(Ok(Response::GenerateSecretSignaturePairRequestSchema(value)))
-        }
-        Request::GenerateSecretSignaturePairResponseSchema(req) => {
-            let value = generate_secret_signature_pair::response_schema::execute(global, scoped, req).await?;
-            once(Ok(Response::GenerateSecretSignaturePairResponseSchema(value)))
-        }
         Request::Kill(req) => {
             let value = kill::execute(global, scoped, req).await?;
             once(Ok(Response::Kill(value)))
