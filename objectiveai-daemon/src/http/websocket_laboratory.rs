@@ -539,7 +539,7 @@ pub(crate) async fn laboratory_handler(
         // unrelated. The (machine, state) pair is simply the host's
         // registry identity.
         // 2. Authorization SECOND (the standard preamble, verbatim).
-        if !crate::http::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
+        if !crate::http::daemon_auth::authenticate(&mut socket, state.global.auth_secret().as_ref())
             .await
         {
             return;

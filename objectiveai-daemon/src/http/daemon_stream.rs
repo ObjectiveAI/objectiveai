@@ -46,14 +46,14 @@ use tokio::sync::broadcast;
 /// sender `/listen` subscribers drain, the resident
 /// [`crate::context::GlobalContext`] plus the daemon's BASE
 /// [`crate::context::ScopedContext`] that `/execute` derives each
-/// request's scope from, and the optional secret every connection's
-/// auth preamble is verified against.
+/// request's scope from. Auth reads the LIVE secret off the global
+/// context per check ([`crate::context::GlobalContext::auth_secret`])
+/// — a `daemon config` mutation re-points it with no restart.
 #[derive(Clone)]
 pub(crate) struct DaemonHttpState {
     pub(crate) tx: broadcast::Sender<String>,
     pub(crate) global: crate::context::GlobalContext,
     pub(crate) scoped: crate::context::ScopedContext,
-    pub(crate) secret: Option<std::sync::Arc<String>>,
     /// The live agent-status registry backing the `/agents/instances/list` route.
     pub(crate) active: crate::http::agents_routes::ActiveAgents,
     /// The live-conversation hub backing the `/agents/instances/{*aih}`
@@ -86,13 +86,12 @@ pub(crate) struct DaemonHttpState {
 ///
 /// Every HTTP route authenticates by the `X-OBJECTIVEAI-SIGNATURE`
 /// header ([`crate::http::daemon_auth::authenticate_header`],
-/// 401 on a missing/invalid signature when `secret` is `Some`); the
+/// 401 on a missing/invalid signature when a secret is live); the
 /// `/laboratory` WebSocket keeps the first-message `AuthEnvelope`
 /// preamble. Returns the serve task's handle.
 pub fn serve_http(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
-    secret: Option<std::sync::Arc<String>>,
     global: crate::context::GlobalContext,
     scoped: crate::context::ScopedContext,
     active: crate::http::agents_routes::ActiveAgents,
@@ -153,7 +152,6 @@ pub fn serve_http(
             tx,
             global,
             scoped,
-            secret,
             active,
             conversations,
             laboratories,
@@ -185,7 +183,7 @@ async fn listen_handler(
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.global.auth_secret().as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(listen_stream(state.tx))

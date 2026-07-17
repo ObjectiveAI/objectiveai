@@ -51,7 +51,7 @@ pub(crate) async fn execute_handler(
     body: axum::body::Bytes,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.global.auth_secret().as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     Sse::new(execute_stream(

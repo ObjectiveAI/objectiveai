@@ -4,9 +4,11 @@
 //! are linked, and a rotated pair makes no claim about the old
 //! address), and return the pair. The generation is the same one-way
 //! scheme the viewer auth uses (`sha256=<hex(SHA256(secret))>` —
-//! knowing the signature does not reveal the secret). Nothing
-//! consumes the stored pair yet; the daemon still reads its bare
-//! `SECRET`/`SIGNATURE` env.
+//! knowing the signature does not reveal the secret). The written
+//! secret goes LIVE immediately (`address` is None, so
+//! [`crate::context::GlobalContext::apply_daemon_config_to_auth`]
+//! re-points the auth secret); only the daemon's BIND still comes
+//! from bare env.
 //!
 //! Like `daemon config set`, a viewer RUNNING at refresh time is
 //! respawned after the write (see
@@ -33,6 +35,10 @@ pub async fn execute(
         signature: Some(pair.signature.clone()),
     });
     scoped.filesystem.write_config(&config).await?;
+    // Live auth first, viewer second: the respawned viewer must
+    // present the signature of the pair just persisted (the written
+    // section's address is None, so the fold always applies here).
+    global.apply_daemon_config_to_auth(config.daemon.as_ref());
     crate::command::kill_helpers::respawn_viewer_after_config_change(
         global,
         scoped,

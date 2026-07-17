@@ -185,11 +185,13 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // client. The `_rx` clone keeps the channel open for the daemon's
     // whole life.
     let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
-    // Optional WS auth: when the daemon's bare `SECRET` is set, every
-    // connection's first-message auth preamble must carry a valid
-    // signature; when unset, the server is open (the preamble is consumed
-    // regardless).
-    let secret = global.daemon_secret.clone().map(std::sync::Arc::new);
+    // Fold the persisted `daemon` config section into live auth at
+    // boot, the same rule every `daemon config` mutation applies: a
+    // section with `address: None` claims THIS daemon and its secret
+    // becomes the auth secret (over the bare `SECRET` env seed);
+    // `address: Some` or no section leaves the env seed in place.
+    let config = scoped.filesystem.read_config().await?;
+    global.apply_daemon_config_to_auth(config.daemon.as_ref());
     // The live agent-status hub: its own broadcast of `AgentEvent` frames,
     // fed by AIH-lock announcements on `agents.sock` and watched for
     // release. Held in scope for the daemon's life (its sender clone keeps
@@ -242,7 +244,6 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     crate::http::daemon_stream::serve_http(
         http_listener,
         tx.clone(),
-        secret,
         global.clone(),
         scoped.clone(),
         active.clone(),

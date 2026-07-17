@@ -197,15 +197,27 @@ pub struct GlobalContext {
     /// default `0` (OS-assigned).
     pub daemon_bind_port: u16,
     /// Optional shared secret for the daemon's HTTP server (bare
-    /// `SECRET`). When set, every connection's first-message auth
-    /// preamble must carry a valid `sha256=<hex(SHA256(secret))>`
-    /// signature; when `None`, the server is open.
+    /// `SECRET`) — the raw BOOT value, kept for the child-env
+    /// round-trip (`apply_daemon_env`) and as [`Self::auth_secret`]'s
+    /// construction seed. Live verification reads the cell, not this.
     pub daemon_secret: Option<String>,
     /// Optional PRE-DERIVED client signature for this daemon's HTTP
     /// server (bare `SIGNATURE`) — what the daemon hands to the
     /// clients it spawns (viewer, laboratory host). When unset it is
     /// derived from `SECRET`; see [`Self::client_signature`].
     pub daemon_signature: Option<String>,
+    /// The LIVE auth secret — what [`crate::http::daemon_auth`]
+    /// verifies incoming signatures against RIGHT NOW, and what
+    /// [`Self::client_signature`] derives from. Seeded from the bare
+    /// `SECRET` env at construction ([`Self::daemon_secret`] keeps the
+    /// raw boot value for the child-env round-trip); re-pointed at
+    /// daemon boot and on every `daemon config` mutation via
+    /// [`Self::apply_daemon_config_to_auth`] — but ONLY by a section
+    /// whose `address` is `None` (a `Some` address describes some
+    /// OTHER daemon's coordinates; its pair is not ours to verify
+    /// against). Shared across clones so the HTTP routes see every
+    /// update.
+    auth_secret: Arc<std::sync::RwLock<Option<Arc<String>>>>,
     /// Boot-value filesystem client, PRIVATE by design: it serves the
     /// memoized singleton inits (`db_handle` / `python`) and the
     /// identity-blind api/db spawn flows ONLY. Those cells take the
@@ -294,6 +306,9 @@ impl GlobalContext {
             daemon_bind_port: config.daemon_port,
             daemon_secret: config.daemon_secret.clone(),
             daemon_signature: config.daemon_signature.clone(),
+            auth_secret: Arc::new(std::sync::RwLock::new(
+                config.daemon_secret.clone().map(Arc::new),
+            )),
             filesystem,
             http: reqwest::Client::new(),
             daemon_address: Arc::new(std::sync::OnceLock::new()),
@@ -320,15 +335,55 @@ impl GlobalContext {
         &self.http
     }
 
-    /// The signature clients of THIS daemon should present: the bare
-    /// `SIGNATURE` env when set, else derived one-way from the bare
-    /// `SECRET`, else `None` (open server — no auth to present).
+    /// The secret the daemon's auth verifies against RIGHT NOW —
+    /// cloned out of the live cell, so a config rotation mid-request
+    /// never tears a check.
+    pub(crate) fn auth_secret(&self) -> Option<Arc<String>> {
+        self.auth_secret
+            .read()
+            .expect("auth_secret lock poisoned")
+            .clone()
+    }
+
+    /// Fold a just-read/just-written `daemon` config section into live
+    /// auth. ONLY a section claiming THIS daemon — `address: None` —
+    /// re-points the secret (to the section's secret, `None` included:
+    /// full-replace semantics make `{address: None, secret: None}` an
+    /// explicitly OPEN daemon). `address: Some` means the section
+    /// describes some other daemon's coordinates, so its secret and
+    /// signature are IGNORED; a missing section keeps the current
+    /// secret (nothing was stated). The stored SIGNATURE is never read
+    /// here — verification always derives from the secret (the
+    /// `verify_signature` math in [`crate::http::daemon_auth`]);
+    /// trusting a stored signature by equality would make the secret
+    /// pointless.
+    pub(crate) fn apply_daemon_config_to_auth(
+        &self,
+        section: Option<&crate::filesystem::config::DaemonConfig>,
+    ) {
+        let Some(section) = section else {
+            return;
+        };
+        if section.address.is_some() {
+            return;
+        }
+        *self
+            .auth_secret
+            .write()
+            .expect("auth_secret lock poisoned") = section.secret.clone().map(Arc::new);
+    }
+
+    /// The signature clients of THIS daemon should present: derived
+    /// one-way from the LIVE auth secret when one is set (what the
+    /// auth check actually validates — see [`Self::auth_secret`]),
+    /// else the bare pre-derived `SIGNATURE` env (a spawner may know
+    /// the signature without the secret), else `None` (open server —
+    /// no auth to present).
     pub fn client_signature(&self) -> Option<String> {
-        self.daemon_signature.clone().or_else(|| {
-            self.daemon_secret
-                .as_deref()
-                .map(crate::http::daemon_auth::derive_signature)
-        })
+        if let Some(secret) = self.auth_secret() {
+            return Some(crate::http::daemon_auth::derive_signature(&secret));
+        }
+        self.daemon_signature.clone()
     }
 
     /// The per-key spawn gate — see [`Self::resident_children`]. The

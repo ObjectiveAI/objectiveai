@@ -4,14 +4,21 @@
 //! per-field wire setters were retired: every mutation states one
 //! complete consistent object, and omitted fields are cleared.
 //!
-//! A viewer RUNNING at set time is respawned AFTER the write — the
-//! viewer's whole daemon-facing config (`DAEMON_ADDRESS` /
-//! `DAEMON_SIGNATURE`) is frozen into its env at spawn, so a config
-//! change can only reach it through a fresh spawn. A viewer that
-//! isn't running is left alone (the next `viewer spawn` picks the
-//! values up itself). The daemon's own bind still comes from bare
-//! env until the config wiring lands — the respawned viewer gets the
-//! daemon's LIVE address and client signature, same as any spawn.
+//! The written section folds into LIVE auth immediately when (and
+//! only when) its `address` is `None`
+//! ([`crate::context::GlobalContext::apply_daemon_config_to_auth`]):
+//! the section's secret becomes what incoming signatures are
+//! verified against, no restart. An `address: Some` section
+//! describes some other daemon's coordinates — its secret/signature
+//! are ignored by auth. Only the daemon's BIND still comes from bare
+//! env.
+//!
+//! A viewer RUNNING at set time is respawned AFTER the write (and
+//! after the auth fold, so its fresh `DAEMON_SIGNATURE` matches what
+//! auth now expects) — the viewer's whole daemon-facing config is
+//! frozen into its env at spawn, so a config change can only reach
+//! it through a fresh spawn. A viewer that isn't running is left
+//! alone (the next `viewer spawn` picks the values up itself).
 
 use objectiveai_sdk::cli::command::daemon::config::set::{Request, Response};
 
@@ -29,6 +36,10 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
         signature: request.value.signature,
     });
     scoped.filesystem.write_config(&config).await?;
+    // Live auth first, viewer second: the respawned viewer's
+    // DAEMON_SIGNATURE comes from client_signature(), which derives
+    // from the live secret this fold may have just re-pointed.
+    global.apply_daemon_config_to_auth(config.daemon.as_ref());
     crate::command::kill_helpers::respawn_viewer_after_config_change(
         global,
         scoped,
