@@ -426,6 +426,12 @@ fn tee_context(scoped: &ScopedContext) -> serde_json::Value {
         ("agent_remote", scoped.agent_remote()),
         ("response_id", scoped.response_id()),
         ("response_ids", scoped.response_ids()),
+        // The plugin caller trio — daemon-authored (the scope is the
+        // only source; wire claims are ignored), so /listen observers
+        // can trust which installed plugin ran the command.
+        ("plugin_owner", scoped.plugin_owner()),
+        ("plugin_repository", scoped.plugin_repository()),
+        ("plugin_version", scoped.plugin_version()),
     ] {
         if let Some(val) = value {
             map.insert(key.to_string(), serde_json::Value::String(val.to_string()));

@@ -82,6 +82,12 @@ fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
         agent_remote: get("X-OBJECTIVEAI-AGENT-REMOTE"),
         response_id: get("X-OBJECTIVEAI-RESPONSE-ID"),
         response_ids: get("X-OBJECTIVEAI-RESPONSE-IDS"),
+        // NEVER read X-OBJECTIVEAI-PLUGIN-* headers: plugin caller
+        // identity is unspoofable — only the daemon's own `plugins
+        // run` may assert it (in-process); a wire claim is ignored.
+        plugin_owner: None,
+        plugin_repository: None,
+        plugin_version: None,
     }
 }
 

@@ -358,10 +358,14 @@ fn name_of(exe: &Path) -> String {
 ///
 /// `Option`-typed fields are skipped on `None`, EXCEPT the five
 /// per-request transient identity keys (`OBJECTIVEAI_AGENT_ID`,
-/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, and `_RESPONSE_IDS`),
-/// which are `env_remove`'d on `None` so the
-/// child cannot inherit a stale identity from the parent's startup
-/// environment. Boolean fields are stamped only when `true`.
+/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, `_RESPONSE_IDS`, and the
+/// plugin caller trio `OBJECTIVEAI_PLUGIN_OWNER` / `_REPOSITORY` /
+/// `_VERSION` — informational for the child (a plugin process can
+/// learn its own coordinates); no reader turns it back into
+/// identity, which is unspoofable by design), all `env_remove`'d on
+/// `None` so the child cannot inherit a stale identity from the
+/// parent's startup environment. Boolean fields are stamped only
+/// when `true`.
 pub fn apply_config_env(
     cmd: &mut Command,
     global: &crate::context::GlobalContext,
@@ -424,6 +428,33 @@ pub fn apply_config_env(
         }
         None => {
             cmd.env_remove("OBJECTIVEAI_RESPONSE_IDS");
+        }
+    }
+    // The PLUGIN CALLER identity trio — set on plugin children (whose
+    // scope `plugins run` stamped via `with_plugin`), removed for
+    // everyone else so a stale plugin identity can't leak through.
+    match scoped.plugin_owner() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_PLUGIN_OWNER", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_PLUGIN_OWNER");
+        }
+    }
+    match scoped.plugin_repository() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_PLUGIN_REPOSITORY", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_PLUGIN_REPOSITORY");
+        }
+    }
+    match scoped.plugin_version() {
+        Some(v) => {
+            cmd.env("OBJECTIVEAI_PLUGIN_VERSION", v);
+        }
+        None => {
+            cmd.env_remove("OBJECTIVEAI_PLUGIN_VERSION");
         }
     }
     // NOTE: the daemon's own bind config (bare `ADDRESS`/`PORT`/`SECRET`)

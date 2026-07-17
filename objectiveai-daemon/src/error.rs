@@ -48,6 +48,14 @@ pub enum Error {
     WriterPanic,
     #[error("subscribe timed out")]
     LogSubscribeTimedOut,
+    #[error("plugins may not run tools (caller: plugin {caller})")]
+    ToolRunByPlugin { caller: String },
+
+    #[error(
+        "a plugin may only run itself at the same or a lower version          (caller: plugin {caller}, requested: {requested})"
+    )]
+    PluginRunSelfOnly { caller: String, requested: String },
+
     #[error("plugin not found: {0}")]
     PluginNotFound(String),
     #[error("failed to spawn plugin: {0}")]

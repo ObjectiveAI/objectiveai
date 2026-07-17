@@ -34,6 +34,41 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
+    // A PLUGIN caller (scope carries the trio — stamped by this very
+    // handler on nested commands, unspoofable) may only run a plugin
+    // that IS itself, at the same or a LOWER version. The rules:
+    //
+    // 1. owner and name must both equal the caller's — no running
+    //    other plugins, full stop.
+    // 2. the requested version must be the caller's exact version,
+    //    OR parse as semver strictly below the caller's (also
+    //    semver-parsed). An unparseable version on either side only
+    //    ever passes through the exact-match arm.
+    //
+    // Descent-only recursion: the re-entered plugin's nested scope is
+    // stamped with ITS coordinates below, so a chain can hold its
+    // version or go down — never up, never sideways.
+    if let (Some(owner), Some(repository), Some(version)) = (
+        scoped.plugin_owner(),
+        scoped.plugin_repository(),
+        scoped.plugin_version(),
+    ) {
+        let same_plugin = request.owner == owner && request.name == repository;
+        let version_allowed = request.version == version
+            || match (
+                semver::Version::parse(&request.version),
+                semver::Version::parse(version),
+            ) {
+                (Ok(requested), Ok(caller)) => requested < caller,
+                _ => false,
+            };
+        if !(same_plugin && version_allowed) {
+            return Err(Error::PluginRunSelfOnly {
+                caller: format!("{owner}/{repository}/{version}"),
+                requested: coord,
+            });
+        }
+    }
     let (exec, cli_dir) = scoped
         .filesystem
         .resolve_plugin(&request.owner, &request.name, &request.version)
@@ -82,12 +117,21 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     .await?;
 
     // Context for nested (plugin-originated) commands: this caller's
-    // pair verbatim. Plugins carry no special routing identity — their
+    // pair, STAMPED with the plugin caller identity — the ONE place
+    // in the system allowed to assert it (in-process; wire/env claims
+    // are ignored everywhere). Every nested command's scope (and, via
+    // `apply_config_env` below, the plugin child's env,
+    // informationally) carries which installed plugin it came from.
+    // Otherwise plugins carry no special routing identity — their
     // nested commands broadcast on /listen like any other run, and
     // plugins observe the daemon with the SAME SSE executor /
     // listeners every other client uses.
     let nested_global = global.clone();
-    let nested_scoped = scoped.clone();
+    let nested_scoped = scoped.with_plugin(
+        request.owner.clone(),
+        request.name.clone(),
+        request.version.clone(),
+    );
 
     let mut cmd = Command::new(&program);
     objectiveai_sdk::process::no_window(&mut cmd);

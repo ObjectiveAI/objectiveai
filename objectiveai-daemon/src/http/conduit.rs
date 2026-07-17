@@ -1763,6 +1763,11 @@ async fn dispatch_script(
             agent_remote: req.agent_remote.clone(),
             response_id: Some(req.response_id.clone()),
             response_ids: req.response_ids.clone(),
+            // Script agents are not plugins; the trio's single
+            // writer is `plugins run`.
+            plugin_owner: None,
+            plugin_repository: None,
+            plugin_version: None,
         })
         .await;
     let python = match inner.global.python().await {
@@ -2069,6 +2074,12 @@ async fn dial_plugin_upstream(
             agent_remote: transient.agent_remote.clone(),
             response_id: Some(transient.response_id.clone()),
             response_ids: Some(transient.response_ids.clone()),
+            // None here on purpose: `plugins run` (which this dial
+            // flows into) is the trio's SINGLE writer — it stamps
+            // the nested scope with this very plugin's coordinates.
+            plugin_owner: None,
+            plugin_repository: None,
+            plugin_version: None,
         })
         .await;
 

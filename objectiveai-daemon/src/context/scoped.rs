@@ -25,9 +25,11 @@ use crate::context::GlobalContext;
 use crate::filesystem;
 use crate::run::Config;
 
-/// The seven identity fields as a plain value — the ONLY currency for
+/// The identity fields as a plain value — the ONLY currency for
 /// obtaining a differently-identified scope (via
-/// [`ScopedContext::for_request`]).
+/// [`ScopedContext::for_request`]). The three `plugin_*` fields are
+/// the PLUGIN CALLER identity (which installed plugin originated the
+/// work); absent for non-plugin callers.
 pub struct ScopeIdentity {
     pub agent_instance_hierarchy: String,
     pub agent_id: Option<String>,
@@ -35,6 +37,9 @@ pub struct ScopeIdentity {
     pub agent_remote: Option<String>,
     pub response_id: Option<String>,
     pub response_ids: Option<String>,
+    pub plugin_owner: Option<String>,
+    pub plugin_repository: Option<String>,
+    pub plugin_version: Option<String>,
 }
 
 impl ScopeIdentity {
@@ -53,6 +58,9 @@ impl ScopeIdentity {
             agent_remote: None,
             response_id: None,
             response_ids: None,
+            plugin_owner: None,
+            plugin_repository: None,
+            plugin_version: None,
         }
     }
 
@@ -72,6 +80,13 @@ impl ScopeIdentity {
             agent_remote: args.agent_remote.clone(),
             response_id: args.response_id.clone(),
             response_ids: args.response_ids.clone(),
+            // The plugin trio is NEVER taken from a wire envelope —
+            // plugin caller identity is unspoofable; only the
+            // daemon's own `plugins run` stamps it, via
+            // [`ScopedContext::with_plugin`] on the nested scope.
+            plugin_owner: None,
+            plugin_repository: None,
+            plugin_version: None,
         }
     }
 }
@@ -83,15 +98,19 @@ pub struct ScopedContext {
     /// them); the commit-author fields are re-resolved from the
     /// on-disk config at scope construction ([`Self::for_request`]).
     pub filesystem: filesystem::Client,
-    // The seven identity fields: private and immutable — a different
+    // The identity fields: private and immutable — a different
     // identity means a different scope (`for_request`), never a
-    // mutation.
+    // mutation. The `plugin_*` trio is the plugin caller identity,
+    // stamped by `plugins run` (env or [`Self::with_plugin`]).
     agent_instance_hierarchy: String,
     agent_id: Option<String>,
     agent_full_id: Option<String>,
     agent_remote: Option<String>,
     response_id: Option<String>,
     response_ids: Option<String>,
+    plugin_owner: Option<String>,
+    plugin_repository: Option<String>,
+    plugin_version: Option<String>,
     /// When true, the embedded python's `objectiveai.execute(...)`
     /// host call raises instead of dispatching a CLI command. Set by
     /// the `python --no-objectiveai` flag and automatically for the
@@ -126,6 +145,12 @@ impl ScopedContext {
             agent_remote: config.agent_remote.clone(),
             response_id: config.response_id.clone(),
             response_ids: config.response_ids.clone(),
+            // The daemon's own boot identity is never a plugin's; the
+            // trio arrives per request (envelope headers) or via
+            // `with_plugin` (nested plugin commands).
+            plugin_owner: None,
+            plugin_repository: None,
+            plugin_version: None,
             no_objectiveai: false,
             api: Arc::new(OnceCell::new()),
         }
@@ -174,6 +199,9 @@ impl ScopedContext {
             agent_remote: identity.agent_remote,
             response_id: identity.response_id,
             response_ids: identity.response_ids,
+            plugin_owner: identity.plugin_owner,
+            plugin_repository: identity.plugin_repository,
+            plugin_version: identity.plugin_version,
             no_objectiveai: self.no_objectiveai,
             api: Arc::new(OnceCell::new()),
         }
@@ -210,6 +238,36 @@ impl ScopedContext {
 
     pub fn response_ids(&self) -> Option<&str> {
         self.response_ids.as_deref()
+    }
+
+    pub fn plugin_owner(&self) -> Option<&str> {
+        self.plugin_owner.as_deref()
+    }
+
+    pub fn plugin_repository(&self) -> Option<&str> {
+        self.plugin_repository.as_deref()
+    }
+
+    pub fn plugin_version(&self) -> Option<&str> {
+        self.plugin_version.as_deref()
+    }
+
+    /// Derive a clone stamped with the PLUGIN CALLER identity — used
+    /// by `plugins run` so every nested (plugin-originated) command's
+    /// scope carries which installed plugin it came from. Like
+    /// [`Self::with_no_objectiveai`], the api cell stays shared: the
+    /// plugin trio never rides identity headers to the API.
+    pub fn with_plugin(
+        &self,
+        owner: impl Into<String>,
+        repository: impl Into<String>,
+        version: impl Into<String>,
+    ) -> Self {
+        let mut clone = self.clone();
+        clone.plugin_owner = Some(owner.into());
+        clone.plugin_repository = Some(repository.into());
+        clone.plugin_version = Some(version.into());
+        clone
     }
 
     /// The API `HttpClient`, built on first use and memoized for this

@@ -184,6 +184,10 @@ impl CommandExecutor for SseCommandExecutor {
             if let Some(v) = &args.response_ids {
                 req = req.header("X-OBJECTIVEAI-RESPONSE-IDS", v);
             }
+            // The `plugin_*` trio is DELIBERATELY not stamped: plugin
+            // caller identity is unspoofable — only the daemon's own
+            // `plugins run` may assert it (in-process), never a wire
+            // request.
         }
         let response = req.send().await.map_err(Error::Connect)?;
         if !response.status().is_success() {

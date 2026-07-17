@@ -20,6 +20,18 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+    // PLUGIN callers may not run tools, period — a nested command
+    // whose scope carries the plugin caller trio (stamped by
+    // `plugins run`, unspoofable) is refused before any resolution.
+    if let (Some(owner), Some(repository), Some(version)) = (
+        scoped.plugin_owner(),
+        scoped.plugin_repository(),
+        scoped.plugin_version(),
+    ) {
+        return Err(Error::ToolRunByPlugin {
+            caller: format!("{owner}/{repository}/{version}"),
+        });
+    }
     let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
     let (exec, cwd) = scoped
         .filesystem

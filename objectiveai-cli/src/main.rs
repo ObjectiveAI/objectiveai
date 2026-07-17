@@ -393,6 +393,12 @@ fn agent_arguments_from_env() -> AgentArguments {
         agent_remote: var("OBJECTIVEAI_AGENT_REMOTE"),
         response_id: var("OBJECTIVEAI_RESPONSE_ID"),
         response_ids: var("OBJECTIVEAI_RESPONSE_IDS"),
+        // NEVER read the OBJECTIVEAI_PLUGIN_* trio: plugin caller
+        // identity is unspoofable — only the daemon's own `plugins
+        // run` may assert it, in-process. An env claim is ignored.
+        plugin_owner: None,
+        plugin_repository: None,
+        plugin_version: None,
     }
 }
 
