@@ -79,7 +79,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     else {
         return Err(Error::TagApplyAgentActive { tag: request.name });
     };
-    let result = db::tags::apply(pool, &request.name, resolved).await;
+    let result = db::tags::apply(&pool, &request.name, resolved).await;
     // Release the in-process guard before propagating the apply outcome.
     claim.release();
     let state = result?;

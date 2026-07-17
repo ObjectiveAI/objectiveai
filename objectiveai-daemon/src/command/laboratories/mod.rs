@@ -214,7 +214,7 @@ pub(super) async fn resolve_target(
         }
         AgentSelector::Tag { agent_tag } => {
             let pool = global.db_client().await?;
-            match crate::db::tags::lookup(pool, agent_tag).await? {
+            match crate::db::tags::lookup(&pool, agent_tag).await? {
                 crate::db::tags::LookupState::Absent => {
                     Err(Error::TagNotFound(agent_tag.clone()))
                 }

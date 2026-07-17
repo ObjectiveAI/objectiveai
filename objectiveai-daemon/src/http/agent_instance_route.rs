@@ -107,7 +107,7 @@ impl ConversationHub {
              WHERE mqc.id = $1",
         )
         .bind(message_queue_content_id)
-        .fetch_optional(&**pool)
+        .fetch_optional(&*pool)
         .await
         .ok()??;
 
@@ -241,7 +241,7 @@ fn instance_stream(
             let mut after_id: Option<i64> = None;
             loop {
                 let page = crate::db::logs::read_conversation_page(
-                    pool,
+                    &pool,
                     &aih,
                     after_id,
                     SNAPSHOT_PAGE,

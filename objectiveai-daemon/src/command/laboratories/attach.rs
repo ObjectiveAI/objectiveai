@@ -27,7 +27,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     let (machine, machine_state) =
         super::resolve_pair(global, scoped, request.machine.clone(), request.machine_state.clone())?;
     let target = super::resolve_target(global, scoped, &request.selector).await?;
-    let pool = global.db_client().await?.clone();
+    let pool = global.db_client().await?;
     let inserted = crate::db::laboratory_attachments::attach(
         &pool,
         &target,

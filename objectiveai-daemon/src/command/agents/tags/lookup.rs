@@ -19,14 +19,14 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                 .unwrap_or_else(|| scoped.agent_instance_hierarchy().to_string());
             let agent_instance_hierarchy = format!("{parent}/{agent_instance}");
             let tags = db::tags::tags_for_hierarchy(
-                global.db_client().await?,
+                &global.db_client().await?,
                 &agent_instance_hierarchy,
             )
             .await?;
             Ok(Response::AgentInstanceHierarchy { tags })
         }
         Request::Tag { tag, .. } => {
-            let state = db::tags::lookup(global.db_client().await?, &tag).await?;
+            let state = db::tags::lookup(&global.db_client().await?, &tag).await?;
             Ok(match state {
                 db::tags::LookupState::Bound { agent_instance_hierarchy } => Response::Tag {
                     state: LookupState::Bound { agent_instance_hierarchy },

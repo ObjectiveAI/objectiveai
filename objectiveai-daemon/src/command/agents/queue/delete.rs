@@ -14,7 +14,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     use db::message_queue::DeleteOutcome;
 
     let outcome = db::message_queue::delete_by_id(
-        global.db_client().await?,
+        &global.db_client().await?,
         request.id,
         scoped.agent_instance_hierarchy(),
     )

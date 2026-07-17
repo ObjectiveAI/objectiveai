@@ -157,7 +157,7 @@ async fn execute_streaming(
             None,
         ),
         AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
+            match crate::db::tags::lookup(&global.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
                     let lab_targets = vec![
                         Target::Tag(agent_tag.clone()),
@@ -228,7 +228,7 @@ async fn execute_streaming(
         let is_group = matches!(family, Family::Group(_));
         match super::locks::try_acquire_family(
             global.agent_locks(),
-            global.db_client().await?,
+            &global.db_client().await?,
             &state_dir,
             family,
         )
@@ -267,7 +267,7 @@ async fn execute_streaming(
             // spawn-long tee is created inside `run_multi_pass`,
             // which this error prevents from ever starting.
             let lookup = async {
-                crate::db::logs::lookup_session(global.db_client().await?, &hierarchy)
+                crate::db::logs::lookup_session(&global.db_client().await?, &hierarchy)
                     .await?
                     .ok_or(Error::AgentNoPriorRequest {
                         agent_instance_hierarchy: hierarchy.clone(),
@@ -348,7 +348,7 @@ async fn resolve_laboratories(
     let lists = futures::future::try_join_all(
         lab_targets
             .iter()
-            .map(|target| crate::db::laboratory_attachments::list(pool, target)),
+            .map(|target| crate::db::laboratory_attachments::list(&pool, target)),
     )
     .await?;
     // Dedup by BARE id, earliest attachment wins: an agent dials at
@@ -408,7 +408,7 @@ async fn record_active_laboratories(
         })
         .collect();
     let pool = global.db_client().await?;
-    crate::db::agent_active_laboratories::replace(pool, aih, &ids).await?;
+    crate::db::agent_active_laboratories::replace(&pool, aih, &ids).await?;
     Ok(())
 }
 
@@ -437,7 +437,7 @@ pub(crate) async fn note_error(
         .unwrap_or(0);
     // Persist BEFORE returning the error to the caller; tee after (the
     // tee is fire-and-forget).
-    if crate::db::logs::insert_error(pool, aih, response_id, &value, timestamp)
+    if crate::db::logs::insert_error(&pool, aih, response_id, &value, timestamp)
         .await
         .is_ok()
     {
@@ -568,7 +568,7 @@ pub(crate) fn run_multi_pass(
                 }
             };
             let (log_writer, _ready_rx) = match crate::db::logs::write_agent_completion(
-                pool,
+                &pool,
                 &params,
                 scoped.agent_instance_hierarchy().to_string(),
                 Some(conversation_tee.clone()),
@@ -663,7 +663,7 @@ pub(crate) fn run_multi_pass(
                     if let Some(value) = agent_ref.take() {
                         let upsert = async {
                             crate::db::agent_refs::upsert(
-                                global.db_client().await?,
+                                &global.db_client().await?,
                                 &hier,
                                 value,
                             )
@@ -709,11 +709,15 @@ pub(crate) fn run_multi_pass(
                 // log-writer send + downstream yield so the registry
                 // row is visible by the time the chunk leaves this
                 // body.
+                // Declared BEFORE the futures Vec so it outlives the
+                // borrows the upsert futures hold (drop order is
+                // reverse declaration order).
+                let pool = global.db_client().await?;
                 let mut continuation_upserts: Vec<_> = Vec::new();
                 for (hier, continuation) in chunk.agent_instance_hierarchies() {
                     if let Some(c) = continuation {
                         continuation_upserts.push(
-                            crate::db::agent_continuations::upsert(global.db_client().await?, hier, c),
+                            crate::db::agent_continuations::upsert(&pool, hier, c),
                         );
                     }
                 }
@@ -819,7 +823,7 @@ pub(crate) fn run_multi_pass(
                 break;
             };
             let pending = crate::db::message_queue::check_any_pending(
-                global.db_client().await?, hier,
+                &global.db_client().await?, hier,
             )
             .await
             .unwrap_or(false);

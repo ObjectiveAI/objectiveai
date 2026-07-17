@@ -1658,7 +1658,7 @@ async fn dispatch_read_message_queue(
         }
     };
     match crate::db::message_queue::read_pending_and_upgrade_tag(
-        pool,
+        &pool,
         inner.agent_tag.as_deref(),
         &req.agent_instance_hierarchy,
     )

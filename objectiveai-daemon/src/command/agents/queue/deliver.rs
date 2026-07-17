@@ -124,7 +124,7 @@ async fn execute_streaming(global: &GlobalContext, scoped: &ScopedContext, reque
     // deliverable carrying one of those keys.
     let caller = scoped.agent_instance_hierarchy().to_string();
     let targets = db::message_queue::list_delivery_targets(
-        global.db_client().await?,
+        &global.db_client().await?,
         &caller,
         request.keys.as_deref().unwrap_or(&[]),
     )
@@ -215,7 +215,7 @@ fn deliver_one_hierarchy(
         // detached while it is live. A held member ⇒ already active.
         let registry = match crate::command::agents::locks::try_acquire_family(
             global.agent_locks(),
-            pool,
+            &pool,
             &state_dir,
             crate::command::agents::locks::Family::Hierarchy(hierarchy.clone()),
         )
@@ -246,7 +246,7 @@ fn deliver_one_hierarchy(
             }
         };
 
-        let lookup = match crate::db::logs::lookup_session(pool, &hierarchy).await {
+        let lookup = match crate::db::logs::lookup_session(&pool, &hierarchy).await {
             Ok(Some(lookup)) => lookup,
             Ok(None) => {
                 // The AIH lock is HELD — log the failure into the
@@ -344,7 +344,7 @@ fn deliver_one_tag(
                 return;
             }
         };
-        let (agent, tag_group_id) = match crate::db::tags::lookup(pool, &agent_tag).await {
+        let (agent, tag_group_id) = match crate::db::tags::lookup(&pool, &agent_tag).await {
             Ok(crate::db::tags::LookupState::Grouped { agent_spec, tag_group_id, .. }) => {
                 (agent_spec, tag_group_id)
             }
@@ -375,7 +375,7 @@ fn deliver_one_tag(
         // member ⇒ already being materialized.
         let registry = match crate::command::agents::locks::try_acquire_family(
             global.agent_locks(),
-            pool,
+            &pool,
             &state_dir,
             crate::command::agents::locks::Family::Group(tag_group_id),
         )

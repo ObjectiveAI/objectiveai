@@ -114,10 +114,16 @@ impl LaboratoriesHub {
     async fn watch_attachment_changes(self) {
         use std::time::Duration;
         loop {
+            // Db-epoch nudge: acquire the receiver BEFORE resolving the
+            // pool, so an invalidation racing this connect fires
+            // `changed()` immediately and we re-resolve instead of
+            // camping on a stale (possibly still-healthy remote)
+            // listener forever.
+            let mut db_epoch = self.global.db_epoch_rx();
             let reconnect = async {
                 let pool = self.global.db_client().await.ok()?;
                 let mut listener =
-                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                    sqlx::postgres::PgListener::connect_with(&*pool).await.ok()?;
                 listener.listen("laboratory_attachments_changed").await.ok()?;
                 Some(listener)
             }
@@ -126,10 +132,21 @@ impl LaboratoriesHub {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             };
-            while listener.recv().await.is_ok() {
-                let _ = self.changes.send(LabsChange::Attachments);
+            loop {
+                tokio::select! {
+                    // Db invalidated — drop the listener and
+                    // re-resolve the pool.
+                    _ = db_epoch.changed() => break,
+                    n = listener.recv() => match n {
+                        Ok(_) => {
+                            let _ = self.changes.send(LabsChange::Attachments);
+                        }
+                        Err(_) => break,
+                    },
+                }
             }
-            // Listener errored/closed — pause, then reconnect.
+            // Listener errored/closed (or the db epoch turned) —
+            // pause, then reconnect.
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }
@@ -177,7 +194,7 @@ impl LaboratoriesHub {
 
         let pool = self.global.db_client().await.ok()?;
         let rows =
-            crate::db::laboratory_attachments::list_for_laboratory(pool, id, host)
+            crate::db::laboratory_attachments::list_for_laboratory(&pool, id, host)
                 .await
                 .ok()?;
         let attachments = rows

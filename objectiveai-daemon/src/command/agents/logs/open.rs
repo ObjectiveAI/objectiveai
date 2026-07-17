@@ -8,7 +8,7 @@ use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    crate::db::logs::read_by_id(global.db_client().await?, request.id)
+    crate::db::logs::read_by_id(&global.db_client().await?, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(

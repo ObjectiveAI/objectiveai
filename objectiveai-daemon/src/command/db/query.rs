@@ -23,7 +23,7 @@ pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: R
     pre_flight_validate(&request.query)?;
 
     let timeout = request.base.timeout_seconds.map(Duration::from_secs);
-    let raw = crate::db::query::run_readonly_query(global.db_client().await?, &request.query, timeout).await?;
+    let raw = crate::db::query::run_readonly_query(&global.db_client().await?, &request.query, timeout).await?;
 
     let RawQueryResult { command_tag, columns, rows } = raw;
     Ok(Response {

@@ -73,7 +73,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // failure fails the run loudly rather than spawning a child with
     // a silently missing database.
     let postgres_url = crate::db::compartment::ensure(
-        global.db_handle().await?,
+        &global.db_handle().await?,
         crate::db::compartment::Kind::Plugin,
         &request.owner,
         &request.name,
@@ -121,7 +121,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // the end of the stream so every line is flushed before `plugins
     // run` completes.
     let stderr_writer = spawn_stderr_log_writer(
-        global.db_client().await?.clone(),
+        global.db_client().await?,
         request.owner.clone(),
         request.name.clone(),
         request.version.clone(),

@@ -15,7 +15,7 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let default_parent = scoped.agent_instance_hierarchy().to_string();
-    let db = global.db_client().await?.clone();
+    let db = global.db_client().await?;
     let after_id = request.after_id;
     let limit = request.limit;
     // `--pending` lists only unfinalized rows under the target (read

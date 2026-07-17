@@ -13,7 +13,7 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
-    let db = global.db_client().await?.clone();
+    let db = global.db_client().await?;
     let items = crate::db::logs::read_plugin_messages(
         &db,
         &request.owner,

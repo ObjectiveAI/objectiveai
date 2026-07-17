@@ -38,7 +38,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
         AgentSelector::Ref { .. } => return Err(Error::EnqueueRefTarget),
     };
     let id = crate::db::message_queue::enqueue_with_content(
-        global.db_client().await?,
+        &global.db_client().await?,
         hier.clone(),
         tag.clone(),
         scoped.agent_instance_hierarchy(),

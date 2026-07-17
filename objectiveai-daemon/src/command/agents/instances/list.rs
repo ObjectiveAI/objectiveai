@@ -25,7 +25,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             "`all` is mutually exclusive with `targets`".to_string(),
         ));
     }
-    let db = global.db_client().await?.clone();
+    let db = global.db_client().await?;
     if all {
         let stream = async_stream::stream! {
             match crate::db::instances::list_all(&db).await {

@@ -28,7 +28,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     else {
         return Err(Error::TagRemoveAgentActive { tag: request.tag });
     };
-    let result = db::tags::remove(pool, &request.tag).await;
+    let result = db::tags::remove(&pool, &request.tag).await;
     // Release the in-process guard before propagating the outcome.
     claim.release();
     match result? {

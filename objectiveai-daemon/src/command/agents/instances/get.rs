@@ -21,7 +21,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // dedup preserving first-seen order.
     let mut aihs: Vec<String> = Vec::new();
     for target in request.targets {
-        if let Some(aih) = super::resolve_target(global.db_client().await?, target, &default_parent).await? {
+        if let Some(aih) = super::resolve_target(&global.db_client().await?, target, &default_parent).await? {
             if !aihs.contains(&aih) {
                 aihs.push(aih);
             }
@@ -32,18 +32,18 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // that resolved to the same AIH.
     let mut merged: BTreeMap<String, ResponseItem> = BTreeMap::new();
     for aih in aihs {
-        let mut item = crate::db::instances::get_exact(global.db_client().await?, &aih).await?;
+        let mut item = crate::db::instances::get_exact(&global.db_client().await?, &aih).await?;
         // The recorded definition source: agent_refs, with the
         // legacy request-blob fallback. None when neither knows the
         // agent.
-        item.agent = crate::db::logs::lookup_session(global.db_client().await?, &aih)
+        item.agent = crate::db::logs::lookup_session(&global.db_client().await?, &aih)
             .await?
             .map(|lookup| lookup.agent);
         // The effective laboratory set the next spawn pass dials:
         // the AIH's own attachments UNION its bound tags'.
         item.laboratories = Some(
             crate::db::laboratory_attachments::effective_for_aih(
-                global.db_client().await?,
+                &global.db_client().await?,
                 &aih,
                 &item.tags,
             )

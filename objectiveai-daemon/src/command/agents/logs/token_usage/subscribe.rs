@@ -28,7 +28,7 @@ fn once(item: Result<ResponseItem, Error>) -> ItemStream {
 }
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
-    let db = global.db_client().await?.clone();
+    let db = global.db_client().await?;
     let state_dir = scoped.filesystem.state_dir();
     let aih = request.agent_instance_hierarchy;
     let previous = request.previous;

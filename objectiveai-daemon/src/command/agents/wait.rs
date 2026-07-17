@@ -42,7 +42,7 @@ async fn wait(global: &GlobalContext, scoped: &ScopedContext, agent: AgentSelect
             format!("{parent}/{agent_instance}")
         }
         AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
+            match crate::db::tags::lookup(&global.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound {
                     agent_instance_hierarchy,
                 } => agent_instance_hierarchy,
@@ -82,7 +82,7 @@ async fn wait_for_tag_upgrade(
         // The spawn flow upgrades GROUPED→BOUND strictly before
         // releasing the tag lock — a still-GROUPED tag here means
         // that invariant is broken somewhere.
-        match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
+        match crate::db::tags::lookup(&global.db_client().await?, &agent_tag).await? {
             crate::db::tags::LookupState::Bound {
                 agent_instance_hierarchy,
             } => Ok(Some(agent_instance_hierarchy)),
@@ -95,7 +95,7 @@ async fn wait_for_tag_upgrade(
         // Unlocked. Re-check the DB before concluding "idle": a
         // racer may have upgraded AND released between the caller's
         // lookup and our probe.
-        match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
+        match crate::db::tags::lookup(&global.db_client().await?, &agent_tag).await? {
             crate::db::tags::LookupState::Bound {
                 agent_instance_hierarchy,
             } => Ok(Some(agent_instance_hierarchy)),

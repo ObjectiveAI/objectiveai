@@ -88,7 +88,7 @@ pub fn run(
         // `written_once` has also been flipped, so we never await
         // this oneshot before the gate opens.
         let (log_writer, log_ready_rx) = crate::db::logs::write_function_execution(
-            global.db_client().await?,
+            &global.db_client().await?,
             &params,
             scoped.agent_instance_hierarchy().to_string(),
             // Live-conversation tee: this one writer streams every
@@ -143,6 +143,10 @@ pub fn run(
                     //    awaited via `try_join_all` before any
                     //    downstream work — by the time the chunk
                     //    yields, the rows are persisted.
+                    // Declared BEFORE the futures Vec so it outlives
+                    // the borrows the upsert futures hold (drop order
+                    // is reverse declaration order).
+                    let pool = global.db_client().await?;
                     let mut continuation_upserts: Vec<_> = Vec::new();
                     let mut fresh_hierarchies: Vec<String> = Vec::new();
                     for (hier, continuation) in chunk.agent_instance_hierarchies() {
@@ -152,7 +156,7 @@ pub fn run(
                         }
                         if let Some(c) = continuation {
                             continuation_upserts.push(
-                                crate::db::agent_continuations::upsert(global.db_client().await?, hier, c),
+                                crate::db::agent_continuations::upsert(&pool, hier, c),
                             );
                         }
                     }

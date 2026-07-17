@@ -95,7 +95,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             instance_route(&state_dir, format!("{parent}/{agent_instance}"))
         }
         AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(global.db_client().await?, &agent_tag).await? {
+            match crate::db::tags::lookup(&global.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound {
                     agent_instance_hierarchy,
                 } => instance_route(&state_dir, agent_instance_hierarchy),
@@ -132,7 +132,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             // consumed strictly oldest-id-first, so whoever wins any
             // race below, delivery order stays enqueue order.
             let queue_id = crate::db::message_queue::enqueue_with_content(
-                global.db_client().await?,
+                &global.db_client().await?,
                 hierarchy,
                 tag,
                 scoped.agent_instance_hierarchy(),
@@ -140,7 +140,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                 content,
             )
             .await?;
-            let pool = global.db_client().await?.clone();
+            let pool = global.db_client().await?;
             // ONE delivery subscription, pinned OUTSIDE the loop so its
             // LISTEN + probe persist across iterations. Recreating it per
             // iteration let a hot `wait_released` starve it — the mechanism
@@ -156,7 +156,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                 // wake task — it competes for its own family at startup.
                 match super::locks::try_acquire_family(
                     global.agent_locks(),
-                    global.db_client().await?,
+                    &global.db_client().await?,
                     &state_dir,
                     family.clone(),
                 )
@@ -210,7 +210,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                                 Err(e) => {
                                     match super::locks::try_acquire_family(
                                         global.agent_locks(),
-                                        global.db_client().await?,
+                                        &global.db_client().await?,
                                         &state_dir,
                                         family.clone(),
                                     )

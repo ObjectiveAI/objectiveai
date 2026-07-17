@@ -1,7 +1,9 @@
 //! Shared kill logic for the `{mcp,viewer} kill` commands, `update`'s
-//! pre-install teardown, and the `api config` mutation handlers'
+//! pre-install teardown, and the `{api,db} config` mutation handlers'
 //! kill-on-config-change ([`kill_api_before_config_change`] /
-//! [`kill_api_after_config_change`]). (The api / db / laboratories
+//! [`kill_api_after_config_change`] and the gate-held db pair
+//! [`kill_db_before_config_change`] /
+//! [`kill_db_after_config_change`]). (The api / db / laboratories
 //! kill commands and `kill-all` were retired — `daemon kill` is the
 //! whole-teardown path: killing the daemon takes every leashed
 //! resident child with it.)
@@ -75,6 +77,40 @@ pub async fn try_kill_resident_child(
 /// either way — the old behavior of the kill commands).
 pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
     try_kill_resident_child(global, key).await.unwrap_or(1)
+}
+
+/// Retire the resident db BEFORE a `db config` mutation is written —
+/// under [`GlobalContext::db_init_gate`], which is what makes the kill
+/// airtight: every db rebuild (including the whole spawn it may
+/// perform) runs under that gate, so holding it here guarantees no
+/// child is mid-birth and no handle-store can race the kill. The
+/// cached [`crate::db::DbHandle`] is invalidated in the same critical
+/// section (the respawned local db binds a NEW random port, so the old
+/// pool can never be reused). FALLIBLE — a live db that cannot be
+/// terminated aborts the config change. Not running is `Ok`. May wait
+/// out an in-flight cold db spawn (seconds) — a rare admin op paying
+/// for correctness.
+pub async fn kill_db_before_config_change(
+    global: &GlobalContext,
+) -> Result<(), Error> {
+    let gate = global.db_init_gate();
+    let _guard = gate.lock().await;
+    try_kill_resident_child(global, "db").await?;
+    global.invalidate_db().await;
+    Ok(())
+}
+
+/// The AFTER-write sweep paired with
+/// [`kill_db_before_config_change`]: a rebuild starting between the
+/// first kill and the write landing resolved the OLD config — waiting
+/// on the gate here serializes after it, then retires its child and
+/// clears its stored handle, so the next acquire rebuilds on the NEW
+/// config. Best-effort by design: the write already landed.
+pub async fn kill_db_after_config_change(global: &GlobalContext) {
+    let gate = global.db_init_gate();
+    let _guard = gate.lock().await;
+    let _ = kill_resident_child(global, "db").await;
+    global.invalidate_db().await;
 }
 
 /// Retire the resident api server BEFORE an `api config` mutation is

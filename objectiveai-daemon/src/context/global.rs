@@ -71,6 +71,16 @@ pub(crate) struct ResidentChild {
     pub(crate) address: Option<String>,
 }
 
+/// One cached db handle plus how it was built — the validity signal
+/// for [`GlobalContext::db_handle`]'s fast path.
+struct CachedDb {
+    handle: db::DbHandle,
+    /// Built via the local spawn path (no `db.address` configured):
+    /// served only while the "db" resident child is alive, so a
+    /// crashed/killed local db rebuilds (respawns) on the next call.
+    local: bool,
+}
+
 #[derive(Clone)]
 pub struct GlobalContext {
     /// When true, `config set` commands are refused. Boot env
@@ -124,9 +134,27 @@ pub struct GlobalContext {
     /// the daemon couldn't be spawned. Shared across clones; first set
     /// wins.
     daemon_address: Arc<std::sync::OnceLock<String>>,
-    /// Lazily-connected db handle (pool + admin coordinates) — see
-    /// [`Self::db_handle`].
-    db: Arc<OnceCell<db::DbHandle>>,
+    /// Lazily-connected db handle (pool + admin coordinates) — an
+    /// INVALIDATABLE cache, not a memo-forever cell: `db config` set
+    /// commands kill the resident db and clear this slot
+    /// ([`Self::invalidate_db`]), and the next [`Self::db_handle`]
+    /// rebuilds it from the then-current config. See the locking
+    /// order on [`Self::db_init_gate`].
+    db: Arc<tokio::sync::RwLock<Option<CachedDb>>>,
+    /// Serializes db-cache REBUILDS and INVALIDATIONS: every rebuild
+    /// (including the whole db spawn it may perform) and every
+    /// invalidation runs under this mutex, so a kill can never race a
+    /// child mid-birth or a handle mid-store. Locking order:
+    /// `db_init_gate` → `spawn_gate("db")` → the db slot RwLock →
+    /// the `resident_children` DashMap (sync leaf) — never reversed,
+    /// and `pool.close()` is never awaited under any of them.
+    db_init_gate: Arc<tokio::sync::Mutex<()>>,
+    /// Bumped on every db invalidation. The resident LISTEN watchers
+    /// hold receivers and drop their (possibly still-healthy, e.g.
+    /// outgoing-remote) listener connections to re-resolve the pool —
+    /// without this a switch AWAY from a healthy remote would leave
+    /// them parked in `recv()` forever.
+    db_epoch: Arc<tokio::sync::watch::Sender<u64>>,
     /// Lazily-initialized WASI python runtime — see [`Self::python`].
     python: Arc<OnceCell<crate::python::Python>>,
     /// Per-key in-process gate for agent locks (AIH + tag), shared
@@ -181,7 +209,9 @@ impl GlobalContext {
             filesystem,
             http: reqwest::Client::new(),
             daemon_address: Arc::new(std::sync::OnceLock::new()),
-            db: Arc::new(OnceCell::new()),
+            db: Arc::new(tokio::sync::RwLock::new(None)),
+            db_init_gate: Arc::new(tokio::sync::Mutex::new(())),
+            db_epoch: Arc::new(tokio::sync::watch::channel(0).0),
             python: Arc::new(OnceCell::new()),
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             resident_hubs: Arc::new(std::sync::OnceLock::new()),
@@ -319,78 +349,150 @@ impl GlobalContext {
         self.agent_locks.clone()
     }
 
-    /// The db pool, connected on first use and memoized — the
-    /// pool-only view of [`Self::db_handle`].
-    pub async fn db_client(&self) -> Result<&db::Pool, crate::error::Error> {
-        Ok(&self.db_handle().await?.pool)
+    /// The db pool — the pool-only view of [`Self::db_handle`].
+    /// Owned: `Pool` is an Arc-backed clone.
+    pub async fn db_client(&self) -> Result<db::Pool, crate::error::Error> {
+        Ok(self.db_handle().await?.pool)
+    }
+
+    /// The gate serializing db-cache rebuilds and invalidations —
+    /// cloned OUT so the caller locks it with no field borrow held
+    /// (same pattern as [`Self::spawn_gate`]).
+    pub(crate) fn db_init_gate(&self) -> Arc<tokio::sync::Mutex<()>> {
+        self.db_init_gate.clone()
+    }
+
+    /// A receiver on the db-invalidation epoch — resident LISTEN
+    /// watchers select on it to drop their listener and re-resolve
+    /// the pool whenever the db cache is invalidated.
+    pub(crate) fn db_epoch_rx(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.db_epoch.subscribe()
+    }
+
+    /// Clear the cached db handle and background-close its pool, then
+    /// bump the db epoch. PRECONDITION (documented, not enforced): the
+    /// caller holds [`Self::db_init_gate`] — a tokio `Mutex` is not
+    /// reentrant, so this must not lock the gate itself. The pool
+    /// close is SPAWNED, never awaited here: a healthy outgoing
+    /// remote pool has listener connections parked in `recv()`, and
+    /// an inline `close().await` would wedge the gate forever;
+    /// spawning marks the pool closed on first poll (waiters get
+    /// `PoolClosed`) and reaps stragglers in the background.
+    pub(crate) async fn invalidate_db(&self) {
+        let taken = self.db.write().await.take();
+        if let Some(cached) = taken {
+            let pool = cached.handle.pool;
+            tokio::spawn(async move { pool.close().await });
+        }
+        self.db_epoch.send_modify(|e| *e += 1);
     }
 
     /// The db handle — pool plus the admin coordinates it was built
     /// from (address, admin user/password, database name), which
     /// [`crate::db::compartment`] needs to mint derived per-plugin
     /// connection strings. Connected on first use (ensuring the
-    /// application database + schema exist) and memoized — the FIRST
-    /// caller's config view decides for the whole process, which is
-    /// why this reads the boot filesystem and takes no scope. Must NOT
-    /// connect eagerly: commands like `db config ...` have to work
-    /// before any database exists — they're how you bring one up in
-    /// the first place.
+    /// application database + schema exist) and CACHED until a
+    /// `db config` mutation invalidates it — a config change kills
+    /// the resident db and clears this cache, and the next call
+    /// rebuilds from the then-current config, so db config changes
+    /// never require a daemon restart. Identity-blind by design
+    /// (reads the boot filesystem — since config is state-only it is
+    /// the same file every scope reads). Must NOT connect eagerly:
+    /// commands like `db config ...` have to work before any
+    /// database exists — they're how you bring one up in the first
+    /// place.
     ///
-    /// URL resolution: when `db.address` is set in the merged config
-    /// view, a remote-postgres URL is composed from the `config db`
-    /// parts; otherwise the internal db spawn flow returns the local
+    /// Validity: a LOCAL handle (built via the spawn path) is only
+    /// served while the "db" resident child is alive — a crashed or
+    /// killed local db is observed on the next call and rebuilt
+    /// (respawned). A REMOTE handle (db.address configured) is served
+    /// until explicitly invalidated.
+    ///
+    /// URL resolution: when `db.address` is set in the config, a
+    /// remote-postgres URL is composed from the `config db` parts;
+    /// otherwise the internal db spawn flow returns the local
     /// cluster's announced `postgresql://` URL (starting the
     /// objectiveai-db supervisor if needed), whose admin coordinates
     /// are parsed back out of that URL (our own
     /// `postgresql://postgres:{password}@{host}:{port}` shape).
-    pub async fn db_handle(&self) -> Result<&db::DbHandle, crate::error::Error> {
-        self.db
-            .get_or_try_init(|| async {
-                let mut config = self
-                    .filesystem
-                    .read_config()
-                    .await?;
-                let address = config.db().get_address().map(String::from);
-                let (url, address, admin_user, admin_password) = match address {
-                    Some(address) => {
-                        let db = config.db();
-                        let user = db
-                            .get_user()
-                            .unwrap_or(crate::filesystem::config::DB_DEFAULT_USER)
-                            .to_string();
-                        let password = db
-                            .get_password()
-                            .unwrap_or(crate::filesystem::config::DB_DEFAULT_PASSWORD)
-                            .to_string();
-                        let url = db::config_url(&address, &user, &password);
-                        (url, address, user, password)
+    pub async fn db_handle(&self) -> Result<db::DbHandle, crate::error::Error> {
+        // Fast path: a valid cached handle, under the read lock only.
+        {
+            let slot = self.db.read().await;
+            if let Some(cached) = &*slot {
+                if !cached.local || self.server_child_alive("db") {
+                    return Ok(cached.handle.clone());
+                }
+            }
+        }
+        // Slow path: rebuild under the init gate (concurrent callers
+        // coalesce; a failed build caches nothing so the next call
+        // retries).
+        let gate = self.db_init_gate();
+        let _guard = gate.lock().await;
+        // Double-check: someone rebuilt while we waited. A stale
+        // local-dead entry is taken and its pool close backgrounded.
+        {
+            let mut slot = self.db.write().await;
+            match &*slot {
+                Some(cached) if !cached.local || self.server_child_alive("db") => {
+                    return Ok(cached.handle.clone());
+                }
+                Some(_) => {
+                    if let Some(stale) = slot.take() {
+                        let pool = stale.handle.pool;
+                        tokio::spawn(async move { pool.close().await });
                     }
-                    None => {
-                        let url = crate::command::db::spawn::spawn(self).await?;
-                        let (address, user, password) =
-                            parse_spawn_db_url(&url).ok_or_else(|| {
-                                crate::error::Error::Instance(format!(
-                                    "the db announced an unparseable URL: {url}"
-                                ))
-                            })?;
-                        (url, address, user, password)
-                    }
-                };
-                let database = config
-                    .db()
-                    .get_database()
-                    .unwrap_or(crate::filesystem::config::DB_DEFAULT_DATABASE)
+                }
+                None => {}
+            }
+        }
+        let mut config = self.filesystem.read_config().await?;
+        let address = config.db().get_address().map(String::from);
+        let local = address.is_none();
+        let (url, address, admin_user, admin_password) = match address {
+            Some(address) => {
+                let db = config.db();
+                let user = db
+                    .get_user()
+                    .unwrap_or(crate::filesystem::config::DB_DEFAULT_USER)
                     .to_string();
-                let pool = db::init(&url, &database).await?;
-                Ok(db::DbHandle {
-                    pool,
-                    address,
-                    admin_user,
-                    admin_password,
-                    database,
-                })
-            })
-            .await
+                let password = db
+                    .get_password()
+                    .unwrap_or(crate::filesystem::config::DB_DEFAULT_PASSWORD)
+                    .to_string();
+                let url = db::config_url(&address, &user, &password);
+                (url, address, user, password)
+            }
+            None => {
+                let url = crate::command::db::spawn::spawn(self).await?;
+                let (address, user, password) =
+                    parse_spawn_db_url(&url).ok_or_else(|| {
+                        crate::error::Error::Instance(format!(
+                            "the db announced an unparseable URL: {url}"
+                        ))
+                    })?;
+                (url, address, user, password)
+            }
+        };
+        let database = config
+            .db()
+            .get_database()
+            .unwrap_or(crate::filesystem::config::DB_DEFAULT_DATABASE)
+            .to_string();
+        let pool = db::init(&url, &database).await?;
+        let handle = db::DbHandle {
+            pool,
+            address,
+            admin_user,
+            admin_password,
+            database,
+        };
+        *self.db.write().await = Some(CachedDb {
+            handle: handle.clone(),
+            local,
+        });
+        Ok(handle)
     }
 }
 

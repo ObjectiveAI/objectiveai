@@ -44,7 +44,7 @@ struct Resolved {
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let default_parent = scoped.agent_instance_hierarchy().to_string();
-    let db = global.db_client().await?.clone();
+    let db = global.db_client().await?;
     let state_dir = scoped.filesystem.state_dir();
 
     // Resolve every target up front. Tags resolve via tags::lookup;

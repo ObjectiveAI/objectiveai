@@ -61,7 +61,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // failure fails the run loudly rather than spawning a child with
     // a silently missing database.
     let postgres_url = crate::db::compartment::ensure(
-        global.db_handle().await?,
+        &global.db_handle().await?,
         crate::db::compartment::Kind::Tool,
         &request.owner,
         &request.name,

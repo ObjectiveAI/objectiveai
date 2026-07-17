@@ -160,7 +160,7 @@ impl ActiveAgents {
     /// this endpoint's whole payload.
     async fn snapshot(&self) -> Vec<AgentStatus> {
         let items = match self.global.db_client().await {
-            Ok(pool) => crate::db::instances::list_all(pool).await.unwrap_or_default(),
+            Ok(pool) => crate::db::instances::list_all(&pool).await.unwrap_or_default(),
             Err(_) => Vec::new(),
         };
         let active = self.active.lock().await;
@@ -192,16 +192,16 @@ impl ActiveAgents {
     pub(crate) async fn build_record_for(&self, aih: &str) -> Option<AgentRecord> {
         let active = self.active.lock().await.contains(aih);
         let pool = self.global.db_client().await.ok()?;
-        let item = crate::db::instances::get_exact(pool, aih).await.ok()?;
+        let item = crate::db::instances::get_exact(&pool, aih).await.ok()?;
         // ATTACHED laboratories — the effective union (AIH ∪ bound tags).
         let attached =
-            crate::db::laboratory_attachments::effective_for_aih(pool, aih, &item.tags)
+            crate::db::laboratory_attachments::effective_for_aih(&pool, aih, &item.tags)
                 .await
                 .ok()?;
         // ACTIVE laboratories — what the most recent spawn pass sent.
         // A fully separate concern from the attachments above.
         let active_laboratories =
-            crate::db::agent_active_laboratories::list(pool, aih).await.ok()?;
+            crate::db::agent_active_laboratories::list(&pool, aih).await.ok()?;
         Some(record_from_item(&item, active, attached, active_laboratories))
     }
 
@@ -217,10 +217,16 @@ impl ActiveAgents {
     pub(crate) async fn watch_tag_changes(self) {
         use std::time::Duration;
         loop {
+            // Db-epoch nudge: acquire the receiver BEFORE resolving the
+            // pool, so an invalidation racing this connect fires
+            // `changed()` immediately and we re-resolve instead of
+            // camping on a stale (possibly still-healthy remote)
+            // listener forever.
+            let mut db_epoch = self.global.db_epoch_rx();
             let reconnect = async {
                 let pool = self.global.db_client().await.ok()?;
                 let mut listener =
-                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                    sqlx::postgres::PgListener::connect_with(&*pool).await.ok()?;
                 listener.listen("tags_changed").await.ok()?;
                 Some(listener)
             }
@@ -229,12 +235,21 @@ impl ActiveAgents {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             };
-            while let Ok(notification) = listener.recv().await {
-                self.emit(StatusChange::TagsChanged {
-                    agent_instance_hierarchy: notification.payload().to_string(),
-                });
+            loop {
+                tokio::select! {
+                    // Db invalidated — drop the listener and
+                    // re-resolve the pool.
+                    _ = db_epoch.changed() => break,
+                    n = listener.recv() => match n {
+                        Ok(notification) => self.emit(StatusChange::TagsChanged {
+                            agent_instance_hierarchy: notification.payload().to_string(),
+                        }),
+                        Err(_) => break,
+                    },
+                }
             }
-            // Listener errored/closed — pause, then reconnect.
+            // Listener errored/closed (or the db epoch turned) —
+            // pause, then reconnect.
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }
@@ -250,10 +265,16 @@ impl ActiveAgents {
     pub(crate) async fn watch_attachment_changes(self) {
         use std::time::Duration;
         loop {
+            // Db-epoch nudge: acquire the receiver BEFORE resolving the
+            // pool, so an invalidation racing this connect fires
+            // `changed()` immediately and we re-resolve instead of
+            // camping on a stale (possibly still-healthy remote)
+            // listener forever.
+            let mut db_epoch = self.global.db_epoch_rx();
             let reconnect = async {
                 let pool = self.global.db_client().await.ok()?;
                 let mut listener =
-                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                    sqlx::postgres::PgListener::connect_with(&*pool).await.ok()?;
                 listener.listen("laboratory_attachments_changed").await.ok()?;
                 Some(listener)
             }
@@ -262,7 +283,16 @@ impl ActiveAgents {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             };
-            while let Ok(notification) = listener.recv().await {
+            loop {
+                let notification = tokio::select! {
+                    // Db invalidated — drop the listener and
+                    // re-resolve the pool.
+                    _ = db_epoch.changed() => break,
+                    n = listener.recv() => match n {
+                        Ok(notification) => notification,
+                        Err(_) => break,
+                    },
+                };
                 let payload = notification.payload();
                 if let Some(aih) = payload.strip_prefix("aih:") {
                     self.emit(StatusChange::AttachmentsChanged {
@@ -274,7 +304,7 @@ impl ActiveAgents {
                     };
                     if let Ok(crate::db::tags::LookupState::Bound {
                         agent_instance_hierarchy,
-                    }) = crate::db::tags::lookup(pool, tag).await
+                    }) = crate::db::tags::lookup(&pool, tag).await
                     {
                         self.emit(StatusChange::AttachmentsChanged {
                             agent_instance_hierarchy,
@@ -282,7 +312,8 @@ impl ActiveAgents {
                     }
                 }
             }
-            // Listener errored/closed — pause, then reconnect.
+            // Listener errored/closed (or the db epoch turned) —
+            // pause, then reconnect.
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }
@@ -296,10 +327,16 @@ impl ActiveAgents {
     pub(crate) async fn watch_active_laboratory_changes(self) {
         use std::time::Duration;
         loop {
+            // Db-epoch nudge: acquire the receiver BEFORE resolving the
+            // pool, so an invalidation racing this connect fires
+            // `changed()` immediately and we re-resolve instead of
+            // camping on a stale (possibly still-healthy remote)
+            // listener forever.
+            let mut db_epoch = self.global.db_epoch_rx();
             let reconnect = async {
                 let pool = self.global.db_client().await.ok()?;
                 let mut listener =
-                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                    sqlx::postgres::PgListener::connect_with(&*pool).await.ok()?;
                 listener.listen("agent_active_laboratories_changed").await.ok()?;
                 Some(listener)
             }
@@ -308,12 +345,23 @@ impl ActiveAgents {
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             };
-            while let Ok(notification) = listener.recv().await {
-                self.emit(StatusChange::ActiveLaboratoriesChanged {
-                    agent_instance_hierarchy: notification.payload().to_string(),
-                });
+            loop {
+                tokio::select! {
+                    // Db invalidated — drop the listener and
+                    // re-resolve the pool.
+                    _ = db_epoch.changed() => break,
+                    n = listener.recv() => match n {
+                        Ok(notification) => {
+                            self.emit(StatusChange::ActiveLaboratoriesChanged {
+                                agent_instance_hierarchy: notification.payload().to_string(),
+                            })
+                        }
+                        Err(_) => break,
+                    },
+                }
             }
-            // Listener errored/closed — pause, then reconnect.
+            // Listener errored/closed (or the db epoch turned) —
+            // pause, then reconnect.
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }
@@ -329,7 +377,7 @@ impl ActiveAgents {
         let Ok(pool) = self.global.db_client().await else {
             return;
         };
-        let Ok(items) = crate::db::instances::list_all(pool).await else {
+        let Ok(items) = crate::db::instances::list_all(&pool).await else {
             return;
         };
         for item in items {

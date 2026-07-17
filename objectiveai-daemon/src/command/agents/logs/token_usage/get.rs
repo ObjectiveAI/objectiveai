@@ -8,7 +8,7 @@ use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    let db = global.db_client().await?.clone();
+    let db = global.db_client().await?;
     let total_tokens =
         crate::db::logs::get_agent_token_usage(&db, &request.agent_instance_hierarchy).await?;
     Ok(Response {
