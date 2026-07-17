@@ -300,9 +300,9 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
             // DEFAULT identity — scrub any agent/plugin identity from
             // this (possibly agent-invoked) process so it never leaks
             // into the long-lived daemon or everything it spawns. The
-            // daemon then boots with `agent_instance_hierarchy = "cli"`
-            // and the rest unset; per-request identity travels in the
-            // `/execute` envelope instead.
+            // daemon then boots with `agent_instance_hierarchy =
+            // "daemon"` and the rest unset; per-request identity
+            // travels in the `/execute` envelope instead.
             for var in [
                 "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
                 "OBJECTIVEAI_AGENT_ID",
@@ -377,8 +377,8 @@ async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
 }
 
 /// Build the per-request identity from this process's environment.
-/// The hierarchy defaults to the CLI's own `"cli"` identity (the same
-/// literal the daemon's resident config defaults to) when
+/// The hierarchy defaults to the CLI's own `"cli"` identity (the
+/// daemon's own envelope-less default is `"daemon"`) when
 /// `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` is unset — a plain user
 /// invocation. Every other unset field stays `None`, sent as no
 /// header, which the daemon DELETES on the run's config — never

@@ -155,7 +155,7 @@ impl ConfigBuilder {
             commit_author_email: self.commit_author_email,
             agent_instance_hierarchy: self
                 .agent_instance_hierarchy
-                .unwrap_or_else(|| "cli".to_string()),
+                .unwrap_or_else(|| "daemon".to_string()),
             agent_id: self.agent_id,
             agent_full_id: self.agent_full_id,
             agent_remote: self.agent_remote,

@@ -42,7 +42,7 @@ use crate::error::Error;
 /// [`GlobalContext`] keeps the shared `agent_locks` gate and the
 /// db/api/python pools that in-process work REQUIRES, while a NEW
 /// scope with the daemon's scrubbed default identity
-/// ([`crate::context::ScopeIdentity::default_cli`]) is constructed for
+/// ([`crate::context::ScopeIdentity::default_daemon`]) is constructed for
 /// the task, so it runs exactly as the orphan subprocess did (which
 /// inherited the daemon process env, not the `/execute` identity
 /// override).
@@ -64,7 +64,7 @@ where
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<T, Error>>();
     tokio::spawn(async move {
         let scoped = scoped
-            .for_request(crate::context::ScopeIdentity::default_cli())
+            .for_request(crate::context::ScopeIdentity::default_daemon())
             .await;
 
         // Feed the leaf request through the top-level `--request` front

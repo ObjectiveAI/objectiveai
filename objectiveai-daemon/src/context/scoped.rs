@@ -39,13 +39,15 @@ pub struct ScopeIdentity {
 
 impl ScopeIdentity {
     /// The daemon's scrubbed default identity
-    /// (`agent_instance_hierarchy = "cli"`, every other field
+    /// (`agent_instance_hierarchy = "daemon"`, every other field
     /// cleared) — mirrors `ConfigBuilder::build`'s defaults. Used by
     /// detached daemon tasks, which must run exactly as the daemon's
     /// own env-scrubbed identity regardless of who triggered them.
-    pub fn default_cli() -> Self {
+    /// (A plain-user CLI invocation is `"cli"` — stamped per request
+    /// by the `objectiveai` binary's envelope, never defaulted here.)
+    pub fn default_daemon() -> Self {
         Self {
-            agent_instance_hierarchy: "cli".to_string(),
+            agent_instance_hierarchy: "daemon".to_string(),
             agent_id: None,
             agent_full_id: None,
             agent_remote: None,

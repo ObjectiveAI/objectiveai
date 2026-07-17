@@ -77,8 +77,8 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
             // command happens to spawn it first leaks its agent/plugin
             // identity into the long-lived daemon (and into everything
             // the daemon itself spawns). The daemon then boots with the
-            // defaults (`agent_instance_hierarchy` = "cli", the rest
-            // unset).
+            // defaults (`agent_instance_hierarchy` = "daemon", the
+            // rest unset).
             for var in [
                 "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
                 "OBJECTIVEAI_AGENT_ID",
