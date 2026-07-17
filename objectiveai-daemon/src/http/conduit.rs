@@ -920,6 +920,46 @@ impl ConduitMcpHandler {
                 }
             }
         }
+        // A laboratory addressed to (or plausibly living on) THIS
+        // daemon's own (machine, state) may have no CONNECTED host
+        // simply because the daemon restarted since the lab was
+        // created — the host is a leashed daemon child and died with
+        // it. Mirror the id-routed commands' best-effort local ensure
+        // BEFORE forwarding: an exact local pair ensures; a pair-less
+        // id no connected host serves ensures too (it may well be a
+        // local lab). Remote pairs keep the registry's own no-host
+        // error — this daemon cannot spawn a host elsewhere.
+        {
+            let local_machine = objectiveai_sdk::machine::machine_id(
+                self.inner.scoped.filesystem.dir(),
+            );
+            let local_state = self.inner.scoped.filesystem.state();
+            let addressed_local = target.machine.as_deref()
+                == Some(local_machine.as_str())
+                && target.machine_state.as_deref() == Some(local_state);
+            let pairless_unserved = target.machine.is_none()
+                && target.machine_state.is_none()
+                && hubs
+                    .laboratories
+                    .host_for_laboratory(&target.id)
+                    .await
+                    .is_none();
+            if (addressed_local || pairless_unserved)
+                && !hubs.laboratories.has_host(&local_machine, local_state)
+            {
+                if let Err(e) = crate::command::laboratories::ensure_local_host(
+                    &self.inner.global,
+                    &self.inner.scoped,
+                )
+                .await
+                {
+                    return shape.error(
+                        -32603,
+                        format!("laboratory {}: local host: {e}", target.id),
+                    );
+                }
+            }
+        }
         // Session ledger: remember every lab Initialize this reverse
         // connection forwards (keyed by response id + the RESOLVED
         // routing triple), and forget on the graceful ends — the
