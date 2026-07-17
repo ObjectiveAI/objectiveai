@@ -1,9 +1,10 @@
 //! Shared kill logic for the `{mcp,viewer} kill` commands, `update`'s
 //! pre-install teardown, and the `api config` mutation handlers'
-//! kill-on-config-change ([`kill_api_after_config_change`]). (The
-//! api / db / laboratories kill commands and `kill-all` were retired —
-//! `daemon kill` is the whole-teardown path: killing the daemon takes
-//! every leashed resident child with it.)
+//! kill-on-config-change ([`kill_api_before_config_change`] /
+//! [`kill_api_after_config_change`]). (The api / db / laboratories
+//! kill commands and `kill-all` were retired — `daemon kill` is the
+//! whole-teardown path: killing the daemon takes every leashed
+//! resident child with it.)
 //!
 //! A server is one of the daemon's LEASHED resident children (held on
 //! [`crate::context::GlobalContext`] since the stdout-readiness refactor — there are no
@@ -36,38 +37,64 @@ use crate::error::Error;
 const TERM_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Kill this daemon's resident `key` child, if any: SIGTERM → bounded
-/// wait → hard kill. Returns the count terminated (0 or 1) —
-/// idempotent, a missing/already-dead child is a zero.
-pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
+/// wait → hard kill. Fallible core: `Ok(count)` (0 or 1) when the
+/// child is gone — a missing/already-dead child is `Ok(0)`, never an
+/// error — and `Err` only when a LIVE child could not be terminated
+/// (its exit wait failed, or the hard kill after the grace window
+/// errored).
+pub async fn try_kill_resident_child(
+    global: &GlobalContext,
+    key: &str,
+) -> Result<usize, Error> {
     let Some(mut child) = global.take_resident_child(key) else {
-        return 0;
+        return Ok(0);
     };
     let Some(pid) = child.id() else {
         // Already reaped.
-        return 0;
+        return Ok(0);
     };
     // Graceful first: Unix SIGTERM (handlers run — the laboratory
     // host stops its containers), Windows TerminateProcess.
     let _ = objectiveai_sdk::process::kill_pid(pid);
     match tokio::time::timeout(TERM_GRACE, child.wait()).await {
-        Ok(_) => 1,
+        Ok(Ok(_status)) => Ok(1),
+        Ok(Err(e)) => Err(Error::Spawn(format!("wait for killed {key} child"), e)),
         Err(_) => {
             // Didn't exit in the grace window — hard kill (and reap).
-            let _ = child.kill().await;
-            1
+            child
+                .kill()
+                .await
+                .map_err(|e| Error::Spawn(format!("hard-kill {key} child"), e))?;
+            Ok(1)
         }
     }
 }
 
-/// Retire the resident api server after an `api config` mutation.
-/// The running server was spawned with (and its address resolved
-/// under) the OLD config — its projected env (`MCP_CONNECT_TIMEOUT`,
-/// the backoff budget) and the settings its clients snapshot are all
-/// stale the moment the write lands. Killing it ON THE SPOT makes the
-/// next `api_client()` call respawn it with the fresh config, so an
-/// api config change never requires restarting the daemon. Best-effort
-/// and idempotent: no running api (or a non-resident process) is a
-/// no-op.
+/// Best-effort form of [`try_kill_resident_child`]: a kill failure
+/// still counts the child as terminated (it was taken off the map
+/// either way — the old behavior of the kill commands).
+pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
+    try_kill_resident_child(global, key).await.unwrap_or(1)
+}
+
+/// Retire the resident api server BEFORE an `api config` mutation is
+/// written: the running server was spawned with (and its address
+/// resolved under) the config being replaced. FALLIBLE — a live api
+/// that cannot be terminated aborts the config change, so a stale
+/// server never survives a set. Not running is `Ok` (nothing to
+/// retire).
+pub async fn kill_api_before_config_change(
+    global: &GlobalContext,
+) -> Result<(), Error> {
+    try_kill_resident_child(global, "api").await.map(|_| ())
+}
+
+/// The AFTER-write sweep paired with
+/// [`kill_api_before_config_change`]: a concurrent request may have
+/// respawned the api against the OLD config in the window between the
+/// first kill and the write landing — retire that straggler too.
+/// Best-effort by design (the write already landed; the change is in
+/// effect for every later spawn): its failure is ignored.
 pub async fn kill_api_after_config_change(global: &GlobalContext) {
     let _ = kill_resident_child(global, "api").await;
 }
