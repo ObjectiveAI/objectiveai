@@ -1022,6 +1022,17 @@ where
                         && ctx.reverse_attach().is_none()
                     {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
+                    } else {
+                        // NEVER skip silently: the connect failed on an
+                        // earlier round (its real error was pushed then)
+                        // and connects are not re-attempted within a
+                        // request — a bare `continue` here would leave
+                        // this round with zero errors and surface the
+                        // misleading `NoAgentsResolved` instead of the
+                        // actual failure.
+                        errors.push(super::Error::McpConnectionGone(
+                            attempt.agent.id().to_string(),
+                        ));
                     }
                     continue;
                 }
@@ -1544,17 +1555,23 @@ where
         let agent_full_id = agent_full_id.to_string();
         let agent_remote = agent_remote.cloned();
         let request_continuation = request_continuation.cloned();
-        // Capture into the stream. The Drop on `_delegate_guard`
-        // fires when the stream future is dropped (natural
-        // end-of-stream OR early cancel), spawning the async
-        // unregister — pending tokens that never got confirmed
-        // (and therefore weren't really delivered) drop with the
-        // state, so the queue rows re-issue on the next loop.
-        let _delegate_guard = delegate_guard;
         let queue_delegate_for_stream = queue_delegate.clone();
         let reverse_attach_for_stream = reverse_attach.clone();
 
         Ok(Box::pin(async_stream::stream! {
+            // Capture into the stream — the binding must live INSIDE
+            // the generator body: a variable the block never mentions
+            // is not captured by `async_stream::stream!`, and an
+            // outside binding drops the guard the moment this
+            // function returns, unregistering the AIH before the
+            // first chunk flows (which silently killed every
+            // mid-tool-call queue-notification splice). Here, the
+            // Drop fires when the stream future is dropped (natural
+            // end-of-stream OR early cancel), spawning the async
+            // unregister — pending tokens that never got confirmed
+            // (and therefore weren't really delivered) drop with the
+            // state, so the queue rows re-issue on the next loop.
+            let _delegate_guard = delegate_guard;
             let mut aggregate: Option<
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
             > = None;
