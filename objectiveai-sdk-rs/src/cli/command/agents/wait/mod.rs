@@ -1,10 +1,14 @@
-//! `agents wait` — block until an agent is done.
+//! `agents wait` — block until an agent reaches the REQUESTED status:
+//! exactly one of `--inactive` (the agent is done — the original
+//! behavior, now explicit) or `--active` (the agent is up).
 //!
 //! Takes an instance hierarchy or a tag (the `agents enqueue`
 //! selector shape — a plain ref has no live identity to wait on and
-//! errors). The wait is uncapped — it blocks until the target is
-//! done, however long that takes.
+//! errors). The wait is uncapped either way — it blocks until the
+//! target reaches the requested status, however long that takes, and
+//! a target ALREADY in that status returns immediately.
 //!
+//! `--inactive`:
 //! - **Instance**: subscribe to the AIH lock's release; a free lock
 //!   returns immediately.
 //! - **Un-upgraded (GROUPED) tag**: the tag lock's holder is the
@@ -15,6 +19,17 @@
 //!   still-GROUPED tag after release is a systemic invariant
 //!   violation and errors fatally), then fall through to the
 //!   instance wait on the freshly bound hierarchy.
+//!
+//! `--active`:
+//! - **Instance**: resolves when the AIH holds its instance lock —
+//!   the live-registry `Activated` edge; already-held returns
+//!   immediately.
+//! - **Tag**: a BOUND tag waits on its hierarchy as above; a GROUPED
+//!   tag first waits for the tag to BIND (someone spawns it), then
+//!   for the bound agent to be up.
+//!
+//! One use among many: a plugin daemon can gate its actions on its
+//! agent being up by running `agents wait --active` before acting.
 //!
 //! Success is the bare `"Ok"` sentinel either way.
 
@@ -28,6 +43,13 @@ pub struct Request {
     /// Who to wait on — an instance hierarchy or a tag. A plain ref
     /// has no live identity and errors.
     pub agent: AgentSelector,
+    /// The status to wait FOR: `true` resolves when the agent is
+    /// ACTIVE (up — its instance lock held), `false` when it is
+    /// INACTIVE (done — its instance lock free). Defaults to `false`
+    /// on the wire, so a request predating this field keeps its
+    /// original wait-until-done meaning.
+    #[serde(default)]
+    pub active: bool,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -49,13 +71,30 @@ impl CommandRequest for Request {
     }
 }
 
-/// Success-only: the wait completed — the target is done.
+/// Success-only: the wait completed — the target reached the
+/// requested status.
 pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("wait_mode")
+        .required(true)
+        .multiple(false)
+        .args(["active", "inactive"])
+))]
 pub struct Args {
     #[command(flatten)]
     pub agent: crate::cli::command::agents::selector::AgentSelectorArgs,
+    /// Resolve when the agent becomes ACTIVE — it is up, holding its
+    /// instance lock. Mutually exclusive with `--inactive`; exactly
+    /// one of the two is required.
+    #[arg(long)]
+    pub active: bool,
+    /// Resolve when the agent is INACTIVE — done, its instance lock
+    /// free (the former default behavior, now explicit). Mutually
+    /// exclusive with `--active`; exactly one of the two is required.
+    #[arg(long)]
+    pub inactive: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -84,6 +123,9 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsWait,
             agent,
+            // The `wait_mode` group guarantees exactly one of
+            // `--active` / `--inactive`, so `active` is the full mode.
+            active: args.active,
             base: args.base.into(),
         })
     }
