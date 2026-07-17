@@ -66,6 +66,8 @@ pub(crate) struct DaemonHttpState {
     /// `/laboratories/{id}` +
     /// `/laboratories/{id}/filetree` routes.
     pub(crate) labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
+    /// The `/user` user-requests hub.
+    pub(crate) user: crate::http::user_routes::UserHub,
 }
 
 /// Serve the daemon's HTTP API on `listener`:
@@ -98,6 +100,7 @@ pub fn serve_http(
     conversations: crate::http::agent_instance_route::ConversationHub,
     laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
     labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
+    user: crate::http::user_routes::UserHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::get(listen_handler))
@@ -148,6 +151,16 @@ pub fn serve_http(
                 crate::http::laboratories_routes::laboratory_filetree_handler,
             ),
         )
+        // The user-requests channel: the SSE broadcast every user
+        // surface holds open, and its reply POST.
+        .route(
+            "/user",
+            axum::routing::get(crate::http::user_routes::user_handler),
+        )
+        .route(
+            "/user/{id}/reply",
+            axum::routing::post(crate::http::user_routes::user_reply_handler),
+        )
         .with_state(DaemonHttpState {
             tx,
             global,
@@ -156,6 +169,7 @@ pub fn serve_http(
             conversations,
             laboratories,
             labs_hub,
+            user,
         })
         // CORS, permissive — mirrors objectiveai-api. The viewer's
         // webview fetches these routes cross-origin (its page origin is

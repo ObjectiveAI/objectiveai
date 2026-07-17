@@ -94,6 +94,10 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let value = super::update::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::UpdateResponseSchema(value)))
         }
+        Request::User(req) => {
+            let inner = super::user::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::User)))
+        }
         Request::Viewer(req) => {
             let inner = super::viewer::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))

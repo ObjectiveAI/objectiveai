@@ -68,7 +68,7 @@ pub(crate) async fn execute_handler(
 /// field. A missing (or non-UTF-8) header is `None`, which
 /// [`crate::executor::apply_agent_arguments`] DELETES on the run's
 /// scope — never inherits.
-fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
+pub(crate) fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
     let get = |name: &str| {
         headers
             .get(name)

@@ -60,6 +60,9 @@ pub(crate) struct ResidentHubs {
     pub labs_hub: LaboratoriesHub,
     /// Per-`response_id` MCP notifiers (former per-response mcp sockets).
     pub mcp_notifiers: Arc<DashMap<String, Notifier>>,
+    /// The `/user` user-requests hub (tracked per-connection
+    /// delivery; see `http::user_routes`).
+    pub user: crate::http::user_routes::UserHub,
 }
 
 /// One leashed resident server: the held [`tokio::process::Child`]

@@ -233,6 +233,10 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // single set is visible everywhere. `mcp_notifiers` replaces the
     // per-response mcp sockets.
     let mcp_notifiers = std::sync::Arc::new(dashmap::DashMap::new());
+    // The `/user` user-requests hub: pending outbound requests +
+    // tracked per-connection delivery. Held here for the daemon's
+    // life like every other hub.
+    let user = crate::http::user_routes::UserHub::new(global.clone());
     global.set_resident_hubs(crate::context::ResidentHubs {
         broadcast: tx.clone(),
         active: active.clone(),
@@ -240,6 +244,7 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         laboratories: laboratories.clone(),
         labs_hub: labs_hub.clone(),
         mcp_notifiers,
+        user: user.clone(),
     });
     crate::http::daemon_stream::serve_http(
         http_listener,
@@ -250,6 +255,7 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         conversations.clone(),
         laboratories.clone(),
         labs_hub.clone(),
+        user,
     );
     // Best-effort: seed the registry with agents already holding a lock
     // when the daemon started (off the boot path — no DB round-trip block).

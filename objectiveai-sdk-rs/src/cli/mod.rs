@@ -10,6 +10,8 @@ pub mod laboratories_list_listener;
 pub mod laboratories_listener;
 #[cfg(feature = "cli-listener")]
 pub mod broadcast_listener;
+#[cfg(feature = "cli-listener")]
+pub mod user_listener;
 pub mod plugins;
 
 pub use error::*;
