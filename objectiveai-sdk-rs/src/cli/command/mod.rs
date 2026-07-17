@@ -37,8 +37,6 @@ pub use ok::*;
 mod path_ref;
 pub use path_ref::*;
 
-mod scope;
-pub use scope::*;
 
 mod request_base;
 pub use request_base::*;

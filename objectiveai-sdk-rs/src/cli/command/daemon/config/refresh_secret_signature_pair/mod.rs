@@ -8,7 +8,6 @@ pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
-    pub scope: crate::cli::command::SetScope,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -36,12 +35,6 @@ pub struct Response {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Mutate the global config layer.
-    #[arg(long)]
-    pub global: bool,
-    /// Mutate the state config layer.
-    #[arg(long)]
-    pub state: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -66,22 +59,9 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let scope = match (args.global, args.state) {
-            (true, false) => crate::cli::command::SetScope::Global,
-            (false, true) => crate::cli::command::SetScope::State,
-            _ => {
-                return Err(crate::cli::command::FromArgsError {
-                    field: "scope",
-                    source: crate::cli::command::FromArgsErrorSource::Plain(
-                        "exactly one of --global, --state is required".to_string(),
-                    ),
-                });
-            }
-        };
         Ok(Self {
             path_type: Path::DaemonConfigRefreshSecretSignaturePair,
             base: args.base.into(),
-            scope,
         })
     }
 }

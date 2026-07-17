@@ -5,8 +5,8 @@ use objectiveai_sdk::cli::command::api::config::mcp_authorization::get::{Request
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    let mut config = scoped.filesystem.read_config_view(request.scope).await?;
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+    let mut config = scoped.filesystem.read_config().await?;
     Ok(Response {
         mcp_authorization: config.api().get_mcp_authorization().cloned(),
     })

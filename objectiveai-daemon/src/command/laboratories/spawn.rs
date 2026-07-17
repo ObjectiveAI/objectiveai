@@ -27,7 +27,7 @@ const READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec<String>, Error> {
     let config = scoped
         .filesystem
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?
         .laboratories
         .unwrap_or_default();

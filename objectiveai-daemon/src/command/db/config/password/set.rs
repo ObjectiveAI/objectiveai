@@ -6,9 +6,9 @@ use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    let mut config = scoped.filesystem.read_config_at(request.scope).await?;
+    let mut config = scoped.filesystem.read_config().await?;
     config.db().set_password(request.value);
-    scoped.filesystem.write_config_at(request.scope, &config).await?;
+    scoped.filesystem.write_config(&config).await?;
     Ok(Response::Ok)
 }
 

@@ -15,7 +15,7 @@ use crate::error::Error;
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
     let mut config = scoped
         .filesystem
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?;
     let address = config.mcp().get_address().map(String::from);
     let port = config.mcp().get_port();

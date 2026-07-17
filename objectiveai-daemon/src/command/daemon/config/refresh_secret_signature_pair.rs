@@ -16,13 +16,13 @@ use crate::error::Error;
 pub async fn execute(
     _global: &GlobalContext,
     scoped: &ScopedContext,
-    request: Request,
+    _request: Request,
 ) -> Result<Response, Error> {
     let pair = crate::filesystem::config::generate_viewer_secret_signature_pair();
-    let mut config = scoped.filesystem.read_config_at(request.scope).await?;
+    let mut config = scoped.filesystem.read_config().await?;
     config.daemon().set_secret(pair.secret.clone());
     config.daemon().set_signature(pair.signature.clone());
-    scoped.filesystem.write_config_at(request.scope, &config).await?;
+    scoped.filesystem.write_config(&config).await?;
     Ok(Response {
         secret: pair.secret,
         signature: pair.signature,

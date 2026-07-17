@@ -32,10 +32,9 @@
 //! 4. Rename the running updater aside (Windows can't overwrite a
 //!    running `.exe`; renaming frees the name — the process keeps
 //!    running from the renamed file).
-//! 5. Wipe `bin/` keeping only `plugins/`, `tools/`, and `config.json`
-//!    (best-effort — a still-running server/`.old` that won't delete is
-//!    skipped). `pg-bin/` is wiped; postgres re-extracts on next `db`
-//!    spawn.
+//! 5. Wipe `bin/` keeping only `plugins/` and `tools/` (best-effort —
+//!    a still-running server/`.old` that won't delete is skipped).
+//!    `pg-bin/` is wiped; postgres re-extracts on next `db` spawn.
 //! 6. Unzip the download into `bin/`. Each binary is written via the
 //!    same rename-aside swap so a still-locked straggler doesn't fail
 //!    the extraction.
@@ -64,9 +63,11 @@ const METADATA_TIMEOUT: Duration = Duration::from_secs(10);
 // full archive on slower links.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// Entries under `bin/` the wipe preserves: user-installed plugins and
-/// tools, plus the machine-wide config.
-const WIPE_KEEP: &[&str] = &["plugins", "tools", "config.json"];
+/// Entries under `bin/` the wipe preserves: user-installed plugins
+/// and tools. (The former machine-wide `config.json` is retired —
+/// config is per-state only — so a stale one is wiped like any other
+/// leftover.)
+const WIPE_KEEP: &[&str] = &["plugins", "tools"];
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
@@ -77,7 +78,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: R
     // (`api config github-authorization set`), not the env Config.
     let github_authorization = scoped
         .filesystem
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?
         .api()
         .get_github_authorization()

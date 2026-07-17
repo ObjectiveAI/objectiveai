@@ -6,8 +6,8 @@ use objectiveai_sdk::cli::command::laboratories::config::addresses::get::{Reques
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    let mut config = scoped.filesystem.read_config_view(request.scope).await?;
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+    let mut config = scoped.filesystem.read_config().await?;
     Ok(Response {
         addresses: config.laboratories().get_addresses().cloned(),
     })

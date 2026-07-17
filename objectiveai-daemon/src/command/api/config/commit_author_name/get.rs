@@ -5,8 +5,8 @@ use objectiveai_sdk::cli::command::api::config::commit_author_name::get::{Reques
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    let mut config = scoped.filesystem.read_config_view(request.scope).await?;
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+    let mut config = scoped.filesystem.read_config().await?;
     Ok(Response {
         commit_author_name: config.api().get_commit_author_name().map(String::from),
     })

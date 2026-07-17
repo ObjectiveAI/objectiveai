@@ -42,7 +42,6 @@ use objectiveai_sdk::cli::command::agents::spawn::{
 use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
 };
-use objectiveai_sdk::cli::command::SetScope;
 use objectiveai_sdk::cli::command::laboratories::config::addresses::add::{
     Path as AddrAddPath, Request as AddrAddReq, Response as AddrAddResp,
 };
@@ -832,7 +831,6 @@ async fn transfer_across_states() {
         &exec_b,
         AddrAddReq {
             path_type: AddrAddPath::LaboratoriesConfigAddressesAdd,
-            scope: SetScope::State,
             key: addr_a.clone(),
             value: String::new(),
             base: Default::default(),

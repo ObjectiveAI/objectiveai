@@ -14,9 +14,9 @@ pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: R
         let mut de = serde_json::Deserializer::from_str(&request.value);
         serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)?
     };
-    let mut config = scoped.filesystem.read_config_at(request.scope).await?;
+    let mut config = scoped.filesystem.read_config().await?;
     config.api().set_backoff_max_elapsed_time_ms(timeout_ms);
-    scoped.filesystem.write_config_at(request.scope, &config).await?;
+    scoped.filesystem.write_config(&config).await?;
     Ok(Response::Ok)
 }
 

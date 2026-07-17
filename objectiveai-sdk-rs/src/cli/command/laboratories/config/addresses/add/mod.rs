@@ -8,7 +8,6 @@ pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
-    pub scope: crate::cli::command::SetScope,
     /// The daemon `http://` address the laboratory host should connect to.
     pub key: String,
     /// The signature to present at that address. Empty ⇒ dial
@@ -41,12 +40,6 @@ pub type Response = crate::cli::command::Ok;
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("key_required").required(true).args(["key"])))]
 pub struct Args {
-    /// Mutate the global config layer.
-    #[arg(long)]
-    pub global: bool,
-    /// Mutate the state config layer.
-    #[arg(long)]
-    pub state: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// Entry key (a daemon `http://` address).
@@ -78,21 +71,8 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let scope = match (args.global, args.state) {
-            (true, false) => crate::cli::command::SetScope::Global,
-            (false, true) => crate::cli::command::SetScope::State,
-            _ => {
-                return Err(crate::cli::command::FromArgsError {
-                    field: "scope",
-                    source: crate::cli::command::FromArgsErrorSource::Plain(
-                        "exactly one of --global, --state is required".to_string(),
-                    ),
-                });
-            }
-        };
         Ok(Self {
             base: args.base.into(), path_type: Path::LaboratoriesConfigAddressesAdd,
-            scope,
             key: args.key.ok_or_else(|| {
                 crate::cli::command::FromArgsError::path_parse(
                     "key",

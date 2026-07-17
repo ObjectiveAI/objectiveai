@@ -6,8 +6,8 @@ use objectiveai_sdk::cli::command::api::config::get::{Request, Response};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
-    let mut config = scoped.filesystem.read_config_view(request.scope).await?;
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+    let mut config = scoped.filesystem.read_config().await?;
     let api = config.api();
     Ok(Response {
         address: api.get_address().map(String::from),

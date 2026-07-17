@@ -119,9 +119,9 @@ fi
 
 # ── Step 4: configure for testing ───────────────────────────────────
 BIN="$(oai_bin)"
-OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-call-timeout-ms set --value 300000 --global \
+OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-call-timeout-ms set --value 300000 \
   || { echo "test-integration: 'api config mcp-call-timeout-ms set' failed" >&2; exit 1; }
-OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set --value 0 --global \
+OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set --value 0 \
   || { echo "test-integration: 'api config backoff-max-elapsed-time-ms set' failed" >&2; exit 1; }
 
 # ── Step 5: start the api server and publish its address ────────────

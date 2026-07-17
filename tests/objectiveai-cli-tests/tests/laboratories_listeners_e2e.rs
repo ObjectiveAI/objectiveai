@@ -21,7 +21,6 @@
 mod cli_test_util;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::SetScope;
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
@@ -304,7 +303,6 @@ async fn laboratories_cross_daemon_propagation() {
         &exec_a,
         AddrAddReq {
             path_type: AddrAddPath::LaboratoriesConfigAddressesAdd,
-            scope: SetScope::State,
             key: addr_b.clone(),
             value: String::new(),
             base: Default::default(),

@@ -139,7 +139,7 @@ impl ScopedContext {
     pub async fn for_request(&self, identity: ScopeIdentity) -> Self {
         let (commit_author_name, commit_author_email) = match self
             .filesystem
-            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .read_config()
             .await
         {
             Ok(mut config) => {
@@ -227,7 +227,7 @@ impl ScopedContext {
             .get_or_try_init(|| async {
                 let mut config = self
                     .filesystem
-                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+                    .read_config()
                     .await?;
                 let address = match config.api().get_address() {
                     Some(a) => ensure_scheme(a),
@@ -252,7 +252,7 @@ impl ScopedContext {
     ) -> Result<HttpClient, crate::error::Error> {
         let mut config = self
             .filesystem
-            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .read_config()
             .await?;
         // Tripwire address — this client must only be used for github_* calls.
         let address = "https://api.invalid.objectiveai-github-client-only/".to_string();

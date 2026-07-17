@@ -19,7 +19,7 @@ use crate::filesystem::config::DB_DEFAULT_PASSWORD;
 pub async fn spawn(global: &GlobalContext) -> Result<String, Error> {
     let mut config = global
         .boot_filesystem()
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?;
     let password = config
         .db()

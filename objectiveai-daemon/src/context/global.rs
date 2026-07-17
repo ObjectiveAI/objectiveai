@@ -348,7 +348,7 @@ impl GlobalContext {
             .get_or_try_init(|| async {
                 let mut config = self
                     .filesystem
-                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+                    .read_config()
                     .await?;
                 let address = config.db().get_address().map(String::from);
                 let (url, address, admin_user, admin_password) = match address {
@@ -413,7 +413,7 @@ pub async fn resolve_mcp_connect_timeout_ms_opt(
     fs: &filesystem::Client,
 ) -> Result<Option<u64>, crate::error::Error> {
     let mut config = fs
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?;
     Ok(config.api().get_mcp_connect_timeout_ms())
 }
@@ -435,7 +435,7 @@ pub async fn resolve_backoff_max_elapsed_time_ms_opt(
     fs: &filesystem::Client,
 ) -> Result<Option<u64>, crate::error::Error> {
     let mut config = fs
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?;
     Ok(config.api().get_backoff_max_elapsed_time_ms())
 }

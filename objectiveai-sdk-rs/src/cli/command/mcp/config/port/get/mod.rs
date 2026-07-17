@@ -6,7 +6,6 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.mcp.config.port.get.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub scope: crate::cli::command::GetScope,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -36,15 +35,6 @@ pub struct Response {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Read the global config layer.
-    #[arg(long)]
-    pub global: bool,
-    /// Read the state config layer.
-    #[arg(long)]
-    pub state: bool,
-    /// Read the final merged config view.
-    #[arg(long)]
-    pub r#final: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -69,21 +59,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let scope = match (args.global, args.state, args.r#final) {
-            (true, false, false) => crate::cli::command::GetScope::Global,
-            (false, true, false) => crate::cli::command::GetScope::State,
-            (false, false, true) => crate::cli::command::GetScope::Final,
-            _ => {
-                return Err(crate::cli::command::FromArgsError {
-                    field: "scope",
-                    source: crate::cli::command::FromArgsErrorSource::Plain(
-                        "exactly one of --global, --state, --final is required".to_string(),
-                    ),
-                });
-            }
-        };
         Ok(Self { path_type: Path::McpConfigPortGet,
-            scope,
             base: args.base.into(),
         })
     }

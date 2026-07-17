@@ -8,8 +8,6 @@ pub enum Error {
     ResponseError(objectiveai_sdk::error::ResponseError),
     #[error("{0} source is not supported for function-profile pairs")]
     PairsSourceNotSupported(&'static str),
-    #[error("authorization is global only")]
-    AuthorizationGlobalOnly,
     #[error("{0}")]
     MissingArgs(&'static str),
     #[error("invalid path: {0}")]
