@@ -236,6 +236,16 @@ async fn spawn_leashed_inner(
 
     let mut child = objectiveai_sdk::subprocess_reaper::spawn(&mut cmd)
         .map_err(|e| crate::error::Error::Spawn(name.clone(), e))?;
+    // Taken BEFORE the ready loop below: its select polls
+    // `child.wait()`, and tokio's `wait()` takes-and-CLOSES the
+    // child's stdin on its first poll (deadlock avoidance) — which
+    // would both lose the handle and hand the host an immediate EOF
+    // (its graceful-shutdown signal).
+    let mut stdin = if stdio {
+        Some(child.stdin.take().expect("stdin was piped"))
+    } else {
+        None
+    };
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
     let mut events = crate::child_io::spawn_pipe_reader(stdout, stderr);
@@ -290,8 +300,7 @@ async fn spawn_leashed_inner(
         }
     };
 
-    let stdio_handle = if stdio {
-        let stdin = child.stdin.take().expect("stdin was piped");
+    let stdio_handle = if let Some(stdin) = stdin.take() {
         // Ack ROUTER, replacing the discard drain: stdout lines that
         // parse as dial-list acks are forwarded to the LabHostStdio
         // parked below; everything else (stderr, stray output) is

@@ -86,23 +86,35 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     .await?;
 
     // Seed the fresh host's dial list, ack-gated per address. A host
-    // that cannot accept its seed list is broken — propagate.
+    // that cannot accept its seed list is broken — propagate, but
+    // RETIRE the child first: it was parked as the resident host
+    // before seeding, and leaving it would make every later ensure
+    // reuse a dial-less host (fresh children are the only ones
+    // seeded).
     if freshly_spawned {
-        let stdio = global.lab_host_stdio().ok_or_else(|| {
-            Error::Laboratory(
-                "the laboratory host exited before its dial list could be seeded"
-                    .to_string(),
-            )
-        })?;
-        for (address, signature) in &entries {
-            stdio
-                .send_host_stdio(
-                    &objectiveai_sdk::laboratories::daemon::HostStdioCommand::AddAddress {
-                        address: address.clone(),
-                        signature: signature.clone(),
-                    },
+        let seed = async {
+            let stdio = global.lab_host_stdio().ok_or_else(|| {
+                Error::Laboratory(
+                    "the laboratory host exited before its dial list could be seeded"
+                        .to_string(),
                 )
-                .await?;
+            })?;
+            for (address, signature) in &entries {
+                stdio
+                    .send_host_stdio(
+                        &objectiveai_sdk::laboratories::daemon::HostStdioCommand::AddAddress {
+                            address: address.clone(),
+                            signature: signature.clone(),
+                        },
+                    )
+                    .await?;
+            }
+            Ok::<(), Error>(())
+        };
+        if let Err(e) = seed.await {
+            let _ = crate::command::kill_helpers::kill_resident_child(global, "laboratories")
+                .await;
+            return Err(e);
         }
     }
 

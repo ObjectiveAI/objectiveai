@@ -115,7 +115,11 @@ async fn stop_connection(connection: Connection) {
 /// the uniqueness guarantee: the host never holds two connections to
 /// one address (a re-add tears the old one down, awaiting its full
 /// teardown, BEFORE dialing anew). Returns on stdin EOF.
-async fn stdin_loop(server: Arc<host::HostServer>, suppress_output: bool) {
+async fn stdin_loop(
+    server: Arc<host::HostServer>,
+    suppress_output: bool,
+    swept: tokio::sync::watch::Receiver<bool>,
+) {
     use tokio::io::AsyncBufReadExt;
     let mut connections: std::collections::HashMap<String, Connection> =
         std::collections::HashMap::new();
@@ -137,13 +141,25 @@ async fn stdin_loop(server: Arc<host::HostServer>, suppress_output: bool) {
                     stop_connection(old).await;
                 }
                 let (cancel, cancel_rx) = tokio::sync::watch::channel(false);
-                let task = tokio::spawn(channel::run(
-                    address.clone(),
-                    signature,
-                    Arc::clone(&server),
-                    suppress_output,
-                    cancel_rx,
-                ));
+                let task = tokio::spawn({
+                    let server = Arc::clone(&server);
+                    let address = address.clone();
+                    let mut gate_cancel = cancel_rx.clone();
+                    let mut swept = swept.clone();
+                    async move {
+                        // Boot-sweep gate: the mutation is applied (and
+                        // acked) immediately, but dialing before the
+                        // leaked-container sweep finishes would break
+                        // the cleaner invariant — wait it out, still
+                        // answering a cancel (remove/replace).
+                        tokio::select! {
+                            _ = gate_cancel.changed() => return,
+                            _ = swept.wait_for(|done| *done) => {}
+                        }
+                        channel::run(address, signature, server, suppress_output, cancel_rx)
+                            .await
+                    }
+                });
                 connections.insert(address, Connection { cancel, task });
             }
             HostStdioCommand::RemoveAddress { address } => {
@@ -186,9 +202,24 @@ async fn main() {
     ));
 
     // Stop leaked containers BEFORE serving: the host starts containers
-    // strictly lazily, so nothing races this sweep until a channel is
-    // up (see the cleaner's module docs).
-    cleaner::sweep(bin_dir, args.objectiveai_state.clone()).await;
+    // strictly lazily, and every stdin-added dial task gates on this
+    // barrier, so nothing races the sweep until a channel is up (see
+    // the cleaner's module docs). The sweep runs CONCURRENTLY with the
+    // stdin loop — podman may be cold (minutes), and the daemon's
+    // dial-list acks must not wait on it.
+    let (swept_tx, swept_rx) = tokio::sync::watch::channel(false);
+    let sweep = {
+        let bin_dir = bin_dir.clone();
+        let state = args.objectiveai_state.clone();
+        async move {
+            cleaner::sweep(bin_dir, state).await;
+            let _ = swept_tx.send(true);
+            // Pend forever: this future rides a `join` with the
+            // endless stdin loop, whose completion (EOF) is the arm's
+            // real signal.
+            std::future::pending::<()>().await;
+        }
+    };
 
     // ── Serve until killed ───────────────────────────────────────
     // The stdin loop owns the dial list — one reconnect-forever
@@ -201,7 +232,9 @@ async fn main() {
     // instead. The channel tasks are left to die with the process;
     // their sockets drop with it.
     tokio::select! {
-        _ = stdin_loop(Arc::clone(&server), args.suppress_output) => {
+        _ = async {
+            tokio::join!(sweep, stdin_loop(Arc::clone(&server), args.suppress_output, swept_rx))
+        } => {
             if !args.suppress_output {
                 eprintln!("stdin closed: stopping started laboratories");
             }

@@ -89,11 +89,6 @@ pub(crate) struct LabHostStdio {
     )>,
 }
 
-/// How long one dial-list command gets before the send errors. The
-/// host's mutation is in-memory (spawn/cancel a task) — seconds means
-/// the pipe or the host is broken, not slow.
-const HOST_STDIO_ACK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
-
 impl LabHostStdio {
     pub(crate) fn new(
         stdin: tokio::process::ChildStdin,
@@ -108,9 +103,12 @@ impl LabHostStdio {
 
     /// Send one dial-list command (wrapped in a fresh random request
     /// id) and await the ack echoing that id — the host applied the
-    /// mutation (NOT connectivity; dialing retries forever). Errors
-    /// mean the channel is broken (write failed, ack stream closed) or
-    /// the host wedged past [`HOST_STDIO_ACK_TIMEOUT`].
+    /// mutation (NOT connectivity; dialing retries forever). NO
+    /// timeout by design: the host acks every parsed line, and a dead
+    /// host closes its pipes, which ends the ack stream and errors
+    /// here — so this waits exactly as long as the host is alive and
+    /// busy. Errors mean the channel is broken (write failed, ack
+    /// stream closed).
     pub(crate) async fn send_host_stdio(
         &self,
         command: &objectiveai_sdk::laboratories::daemon::HostStdioCommand,
@@ -135,22 +133,13 @@ impl LabHostStdio {
                 "laboratory host stdin flush failed: {e}"
             ))
         })?;
-        let deadline = tokio::time::Instant::now() + HOST_STDIO_ACK_TIMEOUT;
         loop {
-            let ack = tokio::time::timeout_at(deadline, acks.recv())
-                .await
-                .map_err(|_| {
-                    crate::error::Error::Laboratory(
-                        "laboratory host did not ack the dial-list command in time"
-                            .to_string(),
-                    )
-                })?
-                .ok_or_else(|| {
-                    crate::error::Error::Laboratory(
-                        "laboratory host stdio channel closed".to_string(),
-                    )
-                })?;
-            // A non-matching id is a stale ack from a timed-out
+            let ack = acks.recv().await.ok_or_else(|| {
+                crate::error::Error::Laboratory(
+                    "laboratory host stdio channel closed".to_string(),
+                )
+            })?;
+            // A non-matching id is a stale ack from an abandoned
             // predecessor — skip it and keep reading.
             if ack.id == request.id {
                 return Ok(());
