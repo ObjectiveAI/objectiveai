@@ -26,7 +26,6 @@ use tokio_tungstenite::tungstenite;
 ///     None, // x_openrouter_authorization
 ///     None, // x_mcp_authorization
 ///     None, // agent_instance_hierarchy
-///     None, // mcp_session_id
 ///     None, // mcp_call_timeout_ms
 /// );
 /// ```
@@ -53,10 +52,6 @@ pub struct HttpClient {
         Option<Arc<std::collections::HashMap<String, String>>>,
     /// Value for the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header.
     pub agent_instance_hierarchy: Option<Arc<String>>,
-    /// Value for the `Mcp-Session-Id` header — propagated through to
-    /// `objectiveai-mcp` so server-side tool invocations see a stable
-    /// per-session id. See `objectiveai_sdk::mcp::MCP_SESSION_ID_HEADER`.
-    pub mcp_session_id: Option<Arc<String>>,
     /// Value for the `X-MCP-CALL-TIMEOUT` header, in integer
     /// milliseconds: the per-request budget the API applies to each MCP
     /// CALL its proxy makes on this request's behalf (HTTP and ws://
@@ -80,7 +75,6 @@ impl HttpClient {
     /// * `x_openrouter_authorization` - Optional X-OPENROUTER-AUTHORIZATION header value
     /// * `x_mcp_authorization` - Optional X-MCP-AUTHORIZATION header value (HashMap)
     /// * `agent_instance_hierarchy` - Optional X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY header value
-    /// * `mcp_session_id` - Optional Mcp-Session-Id header value
     /// * `mcp_call_timeout_ms` - Optional X-MCP-CALL-TIMEOUT header value
     ///   (integer ms; no env fallback — config/option-only)
     pub fn new(
@@ -94,7 +88,6 @@ impl HttpClient {
         x_openrouter_authorization: Option<impl Into<String>>,
         x_mcp_authorization: Option<std::collections::HashMap<String, String>>,
         agent_instance_hierarchy: Option<impl Into<String>>,
-        mcp_session_id: Option<impl Into<String>>,
         mcp_call_timeout_ms: Option<u64>,
     ) -> Self {
         #[cfg(feature = "env")]
@@ -201,18 +194,6 @@ impl HttpClient {
                     None
                 }
             }),
-            mcp_session_id: mcp_session_id.map(|v| Arc::new(v.into())).or_else(
-                || {
-                    #[cfg(feature = "env")]
-                    {
-                        env(crate::mcp::MCP_SESSION_ID_ENV).map(Arc::new)
-                    }
-                    #[cfg(not(feature = "env"))]
-                    {
-                        None
-                    }
-                },
-            ),
             // Deliberately no env fallback: the caller (e.g. the daemon,
             // from its `api.mcp_call_timeout_ms` config) supplies it or not.
             mcp_call_timeout_ms,
@@ -263,10 +244,6 @@ impl HttpClient {
         }
         if let Some(id) = &self.agent_instance_hierarchy {
             request = request.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", id.as_str());
-        }
-        if let Some(s) = &self.mcp_session_id {
-            request =
-                request.header(crate::mcp::MCP_SESSION_ID_HEADER, s.as_str());
         }
         if let Some(ms) = self.mcp_call_timeout_ms {
             request = request.header("X-MCP-CALL-TIMEOUT", ms.to_string());
@@ -587,9 +564,6 @@ impl HttpClient {
         }
         if let Some(id) = &self.agent_instance_hierarchy {
             req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", id.as_str());
-        }
-        if let Some(s) = &self.mcp_session_id {
-            req = req.header(crate::mcp::MCP_SESSION_ID_HEADER, s.as_str());
         }
         if let Some(ms) = self.mcp_call_timeout_ms {
             req = req.header("X-MCP-CALL-TIMEOUT", ms.to_string());

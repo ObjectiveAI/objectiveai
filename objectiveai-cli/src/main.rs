@@ -234,7 +234,6 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
             ] {
                 cmd.env_remove(var);
             }
-            cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
             // The daemon reads its bind config as bare `ADDRESS`/`PORT`/
             // `SECRET`. Hand it the `SECRET` from the CLI's `DAEMON_SECRET`
             // (or clear it), and scrub bare `ADDRESS`/`PORT` so a locally
@@ -298,9 +297,6 @@ fn agent_arguments_from_env() -> AgentArguments {
         agent_remote: var("OBJECTIVEAI_AGENT_REMOTE"),
         response_id: var("OBJECTIVEAI_RESPONSE_ID"),
         response_ids: var("OBJECTIVEAI_RESPONSE_IDS"),
-        // Never sent (the daemon always clears it — a remote caller has
-        // no business joining the daemon's MCP sessions).
-        mcp_session_id: None,
     }
 }
 

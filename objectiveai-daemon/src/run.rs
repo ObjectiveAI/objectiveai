@@ -69,8 +69,6 @@ struct EnvConfigBuilder {
     response_id: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_RESPONSE_IDS")]
     response_ids: Option<String>,
-    #[envconfig(from = "MCP_SESSION_ID")]
-    mcp_session_id: Option<String>,
     // The daemon is a deployable server: its own config reads BARE env
     // (`ADDRESS`/`PORT`/`SECRET`), the 12-factor convention (a platform's
     // `$PORT` is the port to bind). Clients (CLI/viewer/laboratory) use the
@@ -103,7 +101,6 @@ impl EnvConfigBuilder {
             agent_remote: self.agent_remote,
             response_id: self.response_id,
             response_ids: self.response_ids,
-            mcp_session_id: self.mcp_session_id,
             daemon_address: self.daemon_address,
             daemon_port: self.daemon_port,
             daemon_secret: self.daemon_secret,
@@ -125,7 +122,6 @@ pub struct ConfigBuilder {
     pub agent_remote: Option<String>,
     pub response_id: Option<String>,
     pub response_ids: Option<String>,
-    pub mcp_session_id: Option<String>,
     pub daemon_address: Option<String>,
     pub daemon_port: Option<u16>,
     pub daemon_secret: Option<String>,
@@ -165,7 +161,6 @@ impl ConfigBuilder {
             agent_remote: self.agent_remote,
             response_id: self.response_id,
             response_ids: self.response_ids,
-            mcp_session_id: self.mcp_session_id,
             daemon_address: self
                 .daemon_address
                 .unwrap_or_else(|| "127.0.0.1".to_string()),
@@ -205,7 +200,6 @@ pub struct Config {
     /// `OBJECTIVEAI_RESPONSE_IDS` / `X-OBJECTIVEAI-RESPONSE-IDS`.
     /// Propagated onto spawned plugins.
     pub response_ids: Option<String>,
-    pub mcp_session_id: Option<String>,
     /// Bind address for the resident daemon's broadcast HTTP
     /// server (bare `ADDRESS`); default `127.0.0.1`.
     pub daemon_address: String,

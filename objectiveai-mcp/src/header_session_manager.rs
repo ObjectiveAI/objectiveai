@@ -118,13 +118,7 @@ where
         id: &SessionId,
         message: &ClientJsonRpcMessage,
     ) -> Result<LocalSessionHandle, LocalSessionManagerError> {
-        let mut args = extract_agent_args(message);
-        // Stamp the rmcp session id onto the bag so downstream tool /
-        // plugin subprocesses see this connection's `Mcp-Session-Id`
-        // as their `MCP_SESSION_ID` env. Identifies the calling agent
-        // at the tool boundary (e.g. `count-tool` keys its per-caller
-        // counter on it).
-        args.mcp_session_id = Some(id.to_string());
+        let args = extract_agent_args(message);
 
         let (mcp_root, mcp_tools, mcp_plugins) = extract_mcp_filter(message)?;
         validate_mcp_filter(
@@ -218,11 +212,7 @@ where
         // registry, delegate. The inner already has the handle from
         // its own `create_session` (called by tower right before
         // this).
-        let mut args = extract_agent_args(&message);
-        // Stamp the freshly-minted rmcp session id onto the bag so
-        // downstream tool / plugin subprocesses see this connection's
-        // `Mcp-Session-Id` as their `MCP_SESSION_ID` env.
-        args.mcp_session_id = Some(id.to_string());
+        let args = extract_agent_args(&message);
 
         let (mcp_root, mcp_tools, mcp_plugins) = extract_mcp_filter(&message)?;
         validate_mcp_filter(

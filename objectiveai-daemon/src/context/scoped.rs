@@ -35,7 +35,6 @@ pub struct ScopeIdentity {
     pub agent_remote: Option<String>,
     pub response_id: Option<String>,
     pub response_ids: Option<String>,
-    pub mcp_session_id: Option<String>,
 }
 
 impl ScopeIdentity {
@@ -52,7 +51,6 @@ impl ScopeIdentity {
             agent_remote: None,
             response_id: None,
             response_ids: None,
-            mcp_session_id: None,
         }
     }
 
@@ -72,7 +70,6 @@ impl ScopeIdentity {
             agent_remote: args.agent_remote.clone(),
             response_id: args.response_id.clone(),
             response_ids: args.response_ids.clone(),
-            mcp_session_id: args.mcp_session_id.clone(),
         }
     }
 }
@@ -93,7 +90,6 @@ pub struct ScopedContext {
     agent_remote: Option<String>,
     response_id: Option<String>,
     response_ids: Option<String>,
-    mcp_session_id: Option<String>,
     /// When true, the embedded python's `objectiveai.execute(...)`
     /// host call raises instead of dispatching a CLI command. Set by
     /// the `python --no-objectiveai` flag and automatically for the
@@ -128,7 +124,6 @@ impl ScopedContext {
             agent_remote: config.agent_remote.clone(),
             response_id: config.response_id.clone(),
             response_ids: config.response_ids.clone(),
-            mcp_session_id: config.mcp_session_id.clone(),
             no_objectiveai: false,
             api: Arc::new(OnceCell::new()),
         }
@@ -177,7 +172,6 @@ impl ScopedContext {
             agent_remote: identity.agent_remote,
             response_id: identity.response_id,
             response_ids: identity.response_ids,
-            mcp_session_id: identity.mcp_session_id,
             no_objectiveai: self.no_objectiveai,
             api: Arc::new(OnceCell::new()),
         }
@@ -214,10 +208,6 @@ impl ScopedContext {
 
     pub fn response_ids(&self) -> Option<&str> {
         self.response_ids.as_deref()
-    }
-
-    pub fn mcp_session_id(&self) -> Option<&str> {
-        self.mcp_session_id.as_deref()
     }
 
     /// The API `HttpClient`, built on first use and memoized for this
@@ -277,10 +267,10 @@ impl ScopedContext {
 /// `env var → on-disk config (merged final view) → SDK default`, all
 /// already folded into the passed config view.
 ///
-/// Sourcing `agent_instance_hierarchy` and `mcp_session_id` from the
-/// SCOPE is deliberate: those are per-request identity (env-populated
-/// at boot, overridden per `/execute` envelope). Re-reading the env
-/// here would silently drop the overrides.
+/// Sourcing `agent_instance_hierarchy` from the SCOPE is deliberate:
+/// it is per-request identity (env-populated at boot, overridden per
+/// `/execute` envelope). Re-reading the env here would silently drop
+/// the overrides.
 fn build_http_client(
     http: reqwest::Client,
     scoped: &ScopedContext,
@@ -314,7 +304,6 @@ fn build_http_client(
 
     // From the scope — the per-request identity, never re-read from env.
     let agent_instance_hierarchy = Some(scoped.agent_instance_hierarchy().to_string());
-    let mcp_session_id = scoped.mcp_session_id().map(String::from);
 
     // The per-request MCP CALL budget the API applies on our behalf,
     // sent as `X-MCP-CALL-TIMEOUT`. Sourced from
@@ -333,7 +322,6 @@ fn build_http_client(
         x_openrouter_authorization,
         x_mcp_authorization,
         agent_instance_hierarchy,
-        mcp_session_id,
         mcp_call_timeout_ms,
     )
 }

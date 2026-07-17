@@ -11,7 +11,7 @@ use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, Comma
 ///
 /// The daemon runs each request IN-PROCESS (no child binary) with the
 /// [`AgentArguments`] headers applied as a per-request config
-/// override (`mcp_session_id` has no header; the daemon's
+/// override (the daemon's
 /// filesystem layout and secret are never overridable). This is what
 /// lets a consumer — notably the viewer — run on a different machine
 /// than the cli: the only local requirement is network reach to the
@@ -25,7 +25,7 @@ use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, Comma
 ///   `-AGENT-ID` / `-AGENT-FULL-ID` / `-AGENT-REMOTE` /
 ///   `-RESPONSE-ID` / `-RESPONSE-IDS` request headers — the same
 ///   names the api stamps on outbound calls, one header per `Some`
-///   field (`mcp_session_id` has no header). A missing header
+///   field. A missing header
 ///   DELETES that config field for the run — the daemon never
 ///   inherits its own resident value;
 /// - the daemon replies `text/event-stream`, one SSE `data:` event per

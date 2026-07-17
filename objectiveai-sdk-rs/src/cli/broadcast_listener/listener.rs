@@ -152,9 +152,8 @@ struct Frame<'a> {
 
 impl Frame<'_> {
     /// The producer's identity off the request frame's context fields.
-    /// `mcp_session_id` is never teed onto the broadcast, so it's
-    /// always `None`; the frame's `plugin_*` coordinates are not agent
-    /// arguments and are dropped.
+    /// The frame's `plugin_*` coordinates are not agent arguments and
+    /// are dropped.
     fn agent_arguments(&mut self) -> AgentArguments {
         AgentArguments {
             agent_instance_hierarchy: self.agent_instance_hierarchy.take(),
@@ -163,7 +162,6 @@ impl Frame<'_> {
             agent_remote: self.agent_remote.take(),
             response_id: self.response_id.take(),
             response_ids: self.response_ids.take(),
-            mcp_session_id: None,
         }
     }
 }

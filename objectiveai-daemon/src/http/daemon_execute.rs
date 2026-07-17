@@ -16,11 +16,8 @@
 //! The daemon runs the request IN-PROCESS via the re-entrant
 //! [`crate::run`] (the same path `plugins run` uses for nested plugin
 //! commands) against its resident context pair with the
-//! override applied ([`crate::executor::apply_agent_arguments`] —
-//! `mcp_session_id` has no header: a remote caller has no business
-//! joining the daemon's MCP sessions, and the daemon's own slot is
-//! scrubbed at spawn). The daemon's filesystem layout and secret are
-//! never overridable.
+//! override applied ([`crate::executor::apply_agent_arguments`]).
+//! The daemon's filesystem layout and secret are never overridable.
 //!
 //! Each stream item goes back as one SSE `data:` event in exactly the
 //! cli's stdout JSONL line shapes (`main.rs::drain`): `Ok` items as
@@ -70,8 +67,7 @@ pub(crate) async fn execute_handler(
 /// — the same names the api stamps on outbound calls, one header per
 /// field. A missing (or non-UTF-8) header is `None`, which
 /// [`crate::executor::apply_agent_arguments`] DELETES on the run's
-/// scope — never inherits. `mcp_session_id` has no header and is
-/// always cleared.
+/// scope — never inherits.
 fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
     let get = |name: &str| {
         headers
@@ -86,7 +82,6 @@ fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
         agent_remote: get("X-OBJECTIVEAI-AGENT-REMOTE"),
         response_id: get("X-OBJECTIVEAI-RESPONSE-ID"),
         response_ids: get("X-OBJECTIVEAI-RESPONSE-IDS"),
-        mcp_session_id: None,
     }
 }
 

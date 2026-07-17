@@ -278,10 +278,10 @@ fn name_of(exe: &Path) -> String {
 /// forbidden-flag keys, the SCOPED half the seven per-request identity
 /// keys.
 ///
-/// `Option`-typed fields are skipped on `None`, EXCEPT the six
+/// `Option`-typed fields are skipped on `None`, EXCEPT the five
 /// per-request transient identity keys (`OBJECTIVEAI_AGENT_ID`,
-/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, `_RESPONSE_IDS`, and
-/// `MCP_SESSION_ID`), which are `env_remove`'d on `None` so the
+/// `_FULL_ID`, `_REMOTE`, `_RESPONSE_ID`, and `_RESPONSE_IDS`),
+/// which are `env_remove`'d on `None` so the
 /// child cannot inherit a stale identity from the parent's startup
 /// environment. Boolean fields are stamped only when `true`.
 pub fn apply_config_env(
@@ -346,14 +346,6 @@ pub fn apply_config_env(
         }
         None => {
             cmd.env_remove("OBJECTIVEAI_RESPONSE_IDS");
-        }
-    }
-    match scoped.mcp_session_id() {
-        Some(v) => {
-            cmd.env(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV, v);
-        }
-        None => {
-            cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
         }
     }
     // NOTE: the daemon's own bind config (bare `ADDRESS`/`PORT`/`SECRET`)

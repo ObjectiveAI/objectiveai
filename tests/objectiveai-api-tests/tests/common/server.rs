@@ -37,7 +37,6 @@ pub fn client() -> Arc<HttpClient> {
         None::<String>,
         None,
         None::<String>,
-        None::<String>,
         // Bound the server's MCP calls in tests: a wedged MCP upstream
         // should fail the test, not hang the suite (no header would mean
         // NO call timeout).

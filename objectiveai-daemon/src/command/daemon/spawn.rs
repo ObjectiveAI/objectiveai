@@ -92,7 +92,6 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
             ] {
                 cmd.env_remove(var);
             }
-            cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
         },
     )
     .await

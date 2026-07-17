@@ -1713,8 +1713,7 @@ async fn dispatch_script(
     inner: &Arc<Inner>,
     req: server_request::ScriptRequest,
 ) -> server_response::Payload {
-    // A fresh scope carrying the request's typed identity — the base
-    // scope's mcp_session_id is PRESERVED (this path never touched it).
+    // A fresh scope carrying the request's typed identity.
     let exec_scope = inner
         .scoped
         .for_request(crate::context::ScopeIdentity {
@@ -1724,7 +1723,6 @@ async fn dispatch_script(
             agent_remote: req.agent_remote.clone(),
             response_id: Some(req.response_id.clone()),
             response_ids: req.response_ids.clone(),
-            mcp_session_id: inner.scoped.mcp_session_id().map(String::from),
         })
         .await;
     let python = match inner.global.python().await {
@@ -2019,10 +2017,9 @@ async fn dial_plugin_upstream(
     // the header entirely; empty-string transients are forbidden),
     // which `apply_config_env` translates into an `env_remove` of
     // `OBJECTIVEAI_AGENT_REMOTE` on the spawned subprocess. The
-    // base scope's mcp_session_id is PRESERVED (this path never
-    // touched it); the fresh scope's api cell is born with the
-    // transient identity, so the conduit owner's memoized client
-    // can neither be reused nor poisoned.
+    // fresh scope's api cell is born with the transient identity,
+    // so the conduit owner's memoized client can neither be reused
+    // nor poisoned.
     let dial_scope = inner
         .scoped
         .for_request(crate::context::ScopeIdentity {
@@ -2032,7 +2029,6 @@ async fn dial_plugin_upstream(
             agent_remote: transient.agent_remote.clone(),
             response_id: Some(transient.response_id.clone()),
             response_ids: Some(transient.response_ids.clone()),
-            mcp_session_id: inner.scoped.mcp_session_id().map(String::from),
         })
         .await;
 
