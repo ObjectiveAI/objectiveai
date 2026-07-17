@@ -11,9 +11,6 @@ type CliCommandDbConfigAddressRequest struct {
 	Get *CliCommandDbConfigAddressGetRequest 
 	GetRequestSchema *CliCommandDbConfigAddressGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandDbConfigAddressGetResponseSchemaRequest 
-	Set *CliCommandDbConfigAddressSetRequest 
-	SetRequestSchema *CliCommandDbConfigAddressSetRequestSchemaRequest 
-	SetResponseSchema *CliCommandDbConfigAddressSetResponseSchemaRequest 
 }
 
 func (v CliCommandDbConfigAddressRequest) MarshalJSON() ([]byte, error) {
@@ -25,15 +22,6 @@ func (v CliCommandDbConfigAddressRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.GetResponseSchema != nil {
 		return json.Marshal(v.GetResponseSchema)
-	}
-	if v.Set != nil {
-		return json.Marshal(v.Set)
-	}
-	if v.SetRequestSchema != nil {
-		return json.Marshal(v.SetRequestSchema)
-	}
-	if v.SetResponseSchema != nil {
-		return json.Marshal(v.SetResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -72,39 +60,6 @@ func (v *CliCommandDbConfigAddressRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	{
-		var try CliCommandDbConfigAddressSetRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigAddressRequest{}
-			candidate.Set = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandDbConfigAddressSetRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigAddressRequest{}
-			candidate.SetRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandDbConfigAddressSetResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigAddressRequest{}
-			candidate.SetResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	return fmt.Errorf("data did not match any variant of CliCommandDbConfigAddressRequest")
 }
 
@@ -113,9 +68,6 @@ func (v CliCommandDbConfigAddressRequest) Validate() error {
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
-	if v.Set != nil { count++ }
-	if v.SetRequestSchema != nil { count++ }
-	if v.SetResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandDbConfigAddressRequest: exactly one variant must be set, got %d", count)
 	}

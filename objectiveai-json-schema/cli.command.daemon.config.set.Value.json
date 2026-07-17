@@ -1,0 +1,40 @@
+{
+  "title": "cli.command.daemon.config.set.Value",
+  "description": "The whole `daemon` config section as one object — the daemon's\nclient-facing coordinates are LINKED (a secret and its derived\nsignature, the address they authorize), so they are set together,\natomically. FULL-REPLACE semantics: this object becomes the\nsection verbatim; omitted fields are cleared.",
+  "type": "object",
+  "properties": {
+    "address": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "secret": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "signature": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

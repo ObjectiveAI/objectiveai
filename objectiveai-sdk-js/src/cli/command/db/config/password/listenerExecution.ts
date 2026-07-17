@@ -3,15 +3,9 @@
 import { type CliCommandDbConfigPasswordGetListenerExecution } from "./get/listenerExecution";
 import { type CliCommandDbConfigPasswordGetRequestSchemaListenerExecution } from "./get/request_schema/listenerExecution";
 import { type CliCommandDbConfigPasswordGetResponseSchemaListenerExecution } from "./get/response_schema/listenerExecution";
-import { type CliCommandDbConfigPasswordSetListenerExecution } from "./set/listenerExecution";
-import { type CliCommandDbConfigPasswordSetRequestSchemaListenerExecution } from "./set/request_schema/listenerExecution";
-import { type CliCommandDbConfigPasswordSetResponseSchemaListenerExecution } from "./set/response_schema/listenerExecution";
 
 /** `/listen` mirror of `db config password`'s request aggregate: one member per child listener execution. */
 export type CliCommandDbConfigPasswordListenerExecution =
   | CliCommandDbConfigPasswordGetListenerExecution
   | CliCommandDbConfigPasswordGetRequestSchemaListenerExecution
-  | CliCommandDbConfigPasswordGetResponseSchemaListenerExecution
-  | CliCommandDbConfigPasswordSetListenerExecution
-  | CliCommandDbConfigPasswordSetRequestSchemaListenerExecution
-  | CliCommandDbConfigPasswordSetResponseSchemaListenerExecution;
+  | CliCommandDbConfigPasswordGetResponseSchemaListenerExecution;

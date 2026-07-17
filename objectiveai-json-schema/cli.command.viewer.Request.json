@@ -2,18 +2,6 @@
   "title": "cli.command.viewer.Request",
   "anyOf": [
     {
-      "title": "GenerateSecretSignaturePair",
-      "$ref": "cli.command.viewer.generate_secret_signature_pair.Request"
-    },
-    {
-      "title": "GenerateSecretSignaturePairRequestSchema",
-      "$ref": "cli.command.viewer.generate_secret_signature_pair.request_schema.Request"
-    },
-    {
-      "title": "GenerateSecretSignaturePairResponseSchema",
-      "$ref": "cli.command.viewer.generate_secret_signature_pair.response_schema.Request"
-    },
-    {
       "title": "Kill",
       "$ref": "cli.command.viewer.kill.Request"
     },

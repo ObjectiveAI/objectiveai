@@ -6,6 +6,9 @@ import { type CliCommandDbConfigGetListenerExecution } from "./get/listenerExecu
 import { type CliCommandDbConfigGetRequestSchemaListenerExecution } from "./get/request_schema/listenerExecution";
 import { type CliCommandDbConfigGetResponseSchemaListenerExecution } from "./get/response_schema/listenerExecution";
 import { type CliCommandDbConfigPasswordListenerExecution } from "./password/listenerExecution";
+import { type CliCommandDbConfigSetListenerExecution } from "./set/listenerExecution";
+import { type CliCommandDbConfigSetRequestSchemaListenerExecution } from "./set/request_schema/listenerExecution";
+import { type CliCommandDbConfigSetResponseSchemaListenerExecution } from "./set/response_schema/listenerExecution";
 import { type CliCommandDbConfigUserListenerExecution } from "./user/listenerExecution";
 
 /** `/listen` mirror of `db config`'s request aggregate: one member per child listener execution. */
@@ -13,6 +16,9 @@ export type CliCommandDbConfigListenerExecution =
   | CliCommandDbConfigGetListenerExecution
   | CliCommandDbConfigGetRequestSchemaListenerExecution
   | CliCommandDbConfigGetResponseSchemaListenerExecution
+  | CliCommandDbConfigSetListenerExecution
+  | CliCommandDbConfigSetRequestSchemaListenerExecution
+  | CliCommandDbConfigSetResponseSchemaListenerExecution
   | CliCommandDbConfigAddressListenerExecution
   | CliCommandDbConfigUserListenerExecution
   | CliCommandDbConfigPasswordListenerExecution

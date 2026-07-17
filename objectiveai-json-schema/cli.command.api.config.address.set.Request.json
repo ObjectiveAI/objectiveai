@@ -41,9 +41,6 @@
         }
       ]
     },
-    "scope": {
-      "$ref": "cli.command.SetScope"
-    },
     "timeout_seconds": {
       "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",
       "anyOf": [

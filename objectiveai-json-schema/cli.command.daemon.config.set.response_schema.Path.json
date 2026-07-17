@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.daemon.config.set.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "daemon/config/set/response_schema"
+  ]
+}

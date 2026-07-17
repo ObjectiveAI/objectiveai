@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.daemon.config.signature.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.daemon.config.signature.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.daemon.config.signature.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.daemon.config.signature.get.response_schema.Request"
+    }
+  ]
+}

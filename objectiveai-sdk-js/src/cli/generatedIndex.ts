@@ -7,6 +7,7 @@ export * from "./command/index";
 export * from "./laboratories_list_listener/index";
 export * from "./laboratories_listener/index";
 export * from "./plugins/index";
+export * from "./user_listener/index";
 export * from "./error";
 export * from "./errorType";
 export * from "./level";

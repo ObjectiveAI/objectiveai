@@ -1,0 +1,10 @@
+{
+  "title": "cli.user_listener.UserReply",
+  "description": "The `POST /user/{id}/reply` body. The replier's identity rides the\n`X-OBJECTIVEAI-*` request headers, not this body.",
+  "type": "object",
+  "properties": {
+    "reply": {
+      "description": "The reply payload, opaque to the daemon (the originating\ncommand's optional python validator is the only inspector)."
+    }
+  }
+}

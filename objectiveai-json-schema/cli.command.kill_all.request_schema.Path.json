@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.kill_all.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "kill-all/request_schema"
-  ]
-}

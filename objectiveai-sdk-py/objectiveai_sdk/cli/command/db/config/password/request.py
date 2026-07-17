@@ -6,9 +6,6 @@ from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.db.config.password.get.request import Request as CliCommandDbConfigPasswordGetRequest
 from objectiveai_sdk.cli.command.db.config.password.get.request_schema.request import Request as CliCommandDbConfigPasswordGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.db.config.password.get.response_schema.request import Request as CliCommandDbConfigPasswordGetResponseSchemaRequest
-from objectiveai_sdk.cli.command.db.config.password.set.request import Request as CliCommandDbConfigPasswordSetRequest
-from objectiveai_sdk.cli.command.db.config.password.set.request_schema.request import Request as CliCommandDbConfigPasswordSetRequestSchemaRequest
-from objectiveai_sdk.cli.command.db.config.password.set.response_schema.request import Request as CliCommandDbConfigPasswordSetResponseSchemaRequest
 
 
 class RequestGet(RootModel):
@@ -29,26 +26,8 @@ class RequestGetResponseSchema(RootModel):
     root: CliCommandDbConfigPasswordGetResponseSchemaRequest
 
 
-class RequestSet(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Set'})
-
-    root: CliCommandDbConfigPasswordSetRequest
-
-
-class RequestSetRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SetRequestSchema'})
-
-    root: CliCommandDbConfigPasswordSetRequestSchemaRequest
-
-
-class RequestSetResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SetResponseSchema'})
-
-    root: CliCommandDbConfigPasswordSetResponseSchemaRequest
-
-
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.db.config.password.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestSet, RequestSetRequestSchema, RequestSetResponseSchema]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema]
 

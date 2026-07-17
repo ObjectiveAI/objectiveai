@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.api.spawn.Response",
-  "type": "object",
-  "properties": {
-    "listening": {
-      "type": "string"
-    }
-  }
-}

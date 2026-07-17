@@ -3,33 +3,12 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.cli.command.viewer.generate_secret_signature_pair.request import Request as CliCommandViewerGenerateSecretSignaturePairRequest
-from objectiveai_sdk.cli.command.viewer.generate_secret_signature_pair.request_schema.request import Request as CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest
-from objectiveai_sdk.cli.command.viewer.generate_secret_signature_pair.response_schema.request import Request as CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest
 from objectiveai_sdk.cli.command.viewer.kill.request import Request as CliCommandViewerKillRequest
 from objectiveai_sdk.cli.command.viewer.kill.request_schema.request import Request as CliCommandViewerKillRequestSchemaRequest
 from objectiveai_sdk.cli.command.viewer.kill.response_schema.request import Request as CliCommandViewerKillResponseSchemaRequest
 from objectiveai_sdk.cli.command.viewer.spawn.request import Request as CliCommandViewerSpawnRequest
 from objectiveai_sdk.cli.command.viewer.spawn.request_schema.request import Request as CliCommandViewerSpawnRequestSchemaRequest
 from objectiveai_sdk.cli.command.viewer.spawn.response_schema.request import Request as CliCommandViewerSpawnResponseSchemaRequest
-
-
-class RequestGenerateSecretSignaturePair(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'GenerateSecretSignaturePair'})
-
-    root: CliCommandViewerGenerateSecretSignaturePairRequest
-
-
-class RequestGenerateSecretSignaturePairRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'GenerateSecretSignaturePairRequestSchema'})
-
-    root: CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest
-
-
-class RequestGenerateSecretSignaturePairResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'GenerateSecretSignaturePairResponseSchema'})
-
-    root: CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest
 
 
 class RequestKill(RootModel):
@@ -71,5 +50,5 @@ class RequestSpawnResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.viewer.Request')
 
-    root: Union[RequestGenerateSecretSignaturePair, RequestGenerateSecretSignaturePairRequestSchema, RequestGenerateSecretSignaturePairResponseSchema, RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
+    root: Union[RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
 

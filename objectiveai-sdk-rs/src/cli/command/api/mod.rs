@@ -12,7 +12,11 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.api.Request")]
 pub enum Request {
-    #[schemars(title = "Config")]
+    // No variant-level #[schemars(title)]: on a SINGLE-variant enum
+    // schemars hoists it over the enum's own title, tripping the
+    // json-schema builder's normalization assertion (the
+    // ClientLaboratoryType rule). Single-variant since the api
+    // spawn/kill retirement left only `config`.
     Config(config::Request),
 }
 

@@ -4,39 +4,15 @@ from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.db.config.request import Request as CliCommandDbConfigRequest
-from objectiveai_sdk.cli.command.db.kill.request import Request as CliCommandDbKillRequest
-from objectiveai_sdk.cli.command.db.kill.request_schema.request import Request as CliCommandDbKillRequestSchemaRequest
-from objectiveai_sdk.cli.command.db.kill.response_schema.request import Request as CliCommandDbKillResponseSchemaRequest
 from objectiveai_sdk.cli.command.db.query.request import Request as CliCommandDbQueryRequest
 from objectiveai_sdk.cli.command.db.query.request_schema.request import Request as CliCommandDbQueryRequestSchemaRequest
 from objectiveai_sdk.cli.command.db.query.response_schema.request import Request as CliCommandDbQueryResponseSchemaRequest
-from objectiveai_sdk.cli.command.db.spawn.request import Request as CliCommandDbSpawnRequest
-from objectiveai_sdk.cli.command.db.spawn.request_schema.request import Request as CliCommandDbSpawnRequestSchemaRequest
-from objectiveai_sdk.cli.command.db.spawn.response_schema.request import Request as CliCommandDbSpawnResponseSchemaRequest
 
 
 class RequestConfig(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Config'})
 
     root: CliCommandDbConfigRequest
-
-
-class RequestKill(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Kill'})
-
-    root: CliCommandDbKillRequest
-
-
-class RequestKillRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'KillRequestSchema'})
-
-    root: CliCommandDbKillRequestSchemaRequest
-
-
-class RequestKillResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'KillResponseSchema'})
-
-    root: CliCommandDbKillResponseSchemaRequest
 
 
 class RequestQuery(RootModel):
@@ -57,26 +33,8 @@ class RequestQueryResponseSchema(RootModel):
     root: CliCommandDbQueryResponseSchemaRequest
 
 
-class RequestSpawn(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Spawn'})
-
-    root: CliCommandDbSpawnRequest
-
-
-class RequestSpawnRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SpawnRequestSchema'})
-
-    root: CliCommandDbSpawnRequestSchemaRequest
-
-
-class RequestSpawnResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SpawnResponseSchema'})
-
-    root: CliCommandDbSpawnResponseSchemaRequest
-
-
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.db.Request')
 
-    root: Union[RequestConfig, RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestQuery, RequestQueryRequestSchema, RequestQueryResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
+    root: Union[RequestConfig, RequestQuery, RequestQueryRequestSchema, RequestQueryResponseSchema]
 

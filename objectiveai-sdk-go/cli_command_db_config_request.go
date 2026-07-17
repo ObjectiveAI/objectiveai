@@ -11,6 +11,9 @@ type CliCommandDbConfigRequest struct {
 	Get *CliCommandDbConfigGetRequest 
 	GetRequestSchema *CliCommandDbConfigGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandDbConfigGetResponseSchemaRequest 
+	Set *CliCommandDbConfigSetRequest 
+	SetRequestSchema *CliCommandDbConfigSetRequestSchemaRequest 
+	SetResponseSchema *CliCommandDbConfigSetResponseSchemaRequest 
 	Address *CliCommandDbConfigAddressRequest 
 	User *CliCommandDbConfigUserRequest 
 	Password *CliCommandDbConfigPasswordRequest 
@@ -26,6 +29,15 @@ func (v CliCommandDbConfigRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.GetResponseSchema != nil {
 		return json.Marshal(v.GetResponseSchema)
+	}
+	if v.Set != nil {
+		return json.Marshal(v.Set)
+	}
+	if v.SetRequestSchema != nil {
+		return json.Marshal(v.SetRequestSchema)
+	}
+	if v.SetResponseSchema != nil {
+		return json.Marshal(v.SetResponseSchema)
 	}
 	if v.Address != nil {
 		return json.Marshal(v.Address)
@@ -70,6 +82,39 @@ func (v *CliCommandDbConfigRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandDbConfigRequest{}
 			candidate.GetResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbConfigSetRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbConfigRequest{}
+			candidate.Set = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbConfigSetRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbConfigRequest{}
+			candidate.SetRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbConfigSetResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbConfigRequest{}
+			candidate.SetResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -128,6 +173,9 @@ func (v CliCommandDbConfigRequest) Validate() error {
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
+	if v.Set != nil { count++ }
+	if v.SetRequestSchema != nil { count++ }
+	if v.SetResponseSchema != nil { count++ }
 	if v.Address != nil { count++ }
 	if v.User != nil { count++ }
 	if v.Password != nil { count++ }

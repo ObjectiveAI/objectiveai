@@ -10,6 +10,7 @@ from objectiveai_sdk.cli.command.agents.wait.path import Path
 class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.wait.Request')
 
+    active: bool = Field(False, description='The status to wait FOR: `true` resolves when the agent is\nACTIVE (up — its instance lock held), `false` when it is\nINACTIVE (done — its instance lock free). Defaults to `false`\non the wire, so a request predating this field keeps its\noriginal wait-until-done meaning.')
     agent: AgentSelector = Field(..., description='Who to wait on — an instance hierarchy or a tag. A plain ref\nhas no live identity and errors.')
     jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
     max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})

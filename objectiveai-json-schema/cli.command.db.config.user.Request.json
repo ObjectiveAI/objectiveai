@@ -12,18 +12,6 @@
     {
       "title": "GetResponseSchema",
       "$ref": "cli.command.db.config.user.get.response_schema.Request"
-    },
-    {
-      "title": "Set",
-      "$ref": "cli.command.db.config.user.set.Request"
-    },
-    {
-      "title": "SetRequestSchema",
-      "$ref": "cli.command.db.config.user.set.request_schema.Request"
-    },
-    {
-      "title": "SetResponseSchema",
-      "$ref": "cli.command.db.config.user.set.response_schema.Request"
     }
   ]
 }

@@ -6,9 +6,6 @@ from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.db.config.user.get.request import Request as CliCommandDbConfigUserGetRequest
 from objectiveai_sdk.cli.command.db.config.user.get.request_schema.request import Request as CliCommandDbConfigUserGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.db.config.user.get.response_schema.request import Request as CliCommandDbConfigUserGetResponseSchemaRequest
-from objectiveai_sdk.cli.command.db.config.user.set.request import Request as CliCommandDbConfigUserSetRequest
-from objectiveai_sdk.cli.command.db.config.user.set.request_schema.request import Request as CliCommandDbConfigUserSetRequestSchemaRequest
-from objectiveai_sdk.cli.command.db.config.user.set.response_schema.request import Request as CliCommandDbConfigUserSetResponseSchemaRequest
 
 
 class RequestGet(RootModel):
@@ -29,26 +26,8 @@ class RequestGetResponseSchema(RootModel):
     root: CliCommandDbConfigUserGetResponseSchemaRequest
 
 
-class RequestSet(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Set'})
-
-    root: CliCommandDbConfigUserSetRequest
-
-
-class RequestSetRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SetRequestSchema'})
-
-    root: CliCommandDbConfigUserSetRequestSchemaRequest
-
-
-class RequestSetResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SetResponseSchema'})
-
-    root: CliCommandDbConfigUserSetResponseSchemaRequest
-
-
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.db.config.user.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestSet, RequestSetRequestSchema, RequestSetResponseSchema]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema]
 

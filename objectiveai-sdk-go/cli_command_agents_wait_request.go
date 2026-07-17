@@ -8,6 +8,12 @@ import (
 )
 
 type CliCommandAgentsWaitRequest struct {
+	// The status to wait FOR: `true` resolves when the agent is
+	// ACTIVE (up — its instance lock held), `false` when it is
+	// INACTIVE (done — its instance lock free). Defaults to `false`
+	// on the wire, so a request predating this field keeps its
+	// original wait-until-done meaning.
+	Active bool `json:"active" default:"false"`
 	// Who to wait on — an instance hierarchy or a tag. A plain ref
 	// has no live identity and errors.
 	Agent CliCommandAgentsAgentSelector `json:"agent"`
@@ -39,7 +45,7 @@ func (v *CliCommandAgentsWaitRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent", "path_type"} {
+	for _, key := range []string{"active", "agent", "path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsWaitRequest: missing required field %q", key)
 		}

@@ -20,7 +20,6 @@ type CliCommandLaboratoriesConfigAddressesDelRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
-	Scope CliCommandSetScope `json:"scope"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
 	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
 	// enforced at parse time. `db query` threads it to postgres
@@ -38,7 +37,7 @@ func (v *CliCommandLaboratoriesConfigAddressesDelRequest) UnmarshalJSON(data []b
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"key", "path_type", "scope"} {
+	for _, key := range []string{"key", "path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandLaboratoriesConfigAddressesDelRequest: missing required field %q", key)
 		}

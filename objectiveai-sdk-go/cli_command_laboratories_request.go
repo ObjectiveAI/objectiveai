@@ -21,15 +21,9 @@ type CliCommandLaboratoriesRequest struct {
 	Detach *CliCommandLaboratoriesDetachRequest 
 	DetachRequestSchema *CliCommandLaboratoriesDetachRequestSchemaRequest 
 	DetachResponseSchema *CliCommandLaboratoriesDetachResponseSchemaRequest 
-	Kill *CliCommandLaboratoriesKillRequest 
-	KillRequestSchema *CliCommandLaboratoriesKillRequestSchemaRequest 
-	KillResponseSchema *CliCommandLaboratoriesKillResponseSchemaRequest 
 	List *CliCommandLaboratoriesListRequest 
 	ListRequestSchema *CliCommandLaboratoriesListRequestSchemaRequest 
 	ListResponseSchema *CliCommandLaboratoriesListResponseSchemaRequest 
-	Spawn *CliCommandLaboratoriesSpawnRequest 
-	SpawnRequestSchema *CliCommandLaboratoriesSpawnRequestSchemaRequest 
-	SpawnResponseSchema *CliCommandLaboratoriesSpawnResponseSchemaRequest 
 }
 
 func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
@@ -72,15 +66,6 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	if v.DetachResponseSchema != nil {
 		return json.Marshal(v.DetachResponseSchema)
 	}
-	if v.Kill != nil {
-		return json.Marshal(v.Kill)
-	}
-	if v.KillRequestSchema != nil {
-		return json.Marshal(v.KillRequestSchema)
-	}
-	if v.KillResponseSchema != nil {
-		return json.Marshal(v.KillResponseSchema)
-	}
 	if v.List != nil {
 		return json.Marshal(v.List)
 	}
@@ -89,15 +74,6 @@ func (v CliCommandLaboratoriesRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.ListResponseSchema != nil {
 		return json.Marshal(v.ListResponseSchema)
-	}
-	if v.Spawn != nil {
-		return json.Marshal(v.Spawn)
-	}
-	if v.SpawnRequestSchema != nil {
-		return json.Marshal(v.SpawnRequestSchema)
-	}
-	if v.SpawnResponseSchema != nil {
-		return json.Marshal(v.SpawnResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -247,39 +223,6 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandLaboratoriesKillRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandLaboratoriesRequest{}
-			candidate.Kill = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandLaboratoriesKillRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandLaboratoriesRequest{}
-			candidate.KillRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandLaboratoriesKillResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandLaboratoriesRequest{}
-			candidate.KillResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandLaboratoriesListRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandLaboratoriesRequest{}
@@ -312,39 +255,6 @@ func (v *CliCommandLaboratoriesRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	{
-		var try CliCommandLaboratoriesSpawnRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandLaboratoriesRequest{}
-			candidate.Spawn = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandLaboratoriesSpawnRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandLaboratoriesRequest{}
-			candidate.SpawnRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandLaboratoriesSpawnResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandLaboratoriesRequest{}
-			candidate.SpawnResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	return fmt.Errorf("data did not match any variant of CliCommandLaboratoriesRequest")
 }
 
@@ -363,15 +273,9 @@ func (v CliCommandLaboratoriesRequest) Validate() error {
 	if v.Detach != nil { count++ }
 	if v.DetachRequestSchema != nil { count++ }
 	if v.DetachResponseSchema != nil { count++ }
-	if v.Kill != nil { count++ }
-	if v.KillRequestSchema != nil { count++ }
-	if v.KillResponseSchema != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }
-	if v.Spawn != nil { count++ }
-	if v.SpawnRequestSchema != nil { count++ }
-	if v.SpawnResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandLaboratoriesRequest: exactly one variant must be set, got %d", count)
 	}

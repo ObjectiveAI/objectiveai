@@ -5,9 +5,6 @@ import { type CliCommandApiListenerExecution } from "./api/listenerExecution";
 import { type CliCommandDaemonListenerExecution } from "./daemon/listenerExecution";
 import { type CliCommandDbListenerExecution } from "./db/listenerExecution";
 import { type CliCommandFunctionsListenerExecution } from "./functions/listenerExecution";
-import { type CliCommandKillAllListenerExecution } from "./kill_all/listenerExecution";
-import { type CliCommandKillAllRequestSchemaListenerExecution } from "./kill_all/request_schema/listenerExecution";
-import { type CliCommandKillAllResponseSchemaListenerExecution } from "./kill_all/response_schema/listenerExecution";
 import { type CliCommandLaboratoriesListenerExecution } from "./laboratories/listenerExecution";
 import { type CliCommandMcpListenerExecution } from "./mcp/listenerExecution";
 import { type CliCommandPluginsListenerExecution } from "./plugins/listenerExecution";
@@ -19,6 +16,7 @@ import { type CliCommandToolsListenerExecution } from "./tools/listenerExecution
 import { type CliCommandUpdateListenerExecution } from "./update/listenerExecution";
 import { type CliCommandUpdateRequestSchemaListenerExecution } from "./update/request_schema/listenerExecution";
 import { type CliCommandUpdateResponseSchemaListenerExecution } from "./update/response_schema/listenerExecution";
+import { type CliCommandUserListenerExecution } from "./user/listenerExecution";
 import { type CliCommandViewerListenerExecution } from "./viewer/listenerExecution";
 
 /** One daemon-broadcast execution — the root of the JS `ListenerExecution` tree (the mirror of the Rust SDK's `cli::command::ListenerExecution`), yielded by the viewer `WebSocketListener`. Narrow on `execution.request.path_type`; multi-variant leaves narrow further via the request's `dangerous_advanced.stream` flag. Items are always the typed PRE-transform response items (the CLI tees below its jq/python transform). Executions this build's types predate are skipped by the listener — no unknown fallback. */
@@ -28,9 +26,6 @@ export type CliCommandListenerExecution =
   | CliCommandDaemonListenerExecution
   | CliCommandDbListenerExecution
   | CliCommandFunctionsListenerExecution
-  | CliCommandKillAllListenerExecution
-  | CliCommandKillAllRequestSchemaListenerExecution
-  | CliCommandKillAllResponseSchemaListenerExecution
   | CliCommandLaboratoriesListenerExecution
   | CliCommandMcpListenerExecution
   | CliCommandPluginsListenerExecution
@@ -42,6 +37,7 @@ export type CliCommandListenerExecution =
   | CliCommandUpdateListenerExecution
   | CliCommandUpdateRequestSchemaListenerExecution
   | CliCommandUpdateResponseSchemaListenerExecution
+  | CliCommandUserListenerExecution
   | CliCommandViewerListenerExecution;
 
 /** Runtime `path_type → mode` table for the viewer `WebSocketListener`. No validation — the types are structural claims over the wire. */
@@ -208,12 +204,24 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "api/config/x_title/set": "unary",
   "api/config/x_title/set/request_schema": "unary",
   "api/config/x_title/set/response_schema": "unary",
-  "api/kill": "unary",
-  "api/kill/request_schema": "unary",
-  "api/kill/response_schema": "unary",
-  "api/spawn": "unary",
-  "api/spawn/request_schema": "unary",
-  "api/spawn/response_schema": "unary",
+  "daemon/config/address/get": "unary",
+  "daemon/config/address/get/request_schema": "unary",
+  "daemon/config/address/get/response_schema": "unary",
+  "daemon/config/get": "unary",
+  "daemon/config/get/request_schema": "unary",
+  "daemon/config/get/response_schema": "unary",
+  "daemon/config/refresh_secret_signature_pair": "unary",
+  "daemon/config/refresh_secret_signature_pair/request_schema": "unary",
+  "daemon/config/refresh_secret_signature_pair/response_schema": "unary",
+  "daemon/config/secret/get": "unary",
+  "daemon/config/secret/get/request_schema": "unary",
+  "daemon/config/secret/get/response_schema": "unary",
+  "daemon/config/set": "unary",
+  "daemon/config/set/request_schema": "unary",
+  "daemon/config/set/response_schema": "unary",
+  "daemon/config/signature/get": "unary",
+  "daemon/config/signature/get/request_schema": "unary",
+  "daemon/config/signature/get/response_schema": "unary",
   "daemon/kill": "unary",
   "daemon/kill/request_schema": "unary",
   "daemon/kill/response_schema": "unary",
@@ -223,39 +231,24 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "db/config/address/get": "unary",
   "db/config/address/get/request_schema": "unary",
   "db/config/address/get/response_schema": "unary",
-  "db/config/address/set": "unary",
-  "db/config/address/set/request_schema": "unary",
-  "db/config/address/set/response_schema": "unary",
   "db/config/database/get": "unary",
   "db/config/database/get/request_schema": "unary",
   "db/config/database/get/response_schema": "unary",
-  "db/config/database/set": "unary",
-  "db/config/database/set/request_schema": "unary",
-  "db/config/database/set/response_schema": "unary",
   "db/config/get": "unary",
   "db/config/get/request_schema": "unary",
   "db/config/get/response_schema": "unary",
   "db/config/password/get": "unary",
   "db/config/password/get/request_schema": "unary",
   "db/config/password/get/response_schema": "unary",
-  "db/config/password/set": "unary",
-  "db/config/password/set/request_schema": "unary",
-  "db/config/password/set/response_schema": "unary",
+  "db/config/set": "unary",
+  "db/config/set/request_schema": "unary",
+  "db/config/set/response_schema": "unary",
   "db/config/user/get": "unary",
   "db/config/user/get/request_schema": "unary",
   "db/config/user/get/response_schema": "unary",
-  "db/config/user/set": "unary",
-  "db/config/user/set/request_schema": "unary",
-  "db/config/user/set/response_schema": "unary",
-  "db/kill": "unary",
-  "db/kill/request_schema": "unary",
-  "db/kill/response_schema": "unary",
   "db/query": "unary",
   "db/query/request_schema": "unary",
   "db/query/response_schema": "unary",
-  "db/spawn": "unary",
-  "db/spawn/request_schema": "unary",
-  "db/spawn/response_schema": "unary",
   "functions/execute/standard": "both",
   "functions/execute/standard/request_schema": "unary",
   "functions/execute/standard/response_schema": "unary",
@@ -280,9 +273,6 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "functions/publish": "unary",
   "functions/publish/request_schema": "unary",
   "functions/publish/response_schema": "unary",
-  "kill-all": "unary",
-  "kill-all/request_schema": "unary",
-  "kill-all/response_schema": "unary",
   "laboratories/attach": "unary",
   "laboratories/attach/request_schema": "unary",
   "laboratories/attach/response_schema": "unary",
@@ -310,15 +300,9 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "laboratories/detach": "unary",
   "laboratories/detach/request_schema": "unary",
   "laboratories/detach/response_schema": "unary",
-  "laboratories/kill": "unary",
-  "laboratories/kill/request_schema": "unary",
-  "laboratories/kill/response_schema": "unary",
   "laboratories/list": "stream",
   "laboratories/list/request_schema": "unary",
   "laboratories/list/response_schema": "unary",
-  "laboratories/spawn": "unary",
-  "laboratories/spawn/request_schema": "unary",
-  "laboratories/spawn/response_schema": "unary",
   "mcp/config/address/get": "unary",
   "mcp/config/address/get/request_schema": "unary",
   "mcp/config/address/get/response_schema": "unary",
@@ -388,9 +372,9 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "update": "stream",
   "update/request_schema": "unary",
   "update/response_schema": "unary",
-  "viewer/generate_secret_signature_pair": "unary",
-  "viewer/generate_secret_signature_pair/request_schema": "unary",
-  "viewer/generate_secret_signature_pair/response_schema": "unary",
+  "user/request": "unary",
+  "user/request/request_schema": "unary",
+  "user/request/response_schema": "unary",
   "viewer/kill": "unary",
   "viewer/kill/request_schema": "unary",
   "viewer/kill/response_schema": "unary",

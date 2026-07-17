@@ -8,6 +8,7 @@ import (
 )
 
 type CliCommandDaemonRequest struct {
+	Config *CliCommandDaemonConfigRequest 
 	Spawn *CliCommandDaemonSpawnRequest 
 	SpawnRequestSchema *CliCommandDaemonSpawnRequestSchemaRequest 
 	SpawnResponseSchema *CliCommandDaemonSpawnResponseSchemaRequest 
@@ -17,6 +18,9 @@ type CliCommandDaemonRequest struct {
 }
 
 func (v CliCommandDaemonRequest) MarshalJSON() ([]byte, error) {
+	if v.Config != nil {
+		return json.Marshal(v.Config)
+	}
 	if v.Spawn != nil {
 		return json.Marshal(v.Spawn)
 	}
@@ -39,6 +43,17 @@ func (v CliCommandDaemonRequest) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliCommandDaemonRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandDaemonConfigRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDaemonRequest{}
+			candidate.Config = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try CliCommandDaemonSpawnRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -110,6 +125,7 @@ func (v *CliCommandDaemonRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandDaemonRequest) Validate() error {
 	count := 0
+	if v.Config != nil { count++ }
 	if v.Spawn != nil { count++ }
 	if v.SpawnRequestSchema != nil { count++ }
 	if v.SpawnResponseSchema != nil { count++ }
