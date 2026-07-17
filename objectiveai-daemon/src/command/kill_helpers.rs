@@ -1,8 +1,9 @@
-//! Shared kill logic for the `{mcp,viewer} kill` commands and
-//! `update`'s pre-install teardown. (The api / db / laboratories kill
-//! commands and `kill-all` were retired — `daemon kill` is the
-//! whole-teardown path: killing the daemon takes every leashed
-//! resident child with it.)
+//! Shared kill logic for the `{mcp,viewer} kill` commands, `update`'s
+//! pre-install teardown, and the `api config` mutation handlers'
+//! kill-on-config-change ([`kill_api_after_config_change`]). (The
+//! api / db / laboratories kill commands and `kill-all` were retired —
+//! `daemon kill` is the whole-teardown path: killing the daemon takes
+//! every leashed resident child with it.)
 //!
 //! A server is one of the daemon's LEASHED resident children (held on
 //! [`crate::context::GlobalContext`] since the stdout-readiness refactor — there are no
@@ -56,6 +57,19 @@ pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
             1
         }
     }
+}
+
+/// Retire the resident api server after an `api config` mutation.
+/// The running server was spawned with (and its address resolved
+/// under) the OLD config — its projected env (`MCP_CONNECT_TIMEOUT`,
+/// the backoff budget) and the settings its clients snapshot are all
+/// stale the moment the write lands. Killing it ON THE SPOT makes the
+/// next `api_client()` call respawn it with the fresh config, so an
+/// api config change never requires restarting the daemon. Best-effort
+/// and idempotent: no running api (or a non-resident process) is a
+/// no-op.
+pub async fn kill_api_after_config_change(global: &GlobalContext) {
+    let _ = kill_resident_child(global, "api").await;
 }
 
 /// LEGACY: read the owner PIDs of `(locks_dir, key)` and kill each —

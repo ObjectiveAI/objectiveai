@@ -9,7 +9,7 @@ use objectiveai_sdk::cli::command::api::config::mcp_call_timeout_ms::set::{Reque
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     let timeout_ms: u64 = {
         let mut de = serde_json::Deserializer::from_str(&request.value);
         serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)?
@@ -17,6 +17,9 @@ pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: R
     let mut config = scoped.filesystem.read_config().await?;
     config.api().set_mcp_call_timeout_ms(timeout_ms);
     scoped.filesystem.write_config(&config).await?;
+    // The change must take effect without a daemon restart: retire the
+    // running api server so the next use respawns it on the new config.
+    crate::command::kill_helpers::kill_api_after_config_change(global).await;
     Ok(Response::Ok)
 }
 

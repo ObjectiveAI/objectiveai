@@ -5,10 +5,13 @@ use objectiveai_sdk::cli::command::api::config::objectiveai_authorization::set::
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     let mut config = scoped.filesystem.read_config().await?;
     config.api().set_objectiveai_authorization(request.value);
     scoped.filesystem.write_config(&config).await?;
+    // The change must take effect without a daemon restart: retire the
+    // running api server so the next use respawns it on the new config.
+    crate::command::kill_helpers::kill_api_after_config_change(global).await;
     Ok(Response::Ok)
 }
 
