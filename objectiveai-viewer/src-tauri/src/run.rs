@@ -364,6 +364,8 @@ pub fn serve(
         crate::daemon_proxy::daemon_laboratories_list,
         crate::daemon_proxy::daemon_laboratory,
         crate::daemon_proxy::daemon_laboratory_filetree,
+        crate::daemon_proxy::daemon_user,
+        crate::daemon_proxy::daemon_user_reply,
         crate::daemon_proxy::daemon_stream_close,
         crate::plugins::list_plugins_with_viewer,
         crate::laboratories::machine_identity,

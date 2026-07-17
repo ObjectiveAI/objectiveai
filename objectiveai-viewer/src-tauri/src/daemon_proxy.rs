@@ -311,6 +311,72 @@ pub(crate) async fn daemon_laboratory_filetree(
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
+/// `GET /user` — the user-requests channel: every pending request
+/// replayed on connect (then the `live` caught-up marker), live
+/// requests / settlements / timeouts after.
+#[tauri::command]
+pub(crate) async fn daemon_user(
+    proxy: tauri::State<'_, DaemonProxy>,
+    stream_id: String,
+    on_event: Channel<StreamEvent>,
+) -> Result<(), String> {
+    let request = proxy.get(format!("{}/user", proxy.address));
+    proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
+}
+
+/// `POST /user/{id}/reply` — answer one pending user request as the
+/// VIEWER. Stamps the auth signature and the viewer agent identity
+/// (the same header set [`daemon_execute`] stamps — the replier
+/// identity the daemon reports to the originating command). Unlike
+/// the streaming commands this returns a VALUE: the daemon's
+/// `UserReplyOutcome` JSON (`accepted` / `rejected` / `settled` /
+/// `not_found`), whatever the HTTP status — only transport and parse
+/// failures are `Err`.
+#[tauri::command]
+pub(crate) async fn daemon_user_reply(
+    proxy: tauri::State<'_, DaemonProxy>,
+    id: String,
+    reply: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let mut req = proxy
+        .client
+        .post(format!("{}/user/{}/reply", proxy.address, id))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "reply": reply }));
+    if let Some(signature) = &proxy.signature {
+        req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
+    }
+    let args = crate::plugins::viewer_agent_arguments();
+    if let Some(v) = &args.agent_instance_hierarchy {
+        req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
+    }
+    if let Some(v) = &args.agent_id {
+        req = req.header("X-OBJECTIVEAI-AGENT-ID", v);
+    }
+    if let Some(v) = &args.agent_full_id {
+        req = req.header("X-OBJECTIVEAI-AGENT-FULL-ID", v);
+    }
+    if let Some(v) = &args.agent_remote {
+        req = req.header("X-OBJECTIVEAI-AGENT-REMOTE", v);
+    }
+    if let Some(v) = &args.response_id {
+        req = req.header("X-OBJECTIVEAI-RESPONSE-ID", v);
+    }
+    if let Some(v) = &args.response_ids {
+        req = req.header("X-OBJECTIVEAI-RESPONSE-IDS", v);
+    }
+    let response = req
+        .send()
+        .await
+        .map_err(|e| format!("user reply: {}", error_chain(&e)))?;
+    let body = response
+        .text()
+        .await
+        .map_err(|e| format!("user reply body: {}", error_chain(&e)))?;
+    serde_json::from_str(&body)
+        .map_err(|e| format!("user reply outcome parse: {e}: {body}"))
+}
+
 /// Cancel a live proxy stream by its client-minted id. No-op on an
 /// unknown id (the stream already ended and cleaned itself up), so
 /// clients may call it unconditionally on teardown.
