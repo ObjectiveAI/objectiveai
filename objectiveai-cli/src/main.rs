@@ -10,12 +10,24 @@
 //! stdout verbatim.
 //!
 //! Parsing happens BEFORE any daemon contact, so `--help` / `--version`
-//! / parse errors never spawn or dial a daemon. The daemon bootstrap
-//! mirrors the resident daemon's own launcher
-//! (`objectiveai_daemon::command::daemon::spawn`): a
-//! `spawn_until_published` against the `objectiveai-daemon` binary,
-//! keyed on the per-state `plugins-daemon` lock, whose published
-//! contents are the daemon's connect `http://` URL.
+//! / parse errors never spawn or dial a daemon.
+//!
+//! **Which daemon?** A three-rung ladder (see [`connect`]):
+//! 1. `DAEMON_ADDRESS` env — an explicit per-invocation override,
+//!    presented with the `DAEMON_SIGNATURE` env verbatim.
+//! 2. The state config's `daemon` section, when its `address` is set:
+//!    dial THAT daemon, presenting the section's stored `signature`
+//!    (the credential for a daemon whose secret we don't hold).
+//! 3. Otherwise the LOCAL daemon: a `spawn_until_published` against
+//!    the `objectiveai-daemon` binary, keyed on the per-state
+//!    `plugins-daemon` lock, whose published contents are the daemon's
+//!    connect `http://` URL (mirrors
+//!    `objectiveai_daemon::command::daemon::spawn`). An address-less
+//!    `daemon` section describes THIS local daemon — its stored
+//!    `signature` is IGNORED and the presented signature is DERIVED
+//!    from the section's `secret` (the same math the daemon verifies
+//!    with; trusting the stored signature would make the secret
+//!    pointless).
 
 use std::path::PathBuf;
 
@@ -161,46 +173,116 @@ fn resolve_layout() -> Layout {
     Layout { dir, state, lock_dir, daemon_exe }
 }
 
-/// The daemon auth signature the CLI sends as the
-/// `X-OBJECTIVEAI-SIGNATURE` header, read verbatim from `DAEMON_SIGNATURE`
-/// (`sha256=<hex(SHA256(secret))>`). The CLI never derives it from a
-/// secret — `DAEMON_SECRET` is only for handing a spawned daemon its
-/// `SECRET`. `None` = connect unauthenticated (the daemon must be open).
-fn daemon_signature() -> Option<String> {
+/// The daemon auth signature from the environment
+/// (`DAEMON_SIGNATURE`, verbatim `sha256=<hex(SHA256(secret))>`) —
+/// the fallback credential when no on-disk `daemon` section decides.
+/// `DAEMON_SECRET` is only for handing a spawned daemon its `SECRET`.
+/// `None` = connect unauthenticated (the daemon must be open).
+fn daemon_signature_env() -> Option<String> {
     std::env::var("DAEMON_SIGNATURE").ok().filter(|s| !s.is_empty())
 }
 
+/// `sha256=<hex(SHA256(secret))>` — the client-side half of the
+/// daemon's verify math (mirrors
+/// `objectiveai_daemon::http::daemon_auth::derive_signature`; hardcoded
+/// because the thin client cannot depend on the heavy daemon crate).
+fn derive_signature(secret: &str) -> String {
+    use sha2::{Digest, Sha256};
+    format!("sha256={}", hex::encode(Sha256::digest(secret.as_bytes())))
+}
+
+/// The `daemon` section of the state's on-disk `config.json` — the
+/// CLI-relevant sliver, a field-for-field mirror of the daemon's
+/// `filesystem::config::DaemonConfig` (hardcoded, same no-daemon-dep
+/// pattern as [`DAEMON_LOCK_KEY`]). `address: Some` names the daemon
+/// the CLI should dial (with the stored `signature` as its
+/// credential); `address: None` describes the LOCAL daemon (its
+/// `secret` is what auth verifies against — the stored `signature` is
+/// ignored and the credential is derived from the secret instead).
+#[derive(serde::Deserialize)]
+struct DaemonConfigSection {
+    #[serde(default)]
+    address: Option<String>,
+    #[serde(default)]
+    secret: Option<String>,
+    #[serde(default)]
+    signature: Option<String>,
+}
+
+/// The state config, reduced to what the CLI reads.
+#[derive(serde::Deserialize)]
+struct StateConfig {
+    #[serde(default)]
+    daemon: Option<DaemonConfigSection>,
+}
+
+/// Read the state's `config.json` `daemon` section. A missing file or
+/// section is `None` (the env/local ladder decides); a file that
+/// exists but cannot be read or parsed is a LOUD error — silently
+/// falling back could dial the wrong daemon.
+async fn read_daemon_config(layout: &Layout) -> Result<Option<DaemonConfigSection>, String> {
+    let path = layout
+        .dir
+        .join("state")
+        .join(&layout.state)
+        .join("config.json");
+    let bytes = match tokio::fs::read(&path).await {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("read {}: {e}", path.display())),
+    };
+    serde_json::from_slice::<StateConfig>(&bytes)
+        .map(|config| config.daemon)
+        .map_err(|e| format!("parse {}: {e}", path.display()))
+}
+
 /// Build a `/execute` [`SseCommandExecutor`] for an already-known daemon
-/// `http://` URL (no spawn).
-fn executor_for(url: &str) -> SseCommandExecutor {
+/// `http://` URL (no spawn), presenting `signature` when given.
+fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
     let executor = SseCommandExecutor::new(format!("{url}/execute"));
-    match daemon_signature() {
+    match signature {
         Some(signature) => executor.signature(signature),
         None => executor,
     }
 }
 
-/// Ensure the resident `objectiveai-daemon` is up and return a
-/// `/execute` [`SseCommandExecutor`] plus the per-request identity
-/// override to send with every command.
+/// Ensure the right daemon is reachable and return a `/execute`
+/// [`SseCommandExecutor`] plus the per-request identity override to
+/// send with every command. The selection ladder is documented on the
+/// module.
 async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
-    // Remote override: when `DAEMON_ADDRESS` is set, connect to that daemon
-    // directly and NEVER spawn a local one — this is how the CLI reaches a
-    // daemon on another machine.
+    // Rung 1 — env override: when `DAEMON_ADDRESS` is set, connect to
+    // that daemon directly and NEVER spawn a local one; an explicit
+    // per-invocation choice outranks the persisted config.
     if let Ok(addr) = std::env::var("DAEMON_ADDRESS")
         && !addr.is_empty()
     {
-        return Ok((executor_for(&addr), agent_arguments_from_env()));
+        return Ok((
+            executor_for(&addr, daemon_signature_env()),
+            agent_arguments_from_env(),
+        ));
     }
 
     let layout = resolve_layout();
 
-    // Idempotent: returns immediately if the daemon already holds its
-    // lock; otherwise launches it once (as its own foreground process)
-    // and waits for readiness. The published lock content is the
-    // daemon's connect `http://` URL. Mirrors
-    // `objectiveai_daemon::command::daemon::spawn::spawn`, but launches
-    // the `objectiveai-daemon` binary rather than re-execing this one.
+    // Rung 2 — the persisted `daemon` section, when it names an
+    // address: dial THAT daemon with its stored signature (we don't
+    // hold a remote daemon's secret; the signature IS the credential).
+    let section = read_daemon_config(&layout).await?;
+    if let Some(section) = &section
+        && let Some(address) = section.address.as_deref().filter(|s| !s.is_empty())
+    {
+        let signature = section.signature.clone().filter(|s| !s.is_empty());
+        return Ok((executor_for(address, signature), agent_arguments_from_env()));
+    }
+
+    // Rung 3 — the local daemon. Idempotent: returns immediately if
+    // the daemon already holds its lock; otherwise launches it once
+    // (as its own foreground process) and waits for readiness. The
+    // published lock content is the daemon's connect `http://` URL.
+    // Mirrors `objectiveai_daemon::command::daemon::spawn::spawn`, but
+    // launches the `objectiveai-daemon` binary rather than re-execing
+    // this one.
     let url = objectiveai_sdk::lockfile::spawn_until_published(
         &layout.daemon_exe,
         &layout.lock_dir,
@@ -254,7 +336,21 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
     .await
     .map_err(|e| format!("ensure objectiveai-daemon: {e}"))?;
 
-    Ok((executor_for(&url), agent_arguments_from_env()))
+    // Local credential: an address-less `daemon` section describes
+    // THIS daemon, and its secret is what the daemon's live auth
+    // verifies against — DERIVE the signature from it (the stored
+    // signature field is ignored: presenting a signature the secret
+    // doesn't back would be pointless). No section at all falls back
+    // to the `DAEMON_SIGNATURE` env.
+    let signature = match &section {
+        Some(section) => section
+            .secret
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(derive_signature),
+        None => daemon_signature_env(),
+    };
+    Ok((executor_for(&url, signature), agent_arguments_from_env()))
 }
 
 /// `daemon kill` — client-side. Signal the daemon-lock owner(s) directly
