@@ -1,11 +1,13 @@
-//! `viewer spawn` — start the `objectiveai-viewer` Tauri shell in the
-//! background.
+//! `viewer spawn` — start the `objectiveai-viewer` Tauri shell as a
+//! leashed resident child (key `viewer`; a live child makes respawn a
+//! no-op). The viewer is an SSE CLIENT of the daemon's broadcast (not
+//! a server), so its ready line carries no address.
 //!
-//! The viewer is per-state: its lock lives at
-//! `<dir>/state/<state>/locks` key `viewer`. The viewer is an SSE
-//! CLIENT of the daemon's broadcast (not a server), so the lock content
-//! is a plain readiness marker, not a URL. If the lock is already held
-//! the viewer is already up.
+//! The viewer's whole daemon-facing config rides its env, frozen at
+//! spawn: `DAEMON_ADDRESS` (the daemon's LIVE published connect URL)
+//! and `DAEMON_SIGNATURE` (the daemon's client signature — what its
+//! auth actually validates). `daemon config set` respawns a running
+//! viewer after its write so a config change can reach these.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 

@@ -2,17 +2,26 @@
 //! section from one wire object. The section's values are LINKED (a
 //! secret and its derived signature, the address they authorize), so
 //! per-field wire setters were retired: every mutation states one
-//! complete consistent object, and omitted fields are cleared. The
-//! stored section has no consumer yet (the daemon still binds from
-//! bare env) — nothing to kill or respawn here until that wiring
-//! lands.
+//! complete consistent object, and omitted fields are cleared.
+//!
+//! A viewer RUNNING at set time is respawned AFTER the write — the
+//! viewer's whole daemon-facing config (`DAEMON_ADDRESS` /
+//! `DAEMON_SIGNATURE`) is frozen into its env at spawn, so a config
+//! change can only reach it through a fresh spawn. A viewer that
+//! isn't running is left alone (the next `viewer spawn` picks the
+//! values up itself). The daemon's own bind still comes from bare
+//! env until the config wiring lands — the respawned viewer gets the
+//! daemon's LIVE address and client signature, same as any spawn.
 
 use objectiveai_sdk::cli::command::daemon::config::set::{Request, Response};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    // Sampled BEFORE the write: only a viewer the user already has up
+    // gets bounced; the set never turns into a surprise viewer launch.
+    let viewer_was_running = global.server_child_alive("viewer");
     let mut config = scoped.filesystem.read_config().await?;
     config.daemon = Some(crate::filesystem::config::DaemonConfig {
         address: request.value.address,
@@ -20,6 +29,14 @@ pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: R
         signature: request.value.signature,
     });
     scoped.filesystem.write_config(&config).await?;
+    if viewer_was_running {
+        // Kill is best-effort (an unkillable viewer stays up on the
+        // old env and the spawn below reuses it); the respawn itself
+        // is fatal — the write landed, but the user should hear that
+        // their viewer did not come back.
+        let _ = crate::command::kill_helpers::kill_resident_child(global, "viewer").await;
+        crate::command::viewer::spawn::spawn(global, scoped).await?;
+    }
     Ok(Response::Ok)
 }
 
