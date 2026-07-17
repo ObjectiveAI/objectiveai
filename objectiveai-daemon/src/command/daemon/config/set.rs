@@ -29,14 +29,12 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
         signature: request.value.signature,
     });
     scoped.filesystem.write_config(&config).await?;
-    if viewer_was_running {
-        // Kill is best-effort (an unkillable viewer stays up on the
-        // old env and the spawn below reuses it); the respawn itself
-        // is fatal — the write landed, but the user should hear that
-        // their viewer did not come back.
-        let _ = crate::command::kill_helpers::kill_resident_child(global, "viewer").await;
-        crate::command::viewer::spawn::spawn(global, scoped).await?;
-    }
+    crate::command::kill_helpers::respawn_viewer_after_config_change(
+        global,
+        scoped,
+        viewer_was_running,
+    )
+    .await?;
     Ok(Response::Ok)
 }
 

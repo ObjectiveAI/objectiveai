@@ -135,6 +135,30 @@ pub async fn kill_api_after_config_change(global: &GlobalContext) {
     let _ = kill_resident_child(global, "api").await;
 }
 
+/// The viewer's respawn half of a `daemon config` mutation
+/// (`daemon config set`, `refresh-secret-signature-pair`): the
+/// viewer's whole daemon-facing config (`DAEMON_ADDRESS` /
+/// `DAEMON_SIGNATURE`) is frozen into its env at spawn, so a config
+/// change can only reach a RUNNING viewer through a fresh spawn.
+/// `viewer_was_running` is the caller's BEFORE-the-write sample of
+/// [`GlobalContext::server_child_alive`]`("viewer")` — only a viewer
+/// the user already had up gets bounced; a mutation never turns into
+/// a surprise viewer launch. The kill is best-effort (an unkillable
+/// viewer stays up on the old env and the spawn below reuses it); the
+/// respawn is FATAL — the write already landed, but the caller should
+/// hear that their viewer did not come back.
+pub async fn respawn_viewer_after_config_change(
+    global: &GlobalContext,
+    scoped: &crate::context::ScopedContext,
+    viewer_was_running: bool,
+) -> Result<(), Error> {
+    if !viewer_was_running {
+        return Ok(());
+    }
+    let _ = kill_resident_child(global, "viewer").await;
+    crate::command::viewer::spawn::spawn(global, scoped).await.map(|_| ())
+}
+
 /// LEGACY: read the owner PIDs of `(locks_dir, key)` and kill each —
 /// the pre-2.2.13 servers held readiness locks; `update` sweeps them
 /// so an in-place update can replace their binaries. Returns the
