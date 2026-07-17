@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.daemon.config.address.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.daemon.config.address.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.daemon.config.address.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.daemon.config.address.get.response_schema.Request"
+    }
+  ]
+}

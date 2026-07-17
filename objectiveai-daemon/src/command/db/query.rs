@@ -15,15 +15,15 @@ use std::time::Duration;
 
 use objectiveai_sdk::cli::command::db::query::{Column, Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db::query::{Column as RawColumn, RawQueryResult};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     pre_flight_validate(&request.query)?;
 
     let timeout = request.base.timeout_seconds.map(Duration::from_secs);
-    let raw = crate::db::query::run_readonly_query(ctx.db_client().await?, &request.query, timeout).await?;
+    let raw = crate::db::query::run_readonly_query(&global.db_client().await?, &request.query, timeout).await?;
 
     let RawQueryResult { command_tag, columns, rows } = raw;
     Ok(Response {
@@ -156,10 +156,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::db::query as sdk;
     use objectiveai_sdk::cli::command::db::query::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -170,10 +170,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::db::query as sdk;
     use objectiveai_sdk::cli::command::db::query::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))

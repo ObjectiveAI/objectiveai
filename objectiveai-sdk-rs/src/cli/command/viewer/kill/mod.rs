@@ -6,7 +6,6 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.viewer.kill.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub scope: crate::cli::command::SetScope,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -35,12 +34,6 @@ pub struct Response {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Kill across all states.
-    #[arg(long)]
-    pub global: bool,
-    /// Kill only the current state.
-    #[arg(long)]
-    pub state: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -65,19 +58,7 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let scope = match (args.global, args.state) {
-            (true, false) => crate::cli::command::SetScope::Global,
-            (false, true) => crate::cli::command::SetScope::State,
-            _ => {
-                return Err(crate::cli::command::FromArgsError {
-                    field: "scope",
-                    source: crate::cli::command::FromArgsErrorSource::Plain(
-                        "exactly one of --global, --state is required".to_string(),
-                    ),
-                });
-            }
-        };
-        Ok(Self { path_type: Path::ViewerKill, scope, base: args.base.into() })
+        Ok(Self { path_type: Path::ViewerKill, base: args.base.into() })
     }
 }
 

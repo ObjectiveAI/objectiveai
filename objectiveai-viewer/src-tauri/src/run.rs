@@ -364,10 +364,11 @@ pub fn serve(
         crate::daemon_proxy::daemon_laboratories_list,
         crate::daemon_proxy::daemon_laboratory,
         crate::daemon_proxy::daemon_laboratory_filetree,
+        crate::daemon_proxy::daemon_user,
+        crate::daemon_proxy::daemon_user_reply,
         crate::daemon_proxy::daemon_stream_close,
         crate::plugins::list_plugins_with_viewer,
         crate::laboratories::machine_identity,
-        crate::laboratories::laboratories_spawn_host,
     ]);
     builder
         .setup(move |tauri_app| {
@@ -429,14 +430,14 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     // included. An `--agent-instance-hierarchy` instance is a SCOPED
     // debug window, not THE viewer — it takes no lock and coexists
     // with a running main viewer.
-    if config.agent_instance_hierarchy.is_none()
-        && objectiveai_sdk::lockfile::try_acquire(&lock_dir, "viewer", "ready")
-            .await
-            .is_none()
-    {
-        return Err(std::io::Error::other(
-            "another objectiveai-viewer instance already holds the viewer lock for this state",
-        ));
+    if config.agent_instance_hierarchy.is_none() {
+        // Readiness handshake: the daemon (this viewer's spawner and
+        // leash-holder) blocks on this stdout line. No address — the
+        // viewer is a client, not a server. No lockfile: the daemon
+        // owns this process's lifetime outright. Scoped debug windows
+        // (--agent-instance-hierarchy) stay silent — they are not THE
+        // viewer.
+        objectiveai_sdk::process::print_ready(None);
     }
 
     // ALL daemon streams flow through the Rust-side proxy commands

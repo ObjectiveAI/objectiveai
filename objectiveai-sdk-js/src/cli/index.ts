@@ -9,8 +9,9 @@
 // `/laboratories/list` view), `laboratoriesListener` (the
 // materialized `/laboratories/{id}` record view),
 // `laboratoriesFiletreeListener` (the materialized
-// `/laboratories/{id}/filetree` view), and the shared
-// transports — `sse` (`connectSse`, fetch mode) and `viewer`
+// `/laboratories/{id}/filetree` view), `userListener` (the
+// materialized `/user` user-requests view + reply client), and the
+// shared transports — `sse` (`connectSse`, fetch mode) and `viewer`
 // (`connectViewerStream` + `ViewerTransport`, the Tauri IPC proxy
 // mode behind every listener's `connectViewer`). Kept header-free so
 // install-zod preserves it instead of overwriting it with a stub.
@@ -23,3 +24,4 @@ export * from "./laboratoriesFiletreeListener";
 export * from "./laboratoriesListListener";
 export * from "./laboratoriesListener";
 export * from "./broadcastListener";
+export * from "./userListener";

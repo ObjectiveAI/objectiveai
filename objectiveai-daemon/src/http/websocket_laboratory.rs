@@ -32,7 +32,7 @@
 //! the only provenance, one code path wherever the host runs. The
 //! conduit and the `laboratories` commands reach laboratories by
 //! calling [`LaboratoryRegistry::forward`] / [`LaboratoryRegistry::list`]
-//! directly on the resident daemon's registry (via `Context`'s resident
+//! directly on the resident daemon's registry (via `GlobalContext`'s resident
 //! hubs) — in-process, no socket.
 
 use std::sync::Arc;
@@ -539,7 +539,7 @@ pub(crate) async fn laboratory_handler(
         // unrelated. The (machine, state) pair is simply the host's
         // registry identity.
         // 2. Authorization SECOND (the standard preamble, verbatim).
-        if !crate::http::daemon_auth::authenticate(&mut socket, state.secret.as_ref())
+        if !crate::http::daemon_auth::authenticate(&mut socket, state.global.auth_secret().as_ref())
             .await
         {
             return;

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.kill_all.Path",
-  "type": "string",
-  "enum": [
-    "kill-all"
-  ]
-}

@@ -14,10 +14,10 @@
 use objectiveai_sdk::cli::command::laboratories::delete::{Kind, Request, Response};
 use objectiveai_sdk::laboratories::daemon::{JsonRpcResult, RequestPayload, ResponsePayload};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
     // `Server` later forces a decision here.
     match request.kind {
@@ -25,9 +25,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     }
 
     let (machine, machine_state) =
-        super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
-    super::ensure_host(ctx, &machine, &machine_state).await?;
-    let hubs = ctx
+        super::resolve_pair(global, scoped, request.machine.clone(), request.machine_state.clone())?;
+    super::ensure_host(global, scoped, &machine, &machine_state).await?;
+    let hubs = global
         .resident_hubs()
         .ok_or_else(|| Error::Laboratory("laboratories delete requires the resident daemon".to_string()))?;
 
@@ -58,10 +58,10 @@ pub mod request_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -74,10 +74,10 @@ pub mod response_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))

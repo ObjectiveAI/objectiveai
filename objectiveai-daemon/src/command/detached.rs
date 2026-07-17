@@ -28,7 +28,7 @@ use futures::{Stream, StreamExt};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use crate::RunStream;
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 /// Run `child_request` as a detached in-process daemon task, surfacing
@@ -38,19 +38,22 @@ use crate::error::Error;
 /// - `Some(true)` = surface it, then detach — the returned stream ends
 ///   and the task drains the rest silently to completion.
 ///
-/// The caller passes a clone of its (per-request) [`Context`]: this
-/// keeps the shared `agent_locks` gate and the db/api/python pools that
-/// in-process work REQUIRES, while the identity is reset to the
-/// daemon's scrubbed default ([`Context::reset_identity`]) so the task
-/// runs exactly as the orphan subprocess did (which inherited the
-/// daemon process env, not the `/execute` identity override).
+/// The caller passes clones of its (per-request) context pair: the
+/// [`GlobalContext`] keeps the shared `agent_locks` gate and the
+/// db/api/python pools that in-process work REQUIRES, while a NEW
+/// scope with the daemon's scrubbed default identity
+/// ([`crate::context::ScopeIdentity::default_daemon`]) is constructed for
+/// the task, so it runs exactly as the orphan subprocess did (which
+/// inherited the daemon process env, not the `/execute` identity
+/// override).
 ///
 /// `T` is the leaf response type each site expects; items are decoded
 /// into it the same way `BinaryExecutor` decoded the child's stdout
 /// JSONL — a serialize + `from_value` round-trip through the untagged
 /// top-level shapes.
 pub fn spawn_detached<R, T>(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     child_request: R,
     forward: impl Fn(&T) -> Option<bool> + Send + 'static,
 ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>
@@ -60,8 +63,9 @@ where
 {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<T, Error>>();
     tokio::spawn(async move {
-        let mut ctx = ctx;
-        ctx.reset_identity();
+        let scoped = scoped
+            .for_request(crate::context::ScopeIdentity::default_daemon())
+            .await;
 
         // Feed the leaf request through the top-level `--request` front
         // door — exactly how `BinaryExecutor` fed the former subprocess.
@@ -77,7 +81,7 @@ where
             }
         };
         let args = vec!["objectiveai".to_string(), "--request".to_string(), json];
-        match crate::run(args, Some(ctx)).await {
+        match crate::run(args, Some((global, scoped))).await {
             Ok(RunStream::Execute(stream)) => forward_then_drain(stream, tx, forward).await,
             Ok(RunStream::ExecuteTransform(stream)) => {
                 forward_then_drain(stream, tx, forward).await

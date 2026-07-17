@@ -1,33 +1,4 @@
 {
   "title": "cli.command.api.Request",
-  "anyOf": [
-    {
-      "title": "Config",
-      "$ref": "cli.command.api.config.Request"
-    },
-    {
-      "title": "Kill",
-      "$ref": "cli.command.api.kill.Request"
-    },
-    {
-      "title": "KillRequestSchema",
-      "$ref": "cli.command.api.kill.request_schema.Request"
-    },
-    {
-      "title": "KillResponseSchema",
-      "$ref": "cli.command.api.kill.response_schema.Request"
-    },
-    {
-      "title": "Spawn",
-      "$ref": "cli.command.api.spawn.Request"
-    },
-    {
-      "title": "SpawnRequestSchema",
-      "$ref": "cli.command.api.spawn.request_schema.Request"
-    },
-    {
-      "title": "SpawnResponseSchema",
-      "$ref": "cli.command.api.spawn.response_schema.Request"
-    }
-  ]
+  "$ref": "cli.command.api.config.Request"
 }

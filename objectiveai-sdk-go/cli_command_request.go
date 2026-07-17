@@ -13,9 +13,6 @@ type CliCommandRequest struct {
 	Daemon *CliCommandDaemonRequest 
 	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
-	KillAll *CliCommandKillAllRequest 
-	KillAllRequestSchema *CliCommandKillAllRequestSchemaRequest 
-	KillAllResponseSchema *CliCommandKillAllResponseSchemaRequest 
 	Laboratories *CliCommandLaboratoriesRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
@@ -27,6 +24,7 @@ type CliCommandRequest struct {
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
 	UpdateResponseSchema *CliCommandUpdateResponseSchemaRequest 
+	User *CliCommandUserRequest 
 	Viewer *CliCommandViewerRequest 
 }
 
@@ -45,15 +43,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Functions != nil {
 		return json.Marshal(v.Functions)
-	}
-	if v.KillAll != nil {
-		return json.Marshal(v.KillAll)
-	}
-	if v.KillAllRequestSchema != nil {
-		return json.Marshal(v.KillAllRequestSchema)
-	}
-	if v.KillAllResponseSchema != nil {
-		return json.Marshal(v.KillAllResponseSchema)
 	}
 	if v.Laboratories != nil {
 		return json.Marshal(v.Laboratories)
@@ -87,6 +76,9 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.UpdateResponseSchema != nil {
 		return json.Marshal(v.UpdateResponseSchema)
+	}
+	if v.User != nil {
+		return json.Marshal(v.User)
 	}
 	if v.Viewer != nil {
 		return json.Marshal(v.Viewer)
@@ -144,39 +136,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.Functions = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandKillAllRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.KillAll = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandKillAllRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.KillAllRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandKillAllResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.KillAllResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -305,6 +264,17 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandUserRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.User = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandViewerRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -325,9 +295,6 @@ func (v CliCommandRequest) Validate() error {
 	if v.Daemon != nil { count++ }
 	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
-	if v.KillAll != nil { count++ }
-	if v.KillAllRequestSchema != nil { count++ }
-	if v.KillAllResponseSchema != nil { count++ }
 	if v.Laboratories != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Plugins != nil { count++ }
@@ -339,6 +306,7 @@ func (v CliCommandRequest) Validate() error {
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }
 	if v.UpdateResponseSchema != nil { count++ }
+	if v.User != nil { count++ }
 	if v.Viewer != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandRequest: exactly one variant must be set, got %d", count)

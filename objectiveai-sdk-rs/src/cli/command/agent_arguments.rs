@@ -2,7 +2,7 @@
 ///
 /// When passed as `Some(&AgentArguments)` to a [`CommandExecutor`],
 /// subprocess-spawning executors (e.g. [`binary::BinaryExecutor`])
-/// apply ALL six fields to the spawned child's env atomically —
+/// apply ALL nine fields to the spawned child's env atomically —
 /// `Some(v)` → set, `None` → `env_remove` so the parent's value for
 /// that var can't leak through. `None` for the whole bag means
 /// "inherit parent env unmodified". In-process executors (e.g.
@@ -17,10 +17,17 @@
 /// - `agent_remote` ↔ `OBJECTIVEAI_AGENT_REMOTE`
 /// - `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`
 /// - `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`
-/// - `mcp_session_id` ↔ `MCP_SESSION_ID` (the MCP transport
-///   session id minted by the MCP server, NOT an objectiveai-scoped
-///   identifier — same env-var convention as
-///   [`crate::mcp::MCP_SESSION_ID_ENV`])
+/// - `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`
+/// - `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_REPOSITORY`
+/// - `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`
+///
+/// The three `plugin_*` fields are the PLUGIN CALLER identity —
+/// which installed plugin originated this request. UNSPOOFABLE by
+/// design: the daemon's own `plugins run` is the only writer (it
+/// stamps the nested command scope in-process and the plugin child's
+/// env informationally); wire requests and the CLI environment can
+/// NEVER assert them — the daemon ignores any inbound claim. They
+/// appear only in daemon-AUTHORED payloads (e.g. user requests).
 #[derive(
     Debug,
     Clone,
@@ -53,7 +60,13 @@ pub struct AgentArguments {
     pub response_ids: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub mcp_session_id: Option<String>,
+    pub plugin_owner: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin_repository: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin_version: Option<String>,
 }
 
 impl AgentArguments {
@@ -64,7 +77,7 @@ impl AgentArguments {
     /// spawns a subprocess.
     #[cfg(feature = "cli-executor")]
     pub fn apply_to_command(&self, command: &mut tokio::process::Command) {
-        let pairs: [(&str, &Option<String>); 7] = [
+        let pairs: [(&str, &Option<String>); 9] = [
             (
                 "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
                 &self.agent_instance_hierarchy,
@@ -74,7 +87,9 @@ impl AgentArguments {
             ("OBJECTIVEAI_AGENT_REMOTE", &self.agent_remote),
             ("OBJECTIVEAI_RESPONSE_ID", &self.response_id),
             ("OBJECTIVEAI_RESPONSE_IDS", &self.response_ids),
-            (crate::mcp::MCP_SESSION_ID_ENV, &self.mcp_session_id),
+            ("OBJECTIVEAI_PLUGIN_OWNER", &self.plugin_owner),
+            ("OBJECTIVEAI_PLUGIN_REPOSITORY", &self.plugin_repository),
+            ("OBJECTIVEAI_PLUGIN_VERSION", &self.plugin_version),
         ];
         for (name, value) in pairs {
             match value {

@@ -1,25 +1,27 @@
-//! `viewer spawn` — start the `objectiveai-viewer` Tauri shell in the
-//! background.
+//! `viewer spawn` — start the `objectiveai-viewer` Tauri shell as a
+//! leashed resident child (key `viewer`; a live child makes respawn a
+//! no-op). The viewer is an SSE CLIENT of the daemon's broadcast (not
+//! a server), so its ready line carries no address.
 //!
-//! The viewer is per-state: its lock lives at
-//! `<dir>/state/<state>/locks` key `viewer`. The viewer is an SSE
-//! CLIENT of the daemon's broadcast (not a server), so the lock content
-//! is a plain readiness marker, not a URL. If the lock is already held
-//! the viewer is already up.
+//! The viewer's whole daemon-facing config rides its env, frozen at
+//! spawn: `DAEMON_ADDRESS` (the daemon's LIVE published connect URL)
+//! and `DAEMON_SIGNATURE` (the daemon's client signature — what its
+//! auth actually validates). `daemon config set` respawns a running
+//! viewer after its write so a config change can reach these.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 /// The spawn flow itself. Idempotent and cheap when the viewer is
 /// already up: a try_read of the lock returns without spawning.
-pub async fn spawn(ctx: &Context) -> Result<String, Error> {
+pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<String, Error> {
     // The viewer requires the daemon's http:// connect URL. `run`'s
     // producer tee ensured the daemon and recorded the address on the
-    // ctx before this handler ran; if it's absent the daemon couldn't
+    // global context before this handler ran; if it's absent the daemon couldn't
     // be spawned, and a viewer without a daemon is useless — error out.
-    let daemon_address = ctx
+    let daemon_address = global
         .daemon_address()
         .ok_or(Error::DaemonAddressUnavailable)?
         .to_string();
@@ -29,8 +31,7 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     } else {
         "objectiveai-viewer"
     };
-    let exe = ctx.filesystem.bin_dir().join(bin);
-    let lock_dir = ctx.filesystem.state_dir().join("locks");
+    let exe = scoped.filesystem.bin_dir().join(bin);
 
     // The daemon auth signature: the daemon's own bare `SIGNATURE`
     // env when set, else derived one-way from its bare `SECRET`
@@ -38,7 +39,7 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // `generate_viewer_secret_signature_pair`). Clients send it
     // verbatim in the `X-OBJECTIVEAI-SIGNATURE` header on every daemon
     // HTTP request (the `/laboratory` WebSocket keeps the `AuthEnvelope` preamble).
-    let daemon_signature = ctx.config.client_signature();
+    let daemon_signature = global.client_signature();
 
     // The child inherits the cli's environment; every env key the
     // viewer's config reads (`EnvConfigBuilder` in
@@ -52,37 +53,27 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // may know the signature without the secret). The daemon's own bind
     // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
     // distinct from these client-facing `DAEMON_` vars.
-    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
-        // The viewer is the one WINDOWED child in the spawn family — a
-        // Tauri shell the user is meant to SEE. The shared spawn
-        // suppresses console windows (`CREATE_NO_WINDOW |
-        // DETACHED_PROCESS`) for every service child; `configure` runs
-        // after those flags, so this override wins. `DETACHED_PROCESS`
-        // alone is kept: it detaches the viewer from any console the
-        // spawner might be running in (closing that terminal must not
-        // kill the viewer) without hiding anything — the release
-        // viewer is a GUI-subsystem binary (`windows_subsystem =
-        // "windows"` in its main.rs), which never allocates a console
-        // regardless.
-        #[cfg(windows)]
-        {
-            const DETACHED_PROCESS: u32 = 0x0000_0008;
-            cmd.creation_flags(DETACHED_PROCESS);
-        }
-        cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
-            .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
+    let _ = crate::spawn::spawn_leashed_until_ready(global, "viewer", &exe, |cmd| {
+        // The viewer is a WINDOWED child (the release binary is
+        // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
+        // only a console-subsystem dev build's console). It is leashed
+        // like every other resident child: the viewer dies with the
+        // daemon BY DESIGN now.
+        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
+            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true")
             .env("DAEMON_ADDRESS", &daemon_address);
         if let Some(signature) = daemon_signature {
             cmd.env("DAEMON_SIGNATURE", signature);
         }
     })
-    .await
+    .await?;
+    Ok("ready".to_string())
 }
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
     Ok(Response {
-        listening: spawn(ctx).await?,
+        listening: spawn(global, scoped).await?,
     })
 }
 
@@ -90,10 +81,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::viewer::spawn as sdk;
     use objectiveai_sdk::cli::command::viewer::spawn::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -102,10 +93,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::viewer::spawn as sdk;
     use objectiveai_sdk::cli::command::viewer::spawn::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

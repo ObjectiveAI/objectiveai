@@ -6,7 +6,7 @@
 //! only provenance, the same logic regardless of where a host runs.
 //! The LOCAL host is auto-spawned first (best-effort, honoring
 //! `laboratories config local: false` by skipping) so this machine's
-//! laboratories appear without a prior `laboratories spawn`.
+//! laboratories appear without any prior command.
 //! Read-only. Only client-side laboratories are supported today.
 
 use std::pin::Pin;
@@ -15,12 +15,12 @@ use futures::Stream;
 use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Kind, Mount};
 use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
     // `Server` later forces a decision here.
     match request.kind {
@@ -31,9 +31,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // list without a prior explicit spawn. `local: false` (or any
     // spawn failure — no binary, cold podman error) is NOT a list
     // error: the registry may still hold remote hosts.
-    let _ = super::ensure_local_host(ctx).await;
+    let _ = super::ensure_local_host(global, scoped).await;
 
-    let labs = match ctx.resident_hubs() {
+    let labs = match global.resident_hubs() {
         Some(hubs) => hubs.laboratories.list().await,
         None => {
             return Err(Error::Laboratory(
@@ -75,10 +75,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::laboratories::list as sdk;
     use objectiveai_sdk::cli::command::laboratories::list::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -89,10 +89,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::laboratories::list as sdk;
     use objectiveai_sdk::cli::command::laboratories::list::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::ResponseItem),
         ))

@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.message_queue (
     agent_instance_hierarchy        TEXT,
     agent_tag                       TEXT,
     -- AIH of the caller who enqueued this row (sourced from
-    -- `ctx.config.agent_instance_hierarchy` at enqueue time).
+    -- `scoped.agent_instance_hierarchy()` at enqueue time).
     -- Surfaced on `agents queue read pending` so callers can
     -- audit "who asked for this" without a join.
     sender_agent_instance_hierarchy TEXT   NOT NULL,
@@ -545,8 +545,8 @@ pub(crate) fn config_url(address: &str, user: &str, password: &str) -> String {
 }
 
 /// Map a pool-connect failure to the actionable error: the database
-/// at the resolved URL isn't reachable, and the fix is either
-/// `objectiveai db spawn` (local objectiveai-db) or `db config
+/// at the resolved URL isn't reachable — the daemon spawns the local
+/// objectiveai-db on demand, so the fix is a retry or `db config
 /// address` (remote postgres). Non-connect errors (auth failures,
 /// TLS, ...) get the same wrapper — the remedy hint is still the
 /// right one.

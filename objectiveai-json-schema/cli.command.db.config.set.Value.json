@@ -1,0 +1,51 @@
+{
+  "title": "cli.command.db.config.set.Value",
+  "description": "The whole `db` config section as one object — the postgres\nconnection coordinates are LINKED (an address, the user/password\nthat authenticate there, the database they open), so they are set\ntogether, atomically. FULL-REPLACE semantics: this object becomes\nthe section verbatim; omitted fields are cleared.",
+  "type": "object",
+  "properties": {
+    "address": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "database": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "password": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "user": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

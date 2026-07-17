@@ -6,12 +6,12 @@
 //! against the agent's instance-lock release.
 //!
 //! Most tests drive the command **in-process**: they build an
-//! `objectiveai_daemon::Context` bound to this test's dir/state (so it
+//! `objectiveai_daemon` GlobalContext/ScopedContext pair bound to this test's dir/state (so it
 //! resolves the SAME per-state postgres the cli subprocess uses), get a
 //! `&Pool`, write token values directly via
 //! `db::logs::update_agent_token_usage` (the cli's `db query` command is
 //! read-only, so it can't fire the trigger), and call
-//! `token_usage::{subscribe,get}::execute(&ctx, req)`. This gives
+//! `token_usage::{subscribe,get}::execute(&global, &scoped, req)`. This gives
 //! deterministic control of the lock + the trigger/NOTIFY/listener. One
 //! test (`token_usage_wired_through_cli_binary`) goes through the real
 //! cli binary to prove the SDK/CLI dispatch we added is wired.
@@ -36,17 +36,20 @@ use objectiveai_daemon::command::agents::logs::token_usage::subscribe as cli_sub
 
 // ── helpers ────────────────────────────────────────────────────────
 
-/// Build a `Context` bound to this test's `(OBJECTIVEAI_DIR,
+/// Build a context pair bound to this test's `(OBJECTIVEAI_DIR,
 /// OBJECTIVEAI_STATE)` and return it. The per-state postgres MUST be
 /// spawned through the cli subprocess first (a warmup `db query`):
-/// driving `Context::db_handle()`'s spawn flow directly in-process
-/// deadlocks, so the in-process `Context` may only *connect* to an
+/// driving `GlobalContext::db_handle()`'s spawn flow directly in-process
+/// deadlocks, so the in-process pair may only *connect* to an
 /// already-running cluster, never cold-spawn one. The warmup uses a
 /// generous timeout (not the default 30s cap) because a cold cluster
 /// starting under the full suite's parallel load can exceed 30s; the
 /// subprocess still gets the harness's 120s inactivity hang-guard, so a
 /// genuine hang fails fast while a slow-but-progressing spawn survives.
-async fn setup() -> objectiveai_daemon::context::Context {
+async fn setup() -> (
+    objectiveai_daemon::context::GlobalContext,
+    objectiveai_daemon::context::ScopedContext,
+) {
     let executor = cli_test_util::executor().await;
     // Cold-spawns (or attaches to) this state's postgres via the proven
     // cli path. 180s absorbs a slow cold start under load.
@@ -58,10 +61,11 @@ async fn setup() -> objectiveai_daemon::context::Context {
         ..Default::default()
     }
     .build();
-    let ctx = objectiveai_daemon::context::Context::new(config);
+    let global = objectiveai_daemon::context::GlobalContext::new(&config);
+    let scoped = objectiveai_daemon::context::ScopedContext::boot(&config);
     // The cluster is up now, so this just connects (never cold-spawns).
-    ctx.db_client().await.expect("connect to per-state postgres");
-    ctx
+    global.db_client().await.expect("connect to per-state postgres");
+    (global, scoped)
 }
 
 fn sub_request(aih: &str, previous: Option<i64>) -> sdk_sub::Request {
@@ -83,10 +87,11 @@ fn get_request(aih: &str) -> sdk_get::Request {
 
 /// Run `subscribe::execute` and drain its (single-item) stream.
 async fn run_subscribe(
-    ctx: &objectiveai_daemon::context::Context,
+    global: &objectiveai_daemon::context::GlobalContext,
+    scoped: &objectiveai_daemon::context::ScopedContext,
     req: sdk_sub::Request,
 ) -> Vec<sdk_sub::ResponseItem> {
-    let mut stream = cli_sub::execute(ctx, req)
+    let mut stream = cli_sub::execute(global, scoped, req)
         .await
         .expect("subscribe execute failed");
     let mut items = Vec::new();
@@ -113,8 +118,8 @@ fn expect_item(items: &[sdk_sub::ResponseItem]) -> &sdk_sub::TokenUsage {
 /// same-value overwrite does NOT wake it (dedup).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn db_layer_change_fires_and_dedups() {
-    let ctx = setup().await;
-    let pool = ctx.db_client().await.unwrap().clone();
+    let (global, _scoped) = setup().await;
+    let pool = global.db_client().await.unwrap().clone();
     let aih = "db-layer-aih";
 
     update_agent_token_usage(&pool, aih, 100).await.unwrap();
@@ -145,13 +150,13 @@ async fn db_layer_change_fires_and_dedups() {
 /// `previous`, subscribe returns it immediately (no blocking).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn subscribe_fast_path_returns_current() {
-    let ctx = setup().await;
-    let pool = ctx.db_client().await.unwrap().clone();
+    let (global, scoped) = setup().await;
+    let pool = global.db_client().await.unwrap().clone();
     let aih = "fast-path-aih";
 
     update_agent_token_usage(&pool, aih, 42).await.unwrap();
 
-    let items = run_subscribe(&ctx, sub_request(aih, Some(41))).await;
+    let items = run_subscribe(&global, &scoped, sub_request(aih, Some(41))).await;
     let tu = expect_item(&items);
     assert_eq!(tu.total_tokens, 42);
     assert_eq!(tu.agent_instance_hierarchy, aih);
@@ -163,20 +168,20 @@ async fn subscribe_fast_path_returns_current() {
 /// path if the change already landed, listener wake otherwise).
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn subscribe_wakes_on_change_while_locked() {
-    let ctx = setup().await;
-    let pool = ctx.db_client().await.unwrap().clone();
+    let (global, scoped) = setup().await;
+    let pool = global.db_client().await.unwrap().clone();
     let aih = "wake-on-change-aih";
 
     // Hold the agent's instance lock so `wait_released` parks.
     let (lock_dir, lock_key) = objectiveai_daemon::command::agents::locks::agent_instance_lock(
-        &ctx.filesystem.state_dir(),
+        &scoped.filesystem.state_dir(),
         aih,
     );
     // Post-split, agent locks are the daemon's IN-PROCESS AgentLockMap
     // (nothing on disk) — hold the in-process lock the subscribe's
     // release arm actually watches.
     let claim = objectiveai_daemon::command::agents::locks::wait_acquire(
-        ctx.agent_locks(),
+        global.agent_locks(),
         &lock_dir,
         &lock_key,
     )
@@ -184,9 +189,11 @@ async fn subscribe_wakes_on_change_while_locked() {
 
     update_agent_token_usage(&pool, aih, 10).await.unwrap(); // baseline
 
-    let sub_ctx = ctx.clone();
-    let handle =
-        tokio::spawn(async move { run_subscribe(&sub_ctx, sub_request(aih, Some(10))).await });
+    let sub_global = global.clone();
+    let sub_scoped = scoped.clone();
+    let handle = tokio::spawn(async move {
+        run_subscribe(&sub_global, &sub_scoped, sub_request(aih, Some(10))).await
+    });
 
     // Change it while subscribe is (or will be) watching.
     update_agent_token_usage(&pool, aih, 77).await.unwrap();
@@ -202,26 +209,28 @@ async fn subscribe_wakes_on_change_while_locked() {
 /// returns the bare `agents_inactive` signal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn subscribe_agents_inactive_on_lock_release() {
-    let ctx = setup().await;
+    let (global, scoped) = setup().await;
     let aih = "inactive-aih"; // fresh: no agent_token_usage row
 
     let (lock_dir, lock_key) = objectiveai_daemon::command::agents::locks::agent_instance_lock(
-        &ctx.filesystem.state_dir(),
+        &scoped.filesystem.state_dir(),
         aih,
     );
     // Post-split, agent locks are the daemon's IN-PROCESS AgentLockMap
     // (nothing on disk) — hold the in-process lock the subscribe's
     // release arm actually watches.
     let claim = objectiveai_daemon::command::agents::locks::wait_acquire(
-        ctx.agent_locks(),
+        global.agent_locks(),
         &lock_dir,
         &lock_key,
     )
     .await;
 
-    let sub_ctx = ctx.clone();
-    let handle =
-        tokio::spawn(async move { run_subscribe(&sub_ctx, sub_request(aih, None)).await });
+    let sub_global = global.clone();
+    let sub_scoped = scoped.clone();
+    let handle = tokio::spawn(async move {
+        run_subscribe(&sub_global, &sub_scoped, sub_request(aih, None)).await
+    });
 
     // Let subscribe reach its blocking `wait_released`, then release with
     // no token change → it must resolve to agents_inactive.
@@ -240,17 +249,17 @@ async fn subscribe_agents_inactive_on_lock_release() {
 /// `get` returns null for an unknown AIH and the stored value once set.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn get_returns_none_then_some() {
-    let ctx = setup().await;
-    let pool = ctx.db_client().await.unwrap().clone();
+    let (global, scoped) = setup().await;
+    let pool = global.db_client().await.unwrap().clone();
 
-    let unknown = cli_get::execute(&ctx, get_request("get-unknown-aih"))
+    let unknown = cli_get::execute(&global, &scoped, get_request("get-unknown-aih"))
         .await
         .expect("get execute");
     assert_eq!(unknown.total_tokens, None);
 
     let aih = "get-some-aih";
     update_agent_token_usage(&pool, aih, 555).await.unwrap();
-    let known = cli_get::execute(&ctx, get_request(aih))
+    let known = cli_get::execute(&global, &scoped, get_request(aih))
         .await
         .expect("get execute");
     assert_eq!(known.total_tokens, Some(555));

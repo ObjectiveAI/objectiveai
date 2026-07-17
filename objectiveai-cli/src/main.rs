@@ -10,15 +10,26 @@
 //! stdout verbatim.
 //!
 //! Parsing happens BEFORE any daemon contact, so `--help` / `--version`
-//! / parse errors never spawn or dial a daemon. The daemon bootstrap
-//! mirrors the resident daemon's own launcher
-//! (`objectiveai_daemon::command::daemon::spawn`): a
-//! `spawn_until_published` against the `objectiveai-daemon` binary,
-//! keyed on the per-state `plugins-daemon` lock, whose published
-//! contents are the daemon's connect `http://` URL.
+//! / parse errors never spawn or dial a daemon.
+//!
+//! **Which daemon?** A three-rung ladder (see [`connect`]):
+//! 1. `DAEMON_ADDRESS` env — an explicit per-invocation override,
+//!    presented with the `DAEMON_SIGNATURE` env verbatim.
+//! 2. The state config's `daemon` section, when its `address` is set:
+//!    dial THAT daemon, presenting the section's stored `signature`
+//!    (the credential for a daemon whose secret we don't hold).
+//! 3. Otherwise the LOCAL daemon: a `spawn_until_published` against
+//!    the `objectiveai-daemon` binary, keyed on the per-state
+//!    `plugins-daemon` lock, whose published contents are the daemon's
+//!    connect `http://` URL (mirrors
+//!    `objectiveai_daemon::command::daemon::spawn`). An address-less
+//!    `daemon` section describes THIS local daemon — its stored
+//!    `signature` is IGNORED and the presented signature is DERIVED
+//!    from the section's `secret` (the same math the daemon verifies
+//!    with; trusting the stored signature would make the secret
+//!    pointless).
 
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::command_executor::sse;
@@ -87,26 +98,13 @@ async fn run(args: Vec<String>) -> i32 {
         }
     };
 
-    // Daemon-lifecycle commands that would make the daemon kill ITSELF are
-    // handled client-side — the daemon can't `TerminateProcess` itself
-    // mid-`/execute` without truncating the response. Classify first (this
-    // borrow ends before `request` is moved below).
-    enum Special {
-        DaemonKill,
-        KillAll,
-        None,
-    }
-    let special = match &request {
-        Request::Daemon(objectiveai_sdk::cli::command::daemon::Request::Kill(_)) => {
-            Special::DaemonKill
-        }
-        Request::KillAll(_) => Special::KillAll,
-        _ => Special::None,
-    };
-    match special {
-        Special::DaemonKill => return handle_daemon_kill(&mut stdout).await,
-        Special::KillAll => return handle_kill_all(&mut stdout, request).await,
-        Special::None => {}
+    // `daemon kill` would make the daemon kill ITSELF over `/execute`
+    // (a self-`TerminateProcess` truncates the response), so it is
+    // handled client-side. With every server a leashed daemon child,
+    // this is also the whole-teardown command: the OS leash takes db /
+    // api / mcp / viewer / laboratory host down with the daemon.
+    if let Request::Daemon(objectiveai_sdk::cli::command::daemon::Request::Kill(_)) = &request {
+        return handle_daemon_kill(&mut stdout).await;
     }
 
     // Ensure the daemon is up and build the HTTP executor + identity bag.
@@ -175,46 +173,116 @@ fn resolve_layout() -> Layout {
     Layout { dir, state, lock_dir, daemon_exe }
 }
 
-/// The daemon auth signature the CLI sends as the
-/// `X-OBJECTIVEAI-SIGNATURE` header, read verbatim from `DAEMON_SIGNATURE`
-/// (`sha256=<hex(SHA256(secret))>`). The CLI never derives it from a
-/// secret — `DAEMON_SECRET` is only for handing a spawned daemon its
-/// `SECRET`. `None` = connect unauthenticated (the daemon must be open).
-fn daemon_signature() -> Option<String> {
+/// The daemon auth signature from the environment
+/// (`DAEMON_SIGNATURE`, verbatim `sha256=<hex(SHA256(secret))>`) —
+/// the fallback credential when no on-disk `daemon` section decides.
+/// `DAEMON_SECRET` is only for handing a spawned daemon its `SECRET`.
+/// `None` = connect unauthenticated (the daemon must be open).
+fn daemon_signature_env() -> Option<String> {
     std::env::var("DAEMON_SIGNATURE").ok().filter(|s| !s.is_empty())
 }
 
+/// `sha256=<hex(SHA256(secret))>` — the client-side half of the
+/// daemon's verify math (mirrors
+/// `objectiveai_daemon::http::daemon_auth::derive_signature`; hardcoded
+/// because the thin client cannot depend on the heavy daemon crate).
+fn derive_signature(secret: &str) -> String {
+    use sha2::{Digest, Sha256};
+    format!("sha256={}", hex::encode(Sha256::digest(secret.as_bytes())))
+}
+
+/// The `daemon` section of the state's on-disk `config.json` — the
+/// CLI-relevant sliver, a field-for-field mirror of the daemon's
+/// `filesystem::config::DaemonConfig` (hardcoded, same no-daemon-dep
+/// pattern as [`DAEMON_LOCK_KEY`]). `address: Some` names the daemon
+/// the CLI should dial (with the stored `signature` as its
+/// credential); `address: None` describes the LOCAL daemon (its
+/// `secret` is what auth verifies against — the stored `signature` is
+/// ignored and the credential is derived from the secret instead).
+#[derive(serde::Deserialize)]
+struct DaemonConfigSection {
+    #[serde(default)]
+    address: Option<String>,
+    #[serde(default)]
+    secret: Option<String>,
+    #[serde(default)]
+    signature: Option<String>,
+}
+
+/// The state config, reduced to what the CLI reads.
+#[derive(serde::Deserialize)]
+struct StateConfig {
+    #[serde(default)]
+    daemon: Option<DaemonConfigSection>,
+}
+
+/// Read the state's `config.json` `daemon` section. A missing file or
+/// section is `None` (the env/local ladder decides); a file that
+/// exists but cannot be read or parsed is a LOUD error — silently
+/// falling back could dial the wrong daemon.
+async fn read_daemon_config(layout: &Layout) -> Result<Option<DaemonConfigSection>, String> {
+    let path = layout
+        .dir
+        .join("state")
+        .join(&layout.state)
+        .join("config.json");
+    let bytes = match tokio::fs::read(&path).await {
+        Ok(bytes) => bytes,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("read {}: {e}", path.display())),
+    };
+    serde_json::from_slice::<StateConfig>(&bytes)
+        .map(|config| config.daemon)
+        .map_err(|e| format!("parse {}: {e}", path.display()))
+}
+
 /// Build a `/execute` [`SseCommandExecutor`] for an already-known daemon
-/// `http://` URL (no spawn).
-fn executor_for(url: &str) -> SseCommandExecutor {
+/// `http://` URL (no spawn), presenting `signature` when given.
+fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
     let executor = SseCommandExecutor::new(format!("{url}/execute"));
-    match daemon_signature() {
+    match signature {
         Some(signature) => executor.signature(signature),
         None => executor,
     }
 }
 
-/// Ensure the resident `objectiveai-daemon` is up and return a
-/// `/execute` [`SseCommandExecutor`] plus the per-request identity
-/// override to send with every command.
+/// Ensure the right daemon is reachable and return a `/execute`
+/// [`SseCommandExecutor`] plus the per-request identity override to
+/// send with every command. The selection ladder is documented on the
+/// module.
 async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
-    // Remote override: when `DAEMON_ADDRESS` is set, connect to that daemon
-    // directly and NEVER spawn a local one — this is how the CLI reaches a
-    // daemon on another machine.
+    // Rung 1 — env override: when `DAEMON_ADDRESS` is set, connect to
+    // that daemon directly and NEVER spawn a local one; an explicit
+    // per-invocation choice outranks the persisted config.
     if let Ok(addr) = std::env::var("DAEMON_ADDRESS")
         && !addr.is_empty()
     {
-        return Ok((executor_for(&addr), agent_arguments_from_env()));
+        return Ok((
+            executor_for(&addr, daemon_signature_env()),
+            agent_arguments_from_env(),
+        ));
     }
 
     let layout = resolve_layout();
 
-    // Idempotent: returns immediately if the daemon already holds its
-    // lock; otherwise launches it once (as its own foreground process)
-    // and waits for readiness. The published lock content is the
-    // daemon's connect `http://` URL. Mirrors
-    // `objectiveai_daemon::command::daemon::spawn::spawn`, but launches
-    // the `objectiveai-daemon` binary rather than re-execing this one.
+    // Rung 2 — the persisted `daemon` section, when it names an
+    // address: dial THAT daemon with its stored signature (we don't
+    // hold a remote daemon's secret; the signature IS the credential).
+    let section = read_daemon_config(&layout).await?;
+    if let Some(section) = &section
+        && let Some(address) = section.address.as_deref().filter(|s| !s.is_empty())
+    {
+        let signature = section.signature.clone().filter(|s| !s.is_empty());
+        return Ok((executor_for(address, signature), agent_arguments_from_env()));
+    }
+
+    // Rung 3 — the local daemon. Idempotent: returns immediately if
+    // the daemon already holds its lock; otherwise launches it once
+    // (as its own foreground process) and waits for readiness. The
+    // published lock content is the daemon's connect `http://` URL.
+    // Mirrors `objectiveai_daemon::command::daemon::spawn::spawn`, but
+    // launches the `objectiveai-daemon` binary rather than re-execing
+    // this one.
     let url = objectiveai_sdk::lockfile::spawn_until_published(
         &layout.daemon_exe,
         &layout.lock_dir,
@@ -232,9 +300,9 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
             // DEFAULT identity — scrub any agent/plugin identity from
             // this (possibly agent-invoked) process so it never leaks
             // into the long-lived daemon or everything it spawns. The
-            // daemon then boots with `agent_instance_hierarchy = "cli"`
-            // and the rest unset; per-request identity travels in the
-            // `/execute` envelope instead.
+            // daemon then boots with `agent_instance_hierarchy =
+            // "daemon"` and the rest unset; per-request identity
+            // travels in the `/execute` envelope instead.
             for var in [
                 "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
                 "OBJECTIVEAI_AGENT_ID",
@@ -248,7 +316,6 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
             ] {
                 cmd.env_remove(var);
             }
-            cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
             // The daemon reads its bind config as bare `ADDRESS`/`PORT`/
             // `SECRET`. Hand it the `SECRET` from the CLI's `DAEMON_SECRET`
             // (or clear it), and scrub bare `ADDRESS`/`PORT` so a locally
@@ -269,7 +336,21 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
     .await
     .map_err(|e| format!("ensure objectiveai-daemon: {e}"))?;
 
-    Ok((executor_for(&url), agent_arguments_from_env()))
+    // Local credential: an address-less `daemon` section describes
+    // THIS daemon, and its secret is what the daemon's live auth
+    // verifies against — DERIVE the signature from it (the stored
+    // signature field is ignored: presenting a signature the secret
+    // doesn't back would be pointless). No section at all falls back
+    // to the `DAEMON_SIGNATURE` env.
+    let signature = match &section {
+        Some(section) => section
+            .secret
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(derive_signature),
+        None => daemon_signature_env(),
+    };
+    Ok((executor_for(&url, signature), agent_arguments_from_env()))
 }
 
 /// `daemon kill` — client-side. Signal the daemon-lock owner(s) directly
@@ -295,118 +376,9 @@ async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
     0
 }
 
-/// `kill-all` — client-side coordination. If the daemon is UP, it sweeps
-/// every OTHER lock owner over `/execute` (sparing only itself and its
-/// LEASHED plugins, whose death would end it mid-response); this side
-/// then kills the daemon after the response lands cleanly, and the OS
-/// leash takes the plugins down with it. If it's DOWN, sweep the tree
-/// here. Either way the reported count includes the daemon. Any output
-/// transform on the request is ignored (esoteric for a lifecycle
-/// command; the merged count is emitted plainly).
-async fn handle_kill_all(stdout: &mut tokio::io::Stdout, request: Request) -> i32 {
-    let layout = resolve_layout();
-    let daemon_up = match objectiveai_sdk::lockfile::try_read(&layout.lock_dir, DAEMON_LOCK_KEY)
-        .await
-    {
-        Ok(url) => url,
-        Err(e) => {
-            write_error_line(stdout, format!("read daemon lock: {e}"), Some(true)).await;
-            return 1;
-        }
-    };
-
-    let killed = match daemon_up {
-        // Daemon up: it sweeps the others (sparing itself + leashed
-        // plugins); we kill it, and the leash reaps the plugins.
-        Some(url) => {
-            let others = match kill_all_via_daemon(&url, request).await {
-                Ok(n) => n,
-                Err(message) => {
-                    // The daemon died mid-sweep (or refused) — kill-all
-                    // must still finish the job. Degrade to the local
-                    // tree sweep (idempotent: whatever the daemon
-                    // already killed stays dead) and report what
-                    // happened as a non-fatal line.
-                    write_error_line(
-                        stdout,
-                        format!("{message}; finishing with a local sweep"),
-                        Some(false),
-                    )
-                    .await;
-                    kill_tree_locally(&layout.dir).await
-                }
-            };
-            let daemon_killed: usize =
-                match objectiveai_sdk::lockfile::owners(&layout.lock_dir, DAEMON_LOCK_KEY).await {
-                    Ok(pids) => pids.into_iter().map(objectiveai_sdk::process::kill_pid).sum(),
-                    // Best-effort: the sweep already ran; still report it.
-                    Err(_) => 0,
-                };
-            others + daemon_killed
-        }
-        // Daemon down: nothing to delegate to — sweep the tree locally
-        // (kills orphaned api/db/etc.), exactly as the daemon's `kill_all`
-        // would, minus the (absent) daemon.
-        None => kill_tree_locally(&layout.dir).await,
-    };
-
-    write_json_line(
-        stdout,
-        &objectiveai_sdk::cli::command::kill_all::Response { killed },
-    )
-    .await;
-    0
-}
-
-/// Send `kill-all` to the running daemon and return the OTHERS-killed
-/// count it reports. Strips any output transform so the reply decodes as
-/// the plain `{killed}` shape.
-async fn kill_all_via_daemon(url: &str, mut request: Request) -> Result<usize, String> {
-    if let Request::KillAll(kr) = &mut request {
-        kr.base.jq = None;
-        kr.base.python = None;
-    }
-    let executor = executor_for(url);
-    let mut stream = executor
-        .execute::<_, serde_json::Value>(request, Some(&agent_arguments_from_env()))
-        .await
-        .map_err(|e| format!("kill-all over daemon: {e}"))?;
-    match stream.next().await {
-        Some(Ok(value)) => Ok(value
-            .get("killed")
-            .and_then(serde_json::Value::as_u64)
-            .unwrap_or(0) as usize),
-        Some(Err(e)) => Err(format!("kill-all over daemon: {e}")),
-        // No item — treat as zero others killed.
-        None => Ok(0),
-    }
-}
-
-/// Sweep every lock owner under `dir` and signal it (skip self + pid 0),
-/// two passes with a de-duped tally — the client-side twin of the
-/// daemon's `kill_all` for when the daemon isn't running.
-async fn kill_tree_locally(dir: &Path) -> usize {
-    let me = std::process::id();
-    let mut killed: HashSet<u32> = HashSet::new();
-    for _ in 0..2 {
-        let Ok(pids) = objectiveai_sdk::lockfile::owners_in_tree(dir).await else {
-            break;
-        };
-        for pid in pids {
-            if pid == me || pid == 0 {
-                continue;
-            }
-            if objectiveai_sdk::process::kill_pid(pid) == 1 {
-                killed.insert(pid);
-            }
-        }
-    }
-    killed.len()
-}
-
 /// Build the per-request identity from this process's environment.
-/// The hierarchy defaults to the CLI's own `"cli"` identity (the same
-/// literal the daemon's resident config defaults to) when
+/// The hierarchy defaults to the CLI's own `"cli"` identity (the
+/// daemon's own envelope-less default is `"daemon"`) when
 /// `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY` is unset — a plain user
 /// invocation. Every other unset field stays `None`, sent as no
 /// header, which the daemon DELETES on the run's config — never
@@ -421,9 +393,12 @@ fn agent_arguments_from_env() -> AgentArguments {
         agent_remote: var("OBJECTIVEAI_AGENT_REMOTE"),
         response_id: var("OBJECTIVEAI_RESPONSE_ID"),
         response_ids: var("OBJECTIVEAI_RESPONSE_IDS"),
-        // Never sent (the daemon always clears it — a remote caller has
-        // no business joining the daemon's MCP sessions).
-        mcp_session_id: None,
+        // NEVER read the OBJECTIVEAI_PLUGIN_* trio: plugin caller
+        // identity is unspoofable — only the daemon's own `plugins
+        // run` may assert it, in-process. An env claim is ignored.
+        plugin_owner: None,
+        plugin_repository: None,
+        plugin_version: None,
     }
 }
 

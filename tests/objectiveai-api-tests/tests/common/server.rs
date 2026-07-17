@@ -3,7 +3,8 @@
 //! The server's base URL is supplied by the test harness via the
 //! `OBJECTIVEAI_ADDRESS` environment variable — the same var the
 //! objectiveai client normally reads for its address. The root
-//! `test.sh` runs `api spawn` up front and exports its published URL.
+//! `test-integration.sh` starts the api binary up front and exports
+//! the URL from its stdout ready handshake.
 //! These tests no longer spawn or discover a server themselves.
 
 use std::sync::Arc;
@@ -35,7 +36,6 @@ pub fn client() -> Arc<HttpClient> {
         None::<String>,
         None::<String>,
         None,
-        None::<String>,
         None::<String>,
         // Bound the server's MCP calls in tests: a wedged MCP upstream
         // should fail the test, not hang the suite (no header would mean

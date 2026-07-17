@@ -11,9 +11,6 @@ type CliCommandDbConfigUserRequest struct {
 	Get *CliCommandDbConfigUserGetRequest 
 	GetRequestSchema *CliCommandDbConfigUserGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandDbConfigUserGetResponseSchemaRequest 
-	Set *CliCommandDbConfigUserSetRequest 
-	SetRequestSchema *CliCommandDbConfigUserSetRequestSchemaRequest 
-	SetResponseSchema *CliCommandDbConfigUserSetResponseSchemaRequest 
 }
 
 func (v CliCommandDbConfigUserRequest) MarshalJSON() ([]byte, error) {
@@ -25,15 +22,6 @@ func (v CliCommandDbConfigUserRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.GetResponseSchema != nil {
 		return json.Marshal(v.GetResponseSchema)
-	}
-	if v.Set != nil {
-		return json.Marshal(v.Set)
-	}
-	if v.SetRequestSchema != nil {
-		return json.Marshal(v.SetRequestSchema)
-	}
-	if v.SetResponseSchema != nil {
-		return json.Marshal(v.SetResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -72,39 +60,6 @@ func (v *CliCommandDbConfigUserRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	{
-		var try CliCommandDbConfigUserSetRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigUserRequest{}
-			candidate.Set = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandDbConfigUserSetRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigUserRequest{}
-			candidate.SetRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandDbConfigUserSetResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigUserRequest{}
-			candidate.SetResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	return fmt.Errorf("data did not match any variant of CliCommandDbConfigUserRequest")
 }
 
@@ -113,9 +68,6 @@ func (v CliCommandDbConfigUserRequest) Validate() error {
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
-	if v.Set != nil { count++ }
-	if v.SetRequestSchema != nil { count++ }
-	if v.SetResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandDbConfigUserRequest: exactly one variant must be set, got %d", count)
 	}

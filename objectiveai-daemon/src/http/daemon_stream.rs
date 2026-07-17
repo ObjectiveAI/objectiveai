@@ -44,14 +44,16 @@ use tokio::sync::broadcast;
 
 /// Shared state for the daemon's HTTP routes: the broadcast
 /// sender `/listen` subscribers drain, the resident
-/// [`crate::context::Context`] that `/execute` runs commands against,
-/// and the optional secret every connection's auth preamble is
-/// verified against.
+/// [`crate::context::GlobalContext`] plus the daemon's BASE
+/// [`crate::context::ScopedContext`] that `/execute` derives each
+/// request's scope from. Auth reads the LIVE secret off the global
+/// context per check ([`crate::context::GlobalContext::auth_secret`])
+/// — a `daemon config` mutation re-points it with no restart.
 #[derive(Clone)]
 pub(crate) struct DaemonHttpState {
     pub(crate) tx: broadcast::Sender<String>,
-    pub(crate) ctx: crate::context::Context,
-    pub(crate) secret: Option<std::sync::Arc<String>>,
+    pub(crate) global: crate::context::GlobalContext,
+    pub(crate) scoped: crate::context::ScopedContext,
     /// The live agent-status registry backing the `/agents/instances/list` route.
     pub(crate) active: crate::http::agents_routes::ActiveAgents,
     /// The live-conversation hub backing the `/agents/instances/{*aih}`
@@ -64,6 +66,8 @@ pub(crate) struct DaemonHttpState {
     /// `/laboratories/{id}` +
     /// `/laboratories/{id}/filetree` routes.
     pub(crate) labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
+    /// The `/user` user-requests hub.
+    pub(crate) user: crate::http::user_routes::UserHub,
 }
 
 /// Serve the daemon's HTTP API on `listener`:
@@ -72,7 +76,7 @@ pub(crate) struct DaemonHttpState {
 ///   future frame. Pure push.
 /// - **`POST /execute`** — request-per-command execution
 ///   ([`crate::http::daemon_execute`]): the client's request runs
-///   in-process against `ctx`, and its items stream back on that
+///   in-process against the resident context pair, and its items stream back on that
 ///   response only — never onto the broadcast. (The run's tee still
 ///   lands on `/listen` like any other CLI activity, via the producer
 ///   socket.)
@@ -84,18 +88,19 @@ pub(crate) struct DaemonHttpState {
 ///
 /// Every HTTP route authenticates by the `X-OBJECTIVEAI-SIGNATURE`
 /// header ([`crate::http::daemon_auth::authenticate_header`],
-/// 401 on a missing/invalid signature when `secret` is `Some`); the
+/// 401 on a missing/invalid signature when a secret is live); the
 /// `/laboratory` WebSocket keeps the first-message `AuthEnvelope`
 /// preamble. Returns the serve task's handle.
 pub fn serve_http(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
-    secret: Option<std::sync::Arc<String>>,
-    ctx: crate::context::Context,
+    global: crate::context::GlobalContext,
+    scoped: crate::context::ScopedContext,
     active: crate::http::agents_routes::ActiveAgents,
     conversations: crate::http::agent_instance_route::ConversationHub,
     laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
     labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
+    user: crate::http::user_routes::UserHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::get(listen_handler))
@@ -146,14 +151,25 @@ pub fn serve_http(
                 crate::http::laboratories_routes::laboratory_filetree_handler,
             ),
         )
+        // The user-requests channel: the SSE broadcast every user
+        // surface holds open, and its reply POST.
+        .route(
+            "/user",
+            axum::routing::get(crate::http::user_routes::user_handler),
+        )
+        .route(
+            "/user/{id}/reply",
+            axum::routing::post(crate::http::user_routes::user_reply_handler),
+        )
         .with_state(DaemonHttpState {
             tx,
-            ctx,
-            secret,
+            global,
+            scoped,
             active,
             conversations,
             laboratories,
             labs_hub,
+            user,
         })
         // CORS, permissive — mirrors objectiveai-api. The viewer's
         // webview fetches these routes cross-origin (its page origin is
@@ -181,7 +197,7 @@ async fn listen_handler(
     headers: axum::http::HeaderMap,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.global.auth_secret().as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
     axum::response::sse::Sse::new(listen_stream(state.tx))

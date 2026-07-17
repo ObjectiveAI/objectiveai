@@ -784,16 +784,12 @@ pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std:
 
 pub async fn run(config: Config) -> std::io::Result<()> {
     let suppress_output = config.suppress_output;
-    let objectiveai_dir = config.objectiveai_dir.clone();
     let (listener, app) = setup(config).await?;
 
-    // There is only ever ONE api server per OBJECTIVEAI_DIR: claim
-    // key "api" in <dir>/bin/locks the moment the listen address is
-    // known, publishing the URL clients connect with (wildcard binds
-    // map to loopback). Anyone can lockfile::read it without owning
-    // the lock; the claim itself is held until process death
-    // (LockClaim leaks on drop by design) and the kernel releases it
-    // on any exit, crash included.
+    // The daemon spawns exactly one api per (dir, state) and holds it
+    // as a leashed child; the URL clients connect with (wildcard binds
+    // map to loopback) is announced via the stdout readiness handshake
+    // below.
     let addr = listener.local_addr()?;
     let connect_ip = match addr.ip() {
         std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
@@ -806,18 +802,10 @@ pub async fn run(config: Config) -> std::io::Result<()> {
     };
     let connect_url =
         format!("http://{}", std::net::SocketAddr::new(connect_ip, addr.port()));
-    if objectiveai_sdk::lockfile::try_acquire(
-        &objectiveai_dir.join("bin").join("locks"),
-        "api",
-        &connect_url,
-    )
-    .await
-    .is_none()
-    {
-        return Err(std::io::Error::other(
-            "another objectiveai-api instance already holds the api lock for this OBJECTIVEAI_DIR",
-        ));
-    }
+    // Readiness handshake: the daemon (this server's sole spawner and
+    // leash-holder) blocks on this stdout line and caches the address.
+    // No lockfile — the daemon owns this process's lifetime outright.
+    objectiveai_sdk::process::print_ready(Some(&connect_url));
 
     if !suppress_output {
         eprintln!("listening on {addr}");

@@ -12,16 +12,16 @@ use objectiveai_sdk::cli::command::agents::queue::list::{
     Request, ResponseItem, Target,
 };
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db::message_queue::ResolvedTarget;
 use crate::db::tags;
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let default_parent = ctx.config.agent_instance_hierarchy.clone();
-    let db = ctx.db_client().await?.clone();
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+    let default_parent = scoped.agent_instance_hierarchy().to_string();
+    let db = global.db_client().await?;
     let after_id = request.after_id;
     let limit = request.limit;
     let stream = async_stream::stream! {
@@ -95,10 +95,10 @@ pub mod request_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -111,10 +111,10 @@ pub mod response_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::ResponseItem),
         ))

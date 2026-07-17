@@ -18,7 +18,7 @@ use objectiveai_sdk::cli::command::agents::logs::token_usage::subscribe::{
     AgentsInactiveTag, Request, ResponseItem, TokenUsage,
 };
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -27,9 +27,9 @@ fn once(item: Result<ResponseItem, Error>) -> ItemStream {
     Box::pin(futures::stream::once(async move { item }))
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let db = ctx.db_client().await?.clone();
-    let state_dir = ctx.filesystem.state_dir();
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+    let db = global.db_client().await?;
+    let state_dir = scoped.filesystem.state_dir();
     let aih = request.agent_instance_hierarchy;
     let previous = request.previous;
 
@@ -61,7 +61,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 }))
                 .map_err(Error::from)
         }
-        () = crate::command::agents::locks::wait_released(ctx.agent_locks(), &lock_dir, &lock_key) => {
+        () = crate::command::agents::locks::wait_released(global.agent_locks(), &lock_dir, &lock_key) => {
             // A change may have landed as the lock dropped — report it
             // rather than a bare inactive signal.
             match crate::db::logs::get_agent_token_usage(&db, &aih).await {
@@ -91,10 +91,10 @@ pub mod request_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -105,10 +105,10 @@ pub mod response_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.db.spawn.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "db/spawn/request_schema"
-  ]
-}

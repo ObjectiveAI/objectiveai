@@ -9,6 +9,9 @@ from objectiveai_sdk.cli.command.db.config.get.request import Request as CliComm
 from objectiveai_sdk.cli.command.db.config.get.request_schema.request import Request as CliCommandDbConfigGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.db.config.get.response_schema.request import Request as CliCommandDbConfigGetResponseSchemaRequest
 from objectiveai_sdk.cli.command.db.config.password.request import Request as CliCommandDbConfigPasswordRequest
+from objectiveai_sdk.cli.command.db.config.set.request import Request as CliCommandDbConfigSetRequest
+from objectiveai_sdk.cli.command.db.config.set.request_schema.request import Request as CliCommandDbConfigSetRequestSchemaRequest
+from objectiveai_sdk.cli.command.db.config.set.response_schema.request import Request as CliCommandDbConfigSetResponseSchemaRequest
 from objectiveai_sdk.cli.command.db.config.user.request import Request as CliCommandDbConfigUserRequest
 
 
@@ -28,6 +31,24 @@ class RequestGetResponseSchema(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'GetResponseSchema'})
 
     root: CliCommandDbConfigGetResponseSchemaRequest
+
+
+class RequestSet(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Set'})
+
+    root: CliCommandDbConfigSetRequest
+
+
+class RequestSetRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SetRequestSchema'})
+
+    root: CliCommandDbConfigSetRequestSchemaRequest
+
+
+class RequestSetResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SetResponseSchema'})
+
+    root: CliCommandDbConfigSetResponseSchemaRequest
 
 
 class RequestAddress(RootModel):
@@ -57,5 +78,5 @@ class RequestDatabase(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.db.config.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestAddress, RequestUser, RequestPassword, RequestDatabase]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestSet, RequestSetRequestSchema, RequestSetResponseSchema, RequestAddress, RequestUser, RequestPassword, RequestDatabase]
 

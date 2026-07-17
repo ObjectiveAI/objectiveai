@@ -9,7 +9,7 @@ use std::pin::Pin;
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::mcp::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub mod config;
@@ -24,34 +24,34 @@ fn once<T: Send + 'static>(
     Box::pin(futures::stream::once(async move { item }))
 }
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
         Request::Config(req) => {
-            let inner = config::execute(ctx, req).await?;
+            let inner = config::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(Response::Config)))
         }
         Request::Kill(req) => {
-            let value = kill::execute(ctx, req).await?;
+            let value = kill::execute(global, scoped, req).await?;
             once(Ok(Response::Kill(value)))
         }
         Request::KillRequestSchema(req) => {
-            let value = kill::request_schema::execute(ctx, req).await?;
+            let value = kill::request_schema::execute(global, scoped, req).await?;
             once(Ok(Response::KillRequestSchema(value)))
         }
         Request::KillResponseSchema(req) => {
-            let value = kill::response_schema::execute(ctx, req).await?;
+            let value = kill::response_schema::execute(global, scoped, req).await?;
             once(Ok(Response::KillResponseSchema(value)))
         }
         Request::Spawn(req) => {
-            let value = spawn::execute(ctx, req).await?;
+            let value = spawn::execute(global, scoped, req).await?;
             once(Ok(Response::Spawn(value)))
         }
         Request::SpawnRequestSchema(req) => {
-            let value = spawn::request_schema::execute(ctx, req).await?;
+            let value = spawn::request_schema::execute(global, scoped, req).await?;
             once(Ok(Response::SpawnRequestSchema(value)))
         }
         Request::SpawnResponseSchema(req) => {
-            let value = spawn::response_schema::execute(ctx, req).await?;
+            let value = spawn::response_schema::execute(global, scoped, req).await?;
             once(Ok(Response::SpawnResponseSchema(value)))
         }
     };

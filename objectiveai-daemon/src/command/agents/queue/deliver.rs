@@ -54,7 +54,7 @@ use objectiveai_sdk::cli::command::agents::queue::deliver::{
 };
 use objectiveai_sdk::cli::command::agents::spawn::ResponseItem as SpawnResponseItem;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db;
 use crate::error::Error;
 use crate::http::agent_registry::AgentInstanceRegistry;
@@ -67,16 +67,16 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 type TaggedStream =
     Pin<Box<dyn Stream<Item = (usize, Result<ResponseItem, Error>)> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     if request
         .dangerous_advanced
         .as_ref()
         .and_then(|adv| adv.stream_spawns)
         == Some(true)
     {
-        execute_streaming(ctx, request).await
+        execute_streaming(global, scoped, request).await
     } else {
-        execute_detached(ctx, request).await
+        execute_detached(global, scoped, request).await
     }
 }
 
@@ -87,7 +87,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 /// `TagSpawned` — `Value` spawn output is skipped) up to and including
 /// `AllAgentsActive`, then return. The task outlives this call and
 /// drains the spawns to completion on the daemon's runtime.
-async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+async fn execute_detached(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let mut child_request = request;
     match child_request.dangerous_advanced.as_mut() {
         Some(adv) => adv.stream_spawns = Some(true),
@@ -104,7 +104,8 @@ async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream,
     // Surface status items; skip `Value` spawn output; detach after
     // `AllAgentsActive` (the task drains the spawns to completion).
     Ok(crate::command::detached::spawn_detached::<Request, ResponseItem>(
-        ctx.clone(),
+        global.clone(),
+        scoped.clone(),
         child_request,
         |item| match item {
             ResponseItem::Value(_) => None,
@@ -115,15 +116,15 @@ async fn execute_detached(ctx: &Context, request: Request) -> Result<ItemStream,
 }
 
 /// `stream_spawns = true`: run the full delivery in-process.
-async fn execute_streaming(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+async fn execute_streaming(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     // Queue-pending targets in the caller's subtree: AIHs (caller
     // excluded — deliver targets only strict descendants; the query
     // is parent-inclusive) and un-upgraded tags. `request.keys`, when
     // non-empty, restricts the set to targets with a pending
     // deliverable carrying one of those keys.
-    let caller = ctx.config.agent_instance_hierarchy.clone();
+    let caller = scoped.agent_instance_hierarchy().to_string();
     let targets = db::message_queue::list_delivery_targets(
-        ctx.db_client().await?,
+        &global.db_client().await?,
         &caller,
         request.keys.as_deref().unwrap_or(&[]),
     )
@@ -153,13 +154,16 @@ async fn execute_streaming(ctx: &Context, request: Request) -> Result<ItemStream
     for hierarchy in hierarchies {
         let i = idx;
         idx += 1;
-        let tagged = deliver_one_hierarchy(ctx.clone(), hierarchy).map(move |item| (i, item));
+        let tagged =
+            deliver_one_hierarchy(global.clone(), scoped.clone(), hierarchy)
+                .map(move |item| (i, item));
         select_all.push(Box::pin(tagged) as TaggedStream);
     }
     for tag in tags {
         let i = idx;
         idx += 1;
-        let tagged = deliver_one_tag(ctx.clone(), tag).map(move |item| (i, item));
+        let tagged = deliver_one_tag(global.clone(), scoped.clone(), tag)
+            .map(move |item| (i, item));
         select_all.push(Box::pin(tagged) as TaggedStream);
     }
 
@@ -193,12 +197,13 @@ async fn execute_streaming(ctx: &Context, request: Request) -> Result<ItemStream
 /// registry inside it) drops, i.e. per-target, never held for the
 /// slowest.
 fn deliver_one_hierarchy(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     hierarchy: String,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::stream! {
-        let state_dir = ctx.filesystem.state_dir();
-        let pool = match ctx.db_client().await {
+        let state_dir = scoped.filesystem.state_dir();
+        let pool = match global.db_client().await {
             Ok(pool) => pool,
             Err(e) => {
                 yield Err(e);
@@ -209,8 +214,8 @@ fn deliver_one_hierarchy(
         // all-or-nothing, so none of this agent's tags/labs can be relocated or
         // detached while it is live. A held member ⇒ already active.
         let registry = match crate::command::agents::locks::try_acquire_family(
-            ctx.agent_locks(),
-            pool,
+            global.agent_locks(),
+            &pool,
             &state_dir,
             crate::command::agents::locks::Family::Hierarchy(hierarchy.clone()),
         )
@@ -219,8 +224,8 @@ fn deliver_one_hierarchy(
             Ok(Some(fam)) => {
                 let mut registry = AgentInstanceRegistry::new(
                     state_dir,
-                    ctx.agent_locks_arc(),
-                    ctx.resident_hubs().map(|h| h.active.clone()),
+                    global.agent_locks_arc(),
+                    global.resident_hubs().map(|h| h.active.clone()),
                 );
                 if let Some((h, aih_lock)) = fam.aih {
                     registry.preseed(h, aih_lock);
@@ -241,7 +246,7 @@ fn deliver_one_hierarchy(
             }
         };
 
-        let lookup = match crate::db::logs::lookup_session(pool, &hierarchy).await {
+        let lookup = match crate::db::logs::lookup_session(&pool, &hierarchy).await {
             Ok(Some(lookup)) => lookup,
             Ok(None) => {
                 // The AIH lock is HELD — log the failure into the
@@ -251,10 +256,10 @@ fn deliver_one_hierarchy(
                     agent_instance_hierarchy: hierarchy.clone(),
                 };
                 let tee = crate::db::logs::ConversationTee::spawn(
-                    ctx.resident_hubs().map(|h| h.conversations.clone()),
+                    global.resident_hubs().map(|h| h.conversations.clone()),
                 );
                 crate::command::agents::spawn::note_error(
-                    &ctx, &tee, Some(&hierarchy), None, &e,
+                    &global, &scoped, &tee, Some(&hierarchy), None, &e,
                 )
                 .await;
                 // `registry` drops here → releases the whole family.
@@ -264,10 +269,10 @@ fn deliver_one_hierarchy(
             Err(e) => {
                 let e: Error = e.into();
                 let tee = crate::db::logs::ConversationTee::spawn(
-                    ctx.resident_hubs().map(|h| h.conversations.clone()),
+                    global.resident_hubs().map(|h| h.conversations.clone()),
                 );
                 crate::command::agents::spawn::note_error(
-                    &ctx, &tee, Some(&hierarchy), None, &e,
+                    &global, &scoped, &tee, Some(&hierarchy), None, &e,
                 )
                 .await;
                 yield Err(e);
@@ -285,7 +290,8 @@ fn deliver_one_hierarchy(
         // `run_multi_pass` itself uses on restart. `run_multi_pass` resolves
         // this AIH's laboratory attachments internally.
         let inner = crate::command::agents::spawn::run_multi_pass(
-            ctx.clone(),
+            global.clone(),
+            scoped.clone(),
             Vec::new(),
             lookup.agent,
             None,
@@ -323,28 +329,30 @@ fn deliver_one_hierarchy(
 /// The minted AIH arrives as the FIRST inner item (the spawn `Id`)
 /// and keys the `Value` envelopes.
 fn deliver_one_tag(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     agent_tag: String,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::stream! {
-        let state_dir = ctx.filesystem.state_dir();
+        let state_dir = scoped.filesystem.state_dir();
         // Resolve the tag with a fresh lookup — the target list was a snapshot
         // and the tag may have upgraded (or been deleted) since.
-        let pool = match ctx.db_client().await {
+        let pool = match global.db_client().await {
             Ok(pool) => pool,
             Err(e) => {
                 yield Err(e);
                 return;
             }
         };
-        let (agent, tag_group_id) = match crate::db::tags::lookup(pool, &agent_tag).await {
+        let (agent, tag_group_id) = match crate::db::tags::lookup(&pool, &agent_tag).await {
             Ok(crate::db::tags::LookupState::Grouped { agent_spec, tag_group_id, .. }) => {
                 (agent_spec, tag_group_id)
             }
             Ok(crate::db::tags::LookupState::Bound { agent_instance_hierarchy }) => {
                 // Already upgraded to BOUND — deliver the live hierarchy instead.
                 let mut inner = Box::pin(deliver_one_hierarchy(
-                    ctx.clone(),
+                    global.clone(),
+                    scoped.clone(),
                     agent_instance_hierarchy,
                 ));
                 while let Some(item) = inner.next().await {
@@ -366,8 +374,8 @@ fn deliver_one_tag(
         // together, so a live spawn of any of them must hold all of them. A held
         // member ⇒ already being materialized.
         let registry = match crate::command::agents::locks::try_acquire_family(
-            ctx.agent_locks(),
-            pool,
+            global.agent_locks(),
+            &pool,
             &state_dir,
             crate::command::agents::locks::Family::Group(tag_group_id),
         )
@@ -376,8 +384,8 @@ fn deliver_one_tag(
             Ok(Some(fam)) => {
                 let mut registry = AgentInstanceRegistry::new(
                     state_dir,
-                    ctx.agent_locks_arc(),
-                    ctx.resident_hubs().map(|h| h.active.clone()),
+                    global.agent_locks_arc(),
+                    global.resident_hubs().map(|h| h.active.clone()),
                 );
                 registry.hold_tag_claims(fam.tags);
                 registry
@@ -408,7 +416,8 @@ fn deliver_one_tag(
         // call so `agent_tag` isn't moved by the `Some(agent_tag)` arg first.)
         let lab_targets = vec![crate::db::laboratory_attachments::Target::Tag(agent_tag.clone())];
         let inner = crate::command::agents::spawn::run_multi_pass(
-            ctx.clone(),
+            global.clone(),
+            scoped.clone(),
             Vec::new(),
             agent,
             None,
@@ -449,10 +458,10 @@ pub mod request_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -463,10 +472,10 @@ pub mod response_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

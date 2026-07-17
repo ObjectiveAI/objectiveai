@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// Defaults applied wherever a `DbConfig` field is unset. They match
 /// objectiveai-db's own env defaults, so a fresh install can
-/// `objectiveai db spawn` and connect with zero config.
+/// the daemon's on-demand objectiveai-db and connect with zero config.
 pub const DB_DEFAULT_ADDRESS: &str = "127.0.0.1";
 pub const DB_DEFAULT_USER: &str = "postgres";
 pub const DB_DEFAULT_PASSWORD: &str = "objectiveai";

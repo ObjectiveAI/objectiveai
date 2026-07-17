@@ -6,7 +6,7 @@
 //! of the machine-wide `bin/` directory wholesale. Emits one
 //! [`ResponseItem`] per stage as the run progresses.
 //!
-//! Layout on disk (resolved via `ctx.filesystem.bin_dir()` — every
+//! Layout on disk (resolved via `scoped.filesystem.bin_dir()` — every
 //! binary is machine-wide, shared across states):
 //!
 //! ```text
@@ -25,23 +25,23 @@
 //!    emits [`ResponseSkipReason::IncompleteRelease`].
 //! 2. Download the zip to a temp path (outside `bin/`, so the wipe
 //!    below can't clobber it).
-//! 3. Kill the running servers in-process: the machine-wide `api` (its
-//!    lock lives at `<bin_dir>/locks`) and the per-state `db` / `viewer`
-//!    across every state.
+//! 3. Kill the running servers: this daemon's leashed resident
+//!    children first, then a legacy lock-owner sweep (machine-wide
+//!    `api` at `<bin_dir>/locks`; per-state `db` / `viewer`) for
+//!    old-style detached servers left by ≤2.2.12 installs.
 //! 4. Rename the running updater aside (Windows can't overwrite a
 //!    running `.exe`; renaming frees the name — the process keeps
 //!    running from the renamed file).
-//! 5. Wipe `bin/` keeping only `plugins/`, `tools/`, and `config.json`
-//!    (best-effort — a still-running server/`.old` that won't delete is
-//!    skipped). `pg-bin/` is wiped; postgres re-extracts on next `db`
-//!    spawn.
+//! 5. Wipe `bin/` keeping only `plugins/` and `tools/` (best-effort —
+//!    a still-running server/`.old` that won't delete is skipped).
+//!    `pg-bin/` is wiped; postgres re-extracts on next `db` spawn.
 //! 6. Unzip the download into `bin/`. Each binary is written via the
 //!    same rename-aside swap so a still-locked straggler doesn't fail
 //!    the extraction.
 //!
-//! Caveat: `db`/`viewer` are killed across every state, but a server
-//! that comes back (or a binary still locked at unzip time) is left as
-//! a `.old`; the cli's own `.old` is swept on the next invocation.
+//! Caveat: a server that comes back mid-install (or a binary still
+//! locked at unzip time) is left as a `.old`; the cli's own `.old` is
+//! swept on the next invocation.
 
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -50,7 +50,7 @@ use std::time::Duration;
 use futures::Stream;
 use objectiveai_sdk::cli::command::update::{Request, ResponseItem, ResponseSkipReason};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -63,27 +63,31 @@ const METADATA_TIMEOUT: Duration = Duration::from_secs(10);
 // full archive on slower links.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// Entries under `bin/` the wipe preserves: user-installed plugins and
-/// tools, plus the machine-wide config.
-const WIPE_KEEP: &[&str] = &["plugins", "tools", "config.json"];
+/// Entries under `bin/` the wipe preserves: user-installed plugins
+/// and tools. (The former machine-wide `config.json` is retired —
+/// config is per-state only — so a stale one is wiped like any other
+/// leftover.)
+const WIPE_KEEP: &[&str] = &["plugins", "tools"];
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
-    let bin_dir = ctx.filesystem.bin_dir();
+    let bin_dir = scoped.filesystem.bin_dir();
     // db/viewer locks are per-state under <dir>/state/<name>/locks.
-    let states_root = ctx.filesystem.dir().join("state");
+    let states_root = scoped.filesystem.dir().join("state");
     // The GitHub credential lives in the on-disk json config only
     // (`api config github-authorization set`), not the env Config.
-    let github_authorization = ctx
+    let github_authorization = scoped
         .filesystem
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .read_config()
         .await?
         .api()
         .get_github_authorization()
         .map(String::from);
 
+    let global = global.clone();
     tokio::spawn(async move {
         if let Err(e) = run(
+            &global,
             &bin_dir,
             &states_root,
             github_authorization.as_deref(),
@@ -101,6 +105,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
 }
 
 async fn run(
+    global: &GlobalContext,
     bin_dir: &Path,
     states_root: &Path,
     github_authorization: Option<&str>,
@@ -226,9 +231,16 @@ async fn run(
         return Err(e);
     }
 
-    // Kill the running servers in-process before touching bin/. The api
-    // lock is machine-wide at <bin>/locks; db + viewer are per-state.
-    // Best-effort: a kill failure shouldn't abort the install.
+    // Kill the running servers before touching bin/: on Windows a live
+    // child holds its .exe file-locked, which would defeat the wipe.
+    // First this daemon's leashed resident children, then a LEGACY
+    // lock-owner sweep (api in bin/locks; db/viewer per state) so an
+    // in-place update over a ≤2.2.12 install also reaps the old-style
+    // detached servers. Best-effort: a kill failure shouldn't abort the
+    // install.
+    for key in ["api", "db", "mcp", "viewer", "laboratories"] {
+        let _ = kill_resident_child(global, key).await;
+    }
     let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;
     kill_state_servers(states_root).await;
 
@@ -318,12 +330,13 @@ fn looks_like_dev_tree(current_exe: &Path) -> bool {
     })
 }
 
-// Reused for the api lock; see crate::command::kill_helpers.
-use crate::command::kill_helpers::kill_lock_owners;
+use crate::command::kill_helpers::{kill_lock_owners, kill_resident_child};
 
-/// Kill the per-state `db` and `viewer` lock owners across every state
-/// under `<dir>/state/<name>/locks`. Best-effort — failures are
-/// swallowed so a stuck state doesn't abort the install.
+/// LEGACY: kill the per-state `db` and `viewer` lock owners across
+/// every state under `<dir>/state/<name>/locks` — pre-2.2.13 detached
+/// servers only; current servers are this daemon's resident children.
+/// Best-effort — failures are swallowed so a stuck state doesn't abort
+/// the install.
 async fn kill_state_servers(states_root: &Path) {
     let mut rd = match tokio::fs::read_dir(states_root).await {
         Ok(rd) => rd,
@@ -538,10 +551,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::update as sdk;
     use objectiveai_sdk::cli::command::update::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -550,10 +563,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::update as sdk;
     use objectiveai_sdk::cli::command::update::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

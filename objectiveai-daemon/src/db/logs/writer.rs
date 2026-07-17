@@ -326,7 +326,7 @@ struct LogWriterState<C> {
     /// response via `ChunkAgentRefs`).
     request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
     /// AIH of the caller who issued the request that spawned this
-    /// writer (pulled from `ctx.config.agent_instance_hierarchy` at
+    /// writer (pulled from `scoped.agent_instance_hierarchy()` at
     /// `spawn_writer` time). Written into the request blob row at
     /// `insert_request_blob` time. Constant for the writer's
     /// lifetime — one request = one sender.

@@ -189,21 +189,12 @@ where
     E::Error: std::fmt::Display + Send + 'static,
 {
     let suppress_output = config.suppress_output;
-    let lock_dir = config
-        .objectiveai_dir
-        .join("state")
-        .join(&config.objectiveai_state)
-        .join("locks");
     let (listener, app) = setup(config, executor).await?;
 
-    // There is only ever ONE mcp server per STATE (same shape as the
-    // viewer): claim key "mcp" in <dir>/state/<state>/locks the
-    // moment the listen address is known, publishing the URL clients
-    // connect with (wildcard binds map to loopback). Anyone can
-    // lockfile::try_read it without owning the claim; the claim
-    // itself is held until process death (LockClaim leaks on drop by
-    // design) and the kernel releases it on any exit, crash
-    // included.
+    // The daemon spawns exactly one mcp per state and holds it as a
+    // leashed child; the URL clients connect with (wildcard binds map
+    // to loopback) is announced via the stdout readiness handshake
+    // below.
     let addr = listener.local_addr()?;
     let connect_ip = match addr.ip() {
         std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
@@ -216,14 +207,10 @@ where
     };
     let connect_url =
         format!("http://{}", std::net::SocketAddr::new(connect_ip, addr.port()));
-    if objectiveai_sdk::lockfile::try_acquire(&lock_dir, "mcp", &connect_url)
-        .await
-        .is_none()
-    {
-        return Err(std::io::Error::other(
-            "another objectiveai-mcp instance already holds the mcp lock for this state",
-        ));
-    }
+    // Readiness handshake: the daemon (this server's sole spawner and
+    // leash-holder) blocks on this stdout line and caches the address.
+    // No lockfile — the daemon owns this process's lifetime outright.
+    objectiveai_sdk::process::print_ready(Some(&connect_url));
 
     if !suppress_output {
         eprintln!("listening on {addr}");

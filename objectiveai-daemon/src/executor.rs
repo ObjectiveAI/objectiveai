@@ -21,13 +21,16 @@ use objectiveai_sdk::cli::command::{
 };
 use serde_json::Value;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-/// In-process executor. Owns a [`Context`] and dispatches each
-/// `CommandRequest` through the CLI's local root dispatcher.
+/// In-process executor. Owns a [`GlobalContext`] plus a BASE
+/// [`ScopedContext`] and dispatches each `CommandRequest` through the
+/// CLI's local root dispatcher — deriving a fresh scope per call when
+/// the caller sends `agent_arguments`.
 pub struct DaemonCommandExecutor {
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     /// Broadcast tee: every PRE-transform response item is serialized
     /// and sent here (unbounded — a send never blocks stream
     /// yielding); the writer task `run()` spawned drains it onto the
@@ -39,10 +42,11 @@ pub struct DaemonCommandExecutor {
 
 impl DaemonCommandExecutor {
     pub fn new(
-        ctx: Context,
+        global: GlobalContext,
+        scoped: ScopedContext,
         tee: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
     ) -> Self {
-        Self { ctx, tee }
+        Self { global, scoped, tee }
     }
 }
 
@@ -66,52 +70,28 @@ fn extract_leaf<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, serde
     }
 }
 
-/// Build a per-call [`Context`] from `base`. When `agent_arguments` is
-/// `Some`, clone the base ctx and overwrite the seven per-request
-/// identity fields on its `Config`: `agent_id`, `agent_full_id`,
-/// `agent_remote`, `response_id`, `response_ids`, `mcp_session_id` are
-/// set verbatim (including `None`, which clears the slot), and
-/// `agent_instance_hierarchy` falls back to `"UNKNOWN"` when missing
-/// because it's a non-nullable String on the cli's `Config`. The
-/// clone's API-client cell is detached afterwards so the memoized
-/// `HttpClient` rebuilds with the overridden identity headers. When
+/// Build the per-call [`ScopedContext`] from `base`. When
+/// `agent_arguments` is `Some`, a NEW scope is constructed
+/// ([`ScopedContext::for_request`]) carrying exactly the envelope's
+/// seven identity fields — every field verbatim (a `None` DELETES the
+/// slot, never inherits), `agent_instance_hierarchy` falling back to
+/// `"UNKNOWN"` — with a fresh api cell born alongside, so there is no
+/// client to reset and no way to leak the base identity. When
 /// `agent_arguments` is `None`, `base` is borrowed unchanged.
 ///
 /// Shared by [`DaemonCommandExecutor`] and the daemon's `/execute`
-/// SSE route (`crate::http::daemon_execute`), which applies
-/// the same override to its own resident ctx per request.
-pub(crate) fn apply_agent_arguments<'a>(
-    base: &'a Context,
+/// SSE route (`crate::http::daemon_execute`), which applies the same
+/// derivation to its own resident base scope per request.
+pub(crate) async fn apply_agent_arguments<'a>(
+    base: &'a ScopedContext,
     agent_arguments: Option<&AgentArguments>,
-) -> std::borrow::Cow<'a, Context> {
+) -> std::borrow::Cow<'a, ScopedContext> {
     match agent_arguments {
         None => std::borrow::Cow::Borrowed(base),
-        Some(args) => {
-            let mut ctx = base.clone();
-            ctx.config.agent_instance_hierarchy = args
-                .agent_instance_hierarchy
-                .clone()
-                .unwrap_or_else(|| "UNKNOWN".to_string());
-            ctx.config.agent_id = args.agent_id.clone();
-            ctx.config.agent_full_id = args.agent_full_id.clone();
-            ctx.config.agent_remote = args.agent_remote.clone();
-            ctx.config.response_id = args.response_id.clone();
-            ctx.config.response_ids = args.response_ids.clone();
-            ctx.config.mcp_session_id = args.mcp_session_id.clone();
-            ctx.reset_api_client();
-            std::borrow::Cow::Owned(ctx)
-        }
-    }
-}
-
-impl DaemonCommandExecutor {
-    /// Build the per-call [`Context`] for this execute — see
-    /// [`apply_agent_arguments`].
-    fn resolve_ctx<'a>(
-        &'a self,
-        agent_arguments: Option<&AgentArguments>,
-    ) -> std::borrow::Cow<'a, Context> {
-        apply_agent_arguments(&self.ctx, agent_arguments)
+        Some(args) => std::borrow::Cow::Owned(
+            base.for_request(crate::context::ScopeIdentity::from_agent_arguments(args))
+                .await,
+        ),
     }
 }
 
@@ -151,15 +131,18 @@ impl CommandExecutor for DaemonCommandExecutor {
             objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
             objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
         })?;
-        // Own the ctx so the deferred dispatch future can hold it —
+        // Own the pair so the deferred dispatch future can hold it —
         // the returned stream is `'static` and outlives this call.
-        let ctx = self.resolve_ctx(agent_arguments).into_owned();
-        // The Python transform adapter needs its own ctx handle (for
-        // the python runtime); clone one before `ctx` is moved into the
-        // dispatch future, but only for a Python transform (jq needs no
-        // ctx).
-        let transform_ctx =
-            matches!(transform, Some(Transform::Python(_))).then(|| ctx.clone());
+        let scoped = apply_agent_arguments(&self.scoped, agent_arguments)
+            .await
+            .into_owned();
+        let global = self.global.clone();
+        // The Python transform adapter needs its own handles (for the
+        // python runtime + the host re-dispatch identity); clone them
+        // before the pair is moved into the dispatch future, but only
+        // for a Python transform (jq needs none).
+        let transform_ctx = matches!(transform, Some(Transform::Python(_)))
+            .then(|| (global.clone(), scoped.clone()));
 
         // Base stream ("the first one"): don't await the dispatcher
         // here. Wrap the `Future<Result<Stream<Result<ResponseItem>>>>`
@@ -169,7 +152,7 @@ impl CommandExecutor for DaemonCommandExecutor {
         // first item rather than an eager `Err`. Box it so the wrappers
         // below can hold it `Unpin`.
         let source = futures::stream::once(async move {
-            crate::command::command::execute(&ctx, sdk_request).await
+            crate::command::command::execute(&global, &scoped, sdk_request).await
         })
         .try_flatten();
         let source: Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>> =
@@ -202,10 +185,12 @@ impl CommandExecutor for DaemonCommandExecutor {
                 Transform::Python(code) => {
                     // A per-stream-item transform must not make nested host
                     // calls — disable `objectiveai.execute` for it automatically.
-                    let ctx = transform_ctx
-                        .expect("cloned whenever a python transform is present")
-                        .with_no_objectiveai(true);
-                    stream = Box::pin(PythonTransformStream::new(stream, ctx, code));
+                    let (t_global, t_scoped) = transform_ctx
+                        .expect("cloned whenever a python transform is present");
+                    let t_scoped = t_scoped.with_no_objectiveai(true);
+                    stream = Box::pin(PythonTransformStream::new(
+                        stream, t_global, t_scoped, code,
+                    ));
                 }
                 Transform::Jq(filter) => {
                     stream = Box::pin(JqTransformStream::new(stream, filter));
@@ -377,17 +362,19 @@ fn convert_item<T: serde::de::DeserializeOwned + 'static>(
 /// across polls (one item transformed at a time).
 struct PythonTransformStream<S, T> {
     inner: S,
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     code: Arc<str>,
     pending: Option<Pin<Box<dyn Future<Output = Result<Option<serde_json::Value>, Error>> + Send>>>,
     _marker: PhantomData<fn() -> T>,
 }
 
 impl<S, T> PythonTransformStream<S, T> {
-    fn new(inner: S, ctx: Context, code: String) -> Self {
+    fn new(inner: S, global: GlobalContext, scoped: ScopedContext, code: String) -> Self {
         Self {
             inner,
-            ctx,
+            global,
+            scoped,
             code: Arc::from(code),
             pending: None,
             _marker: PhantomData,
@@ -432,10 +419,11 @@ where
             // No in-flight transform — pull the next upstream item.
             match Pin::new(&mut this.inner).poll_next(cx) {
                 Poll::Ready(Some(Ok(item))) => {
-                    let ctx = this.ctx.clone();
+                    let global = this.global.clone();
+                    let scoped = this.scoped.clone();
                     let code = Arc::clone(&this.code);
                     this.pending = Some(Box::pin(async move {
-                        transform_item::<T>(&ctx, &code, item).await
+                        transform_item::<T>(&global, &scoped, &code, item).await
                     }));
                     // loop to poll the freshly-built future
                 }
@@ -454,11 +442,12 @@ where
 /// deserialized into `T` — so a non-nullable `T` never errors on a
 /// "skip" result.
 async fn transform_item<I: serde::Serialize>(
-    ctx: &Context,
+    global: &GlobalContext,
+    scoped: &ScopedContext,
     code: &str,
     item: I,
 ) -> Result<Option<serde_json::Value>, Error> {
-    ctx.python().await?.exec_code(ctx, code, Some(item)).await
+    global.python().await?.exec_code(global, scoped, code, Some(item)).await
 }
 
 /// Stream adapter: a jq output transform with null-skip.

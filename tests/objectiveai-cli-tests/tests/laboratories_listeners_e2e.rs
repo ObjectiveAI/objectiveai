@@ -21,7 +21,6 @@
 mod cli_test_util;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::SetScope;
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
@@ -39,14 +38,8 @@ use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::laboratories::delete::{
     Kind as DeleteKind, Path as DeletePath, Request as DeleteReq, Response as DeleteResp,
 };
-use objectiveai_sdk::cli::command::laboratories::kill::{
-    Path as LabKillPath, Request as LabKillReq, Response as LabKillResp,
-};
 use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem,
-};
-use objectiveai_sdk::cli::command::laboratories::spawn::{
-    Path as LabSpawnPath, Request as LabSpawnReq, Response as LabSpawnResp,
 };
 use objectiveai_sdk::cli::laboratories_list_listener::LaboratoriesListListener;
 use objectiveai_sdk::cli::laboratories_listener::{
@@ -301,32 +294,21 @@ async fn laboratories_cross_daemon_propagation() {
     assert_ne!(addr_a, addr_b, "two daemons must bind distinct ports");
 
     // Point state A's host at daemon B too (empty value ⇒ dial
-    // unauthenticated — test daemons run secretless), then spawn it:
-    // ONE host process, TWO daemon connections.
+    // unauthenticated — test daemons run secretless) BEFORE anything
+    // spawns the host: the first create below auto-spawns it with this
+    // config in effect — ONE host process, TWO daemon connections
+    // (there is no wire `laboratories spawn` command; the dial list is
+    // verified by lab1 appearing on daemon B's stream).
     let _: AddrAddResp = cli_test_util::execute_one(
         &exec_a,
         AddrAddReq {
             path_type: AddrAddPath::LaboratoriesConfigAddressesAdd,
-            scope: SetScope::State,
             key: addr_b.clone(),
             value: String::new(),
             base: Default::default(),
         },
     )
     .await;
-    let spawned: LabSpawnResp = cli_test_util::execute_one(
-        &exec_a,
-        LabSpawnReq {
-            path_type: LabSpawnPath::LaboratoriesSpawn,
-            base: Default::default(),
-        },
-    )
-    .await;
-    assert_eq!(
-        spawned.addresses,
-        vec![addr_a.clone(), addr_b.clone()],
-        "the host dials the local daemon first, then the configured address"
-    );
 
     let list_a = LaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
         .connect()
@@ -398,18 +380,80 @@ async fn laboratories_cross_daemon_propagation() {
         });
     }
 
-    // Teardown: kill the host (state A's `laboratories` lock) and
-    // daemon B — best-effort, so a failed assert above still leaves
-    // the usual per-state cleanup to the suite scripts.
-    let _: LabKillResp = cli_test_util::execute_one(
+    // Teardown: daemon B — best-effort. State A's host is a leashed
+    // child of state A's daemon and dies with it (the suite scripts'
+    // `daemon kill`); there is no per-host kill command anymore.
+    let _ = exec_b
+        .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
+            objectiveai_sdk::cli::command::daemon::kill::Request {
+                path_type: objectiveai_sdk::cli::command::daemon::kill::Path::DaemonKill,
+                base: Default::default(),
+            },
+            None,
+        )
+        .await;
+}
+
+/// `laboratories config addresses add` reaches a LIVE host: the host
+/// spawns FIRST (dialing only its local daemon A), then daemon B's
+/// address is added — the daemon forwards the change over the host's
+/// stdio dial-list channel, the host dials B and announces its full
+/// laboratory set on connect, and the existing lab appears on daemon
+/// B's `/laboratories/list` stream WITHOUT any respawn.
+#[tokio::test(flavor = "multi_thread")]
+async fn addresses_add_reaches_live_host() {
+    let _base = cli_test_util::test_base_dir();
+    let state_a = cli_test_util::test_state_name();
+    let state_b = format!("{state_a}-b");
+    let exec_a = cli_test_util::executor().await;
+    let exec_b = cli_test_util::executor_for_state(&state_b).await;
+
+    let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
+
+    // Create FIRST: this auto-spawns state A's host with daemon B
+    // nowhere in its config — the host is up, dialing A only.
+    let lab = format!("e2e-live-add-lab-{}", nanos());
+    create_lab(&exec_a, &lab).await;
+
+    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
+        .connect()
+        .await
+        .expect("connect daemon B /laboratories/list");
+    assert!(
+        !list_b.laboratories().await.iter().any(|l| l.id == lab),
+        "daemon B must not see the lab before the host dials it"
+    );
+
+    // Add daemon B to the RUNNING host's dial list (empty value ⇒
+    // dial unauthenticated). The ack-gated stdio forward is the only
+    // mechanism that can make this land without a respawn.
+    let _: AddrAddResp = cli_test_util::execute_one(
         &exec_a,
-        LabKillReq {
-            path_type: LabKillPath::LaboratoriesKill,
-            scope: SetScope::State,
+        AddrAddReq {
+            path_type: AddrAddPath::LaboratoriesConfigAddressesAdd,
+            key: addr_b.clone(),
+            value: String::new(),
             base: Default::default(),
         },
     )
     .await;
+
+    // The host dials B and its HostIdentify announces the full
+    // laboratory set — the existing lab surfaces on B's stream.
+    let machine_id = local_machine_id();
+    wait_for!("existing lab on daemon B's list stream after live add", {
+        list_b.laboratories().await.iter().any(|l| {
+            l.id == lab
+                && l.connected
+                && l.machine.as_ref().map(|m| m.id.as_str()) == Some(machine_id.as_str())
+        })
+    });
+
+    delete_lab(&exec_a, &lab).await;
+
+    // Teardown: daemon B — best-effort, like the other cross-daemon
+    // tests (state A's host and daemon belong to the suite scripts'
+    // `daemon kill`).
     let _ = exec_b
         .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
             objectiveai_sdk::cli::command::daemon::kill::Request {
@@ -487,19 +531,9 @@ async fn duplicate_ids_across_hosts() {
         !list_a.laboratories().await.iter().any(|l| l.id == dup)
     });
 
-    // Teardown: both hosts + daemon B (state A's daemon stays, like
-    // every other test).
-    for exec in [&exec_a, &exec_b] {
-        let _: LabKillResp = cli_test_util::execute_one(
-            exec,
-            LabKillReq {
-                path_type: LabKillPath::LaboratoriesKill,
-                scope: SetScope::State,
-                base: Default::default(),
-            },
-        )
-        .await;
-    }
+    // Teardown: daemon B (state A's daemon stays, like every other
+    // test). Each state's host is leashed to its daemon — B's host
+    // dies here, A's dies with the suite scripts' `daemon kill`.
     let _ = exec_b
         .execute_one::<objectiveai_sdk::cli::command::daemon::kill::Request, objectiveai_sdk::cli::command::daemon::kill::Response>(
             objectiveai_sdk::cli::command::daemon::kill::Request {

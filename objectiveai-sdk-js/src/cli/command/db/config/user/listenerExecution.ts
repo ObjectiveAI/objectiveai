@@ -3,15 +3,9 @@
 import { type CliCommandDbConfigUserGetListenerExecution } from "./get/listenerExecution";
 import { type CliCommandDbConfigUserGetRequestSchemaListenerExecution } from "./get/request_schema/listenerExecution";
 import { type CliCommandDbConfigUserGetResponseSchemaListenerExecution } from "./get/response_schema/listenerExecution";
-import { type CliCommandDbConfigUserSetListenerExecution } from "./set/listenerExecution";
-import { type CliCommandDbConfigUserSetRequestSchemaListenerExecution } from "./set/request_schema/listenerExecution";
-import { type CliCommandDbConfigUserSetResponseSchemaListenerExecution } from "./set/response_schema/listenerExecution";
 
 /** `/listen` mirror of `db config user`'s request aggregate: one member per child listener execution. */
 export type CliCommandDbConfigUserListenerExecution =
   | CliCommandDbConfigUserGetListenerExecution
   | CliCommandDbConfigUserGetRequestSchemaListenerExecution
-  | CliCommandDbConfigUserGetResponseSchemaListenerExecution
-  | CliCommandDbConfigUserSetListenerExecution
-  | CliCommandDbConfigUserSetRequestSchemaListenerExecution
-  | CliCommandDbConfigUserSetResponseSchemaListenerExecution;
+  | CliCommandDbConfigUserGetResponseSchemaListenerExecution;

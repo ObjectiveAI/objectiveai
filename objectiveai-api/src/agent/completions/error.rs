@@ -60,6 +60,12 @@ pub enum Error {
     #[error("no agents resolved")]
     NoAgentsResolved,
 
+    #[error(
+        "mcp connection unavailable for agent {0}: the proxy connect \
+         failed earlier and is not retried within this request"
+    )]
+    McpConnectionGone(String),
+
     #[error("all agents failed: {0:?}")]
     MultipleErrors(Vec<Error>),
 
@@ -90,6 +96,7 @@ impl objectiveai_sdk::error::StatusError for Error {
             | Self::UpstreamMock(e)
             | Self::UpstreamScript(e) => e.status(),
             Self::NoAgentsResolved => 400,
+            Self::McpConnectionGone(_) => 502,
             Self::MultipleErrors(errors) => {
                 errors.first().map(|e| e.status()).unwrap_or(500)
             }

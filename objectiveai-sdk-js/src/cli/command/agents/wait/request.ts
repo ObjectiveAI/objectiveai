@@ -5,6 +5,7 @@ import { CliCommandAgentsAgentSelectorSchema } from "../agentSelector";
 import { CliCommandAgentsWaitPathSchema } from "./path";
 
 export const CliCommandAgentsWaitRequestSchema = z.object({
+  active: z.boolean().default(false).describe("The status to wait FOR: `true` resolves when the agent is\nACTIVE (up — its instance lock held), `false` when it is\nINACTIVE (done — its instance lock free). Defaults to `false`\non the wire, so a request predating this field keeps its\noriginal wait-until-done meaning."),
   agent: CliCommandAgentsAgentSelectorSchema.describe("Who to wait on — an instance hierarchy or a tag. A plain ref\nhas no live identity and errors."),
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),

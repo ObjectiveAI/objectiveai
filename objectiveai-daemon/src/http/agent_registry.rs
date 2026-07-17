@@ -29,7 +29,7 @@ pub struct AgentInstanceRegistry {
     /// Shared per-key in-process gate (from [`crate::context::Context`]); every
     /// acquire here goes through it.
     agent_locks: Arc<AgentLockMap>,
-    /// The resident daemon's live agent-status hub (from `Context`'s
+    /// The resident daemon's live agent-status hub (from `GlobalContext`'s
     /// resident hubs), notified directly when an AIH goes active — the
     /// in-process replacement for the former `agents.sock`. `None` when
     /// this context isn't the resident daemon.

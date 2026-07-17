@@ -27,14 +27,49 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 use crate::child_io::{PipeEvent, spawn_stdout_reader};
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
-    let (exec, cli_dir) = ctx
+    // A PLUGIN caller (scope carries the trio — stamped by this very
+    // handler on nested commands, unspoofable) may only run a plugin
+    // that IS itself, at the same or a LOWER version. The rules:
+    //
+    // 1. owner and name must both equal the caller's — no running
+    //    other plugins, full stop.
+    // 2. the requested version must be the caller's exact version,
+    //    OR parse as semver strictly below the caller's (also
+    //    semver-parsed). An unparseable version on either side only
+    //    ever passes through the exact-match arm.
+    //
+    // Descent-only recursion: the re-entered plugin's nested scope is
+    // stamped with ITS coordinates below, so a chain can hold its
+    // version or go down — never up, never sideways.
+    if let (Some(owner), Some(repository), Some(version)) = (
+        scoped.plugin_owner(),
+        scoped.plugin_repository(),
+        scoped.plugin_version(),
+    ) {
+        let same_plugin = request.owner == owner && request.name == repository;
+        let version_allowed = request.version == version
+            || match (
+                semver::Version::parse(&request.version),
+                semver::Version::parse(version),
+            ) {
+                (Ok(requested), Ok(caller)) => requested < caller,
+                _ => false,
+            };
+        if !(same_plugin && version_allowed) {
+            return Err(Error::PluginRunSelfOnly {
+                caller: format!("{owner}/{repository}/{version}"),
+                requested: coord,
+            });
+        }
+    }
+    let (exec, cli_dir) = scoped
         .filesystem
         .resolve_plugin(&request.owner, &request.name, &request.version)
         .await
@@ -56,7 +91,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // Per-plugin scratch space inside the (transient) state tree —
     // plugins that persist files write here, never into their own
     // (possibly committed) install folder.
-    let state_dir = ctx
+    let state_dir = scoped
         .filesystem
         .state_dir()
         .join("plugins")
@@ -73,7 +108,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // failure fails the run loudly rather than spawning a child with
     // a silently missing database.
     let postgres_url = crate::db::compartment::ensure(
-        ctx.db_handle().await?,
+        &global.db_handle().await?,
         crate::db::compartment::Kind::Plugin,
         &request.owner,
         &request.name,
@@ -82,11 +117,21 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     .await?;
 
     // Context for nested (plugin-originated) commands: this caller's
-    // ctx verbatim. Plugins carry no special routing identity — their
+    // pair, STAMPED with the plugin caller identity — the ONE place
+    // in the system allowed to assert it (in-process; wire/env claims
+    // are ignored everywhere). Every nested command's scope (and, via
+    // `apply_config_env` below, the plugin child's env,
+    // informationally) carries which installed plugin it came from.
+    // Otherwise plugins carry no special routing identity — their
     // nested commands broadcast on /listen like any other run, and
     // plugins observe the daemon with the SAME SSE executor /
     // listeners every other client uses.
-    let nested_ctx = ctx.clone();
+    let nested_global = global.clone();
+    let nested_scoped = scoped.with_plugin(
+        request.owner.clone(),
+        request.name.clone(),
+        request.version.clone(),
+    );
 
     let mut cmd = Command::new(&program);
     objectiveai_sdk::process::no_window(&mut cmd);
@@ -98,7 +143,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    crate::spawn::apply_config_env(&mut cmd, &nested_ctx.config);
+    crate::spawn::apply_config_env(&mut cmd, &nested_global, &nested_scoped);
 
     // Leash the plugin to the cli process: a plugin `mcp begin` is a
     // long-lived MCP server, and the conduit holds its Child inside a
@@ -108,15 +153,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // the cli even on a force-kill.
     let mut child =
         objectiveai_sdk::subprocess_reaper::spawn(&mut cmd).map_err(Error::PluginSpawn)?;
-    // Register the leashed child for kill-all's exemption: the sweep
-    // must spare exactly {the daemon, its leashed plugins} — a leashed
-    // plugin dying ends the daemon mid-response, and NOTHING else
-    // deserves sparing (detached children like the laboratory host
-    // hold locks and must be swept like any other owner).
-    let leashed_pid = child.id();
-    if let Some(pid) = leashed_pid {
-        leashed_plugin_pids().lock().expect("leashed pids lock").insert(pid);
-    }
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
     let stdin = child.stdin.take().expect("stdin was piped");
@@ -129,12 +165,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // the end of the stream so every line is flushed before `plugins
     // run` completes.
     let stderr_writer = spawn_stderr_log_writer(
-        ctx.db_client().await?.clone(),
+        global.db_client().await?,
         request.owner.clone(),
         request.name.clone(),
         request.version.clone(),
-        ctx.config.agent_instance_hierarchy.clone(),
-        ctx.config.response_id.clone(),
+        scoped.agent_instance_hierarchy().to_string(),
+        scoped.response_id().map(String::from),
         stderr,
     );
 
@@ -166,7 +202,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                             // stream.
                             let task_id = Some(c.id);
                             let task = run_nested_command(
-                                nested_ctx.clone(),
+                                nested_global.clone(),
+                                nested_scoped.clone(),
                                 c.command,
                                 plugin_stdin.clone(),
                                 task_id.clone(),
@@ -208,9 +245,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         drop(plugin_stdin);
 
         let waited = child.wait().await;
-        if let Some(pid) = leashed_pid {
-            leashed_plugin_pids().lock().expect("leashed pids lock").remove(&pid);
-        }
         match waited {
             Ok(status) if status.success() => {}
             Ok(status) => {
@@ -284,21 +318,22 @@ fn spawn_stderr_log_writer(
 /// argv vector (the plugin executor carries it structured), so it runs
 /// through the very same `crate::run` entry the cli binary uses without
 /// any re-tokenization — an argument value containing whitespace stays a
-/// single token. Dispatched against `ctx` (which already carries this
-/// caller's identity plus the plugin coordinate). The body is a mirror
+/// single token. Dispatched against the caller's context pair (whose
+/// scope already carries this caller's identity). The body is a mirror
 /// of `main.rs::run_command`: every line that binary would write to
 /// stdout is instead forwarded into `plugin_stdin` wrapped in a
 /// [`PluginCommandResponse`]. Returns an exit code for the terminal
 /// `CommandComplete` (the tool's code on a `ToolExit`, else 0/1).
 fn run_nested_command(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     command: Vec<String>,
     plugin_stdin: Arc<Mutex<ChildStdin>>,
     id: Option<String>,
 ) -> JoinHandle<i32> {
     tokio::spawn(async move {
         let id = id.as_deref();
-        let exit_code = run_nested_inner(ctx, command, plugin_stdin.clone(), id).await;
+        let exit_code = run_nested_inner(global, scoped, command, plugin_stdin.clone(), id).await;
         // Per-command stream terminator: tell the plugin THIS command's
         // response stream is exhausted (carries the id) so its executor
         // ends the right stream. Written promptly when the stream ends —
@@ -324,7 +359,8 @@ fn run_nested_command(
 /// ([`run_nested_command`]) writes the terminal [`CommandComplete`] once
 /// this returns.
 async fn run_nested_inner(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     command: Vec<String>,
     plugin_stdin: Arc<Mutex<ChildStdin>>,
     id: Option<&str>,
@@ -362,7 +398,7 @@ async fn run_nested_inner(
     // A mirror of `main.rs::run_command`: drive the same `crate::run`
     // stream, but forward each line into the plugin's stdin (wrapped
     // in a `PluginCommandResponse`) instead of writing it to stdout.
-    let run_stream = match crate::run(args, Some(ctx)).await {
+    let run_stream = match crate::run(args, Some((global, scoped))).await {
         Ok(s) => s,
         Err(e) => {
             if let Error::ClapParse(ref clap_err) = e {
@@ -493,10 +529,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::plugins::run as sdk;
     use objectiveai_sdk::cli::command::plugins::run::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -505,22 +541,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::plugins::run as sdk;
     use objectiveai_sdk::cli::command::plugins::run::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
-}
-
-/// Pids of the currently-leashed resident plugin children — the ONLY
-/// processes (besides the daemon itself) that kill-all's sweep must
-/// spare: killing one ends the daemon mid-response (the leash cuts
-/// both ways). Registered at spawn, removed at exit.
-pub(crate) fn leashed_plugin_pids()
--> &'static std::sync::Mutex<std::collections::HashSet<u32>> {
-    static PIDS: std::sync::OnceLock<
-        std::sync::Mutex<std::collections::HashSet<u32>>,
-    > = std::sync::OnceLock::new();
-    PIDS.get_or_init(Default::default)
 }

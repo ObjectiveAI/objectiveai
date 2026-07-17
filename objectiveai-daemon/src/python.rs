@@ -7,7 +7,7 @@
 //! build-time xxhash3_128 of the embedded blob
 //! ([`crate::python_wasm::RUSTPYTHON_WASM_HASH`]). Creation is
 //! serialized by a BIN lock (`<bin>/locks`, key = the hash — machine-
-//! wide, like the api spawn lock): probe → `wait_acquire` → re-probe →
+//! wide): probe → `wait_acquire` → re-probe →
 //! decompress + JIT + serialize + atomic publish (tmp + rename) →
 //! explicit release. A stale-wasmtime or corrupt artifact fails
 //! deserialization and reads as a cache miss, so the cache self-heals
@@ -23,7 +23,7 @@
 //! `objectiveai.execute(argv) -> list`, wired in by [`add_objectiveai_host`]:
 //! Python cannot touch the host directly, but it can ASK the host to run a
 //! CLI command in-process (the host runs the CLI's own dispatcher against the
-//! call's [`Context`] and returns the streamed output) — the same mediated
+//! call's context pair and returns the streamed output) — the same mediated
 //! posture as a plugin's nested command. Recursion is allowed: a command run
 //! this way may itself run Python.
 //!
@@ -49,19 +49,21 @@ use wasmtime_wasi::p1::WasiP1Ctx;
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 use wasmtime_wasi::{I32Exit, WasiCtxBuilder};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 /// Store data for a Python run: the WASI ctx plus what the `objectiveai.execute`
-/// host import needs — the CLI [`Context`] to dispatch against and a tokio
-/// runtime [`Handle`] to drive the async dispatch from the (synchronous,
-/// `spawn_blocking`) wasm thread. `result` stashes the bytes a `host_execute`
-/// call produced so the paired `host_result` call can copy them into a
-/// right-sized guest buffer WITHOUT re-running the (possibly side-effecting)
-/// command.
+/// host import needs — the [`GlobalContext`]/[`ScopedContext`] pair to
+/// dispatch against (the scope carries the CALLER's identity through
+/// nested dispatch) and a tokio runtime [`Handle`] to drive the async
+/// dispatch from the (synchronous, `spawn_blocking`) wasm thread.
+/// `result` stashes the bytes a `host_execute` call produced so the
+/// paired `host_result` call can copy them into a right-sized guest
+/// buffer WITHOUT re-running the (possibly side-effecting) command.
 struct PyHostState {
     wasi: WasiP1Ctx,
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     handle: Handle,
     result: Vec<u8>,
 }
@@ -83,7 +85,7 @@ struct HarnessOutput {
 
 /// A ready-to-execute WASI RustPython interpreter. Cheap to clone
 /// internally (`Engine`/`Module` are Arc-backed); shared across
-/// [`crate::context::Context`] clones via its `OnceCell`.
+/// [`crate::context::GlobalContext`] clones via its `OnceCell`.
 pub struct Python {
     engine: Engine,
     module: Module,
@@ -136,7 +138,7 @@ impl Python {
     /// it as "skip".
     pub async fn exec_code<I, T>(
         &self,
-        ctx: &Context,
+        global: &GlobalContext, scoped: &ScopedContext,
         code: &str,
         input: Option<I>,
     ) -> Result<Option<T>, Error>
@@ -152,14 +154,15 @@ impl Python {
         let engine = self.engine.clone();
         let module = self.module.clone();
         // The `objectiveai.execute` host import dispatches CLI commands in
-        // process; it needs the ctx + a runtime handle to drive async dispatch
-        // from the (blocking) wasm thread. Capture the handle here, where we are
-        // on the runtime, and clone the cheap (Arc-backed) ctx.
-        let ctx = ctx.clone();
+        // process; it needs the context pair + a runtime handle to drive async
+        // dispatch from the (blocking) wasm thread. Capture the handle here,
+        // where we are on the runtime, and clone the cheap (Arc-backed) pair.
+        let global = global.clone();
+        let scoped = scoped.clone();
         let handle = Handle::current();
         // Wasm execution is blocking CPU work.
         let raw = tokio::task::spawn_blocking(move || {
-            run_blocking(&engine, &module, &wrapped, ctx, handle)
+            run_blocking(&engine, &module, &wrapped, global, scoped, handle)
         })
         .await
         .map_err(|e| Error::PythonWasm(format!("python task join: {e}")))??;
@@ -171,7 +174,7 @@ impl Python {
     /// `input` and `Ok(None)` semantics.
     pub async fn exec_file<I, T>(
         &self,
-        ctx: &Context,
+        global: &GlobalContext, scoped: &ScopedContext,
         path: &Path,
         input: Option<I>,
     ) -> Result<Option<T>, Error>
@@ -182,7 +185,7 @@ impl Python {
         let code = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| Error::PythonFileRead(path.to_path_buf(), e))?;
-        self.exec_code(ctx, &code, input).await
+        self.exec_code(global, scoped, &code, input).await
     }
 }
 
@@ -279,7 +282,8 @@ fn run_blocking(
     engine: &Engine,
     module: &Module,
     code: &str,
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     handle: Handle,
 ) -> Result<String, Error> {
     let mut linker: Linker<PyHostState> = Linker::new(engine);
@@ -291,7 +295,7 @@ fn run_blocking(
     let stderr = MemoryOutputPipe::new(MAX_OUTPUT_BYTES);
     // No preopened dirs, no env, no inherited stdio — the sandbox. The ONLY
     // host reach is the `objectiveai.execute` import wired in above, which the
-    // host fully mediates: it runs the CLI's own dispatcher against `ctx`.
+    // host fully mediates: it runs the CLI's own dispatcher against the pair.
     let wasi = WasiCtxBuilder::new()
         .args(&["rustpython", "-c", code])
         .stdout(stdout.clone())
@@ -301,7 +305,8 @@ fn run_blocking(
         engine,
         PyHostState {
             wasi,
-            ctx,
+            global,
+            scoped,
             handle,
             result: Vec::new(),
         },
@@ -346,7 +351,7 @@ fn add_objectiveai_host(linker: &mut Linker<PyHostState>) -> Result<(), Error> {
             |mut caller: Caller<'_, PyHostState>, argv_ptr: u32, argv_len: u32| -> u32 {
                 // `--no-objectiveai`: the host call raises in the guest instead
                 // of dispatching. Checked first — don't even read guest memory.
-                if caller.data().ctx.no_objectiveai {
+                if caller.data().scoped.no_objectiveai {
                     return stash_error(
                         &mut caller,
                         "objectiveai.execute is disabled (--no-objectiveai)",
@@ -371,9 +376,10 @@ fn add_objectiveai_host(linker: &mut Linker<PyHostState>) -> Result<(), Error> {
                         }
                     }
                 };
-                let ctx = caller.data().ctx.clone();
+                let global = caller.data().global.clone();
+                let scoped = caller.data().scoped.clone();
                 let handle = caller.data().handle.clone();
-                match run_request(ctx, handle, &req) {
+                match run_request(global, scoped, handle, &req) {
                     Ok(bytes) => {
                         let len = bytes.len() as u32;
                         caller.data_mut().result = bytes;
@@ -412,11 +418,16 @@ fn stash_error(caller: &mut Caller<'_, PyHostState>, msg: &str) -> u32 {
 /// wasm thread. The dispatch is `spawn`ed onto the runtime's workers and the
 /// result is awaited over a std channel — NOT driven with `Handle::block_on` on
 /// this `spawn_blocking` thread, which deadlocks. `Ok(json_bytes)` / `Err(msg)`.
-fn run_request(ctx: Context, handle: Handle, req: &[u8]) -> Result<Vec<u8>, String> {
+fn run_request(
+    global: GlobalContext,
+    scoped: ScopedContext,
+    handle: Handle,
+    req: &[u8],
+) -> Result<Vec<u8>, String> {
     let req = req.to_vec();
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
     handle.spawn(async move {
-        let _ = tx.send(run_request_async(ctx, req).await);
+        let _ = tx.send(run_request_async(global, scoped, req).await);
     });
     rx.recv()
         .map_err(|e| format!("objectiveai.execute: dispatch worker dropped: {e}"))?
@@ -429,7 +440,11 @@ fn run_request(ctx: Context, handle: Handle, req: &[u8]) -> Result<Vec<u8>, Stri
 /// empty batch (`[]`). A batch is all-or-nothing: any command's failure becomes
 /// the call's error (after all commands have run). Recursion is allowed: a
 /// command run here may itself run Python, which may call `execute` again.
-async fn run_request_async(ctx: Context, req: Vec<u8>) -> Result<Vec<u8>, String> {
+async fn run_request_async(
+    global: GlobalContext,
+    scoped: ScopedContext,
+    req: Vec<u8>,
+) -> Result<Vec<u8>, String> {
     let arr = match serde_json::from_slice::<serde_json::Value>(&req) {
         Ok(serde_json::Value::Array(arr)) => arr,
         Ok(_) => {
@@ -452,8 +467,9 @@ async fn run_request_async(ctx: Context, req: Vec<u8>) -> Result<Vec<u8>, String
         let tasks: Vec<_> = argvs
             .into_iter()
             .map(|argv| {
-                let ctx = ctx.clone();
-                tokio::spawn(async move { run_one_argv(&ctx, argv).await })
+                let global = global.clone();
+                let scoped = scoped.clone();
+                tokio::spawn(async move { run_one_argv(&global, &scoped, argv).await })
             })
             .collect();
         let results = futures::future::join_all(tasks).await;
@@ -467,15 +483,17 @@ async fn run_request_async(ctx: Context, req: Vec<u8>) -> Result<Vec<u8>, String
     } else {
         let argv: Vec<String> = serde_json::from_value(serde_json::Value::Array(arr))
             .map_err(|e| format!("objectiveai.execute: invalid argv (expected list[str]): {e}"))?;
-        let items = run_one_argv(&ctx, argv).await?;
+        let items = run_one_argv(&global, &scoped, argv).await?;
         serde_json::to_vec(&items).map_err(|e| format!("objectiveai.execute: serialize: {e}"))
     }
 }
 
-/// Parse + dispatch a single argv against `ctx`, collecting the streamed
-/// `ResponseItem`s. `Err(message)` on a parse or dispatch error.
+/// Parse + dispatch a single argv against the context pair, collecting
+/// the streamed `ResponseItem`s. `Err(message)` on a parse or dispatch
+/// error.
 async fn run_one_argv(
-    ctx: &Context,
+    global: &GlobalContext,
+    scoped: &ScopedContext,
     argv: Vec<String>,
 ) -> Result<Vec<objectiveai_sdk::cli::command::ResponseItem>, String> {
     let request = objectiveai_sdk::cli::command::parse_request(&argv).map_err(|e| match e {
@@ -484,7 +502,7 @@ async fn run_one_argv(
             format!("objectiveai.execute: {e:?}")
         }
     })?;
-    let mut stream = crate::command::command::execute(ctx, request)
+    let mut stream = crate::command::command::execute(global, scoped, request)
         .await
         .map_err(|e| format!("objectiveai.execute: {e}"))?;
     let mut items = Vec::new();

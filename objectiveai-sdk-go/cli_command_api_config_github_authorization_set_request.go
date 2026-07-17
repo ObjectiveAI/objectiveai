@@ -19,7 +19,6 @@ type CliCommandApiConfigGithubAuthorizationSetRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
-	Scope CliCommandSetScope `json:"scope"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
 	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
 	// enforced at parse time. `db query` threads it to postgres
@@ -38,7 +37,7 @@ func (v *CliCommandApiConfigGithubAuthorizationSetRequest) UnmarshalJSON(data []
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type", "scope", "value"} {
+	for _, key := range []string{"path_type", "value"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandApiConfigGithubAuthorizationSetRequest: missing required field %q", key)
 		}

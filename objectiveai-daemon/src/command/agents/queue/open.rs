@@ -4,12 +4,12 @@
 
 use objectiveai_sdk::cli::command::agents::queue::open::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let row = db::message_queue::read_content(ctx.db_client().await?, request.id)
+pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    let row = db::message_queue::read_content(&global.db_client().await?, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(
@@ -26,10 +26,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::queue::open as sdk;
     use objectiveai_sdk::cli::command::agents::queue::open::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -40,10 +40,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::queue::open as sdk;
     use objectiveai_sdk::cli::command::agents::queue::open::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))

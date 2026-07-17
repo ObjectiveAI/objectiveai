@@ -11,9 +11,6 @@ type CliCommandDbConfigPasswordRequest struct {
 	Get *CliCommandDbConfigPasswordGetRequest 
 	GetRequestSchema *CliCommandDbConfigPasswordGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandDbConfigPasswordGetResponseSchemaRequest 
-	Set *CliCommandDbConfigPasswordSetRequest 
-	SetRequestSchema *CliCommandDbConfigPasswordSetRequestSchemaRequest 
-	SetResponseSchema *CliCommandDbConfigPasswordSetResponseSchemaRequest 
 }
 
 func (v CliCommandDbConfigPasswordRequest) MarshalJSON() ([]byte, error) {
@@ -25,15 +22,6 @@ func (v CliCommandDbConfigPasswordRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.GetResponseSchema != nil {
 		return json.Marshal(v.GetResponseSchema)
-	}
-	if v.Set != nil {
-		return json.Marshal(v.Set)
-	}
-	if v.SetRequestSchema != nil {
-		return json.Marshal(v.SetRequestSchema)
-	}
-	if v.SetResponseSchema != nil {
-		return json.Marshal(v.SetResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -72,39 +60,6 @@ func (v *CliCommandDbConfigPasswordRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	{
-		var try CliCommandDbConfigPasswordSetRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigPasswordRequest{}
-			candidate.Set = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandDbConfigPasswordSetRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigPasswordRequest{}
-			candidate.SetRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandDbConfigPasswordSetResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandDbConfigPasswordRequest{}
-			candidate.SetResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	return fmt.Errorf("data did not match any variant of CliCommandDbConfigPasswordRequest")
 }
 
@@ -113,9 +68,6 @@ func (v CliCommandDbConfigPasswordRequest) Validate() error {
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
-	if v.Set != nil { count++ }
-	if v.SetRequestSchema != nil { count++ }
-	if v.SetResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandDbConfigPasswordRequest: exactly one variant must be set, got %d", count)
 	}

@@ -8,10 +8,10 @@
 
 use objectiveai_sdk::cli::command::laboratories::detach::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     // Agent laboratories are never attached (see `attach`), so there is
     // nothing to detach.
     if request
@@ -24,9 +24,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         ));
     }
     let (machine, machine_state) =
-        super::resolve_pair(ctx, request.machine.clone(), request.machine_state.clone())?;
-    let target = super::resolve_target(ctx, &request.selector).await?;
-    let pool = ctx.db_client().await?.clone();
+        super::resolve_pair(global, scoped, request.machine.clone(), request.machine_state.clone())?;
+    let target = super::resolve_target(global, scoped, &request.selector).await?;
+    let pool = global.db_client().await?;
     let deleted = crate::db::laboratory_attachments::detach(
         &pool,
         &target,
@@ -53,10 +53,10 @@ pub mod request_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -69,10 +69,10 @@ pub mod response_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))

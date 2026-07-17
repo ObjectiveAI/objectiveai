@@ -10,7 +10,7 @@ class AgentArguments(BaseModel):
 
 When passed as `Some(&AgentArguments)` to a [`CommandExecutor`],
 subprocess-spawning executors (e.g. [`binary::BinaryExecutor`])
-apply ALL six fields to the spawned child's env atomically —
+apply ALL nine fields to the spawned child's env atomically —
 `Some(v)` → set, `None` → `env_remove` so the parent's value for
 that var can't leak through. `None` for the whole bag means
 "inherit parent env unmodified". In-process executors (e.g.
@@ -25,17 +25,26 @@ Field ↔ env-var mapping (same as `EnvConfigBuilder` in
 - `agent_remote` ↔ `OBJECTIVEAI_AGENT_REMOTE`
 - `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`
 - `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`
-- `mcp_session_id` ↔ `MCP_SESSION_ID` (the MCP transport
-  session id minted by the MCP server, NOT an objectiveai-scoped
-  identifier — same env-var convention as
-  [`crate::mcp::MCP_SESSION_ID_ENV`])"""
+- `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`
+- `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_REPOSITORY`
+- `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`
+
+The three `plugin_*` fields are the PLUGIN CALLER identity —
+which installed plugin originated this request. UNSPOOFABLE by
+design: the daemon's own `plugins run` is the only writer (it
+stamps the nested command scope in-process and the plugin child's
+env informationally); wire requests and the CLI environment can
+NEVER assert them — the daemon ignores any inbound claim. They
+appear only in daemon-AUTHORED payloads (e.g. user requests)."""
     model_config = ConfigDict(title='cli.command.AgentArguments')
 
     agent_full_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_instance_hierarchy: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_remote: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    mcp_session_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    plugin_owner: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    plugin_repository: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    plugin_version: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     response_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     response_ids: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
 

@@ -109,12 +109,6 @@ impl Client {
         self.state_dir().join("config.json")
     }
 
-    /// Machine-wide (global) config: `<dir>/bin/config.json` — lives
-    /// with the other machine-wide artifacts.
-    pub fn global_config_path(&self) -> PathBuf {
-        self.bin_dir().join("config.json")
-    }
-
     pub fn logs_dir(&self) -> PathBuf {
         self.state_dir().join("logs")
     }

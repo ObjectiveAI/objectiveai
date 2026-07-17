@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.user.Request",
+  "anyOf": [
+    {
+      "title": "Request",
+      "$ref": "cli.command.user.request.Request"
+    },
+    {
+      "title": "RequestRequestSchema",
+      "$ref": "cli.command.user.request.request_schema.Request"
+    },
+    {
+      "title": "RequestResponseSchema",
+      "$ref": "cli.command.user.request.response_schema.Request"
+    }
+  ]
+}

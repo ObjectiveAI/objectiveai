@@ -15,12 +15,9 @@
 //!
 //! The daemon runs the request IN-PROCESS via the re-entrant
 //! [`crate::run`] (the same path `plugins run` uses for nested plugin
-//! commands) against a clone of its resident [`Context`] with the
-//! override applied ([`crate::executor::apply_agent_arguments`] —
-//! `mcp_session_id` has no header: a remote caller has no business
-//! joining the daemon's MCP sessions, and the daemon's own slot is
-//! scrubbed at spawn). The daemon's filesystem layout and secret are
-//! never overridable.
+//! commands) against its resident context pair with the
+//! override applied ([`crate::executor::apply_agent_arguments`]).
+//! The daemon's filesystem layout and secret are never overridable.
 //!
 //! Each stream item goes back as one SSE `data:` event in exactly the
 //! cli's stdout JSONL line shapes (`main.rs::drain`): `Ok` items as
@@ -41,7 +38,7 @@ use axum::response::sse::{Event, Sse};
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::AgentArguments;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 /// `POST /execute`: header-auth, then run one command in-process and
@@ -54,20 +51,24 @@ pub(crate) async fn execute_handler(
     body: axum::body::Bytes,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if !crate::http::daemon_auth::authenticate_header(&headers, state.secret.as_ref()) {
+    if !crate::http::daemon_auth::authenticate_header(&headers, state.global.auth_secret().as_ref()) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
-    Sse::new(execute_stream(state.ctx, agent_arguments(&headers), body))
-        .into_response()
+    Sse::new(execute_stream(
+        state.global,
+        state.scoped,
+        agent_arguments(&headers),
+        body,
+    ))
+    .into_response()
 }
 
 /// The per-request identity from the `X-OBJECTIVEAI-*` request headers
 /// — the same names the api stamps on outbound calls, one header per
 /// field. A missing (or non-UTF-8) header is `None`, which
 /// [`crate::executor::apply_agent_arguments`] DELETES on the run's
-/// config — never inherits. `mcp_session_id` has no header and is
-/// always cleared.
-fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
+/// scope — never inherits.
+pub(crate) fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
     let get = |name: &str| {
         headers
             .get(name)
@@ -81,7 +82,12 @@ fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
         agent_remote: get("X-OBJECTIVEAI-AGENT-REMOTE"),
         response_id: get("X-OBJECTIVEAI-RESPONSE-ID"),
         response_ids: get("X-OBJECTIVEAI-RESPONSE-IDS"),
-        mcp_session_id: None,
+        // NEVER read X-OBJECTIVEAI-PLUGIN-* headers: plugin caller
+        // identity is unspoofable — only the daemon's own `plugins
+        // run` may assert it (in-process); a wire claim is ignored.
+        plugin_owner: None,
+        plugin_repository: None,
+        plugin_version: None,
     }
 }
 
@@ -90,13 +96,16 @@ fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
 /// mid-stream error uses), then the stream ends. The body ending is the
 /// end-of-stream marker.
 fn execute_stream(
-    ctx: Context,
+    global: GlobalContext,
+    scoped: ScopedContext,
     agent_arguments: AgentArguments,
     body: axum::body::Bytes,
 ) -> impl futures::Stream<Item = Result<Event, std::convert::Infallible>> {
     async_stream::stream! {
-        let ctx = crate::executor::apply_agent_arguments(&ctx, Some(&agent_arguments))
-            .into_owned();
+        let scoped =
+            crate::executor::apply_agent_arguments(&scoped, Some(&agent_arguments))
+                .await
+                .into_owned();
 
         // The same re-entry `plugins run` uses for nested commands:
         // `crate::run` strips args[0] unconditionally, so prepend a
@@ -114,7 +123,7 @@ fn execute_stream(
             "--request".to_string(),
             request_json,
         ];
-        match crate::run(args, Some(ctx)).await {
+        match crate::run(args, Some((global, scoped))).await {
             Ok(crate::RunStream::Execute(mut stream)) => {
                 while let Some(item) = stream.next().await {
                     yield Ok(item_event(item));

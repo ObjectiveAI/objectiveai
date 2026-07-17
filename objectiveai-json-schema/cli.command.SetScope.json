@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.SetScope",
-  "description": "Which config layer a mutation targets.",
-  "type": "string",
-  "enum": [
-    "global",
-    "state"
-  ]
-}

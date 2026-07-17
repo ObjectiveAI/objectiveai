@@ -81,11 +81,6 @@ impl Client {
             x_mcp_authorization: ctx_mcp_authorization
                 .or_else(|| self.x_mcp_authorization.clone()),
             agent_instance_hierarchy: ctx.agent_instance_hierarchy().map(|s| Arc::new(s.to_string())),
-            // No MCP session id surfaces through the per-request
-            // `ctx` here. The api server's outgoing-MCP path stamps
-            // its own session id when relevant; this http client is
-            // for upstream LLM/SDK calls.
-            mcp_session_id: None,
             // Propagate the caller's MCP CALL budget downstream so a
             // nested ObjectiveAI call applies the same per-request
             // timeout the original caller asked for.

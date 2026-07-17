@@ -10,11 +10,11 @@
 
 use objectiveai_sdk::cli::command::tools::install::github::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let manifest = ctx
+pub async fn execute(_global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    let manifest = scoped
         .filesystem
         .fetch_tool_manifest(
             &request.owner,
@@ -45,7 +45,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         });
     }
 
-    let installed = ctx
+    let installed = scoped
         .filesystem
         .install_tool_from_manifest(
             &request.owner,
@@ -62,10 +62,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::tools::install::github as sdk;
     use objectiveai_sdk::cli::command::tools::install::github::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -74,10 +74,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::tools::install::github as sdk;
     use objectiveai_sdk::cli::command::tools::install::github::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

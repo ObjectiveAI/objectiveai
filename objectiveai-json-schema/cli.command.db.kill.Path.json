@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.db.kill.Path",
-  "type": "string",
-  "enum": [
-    "db/kill"
-  ]
-}

@@ -5,7 +5,7 @@
 //! and obtain a [`Notifier`]. As soon as a chunk surfaces a new
 //! agent-completion `response_id`, the conduit registers
 //! `(response_id, notifier)` in the resident daemon's
-//! `mcp_notifiers` map (on `Context`'s resident hubs). The
+//! `mcp_notifiers` map (on `GlobalContext`'s resident hubs). The
 //! `agents mcp {tools,resources,servers} *` commands — which run
 //! in-process in the same daemon — look the notifier up by
 //! `response_id` and call it directly via [`call_notifier`]. There is
@@ -22,7 +22,7 @@ use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
 use objectiveai_sdk::mcp;
 use serde::{Deserialize, Serialize};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 
 /// JSON-RPC server-error code reported for failures the proxy never
 /// produced — a missing notifier or an unreachable resident daemon.
@@ -84,7 +84,7 @@ pub struct McpError {
 
 /// Run one MCP op against the `response_id`'s registered [`Notifier`],
 /// in-process. Looks the notifier up in the resident daemon's
-/// `mcp_notifiers` map (`Context`'s resident hubs), dispatches the op,
+/// `mcp_notifiers` map (`GlobalContext`'s resident hubs), dispatches the op,
 /// and decodes the rendered result as `SocketResponse<R>` — a JSON
 /// round-trip identical to what the former per-response socket did, so
 /// `R` decodes exactly as before.
@@ -93,11 +93,11 @@ pub struct McpError {
 /// non-resident-daemon context surfaces as `io::Error` — the same shape
 /// the former connect failure produced.
 pub async fn call_notifier<R: serde::de::DeserializeOwned>(
-    ctx: &Context,
+    global: &GlobalContext, _scoped: &ScopedContext,
     response_id: &str,
     request: &SocketRequest,
 ) -> std::io::Result<SocketResponse<R>> {
-    let Some(hubs) = ctx.resident_hubs() else {
+    let Some(hubs) = global.resident_hubs() else {
         return Err(std::io::Error::other(
             "mcp notifier lookup requires the resident daemon",
         ));

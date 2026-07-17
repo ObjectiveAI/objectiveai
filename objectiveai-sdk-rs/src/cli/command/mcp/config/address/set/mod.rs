@@ -8,7 +8,6 @@ pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
-    pub scope: crate::cli::command::SetScope,
     pub value: String,
 }
 
@@ -34,12 +33,6 @@ pub type Response = crate::cli::command::Ok;
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("value_required").required(true).args(["value"])))]
 pub struct Args {
-    /// Mutate the global config layer.
-    #[arg(long)]
-    pub global: bool,
-    /// Mutate the state config layer.
-    #[arg(long)]
-    pub state: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// New value.
@@ -67,21 +60,8 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let scope = match (args.global, args.state) {
-            (true, false) => crate::cli::command::SetScope::Global,
-            (false, true) => crate::cli::command::SetScope::State,
-            _ => {
-                return Err(crate::cli::command::FromArgsError {
-                    field: "scope",
-                    source: crate::cli::command::FromArgsErrorSource::Plain(
-                        "exactly one of --global, --state is required".to_string(),
-                    ),
-                });
-            }
-        };
         Ok(Self {
             base: args.base.into(), path_type: Path::McpConfigAddressSet,
-            scope,
             value: args.value.ok_or_else(|| {
                 crate::cli::command::FromArgsError::path_parse(
                     "value",

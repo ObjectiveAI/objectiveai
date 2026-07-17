@@ -58,10 +58,10 @@ use objectiveai_sdk::cli::command::agents::message::{Request, RequestMessage, Re
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn as spawn_sdk;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     let Request {
         agent,
         message,
@@ -71,14 +71,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let seed = dangerous_advanced.as_ref().and_then(|a| a.seed);
 
     // Resolve the payload once, in this process.
-    let content = resolve_message(ctx, message).await?;
+    let content = resolve_message(global, scoped, message).await?;
 
-    let state_dir = ctx.filesystem.state_dir();
+    let state_dir = scoped.filesystem.state_dir();
     let route = match agent {
         AgentSelector::Ref { agent } => {
             // Resolve file/python refs HERE too — the child gets the
             // typed agent inline and never re-runs the Python.
-            let resolved = super::spawn::resolve_agent_ref(ctx, agent).await?;
+            let resolved = super::spawn::resolve_agent_ref(global, scoped, agent).await?;
             Route::Ref {
                 child: AgentSelector::Ref {
                     agent: AgentRef::Resolved(resolved),
@@ -91,11 +91,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         } => {
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
-                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+                .unwrap_or(scoped.agent_instance_hierarchy());
             instance_route(&state_dir, format!("{parent}/{agent_instance}"))
         }
         AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+            match crate::db::tags::lookup(&global.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound {
                     agent_instance_hierarchy,
                 } => instance_route(&state_dir, agent_instance_hierarchy),
@@ -118,7 +118,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     match route {
-        Route::Ref { child } => spawn_child(ctx, child, content, seed).await,
+        Route::Ref { child } => spawn_child(global, scoped, child, content, seed).await,
         Route::Locked {
             dir,
             key,
@@ -132,15 +132,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             // consumed strictly oldest-id-first, so whoever wins any
             // race below, delivery order stays enqueue order.
             let queue_id = crate::db::message_queue::enqueue_with_content(
-                ctx.db_client().await?,
+                &global.db_client().await?,
                 hierarchy,
                 tag,
-                &ctx.config.agent_instance_hierarchy,
+                scoped.agent_instance_hierarchy(),
                 None,
                 content,
             )
             .await?;
-            let pool = ctx.db_client().await?.clone();
+            let pool = global.db_client().await?;
             // ONE delivery subscription, pinned OUTSIDE the loop so its
             // LISTEN + probe persist across iterations. Recreating it per
             // iteration let a hot `wait_released` starve it — the mechanism
@@ -155,8 +155,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 // (on a win) our brief hold; we never hand our hold to the
                 // wake task — it competes for its own family at startup.
                 match super::locks::try_acquire_family(
-                    ctx.agent_locks(),
-                    ctx.db_client().await?,
+                    global.agent_locks(),
+                    &global.db_client().await?,
                     &state_dir,
                     family.clone(),
                 )
@@ -172,7 +172,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                                 delivery?;
                                 return Ok(Response::Delivered);
                             }
-                            () = super::locks::wait_released(ctx.agent_locks(), &dir, &key) => {}
+                            () = super::locks::wait_released(global.agent_locks(), &dir, &key) => {}
                         }
                     }
                     // IDLE: we hold the family. Nobody delivers unless we
@@ -187,7 +187,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                         // Lazy: if `delivered` is already ready, this future
                         // is never polled and no wake task is launched.
                         let spawn = spawn_child(
-                            ctx,
+                            global,
+                            scoped,
                             child.clone(),
                             RichContent::Text(String::new()),
                             seed,
@@ -208,8 +209,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                                 // the child's error text.
                                 Err(e) => {
                                     match super::locks::try_acquire_family(
-                                        ctx.agent_locks(),
-                                        ctx.db_client().await?,
+                                        global.agent_locks(),
+                                        &global.db_client().await?,
                                         &state_dir,
                                         family.clone(),
                                     )
@@ -299,7 +300,7 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
 /// always its `Id` (chunks are gated behind it); it then drains to
 /// completion on the daemon's runtime.
 async fn spawn_child(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
@@ -318,7 +319,7 @@ async fn spawn_child(
     let mut stream = crate::command::detached::spawn_detached::<
         spawn_sdk::Request,
         spawn_sdk::ResponseItem,
-    >(ctx.clone(), child_request, |_| Some(true));
+    >(global.clone(), scoped.clone(), child_request, |_| Some(true));
     let first = stream
         .next()
         .await
@@ -335,7 +336,7 @@ async fn spawn_child(
 }
 
 pub async fn resolve_message(
-    ctx: &Context,
+    global: &GlobalContext, scoped: &ScopedContext,
     message: RequestMessage,
 ) -> Result<RichContent, Error> {
     let (simple, inline, file, python_inline, python_file) = match message {
@@ -346,7 +347,8 @@ pub async fn resolve_message(
         RequestMessage::PythonFile(p) => (None, None, None, None, Some(p)),
     };
     crate::source_resolver::resolve_source(
-        ctx,
+        global,
+        scoped,
         simple,
         inline,
         file,
@@ -361,10 +363,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::message as sdk;
     use objectiveai_sdk::cli::command::agents::message::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -373,10 +375,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::message as sdk;
     use objectiveai_sdk::cli::command::agents::message::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

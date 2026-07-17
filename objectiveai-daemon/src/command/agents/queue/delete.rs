@@ -6,17 +6,17 @@
 
 use objectiveai_sdk::cli::command::agents::queue::delete::{Request, Response};
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::db;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
     use db::message_queue::DeleteOutcome;
 
     let outcome = db::message_queue::delete_by_id(
-        ctx.db_client().await?,
+        &global.db_client().await?,
         request.id,
-        &ctx.config.agent_instance_hierarchy,
+        scoped.agent_instance_hierarchy(),
     )
     .await?;
     let item = match outcome {
@@ -32,10 +32,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             return Err(Error::QueueDeleteUnauthorized {
                 id: request.id,
                 sender_agent_instance_hierarchy,
-                caller_agent_instance_hierarchy: ctx
-                    .config
-                    .agent_instance_hierarchy
-                    .clone(),
+                caller_agent_instance_hierarchy: scoped
+                    .agent_instance_hierarchy()
+                    .to_string(),
             });
         }
     };
@@ -55,10 +54,10 @@ pub mod request_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Request),
         ))
@@ -71,10 +70,10 @@ pub mod response_schema {
         Request, Response,
     };
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(
             schemars::schema_for!(sdk::Response),
         ))

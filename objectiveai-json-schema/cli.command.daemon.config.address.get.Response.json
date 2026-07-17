@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.daemon.config.address.get.Response",
+  "type": "object",
+  "properties": {
+    "address": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

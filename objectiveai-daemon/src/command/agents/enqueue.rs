@@ -15,11 +15,11 @@
 use objectiveai_sdk::cli::command::agents::enqueue::{Request, Response};
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 
-use crate::context::Context;
+use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let content = super::message::resolve_message(ctx, request.message).await?;
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<Response, Error> {
+    let content = super::message::resolve_message(global, scoped, request.message).await?;
     let (hier, tag) = match request.agent {
         AgentSelector::Instance {
             parent_agent_instance_hierarchy,
@@ -27,7 +27,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         } => {
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
-                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+                .unwrap_or(scoped.agent_instance_hierarchy());
             (Some(format!("{parent}/{agent_instance}")), None)
         }
         // No existence check: park the row against the tag NAME whether
@@ -38,10 +38,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         AgentSelector::Ref { .. } => return Err(Error::EnqueueRefTarget),
     };
     let id = crate::db::message_queue::enqueue_with_content(
-        ctx.db_client().await?,
+        &global.db_client().await?,
         hier.clone(),
         tag.clone(),
-        &ctx.config.agent_instance_hierarchy,
+        scoped.agent_instance_hierarchy(),
         request.key,
         content,
     )
@@ -57,10 +57,10 @@ pub mod request_schema {
     use objectiveai_sdk::cli::command::agents::enqueue as sdk;
     use objectiveai_sdk::cli::command::agents::enqueue::request_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
     }
 }
@@ -69,10 +69,10 @@ pub mod response_schema {
     use objectiveai_sdk::cli::command::agents::enqueue as sdk;
     use objectiveai_sdk::cli::command::agents::enqueue::response_schema::{Request, Response};
 
-    use crate::context::Context;
+    use crate::context::{GlobalContext, ScopedContext};
     use crate::error::Error;
 
-    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
         Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
     }
 }

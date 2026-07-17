@@ -33,7 +33,7 @@ use serde::de::DeserializeOwned;
 /// initialized lazily INSIDE those arms — non-python sources never
 /// touch the wasm runtime.
 pub async fn resolve_source<T, F>(
-    ctx: &crate::context::Context,
+    global: &crate::context::GlobalContext, scoped: &crate::context::ScopedContext,
     simple: Option<String>,
     inline: Option<String>,
     file: Option<PathBuf>,
@@ -61,18 +61,18 @@ where
             .map_err(crate::error::Error::InlineDeserialize);
     }
     if let Some(code) = python_inline {
-        return ctx
+        return global
             .python()
             .await?
-            .exec_code(ctx, &code, None::<()>)
+            .exec_code(global, scoped, &code, None::<()>)
             .await?
             .ok_or(crate::error::Error::PythonNoOutput);
     }
     if let Some(path) = python_file {
-        return ctx
+        return global
             .python()
             .await?
-            .exec_file(ctx, &path, None::<()>)
+            .exec_file(global, scoped, &path, None::<()>)
             .await?
             .ok_or(crate::error::Error::PythonNoOutput);
     }

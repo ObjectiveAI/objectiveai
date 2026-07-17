@@ -2,6 +2,10 @@
   "title": "cli.command.daemon.Request",
   "anyOf": [
     {
+      "title": "Config",
+      "$ref": "cli.command.daemon.config.Request"
+    },
+    {
       "title": "Spawn",
       "$ref": "cli.command.daemon.spawn.Request"
     },

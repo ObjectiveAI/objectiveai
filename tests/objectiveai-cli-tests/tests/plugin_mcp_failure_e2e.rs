@@ -27,9 +27,9 @@
 //! daemon's own MCP calls carry no timeouts), plus the split
 //! `api.mcp_call_timeout_ms` (the `X-MCP-CALL-TIMEOUT` header) and
 //! `api.mcp_connect_timeout_ms` (projected onto a daemon-spawned api's
-//! `MCP_CONNECT_TIMEOUT` env). Per-state config overrides the global
-//! `bin/config.json`. The shared api/proxy side is otherwise kept fast
-//! by the test `.env`'s `MCP_BACKOFF_*=0`.
+//! `MCP_CONNECT_TIMEOUT` env). Config is per-state only. The shared
+//! api/proxy side is otherwise kept fast by the test `.env`'s
+//! `MCP_BACKOFF_*=0`.
 //!
 //! Plugin lifecycle: the plugin writes its PID to `OAI_TEST_MCP_PID_FILE`
 //! before announcing its URL; a `Drop` guard force-kills it so its RMCP
@@ -95,9 +95,9 @@ impl Drop for PluginGuard {
 /// ms, but generous for loaded CI), and small enough that the fail
 /// tests give up in ~5s instead of the default 60s — well under the
 /// harness's hang watchdog, and without the no-output stall a
-/// fallback-less agent would otherwise hit. Per-state config overrides
-/// the global `bin/config.json`. Written via the filesystem `Client`
-/// directly (not the cli command), mirroring `viewer_send_e2e`.
+/// fallback-less agent would otherwise hit. Config is per-state only.
+/// Written via the filesystem `Client` directly (not the cli
+/// command), mirroring `viewer_send_e2e`.
 async fn set_test_mcp_timeout() {
     let fs = objectiveai_daemon::filesystem::Client::new(
         Some(cli_test_util::objectiveai_dir()),

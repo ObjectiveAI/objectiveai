@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// The `laboratories` config section: how `laboratories spawn` wires
+/// The `laboratories` config section: how the host auto-spawn wires
 /// the machine's resident laboratory HOST to daemons.
 #[derive(
     Debug, Clone, Default, Serialize, Deserialize, schemars::JsonSchema,

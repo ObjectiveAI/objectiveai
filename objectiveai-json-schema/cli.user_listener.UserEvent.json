@@ -1,0 +1,70 @@
+{
+  "title": "cli.user_listener.UserEvent",
+  "description": "One frame on the `GET /user` SSE stream.",
+  "anyOf": [
+    {
+      "title": "Request",
+      "description": "A pending request — live broadcast or connect-time replay.",
+      "type": "object",
+      "properties": {
+        "request": {
+          "$ref": "cli.user_listener.UserRequest"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Settled",
+      "description": "The request was settled: `identity` is the winning replier.\nSent only to connections that saw the request; no further\nreplies are possible.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "identity": {
+          "$ref": "cli.command.AgentArguments"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "settled"
+          ]
+        }
+      }
+    },
+    {
+      "title": "TimedOut",
+      "description": "The request ended without an accepted reply (the originating\ncommand timed out or was cancelled). Sent only to connections\nthat saw the request.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "timed_out"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Live",
+      "description": "The connect-time replay is complete — this connection is\ncaught up (everything pending at connect has been delivered).\nSent exactly once per connection, right after the replay.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "live"
+          ]
+        }
+      }
+    }
+  ]
+}

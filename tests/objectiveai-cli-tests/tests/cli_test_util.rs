@@ -325,6 +325,8 @@ where
             parent_agent_instance_hierarchy: parent,
             agent_instance: instance,
         },
+        // Wait for DONE — the original (and this helper's) semantics.
+        active: false,
         base: Default::default(),
     };
     let _resp: Response = executor

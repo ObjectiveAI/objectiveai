@@ -37,8 +37,6 @@ pub use ok::*;
 mod path_ref;
 pub use path_ref::*;
 
-mod scope;
-pub use scope::*;
 
 mod request_base;
 pub use request_base::*;
@@ -51,7 +49,6 @@ pub mod api;
 pub mod daemon;
 pub mod db;
 pub mod functions;
-pub mod kill_all;
 pub mod laboratories;
 pub mod mcp;
 pub mod plugins;
@@ -59,4 +56,5 @@ pub mod python;
 pub mod swarms;
 pub mod tools;
 pub mod update;
+pub mod user;
 pub mod viewer;

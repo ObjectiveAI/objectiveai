@@ -8,8 +8,6 @@ pub enum Error {
     ResponseError(objectiveai_sdk::error::ResponseError),
     #[error("{0} source is not supported for function-profile pairs")]
     PairsSourceNotSupported(&'static str),
-    #[error("authorization is global only")]
-    AuthorizationGlobalOnly,
     #[error("{0}")]
     MissingArgs(&'static str),
     #[error("invalid path: {0}")]
@@ -50,6 +48,14 @@ pub enum Error {
     WriterPanic,
     #[error("subscribe timed out")]
     LogSubscribeTimedOut,
+    #[error("plugins may not run tools (caller: plugin {caller})")]
+    ToolRunByPlugin { caller: String },
+
+    #[error(
+        "a plugin may only run itself at the same or a lower version          (caller: plugin {caller}, requested: {requested})"
+    )]
+    PluginRunSelfOnly { caller: String, requested: String },
+
     #[error("plugin not found: {0}")]
     PluginNotFound(String),
     #[error("failed to spawn plugin: {0}")]
@@ -227,7 +233,7 @@ fn format_http_error(err: &objectiveai_sdk::HttpError) -> String {
 address. the cli auto-spawns a local objectiveai-api when no address is \
 configured; if you set `api.address`, verify it \
 (`objectiveai api config address get --final`) or unset it to use the \
-local server. to (re)start the local server: `objectiveai api spawn`"
+local server (the daemon spawns and manages it automatically)"
         )
     } else {
         err.to_string()

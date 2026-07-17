@@ -888,9 +888,13 @@ impl std::fmt::Display for SpawnPublishError {
 
 impl std::error::Error for SpawnPublishError {}
 
-/// Lock-based background spawn: the detached-server discipline shared
-/// by every `* spawn` flow (api/db/mcp/daemon/laboratories in the CLI,
-/// laboratory managers in the viewer shell).
+/// Lock-based background spawn: the DETACHED-server discipline. Its
+/// remaining users are the plugins-daemon bootstrap paths (the cli's
+/// ensure-daemon and the daemon's `daemon spawn` for peer states) —
+/// the one rendezvous that must work across unrelated processes, so a
+/// lockfile is the discovery channel. The daemon's own persistent
+/// servers moved to leashed children with a stdout-JSON readiness
+/// handshake ([`crate::process::ServerReady`]).
 ///
 /// A server's readiness signal is its lockfile: once up, it claims
 /// `(dir, key)` and publishes its client-connect content. The flow:

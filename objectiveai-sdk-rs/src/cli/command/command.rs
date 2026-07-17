@@ -24,9 +24,6 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::functions::Command,
     },
-    /// Kill every process holding a lock anywhere under the configured
-    /// `OBJECTIVEAI_DIR` — the blunt whole-tree sweep.
-    KillAll(super::kill_all::Command),
     Laboratories {
         #[command(subcommand)]
         command: super::laboratories::Command,
@@ -50,6 +47,10 @@ pub enum Subcommand {
         command: super::tools::Command,
     },
     Update(super::update::Command),
+    User {
+        #[command(subcommand)]
+        command: super::user::Command,
+    },
     Viewer {
         #[command(subcommand)]
         command: super::viewer::Command,
@@ -70,12 +71,6 @@ pub enum Request {
     Db(super::db::Request),
     #[schemars(title = "Functions")]
     Functions(super::functions::Request),
-    #[schemars(title = "KillAll")]
-    KillAll(super::kill_all::Request),
-    #[schemars(title = "KillAllRequestSchema")]
-    KillAllRequestSchema(super::kill_all::request_schema::Request),
-    #[schemars(title = "KillAllResponseSchema")]
-    KillAllResponseSchema(super::kill_all::response_schema::Request),
     #[schemars(title = "Laboratories")]
     Laboratories(super::laboratories::Request),
     #[schemars(title = "Mcp")]
@@ -98,6 +93,8 @@ pub enum Request {
     UpdateRequestSchema(super::update::request_schema::Request),
     #[schemars(title = "UpdateResponseSchema")]
     UpdateResponseSchema(super::update::response_schema::Request),
+    #[schemars(title = "User")]
+    User(super::user::Request),
     #[schemars(title = "Viewer")]
     Viewer(super::viewer::Request),
 }
@@ -122,12 +119,6 @@ pub enum ResponseItem {
     Db(super::db::ResponseItem),
     #[schemars(title = "Functions")]
     Functions(super::functions::ResponseItem),
-    #[schemars(title = "KillAll")]
-    KillAll(super::kill_all::Response),
-    #[schemars(title = "KillAllRequestSchema")]
-    KillAllRequestSchema(super::kill_all::request_schema::Response),
-    #[schemars(title = "KillAllResponseSchema")]
-    KillAllResponseSchema(super::kill_all::response_schema::Response),
     #[schemars(title = "Laboratories")]
     Laboratories(super::laboratories::ResponseItem),
     #[schemars(title = "Mcp")]
@@ -150,6 +141,8 @@ pub enum ResponseItem {
     UpdateRequestSchema(super::update::request_schema::Response),
     #[schemars(title = "UpdateResponseSchema")]
     UpdateResponseSchema(super::update::response_schema::Response),
+    #[schemars(title = "User")]
+    User(super::user::Response),
     #[schemars(title = "Viewer")]
     Viewer(super::viewer::Response),
 }
@@ -163,9 +156,6 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::Daemon(v) => v.into_mcp(),
             ResponseItem::Db(v) => v.into_mcp(),
             ResponseItem::Functions(v) => v.into_mcp(),
-            ResponseItem::KillAll(v) => v.into_mcp(),
-            ResponseItem::KillAllRequestSchema(v) => v.into_mcp(),
-            ResponseItem::KillAllResponseSchema(v) => v.into_mcp(),
             ResponseItem::Laboratories(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Plugins(v) => v.into_mcp(),
@@ -177,6 +167,7 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::Update(v) => v.into_mcp(),
             ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
             ResponseItem::UpdateResponseSchema(v) => v.into_mcp(),
+            ResponseItem::User(v) => v.into_mcp(),
             ResponseItem::Viewer(v) => v.into_mcp(),
         }
     }
@@ -196,13 +187,6 @@ impl TryFrom<Subcommand> for Request {
                 Ok(Request::Db(super::db::Request::try_from(command)?)),
             Subcommand::Functions { command } =>
                 Ok(Request::Functions(super::functions::Request::try_from(command)?)),
-            Subcommand::KillAll(cmd) => match cmd.schema {
-                None => Ok(Request::KillAll(super::kill_all::Request::try_from(cmd.args)?)),
-                Some(super::kill_all::Schema::RequestSchema(args)) =>
-                    Ok(Request::KillAllRequestSchema(super::kill_all::request_schema::Request::try_from(args)?)),
-                Some(super::kill_all::Schema::ResponseSchema(args)) =>
-                    Ok(Request::KillAllResponseSchema(super::kill_all::response_schema::Request::try_from(args)?)),
-            },
             Subcommand::Laboratories { command } =>
                 Ok(Request::Laboratories(super::laboratories::Request::try_from(command)?)),
             Subcommand::Mcp { command } =>
@@ -227,6 +211,8 @@ impl TryFrom<Subcommand> for Request {
                 Some(super::update::Schema::ResponseSchema(args)) =>
                     Ok(Request::UpdateResponseSchema(super::update::response_schema::Request::try_from(args)?)),
             },
+            Subcommand::User { command } =>
+                Ok(Request::User(super::user::Request::try_from(command)?)),
             Subcommand::Viewer { command } =>
                 Ok(Request::Viewer(super::viewer::Request::try_from(command)?)),
         }
@@ -265,9 +251,6 @@ impl super::CommandRequest for Request {
             Request::Daemon(inner) => inner.request_base(),
             Request::Db(inner) => inner.request_base(),
             Request::Functions(inner) => inner.request_base(),
-            Request::KillAll(inner) => inner.request_base(),
-            Request::KillAllRequestSchema(inner) => inner.request_base(),
-            Request::KillAllResponseSchema(inner) => inner.request_base(),
             Request::Laboratories(inner) => inner.request_base(),
             Request::Mcp(inner) => inner.request_base(),
             Request::Plugins(inner) => inner.request_base(),
@@ -279,6 +262,7 @@ impl super::CommandRequest for Request {
             Request::Update(inner) => inner.request_base(),
             Request::UpdateRequestSchema(inner) => inner.request_base(),
             Request::UpdateResponseSchema(inner) => inner.request_base(),
+            Request::User(inner) => inner.request_base(),
             Request::Viewer(inner) => inner.request_base(),
         }
     }
@@ -290,9 +274,6 @@ impl super::CommandRequest for Request {
             Request::Daemon(inner) => inner.request_base_mut(),
             Request::Db(inner) => inner.request_base_mut(),
             Request::Functions(inner) => inner.request_base_mut(),
-            Request::KillAll(inner) => inner.request_base_mut(),
-            Request::KillAllRequestSchema(inner) => inner.request_base_mut(),
-            Request::KillAllResponseSchema(inner) => inner.request_base_mut(),
             Request::Laboratories(inner) => inner.request_base_mut(),
             Request::Mcp(inner) => inner.request_base_mut(),
             Request::Plugins(inner) => inner.request_base_mut(),
@@ -304,6 +285,7 @@ impl super::CommandRequest for Request {
             Request::Update(inner) => inner.request_base_mut(),
             Request::UpdateRequestSchema(inner) => inner.request_base_mut(),
             Request::UpdateResponseSchema(inner) => inner.request_base_mut(),
+            Request::User(inner) => inner.request_base_mut(),
             Request::Viewer(inner) => inner.request_base_mut(),
         }
     }
@@ -341,18 +323,6 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Functions(req) => {
                 let inner = super::functions::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
-            }
-            Request::KillAll(req) => {
-                let value = super::kill_all::execute(executor, req, agent_arguments).await?;
-                Box::pin(super::StreamOnce::new(Ok(ResponseItem::KillAll(value))))
-            }
-            Request::KillAllRequestSchema(req) => {
-                let value = super::kill_all::request_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(super::StreamOnce::new(Ok(ResponseItem::KillAllRequestSchema(value))))
-            }
-            Request::KillAllResponseSchema(req) => {
-                let value = super::kill_all::response_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(super::StreamOnce::new(Ok(ResponseItem::KillAllResponseSchema(value))))
             }
             Request::Laboratories(req) => {
                 let inner = super::laboratories::execute(executor, req, agent_arguments).await?;
@@ -398,6 +368,10 @@ pub async fn execute<E: super::CommandExecutor>(
                 let value = super::update::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateResponseSchema(value))))
             }
+            Request::User(req) => {
+                let inner = super::user::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::User)))
+            }
             Request::Viewer(req) => {
                 let inner = super::viewer::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
@@ -438,18 +412,6 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             Request::Functions(req) => {
                 let inner = super::functions::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
-            }
-            Request::KillAll(req) => {
-                let value = super::kill_all::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(super::StreamOnce::new(Ok(value)))
-            }
-            Request::KillAllRequestSchema(req) => {
-                let value = super::kill_all::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(super::StreamOnce::new(Ok(value)))
-            }
-            Request::KillAllResponseSchema(req) => {
-                let value = super::kill_all::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::Laboratories(req) => {
                 let inner = super::laboratories::execute_transform(executor, req, transform, agent_arguments).await?;
@@ -494,6 +456,10 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             Request::UpdateResponseSchema(req) => {
                 let value = super::update::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::User(req) => {
+                let inner = super::user::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
             }
             Request::Viewer(req) => {
                 let inner = super::viewer::execute_transform(executor, req, transform, agent_arguments).await?;
@@ -598,9 +564,6 @@ pub enum ListenerExecution {
     Daemon(super::daemon::ListenerExecution),
     Db(super::db::ListenerExecution),
     Functions(super::functions::ListenerExecution),
-    KillAll(super::kill_all::ListenerExecution),
-    KillAllRequestSchema(super::kill_all::request_schema::ListenerExecution),
-    KillAllResponseSchema(super::kill_all::response_schema::ListenerExecution),
     Laboratories(super::laboratories::ListenerExecution),
     Mcp(super::mcp::ListenerExecution),
     Plugins(super::plugins::ListenerExecution),
@@ -612,5 +575,6 @@ pub enum ListenerExecution {
     Update(super::update::ListenerExecution),
     UpdateRequestSchema(super::update::request_schema::ListenerExecution),
     UpdateResponseSchema(super::update::response_schema::ListenerExecution),
+    User(super::user::ListenerExecution),
     Viewer(super::viewer::ListenerExecution),
 }

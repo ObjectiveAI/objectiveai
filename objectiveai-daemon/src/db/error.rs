@@ -8,7 +8,7 @@ pub enum Error {
     Json(#[from] serde_json::Error),
     #[error("invalid data: {0}")]
     InvalidData(String),
-    #[error("cannot reach the database at {url} ({source}); run `objectiveai db spawn` to start the local objectiveai-db, or point `db config address` at a reachable postgres")]
+    #[error("cannot reach the database at {url} ({source}); the daemon starts the local objectiveai-db on demand — retry, or point `db config address` at a reachable postgres")]
     DbUnreachable {
         /// Connect URL with the password masked.
         url: String,

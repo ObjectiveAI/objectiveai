@@ -1,5 +1,5 @@
 //! Newtype wrapper around `sqlx::PgPool` so the CLI's
-//! [`crate::context::Context`] holds a domain-typed handle.
+//! [`crate::context::GlobalContext`] holds a domain-typed handle.
 //!
 //! Construction is private to this crate via [`super::init::init`]; the
 //! pool itself is concurrency-safe so callers can hold `&Pool`

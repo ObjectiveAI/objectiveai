@@ -148,13 +148,19 @@ struct Frame<'a> {
     response_id: Option<String>,
     #[serde(default)]
     response_ids: Option<String>,
+    #[serde(default)]
+    plugin_owner: Option<String>,
+    #[serde(default)]
+    plugin_repository: Option<String>,
+    #[serde(default)]
+    plugin_version: Option<String>,
 }
 
 impl Frame<'_> {
-    /// The producer's identity off the request frame's context fields.
-    /// `mcp_session_id` is never teed onto the broadcast, so it's
-    /// always `None`; the frame's `plugin_*` coordinates are not agent
-    /// arguments and are dropped.
+    /// The producer's identity off the request frame's context fields
+    /// — the plugin caller trio included: broadcast frames are
+    /// DAEMON-authored, so the trio here is trustworthy (unlike
+    /// inbound wire requests, where the daemon ignores any claim).
     fn agent_arguments(&mut self) -> AgentArguments {
         AgentArguments {
             agent_instance_hierarchy: self.agent_instance_hierarchy.take(),
@@ -163,7 +169,9 @@ impl Frame<'_> {
             agent_remote: self.agent_remote.take(),
             response_id: self.response_id.take(),
             response_ids: self.response_ids.take(),
-            mcp_session_id: None,
+            plugin_owner: self.plugin_owner.take(),
+            plugin_repository: self.plugin_repository.take(),
+            plugin_version: self.plugin_version.take(),
         }
     }
 }

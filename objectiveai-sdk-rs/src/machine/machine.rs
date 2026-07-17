@@ -41,7 +41,7 @@ pub struct MachineIdentity {
 
 /// Resolve this machine's identity. `objectiveai_dir` roots the
 /// persisted-UUID fallback used when no OS identifier is readable.
-#[cfg(feature = "lockfile")]
+#[cfg(any(feature = "lockfile", feature = "machine"))]
 pub fn machine_identity(objectiveai_dir: &std::path::Path) -> MachineIdentity {
     MachineIdentity {
         id: machine_id(objectiveai_dir),
@@ -54,7 +54,7 @@ pub fn machine_identity(objectiveai_dir: &std::path::Path) -> MachineIdentity {
 }
 
 /// The hashed machine id (see module docs for the derivation chain).
-#[cfg(feature = "lockfile")]
+#[cfg(any(feature = "lockfile", feature = "machine"))]
 pub fn machine_id(objectiveai_dir: &std::path::Path) -> String {
     use sha2::{Digest, Sha256};
     let raw = raw_machine_id()
@@ -70,7 +70,7 @@ pub fn machine_id(objectiveai_dir: &std::path::Path) -> String {
 }
 
 /// The platform's raw installation identifier, `None` when unreadable.
-#[cfg(all(feature = "lockfile", target_os = "linux"))]
+#[cfg(all(any(feature = "lockfile", feature = "machine"), target_os = "linux"))]
 fn raw_machine_id() -> Option<String> {
     ["/etc/machine-id", "/var/lib/dbus/machine-id"]
         .iter()
@@ -79,7 +79,7 @@ fn raw_machine_id() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
-#[cfg(all(feature = "lockfile", target_os = "macos"))]
+#[cfg(all(any(feature = "lockfile", feature = "machine"), target_os = "macos"))]
 fn raw_machine_id() -> Option<String> {
     // `ioreg -rd1 -c IOPlatformExpertDevice` prints a line like:
     //   "IOPlatformUUID" = "XXXXXXXX-XXXX-…"
@@ -97,7 +97,7 @@ fn raw_machine_id() -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
-#[cfg(all(feature = "lockfile", windows))]
+#[cfg(all(any(feature = "lockfile", feature = "machine"), windows))]
 fn raw_machine_id() -> Option<String> {
     // HKLM\SOFTWARE\Microsoft\Cryptography\MachineGuid — the Windows
     // installation GUID. RegGetValueW with RRF_RT_REG_SZ; wide-string
@@ -132,7 +132,7 @@ fn raw_machine_id() -> Option<String> {
 }
 
 #[cfg(all(
-    feature = "lockfile",
+    any(feature = "lockfile", feature = "machine"),
     not(any(target_os = "linux", target_os = "macos", windows))
 ))]
 fn raw_machine_id() -> Option<String> {
@@ -140,7 +140,7 @@ fn raw_machine_id() -> Option<String> {
 }
 
 /// Read-or-create the fallback UUID at `<objectiveai_dir>/bin/machine-id`.
-#[cfg(feature = "lockfile")]
+#[cfg(any(feature = "lockfile", feature = "machine"))]
 fn persisted_machine_id(objectiveai_dir: &std::path::Path) -> Option<String> {
     let path = objectiveai_dir.join("bin").join("machine-id");
     if let Ok(existing) = std::fs::read_to_string(&path) {
