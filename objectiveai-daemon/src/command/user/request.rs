@@ -68,7 +68,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
         key: request.key,
         details: request.details,
     };
-    let rx = hubs.user.create(&payload, request.validate_python);
+    let rx = hubs.user.create(&payload);
     let guard = AbandonGuard {
         hub: hubs.user.clone(),
         id,

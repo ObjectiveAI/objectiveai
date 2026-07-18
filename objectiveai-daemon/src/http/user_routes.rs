@@ -13,10 +13,9 @@
 //!   timeout notice go only to those connections — a stream that
 //!   never saw the request never hears about its end.
 //! - Replies arbitrate on the request's `settle` mutex: the FIRST
-//!   reply to pass the (optional) python validator takes the oneshot
-//!   and wins; the daemon then acks all notified connections with
-//!   [`UserEvent::Settled`] so they know no further reply is
-//!   possible. A validator rejection leaves the request PENDING.
+//!   reply takes the oneshot and wins; the daemon then acks all
+//!   notified connections with [`UserEvent::Settled`] so they know no
+//!   further reply is possible.
 //! - The originating command's drop guard calls [`UserHub::abandon`]
 //!   whenever the wait ends without a winner — base `--timeout`
 //!   abort, caller disconnect, any error — which notifies the
@@ -41,9 +40,6 @@ struct PendingUserRequest {
     /// The pre-serialized [`UserEvent::Request`] frame — built once,
     /// sent to every current and future connection.
     frame: String,
-    /// The caller's optional reply validator (python; trailing
-    /// expression must evaluate `True`).
-    validate_python: Option<String>,
     /// Connection ids this request was delivered to — the exact
     /// audience for its settlement/timeout notice. Guarded by a sync
     /// mutex (tiny critical sections, never held across an await).
@@ -54,22 +50,26 @@ struct PendingUserRequest {
     settle: tokio::sync::Mutex<Option<oneshot::Sender<(AgentArguments, serde_json::Value)>>>,
 }
 
+impl Default for UserHub {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// The user-requests hub — see the module docs. Clone-shared.
 #[derive(Clone)]
 pub struct UserHub {
     connections: Arc<DashMap<u64, mpsc::UnboundedSender<String>>>,
     next_connection_id: Arc<AtomicU64>,
     pending: Arc<DashMap<String, Arc<PendingUserRequest>>>,
-    global: crate::context::GlobalContext,
 }
 
 impl UserHub {
-    pub fn new(global: crate::context::GlobalContext) -> Self {
+    pub fn new() -> Self {
         Self {
             connections: Arc::new(DashMap::new()),
             next_connection_id: Arc::new(AtomicU64::new(1)),
             pending: Arc::new(DashMap::new()),
-            global,
         }
     }
 
@@ -109,7 +109,6 @@ impl UserHub {
     pub fn create(
         &self,
         request: &UserRequest,
-        validate_python: Option<String>,
     ) -> oneshot::Receiver<(AgentArguments, serde_json::Value)> {
         let frame = serde_json::to_string(&UserEvent::Request {
             request: request.clone(),
@@ -118,7 +117,6 @@ impl UserHub {
         let (settle_tx, settle_rx) = oneshot::channel();
         let entry = Arc::new(PendingUserRequest {
             frame,
-            validate_python,
             notified: std::sync::Mutex::new(HashSet::new()),
             settle: tokio::sync::Mutex::new(Some(settle_tx)),
         });
@@ -132,70 +130,22 @@ impl UserHub {
         settle_rx
     }
 
-    /// One reply for `id`. Serializes on the entry's `settle` mutex;
-    /// runs the validator (when set) INSIDE the critical section so
-    /// two racing replies can't both pass and only one ever wins.
+    /// One reply for `id`. Serializes on the entry's `settle` mutex so
+    /// two racing replies can never both win — the first to take the
+    /// oneshot is the winner; everyone after sees `Settled`.
     pub async fn reply(
         &self,
         id: &str,
         identity: AgentArguments,
         reply: serde_json::Value,
-        scoped: &crate::context::ScopedContext,
     ) -> UserReplyOutcome {
         let Some(entry) = self.pending.get(id).map(|e| Arc::clone(e.value())) else {
             return UserReplyOutcome::NotFound;
         };
         let mut settle = entry.settle.lock().await;
-        if settle.is_none() {
-            // Already won by a racer that hasn't finished its
-            // notification sweep yet (the entry leaves `pending`
-            // right after).
-            return UserReplyOutcome::Settled;
-        }
-        if let Some(code) = &entry.validate_python {
-            // The validator sees THE FULL REPLY — identity and
-            // payload — as its `input`, and must end in a trailing
-            // expression evaluating `True`. Anything else (False, no
-            // output, an exception, unparseable output) REJECTS and
-            // leaves the request pending. `no_objectiveai` keeps the
-            // validator from re-entering the CLI.
-            let input = serde_json::json!({
-                "identity": identity,
-                "reply": reply,
-            });
-            let verdict: Result<Option<bool>, _> = match self.global.python().await {
-                Ok(python) => {
-                    python
-                        .exec_code(
-                            &self.global,
-                            &scoped.with_no_objectiveai(true),
-                            code,
-                            Some(&input),
-                        )
-                        .await
-                }
-                Err(e) => Err(e),
-            };
-            match verdict {
-                Ok(Some(true)) => {}
-                Ok(Some(false)) => {
-                    return UserReplyOutcome::Rejected {
-                        message: "validator returned False".to_string(),
-                    };
-                }
-                Ok(None) => {
-                    return UserReplyOutcome::Rejected {
-                        message: "validator produced no output".to_string(),
-                    };
-                }
-                Err(e) => {
-                    return UserReplyOutcome::Rejected {
-                        message: format!("validator: {e}"),
-                    };
-                }
-            }
-        }
         let Some(winner) = settle.take() else {
+            // Already won by a racer (the entry leaves `pending`
+            // right after).
             return UserReplyOutcome::Settled;
         };
         drop(settle);
@@ -303,13 +253,9 @@ pub(crate) async fn user_reply_handler(
         }
     };
     let identity = crate::http::daemon_execute::agent_arguments(&headers);
-    let outcome = state
-        .user
-        .reply(&id, identity, reply.reply, &state.scoped)
-        .await;
+    let outcome = state.user.reply(&id, identity, reply.reply).await;
     let status = match &outcome {
         UserReplyOutcome::Accepted => axum::http::StatusCode::OK,
-        UserReplyOutcome::Rejected { .. } => axum::http::StatusCode::UNPROCESSABLE_ENTITY,
         UserReplyOutcome::Settled => axum::http::StatusCode::CONFLICT,
         UserReplyOutcome::NotFound => axum::http::StatusCode::NOT_FOUND,
     };

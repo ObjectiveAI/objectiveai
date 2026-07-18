@@ -4,12 +4,8 @@
 //!
 //! The daemon holds the request PENDING even with zero connected
 //! streams — a user surface that connects later receives it on
-//! replay. An optional `--validate-python` snippet gates replies:
-//! it runs with the full reply (`{"identity": …, "reply": …}`) as its
-//! `input` and must end in a trailing expression evaluating `True`
-//! for the reply to be accepted; anything else (False, no output, an
-//! exception) rejects it and the request stays pending. Without the
-//! base `--timeout` the wait is UNCAPPED.
+//! replay. The first reply wins; without the base `--timeout` the
+//! wait is UNCAPPED.
 
 use crate::cli::command::CommandRequest;
 
@@ -22,12 +18,6 @@ pub struct Request {
     pub key: String,
     /// Arbitrary request payload, opaque to the daemon.
     pub details: serde_json::Value,
-    /// Optional reply validator: python whose `input` is the full
-    /// reply and whose trailing expression must evaluate `True` to
-    /// accept it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub validate_python: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -67,10 +57,6 @@ pub struct Args {
     /// The request payload as inline JSON.
     #[arg(long)]
     pub details: String,
-    /// Optional reply validator: python receiving the full reply as
-    /// `input`; its trailing expression must evaluate True to accept.
-    #[arg(long)]
-    pub validate_python: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -102,7 +88,6 @@ impl TryFrom<Args> for Request {
             path_type: Path::UserRequest,
             key: args.key,
             details,
-            validate_python: args.validate_python,
             base: args.base.into(),
         })
     }

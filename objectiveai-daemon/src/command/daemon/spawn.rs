@@ -236,7 +236,7 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // The `/user` user-requests hub: pending outbound requests +
     // tracked per-connection delivery. Held here for the daemon's
     // life like every other hub.
-    let user = crate::http::user_routes::UserHub::new(global.clone());
+    let user = crate::http::user_routes::UserHub::new();
     global.set_resident_hubs(crate::context::ResidentHubs {
         broadcast: tx.clone(),
         active: active.clone(),

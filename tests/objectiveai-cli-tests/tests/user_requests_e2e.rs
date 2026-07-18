@@ -1,7 +1,7 @@
 //! E2E: the `/user` user-requests channel — `user request` broadcasts
 //! to connected user streams (SSE), the first ACCEPTED reply wins,
-//! pending requests replay to new connections, settled ones don't,
-//! and the optional python validator gates replies.
+//! pending requests replay to new connections, and settled ones
+//! don't.
 //!
 //! EVENT-DRIVEN throughout — no polling, no sleeps, no deadlines:
 //! every wait rides the listener's change-counter watch receiver
@@ -34,16 +34,11 @@ macro_rules! wait_until {
     }};
 }
 
-fn request(
-    key: &str,
-    details: serde_json::Value,
-    validate_python: Option<&str>,
-) -> UserRequestRequest {
+fn request(key: &str, details: serde_json::Value) -> UserRequestRequest {
     UserRequestRequest {
         path_type: UserRequestPath::UserRequest,
         key: key.to_string(),
         details,
-        validate_python: validate_python.map(String::from),
         base: Default::default(),
     }
 }
@@ -73,7 +68,7 @@ async fn connect_live(addr: &str) -> UserListener {
     listener
 }
 
-/// The full happy path + replay semantics + validator gating.
+/// The full happy path + replay semantics.
 #[tokio::test(flavor = "multi_thread")]
 async fn user_request_first_accepted_reply_wins() {
     let _base = cli_test_util::test_base_dir();
@@ -90,7 +85,7 @@ async fn user_request_first_accepted_reply_wins() {
     let ask = tokio::spawn(async move {
         exec2
             .execute_one::<_, UserRequestResponse>(
-                request("ask", serde_json::json!({"q": "proceed?"}), None),
+                request("ask", serde_json::json!({"q": "proceed?"})),
                 None,
             )
             .await
@@ -147,44 +142,4 @@ async fn user_request_first_accepted_reply_wins() {
         matches!(late, UserReplyOutcome::NotFound | UserReplyOutcome::Settled),
         "{late:?}"
     );
-
-    // ── Validator: only `True` accepts ───────────────────────────
-    let exec3 = cli_test_util::executor().await;
-    let gated = tokio::spawn(async move {
-        exec3
-            .execute_one::<_, UserRequestResponse>(
-                request(
-                    "gated",
-                    serde_json::json!({"q": "yes or no"}),
-                    Some("input['reply'] == 'yes'"),
-                ),
-                None,
-            )
-            .await
-    });
-    wait_until!(listener, {
-        listener.pending().await.iter().any(|r| r.key == "gated")
-    });
-    let gated_id = listener
-        .pending()
-        .await
-        .iter()
-        .find(|r| r.key == "gated")
-        .expect("gated pending")
-        .id
-        .clone();
-    let rejected = listener
-        .reply(&gated_id, &replier(), serde_json::json!("no"))
-        .await
-        .expect("rejected reply");
-    assert!(matches!(rejected, UserReplyOutcome::Rejected { .. }), "{rejected:?}");
-    // Still pending — the rejection left it open.
-    assert!(listener.pending().await.iter().any(|r| r.id == gated_id));
-    let accepted = listener
-        .reply(&gated_id, &replier(), serde_json::json!("yes"))
-        .await
-        .expect("accepted reply");
-    assert!(matches!(accepted, UserReplyOutcome::Accepted), "{accepted:?}");
-    let gated_response = gated.await.expect("join").expect("gated request");
-    assert_eq!(gated_response.reply, serde_json::json!("yes"));
 }

@@ -17,11 +17,9 @@
  * replayed to new connections.
  *
  * Replying is {@link UserListener.reply}: `POST /user/{id}/reply`.
- * The daemon arbitrates — exactly one reply is ever accepted, the
- * originating command's optional python validator gates each one
- * (a rejection leaves the request pending), and every outcome comes
- * back as a typed {@link CliUserListenerUserReplyOutcome} whatever
- * the HTTP status.
+ * The daemon arbitrates — exactly one reply is ever accepted (first
+ * wins) — and every outcome comes back as a typed {@link
+ * CliUserListenerUserReplyOutcome} whatever the HTTP status.
  *
  * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header (fetch
  * mode). One listener = one connection: when the socket closes the
@@ -223,9 +221,7 @@ export class UserListener {
   /**
    * Reply to one pending request. The daemon answers with a typed
    * outcome whatever the HTTP status: `accepted` (this reply WON),
-   * `rejected` (the originating command's validator refused it — the
-   * request is still pending), `settled` (another reply already won),
-   * or `not_found`.
+   * `settled` (another reply already won), or `not_found`.
    *
    * `identity` (the replier's `X-OBJECTIVEAI-*` headers) applies in
    * FETCH mode only; in viewer mode the Rust proxy stamps the

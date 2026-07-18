@@ -13,8 +13,8 @@
 //! `POST /user/{id}/reply` carries a [`UserReply`] body; the
 //! replier's identity rides the standard `X-OBJECTIVEAI-*` request
 //! headers (NOT the body). The daemon answers with a
-//! [`UserReplyOutcome`] either way (HTTP 200 accepted / 422 rejected
-//! by the validator / 409 already settled / 404 unknown).
+//! [`UserReplyOutcome`] either way (HTTP 200 accepted / 409 already
+//! settled / 404 unknown).
 
 use serde::{Deserialize, Serialize};
 
@@ -78,8 +78,8 @@ pub enum UserEvent {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.user_listener.UserReply")]
 pub struct UserReply {
-    /// The reply payload, opaque to the daemon (the originating
-    /// command's optional python validator is the only inspector).
+    /// The reply payload, opaque to the daemon — forwarded to the
+    /// originating command verbatim.
     pub reply: serde_json::Value,
 }
 
@@ -88,15 +88,9 @@ pub struct UserReply {
 #[schemars(rename = "cli.user_listener.UserReplyOutcome")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum UserReplyOutcome {
-    /// This reply WON: it was accepted (validator included, when one
-    /// was set) and unblocks the originating command.
+    /// This reply WON: it unblocks the originating command.
     #[schemars(title = "Accepted")]
     Accepted,
-    /// The originating command's python validator refused this reply
-    /// — the request is STILL PENDING; the same or another connection
-    /// may reply again.
-    #[schemars(title = "Rejected")]
-    Rejected { message: String },
     /// Another reply already won — this one can no longer be
     /// accepted.
     #[schemars(title = "Settled")]
