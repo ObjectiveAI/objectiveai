@@ -66,8 +66,6 @@ pub(crate) struct DaemonHttpState {
     /// `/laboratories/{id}` +
     /// `/laboratories/{id}/filetree` routes.
     pub(crate) labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
-    /// The `/user` user-requests hub.
-    pub(crate) user: crate::http::user_routes::UserHub,
     /// The `/channels` duplex-channels hub.
     pub(crate) channels: crate::http::channel_routes::ChannelHub,
 }
@@ -102,7 +100,6 @@ pub fn serve_http(
     conversations: crate::http::agent_instance_route::ConversationHub,
     laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
     labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
-    user: crate::http::user_routes::UserHub,
     channels: crate::http::channel_routes::ChannelHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
@@ -154,16 +151,6 @@ pub fn serve_http(
                 crate::http::laboratories_routes::laboratory_filetree_handler,
             ),
         )
-        // The user-requests channel: the SSE broadcast every user
-        // surface holds open, and its reply POST.
-        .route(
-            "/user",
-            axum::routing::get(crate::http::user_routes::user_handler),
-        )
-        .route(
-            "/user/{id}/reply",
-            axum::routing::post(crate::http::user_routes::user_reply_handler),
-        )
         // The duplex-channels endpoint: the SSE every channel client
         // holds open (connection secret + offers), and the accept POST.
         .route(
@@ -182,7 +169,6 @@ pub fn serve_http(
             conversations,
             laboratories,
             labs_hub,
-            user,
             channels,
         })
         // CORS, permissive — mirrors objectiveai-api. The viewer's

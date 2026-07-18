@@ -123,6 +123,6 @@ pub mod response_schema {
         _scoped: &ScopedContext,
         _request: Request,
     ) -> Result<Response, Error> {
-        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::ResponseItem)))
     }
 }

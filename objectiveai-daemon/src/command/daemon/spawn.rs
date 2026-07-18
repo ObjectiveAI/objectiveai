@@ -236,7 +236,6 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // The `/user` user-requests hub: pending outbound requests +
     // tracked per-connection delivery. Held here for the daemon's
     // life like every other hub.
-    let user = crate::http::user_routes::UserHub::new();
     // The `/channels` duplex-channels hub: live connection + offer
     // coordination (the durable log lives in the DB).
     let channels = crate::http::channel_routes::ChannelHub::new();
@@ -247,7 +246,6 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         laboratories: laboratories.clone(),
         labs_hub: labs_hub.clone(),
         mcp_notifiers,
-        user: user.clone(),
         channels: channels.clone(),
     });
     crate::http::daemon_stream::serve_http(
@@ -259,7 +257,6 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         conversations.clone(),
         laboratories.clone(),
         labs_hub.clone(),
-        user,
         channels,
     );
     // Best-effort: seed the registry with agents already holding a lock

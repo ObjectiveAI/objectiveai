@@ -57,5 +57,4 @@ pub mod python;
 pub mod swarms;
 pub mod tools;
 pub mod update;
-pub mod user;
 pub mod viewer;

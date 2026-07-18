@@ -60,9 +60,6 @@ pub(crate) struct ResidentHubs {
     pub labs_hub: LaboratoriesHub,
     /// Per-`response_id` MCP notifiers (former per-response mcp sockets).
     pub mcp_notifiers: Arc<DashMap<String, Notifier>>,
-    /// The `/user` user-requests hub (tracked per-connection
-    /// delivery; see `http::user_routes`).
-    pub user: crate::http::user_routes::UserHub,
     /// The `/channels` duplex-channels hub (live coordination; the
     /// durable log lives in `db::channels`). See `http::channel_routes`.
     pub channels: crate::http::channel_routes::ChannelHub,

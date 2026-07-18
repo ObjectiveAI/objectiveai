@@ -51,10 +51,6 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::channels::Command,
     },
-    User {
-        #[command(subcommand)]
-        command: super::user::Command,
-    },
     Viewer {
         #[command(subcommand)]
         command: super::viewer::Command,
@@ -99,8 +95,6 @@ pub enum Request {
     UpdateResponseSchema(super::update::response_schema::Request),
     #[schemars(title = "Channels")]
     Channels(super::channels::Request),
-    #[schemars(title = "User")]
-    User(super::user::Request),
     #[schemars(title = "Viewer")]
     Viewer(super::viewer::Request),
 }
@@ -149,8 +143,6 @@ pub enum ResponseItem {
     UpdateResponseSchema(super::update::response_schema::Response),
     #[schemars(title = "Channels")]
     Channels(super::channels::ResponseItem),
-    #[schemars(title = "User")]
-    User(super::user::Response),
     #[schemars(title = "Viewer")]
     Viewer(super::viewer::Response),
 }
@@ -176,7 +168,6 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
             ResponseItem::UpdateResponseSchema(v) => v.into_mcp(),
             ResponseItem::Channels(v) => v.into_mcp(),
-            ResponseItem::User(v) => v.into_mcp(),
             ResponseItem::Viewer(v) => v.into_mcp(),
         }
     }
@@ -222,8 +213,6 @@ impl TryFrom<Subcommand> for Request {
             },
             Subcommand::Channels { command } =>
                 Ok(Request::Channels(super::channels::Request::try_from(command)?)),
-            Subcommand::User { command } =>
-                Ok(Request::User(super::user::Request::try_from(command)?)),
             Subcommand::Viewer { command } =>
                 Ok(Request::Viewer(super::viewer::Request::try_from(command)?)),
         }
@@ -274,7 +263,6 @@ impl super::CommandRequest for Request {
             Request::UpdateRequestSchema(inner) => inner.request_base(),
             Request::UpdateResponseSchema(inner) => inner.request_base(),
             Request::Channels(inner) => inner.request_base(),
-            Request::User(inner) => inner.request_base(),
             Request::Viewer(inner) => inner.request_base(),
         }
     }
@@ -298,7 +286,6 @@ impl super::CommandRequest for Request {
             Request::UpdateRequestSchema(inner) => inner.request_base_mut(),
             Request::UpdateResponseSchema(inner) => inner.request_base_mut(),
             Request::Channels(inner) => inner.request_base_mut(),
-            Request::User(inner) => inner.request_base_mut(),
             Request::Viewer(inner) => inner.request_base_mut(),
         }
     }
@@ -384,10 +371,6 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Channels(req) => {
                 let inner = super::channels::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Channels)))
-            }
-            Request::User(req) => {
-                let inner = super::user::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::User)))
             }
             Request::Viewer(req) => {
                 let inner = super::viewer::execute(executor, req, agent_arguments).await?;
@@ -476,10 +459,6 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             }
             Request::Channels(req) => {
                 let inner = super::channels::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::User(req) => {
-                let inner = super::user::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Viewer(req) => {
@@ -597,6 +576,5 @@ pub enum ListenerExecution {
     UpdateRequestSchema(super::update::request_schema::ListenerExecution),
     UpdateResponseSchema(super::update::response_schema::ListenerExecution),
     Channels(super::channels::ListenerExecution),
-    User(super::user::ListenerExecution),
     Viewer(super::viewer::ListenerExecution),
 }

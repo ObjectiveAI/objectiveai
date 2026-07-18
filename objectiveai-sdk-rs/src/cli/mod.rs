@@ -11,8 +11,6 @@ pub mod laboratories_listener;
 #[cfg(feature = "cli-listener")]
 pub mod broadcast_listener;
 #[cfg(feature = "cli-listener")]
-pub mod user_listener;
-#[cfg(feature = "cli-listener")]
 pub mod channel_listener;
 pub mod plugins;
 
