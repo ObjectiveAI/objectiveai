@@ -404,6 +404,10 @@ FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_message_queue_inactive();
 /// constant baked into Rust source.
 const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
 
+/// `channels.*` schema (durable duplex channels + message log). Pulled
+/// from `src/db/channels/schema.sql`, applied alongside [`LOGS_SCHEMA`].
+const CHANNELS_SCHEMA: &str = include_str!("channels/schema.sql");
+
 /// The shared readonly group every plugin/tool compartment role
 /// joins (see [`super::compartment`]): USAGE + SELECT over the base
 /// `objectiveai` schema, with default privileges so tables the base
@@ -514,6 +518,7 @@ pub async fn init(url: &str, database: &str) -> Result<Pool, Error> {
         let apply_result: Result<(), Error> = async {
             conn.execute(SCHEMA).await?;
             conn.execute(LOGS_SCHEMA).await?;
+            conn.execute(CHANNELS_SCHEMA).await?;
             conn.execute(READER_GROUP).await?;
             Ok(())
         }

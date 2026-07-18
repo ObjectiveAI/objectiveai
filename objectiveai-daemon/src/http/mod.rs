@@ -54,6 +54,7 @@ pub mod mcp_listener;
 pub mod mcp_server;
 pub mod agent_instance_route;
 pub mod agents_routes;
+pub mod channel_routes;
 pub mod laboratories_routes;
 pub mod user_routes;
 pub mod websocket_laboratory;

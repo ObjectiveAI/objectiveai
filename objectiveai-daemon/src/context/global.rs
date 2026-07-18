@@ -63,6 +63,9 @@ pub(crate) struct ResidentHubs {
     /// The `/user` user-requests hub (tracked per-connection
     /// delivery; see `http::user_routes`).
     pub user: crate::http::user_routes::UserHub,
+    /// The `/channels` duplex-channels hub (live coordination; the
+    /// durable log lives in `db::channels`). See `http::channel_routes`.
+    pub channels: crate::http::channel_routes::ChannelHub,
 }
 
 /// One leashed resident server: the held [`tokio::process::Child`]
