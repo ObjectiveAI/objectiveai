@@ -5,6 +5,7 @@ from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.agents.request import Request as CliCommandAgentsRequest
 from objectiveai_sdk.cli.command.api.request import Request as CliCommandApiRequest
+from objectiveai_sdk.cli.command.channels.request import Request as CliCommandChannelsRequest
 from objectiveai_sdk.cli.command.daemon.request import Request as CliCommandDaemonRequest
 from objectiveai_sdk.cli.command.db.request import Request as CliCommandDbRequest
 from objectiveai_sdk.cli.command.functions.request import Request as CliCommandFunctionsRequest
@@ -19,7 +20,6 @@ from objectiveai_sdk.cli.command.tools.request import Request as CliCommandTools
 from objectiveai_sdk.cli.command.update.request import Request as CliCommandUpdateRequest
 from objectiveai_sdk.cli.command.update.request_schema.request import Request as CliCommandUpdateRequestSchemaRequest
 from objectiveai_sdk.cli.command.update.response_schema.request import Request as CliCommandUpdateResponseSchemaRequest
-from objectiveai_sdk.cli.command.user.request_ import Request as CliCommandUserRequest
 from objectiveai_sdk.cli.command.viewer.request import Request as CliCommandViewerRequest
 
 
@@ -119,10 +119,10 @@ class RequestUpdateResponseSchema(RootModel):
     root: CliCommandUpdateResponseSchemaRequest
 
 
-class RequestUser(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'User'})
+class RequestChannels(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Channels'})
 
-    root: CliCommandUserRequest
+    root: CliCommandChannelsRequest
 
 
 class RequestViewer(RootModel):
@@ -134,5 +134,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestLaboratories, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestUser, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestLaboratories, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestChannels, RequestViewer]
 
