@@ -25,7 +25,7 @@ pub async fn execute(
             id: entry.id,
             timestamp: crate::db::time::unix_to_rfc3339(entry.delivered_at),
             kind: super::list::to_kind(entry.direction),
-            identity: entry.identity,
+            identity: super::list::to_identity(entry.identity),
             content: entry.content,
         }),
         None => Ok(Response::NotFound),

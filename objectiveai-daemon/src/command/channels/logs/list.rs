@@ -18,13 +18,20 @@ pub(crate) fn to_kind(direction: Direction) -> MessageKind {
     }
 }
 
-/// Map a DB envelope to the wire entry (unix-seconds → RFC3339).
+/// Map a DB envelope to the wire entry (unix-seconds → RFC3339). The
+/// stored full identity is projected to the inline sender-only shape:
+/// the sender AIH + the originating plugin; the rest of the argument
+/// bag stays in the DB, unshown.
 pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
+    let identity = envelope.identity;
     ChannelLogEntry {
         id: envelope.id,
         timestamp: crate::db::time::unix_to_rfc3339(envelope.delivered_at),
         kind: to_kind(envelope.direction),
-        identity: envelope.identity,
+        sender_agent_instance_hierarchy: identity.agent_instance_hierarchy,
+        plugin_owner: identity.plugin_owner,
+        plugin_repository: identity.plugin_repository,
+        plugin_version: identity.plugin_version,
     }
 }
 

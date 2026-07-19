@@ -8,18 +8,20 @@
 
 use crate::cli::command::CommandRequest;
 
-/// Which side of the channel an entry came from.
+/// Which side of the channel an entry came from — `request` is
+/// publisher→owner, `reply` is owner→publisher.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "cli.command.channels.logs.list.MessageKind")]
 pub enum MessageKind {
-    /// Publisher → owner.
     Request,
-    /// Owner → publisher.
     Reply,
 }
 
 /// One channel-log entry ENVELOPE — no content (open reveals that).
+/// Identity is INLINE (the sender AIH + the originating plugin),
+/// mirroring the sender-only shape `agents logs` surfaces — not the
+/// full argument bag. Daemon-authored (unspoofable).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.channels.logs.list.ChannelLogEntry")]
 pub struct ChannelLogEntry {
@@ -29,8 +31,19 @@ pub struct ChannelLogEntry {
     /// RFC3339 delivery time.
     pub timestamp: String,
     pub kind: MessageKind,
-    /// The writer's agent identity, daemon-authored from its scope.
-    pub identity: crate::cli::command::AgentArguments,
+    /// The AIH of the agent that sent the entry.
+    pub sender_agent_instance_hierarchy: Option<String>,
+    /// The originating plugin (owner/repository/version) — present only
+    /// when a plugin sent the entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin_owner: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin_repository: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin_version: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]

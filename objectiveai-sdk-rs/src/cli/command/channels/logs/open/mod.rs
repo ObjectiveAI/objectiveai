@@ -46,7 +46,18 @@ pub enum Response {
         id: i64,
         timestamp: String,
         kind: MessageKind,
-        identity: crate::cli::command::AgentArguments,
+        /// The AIH of the agent that sent the entry.
+        sender_agent_instance_hierarchy: Option<String>,
+        /// The originating plugin — present only when a plugin sent it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        plugin_owner: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        plugin_repository: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        plugin_version: Option<String>,
         content: serde_json::Value,
     },
     #[schemars(title = "NotFound")]
