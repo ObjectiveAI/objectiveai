@@ -257,19 +257,21 @@ impl Client {
         session_id: Option<&str>,
         headers: &IndexMap<String, String>,
     ) -> Result<super::Connection, super::Error> {
-        let init_request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "objectiveai",
-                    "version": env!("CARGO_PKG_VERSION"),
-                }
-            }
-        });
+        let init_request = super::JsonRpcRequest::initialize(
+            super::RequestId::Number(1.into()),
+            super::InitializeRequestParams {
+                protocol_version: "2025-06-18".to_string(),
+                capabilities: super::ClientCapabilities::default(),
+                client_info: Some(super::initialize_result::Implementation {
+                    name: "objectiveai".to_string(),
+                    title: None,
+                    version: env!("CARGO_PKG_VERSION").to_string(),
+                    website_url: None,
+                    description: None,
+                    icons: None,
+                }),
+            },
+        );
 
         let mut request = apply_timeout(
             self.http_client.post(url),
@@ -409,11 +411,8 @@ impl Client {
         // `refresh_tools` / `refresh_resources` background tasks that
         // race with this notification, which is exactly the bug we're
         // avoiding. We therefore POST inline here.
-        let init_notification_body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        });
+        let init_notification_body =
+            super::JsonRpcClientNotification::initialized();
         let mut notify_request = apply_timeout(
             self.http_client.post(url),
             self.call_timeout,

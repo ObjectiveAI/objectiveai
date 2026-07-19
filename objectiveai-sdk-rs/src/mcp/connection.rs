@@ -739,19 +739,18 @@ impl ConnectionInner {
     /// `objectiveai-api/src/agent/completions/client.rs` (sequential
     /// dispatch) and `mock/client.rs::mock.seed_derive` for the
     /// downstream consequence.
-    async fn rpc<P: serde::Serialize, R: serde::de::DeserializeOwned>(
+    /// Mint the next request id from the connection's counter.
+    fn next_request_id(&self) -> super::RequestId {
+        super::RequestId::Number(
+            self.next_id.fetch_add(1, Ordering::Relaxed).into(),
+        )
+    }
+
+    async fn rpc<R: serde::de::DeserializeOwned>(
         &self,
-        method: &str,
-        params: &P,
+        body: super::JsonRpcRequest,
         idempotent: bool,
     ) -> Result<R, super::Error> {
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "method": method,
-            "params": params,
-        });
 
         let attempt_one = || async {
             let url = self.url.clone();
@@ -824,10 +823,12 @@ impl ConnectionInner {
         cursor: Option<&str>,
     ) -> Result<super::tool::ListToolsResult, super::Error> {
         self.rpc(
-            "tools/list",
-            &super::tool::ListToolsRequest {
-                cursor: cursor.map(String::from),
-            },
+            super::JsonRpcRequest::list_tools(
+                self.next_request_id(),
+                super::tool::ListToolsRequest {
+                    cursor: cursor.map(String::from),
+                },
+            ),
             true,
         )
         .await
@@ -887,8 +888,15 @@ impl ConnectionInner {
                 capability: "tools",
             });
         }
-        let mut result: super::tool::CallToolResult =
-            self.rpc("tools/call", params, false).await?;
+        let mut result: super::tool::CallToolResult = self
+            .rpc(
+                super::JsonRpcRequest::call_tool(
+                    self.next_request_id(),
+                    params.clone(),
+                ),
+                false,
+            )
+            .await?;
 
         // Build the known-resource URI set for ResourceLink
         // resolution. `list_resources` failure → empty set (same
@@ -996,10 +1004,12 @@ impl ConnectionInner {
         cursor: Option<&str>,
     ) -> Result<super::resource::ListResourcesResult, super::Error> {
         self.rpc(
-            "resources/list",
-            &super::resource::ListResourcesRequest {
-                cursor: cursor.map(String::from),
-            },
+            super::JsonRpcRequest::list_resources(
+                self.next_request_id(),
+                super::resource::ListResourcesRequest {
+                    cursor: cursor.map(String::from),
+                },
+            ),
             true,
         )
         .await
@@ -1039,10 +1049,12 @@ impl ConnectionInner {
             });
         }
         self.rpc(
-            "resources/read",
-            &super::resource::ReadResourceRequestParams {
-                uri: uri.to_string(),
-            },
+            super::JsonRpcRequest::read_resource(
+                self.next_request_id(),
+                super::resource::ReadResourceRequestParams {
+                    uri: uri.to_string(),
+                },
+            ),
             true,
         )
         .await
@@ -1368,12 +1380,12 @@ impl ConnectionInner {
                                 let Some(data) = line.strip_prefix("data: ") else {
                                     continue 'inner;
                                 };
-                                let method = match serde_json::from_str::<super::JsonRpcNotification>(data) {
-                                    Ok(n) => n.method,
+                                let notification = match serde_json::from_str::<super::JsonRpcServerNotification>(data) {
+                                    Ok(n) => n,
                                     Err(_) => continue 'inner,
                                 };
-                                match method.as_str() {
-                                    "notifications/tools/list_changed" => {
+                                match notification {
+                                    super::JsonRpcServerNotification::ToolsListChanged { .. } => {
                                         // refresh_tools fires the
                                         // callback after the cache is
                                         // installed, so the proxy's
@@ -1386,13 +1398,20 @@ impl ConnectionInner {
                                         )
                                         .await;
                                     }
-                                    "notifications/resources/list_changed" => {
+                                    super::JsonRpcServerNotification::ResourcesListChanged { .. } => {
                                         this.refresh_resources(
                                             this.on_resources_list_changed.get(),
                                         )
                                         .await;
                                     }
-                                    _ => {}
+                                    // TODO(command-execution): dispatch to
+                                    // the connection's
+                                    // McpClientCommandExecutor once the
+                                    // extension is wired into the
+                                    // connection (next step of the plugin
+                                    // refactor).
+                                    super::JsonRpcServerNotification::CliRequest { .. } => {}
+                                    super::JsonRpcServerNotification::Fallback { .. } => {}
                                 }
                             }
                             // Stream ended cleanly or errored — break out
