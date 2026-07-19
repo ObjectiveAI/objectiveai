@@ -78,10 +78,6 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let inner = super::swarms::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
         }
-        Request::Tools(req) => {
-            let inner = super::tools::execute(global, scoped, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
-        }
         Request::Update(req) => {
             let inner = super::update::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Update)))

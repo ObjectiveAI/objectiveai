@@ -1,6 +1,6 @@
 use super::super::Client;
 use super::Manifest;
-use crate::filesystem::tools::{CliZip, CliZipArch, Exec};
+use crate::filesystem::plugins::{CliZip, CliZipArch, Exec};
 
 fn fresh_base_dir() -> std::path::PathBuf {
     let d = std::env::temp_dir()

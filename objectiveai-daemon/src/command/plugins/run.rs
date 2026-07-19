@@ -370,12 +370,10 @@ async fn run_nested_inner(
     // `--simple "a b c"` is not re-split into separate tokens.
     let tokens: Vec<String> = command;
 
-    // A plugin may not invoke `plugins` or `tools` commands — no
-    // running another plugin, no running a tool. Forward the same
-    // error line the cli would emit for the forbidden cases.
+    // A plugin may not invoke `plugins` commands — no running another
+    // plugin. Forward the same error line the cli would emit.
     let forbidden = match tokens.first().map(String::as_str) {
         Some("plugins") => Some("plugins"),
-        Some("tools") => Some("tools"),
         _ => None,
     };
     if let Some(kind) = forbidden {

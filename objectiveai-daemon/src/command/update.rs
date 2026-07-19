@@ -67,7 +67,7 @@ const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 /// and tools. (The former machine-wide `config.json` is retired —
 /// config is per-state only — so a stale one is wiped like any other
 /// leftover.)
-const WIPE_KEEP: &[&str] = &["plugins", "tools"];
+const WIPE_KEEP: &[&str] = &["plugins"];
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);

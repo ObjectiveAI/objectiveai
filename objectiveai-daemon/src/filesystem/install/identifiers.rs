@@ -1,4 +1,4 @@
-use super::{InstallError, InstallKind};
+use super::InstallError;
 
 /// Reject reserved repository names before any install side-effect.
 /// `objectiveai` (case-insensitive) is reserved because the viewer
@@ -37,19 +37,15 @@ fn validate_identifier(
 }
 
 /// Combined shape check for the three caller-supplied identifiers every
-/// install entry point takes. For [`InstallKind::Plugin`] the reserved
-/// repository-name check runs first (so a reserved-name failure takes
-/// precedence over a generic regex failure for the same input); tools
-/// skip it.
+/// install entry point takes. The reserved repository-name check runs
+/// first (so a reserved-name failure takes precedence over a generic
+/// regex failure for the same input).
 pub(crate) fn validate_install_inputs(
-    kind: InstallKind,
     owner: &str,
     repository: &str,
     commit_sha: Option<&str>,
 ) -> Result<(), InstallError> {
-    if matches!(kind, InstallKind::Plugin) {
-        check_repository_name(repository)?;
-    }
+    check_repository_name(repository)?;
     validate_identifier("owner", owner)?;
     validate_identifier("repository", repository)?;
     if let Some(sha) = commit_sha {

@@ -42,10 +42,6 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::swarms::Command,
     },
-    Tools {
-        #[command(subcommand)]
-        command: super::tools::Command,
-    },
     Update(super::update::Command),
     Channels {
         #[command(subcommand)]
@@ -85,8 +81,6 @@ pub enum Request {
     PythonResponseSchema(super::python::response_schema::Request),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::Request),
-    #[schemars(title = "Tools")]
-    Tools(super::tools::Request),
     #[schemars(title = "Update")]
     Update(super::update::Request),
     #[schemars(title = "UpdateRequestSchema")]
@@ -133,8 +127,6 @@ pub enum ResponseItem {
     PythonResponseSchema(super::python::response_schema::Response),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::ResponseItem),
-    #[schemars(title = "Tools")]
-    Tools(super::tools::ResponseItem),
     #[schemars(title = "Update")]
     Update(super::update::ResponseItem),
     #[schemars(title = "UpdateRequestSchema")]
@@ -163,7 +155,6 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::PythonRequestSchema(v) => v.into_mcp(),
             ResponseItem::PythonResponseSchema(v) => v.into_mcp(),
             ResponseItem::Swarms(v) => v.into_mcp(),
-            ResponseItem::Tools(v) => v.into_mcp(),
             ResponseItem::Update(v) => v.into_mcp(),
             ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
             ResponseItem::UpdateResponseSchema(v) => v.into_mcp(),
@@ -202,8 +193,6 @@ impl TryFrom<Subcommand> for Request {
             },
             Subcommand::Swarms { command } =>
                 Ok(Request::Swarms(super::swarms::Request::try_from(command)?)),
-            Subcommand::Tools { command } =>
-                Ok(Request::Tools(super::tools::Request::try_from(command)?)),
             Subcommand::Update(cmd) => match cmd.schema {
                 None => Ok(Request::Update(super::update::Request::try_from(cmd.args)?)),
                 Some(super::update::Schema::RequestSchema(args)) =>
@@ -258,7 +247,6 @@ impl super::CommandRequest for Request {
             Request::PythonRequestSchema(inner) => inner.request_base(),
             Request::PythonResponseSchema(inner) => inner.request_base(),
             Request::Swarms(inner) => inner.request_base(),
-            Request::Tools(inner) => inner.request_base(),
             Request::Update(inner) => inner.request_base(),
             Request::UpdateRequestSchema(inner) => inner.request_base(),
             Request::UpdateResponseSchema(inner) => inner.request_base(),
@@ -281,7 +269,6 @@ impl super::CommandRequest for Request {
             Request::PythonRequestSchema(inner) => inner.request_base_mut(),
             Request::PythonResponseSchema(inner) => inner.request_base_mut(),
             Request::Swarms(inner) => inner.request_base_mut(),
-            Request::Tools(inner) => inner.request_base_mut(),
             Request::Update(inner) => inner.request_base_mut(),
             Request::UpdateRequestSchema(inner) => inner.request_base_mut(),
             Request::UpdateResponseSchema(inner) => inner.request_base_mut(),
@@ -351,10 +338,6 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Swarms(req) => {
                 let inner = super::swarms::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
-            }
-            Request::Tools(req) => {
-                let inner = super::tools::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
             }
             Request::Update(req) => {
                 let inner = super::update::execute(executor, req, agent_arguments).await?;
@@ -439,10 +422,6 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             }
             Request::Swarms(req) => {
                 let inner = super::swarms::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Tools(req) => {
-                let inner = super::tools::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Update(req) => {
@@ -571,7 +550,6 @@ pub enum ListenerExecution {
     PythonRequestSchema(super::python::request_schema::ListenerExecution),
     PythonResponseSchema(super::python::response_schema::ListenerExecution),
     Swarms(super::swarms::ListenerExecution),
-    Tools(super::tools::ListenerExecution),
     Update(super::update::ListenerExecution),
     UpdateRequestSchema(super::update::request_schema::ListenerExecution),
     UpdateResponseSchema(super::update::response_schema::ListenerExecution),

@@ -33,7 +33,7 @@ use std::sync::Arc;
 
 use futures::Stream;
 use objectiveai_sdk::agent::ClientObjectiveaiMcpEntry;
-use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor, plugins, tools};
+use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor, plugins};
 use rmcp::model::{
     ClientCapabilities, ClientJsonRpcMessage, ClientRequest, GetExtensions, Implementation,
     InitializeRequestParams, JsonRpcRequest, JsonRpcVersion2_0, NumberOrString, ProtocolVersion,
@@ -76,9 +76,6 @@ pub struct HeaderSessionManager<E> {
     /// Used by [`Self::ensure_session`] to spawn a service end onto
     /// each lazily-created worker.
     service: ObjectiveAiMcpCli<E>,
-    /// Startup-captured tool manifest list, used to validate the
-    /// optional `X-OBJECTIVEAI-MCP-TOOLS` set at connect time.
-    tools_list: Arc<Vec<tools::list::ResponseItem>>,
     /// Startup-captured plugin manifest list, used to validate the
     /// optional `X-OBJECTIVEAI-MCP-PLUGINS` set at connect time.
     plugins_list: Arc<Vec<plugins::list::ResponseItem>>,
@@ -92,14 +89,12 @@ where
     pub fn new(
         registry: Arc<AgentArgumentsRegistry>,
         service: ObjectiveAiMcpCli<E>,
-        tools_list: Arc<Vec<tools::list::ResponseItem>>,
         plugins_list: Arc<Vec<plugins::list::ResponseItem>>,
     ) -> Self {
         Self {
             inner: Arc::new(LocalSessionManager::default()),
             registry,
             service,
-            tools_list,
             plugins_list,
         }
     }
@@ -121,12 +116,7 @@ where
         let args = extract_agent_args(message);
 
         let (mcp_root, mcp_tools, mcp_plugins) = extract_mcp_filter(message)?;
-        validate_mcp_filter(
-            mcp_tools.as_deref(),
-            mcp_plugins.as_deref(),
-            &self.tools_list,
-            &self.plugins_list,
-        )?;
+        validate_mcp_filter(mcp_plugins.as_deref(), &self.plugins_list)?;
 
         let state = Arc::new(SessionState {
             args,
@@ -215,12 +205,7 @@ where
         let args = extract_agent_args(&message);
 
         let (mcp_root, mcp_tools, mcp_plugins) = extract_mcp_filter(&message)?;
-        validate_mcp_filter(
-            mcp_tools.as_deref(),
-            mcp_plugins.as_deref(),
-            &self.tools_list,
-            &self.plugins_list,
-        )?;
+        validate_mcp_filter(mcp_plugins.as_deref(), &self.plugins_list)?;
 
         let state = Arc::new(SessionState {
             args,
@@ -470,32 +455,20 @@ fn extract_mcp_filter(
 }
 
 /// Validate that every `(owner, name, version)` triple in the
-/// caller-supplied `tools` / `plugins` filter exists in the
-/// startup-captured manifest lists. Missing entries reject the
-/// session via `error_invalid_input` — the caller shouldn't be
-/// declaring tools / plugins it can't reach. `None` filter ⇒ no
-/// check.
+/// caller-supplied `plugins` filter exists in the startup-captured
+/// manifest list. Missing entries reject the session via
+/// `error_invalid_input` — the caller shouldn't be declaring plugins
+/// it can't reach. `None` filter ⇒ no check.
+///
+/// The parallel `x-objectiveai-mcp-tools` filter is still parsed and
+/// carried on the session (and applied by the `list_tools` handler),
+/// but there is no longer a CLI-tools manifest to validate it
+/// against, so that membership check is dropped: declaring a tool
+/// simply matches nothing at advertise time.
 fn validate_mcp_filter(
-    tools: Option<&[ClientObjectiveaiMcpEntry]>,
     plugins: Option<&[ClientObjectiveaiMcpEntry]>,
-    tools_list: &[tools::list::ResponseItem],
     plugins_list: &[plugins::list::ResponseItem],
 ) -> Result<(), LocalSessionManagerError> {
-    if let Some(declared) = tools {
-        for entry in declared {
-            let found = tools_list.iter().any(|t| {
-                t.owner == entry.owner
-                    && t.name == entry.name
-                    && t.version == entry.version
-            });
-            if !found {
-                return Err(error_invalid_input(format!(
-                    "tool {}/{}@{} not installed",
-                    entry.owner, entry.name, entry.version
-                )));
-            }
-        }
-    }
     if let Some(declared) = plugins {
         for entry in declared {
             let found = plugins_list.iter().any(|p| {

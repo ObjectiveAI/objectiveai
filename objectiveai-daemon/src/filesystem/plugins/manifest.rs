@@ -1,7 +1,51 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::filesystem::tools::{CliZip, Exec};
+/// Per-OS exec command. Reused from the SDK plugins tier so the exec
+/// shape stays identical across the on-disk manifest and the `plugins
+/// get` wire response.
+pub use objectiveai_sdk::cli::command::plugins::get::Exec;
+
+/// Per-CPU-architecture cli bundle filenames for a single OS. Each
+/// entry is the GitHub-release `.zip` asset filename for that arch (or
+/// absent when not built for it). Arch keys follow the repo-wide
+/// convention (`x86_64` / `aarch64`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "filesystem.plugins.CliZipArch")]
+pub struct CliZipArch {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub x86_64: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub aarch64: Option<String>,
+}
+
+impl CliZipArch {
+    /// True when no arch entry is present — used by [`CliZip`]'s
+    /// `skip_serializing_if` so an OS with no bundles is omitted.
+    pub fn is_empty(&self) -> bool {
+        self.x86_64.is_none() && self.aarch64.is_none()
+    }
+}
+
+/// Per-OS cli bundle: the GitHub-release `.zip` asset filenames for
+/// each platform, split per CPU architecture (`x86_64` / `aarch64`).
+/// At install time the current platform's entry — matched on OS *and*
+/// arch — is downloaded and extracted into the `cli/` working
+/// directory. The `cli_zip` field itself is required; each per-OS and
+/// per-arch entry is optional — absent means nothing to fetch for that
+/// platform (e.g. a viewer-only plugin).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "filesystem.plugins.CliZip")]
+pub struct CliZip {
+    #[serde(default, skip_serializing_if = "CliZipArch::is_empty")]
+    pub windows: CliZipArch,
+    #[serde(default, skip_serializing_if = "CliZipArch::is_empty")]
+    pub linux: CliZipArch,
+    #[serde(default, skip_serializing_if = "CliZipArch::is_empty")]
+    pub macos: CliZipArch,
+}
 
 /// Declarative metadata a plugin ships with — the on-disk
 /// `objectiveai.json` at

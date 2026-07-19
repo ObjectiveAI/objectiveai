@@ -12,7 +12,6 @@ use envconfig::Envconfig;
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::plugins;
-use objectiveai_sdk::cli::command::tools;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
 use tokio_util::sync::CancellationToken;
 
@@ -127,17 +126,13 @@ where
 
     let executor = Arc::new(executor);
 
-    // Discover registered plugins + tools concurrently — both are
-    // independent SDK calls that each spawn one cli subprocess.
-    // The lists are shared (via Arc) between `with_plugins_and_tools`
-    // (which registers one dynamic tool per entry) and
-    // `HeaderSessionManager::new` (which validates the optional
-    // `X-OBJECTIVEAI-MCP-{TOOLS,PLUGINS}` filter sets against the
+    // Discover registered plugins at startup — one SDK call that
+    // spawns a single cli subprocess. The list is shared (via Arc)
+    // between `with_plugins` (which registers one dynamic tool per
+    // entry) and `HeaderSessionManager::new` (which validates the
+    // optional `X-OBJECTIVEAI-MCP-PLUGINS` filter set against the
     // same installed manifest at connect time).
-    let (plugins_list, tools_list) =
-        tokio::join!(list_plugins(&*executor), list_tools(&*executor));
-    let plugins_list = Arc::new(plugins_list);
-    let tools_list = Arc::new(tools_list);
+    let plugins_list = Arc::new(list_plugins(&*executor).await);
 
     // Shared per-rmcp-session bag of SessionState (wraps the
     // legacy AgentArguments identity bag alongside the three
@@ -147,16 +142,14 @@ where
     // hand-written `list_tools` handler.
     let registry = Arc::new(AgentArgumentsRegistry::new());
 
-    let server = ObjectiveAiMcpCli::with_plugins_and_tools(
+    let server = ObjectiveAiMcpCli::with_plugins(
         executor.clone(),
         (*plugins_list).clone(),
-        (*tools_list).clone(),
         registry.clone(),
     );
     let session_manager = Arc::new(HeaderSessionManager::new(
         registry.clone(),
         server.clone(),
-        tools_list.clone(),
         plugins_list.clone(),
     ));
     let ct = CancellationToken::new();
@@ -233,24 +226,6 @@ where
         base: Default::default(),
     };
     match plugins::list::execute(executor, request, None).await {
-        Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
-        Err(_) => Vec::new(),
-    }
-}
-
-/// Best-effort tool discovery; same shape as `list_plugins`.
-async fn list_tools<E>(executor: &E) -> Vec<tools::list::ResponseItem>
-where
-    E: CommandExecutor + Send + Sync + 'static,
-    E::Error: std::fmt::Display + Send + 'static,
-{
-    let request = tools::list::Request {
-        path_type: tools::list::Path::ToolsList,
-        offset: None,
-        limit: None,
-        base: Default::default(),
-    };
-    match tools::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
         Err(_) => Vec::new(),
     }

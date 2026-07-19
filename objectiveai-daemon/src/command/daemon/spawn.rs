@@ -68,7 +68,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
             crate::spawn::apply_config_env(cmd, global, scoped);
             // The foreground daemon reads its bind config as bare
             // `ADDRESS`/`PORT`/`SECRET`; stamp them here (never for
-            // plugins/tools).
+            // plugins).
             crate::spawn::apply_daemon_env(cmd, global);
             // The resident daemon is a per-state singleton service, not
             // part of any agent's lineage. Since the producer tee makes

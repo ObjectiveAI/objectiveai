@@ -12,18 +12,9 @@ use std::path::PathBuf;
 
 use super::{InstallError, build_headers, validate_install_inputs};
 use crate::filesystem::Client;
-use crate::filesystem::tools::CliZip;
+use crate::filesystem::plugins::CliZip;
 
 /// Which install kind a manifest belongs to — selects the on-disk dir
-/// layout (`tool_dir`/`tool_cli_dir` vs `plugin_dir`/`plugin_cli_dir`)
-/// and whether the reserved-repository-name check applies (plugins
-/// only).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InstallKind {
-    Tool,
-    Plugin,
-}
-
 /// A non-cli release zip the engine fetches and extracts: the asset
 /// filename (from the manifest) plus the subdir of the version folder
 /// it extracts into. Plugins yield one of these for `viewer_zip` →
@@ -34,11 +25,10 @@ pub(crate) struct ExtraAsset {
 }
 
 /// The install-relevant surface a manifest exposes to the engine.
-/// Implemented by `tools::Manifest` and `plugins::Manifest`.
+/// Implemented by `plugins::Manifest`.
 pub(crate) trait InstallManifest:
     serde::Serialize + serde::de::DeserializeOwned + Send
 {
-    const KIND: InstallKind;
     /// Validate fields serde alone can't enforce. Called after parse.
     /// (Named distinctly from the manifests' inherent `validate` so impl
     /// bodies can delegate to that inherent method unambiguously.)
@@ -136,24 +126,17 @@ async fn download_zip(
 }
 
 impl Client {
-    /// `(version_dir, cli_dir)` for the given kind/coordinate.
+    /// `(version_dir, cli_dir)` for the given plugin coordinate.
     fn install_dirs(
         &self,
-        kind: InstallKind,
         owner: &str,
         repository: &str,
         version: &str,
     ) -> (PathBuf, PathBuf) {
-        match kind {
-            InstallKind::Tool => (
-                self.tool_dir(owner, repository, version),
-                self.tool_cli_dir(owner, repository, version),
-            ),
-            InstallKind::Plugin => (
-                self.plugin_dir(owner, repository, version),
-                self.plugin_cli_dir(owner, repository, version),
-            ),
-        }
+        (
+            self.plugin_dir(owner, repository, version),
+            self.plugin_cli_dir(owner, repository, version),
+        )
     }
 
     /// Fetch `<raw_base>/<owner>/<repo>/<ref>/objectiveai.json`, parse
@@ -214,7 +197,7 @@ impl Client {
     ) -> Result<bool, crate::filesystem::Error> {
         let version = manifest.version();
         let (version_dir, cli_dir) =
-            self.install_dirs(M::KIND, owner, repository, version);
+            self.install_dirs(owner, repository, version);
         let manifest_path = version_dir.join("objectiveai.json");
 
         // 1. Existing-install check: the manifest sibling file is the
@@ -315,7 +298,7 @@ impl Client {
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, crate::filesystem::Error> {
-        validate_install_inputs(M::KIND, owner, repository, commit_sha)?;
+        validate_install_inputs(owner, repository, commit_sha)?;
         let manifest = self
             .fetch_manifest_at::<M>(raw_base, owner, repository, commit_sha, headers)
             .await?;

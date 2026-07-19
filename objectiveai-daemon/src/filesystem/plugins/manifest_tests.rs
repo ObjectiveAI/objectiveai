@@ -1,5 +1,5 @@
 use super::*;
-use crate::filesystem::tools::{CliZip, CliZipArch, Exec};
+use crate::filesystem::plugins::{CliZip, CliZipArch, Exec};
 
 /// A minimal valid manifest: every required field set, no viewer/mcp
 /// extras. Tests below clone this and override the fields they care

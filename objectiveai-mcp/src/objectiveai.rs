@@ -19,7 +19,6 @@ use objectiveai_sdk::cli::command::RequestBase;
 use objectiveai_sdk::cli::command::Transform;
 use objectiveai_sdk::cli::command::parse_request;
 use objectiveai_sdk::cli::command::plugins;
-use objectiveai_sdk::cli::command::tools;
 use rmcp::{
     ServerHandler,
     handler::server::router::tool::{ToolRoute, ToolRouter},
@@ -76,26 +75,6 @@ pub struct PluginRequest {
     pub python: Option<String>,
 }
 
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct ToolRequest {
-    #[schemars(description = "Args appended verbatim to the tool's exec command.")]
-    pub args: Vec<String>,
-    #[schemars(
-        description = "Timeout for the whole command, humantime (e.g. \"30s\", \"5m\", \"1h30m\")."
-    )]
-    pub timeout: String,
-    #[schemars(description = "Output token budget for the response.")]
-    pub max_tokens: u64,
-    #[schemars(
-        description = "Optional jq filter applied to each output line. Return null to discard the output line. Ignored when `python` is also set."
-    )]
-    pub jq: Option<String>,
-    #[schemars(
-        description = "Optional Python transform applied to each output line. The item arrives as the global `input`; print the transformed result as valid JSON, or return null to discard the output line. Overrides `jq` when both are set."
-    )]
-    pub python: Option<String>,
-}
-
 /// Validate the shared `timeout` / `max_tokens` tool arguments. Parses
 /// the humantime `timeout` to whole seconds (erroring on a bad string
 /// or a sub-second-rounds-to-zero value) and rejects a zero
@@ -133,18 +112,10 @@ pub struct ObjectiveAiMcpCli<E> {
     /// this registry to recover the caller's identity — request
     /// headers on non-initialize calls are intentionally ignored.
     pub registry: Arc<AgentArgumentsRegistry>,
-    /// Tool-name → manifest triple for every CLI tool registered as
-    /// a dynamic route. Used by the hand-written `list_tools`
-    /// handler to classify each routed tool by origin and apply the
-    /// per-session `X-OBJECTIVEAI-MCP-TOOLS` filter.
-    pub tools_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry>,
-    /// Same as `tools_by_tool_name`, but for CLI plugins. A
-    /// tool-name collision between a plugin and a CLI tool ends up
-    /// classified as a *tool*: the existing `with_plugins_and_tools`
-    /// loop registers plugins first then tools, so
-    /// `tool_router.add_route` last-writer-wins makes the live
-    /// route a tool. The hand-written `list_tools` mirrors this by
-    /// checking `tools_by_tool_name` first.
+    /// Tool-name → manifest triple for every CLI plugin registered as
+    /// a dynamic route. Used by the hand-written `list_tools` handler
+    /// to classify each routed tool by origin and apply the
+    /// per-session `X-OBJECTIVEAI-MCP-PLUGINS` filter.
     pub plugins_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry>,
 }
 
@@ -154,7 +125,6 @@ impl<E> Clone for ObjectiveAiMcpCli<E> {
             tool_router: self.tool_router.clone(),
             executor: self.executor.clone(),
             registry: self.registry.clone(),
-            tools_by_tool_name: self.tools_by_tool_name.clone(),
             plugins_by_tool_name: self.plugins_by_tool_name.clone(),
         }
     }
@@ -166,27 +136,21 @@ where
     E: CommandExecutor + Send + Sync + 'static,
     E::Error: std::fmt::Display + Send + 'static,
 {
-    /// Build a handler with one dynamic tool per discovered CLI plugin
-    /// and CLI tool, plus the static `ObjectiveAI` catch-all. Plugins
-    /// and tools are listed once at server startup (see `run::setup`);
-    /// this constructor is not re-invoked when either is added later,
-    /// so hot reload is intentionally out of scope.
+    /// Build a handler with one dynamic tool per discovered CLI plugin,
+    /// plus the static `ObjectiveAI` catch-all. Plugins are listed once
+    /// at server startup (see `run::setup`); this constructor is not
+    /// re-invoked when a plugin is added later, so hot reload is
+    /// intentionally out of scope.
     ///
-    /// Name collisions: if a CLI plugin and a CLI tool happen to share
-    /// a name (or with `ObjectiveAI`), the plugin registers first and
-    /// the tool's `add_route` overwrites it (last-writer-wins) — but
-    /// `ObjectiveAI` itself is always skipped on both sides so the
+    /// Name collisions: `ObjectiveAI` itself is always skipped so the
     /// built-in catch-all is never shadowed.
-    pub fn with_plugins_and_tools(
+    pub fn with_plugins(
         executor: Arc<E>,
         plugins_list: Vec<plugins::list::ResponseItem>,
-        tools_list: Vec<tools::list::ResponseItem>,
         registry: Arc<AgentArgumentsRegistry>,
     ) -> Self {
         let mut tool_router = Self::tool_router();
         let mut plugins_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry> =
-            HashMap::new();
-        let mut tools_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry> =
             HashMap::new();
         for plugin in plugins_list {
             if plugin.name == "ObjectiveAI" {
@@ -258,81 +222,10 @@ where
                 .boxed()
             }));
         }
-        for cli_tool in tools_list {
-            if cli_tool.name == "ObjectiveAI" {
-                continue;
-            }
-            tools_by_tool_name.insert(
-                cli_tool.tool_name(),
-                ClientObjectiveaiMcpEntry {
-                    owner: cli_tool.owner.clone(),
-                    name: cli_tool.name.clone(),
-                    version: cli_tool.version.clone(),
-                },
-            );
-            let tool_owner = cli_tool.owner.clone();
-            let tool_name = cli_tool.name.clone();
-            let tool_version = cli_tool.version.clone();
-            let executor_for_route = executor.clone();
-            let tool = Tool::new(
-                Cow::Owned(cli_tool.tool_name()),
-                Cow::Owned(cli_tool.description.clone()),
-                schema_for_type::<ToolRequest>(),
-            );
-            let registry_for_route = registry.clone();
-            tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
-                let executor = executor_for_route.clone();
-                let tool_owner = tool_owner.clone();
-                let tool_name = tool_name.clone();
-                let tool_version = tool_version.clone();
-                let registry = registry_for_route.clone();
-                let session_id = session_id_from_extensions(&ctx.request_context.extensions);
-                async move {
-                    let arguments = ctx.arguments.unwrap_or_default();
-                    let req: ToolRequest = parse_json_object(arguments)?;
-                    let (timeout_seconds, max_tokens) =
-                        match parse_caps(&req.timeout, req.max_tokens) {
-                            Ok(v) => v,
-                            Err(msg) => {
-                                let item = synthetic_error(msg).into_mcp();
-                                return Ok(CallToolResult::success(format_items(vec![item])));
-                            }
-                        };
-                    let transform = build_transform(req.jq, req.python);
-                    let request = tools::run::Request {
-                        path_type: tools::run::Path::ToolsRun,
-                        owner: tool_owner,
-                        name: tool_name,
-                        version: tool_version,
-                        args: req.args,
-                        base: RequestBase {
-                            jq: None,
-                            python: None,
-                            timeout_seconds: Some(timeout_seconds),
-                            max_tokens: Some(max_tokens),
-                        },
-                    };
-                    let state = match session_id {
-                        Some(sid) => registry.get(&sid.into()).await,
-                        None => None,
-                    };
-                    let blocks = dispatch_tools_run(
-                        &*executor,
-                        request,
-                        transform,
-                        state.as_deref().map(|s| &s.args),
-                    )
-                    .await;
-                    Ok(CallToolResult::success(blocks))
-                }
-                .boxed()
-            }));
-        }
         Self {
             tool_router,
             executor,
             registry,
-            tools_by_tool_name,
             plugins_by_tool_name,
         }
     }
@@ -479,40 +372,6 @@ where
     }
 }
 
-async fn dispatch_tools_run<E>(
-    executor: &E,
-    request: tools::run::Request,
-    transform: Option<Transform>,
-    agent_arguments: Option<&AgentArguments>,
-) -> Vec<rmcp::model::Content>
-where
-    E: CommandExecutor,
-    E::Error: std::fmt::Display,
-{
-    match transform {
-        None => {
-            let stream = match tools::run::execute(executor, request, agent_arguments).await {
-                Ok(s) => s,
-                Err(e) => {
-                    return format_items(vec![convert::<tools::run::ResponseItem, _>(Err(e))]);
-                }
-            };
-            let items: Vec<McpResponseItem> =
-                stream.map(convert::<tools::run::ResponseItem, _>).collect().await;
-            format_items(items)
-        }
-        Some(t) => {
-            let stream =
-                match tools::run::execute_transform(executor, request, t, agent_arguments).await {
-                    Ok(s) => s,
-                    Err(e) => return format_items(vec![convert_value(Err(e))]),
-                };
-            let items: Vec<McpResponseItem> = stream.map(convert_value).collect().await;
-            format_items(items)
-        }
-    }
-}
-
 /// Collapse a `Result<T, ExecErr>` (the executor's per-item shape)
 /// into an `McpResponseItem`. The executor's error gets formatted
 /// via `Display` into a synthetic `cli::Error` so it renders through
@@ -558,17 +417,15 @@ fn synthetic_error(message: impl Into<String>) -> CliError {
 //
 // Classification order in `list_tools`:
 //   1. `ObjectiveAI` ⇒ gated on `filter.root`.
-//   2. Tool name in `tools_by_tool_name` ⇒ filtered by
-//      `filter.tools` (None ⇒ allow; Some ⇒ membership check).
-//   3. Tool name in `plugins_by_tool_name` ⇒ same with
-//      `filter.plugins`.
-//   4. Anything else ⇒ allow (defensive; the existing route loop
-//      registers nothing outside those three categories).
+//   2. Tool name in `plugins_by_tool_name` ⇒ filtered by
+//      `filter.plugins` (None ⇒ allow; Some ⇒ membership check).
+//   3. Anything else ⇒ allow (defensive; the existing route loop
+//      registers nothing outside those two categories).
 //
 // No filter recorded for the session (no header parser ran, e.g.
-// GET-only flow) ⇒ behave as `root=true, tools=None, plugins=None`
-// — every tool advertised. Mirrors the user-spelled "absent ⇒
-// default" semantics for each field.
+// GET-only flow) ⇒ behave as `root=true, plugins=None` — every
+// tool advertised. Mirrors the user-spelled "absent ⇒ default"
+// semantics for each field.
 impl<E> ServerHandler for ObjectiveAiMcpCli<E>
 where
     E: CommandExecutor + Send + Sync + 'static,
@@ -608,7 +465,6 @@ where
             None => None,
         };
         let root = state.as_deref().map(|s| s.mcp_root).unwrap_or(true);
-        let tool_filter = state.as_deref().and_then(|s| s.mcp_tools.as_deref());
         let plugin_filter = state.as_deref().and_then(|s| s.mcp_plugins.as_deref());
 
         let tools = self
@@ -618,9 +474,6 @@ where
             .filter(|t| {
                 if t.name.as_ref() == "ObjectiveAI" {
                     return root;
-                }
-                if let Some(entry) = self.tools_by_tool_name.get(t.name.as_ref()) {
-                    return tool_filter.map_or(true, |f| f.contains(entry));
                 }
                 if let Some(entry) = self.plugins_by_tool_name.get(t.name.as_ref()) {
                     return plugin_filter.map_or(true, |f| f.contains(entry));

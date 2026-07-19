@@ -6,7 +6,6 @@ mod jq;
 pub mod plugins;
 pub mod publish;
 mod read;
-pub mod tools;
 pub(crate) mod util;
 
 pub use client::*;

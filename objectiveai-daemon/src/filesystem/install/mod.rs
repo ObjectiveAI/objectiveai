@@ -1,15 +1,15 @@
-//! Shared GitHub-install engine for tools and plugins. Holds the
+//! Shared GitHub-install engine for plugins. Holds the
 //! generic install engine + [`InstallManifest`] trait, the install
 //! error type, the install/identifier validators, and the install
 //! whitelist. The per-kind discovery + wrappers live in
-//! `filesystem::tools` and `filesystem::plugins`.
+//! `filesystem::plugins`.
 
 mod engine;
 mod error;
 mod identifiers;
 mod whitelist;
 
-pub use engine::*;
+pub(crate) use engine::*;
 pub use error::*;
 pub use identifiers::*;
 pub use whitelist::*;

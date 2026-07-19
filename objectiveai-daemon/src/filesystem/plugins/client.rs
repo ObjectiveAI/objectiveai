@@ -18,11 +18,23 @@
 use std::path::{Path, PathBuf};
 
 use super::super::Client;
-use super::Manifest;
+use super::{Exec, Manifest};
 use crate::filesystem::install::{
-    ExtraAsset, InstallKind, InstallManifest, platform_cli_zip,
-    validate_install_inputs,
+    ExtraAsset, InstallManifest, platform_cli_zip, validate_install_inputs,
 };
+
+/// The current platform's exec vector from a per-OS [`Exec`]. At run
+/// time it is appended with the caller's args and invoked with CWD =
+/// the plugin version folder's `cli/` subdir.
+pub(crate) fn platform_exec(exec: &Exec) -> Vec<String> {
+    if cfg!(target_os = "windows") {
+        exec.windows.clone()
+    } else if cfg!(target_os = "macos") {
+        exec.macos.clone()
+    } else {
+        exec.linux.clone()
+    }
+}
 
 /// Parse an on-disk `objectiveai.json` into a [`Manifest`] (and
 /// [`Manifest::validate`] it). The manifest declares its own `owner` /
@@ -104,10 +116,7 @@ impl Client {
     ) -> Option<(Vec<String>, PathBuf)> {
         let manifest = self.get_plugin(owner, name, version).await?;
         let cli_dir = self.plugin_cli_dir(owner, name, version);
-        Some((
-            crate::filesystem::tools::platform_exec(&manifest.exec),
-            cli_dir,
-        ))
+        Some((platform_exec(&manifest.exec), cli_dir))
     }
 
     /// Look up a single plugin manifest by coordinate. Reads
@@ -236,7 +245,7 @@ impl Client {
         let _ = source;
         // Public entry — callers may hand us a manifest with no fetch
         // ever happening, so validate inputs here (cheap + idempotent).
-        validate_install_inputs(InstallKind::Plugin, owner, repository, None)?;
+        validate_install_inputs(owner, repository, None)?;
         self.install_parsed_at::<Manifest>(
             "https://github.com",
             owner,
@@ -292,7 +301,6 @@ impl Client {
 /// Plugins install via the shared engine: cli bundle + a viewer bundle
 /// (when `viewer_zip` is declared), under the `plugins/` dir tree.
 impl InstallManifest for Manifest {
-    const KIND: InstallKind = InstallKind::Plugin;
     fn validate_manifest(&self) -> Result<(), &'static str> {
         self.validate()
     }

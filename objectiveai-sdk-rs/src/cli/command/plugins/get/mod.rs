@@ -32,6 +32,25 @@ impl CommandRequest for Request {
 
 pub type Response = Option<ResponseManifest>;
 
+/// Per-OS exec command for a plugin's cli side. The current platform's
+/// vector is the program plus its leading arguments; the caller's
+/// `--args` are appended, and the result runs with CWD = the plugin's
+/// version-folder `cli/` subdir (`objectiveai.json` lives in the
+/// version folder).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.get.Exec")]
+pub struct Exec {
+    pub windows: Vec<String>,
+    pub linux: Vec<String>,
+    pub macos: Vec<String>,
+}
+
+impl Exec {
+    pub fn is_empty(&self) -> bool {
+        self.windows.is_empty() && self.linux.is_empty() && self.macos.is_empty()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.get.ResponseManifest")]
 pub struct ResponseManifest {
@@ -40,10 +59,9 @@ pub struct ResponseManifest {
     pub version: String,
     pub description: String,
     /// Per-OS exec argv for the plugin's cli side, run with CWD =
-    /// `<plugin dir>/cli/` — the same shape tools use. Required (an
-    /// empty exec is a viewer-only plugin, which still round-trips as
-    /// an empty per-OS object).
-    pub exec: crate::cli::command::tools::get::Exec,
+    /// `<plugin dir>/cli/`. Required (an empty exec is a viewer-only
+    /// plugin, which still round-trips as an empty per-OS object).
+    pub exec: Exec,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
