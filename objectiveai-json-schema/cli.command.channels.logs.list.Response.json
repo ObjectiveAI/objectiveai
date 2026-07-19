@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.channels.logs.list.Response",
+  "description": "The listed entries, ascending by id.",
+  "type": "object",
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.channels.logs.list.ChannelLogEntry"
+      }
+    }
+  }
+}

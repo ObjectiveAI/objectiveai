@@ -1,0 +1,8 @@
+{
+  "title": "cli.command.channels.logs.subscribe.ChannelClosedTag",
+  "description": "Single-variant enum whose lone variant serializes as the literal\nstring `\"channel_closed\"`.",
+  "type": "string",
+  "enum": [
+    "channel_closed"
+  ]
+}

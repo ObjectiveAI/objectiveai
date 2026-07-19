@@ -66,8 +66,8 @@
       "$ref": "cli.command.update.response_schema.Request"
     },
     {
-      "title": "User",
-      "$ref": "cli.command.user.Request"
+      "title": "Channels",
+      "$ref": "cli.command.channels.Request"
     },
     {
       "title": "Viewer",

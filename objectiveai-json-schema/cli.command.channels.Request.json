@@ -1,0 +1,21 @@
+{
+  "title": "cli.command.channels.Request",
+  "anyOf": [
+    {
+      "title": "Publish",
+      "$ref": "cli.command.channels.publish.Request"
+    },
+    {
+      "title": "PublishRequestSchema",
+      "$ref": "cli.command.channels.publish.request_schema.Request"
+    },
+    {
+      "title": "PublishResponseSchema",
+      "$ref": "cli.command.channels.publish.response_schema.Request"
+    },
+    {
+      "title": "Logs",
+      "$ref": "cli.command.channels.logs.Request"
+    }
+  ]
+}

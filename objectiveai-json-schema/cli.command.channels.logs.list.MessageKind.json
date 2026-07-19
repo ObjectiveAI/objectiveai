@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.channels.logs.list.MessageKind",
+  "description": "Which side of the channel an entry came from — `request` is\npublisher→owner, `reply` is owner→publisher.",
+  "type": "string",
+  "enum": [
+    "request",
+    "reply"
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "title": "cli.channel_listener.ChannelAcceptOutcome",
+  "description": "The daemon's answer to one `POST /channels/{id}/accept`. Carries\nNO secret — on success the owner secret arrives over the SSE.",
+  "anyOf": [
+    {
+      "title": "Accepted",
+      "description": "The offer was accepted: the owner secret is being delivered\nover this connection's SSE, and the publisher's command\nunblocks.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "accepted"
+          ]
+        }
+      }
+    },
+    {
+      "title": "AlreadyAccepted",
+      "description": "The offer was already accepted by someone else.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "already_accepted"
+          ]
+        }
+      }
+    },
+    {
+      "title": "NotFound",
+      "description": "No open offer with that channel id.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "not_found"
+          ]
+        }
+      }
+    },
+    {
+      "title": "UnknownConnection",
+      "description": "The presented `S_conn` maps to no live connection.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "unknown_connection"
+          ]
+        }
+      }
+    }
+  ]
+}

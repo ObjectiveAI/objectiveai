@@ -1,0 +1,65 @@
+{
+  "title": "cli.command.channels.logs.list.ChannelLogEntry",
+  "description": "One channel-log entry ENVELOPE — no content (open reveals that).\nIdentity is INLINE (the sender AIH + the originating plugin),\nmirroring the sender-only shape `agents logs` surfaces — not the\nfull argument bag. Daemon-authored (unspoofable).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "The entry's `channel_messages.id` — the cursor for `--after-id`\nand the `--entry-id` for `channels logs open`.",
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "kind": {
+      "$ref": "cli.command.channels.logs.list.MessageKind"
+    },
+    "plugin_owner": {
+      "description": "The originating plugin (owner/repository/version) — present only\nwhen a plugin sent the entry.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "plugin_repository": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "plugin_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "sender_agent_instance_hierarchy": {
+      "description": "The AIH of the agent that sent the entry.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timestamp": {
+      "description": "RFC3339 delivery time.",
+      "type": "string"
+    }
+  }
+}

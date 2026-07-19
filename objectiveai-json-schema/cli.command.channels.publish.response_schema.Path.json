@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.channels.publish.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "channels/publish/response_schema"
+  ]
+}

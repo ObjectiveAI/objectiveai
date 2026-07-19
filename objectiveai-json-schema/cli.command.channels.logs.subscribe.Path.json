@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.channels.logs.subscribe.Path",
+  "type": "string",
+  "enum": [
+    "channels/logs/subscribe"
+  ]
+}

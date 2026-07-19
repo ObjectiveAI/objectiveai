@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.channels.publish.Response",
+  "description": "The accepted channel: its id and the publisher's per-channel secret\n(`S_pub`).",
+  "type": "object",
+  "properties": {
+    "channel_id": {
+      "type": "string"
+    },
+    "secret": {
+      "description": "The publisher's per-channel capability. Present it to\n`channels logs request` / `list` / `open` / `subscribe`.",
+      "type": "string"
+    }
+  }
+}

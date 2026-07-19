@@ -1,0 +1,87 @@
+{
+  "title": "cli.command.channels.logs.open.Response",
+  "description": "The opened entry (envelope + content), or `not_found`.",
+  "anyOf": [
+    {
+      "title": "Entry",
+      "type": "object",
+      "properties": {
+        "content": {},
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "kind": {
+          "$ref": "cli.command.channels.logs.list.MessageKind"
+        },
+        "plugin_owner": {
+          "description": "The originating plugin — present only when a plugin sent it.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "plugin_repository": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "plugin_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "sender_agent_instance_hierarchy": {
+          "description": "The AIH of the agent that sent the entry.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "entry"
+          ]
+        }
+      }
+    },
+    {
+      "title": "NotFound",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "not_found"
+          ]
+        }
+      }
+    }
+  ]
+}

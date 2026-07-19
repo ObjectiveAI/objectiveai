@@ -1,0 +1,102 @@
+{
+  "title": "cli.channel_listener.ChannelEvent",
+  "description": "One frame on the `GET /channels` SSE stream.",
+  "anyOf": [
+    {
+      "title": "Connection",
+      "description": "This connection's secret (`S_conn`) — ALWAYS the first frame.\nPresent it to accept an offer.",
+      "type": "object",
+      "properties": {
+        "secret": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "connection"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Offer",
+      "description": "A channel offer — live broadcast or connect-time replay.",
+      "type": "object",
+      "properties": {
+        "offer": {
+          "$ref": "cli.channel_listener.ChannelOffer"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "offer"
+          ]
+        }
+      }
+    },
+    {
+      "title": "OfferWithdrawn",
+      "description": "The offer is no longer available (accepted elsewhere, or the\npublisher abandoned it). Sent only to connections that saw it.",
+      "type": "object",
+      "properties": {
+        "channel_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "offer_withdrawn"
+          ]
+        }
+      }
+    },
+    {
+      "title": "OwnerSecret",
+      "description": "The owner secret (`S_owner`) for a channel THIS connection just\naccepted — sent ONLY to the accepting connection, NEVER in the\naccept POST response.",
+      "type": "object",
+      "properties": {
+        "channel_id": {
+          "type": "string"
+        },
+        "secret": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "owner_secret"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Closed",
+      "description": "An open channel closed (owner dropped / ended): no further\nrequests or replies are accepted, though the log survives.",
+      "type": "object",
+      "properties": {
+        "channel_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "closed"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Live",
+      "description": "The connect-time replay is complete — this connection is caught\nup. Sent exactly once per connection, right after the replay.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "live"
+          ]
+        }
+      }
+    }
+  ]
+}
