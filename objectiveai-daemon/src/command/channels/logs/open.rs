@@ -21,13 +21,19 @@ pub async fn execute(
         Error::Instance("secret does not authorize this channel".to_string())
     })?;
     match channels::read_content_by_id(&db, &request.channel_id, request.entry_id).await? {
-        Some(entry) => Ok(Response::Entry {
-            id: entry.id,
-            timestamp: crate::db::time::unix_to_rfc3339(entry.delivered_at),
-            kind: super::list::to_kind(entry.direction),
-            identity: super::list::to_identity(entry.identity),
-            content: entry.content,
-        }),
+        Some(entry) => {
+            let identity = entry.identity;
+            Ok(Response::Entry {
+                id: entry.id,
+                timestamp: crate::db::time::unix_to_rfc3339(entry.delivered_at),
+                kind: super::list::to_kind(entry.direction),
+                sender_agent_instance_hierarchy: identity.agent_instance_hierarchy,
+                plugin_owner: identity.plugin_owner,
+                plugin_repository: identity.plugin_repository,
+                plugin_version: identity.plugin_version,
+                content: entry.content,
+            })
+        }
         None => Ok(Response::NotFound),
     }
 }
