@@ -3,7 +3,7 @@ mod connection;
 mod error;
 pub mod initialize_result;
 mod json_rpc;
-mod mcp_command_executor;
+mod mcp_client_command_executor;
 pub mod queue_notification;
 pub mod resource;
 /// `objectiveai mcp` <-> `rmcp` conversions. The mcp type is always the
@@ -19,6 +19,6 @@ pub use client::*;
 pub use connection::*;
 pub use error::*;
 pub use json_rpc::*;
-pub use mcp_command_executor::*;
+pub use mcp_client_command_executor::*;
 pub use session::*;
 pub(crate) use transport::*;

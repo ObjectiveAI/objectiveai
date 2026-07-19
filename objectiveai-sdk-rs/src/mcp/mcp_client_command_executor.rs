@@ -5,22 +5,25 @@
 //! that it is willing to fulfill CLI command requests the server sends
 //! back over the connection's standing SSE stream. When a command
 //! request arrives on that stream, the connection hands the request to
-//! its [`McpCommandExecutor`] implementor and pumps the resulting stream
+//! its [`McpClientCommandExecutor`] implementor and pumps the resulting stream
 //! back to the server — one POST per item, in order, then a terminal
 //! frame.
 //!
-//! This trait is the mirror of the `cli::command::CommandExecutor`
+//! This trait is the mirror of the
+//! [`cli::command::CommandExecutor`](crate::cli::command::CommandExecutor)
 //! trait, and deliberately not the same trait: `CommandExecutor` is the
 //! REQUESTING side (mint a request, consume the result stream — its
 //! generics let the caller pick typed request/response leaves), while
-//! `McpCommandExecutor` is the FULFILLING side (run a request that
-//! arrived off the wire). The connection is a transport, so everything
-//! here is wire-shaped [`serde_json::Value`]s: the `mcp` feature cannot
-//! see the `cli` feature's types (`cli` depends on `mcp`, not the
-//! reverse), and the connection never interprets the payloads it
-//! carries — implementors deserialize the request into the typed
-//! `cli.command.Request` themselves and yield items already shaped for
-//! the wire.
+//! `McpClientCommandExecutor` is the FULFILLING side (run a request
+//! that arrived off the wire) — named from the perspective of the MCP
+//! CLIENT, the party that executes commands the MCP server requests.
+//! Requests come in typed — the connection deserializes the wire
+//! payload into a
+//! [`cli::command::Request`](crate::cli::command::Request) before
+//! dispatching, so implementors never touch the envelope — while items
+//! go out as wire-shaped [`serde_json::Value`]s the connection POSTs
+//! back verbatim, never interpreting them. (The typed request is
+//! always nameable here: the `mcp` feature requires `cli`.)
 
 /// Fulfills CLI command requests arriving over an MCP connection's SSE
 /// stream.
@@ -34,7 +37,7 @@
 /// implementor inside its `Arc`'d inner state and calls it from the
 /// SSE listener task, so every implementor must already be shareable
 /// across tasks.
-pub trait McpCommandExecutor: Send + Sync + 'static {
+pub trait McpClientCommandExecutor: Send + Sync + 'static {
     /// Failure to start a run, or a per-item failure on the stream.
     /// `Display` is required (unlike `cli::command::CommandExecutor`,
     /// whose caller consumes errors natively) because the connection
@@ -47,21 +50,20 @@ pub trait McpCommandExecutor: Send + Sync + 'static {
         + Send
         + 'static;
 
-    /// Run one command request. `request` is the serialized
-    /// `cli.command.Request` JSON exactly as it arrived off the wire.
+    /// Run one command request, already deserialized off the wire by
+    /// the connection.
     ///
-    /// Returning `Err` means the run could not start (deserialization
-    /// failure, gate rejection, …); item-level failures after a
-    /// successful start ride the stream instead. The stream ending is
-    /// the end of the run — dropping the stream before it ends cancels
-    /// the run.
+    /// Returning `Err` means the run could not start (gate rejection,
+    /// backend unavailable, …); item-level failures after a successful
+    /// start ride the stream instead. The stream ending is the end of
+    /// the run — dropping the stream before it ends cancels the run.
     fn execute(
         &self,
-        request: serde_json::Value,
+        request: crate::cli::command::Request,
     ) -> impl Future<Output = Result<Self::Stream, Self::Error>> + Send;
 }
 
-/// The [`McpCommandExecutor`] for connections established WITHOUT the
+/// The [`McpClientCommandExecutor`] for connections established WITHOUT the
 /// command-execution extension.
 ///
 /// A connection that never declared the extension at connect time can
@@ -71,18 +73,18 @@ pub trait McpCommandExecutor: Send + Sync + 'static {
 /// is a connection-layer bug (routing a request to a connection that
 /// never offered to fulfill them), not a runtime condition to handle.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct UnimplementedMcpCommandExecutor;
+pub struct UnimplementedMcpClientCommandExecutor;
 
-impl McpCommandExecutor for UnimplementedMcpCommandExecutor {
+impl McpClientCommandExecutor for UnimplementedMcpClientCommandExecutor {
     type Error = std::convert::Infallible;
     type Stream = futures_util::stream::Empty<Result<serde_json::Value, Self::Error>>;
 
     async fn execute(
         &self,
-        _request: serde_json::Value,
+        _request: crate::cli::command::Request,
     ) -> Result<Self::Stream, Self::Error> {
         unreachable!(
-            "UnimplementedMcpCommandExecutor::execute: this connection was \
+            "UnimplementedMcpClientCommandExecutor::execute: this connection was \
              established without the command-execution extension, so the \
              server can never route a command request to it"
         )
