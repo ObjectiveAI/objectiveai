@@ -1,4 +1,5 @@
 mod client;
+mod command_execution;
 mod connection;
 mod error;
 pub mod initialize_result;
@@ -15,6 +16,7 @@ pub mod tool;
 mod transport;
 
 pub use client::*;
+pub use command_execution::*;
 pub use connection::*;
 pub use error::*;
 pub use json_rpc::*;
