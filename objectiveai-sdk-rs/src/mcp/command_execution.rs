@@ -5,7 +5,7 @@
 //! that it is willing to fulfill CLI command requests the server sends
 //! back over the connection's standing SSE stream. When a command
 //! request arrives on that stream, the connection hands the request to
-//! its [`CommandExecution`] implementor and pumps the resulting stream
+//! its [`McpCommandExecutor`] implementor and pumps the resulting stream
 //! back to the server — one POST per item, in order, then a terminal
 //! frame.
 //!
@@ -13,7 +13,7 @@
 //! trait, and deliberately not the same trait: `CommandExecutor` is the
 //! REQUESTING side (mint a request, consume the result stream — its
 //! generics let the caller pick typed request/response leaves), while
-//! `CommandExecution` is the FULFILLING side (run a request that
+//! `McpCommandExecutor` is the FULFILLING side (run a request that
 //! arrived off the wire). The connection is a transport, so everything
 //! here is wire-shaped [`serde_json::Value`]s: the `mcp` feature cannot
 //! see the `cli` feature's types (`cli` depends on `mcp`, not the
@@ -34,7 +34,7 @@
 /// implementor inside its `Arc`'d inner state and calls it from the
 /// SSE listener task, so every implementor must already be shareable
 /// across tasks.
-pub trait CommandExecution: Send + Sync + 'static {
+pub trait McpCommandExecutor: Send + Sync + 'static {
     /// Failure to start a run, or a per-item failure on the stream.
     /// `Display` is required (unlike `cli::command::CommandExecutor`,
     /// whose caller consumes errors natively) because the connection
@@ -61,7 +61,7 @@ pub trait CommandExecution: Send + Sync + 'static {
     ) -> impl Future<Output = Result<Self::Stream, Self::Error>> + Send;
 }
 
-/// The [`CommandExecution`] for connections established WITHOUT the
+/// The [`McpCommandExecutor`] for connections established WITHOUT the
 /// command-execution extension.
 ///
 /// A connection that never declared the extension at connect time can
@@ -71,9 +71,9 @@ pub trait CommandExecution: Send + Sync + 'static {
 /// is a connection-layer bug (routing a request to a connection that
 /// never offered to fulfill them), not a runtime condition to handle.
 #[derive(Debug, Clone, Copy, Default)]
-pub struct UnimplementedCommandExecution;
+pub struct UnimplementedMcpCommandExecutor;
 
-impl CommandExecution for UnimplementedCommandExecution {
+impl McpCommandExecutor for UnimplementedMcpCommandExecutor {
     type Error = std::convert::Infallible;
     type Stream = futures_util::stream::Empty<Result<serde_json::Value, Self::Error>>;
 
@@ -82,7 +82,7 @@ impl CommandExecution for UnimplementedCommandExecution {
         _request: serde_json::Value,
     ) -> Result<Self::Stream, Self::Error> {
         unreachable!(
-            "UnimplementedCommandExecution::execute: this connection was \
+            "UnimplementedMcpCommandExecutor::execute: this connection was \
              established without the command-execution extension, so the \
              server can never route a command request to it"
         )
