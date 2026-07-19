@@ -24,7 +24,7 @@ type CliCommandRequest struct {
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
 	UpdateResponseSchema *CliCommandUpdateResponseSchemaRequest 
-	User *CliCommandUserRequest 
+	Channels *CliCommandChannelsRequest 
 	Viewer *CliCommandViewerRequest 
 }
 
@@ -77,8 +77,8 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.UpdateResponseSchema != nil {
 		return json.Marshal(v.UpdateResponseSchema)
 	}
-	if v.User != nil {
-		return json.Marshal(v.User)
+	if v.Channels != nil {
+		return json.Marshal(v.Channels)
 	}
 	if v.Viewer != nil {
 		return json.Marshal(v.Viewer)
@@ -264,10 +264,10 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandUserRequest
+		var try CliCommandChannelsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
-			candidate.User = &try
+			candidate.Channels = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -306,7 +306,7 @@ func (v CliCommandRequest) Validate() error {
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }
 	if v.UpdateResponseSchema != nil { count++ }
-	if v.User != nil { count++ }
+	if v.Channels != nil { count++ }
 	if v.Viewer != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandRequest: exactly one variant must be set, got %d", count)
