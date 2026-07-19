@@ -47,7 +47,7 @@
 # phase — by construction, nothing happens.
 #
 # By default phase 1 ALSO compiles the integration-test fixture crates —
-# the plugin/tool stubs under tests/plugins/ and tests/tools/ that the cli
+# the plugin stubs under tests/plugins/ that the cli
 # integration tests build and exec. They're discovered by glob (no
 # hardcoded list, so new fixtures are picked up automatically), built in
 # the same cargo invocation as the product binaries, and never packaged
@@ -182,14 +182,14 @@ build_bin() {
 }
 
 # Print the cargo package name of every integration-test fixture crate
-# — the plugin/tool stubs under tests/plugins/ and tests/tools/ — one
+# — the plugin stubs under tests/plugins/ — one
 # per line. Discovery is by glob over their Cargo.toml `name` fields, so
-# a fixture added under either folder is co-built with no edit here.
-# Prints nothing if the folders are absent (the glob is nullglob-guarded
+# a fixture added under that folder is co-built with no edit here.
+# Prints nothing if the folder is absent (the glob is nullglob-guarded
 # by the `-f` test).
 discover_test_integration_crates() {
   local toml name
-  for toml in "$REPO_ROOT"/tests/plugins/*/Cargo.toml "$REPO_ROOT"/tests/tools/*/Cargo.toml; do
+  for toml in "$REPO_ROOT"/tests/plugins/*/Cargo.toml; do
     [ -f "$toml" ] || continue
     name=$(sed -n 's/^name *= *"\(.*\)"/\1/p' "$toml" | head -1)
     [ -n "$name" ] && printf '%s\n' "$name"
@@ -244,7 +244,7 @@ if [ "$NO_ZIP" != "1" ]; then
       FIXTURE_CRATES+=("$_fixture")
     done < <(discover_test_integration_crates)
     if [ "${#FIXTURE_CRATES[@]}" -gt 0 ]; then
-      echo "Co-building ${#FIXTURE_CRATES[@]} integration-test fixture crate(s) from tests/{plugins,tools}/."
+      echo "Co-building ${#FIXTURE_CRATES[@]} integration-test fixture crate(s) from tests/plugins/."
     fi
   fi
 

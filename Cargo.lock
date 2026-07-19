@@ -1845,10 +1845,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dea2df4cf52843e0452895c455a1a2cfbb842a1e7329671acf418fdc53ed4c59"
 
 [[package]]
-name = "error-tool"
-version = "2.0.10"
-
-[[package]]
 name = "etcetera"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2611,10 +2607,6 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 [[package]]
 name = "hello-plugin"
 version = "2.1.2"
-
-[[package]]
-name = "hello-tool"
-version = "2.0.10"
 
 [[package]]
 name = "hermit-abi"

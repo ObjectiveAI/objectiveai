@@ -13,9 +13,8 @@ members = [
     "objectiveai-sdk-rs-macros",
     "objectiveai-sdk-rs-pyo3",
     "objectiveai-sdk-rs-cffi", "objectiveai-daemon", "objectiveai-cli",
-    # Integration-test fixture crates — plugin and tool stubs the cli
-    # integration tests build and exec. Grouped under tests/ by kind:
-    # plugins under tests/plugins/, tools under tests/tools/.
+    # Integration-test fixture crates — plugin stubs the cli
+    # integration tests build and exec, grouped under tests/plugins/.
     "tests/plugins/test-mcp-plugin-named",
     "tests/plugins/hello-plugin",
     "tests/plugins/test-mcp-plugin",
@@ -23,8 +22,6 @@ members = [
     "tests/plugins/test-mcp-plugin-failing",
     "tests/plugins/daemon-echo-plugin",
     "tests/plugins/stderr-plugin",
-    "tests/tools/hello-tool",
-    "tests/tools/error-tool",
     "objectiveai-viewer/src-tauri",
     "tests/objectiveai-tests",
     "tests/objectiveai-api-tests",

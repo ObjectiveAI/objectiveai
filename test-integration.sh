@@ -158,9 +158,9 @@ fi
 export OBJECTIVEAI_ADDRESS
 echo "test-integration: api server at $OBJECTIVEAI_ADDRESS"
 
-# ── Step 6: install the plugin/tool fixtures ────────────────────────
+# ── Step 6: install the plugin fixtures ─────────────────────────────
 # The Rust integration tests exec these. Run every install.sh found under
-# tests/plugins and tests/tools in parallel; abort if any fails.
+# tests/plugins in parallel; abort if any fails.
 ipids=()
 inames=()
 while IFS= read -r installer; do
@@ -168,7 +168,7 @@ while IFS= read -r installer; do
   bash "$installer" >"$LOG_DIR/install-${iname}-${TIMESTAMP}.txt" 2>&1 &
   ipids+=("$!")
   inames+=("$iname")
-done < <(find "$REPO_ROOT/tests/plugins" "$REPO_ROOT/tests/tools" -name install.sh 2>/dev/null | sort)
+done < <(find "$REPO_ROOT/tests/plugins" -name install.sh 2>/dev/null | sort)
 
 ifailed=0
 for i in "${!ipids[@]}"; do
