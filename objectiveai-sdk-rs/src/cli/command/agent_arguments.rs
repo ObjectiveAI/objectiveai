@@ -101,6 +101,37 @@ impl AgentArguments {
         }
     }
 
+    /// The IDENTITY environment pairs — every `Some` field's
+    /// `(env name, value)`, agent identity AND the plugin trio. The
+    /// names are exactly [`crate::agent::RESERVED_LABORATORY_ENV`]:
+    /// the laboratory host stamps these onto every ephemeral
+    /// (agent/plugin) container at create, which is why
+    /// agent-laboratory `env` declarations may not use them. The
+    /// plugin trio is `Some` only when an AUTHORITY set it in-process
+    /// (wire-parsed bags always carry `None` there — see
+    /// [`Self::from_transient_headers`]).
+    pub fn identity_env(&self) -> Vec<(String, String)> {
+        [
+            (
+                "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
+                &self.agent_instance_hierarchy,
+            ),
+            ("OBJECTIVEAI_AGENT_ID", &self.agent_id),
+            ("OBJECTIVEAI_AGENT_FULL_ID", &self.agent_full_id),
+            ("OBJECTIVEAI_AGENT_REMOTE", &self.agent_remote),
+            ("OBJECTIVEAI_RESPONSE_ID", &self.response_id),
+            ("OBJECTIVEAI_RESPONSE_IDS", &self.response_ids),
+            ("OBJECTIVEAI_PLUGIN_OWNER", &self.plugin_owner),
+            ("OBJECTIVEAI_PLUGIN_REPOSITORY", &self.plugin_repository),
+            ("OBJECTIVEAI_PLUGIN_VERSION", &self.plugin_version),
+        ]
+        .into_iter()
+        .filter_map(|(name, value)| {
+            value.as_ref().map(|v| (name.to_string(), v.clone()))
+        })
+        .collect()
+    }
+
     /// Apply this bag to a child-process command: every `Some(v)`
     /// stamps the matching env var, every `None` env-removes it so
     /// the parent's value can't leak through. Called by

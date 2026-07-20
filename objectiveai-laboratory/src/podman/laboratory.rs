@@ -460,6 +460,9 @@ pub async fn create(
         &podman_image,
         mounts,
         env,
+        // Regular laboratories are multi-session/multi-identity —
+        // identity rides per-request headers, never container env.
+        &[],
         cwd,
         &label,
     )
@@ -473,6 +476,7 @@ pub async fn create(
 /// label records the WIRE image spec plus the agent provenance AND
 /// the response id (`Some` ⇔ ephemeral — the boot sweep removes it).
 /// Agent laboratories have no mounts.
+#[allow(clippy::too_many_arguments)]
 pub async fn create_agent_ephemeral(
     podman: &Podman,
     state: &str,
@@ -482,6 +486,7 @@ pub async fn create_agent_ephemeral(
     image: &objectiveai_sdk::laboratories::LaboratoryImage,
     resolved_image: &str,
     env: &[(String, String)],
+    identity_env: &[(String, String)],
     cwd: &str,
     agent_full_id: &str,
     response_id: &str,
@@ -505,6 +510,7 @@ pub async fn create_agent_ephemeral(
         resolved_image,
         &[],
         env,
+        identity_env,
         cwd,
         &label,
     )
@@ -527,6 +533,7 @@ async fn create_injected_container(
     podman_image: &str,
     mounts: &[Mount],
     env: &[(String, String)],
+    identity_env: &[(String, String)],
     cwd: &str,
     label: &Label,
 ) -> Result<(), Error> {
@@ -560,6 +567,14 @@ async fn create_injected_container(
             .arg(format!("{}:{}", m.host, m.container));
     }
     for (k, v) in env {
+        create_cmd.arg("-e").arg(format!("{k}={v}"));
+    }
+    // The AGENT-IDENTITY environment (ephemeral laboratories only —
+    // one completion per container, so the identity is static for the
+    // container's whole life). Appended AFTER the user's env so it
+    // wins; the SDK's agent-laboratory validate additionally rejects
+    // user declarations of these reserved names outright.
+    for (k, v) in identity_env {
         create_cmd.arg("-e").arg(format!("{k}={v}"));
     }
     // Force the MCP's bind port; appended after the user's env so it wins.
@@ -668,9 +683,9 @@ async fn create_injected_container(
 ///
 /// Deliberately minimal next to [`create`]: the image's OWN entrypoint
 /// runs the plugin's MCP server — NO `objectiveai-mcp-laboratory`
-/// injection, NO `--entrypoint` override, NO env (the author declared
-/// the listen port in the plugin manifest, so there is nothing to
-/// force). The manifest port is published to a random loopback host
+/// injection, NO `--entrypoint` override, and no env beyond the
+/// AGENT-IDENTITY set (the author declared the listen port in the
+/// plugin manifest, so there is nothing to force). The manifest port is published to a random loopback host
 /// port ([`host_port`] resolves it with `plugin.port` as the internal
 /// port), and the `objectiveai.laboratory` label records the localhost
 /// image reference, the [`PluginLabel`], and the completion's
@@ -682,6 +697,7 @@ pub async fn create_plugin(
     image: &objectiveai_sdk::laboratories::RegistryLaboratoryImage,
     plugin: &PluginLabel,
     response_id: &str,
+    identity_env: &[(String, String)],
 ) -> Result<(), Error> {
     let exe = podman.executable().await?;
     let name = container_name(state, id);
@@ -699,12 +715,21 @@ pub async fn create_plugin(
     };
     let label_json = serde_json::to_string(&label)
         .map_err(|e| Error(format!("serialize laboratory label: {e}")))?;
-    let output = container_command(exe)
+    let mut create_cmd = container_command(exe);
+    create_cmd
         .arg("create")
         .arg("--name")
         .arg(&name)
         .arg("-p")
-        .arg(format!("127.0.0.1::{}/tcp", plugin.port))
+        .arg(format!("127.0.0.1::{}/tcp", plugin.port));
+    // The AGENT-IDENTITY environment — the ONLY env a plugin
+    // container gets (the completion it serves is static for the
+    // container's whole life; everything else the plugin needs rides
+    // headers).
+    for (k, v) in identity_env {
+        create_cmd.arg("-e").arg(format!("{k}={v}"));
+    }
+    let output = create_cmd
         .arg("--label")
         .arg(format!("objectiveai.laboratory={label_json}"))
         .arg(registry_reference(image))

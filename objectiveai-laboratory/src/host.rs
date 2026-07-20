@@ -1021,6 +1021,11 @@ impl HostServer {
             .collect();
         let cwd = req.laboratory.cwd.clone().unwrap_or_else(|| "/".to_string());
         let laboratory_binary = self.bin_dir.join("objectiveai-mcp-laboratory");
+        let identity_env =
+            objectiveai_sdk::cli::command::AgentArguments::from_transient_headers(
+                headers,
+            )
+            .identity_env();
         if let Err(e) = podman::laboratory::create_agent_ephemeral(
             &self.podman,
             &self.state,
@@ -1030,6 +1035,7 @@ impl HostServer {
             &req.laboratory.image,
             &resolved,
             &env,
+            &identity_env,
             &cwd,
             &req.agent_full_id,
             &req.response_id,
@@ -1105,6 +1111,20 @@ impl HostServer {
             port: ensured.port,
             sha: ensured.sha,
         };
+        // Identity env: the six agent values from the request headers,
+        // PLUS the plugin trio from the CANONICAL coordinates — this
+        // authenticated create is the trio's authority (wire-parsed
+        // bags always null it).
+        let identity_env = {
+            let mut args =
+                objectiveai_sdk::cli::command::AgentArguments::from_transient_headers(
+                    headers,
+                );
+            args.plugin_owner = Some(coords.owner.clone());
+            args.plugin_repository = Some(coords.name.clone());
+            args.plugin_version = Some(coords.version.clone());
+            args.identity_env()
+        };
         if let Err(e) = podman::laboratory::create_plugin(
             &self.podman,
             &self.state,
@@ -1112,6 +1132,7 @@ impl HostServer {
             &coords.image(),
             &label,
             &req.response_id,
+            &identity_env,
         )
         .await
         {
