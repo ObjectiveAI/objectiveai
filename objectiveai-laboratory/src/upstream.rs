@@ -86,10 +86,13 @@ pub(crate) fn install_list_changed_forwarders<E>(
     }
 }
 
-/// The MCP client every laboratory connection uses — the CLI conduit's
-/// knobs (100ms/0.5/1.5/1s backoff, 10-minute budget + call timeout;
-/// the laboratory is loopback, so these are generous). Lives here so
-/// the knobs exist ONCE for both laboratory kinds.
+/// The MCP client every laboratory connection uses — 100ms/0.5/1.5/1s
+/// backoff with a 10-minute give-up budget on ERRORING retries, and NO
+/// connect or per-call deadline: a tool call may legitimately run an
+/// arbitrarily long command, so a successful-but-slow op is never
+/// killed (the API layer owns any real deadlines; host/daemon channel
+/// death is the failure signal). Lives here so the knobs exist ONCE
+/// for both laboratory kinds.
 pub(crate) fn lab_mcp_client() -> objectiveai_sdk::mcp::Client {
     use std::time::Duration;
     objectiveai_sdk::mcp::Client::new(
@@ -97,14 +100,14 @@ pub(crate) fn lab_mcp_client() -> objectiveai_sdk::mcp::Client {
         "objectiveai-laboratory".to_string(),
         String::new(),
         String::new(),
-        Some(Duration::from_secs(600)),
+        None,
         Duration::from_millis(100),
         Duration::from_millis(100),
         0.5,
         1.5,
         Duration::from_millis(1000),
         Duration::from_secs(600),
-        Some(Duration::from_secs(600)),
+        None,
     )
 }
 

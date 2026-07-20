@@ -52,11 +52,6 @@ use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::{mpsc, oneshot, RwLock};
 
-/// How long a forward waits for the host's reply. Generous — tool
-/// calls and 2 MiB transfer chunks ride this; the API layer above owns
-/// the real deadlines.
-const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
-
 /// One daemon→host frame queued to a connection's writer half. The
 /// host demuxes by shape, exactly like the daemon does inbound —
 /// [`ChannelRequest`] carries `headers` + `payload`, a
@@ -452,28 +447,6 @@ impl LaboratoryRegistry {
             }
         };
         let id = uuid::Uuid::new_v4().to_string();
-        // Transfer-family ops are timeout-free: an archive can exceed
-        // any fixed cap, and the host disconnect (pending-map drop) is
-        // the failure signal. Ephemeral creates join them — their
-        // inline image pull/build can exceed any cap (a cold plugin
-        // build clones + builds a container image). Everything else
-        // keeps the standard cap.
-        let timeout_free = {
-            use objectiveai_sdk::laboratories::daemon::RequestPayload as P;
-            matches!(
-                request,
-                P::ExportBegin(_)
-                    | P::ExportRead(_)
-                    | P::ExportAbort(_)
-                    | P::ImportBegin(_)
-                    | P::ImportWrite(_)
-                    | P::ImportEnd(_)
-                    | P::ImportAbort(_)
-                    | P::LocalTransfer(_)
-                    | P::AgentEphemeralCreate(_)
-                    | P::PluginEphemeralCreate(_)
-            )
-        };
         let (reply_tx, reply_rx) = oneshot::channel();
         host.pending.insert(id.clone(), reply_tx);
         let sent = host.tx.send(OutboundFrame::Request(ChannelRequest {
@@ -488,29 +461,19 @@ impl LaboratoryRegistry {
                 "laboratory host for machine '{machine_id}' disconnected"
             ));
         }
-        if timeout_free {
-            return match reply_rx.await {
-                Ok(response) => Ok(response.payload),
-                // Pending map dropped — the host disconnected.
-                Err(_) => Err(format!(
-                    "laboratory host for machine '{machine_id}' disconnected mid-request"
-                )),
-            };
-        }
-        match tokio::time::timeout(FORWARD_TIMEOUT, reply_rx).await {
-            Ok(Ok(response)) => Ok(response.payload),
-            Ok(Err(_)) => {
-                // Pending map dropped — the host disconnected.
-                Err(format!(
-                    "laboratory host for machine '{machine_id}' disconnected mid-request"
-                ))
-            }
-            Err(_) => {
-                host.pending.remove(&id);
-                Err(format!(
-                    "laboratory host for machine '{machine_id}' timed out"
-                ))
-            }
+        // EVERY forward is timeout-free: a tool call can run an
+        // arbitrarily long command, an archive can exceed any fixed
+        // cap, and a cold plugin build clones + builds a container
+        // image. The failure signal is the host disconnecting — the
+        // pending map drops (channel teardown fails every waiter), and
+        // TCP keepalive guarantees even a silent death surfaces there
+        // within a bounded window. No artificial deadlines.
+        match reply_rx.await {
+            Ok(response) => Ok(response.payload),
+            // Pending map dropped — the host disconnected.
+            Err(_) => Err(format!(
+                "laboratory host for machine '{machine_id}' disconnected mid-request"
+            )),
         }
     }
 }
