@@ -7,7 +7,7 @@
 //! command to the CLI daemon over the reverse channel
 //! ([`ReverseChannel::command`]) and streaming the daemon's response
 //! items back AS THEY ARRIVE. (Today all plugins are client-side
-//! `ws://` upstreams, so this path is future-proofing for server-side
+//! `client://` upstreams, so this path is future-proofing for server-side
 //! plugins.)
 
 use std::pin::Pin;

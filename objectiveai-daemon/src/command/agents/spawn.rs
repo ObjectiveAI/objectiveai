@@ -352,7 +352,7 @@ async fn resolve_laboratories(
     )
     .await?;
     // Dedup by BARE id, earliest attachment wins: an agent dials at
-    // most one laboratory per id (the session's `ws://laboratory/{id}`
+    // most one laboratory per id (the session's `client://laboratory/{id}`
     // upstreams key by id). Each kept record's (machine, machine_state)
     // pair rides the ClientLaboratory so downstream routing is exact.
     let mut records: Vec<crate::db::laboratory_attachments::AttachmentRecord> = Vec::new();

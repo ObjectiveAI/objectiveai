@@ -142,7 +142,7 @@ fn record_from_row(row: &sqlx::postgres::PgRow) -> Result<AttachmentRecord, Erro
 /// bound tags. Oldest-attached first; a laboratory id attached through
 /// multiple routes (or from multiple hosts) appears once — earliest
 /// attachment wins, BY BARE ID: an agent dials at most one laboratory
-/// per id (the session's `ws://laboratory/{id}` upstreams key by id).
+/// per id (the session's `client://laboratory/{id}` upstreams key by id).
 pub async fn effective_for_aih(
     pool: &Pool,
     agent_instance_hierarchy: &str,

@@ -31,10 +31,10 @@ pub struct AppState {
     /// `None` for the CLI's standalone proxy — tool calls then
     /// never invoke the delegate seam.
     pub queue_delegate: Option<Arc<dyn QueueDelegate>>,
-    /// Optional reverse channel for `ws://` upstreams. `Some` when an
+    /// Optional reverse channel for `client://` upstreams. `Some` when an
     /// embedder (the API) hands the proxy its request's reverse-attach
     /// WS at [`setup`] time; `None` for the standalone proxy, which then
-    /// serves HTTP upstreams only (a `ws://` upstream errors at connect).
+    /// serves HTTP upstreams only (a `client://` upstream errors at connect).
     pub reverse_channel: Option<ReverseChannel>,
     /// Optional dropper. `Some` when an embedder wires one in at
     /// [`setup`] time; `handle_initialize` then checks its banned set so

@@ -5,8 +5,8 @@
 //! protocol over the request's WebSocket. Upstreams whose URL scheme is
 //! `ws` ([`WsUpstream`]) are reached through it instead of over HTTP:
 //!
-//! - `ws://objectiveai` → [`McpKind::ObjectiveAi`]
-//! - `ws:///owner/name/version/mcp` → [`McpKind::Plugin`]
+//! - `client://objectiveai` → [`McpKind::ObjectiveAi`]
+//! - `client:///owner/name/version/mcp` → [`McpKind::Plugin`]
 //!
 //! Direction split (the API owns the WS itself):
 //! - **send**: the proxy emits a `server_request::Request` into the
@@ -660,7 +660,7 @@ impl ReverseChannel {
     }
 }
 
-/// A `ws://`-scheme upstream, reached over the [`ReverseChannel`]. Mirrors
+/// A `client://`-scheme upstream, reached over the [`ReverseChannel`]. Mirrors
 /// the slice of [`Connection`]'s interface the [`crate::session::Session`]
 /// uses, translating each op into a `server_request` carrying this
 /// upstream's [`McpKind`].
@@ -672,7 +672,7 @@ pub struct WsUpstream {
     /// `None` ⇒ calls wait forever. Never applied to the connect
     /// (`initialize`) — that uses the connect timeout.
     call_timeout: Option<Duration>,
-    /// The `ws://…` URL this upstream was dialed with (used for filtering).
+    /// The `client://…` URL this upstream was dialed with (used for filtering).
     pub url: String,
     /// Upstream `Mcp-Session-Id` returned by the CLI on `initialize`.
     pub session_id: String,
@@ -891,7 +891,7 @@ pub enum Upstream {
     /// executor: when the plugin's MCP server pushes a
     /// `cli_request`, the connection fulfills it by forwarding the
     /// command to the CLI daemon over the reverse channel. (Today all
-    /// plugins are client-side `ws://` upstreams, so this variant is
+    /// plugins are client-side `client://` upstreams, so this variant is
     /// future-proofing for server-side plugins.)
     HttpPlugin {
         connection: Connection<crate::command_executor::ReverseChannelCommandExecutor>,
@@ -902,7 +902,7 @@ pub enum Upstream {
 
 impl Upstream {
     /// Whether this upstream is reached over the `client_objectiveai_mcp`
-    /// reverse channel (a `ws://` upstream) rather than plain HTTP.
+    /// reverse channel (a `client://` upstream) rather than plain HTTP.
     pub fn is_ws(&self) -> bool {
         matches!(self, Upstream::Ws(_))
     }
@@ -965,7 +965,7 @@ impl Upstream {
     ///
     /// Read from the explicit, typed laboratory marker the API supplied
     /// (`X-MCP-Laboratories`), NOT inferred by string-parsing the
-    /// `ws://laboratory/{id}` URL. HTTP upstreams and unmarked websocket
+    /// `client://laboratory/{id}` URL. HTTP upstreams and unmarked websocket
     /// upstreams (the primary `objectiveai` MCP, plugins) are `None`.
     pub fn laboratory(&self) -> Option<objectiveai_sdk::laboratories::Laboratory> {
         match self {
@@ -1092,7 +1092,7 @@ impl Upstream {
     }
 }
 
-/// Parse a `ws://objectiveai` URL into its [`McpKind`]. Returns `None`
+/// Parse a `client://objectiveai` URL into its [`McpKind`]. Returns `None`
 /// for any other shape.
 ///
 /// NOTE: laboratories AND plugins are deliberately NOT parsed here.
@@ -1100,19 +1100,19 @@ impl Upstream {
 /// / `X-MCP-Plugins` markers (see `crate::upstream`), never from
 /// string-matching the URL — so the proxy's notion of "this is a
 /// laboratory/plugin" has a single authoritative source. The primary
-/// `ws://objectiveai` MCP is the one remaining URL-shaped kind.
+/// `client://objectiveai` MCP is the one remaining URL-shaped kind.
 pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
-    let rest = url.strip_prefix("ws://")?;
+    let rest = url.strip_prefix("client://")?;
     // Drop any `?query` (plugin args ride there, parsed separately).
     let rest = rest.split('?').next().unwrap_or(rest);
-    // `ws://objectiveai` → host "objectiveai", no path.
+    // `client://objectiveai` → host "objectiveai", no path.
     if rest == "objectiveai" {
         return Some(McpKind::ObjectiveAi);
     }
     None
 }
 
-/// `initialize` a `ws://` upstream over `channel` and build its
+/// `initialize` a `client://` upstream over `channel` and build its
 /// [`WsUpstream`]. `headers` is the full set sent on the `initialize`
 /// request — the session-global transient identity headers, plus (on
 /// resume) the upstream `Mcp-Session-Id` and any auth. `args` carries

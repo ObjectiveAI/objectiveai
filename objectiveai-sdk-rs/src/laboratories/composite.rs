@@ -11,7 +11,7 @@
 //!
 //! The composite is a PRESENTATION at the assistant boundary only:
 //! the raw id stays raw on every other surface (DB rows, commands,
-//! HostIdentify, `ws://laboratory/{id}`, the `oail-<rawid>` tool
+//! HostIdentify, `client://laboratory/{id}`, the `oail-<rawid>` tool
 //! prefix — tool names cannot carry a 64-hex machine id under
 //! provider name limits).
 //!

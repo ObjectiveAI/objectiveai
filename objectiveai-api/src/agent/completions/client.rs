@@ -653,7 +653,7 @@ where
                             || client_mcp.objectiveai.unwrap_or(false)
                             || client_mcp.plugins.iter().any(|p| p.executable);
                         if needs_objectiveai {
-                            out.push(("ws://objectiveai".to_string(), None));
+                            out.push(("client://objectiveai".to_string(), None));
                         }
                         for plugin in &client_mcp.plugins {
                             for entry in plugin.mcp_servers.as_deref().unwrap_or(&[]) {
@@ -664,7 +664,7 @@ where
                                     version = percent_encode_segment(&plugin.version),
                                     mcp = percent_encode_segment(&entry.name),
                                 );
-                                let url = format!("ws:///{path}");
+                                let url = format!("client:///{path}");
                                 plugins_by_url.insert(
                                     url.clone(),
                                     objectiveai_sdk::mcp::server::Plugin {
@@ -686,10 +686,10 @@ where
                 // CLI is present. Gated on `needs_reverse_attach` (not on
                 // `client_objectiveai_mcp`) — labs apply even when the agent
                 // declares no `client_objectiveai_mcp`. Each becomes a
-                // synthetic `ws://laboratory/{id}` upstream (no args), flowing through
+                // synthetic `client://laboratory/{id}` upstream (no args), flowing through
                 // the same URL/header plumbing as the other synthetic URLs.
                 //
-                // The `ws://laboratory/{id}` URL is just the upstream's address;
+                // The `client://laboratory/{id}` URL is just the upstream's address;
                 // the proxy must NOT infer laboratory identity by string-parsing
                 // it. We carry the typed `Laboratory` explicitly, keyed by URL,
                 // in `X-MCP-Laboratories` — the authoritative signal the proxy
@@ -706,7 +706,7 @@ where
                                 objectiveai_sdk::laboratories::Laboratory::Agent(a) => &a.id,
                             };
                             let url = format!(
-                                "ws://laboratory/{}",
+                                "client://laboratory/{}",
                                 percent_encode_segment(id)
                             );
                             client_mcp_synthetic_urls.push((url.clone(), None));
@@ -730,7 +730,7 @@ where
                                 lab,
                             );
                             let url = format!(
-                                "ws://laboratory/{}",
+                                "client://laboratory/{}",
                                 percent_encode_segment(&id)
                             );
                             if laboratories_by_url.contains_key(&url) {
@@ -834,7 +834,7 @@ where
                 // above (driven by `needs_objectiveai`), so a missing
                 // entry is the correct no-op signal.
                 if let Some(client_mcp) = agent.base().client_objectiveai_mcp() {
-                    let objectiveai_url = "ws://objectiveai".to_string();
+                    let objectiveai_url = "client://objectiveai".to_string();
                     if let Some(entry) =
                         per_url_headers.get_mut(&objectiveai_url)
                     {

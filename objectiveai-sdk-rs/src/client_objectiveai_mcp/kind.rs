@@ -44,7 +44,7 @@ pub enum McpKind {
     },
 
     /// A laboratory-hosted MCP server, identified by an opaque `id`.
-    /// Mirrors the proxy URL `ws://laboratory/{id}`. Laboratory ids
+    /// Mirrors the proxy URL `client://laboratory/{id}`. Laboratory ids
     /// are only unique per (machine, state); `machine` +
     /// `machine_state` pin the exact laboratory host so the CLI
     /// conduit forwards precisely — an absent pair falls back to

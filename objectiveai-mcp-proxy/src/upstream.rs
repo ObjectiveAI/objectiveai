@@ -18,14 +18,14 @@ const SERVERS_HEADER: &str = "X-MCP-Servers";
 const HEADERS_HEADER: &str = "X-MCP-Headers";
 /// Typed laboratory marker: JSON `{url: Laboratory}`. The authoritative
 /// signal for which upstreams are laboratories — the proxy must NOT infer
-/// laboratory-ness by string-parsing the `ws://laboratory/{id}` URL. An
+/// laboratory-ness by string-parsing the `client://laboratory/{id}` URL. An
 /// upstream whose URL appears here is a laboratory, with its id taken from
 /// the typed value (never the URL path).
 const LABORATORIES_HEADER: &str = "X-MCP-Laboratories";
 /// Typed plugin marker: JSON `{url: mcp::server::Plugin}`. The
 /// authoritative signal for which upstreams are PLUGINS — the proxy
 /// must NOT infer plugin-ness by string-parsing the
-/// `ws:///owner/name/version/mcp` URL (that parse is gone). An
+/// `client:///owner/name/version/mcp` URL (that parse is gone). An
 /// upstream whose URL appears here is a plugin, with its four
 /// coordinates taken from the typed value (never the URL path). A
 /// plugin-marked `http(s)://` upstream (a future SERVER-SIDE plugin)
@@ -205,7 +205,7 @@ pub async fn connect_all_fresh(
     Ok((upstreams, transient_shared))
 }
 
-/// Connect one upstream — HTTP via `client`, or `ws://` via the reverse
+/// Connect one upstream — HTTP via `client`, or `client://` via the reverse
 /// `channel` — returning the unified [`Upstream`]. `session_id` is the
 /// resume `Mcp-Session-Id` (if any); `headers` is the per-upstream header
 /// set already merged with the transient identity bag.
@@ -222,7 +222,7 @@ async fn connect_upstream(
     // Laboratory and plugin identities are authoritative from their
     // explicit typed markers (`X-MCP-Laboratories` / `X-MCP-Plugins`)
     // — never a parse of the URL path. The only remaining URL-derived
-    // kind is `ws://objectiveai`; everything else is plain HTTP.
+    // kind is `client://objectiveai`; everything else is plain HTTP.
     let ws_kind = match &laboratory {
         Some(Laboratory::Client(c)) => Some(McpKind::Laboratory {
             id: c.id.clone(),
@@ -247,11 +247,11 @@ async fn connect_upstream(
                 },
             ),
         }),
-        // A ws:// upstream is either a marked plugin (client-side
+        // A client:// upstream is either a marked plugin (client-side
         // plugin — the typed marker supplies the coordinates), the
-        // primary ws://objectiveai, or a hard error: unmarked ws://
+        // primary client://objectiveai, or a hard error: unmarked ws://
         // shapes are no longer URL-inferred.
-        None if url.starts_with("ws://") => match &plugin {
+        None if url.starts_with("client://") => match &plugin {
             Some(p) => Some(McpKind::Plugin {
                 owner: p.owner.clone(),
                 name: p.name.clone(),
@@ -265,9 +265,9 @@ async fn connect_upstream(
                         url: url.to_string(),
                         source: objectiveai_sdk::mcp::Error::MalformedResponse {
                             url: url.to_string(),
-                            message: "ws:// upstream requires an \
+                            message: "client:// upstream requires an \
                                       X-MCP-Plugins or X-MCP-Laboratories \
-                                      marker (or ws://objectiveai)"
+                                      marker (or client://objectiveai)"
                                 .into(),
                         },
                     });
@@ -282,7 +282,7 @@ async fn connect_upstream(
                 url: url.to_string(),
                 source: objectiveai_sdk::mcp::Error::MalformedResponse {
                     url: url.to_string(),
-                    message: "ws:// upstream requires a reverse channel".into(),
+                    message: "client:// upstream requires a reverse channel".into(),
                 },
             }
         })?;

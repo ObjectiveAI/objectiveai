@@ -91,7 +91,7 @@ pub struct Context<CTXEXT> {
     /// Per-request reverse channel for `ws://` MCP upstreams. Set by the
     /// streaming WS handler (`with_reverse_channel`); `None` on HTTP/SSE
     /// (no CLI attached → HTTP MCP upstreams only). Handed to this
-    /// request's proxy at boot so `ws://objectiveai` / `ws:///…` upstreams
+    /// request's proxy at boot so `client://objectiveai` / `client:///…` upstreams
     /// speak the reverse-channel protocol directly over the WS.
     reverse_channel: Option<objectiveai_mcp_proxy::ReverseChannel>,
     /// This request's in-process MCP proxy, lazily booted on first MCP
