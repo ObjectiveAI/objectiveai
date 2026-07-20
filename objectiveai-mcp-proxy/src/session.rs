@@ -93,12 +93,18 @@ pub struct Session {
     /// applied on the Connection's own RwLock); writes fire only on
     /// inbound `initialize` (reuse or fresh connect). `RwLock` matches
     /// the read/write ratio.
-    pub transient_headers: RwLock<IndexMap<String, String>>,
+    ///
+    /// `Arc`-SHARED with every plugin command executor built at
+    /// connect time (`connect_all_fresh` creates the allocation) —
+    /// executors read it at execute() time, so every
+    /// `apply_transient_headers` full-replace reaches them too.
+    pub transient_headers: Arc<RwLock<IndexMap<String, String>>>,
 }
 
 impl Session {
     pub(crate) fn new(
         connections: IndexMap<String, Upstream>,
+        transient_headers: Arc<RwLock<IndexMap<String, String>>>,
     ) -> Self {
         let (outbound, _) = broadcast::channel(OUTBOUND_CAPACITY);
 
@@ -127,7 +133,7 @@ impl Session {
             connections,
             outbound,
             in_flight: DashMap::new(),
-            transient_headers: RwLock::new(IndexMap::new()),
+            transient_headers,
         }
     }
 

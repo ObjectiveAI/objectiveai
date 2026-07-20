@@ -250,6 +250,25 @@ impl Notifier {
     /// oneshot in `pending`, write the framed request, and return the
     /// raw [`client_response::Response`] the demux task routes back by
     /// id. Callers interpret the variant.
+    /// Send one UNSOLICITED `server_response` frame on the WS — the
+    /// seam the multi-frame `Command` exchange rides: the daemon
+    /// streams `Item`/`Error`/`Done` frames for a request id AFTER
+    /// `McpHandler::handle` already returned the `Ack` frame. No
+    /// pending entry is parked — response frames correlate by id on
+    /// the REQUESTER's (proxy's) side.
+    pub async fn send_server_response(
+        &self,
+        response: &server_response::Response,
+    ) -> Result<(), super::HttpError> {
+        let frame = serde_json::to_string(response)
+            .map_err(super::HttpError::NotifySerialize)?;
+        let mut guard = self.sink.lock().await;
+        guard
+            .send(tungstenite::Message::Text(frame.into()))
+            .await
+            .map_err(super::HttpError::NotifySend)
+    }
+
     async fn send_raw(
         &self,
         payload: client_request::Payload,

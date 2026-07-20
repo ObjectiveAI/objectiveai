@@ -353,9 +353,17 @@ pub async fn recv_loop(
             // proxy-bound (issued on the proxy's reverse channel) but carry
             // no `mcp_kind`, so they must be routed to the proxy explicitly —
             // otherwise they fall through to the API `pending` map, are not
-            // found, and get dropped (hanging the transfer waiter).
+            // found, and get dropped (hanging the transfer waiter). The
+            // MULTI-FRAME `Command` responses (also no mcp_kind, also
+            // proxy-issued) route the same way — N frames per id pass
+            // through here untouched; only the proxy's command-stream map
+            // knows when an exchange ends.
             let proxy_bound = response.payload.mcp_kind().is_some()
-                || is_laboratory_transfer_response(&response.payload);
+                || is_laboratory_transfer_response(&response.payload)
+                || matches!(
+                    response.payload,
+                    objectiveai_sdk::client_objectiveai_mcp::server_response::Payload::Command { .. },
+                );
             if proxy_bound {
                 channel.deliver_response(response);
             } else {

@@ -1,10 +1,13 @@
 //! Parsing of the proxy's two custom session-init headers and fan-out
 //! connect over the resulting upstream specs.
 
+use std::sync::Arc;
+
 use axum::http::HeaderMap;
 use futures::TryFutureExt;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
+use tokio::sync::RwLock;
 use objectiveai_sdk::client_objectiveai_mcp::McpKind;
 use objectiveai_sdk::laboratories::Laboratory;
 use objectiveai_sdk::mcp::Client;
@@ -19,6 +22,15 @@ const HEADERS_HEADER: &str = "X-MCP-Headers";
 /// upstream whose URL appears here is a laboratory, with its id taken from
 /// the typed value (never the URL path).
 const LABORATORIES_HEADER: &str = "X-MCP-Laboratories";
+/// Typed plugin marker: JSON `{url: mcp::server::Plugin}`. The
+/// authoritative signal for which upstreams are PLUGINS — the proxy
+/// must NOT infer plugin-ness by string-parsing the
+/// `ws:///owner/name/version/mcp` URL (that parse is gone). An
+/// upstream whose URL appears here is a plugin, with its four
+/// coordinates taken from the typed value (never the URL path). A
+/// plugin-marked `http(s)://` upstream (a future SERVER-SIDE plugin)
+/// additionally connects with the proxy's REAL command executor.
+const PLUGINS_HEADER: &str = "X-MCP-Plugins";
 /// Per-request header: when present on a `tools/list` or
 /// `resources/list` POST, restricts the fan-out to the single upstream
 /// whose URL matches verbatim. Absent → fan out to every upstream
@@ -39,6 +51,10 @@ struct UpstreamSpec {
     /// proxy treats this upstream as a laboratory (id taken from here, not
     /// from the URL).
     laboratory: Option<Laboratory>,
+    /// Typed plugin identity, from `X-MCP-Plugins`. `Some` ⇒ the proxy
+    /// treats this upstream as a plugin (coordinates taken from here,
+    /// not from the URL).
+    plugin: Option<objectiveai_sdk::mcp::server::Plugin>,
 }
 
 /// Why parsing the two custom session-init headers failed, or why an
@@ -108,7 +124,7 @@ pub async fn connect_all_fresh(
     client: &Client,
     reverse_channel: Option<&ReverseChannel>,
     http_headers: &HeaderMap,
-) -> Result<Vec<Upstream>, BadInit> {
+) -> Result<(Vec<Upstream>, Arc<RwLock<IndexMap<String, String>>>), BadInit> {
     let specs = parse_init_headers(http_headers)?;
 
     // Extract the session-global transient header set from the inbound
@@ -129,10 +145,16 @@ pub async fn connect_all_fresh(
             Some((key.to_string(), v.to_string()))
         })
         .collect();
+    // The SHARED transient bag: becomes `Session::transient_headers`
+    // AND is handed to every plugin command executor, which reads it
+    // at execute() time — so identity refreshed by a later
+    // `initialize` reaches in-flight connections' executors too.
+    let transient_shared = Arc::new(RwLock::new(transient.clone()));
 
     let attempts = specs.into_iter().map(|spec| {
         let url = spec.url.clone();
         let transient = transient.clone();
+        let transient_shared = Arc::clone(&transient_shared);
         async move {
             // Hoist any caller-supplied `Mcp-Session-Id` out of the
             // header bag and pass it as the dedicated `session_id` arg
@@ -153,6 +175,8 @@ pub async fn connect_all_fresh(
                 session_id,
                 headers,
                 spec.laboratory,
+                spec.plugin,
+                transient_shared,
             )
             .await?;
             // Health probe: the upstream must list both its tools and its
@@ -177,7 +201,8 @@ pub async fn connect_all_fresh(
         }
     });
 
-    try_join_all(attempts).await
+    let upstreams = try_join_all(attempts).await?;
+    Ok((upstreams, transient_shared))
 }
 
 /// Connect one upstream — HTTP via `client`, or `ws://` via the reverse
@@ -191,11 +216,13 @@ async fn connect_upstream(
     session_id: Option<String>,
     mut headers: IndexMap<String, String>,
     laboratory: Option<Laboratory>,
+    plugin: Option<objectiveai_sdk::mcp::server::Plugin>,
+    transient: Arc<RwLock<IndexMap<String, String>>>,
 ) -> Result<Upstream, BadInit> {
-    // Laboratory identity is authoritative from the explicit
-    // `X-MCP-Laboratories` marker — its typed id drives `McpKind`, never
-    // a parse of the URL path. Everything else falls back to URL-derived
-    // kinds (objectiveai / plugin) or plain HTTP.
+    // Laboratory and plugin identities are authoritative from their
+    // explicit typed markers (`X-MCP-Laboratories` / `X-MCP-Plugins`)
+    // — never a parse of the URL path. The only remaining URL-derived
+    // kind is `ws://objectiveai`; everything else is plain HTTP.
     let ws_kind = match &laboratory {
         Some(Laboratory::Client(c)) => Some(McpKind::Laboratory {
             id: c.id.clone(),
@@ -220,7 +247,34 @@ async fn connect_upstream(
                 },
             ),
         }),
-        None => crate::reverse_channel::parse_ws_mcp_kind(url),
+        // A ws:// upstream is either a marked plugin (client-side
+        // plugin — the typed marker supplies the coordinates), the
+        // primary ws://objectiveai, or a hard error: unmarked ws://
+        // shapes are no longer URL-inferred.
+        None if url.starts_with("ws://") => match &plugin {
+            Some(p) => Some(McpKind::Plugin {
+                owner: p.owner.clone(),
+                name: p.name.clone(),
+                version: p.version.clone(),
+                mcp: p.mcp.clone(),
+            }),
+            None => match crate::reverse_channel::parse_ws_mcp_kind(url) {
+                Some(kind) => Some(kind),
+                None => {
+                    return Err(BadInit::UpstreamConnectFailed {
+                        url: url.to_string(),
+                        source: objectiveai_sdk::mcp::Error::MalformedResponse {
+                            url: url.to_string(),
+                            message: "ws:// upstream requires an \
+                                      X-MCP-Plugins or X-MCP-Laboratories \
+                                      marker (or ws://objectiveai)"
+                                .into(),
+                        },
+                    });
+                }
+            },
+        },
+        None => None,
     };
     if let Some(mcp_kind) = ws_kind {
         let channel = reverse_channel.cloned().ok_or_else(|| {
@@ -267,6 +321,40 @@ async fn connect_upstream(
             source,
         })?;
         Ok(Upstream::Ws(upstream))
+    } else if let Some(plugin) = plugin {
+        // A plugin-marked http(s) upstream: a SERVER-SIDE plugin.
+        // Connect with the proxy's REAL command executor so the
+        // plugin's `cli_request` frames are fulfilled by the daemon
+        // over the reverse channel. No channel (standalone proxy) →
+        // hard error: a server-side plugin without a daemon to run
+        // its commands is a misconfiguration, not a downgrade.
+        let Some(channel) = reverse_channel else {
+            return Err(BadInit::UpstreamConnectFailed {
+                url: url.to_string(),
+                source: objectiveai_sdk::mcp::Error::MalformedResponse {
+                    url: url.to_string(),
+                    message: "plugin-marked upstream requires a reverse \
+                              channel"
+                        .into(),
+                },
+            });
+        };
+        let executor = crate::command_executor::ReverseChannelCommandExecutor {
+            channel: channel.clone(),
+            plugin: plugin.clone(),
+            transient,
+            ack_timeout: client.call_timeout,
+        };
+        let connection = client
+            .clone()
+            .with_executor(executor)
+            .connect(url.to_string(), session_id, Some(headers))
+            .await
+            .map_err(|source| BadInit::UpstreamConnectFailed {
+                url: url.to_string(),
+                source,
+            })?;
+        Ok(Upstream::HttpPlugin { connection, plugin })
     } else {
         let conn = client
             .connect(url.to_string(), session_id, Some(headers))
@@ -321,6 +409,22 @@ fn parse_init_headers(
             None => IndexMap::new(),
         };
 
+    // Typed plugin marker, keyed by upstream URL. Same authority rule
+    // as laboratories: the marker, never the URL.
+    let mut plugins: IndexMap<String, objectiveai_sdk::mcp::server::Plugin> =
+        match http_headers.get(PLUGINS_HEADER) {
+            Some(v) => {
+                let s = v
+                    .to_str()
+                    .map_err(|_| BadInit::NotUtf8 { header: PLUGINS_HEADER })?;
+                serde_json::from_str(s).map_err(|source| BadInit::NotJson {
+                    header: PLUGINS_HEADER,
+                    source,
+                })?
+            }
+            None => IndexMap::new(),
+        };
+
     // Strip the session-global transient keys from every per-URL bag.
     // These keys live on `Session::transient_headers` (in-memory only)
     // and re-stamp on every outbound request via the SDK's
@@ -346,10 +450,12 @@ fn parse_init_headers(
 
         let headers = per_url_headers.shift_remove(&url).unwrap_or_default();
         let laboratory = laboratories.shift_remove(&url);
+        let plugin = plugins.shift_remove(&url);
         specs.push(UpstreamSpec {
             url,
             headers,
             laboratory,
+            plugin,
         });
     }
 

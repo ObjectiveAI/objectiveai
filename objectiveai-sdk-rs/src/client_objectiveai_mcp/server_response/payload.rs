@@ -147,6 +147,18 @@ pub enum Payload {
     #[schemars(title = "LaboratoryLocalTransfer")]
     LaboratoryLocalTransfer(JsonRpcResult<LaboratoryTransferResult>),
 
+    /// One frame of the MULTI-FRAME reply to
+    /// [`super::super::server_request::Payload::Command`] — the ONLY
+    /// exchange on this wire where one request id is answered by many
+    /// response frames, streamed as the command produces them.
+    /// Non-MCP — no `mcp_kind`.
+    ///
+    /// Wire: `{"id":…,"type":"command","frame":"item","item":{…}}`.
+    #[schemars(title = "Command")]
+    Command {
+        #[serde(flatten)]
+        frame: CommandFrame,
+    },
 }
 
 impl Payload {
@@ -173,9 +185,33 @@ impl Payload {
             | Payload::LaboratoryImportEnd(_)
             | Payload::LaboratoryImportAbort(_)
             | Payload::LaboratoryTransfer(_)
-            | Payload::LaboratoryLocalTransfer(_) => None,
+            | Payload::LaboratoryLocalTransfer(_)
+            | Payload::Command { .. } => None,
         }
     }
+}
+
+/// One frame of a [`Payload::Command`] exchange. The exchange grammar
+/// is `Ack (Item|Error)* Done` — mirroring the plugin-facing
+/// `mcp.CliResponse` grammar:
+///
+/// - [`CommandFrame::Ack`] — ALWAYS the opening frame, sent the
+///   moment the daemon picks the request up, BEFORE the run starts.
+/// - [`CommandFrame::Item`] — one typed command-output item, sent AS
+///   IT ARRIVES (never collected, never delayed).
+/// - [`CommandFrame::Error`] — a start failure or a stream error.
+///   NON-terminal: the stream may keep yielding after one.
+/// - [`CommandFrame::Done`] — ALWAYS the final frame, error or no.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.CommandFrame")]
+#[serde(tag = "frame", rename_all = "snake_case")]
+pub enum CommandFrame {
+    Ack,
+    Item {
+        item: crate::cli::command::ResponseItem,
+    },
+    Error { error: String },
+    Done,
 }
 
 /// Successful payload for [`Payload::ReadMessageQueue`].
@@ -320,4 +356,76 @@ pub struct ScriptResult {
     /// conversation. Assistant/tool roles only — a script never puts
     /// words in the user's mouth.
     pub messages: Vec<crate::agent::script::OutputMessage>,
+}
+
+#[cfg(test)]
+mod command_frame_tests {
+    use super::*;
+
+    #[test]
+    fn command_frame_wire_shapes() {
+        let ack = Payload::Command {
+            frame: CommandFrame::Ack,
+        };
+        assert_eq!(
+            serde_json::to_value(&ack).unwrap(),
+            serde_json::json!({"type": "command", "frame": "ack"}),
+        );
+
+        let error = Payload::Command {
+            frame: CommandFrame::Error {
+                error: "boom".to_string(),
+            },
+        };
+        assert_eq!(
+            serde_json::to_value(&error).unwrap(),
+            serde_json::json!({
+                "type": "command",
+                "frame": "error",
+                "error": "boom",
+            }),
+        );
+
+        let done = Payload::Command {
+            frame: CommandFrame::Done,
+        };
+        assert_eq!(
+            serde_json::to_value(&done).unwrap(),
+            serde_json::json!({"type": "command", "frame": "done"}),
+        );
+
+        // Item wraps a typed ResponseItem — the Python variant is a
+        // bare JSON value (untagged), the simplest leaf.
+        let item = Payload::Command {
+            frame: CommandFrame::Item {
+                item: crate::cli::command::ResponseItem::Python(
+                    serde_json::json!({"ok": true}),
+                ),
+            },
+        };
+        let value = serde_json::to_value(&item).unwrap();
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "type": "command",
+                "frame": "item",
+                "item": {"ok": true},
+            }),
+        );
+
+        // Round-trip through the wire form (full Response envelope).
+        let envelope = super::super::Response {
+            id: "req-1".to_string(),
+            payload: item,
+        };
+        let text = serde_json::to_string(&envelope).unwrap();
+        let back: super::super::Response = serde_json::from_str(&text).unwrap();
+        assert_eq!(back.id, "req-1");
+        assert!(matches!(
+            back.payload,
+            Payload::Command {
+                frame: CommandFrame::Item { .. },
+            },
+        ));
+    }
 }

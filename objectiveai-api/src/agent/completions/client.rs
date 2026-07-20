@@ -627,6 +627,16 @@ where
                 //   plugin MCP server. Plugin args ride alongside as
                 //   `X-OBJECTIVEAI-ARGUMENTS` (per-URL header), JSON-
                 //   serialized in declaration order.
+                // Typed plugin marker (url → Plugin), filled alongside the
+                // synthetic plugin URLs below. The URL is just the
+                // upstream's address; the proxy must NOT infer plugin
+                // identity by string-parsing it — this marker, sent as
+                // `X-MCP-Plugins`, is the authoritative signal, carrying
+                // the RAW (non-percent-encoded) coordinates.
+                let mut plugins_by_url: indexmap::IndexMap<
+                    String,
+                    objectiveai_sdk::mcp::server::Plugin,
+                > = indexmap::IndexMap::new();
                 let mut client_mcp_synthetic_urls: Vec<(
                     String,
                     Option<indexmap::IndexMap<String, Option<String>>>,
@@ -654,10 +664,17 @@ where
                                     version = percent_encode_segment(&plugin.version),
                                     mcp = percent_encode_segment(&entry.name),
                                 );
-                                out.push((
-                                    format!("ws:///{path}"),
-                                    entry.arguments.clone(),
-                                ));
+                                let url = format!("ws:///{path}");
+                                plugins_by_url.insert(
+                                    url.clone(),
+                                    objectiveai_sdk::mcp::server::Plugin {
+                                        owner: plugin.owner.clone(),
+                                        name: plugin.name.clone(),
+                                        version: plugin.version.clone(),
+                                        mcp: entry.name.clone(),
+                                    },
+                                );
+                                out.push((url, entry.arguments.clone()));
                             }
                         }
                         out
@@ -863,6 +880,15 @@ where
                     proxy_request_headers.insert(
                         "X-MCP-Laboratories".to_string(),
                         serde_json::to_string(&laboratories_by_url).unwrap(),
+                    );
+                }
+                // Typed plugin marker (url → Plugin). Present only when the
+                // agent declares plugin MCP servers; the proxy uses it as
+                // the authoritative signal for which upstreams are plugins.
+                if !plugins_by_url.is_empty() {
+                    proxy_request_headers.insert(
+                        "X-MCP-Plugins".to_string(),
+                        serde_json::to_string(&plugins_by_url).unwrap(),
                     );
                 }
                 if let Some(remote) = agent_remote.as_ref() {

@@ -254,6 +254,144 @@ impl ConduitMcpHandler {
             hubs.mcp_notifiers.insert(response_id, notifier);
         }
     }
+
+    /// Fulfill a proxy→daemon `Command` request: run the CLI command
+    /// in-process — the same `crate::run` re-entry `/execute` and
+    /// `plugins run` use — and stream one `Command` frame per event
+    /// back over the WS AS ITEMS ARRIVE (never collected). Spawned so
+    /// the conduit's dispatch never blocks on a run.
+    ///
+    /// Scope identity: the REQUIRED `agent_arguments` are applied
+    /// exactly like `/execute` (wire plugin claims inside them are
+    /// nulled by `from_agent_arguments`), then the REQUIRED `plugin`
+    /// coordinates are stamped with the same [`ScopedContext::with_plugin`]
+    /// `plugins run` uses. This authenticated conduit channel is the
+    /// deliberate exception to "never trust wire plugin identity": the
+    /// API asserts the trio from its typed `X-MCP-Plugins` marker, and
+    /// the plugin run-gates then apply to nested commands.
+    ///
+    /// Frame discipline: `Ack` was already returned by `handle`;
+    /// stream errors are NON-terminal `Error` frames; `Done` is ALWAYS
+    /// the final frame. A WS send failure breaks the pump — dropping
+    /// the run stream cancels the command — but `Done` is still
+    /// attempted.
+    fn dispatch_command(
+        &self,
+        id: String,
+        agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
+        plugin: objectiveai_sdk::mcp::server::Plugin,
+        request: objectiveai_sdk::cli::command::Request,
+    ) {
+        use futures::StreamExt;
+        use objectiveai_sdk::client_objectiveai_mcp::server_response::CommandFrame;
+
+        /// One frame onto the WS; `false` = sink gone, stop pumping.
+        async fn send(notifier: &Notifier, id: &str, frame: CommandFrame) -> bool {
+            notifier
+                .send_server_response(&server_response::Response {
+                    id: id.to_string(),
+                    payload: server_response::Payload::Command { frame },
+                })
+                .await
+                .is_ok()
+        }
+
+        let inner = Arc::clone(&self.inner);
+        tokio::spawn(async move {
+            // Resolve the notifier with a bounded retry over the
+            // documented pre-`install_notifier` window (see module
+            // docs). Unlike the list-changed pumps, a Command exchange
+            // must not silently drop its frames — but if the notifier
+            // never lands the WS is gone and there is nobody to tell.
+            let mut tries = 0u32;
+            let notifier = loop {
+                if let Some(n) = inner.notifier.get().cloned() {
+                    break n;
+                }
+                tries += 1;
+                if tries >= 50 {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            };
+
+            let scoped = crate::executor::apply_agent_arguments(
+                &inner.scoped,
+                Some(&agent_arguments),
+            )
+            .await
+            .into_owned()
+            .with_plugin(plugin.owner, plugin.name, plugin.version);
+
+            // The `--request` front door: serialize the typed request
+            // and re-enter `crate::run`, exactly like `/execute`.
+            let request_json = match serde_json::to_string(&request) {
+                Ok(json) => json,
+                Err(e) => {
+                    let _ = send(
+                        &notifier,
+                        &id,
+                        CommandFrame::Error {
+                            error: format!("serialize command request: {e}"),
+                        },
+                    )
+                    .await;
+                    let _ = send(&notifier, &id, CommandFrame::Done).await;
+                    return;
+                }
+            };
+            let args = vec![
+                "objectiveai".to_string(),
+                "--request".to_string(),
+                request_json,
+            ];
+            match crate::run(args, Some((inner.global.clone(), scoped))).await {
+                Ok(crate::RunStream::Execute(mut stream)) => {
+                    while let Some(item) = stream.next().await {
+                        let frame = match item {
+                            Ok(item) => CommandFrame::Item { item },
+                            Err(e) => CommandFrame::Error {
+                                error: e.output_message().to_string(),
+                            },
+                        };
+                        if !send(&notifier, &id, frame).await {
+                            break;
+                        }
+                    }
+                }
+                Ok(crate::RunStream::ExecuteTransform(mut stream)) => {
+                    while let Some(item) = stream.next().await {
+                        let frame = match item {
+                            // A jq/python transform yields bare JSON
+                            // values; `ResponseItem::Python` is the
+                            // untagged bare-value variant —
+                            // wire-identical passthrough.
+                            Ok(value) => CommandFrame::Item {
+                                item: objectiveai_sdk::cli::command::ResponseItem::Python(value),
+                            },
+                            Err(e) => CommandFrame::Error {
+                                error: e.output_message().to_string(),
+                            },
+                        };
+                        if !send(&notifier, &id, frame).await {
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = send(
+                        &notifier,
+                        &id,
+                        CommandFrame::Error {
+                            error: e.output_message().to_string(),
+                        },
+                    )
+                    .await;
+                }
+            }
+            let _ = send(&notifier, &id, CommandFrame::Done).await;
+        });
+    }
 }
 
 impl Drop for Inner {
@@ -408,6 +546,28 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_script(&self.inner, req).await
             }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
+            server_request::Payload::Command {
+                agent_arguments,
+                plugin,
+                request,
+            } => {
+                // Spawns the pump and returns immediately — the `Ack`
+                // frame IS this handler's single return value; the
+                // pump emits `Item`/`Error` frames and the
+                // ALWAYS-terminal `Done` via
+                // `Notifier::send_server_response`, sharing the
+                // request's envelope id (the wire's one multi-frame
+                // exchange).
+                self.dispatch_command(
+                    id.clone(),
+                    agent_arguments,
+                    plugin,
+                    request,
+                );
+                server_response::Payload::Command {
+                    frame: server_response::CommandFrame::Ack,
+                }
+            }
             // Laboratory-addressed payloads are intercepted above when a
             // route exists; reaching one of these arms means the transfer
             // id maps to no known laboratory (never Begun here, or its

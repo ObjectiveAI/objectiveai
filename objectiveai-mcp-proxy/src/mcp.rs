@@ -403,7 +403,7 @@ async fn handle_initialize(
     // upstreams are registered under the response id. The agent-identity
     // and response-routing headers ride on `Session::transient_headers`
     // (applied below).
-    let connections = match crate::upstream::connect_all_fresh(
+    let (connections, transient_headers) = match crate::upstream::connect_all_fresh(
         &state.client,
         state.reverse_channel.as_ref(),
         headers,
@@ -422,7 +422,9 @@ async fn handle_initialize(
             return internal_error_response(id, e.to_string());
         }
     };
-    state.sessions.add(response_id.clone(), connections);
+    state
+        .sessions
+        .add(response_id.clone(), connections, transient_headers);
     // Race guard: a `drop` may have banned this id while we were
     // connecting. We ban-then-check on the drop side and insert-then-
     // check here, so one side always tears the session down. Teardown is

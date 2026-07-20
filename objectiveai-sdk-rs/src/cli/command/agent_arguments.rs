@@ -70,6 +70,37 @@ pub struct AgentArguments {
 }
 
 impl AgentArguments {
+    /// Build the bag from a proxy-session transient-header map — the
+    /// six `X-OBJECTIVEAI-*` keys the API stamps on every proxy
+    /// connect. Key lookup is case-insensitive. The `plugin_*` trio
+    /// is NEVER read from headers: plugin identity rides its own
+    /// typed wire field (the proxy→daemon `Command` payload) or is
+    /// stamped in-process by `plugins run` — a header claim is
+    /// ignored.
+    pub fn from_transient_headers(
+        headers: &indexmap::IndexMap<String, String>,
+    ) -> Self {
+        let get = |name: &str| {
+            headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.clone())
+        };
+        Self {
+            agent_instance_hierarchy: get(
+                "X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY",
+            ),
+            agent_id: get("X-OBJECTIVEAI-AGENT-ID"),
+            agent_full_id: get("X-OBJECTIVEAI-AGENT-FULL-ID"),
+            agent_remote: get("X-OBJECTIVEAI-AGENT-REMOTE"),
+            response_id: get("X-OBJECTIVEAI-RESPONSE-ID"),
+            response_ids: get("X-OBJECTIVEAI-RESPONSE-IDS"),
+            plugin_owner: None,
+            plugin_repository: None,
+            plugin_version: None,
+        }
+    }
+
     /// Apply this bag to a child-process command: every `Some(v)`
     /// stamps the matching env var, every `None` env-removes it so
     /// the parent's value can't leak through. Called by

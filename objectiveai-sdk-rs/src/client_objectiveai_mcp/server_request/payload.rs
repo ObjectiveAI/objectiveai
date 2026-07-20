@@ -153,6 +153,35 @@ pub enum Payload {
     #[schemars(title = "LaboratoryLocalTransfer")]
     LaboratoryLocalTransfer(LaboratoryLocalTransferRequest),
 
+    /// Execute a CLI command on the CLI daemon on behalf of a
+    /// server-side PLUGIN (the command-execution extension: a plugin
+    /// MCP server asked the proxy — its MCP client — to run a
+    /// command). Non-MCP — no `mcp_kind`: the daemon executes the
+    /// command itself in-process; `plugin` is scope identity, not
+    /// routing.
+    ///
+    /// EVERY field is REQUIRED — no defaults, no header bags:
+    /// - `agent_arguments`: the caller's agent identity, from the
+    ///   proxy session's transient identity bag (the API stamps it on
+    ///   every connect).
+    /// - `plugin`: the four coordinates of the plugin whose MCP
+    ///   server originated the request, from the typed
+    ///   `X-MCP-Plugins` marker. The daemon stamps this trio on the
+    ///   command's scope (the authenticated-conduit exception to
+    ///   "never trust wire plugin identity") so the plugin run-gates
+    ///   apply.
+    /// - `request`: the typed CLI command to run.
+    ///
+    /// Answered by a MULTI-FRAME response: one
+    /// [`super::super::server_response::Payload::Command`] frame per
+    /// event, sharing this request's envelope id, streamed as items
+    /// arrive — grammar `Ack (Item|Error)* Done`.
+    #[schemars(title = "Command")]
+    Command {
+        agent_arguments: crate::cli::command::AgentArguments,
+        plugin: crate::mcp::server::Plugin,
+        request: crate::cli::command::Request,
+    },
 }
 
 impl Payload {
@@ -180,6 +209,7 @@ impl Payload {
             | Payload::LaboratoryImportAbort(_)
             | Payload::LaboratoryTransfer(_)
             | Payload::LaboratoryLocalTransfer(_)
+            | Payload::Command { .. }
             => None,
         }
     }
@@ -400,4 +430,84 @@ pub struct ScriptRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub response_ids: Option<String>,
+}
+
+#[cfg(test)]
+mod command_request_tests {
+    use super::*;
+
+    fn update_request() -> crate::cli::command::Request {
+        crate::cli::command::Request::Update(
+            crate::cli::command::update::Request {
+                path_type: crate::cli::command::update::Path::Update,
+                base: crate::cli::command::RequestBase {
+                    jq: None,
+                    python: None,
+                    timeout_seconds: None,
+                    max_tokens: None,
+                },
+            },
+        )
+    }
+
+    /// The Command payload round-trips with every REQUIRED field, and
+    /// carries no mcp_kind.
+    #[test]
+    fn command_round_trips_and_has_no_mcp_kind() {
+        let payload = Payload::Command {
+            agent_arguments: crate::cli::command::AgentArguments {
+                response_id: Some("resp-1".to_string()),
+                ..Default::default()
+            },
+            plugin: crate::mcp::server::Plugin {
+                owner: "acme".to_string(),
+                name: "widgets".to_string(),
+                version: "1.2.3".to_string(),
+                mcp: "main".to_string(),
+            },
+            request: update_request(),
+        };
+        assert!(payload.mcp_kind().is_none());
+
+        let envelope = super::super::Request {
+            id: "cmd-1".to_string(),
+            headers: indexmap::IndexMap::new(),
+            payload,
+        };
+        let text = serde_json::to_string(&envelope).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(value["type"], "command");
+        assert_eq!(value["plugin"]["owner"], "acme");
+        assert_eq!(value["agent_arguments"]["response_id"], "resp-1");
+
+        let back: super::super::Request = serde_json::from_str(&text).unwrap();
+        assert!(matches!(
+            back.payload,
+            Payload::Command { plugin, .. } if plugin.name == "widgets",
+        ));
+    }
+
+    /// Every Command field is REQUIRED — a frame missing `plugin` (or
+    /// the others) does not parse.
+    #[test]
+    fn command_fields_are_required() {
+        for missing in ["agent_arguments", "plugin", "request"] {
+            let mut frame = serde_json::json!({
+                "id": "cmd-2",
+                "type": "command",
+                "agent_arguments": {},
+                "plugin": {
+                    "owner": "a", "name": "b",
+                    "version": "1.0.0", "mcp": "m",
+                },
+                "request": {"path_type": "update", "jq": null, "python": null},
+            });
+            frame.as_object_mut().unwrap().remove(missing);
+            assert!(
+                serde_json::from_str::<super::super::Request>(&frame.to_string())
+                    .is_err(),
+                "expected parse failure with {missing} absent",
+            );
+        }
+    }
 }
