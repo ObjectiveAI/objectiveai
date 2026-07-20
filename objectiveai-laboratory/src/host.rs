@@ -389,6 +389,13 @@ impl HostServer {
         self.bridge.detach(id);
         // Its ephemerals' single connections are unreachable forever —
         // evaporate each one (zero grace, rm -f).
+        // CHANNEL-CONDITIONAL: these spawns queue on each id's
+        // lifecycle mutex, so a stale sweep entry can land AFTER a
+        // successor conduit re-created the same id — it must not
+        // evaporate the fresh container. (An ephemeral created AFTER
+        // this snapshot never leaks either: `finish_ephemeral`
+        // re-checks the channel's outbound sender post-insert — see
+        // its tail — and self-cleans if we already detached it.)
         let orphaned: Vec<String> = self
             .ephemerals
             .iter()
@@ -398,7 +405,7 @@ impl HostServer {
         for lab_id in orphaned {
             let host = Arc::clone(self);
             tokio::spawn(async move {
-                host.evaporate(&lab_id).await;
+                host.evaporate_if_channel(&lab_id, id).await;
             });
         }
         let mut affected: Vec<String> = Vec::new();
@@ -634,6 +641,37 @@ impl HostServer {
             .clone()
     }
 
+    /// Acquire the id's lifecycle mutex, REVALIDATED: terminal paths
+    /// (`evaporate`, `delete_laboratory`) remove the map entry under
+    /// their own lock, so a waiter can wake holding an ORPHANED mutex
+    /// while a fresh one was minted — its critical section would then
+    /// run in parallel with the fresh mutex's holder. Loop until the
+    /// mutex we hold is the one the map serves (`Arc::ptr_eq`); every
+    /// lifecycle critical section MUST acquire through here.
+    ///
+    /// Returns the Arc too: terminal paths pass it to
+    /// `remove_if(ptr_eq)` so they only ever remove the entry they
+    /// hold.
+    async fn lock_lifecycle(
+        &self,
+        id: &str,
+    ) -> (Arc<tokio::sync::Mutex<()>>, tokio::sync::OwnedMutexGuard<()>) {
+        loop {
+            let mutex = self.lifecycle(id);
+            let guard = mutex.clone().lock_owned().await;
+            if self
+                .lifecycle
+                .get(id)
+                .is_some_and(|entry| Arc::ptr_eq(entry.value(), &mutex))
+            {
+                return (mutex, guard);
+            }
+            // Entry removed/replaced while we waited — retry on the
+            // live one (a freshly minted Arc always validates; no
+            // livelock).
+        }
+    }
+
     /// Schedule the graced idle check: after [`STOP_GRACE`], stop the
     /// container if it STILL has no demand. Spurious wakeups are
     /// harmless (the check re-verifies everything under the lifecycle
@@ -654,8 +692,7 @@ impl HostServer {
     /// keeps its last state — the view freezes until the next start
     /// re-snapshots).
     async fn stop_if_idle(self: &Arc<Self>, id: &str) {
-        let lock = self.lifecycle(id);
-        let _guard = lock.lock().await;
+        let (_lock, _guard) = self.lock_lifecycle(id).await;
         // Started at all?
         let Some(server) = self.labs.get(id).and_then(|cell| cell.get().cloned()) else {
             return;
@@ -696,8 +733,7 @@ impl HostServer {
         // nothing would ever restart). Waiting out the stop means the
         // cell is gone by the time we look, and the demand re-starts
         // cleanly. Uncontended, the lock is a few atomic ops.
-        let lock = self.lifecycle(id);
-        let _guard = lock.lock().await;
+        let (_lock, _guard) = self.lock_lifecycle(id).await;
         // Re-fetch under the lock: an idle stop may have removed (or a
         // concurrent start created) the cell while we waited.
         let cell = self
@@ -995,8 +1031,7 @@ impl HostServer {
         // a crashed/retried sibling create for the same response id
         // waits its turn and then sees (and removes) the stale
         // container.
-        let lock = self.lifecycle(&id);
-        let _guard = lock.lock().await;
+        let (_lock, _guard) = self.lock_lifecycle(&id).await;
         let resolved = match podman::laboratory::ensure_agent_image(
             &self.podman,
             &derived,
@@ -1010,8 +1045,10 @@ impl HostServer {
         // Stale duplicate (crash/retry — response ids are unique per
         // completion): evaporate + recreate fresh. The remove is
         // unconditional and idempotent, covering containers that
-        // survived a host restart without a map entry.
-        self.evaporate(&id).await;
+        // survived a host restart without a map entry. LOCKED variant:
+        // we hold this id's lifecycle mutex, and the id LIVES ON with
+        // the new container — the lifecycle entry must stay.
+        self.evaporate_locked(&id).await;
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, &id).await
         {
             return rpc_err(-32603, format!("remove stale ephemeral '{id}': {e}"));
@@ -1084,8 +1121,7 @@ impl HostServer {
             Err(message) => return rpc_err(-32602, message),
         };
         let id = coords.ephemeral_laboratory_id(&req.response_id);
-        let lock = self.lifecycle(&id);
-        let _guard = lock.lock().await;
+        let (_lock, _guard) = self.lock_lifecycle(&id).await;
         let ensured =
             match crate::plugin_image::ensure(&self.podman, &self.bin_dir, &coords).await
             {
@@ -1103,8 +1139,8 @@ impl HostServer {
                 }
             };
         // Stale duplicate: evaporate + recreate fresh (see the agent
-        // twin for the rationale).
-        self.evaporate(&id).await;
+        // twin for the rationale — LOCKED variant, entry stays).
+        self.evaporate_locked(&id).await;
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, &id).await
         {
             return rpc_err(-32603, format!("remove stale ephemeral '{id}': {e}"));
@@ -1300,6 +1336,21 @@ impl HostServer {
             transient,
         ));
         self.ephemerals.insert(id.to_string(), lab);
+        // Detach-race net: `detach_channel` removes the channel's
+        // outbound sender FIRST, then snapshots `ephemerals` — an
+        // entry we insert after its snapshot would leak forever. If
+        // the sender is still present here, any later detach scan runs
+        // after our insert and finds the entry (its evaporate queues
+        // behind the lifecycle lock we hold); if it is already gone,
+        // WE are the only ones who know this container exists —
+        // self-clean and fail the create.
+        if !self.bridge.outbound.contains_key(&channel) {
+            self.evaporate_locked(id).await;
+            return rpc_err(
+                -32603,
+                format!("ephemeral '{id}': owning daemon channel disconnected"),
+            );
+        }
         self.broadcast(&HostNotification::LaboratoryCreated {
             laboratory: identify.clone(),
         })
@@ -1315,13 +1366,51 @@ impl HostServer {
         }
     }
 
-    /// EVAPORATE an ephemeral laboratory: remove it from the registry,
-    /// tear down its filetree state, `podman rm -f` its container —
-    /// zero grace — and broadcast `laboratory_deleted`. Every lifetime
-    /// end funnels here (SessionTerminate, its Drop, the owning
-    /// channel's death, host shutdown, stale-duplicate replacement).
-    /// A no-op for ids not in the registry.
+    /// EVAPORATE an ephemeral laboratory — the TERMINAL wrapper: takes
+    /// the id's lifecycle lock, tears everything down, and removes the
+    /// lifecycle entry (only the one it holds — `remove_if(ptr_eq)`),
+    /// as the id's last act. Callers that already hold the lock
+    /// mid-operation (the create fronts' stale-dupe, delete's
+    /// ephemeral branch) call [`Self::evaporate_locked`] instead — the
+    /// id lives on there, so the entry must stay.
+    ///
+    /// Callers: ephemeral SessionTerminate / Drop, host shutdown. A
+    /// no-op for ids not in the registry (the freshly-minted lifecycle
+    /// entry is removed again on the way out).
     async fn evaporate(self: &Arc<Self>, id: &str) {
+        let (mutex, _guard) = self.lock_lifecycle(id).await;
+        self.evaporate_locked(id).await;
+        self.lifecycle
+            .remove_if(id, |_, value| Arc::ptr_eq(value, &mutex));
+    }
+
+    /// [`Self::evaporate`], for a channel-death sweep entry: proceed
+    /// only if the ephemeral is still OWNED BY `channel`. Queued
+    /// behind the lifecycle mutex, a stale detach sweep could
+    /// otherwise land after a successor conduit re-created the same
+    /// id and evaporate the fresh container out from under it.
+    async fn evaporate_if_channel(self: &Arc<Self>, id: &str, channel: u64) {
+        let (mutex, _guard) = self.lock_lifecycle(id).await;
+        let owned = self
+            .ephemerals
+            .get(id)
+            .is_some_and(|lab| lab.channel == channel);
+        if !owned {
+            return;
+        }
+        self.evaporate_locked(id).await;
+        self.lifecycle
+            .remove_if(id, |_, value| Arc::ptr_eq(value, &mutex));
+    }
+
+    /// The evaporate body — registry removal, filetree teardown,
+    /// `podman rm -f` (zero grace), `laboratory_deleted` broadcast.
+    /// MUST run under the id's lifecycle lock; NEVER touches the
+    /// lifecycle map (removing the entry mid-operation would let a
+    /// concurrent same-id create mint a fresh mutex and run in
+    /// parallel — the exact bug this split fixes). A no-op for ids not
+    /// in the registry.
+    async fn evaporate_locked(self: &Arc<Self>, id: &str) {
         let Some((_, _lab)) = self.ephemerals.remove(id) else {
             return;
         };
@@ -1336,7 +1425,6 @@ impl HostServer {
         }
         self.mounts.detach_lab(id);
         self.filetree_watchers.remove(id);
-        self.lifecycle.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {
             eprintln!("evaporate laboratory '{id}': {e}");
         }
@@ -1348,15 +1436,24 @@ impl HostServer {
     /// sessions die with it), force-remove the container (missing is
     /// not an error — podman's `rm -f` semantics), broadcast
     /// `laboratory_deleted`.
+    ///
+    /// The WHOLE body runs under the id's lifecycle lock — a Delete
+    /// racing the lazy start (or an idle stop) serializes instead of
+    /// yanking the container out from under an initializing
+    /// `LabServer` cell. The lifecycle entry is removed as the id's
+    /// last act, only-the-one-we-hold (`remove_if(ptr_eq)`).
     async fn delete_laboratory(
         self: &Arc<Self>,
         id: &str,
     ) -> JsonRpcResult<TransferAck> {
+        let (mutex, _guard) = self.lock_lifecycle(id).await;
         // Defensive: a host-level Delete addressed at a live ephemeral
         // evaporates it (registry + container + broadcast) rather than
         // leaving a dangling map entry behind the rm below.
         if self.ephemerals.contains_key(id) {
-            self.evaporate(id).await;
+            self.evaporate_locked(id).await;
+            self.lifecycle
+                .remove_if(id, |_, value| Arc::ptr_eq(value, &mutex));
             return JsonRpcResult::Ok {
                 result: TransferAck {},
             };
@@ -1382,12 +1479,15 @@ impl HostServer {
         }
         self.mounts.detach_lab(id);
         self.filetree_watchers.remove(id);
-        self.lifecycle.remove(id);
         if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {
+            // The container survived; the id is still live — keep its
+            // lifecycle entry.
             return rpc_err(-32603, format!("delete laboratory '{id}': {e}"));
         }
         self.broadcast(&HostNotification::LaboratoryDeleted { id: id.to_string() })
             .await;
+        self.lifecycle
+            .remove_if(id, |_, value| Arc::ptr_eq(value, &mutex));
         JsonRpcResult::Ok {
             result: TransferAck {},
         }

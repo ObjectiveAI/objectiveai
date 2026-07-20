@@ -42,7 +42,7 @@ use objectiveai_sdk::client_objectiveai_mcp::McpKind;
 use objectiveai_sdk::client_objectiveai_mcp::server_response::{InitializeReply, JsonRpcResult};
 use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use objectiveai_sdk::http::McpHandler;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Weak};
 
 use std::time::Duration;
 
@@ -103,6 +103,14 @@ struct Inner {
     /// died). The whole map is this connection's host-session state;
     /// connection gone ⇒ state gone.
     routes: HostRoutes,
+    /// Response ids a `Drop` has terminally torn down — STICKY for
+    /// this conduit's life (bounded: one entry per dropped response).
+    /// An ephemeral create observes this inside its atomic
+    /// `Creating → Live` transition; set, it evaporates the container
+    /// it just made instead of recording a route — closing the
+    /// Drop-races-in-flight-create window. A tombstoned id can never
+    /// initialize again on this conduit.
+    dropped_ids: DashSet<String>,
 }
 
 /// The wire-side identity of one host-routed upstream within a
@@ -141,19 +149,48 @@ struct HostRoute {
     machine_state: Option<String>,
 }
 
+/// The one-shot outcome of an ephemeral create, delivered to the
+/// creator AND every retry that joined the in-flight create through
+/// the [`RouteState::Creating`] watch channel.
+type CreateResult =
+    Result<objectiveai_sdk::laboratories::daemon::InitializeReply, String>;
+
+/// One `(response_id, RouteKey)` entry's lifecycle state. The
+/// single-flight state machine: `Absent → Creating → Live → Absent`,
+/// with `Drop` making the response id terminally dead via the
+/// separate `Inner::dropped_ids` tombstone set (a tombstoned id can
+/// never re-enter `Creating`).
+enum RouteState {
+    /// An ephemeral create is in flight. A retry (the proxy's
+    /// initialize is connect-timeout-bounded and re-sends) JOINS this
+    /// create by awaiting the watch instead of starting a second one —
+    /// which is what makes a cross-host duplicate container
+    /// structurally impossible.
+    Creating(tokio::sync::watch::Receiver<Option<CreateResult>>),
+    /// An established session. `reply` is `Some` for ephemerals (a
+    /// late retry that lands after the create completed is answered
+    /// idempotently from it) and `None` for client laboratories
+    /// (their Initialize is forwarded, never answered from cache).
+    Live {
+        route: HostRoute,
+        reply: Option<objectiveai_sdk::laboratories::daemon::InitializeReply>,
+    },
+}
+
 /// The conduit's host-session table: `(response_id, RouteKey) →
-/// HostRoute`. See [`Inner::routes`].
+/// RouteState`. See [`Inner::routes`].
 ///
-/// Every mutation WRITE-THROUGHS the resident hubs' `lab_mcp_kinds`
-/// mirror (`(response_id, host lab id) → McpKind`) — the lookup the
-/// laboratory-WS relay uses to stamp the wire kind onto an inbound
-/// `HostNotification::McpListChanged` before pushing it up the
-/// reverse channel. The mirrored kind is the REQUEST's wire kind
-/// VERBATIM (byte-match with the proxy's list-changed registry key).
-/// `mirror` is `None` outside the resident daemon.
+/// Every LIVE-route mutation WRITE-THROUGHS the resident hubs'
+/// `lab_mcp_kinds` mirror (`(response_id, host lab id) → McpKind`) —
+/// the lookup the laboratory-WS relay uses to stamp the wire kind
+/// onto an inbound `HostNotification::McpListChanged` before pushing
+/// it up the reverse channel. The mirrored kind is the REQUEST's wire
+/// kind VERBATIM (byte-match with the proxy's list-changed registry
+/// key). `Creating` entries have no mirror entry (no container id is
+/// known yet). `mirror` is `None` outside the resident daemon.
 #[derive(Default)]
 struct HostRoutes {
-    routes: DashMap<(String, RouteKey), HostRoute>,
+    routes: DashMap<(String, RouteKey), RouteState>,
     mirror: Option<Arc<DashMap<(String, String), McpKind>>>,
 }
 
@@ -171,10 +208,11 @@ impl HostRoutes {
         }
     }
 
-    /// Record (or overwrite — a re-create replaces) one route,
-    /// mirroring its wire kind. A displaced route (same key, different
-    /// host lab id after a cross-host re-create) drops its stale
-    /// mirror entry.
+    /// Record (or overwrite — a reconnect re-Initialize replaces) one
+    /// CLIENT-laboratory route, mirroring its wire kind. Ephemerals
+    /// never pass through here — their `Creating → Live` transition is
+    /// the create task's own atomic entry section. A displaced route
+    /// (same key, different host lab id) drops its stale mirror entry.
     fn record(
         &self,
         response_id: &str,
@@ -188,45 +226,65 @@ impl HostRoutes {
                 mcp_kind,
             );
         }
-        if let Some(displaced) = self
-            .routes
-            .insert((response_id.to_string(), key), route.clone())
-            && displaced.lab_id != route.lab_id
+        if let Some(RouteState::Live {
+            route: displaced, ..
+        }) = self.routes.insert(
+            (response_id.to_string(), key),
+            RouteState::Live {
+                route: route.clone(),
+                reply: None,
+            },
+        ) && displaced.lab_id != route.lab_id
         {
             self.mirror_remove(response_id, &displaced.lab_id);
         }
     }
 
-    /// Resolve one route, cloning it out (no guard escapes).
+    /// Resolve one LIVE route, cloning it out (no guard escapes). A
+    /// `Creating` entry resolves to `None` — the later op answers
+    /// `-32001`, the proxy re-initializes, and the re-initialize JOINS
+    /// the in-flight create.
     fn resolve(&self, response_id: &str, key: &RouteKey) -> Option<HostRoute> {
         self.routes
             .get(&(response_id.to_string(), key.clone()))
-            .map(|e| e.value().clone())
+            .and_then(|e| match e.value() {
+                RouteState::Live { route, .. } => Some(route.clone()),
+                RouteState::Creating(_) => None,
+            })
     }
 
-    /// Remove one route (graceful session end).
+    /// Remove one route (graceful session end). Removing a `Creating`
+    /// entry is deliberate: the create task's conditional transition
+    /// then finds its entry gone, treats the response as dropped, and
+    /// evaporates the container it just made (terminate-mid-create).
     fn remove(&self, response_id: &str, key: &RouteKey) {
-        if let Some((_, route)) =
+        if let Some((_, RouteState::Live { route, .. })) =
             self.routes.remove(&(response_id.to_string(), key.clone()))
         {
             self.mirror_remove(response_id, &route.lab_id);
         }
     }
 
-    /// Remove and return every route under `response_id` — the bulk
-    /// `Drop` teardown. Deduplicated by [`HostRoute`] (two keys never
-    /// share a route today, but the host `Drop` is per (lab, host) so
-    /// duplicates would only waste a frame).
+    /// Remove and return every LIVE route under `response_id` — the
+    /// bulk `Drop` teardown. `Creating` entries are left alone: their
+    /// create task observes the caller's tombstone (inserted BEFORE
+    /// this runs) inside its own atomic transition and self-cleans.
+    /// Deduplicated by [`HostRoute`].
     fn take_response(&self, response_id: &str) -> Vec<HostRoute> {
         let keys: Vec<(String, RouteKey)> = self
             .routes
             .iter()
-            .filter(|e| e.key().0 == response_id)
+            .filter(|e| {
+                e.key().0 == response_id
+                    && matches!(e.value(), RouteState::Live { .. })
+            })
             .map(|e| e.key().clone())
             .collect();
         let mut out: Vec<HostRoute> = Vec::new();
         for key in keys {
-            if let Some((_, route)) = self.routes.remove(&key) {
+            if let Some((_, RouteState::Live { route, .. })) =
+                self.routes.remove(&key)
+            {
                 self.mirror_remove(response_id, &route.lab_id);
                 if !out.contains(&route) {
                     out.push(route);
@@ -236,12 +294,18 @@ impl HostRoutes {
         out
     }
 
-    /// Drain EVERYTHING — the death sweep. Returns
-    /// `(response_id, route)` pairs, deduplicated per pair.
+    /// Drain EVERYTHING — the death sweep. Returns LIVE
+    /// `(response_id, route)` pairs, deduplicated per pair. `Creating`
+    /// entries are cleared without a forward: their create tasks hold
+    /// only a `Weak<Inner>`, fail the upgrade after this drop, and
+    /// forward the host `Drop` for their own containers themselves.
     fn drain_all(&self) -> Vec<(String, HostRoute)> {
         let mut out: Vec<(String, HostRoute)> = Vec::new();
         for entry in self.routes.iter() {
-            let pair = (entry.key().0.clone(), entry.value().clone());
+            let RouteState::Live { route, .. } = entry.value() else {
+                continue;
+            };
+            let pair = (entry.key().0.clone(), route.clone());
             self.mirror_remove(&pair.0, &pair.1.lab_id);
             if !out.contains(&pair) {
                 out.push(pair);
@@ -280,6 +344,7 @@ impl ConduitMcpHandler {
                 notifier_token: NOTIFIER_TOKEN
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                 routes: HostRoutes::new(mirror),
+                dropped_ids: DashSet::new(),
             }),
         }
     }
@@ -820,6 +885,11 @@ fn dispatch_drop(
     inner: &Arc<Inner>,
     req: server_request::DropRequest,
 ) -> server_response::Payload {
+    // Tombstone FIRST, take second — the order the create task's
+    // atomic transition linearizes against: a create completing after
+    // this insert either transitioned to Live before we look (we take
+    // and forward it) or sees the tombstone and self-cleans.
+    inner.dropped_ids.insert(req.response_id.clone());
     let mut dropped = false;
     if let Some(hubs) = inner.global.resident_hubs() {
         let routes = inner.routes.take_response(&req.response_id);
@@ -845,6 +915,177 @@ fn dispatch_drop(
         }
     }
     server_response::Payload::Drop(server_response::DropResult { dropped })
+}
+
+/// The create task's panic/early-exit net: on drop, removes the
+/// task's OWN `Creating` entry (channel-identity checked — never a
+/// successor's) unless a deliberate exit path already resolved it via
+/// [`Self::clear_now`] or [`Self::disarm`].
+struct ClearCreatingGuard {
+    inner: Weak<Inner>,
+    key: Option<(String, RouteKey)>,
+    rx: tokio::sync::watch::Receiver<Option<CreateResult>>,
+}
+
+impl ClearCreatingGuard {
+    /// The entry reached a terminal state by other means (`Live`
+    /// transition, or the completion section removed it) — do nothing
+    /// on drop.
+    fn disarm(&mut self) {
+        self.key = None;
+    }
+
+    /// Remove our `Creating` entry now (idempotent; no-op if a
+    /// foreign state took the slot) and disarm.
+    fn clear_now(&mut self) {
+        let Some(key) = self.key.take() else {
+            return;
+        };
+        let Some(inner) = self.inner.upgrade() else {
+            return;
+        };
+        inner.routes.routes.remove_if(&key, |_, state| {
+            matches!(
+                state,
+                RouteState::Creating(rx) if rx.same_channel(&self.rx)
+            )
+        });
+    }
+}
+
+impl Drop for ClearCreatingGuard {
+    fn drop(&mut self) {
+        self.clear_now();
+    }
+}
+
+/// The create's host half: pick a host (uniformly random; ensure the
+/// local one only when NONE is connected), build the kind's
+/// ephemeral-create payload, and run the ONE atomic host round trip.
+/// Timeout-free by design (a cold image build can take minutes); only
+/// host-channel death fails it. Returns the host's reply plus the
+/// pinned route.
+async fn run_ephemeral_create(
+    global: &crate::context::GlobalContext,
+    scoped: &crate::context::ScopedContext,
+    response_id: &str,
+    mcp_kind: &McpKind,
+    headers: IndexMap<String, String>,
+) -> Result<
+    (
+        objectiveai_sdk::laboratories::daemon::EphemeralCreated,
+        HostRoute,
+    ),
+    String,
+> {
+    let Some(hubs) = global.resident_hubs() else {
+        return Err("ephemeral create requires the resident daemon".to_string());
+    };
+    let (machine, machine_state) = match hubs.laboratories.random_host() {
+        Some(pair) => pair,
+        None => {
+            if let Err(e) =
+                crate::command::laboratories::ensure_local_host(global, scoped)
+                    .await
+            {
+                return Err(format!("local host: {e}"));
+            }
+            (
+                objectiveai_sdk::machine::machine_id(scoped.filesystem.dir()),
+                scoped.filesystem.state().to_string(),
+            )
+        }
+    };
+    let create = match mcp_kind {
+        McpKind::PluginLaboratory {
+            owner,
+            name,
+            version,
+        } => objectiveai_sdk::laboratories::daemon::RequestPayload::PluginEphemeralCreate(
+            objectiveai_sdk::laboratories::daemon::PluginEphemeralCreateRequest {
+                response_id: response_id.to_string(),
+                owner: owner.clone(),
+                name: name.clone(),
+                version: version.clone(),
+            },
+        ),
+        McpKind::AgentLaboratory {
+            id: _,
+            agent_full_id,
+            laboratory,
+        } => objectiveai_sdk::laboratories::daemon::RequestPayload::AgentEphemeralCreate(
+            objectiveai_sdk::laboratories::daemon::AgentEphemeralCreateRequest {
+                response_id: response_id.to_string(),
+                agent_full_id: agent_full_id.clone(),
+                laboratory: laboratory.clone(),
+            },
+        ),
+        McpKind::Laboratory { .. } => {
+            return Err("not an ephemeral kind".to_string());
+        }
+    };
+    // FULL headers on the create — they seed the host's MCP connect
+    // into the container (the in-container server needs the
+    // agent-argument set), unlike a regular Create's empty set.
+    use objectiveai_sdk::laboratories::daemon::{
+        JsonRpcResult as LabRpc, ResponsePayload as LabResp,
+    };
+    let created = match hubs
+        .laboratories
+        .forward_to_host(&machine, &machine_state, headers, create)
+        .await
+    {
+        Ok(
+            LabResp::AgentEphemeralCreate(LabRpc::Ok { result })
+            | LabResp::PluginEphemeralCreate(LabRpc::Ok { result }),
+        ) => result,
+        Ok(
+            LabResp::AgentEphemeralCreate(LabRpc::Err { message, .. })
+            | LabResp::PluginEphemeralCreate(LabRpc::Err { message, .. }),
+        ) => return Err(message),
+        Ok(_) => {
+            return Err(
+                "host answered with an unexpected payload".to_string()
+            );
+        }
+        Err(message) => return Err(message),
+    };
+    // `identify.id` is the HOST-authoritative ephemeral lab id.
+    let route = HostRoute {
+        lab_id: created.identify.id.clone(),
+        machine: Some(machine),
+        machine_state: Some(machine_state),
+    };
+    Ok((created, route))
+}
+
+/// Fire-and-forget host `Drop { response_id }` for a container the
+/// conduit will never route to (dropped/terminated mid-create, or the
+/// conduit itself died) — the create task's self-cleanup.
+fn spawn_host_drop(
+    global: &crate::context::GlobalContext,
+    route: HostRoute,
+    response_id: String,
+) {
+    let Some(hubs) = global.resident_hubs() else {
+        return;
+    };
+    let registry = hubs.laboratories.clone();
+    tokio::spawn(async move {
+        let _ = registry
+            .forward(
+                &route.lab_id,
+                route.machine.as_deref(),
+                route.machine_state.as_deref(),
+                indexmap::IndexMap::new(),
+                objectiveai_sdk::laboratories::daemon::RequestPayload::Drop(
+                    objectiveai_sdk::laboratories::daemon::DropRequest {
+                        response_id,
+                    },
+                ),
+            )
+            .await;
+    });
 }
 
 impl ConduitMcpHandler {
@@ -922,11 +1163,21 @@ impl ConduitMcpHandler {
     /// did (a failed connect removes the container host-side and
     /// fails this op, which fails the proxy's upstream connect).
     ///
-    /// LOAD BALANCING: every individual create picks a UNIFORMLY
-    /// RANDOM connected laboratory host. Only when NO host is
-    /// connected does the daemon ensure (spawn) its local host —
-    /// never when remote hosts exist (latency: the ensure path can
-    /// cold-start podman).
+    /// SINGLE-FLIGHT: the proxy's initialize is connect-timeout-
+    /// bounded and retries, but a create is timeout-free and can run
+    /// long (cold image build). Exactly ONE create runs per
+    /// `(response_id, key)`: the first initialize inserts a
+    /// [`RouteState::Creating`] entry and spawns the create task;
+    /// every retry JOINS it by awaiting the same watch channel. A
+    /// retry can therefore never re-roll the random host and orphan a
+    /// duplicate container on another machine. A retry landing AFTER
+    /// the create completed is answered idempotently from the cached
+    /// `Live` reply.
+    ///
+    /// LOAD BALANCING: every create picks a UNIFORMLY RANDOM
+    /// connected laboratory host. Only when NO host is connected does
+    /// the daemon ensure (spawn) its local host — never when remote
+    /// hosts exist (latency: the ensure path can cold-start podman).
     async fn dispatch_ephemeral_initialize(
         &self,
         mcp_kind: McpKind,
@@ -947,141 +1198,243 @@ impl ConduitMcpHandler {
                 return initialize_err(-32600, format!("conduit: {message}"));
             }
         };
-        let Some(hubs) = self.inner.global.resident_hubs() else {
+        let response_id = transient.response_id;
+        // Sticky tombstone: a Drop for this response already ran —
+        // nothing may initialize under it again (NOT -32001: that
+        // invites a re-initialize loop for a response that is dead).
+        if self.inner.dropped_ids.contains(&response_id) {
+            return initialize_err(
+                -32603,
+                "conduit: response already dropped".to_string(),
+            );
+        }
+        if self.inner.global.resident_hubs().is_none() {
             return initialize_err(
                 -32603,
                 "ephemeral create requires the resident daemon".to_string(),
             );
-        };
-        let (machine, machine_state) = match hubs.laboratories.random_host() {
-            Some(pair) => pair,
-            None => {
-                if let Err(e) = crate::command::laboratories::ensure_local_host(
-                    &self.inner.global,
-                    &self.inner.scoped,
-                )
-                .await
-                {
-                    return initialize_err(
-                        -32603,
-                        format!("ephemeral create: local host: {e}"),
-                    );
-                }
-                (
-                    objectiveai_sdk::machine::machine_id(
-                        self.inner.scoped.filesystem.dir(),
-                    ),
-                    self.inner.scoped.filesystem.state().to_string(),
-                )
-            }
-        };
-        let (key, create) = match &mcp_kind {
-            McpKind::PluginLaboratory {
-                owner,
-                name,
-                version,
-            } => (
-                RouteKey::Plugin {
-                    owner: owner.clone(),
-                    name: name.clone(),
-                    version: version.clone(),
-                },
-                objectiveai_sdk::laboratories::daemon::RequestPayload::PluginEphemeralCreate(
-                    objectiveai_sdk::laboratories::daemon::PluginEphemeralCreateRequest {
-                        response_id: transient.response_id.clone(),
-                        owner: owner.clone(),
-                        name: name.clone(),
-                        version: version.clone(),
-                    },
-                ),
-            ),
-            McpKind::AgentLaboratory {
-                id,
-                agent_full_id,
-                laboratory,
-            } => (
-                RouteKey::Agent {
-                    derived_id: id.clone(),
-                },
-                objectiveai_sdk::laboratories::daemon::RequestPayload::AgentEphemeralCreate(
-                    objectiveai_sdk::laboratories::daemon::AgentEphemeralCreateRequest {
-                        response_id: transient.response_id.clone(),
-                        agent_full_id: agent_full_id.clone(),
-                        laboratory: laboratory.clone(),
-                    },
-                ),
-            ),
-            McpKind::Laboratory { .. } => {
-                return initialize_err(
-                    -32603,
-                    "conduit: not an ephemeral kind".to_string(),
-                );
-            }
-        };
-        // FULL headers on the create — they seed the host's MCP
-        // connect into the container (the in-container server needs
-        // the agent-argument set), unlike the old empty-headers
-        // Create.
-        use objectiveai_sdk::laboratories::daemon::{
-            JsonRpcResult as LabRpc, ResponsePayload as LabResp,
-        };
-        let created = match hubs
-            .laboratories
-            .forward_to_host(&machine, &machine_state, headers.clone(), create)
-            .await
-        {
-            Ok(
-                LabResp::AgentEphemeralCreate(LabRpc::Ok { result })
-                | LabResp::PluginEphemeralCreate(LabRpc::Ok { result }),
-            ) => result,
-            Ok(
-                LabResp::AgentEphemeralCreate(LabRpc::Err { message, .. })
-                | LabResp::PluginEphemeralCreate(LabRpc::Err { message, .. }),
-            ) => {
-                return initialize_err(
-                    -32603,
-                    format!("ephemeral create: {message}"),
-                );
-            }
-            Ok(_) => {
-                return initialize_err(
-                    -32603,
-                    "ephemeral create: host answered with an unexpected payload"
-                        .to_string(),
-                );
-            }
-            Err(message) => {
-                return initialize_err(
-                    -32603,
-                    format!("ephemeral create: {message}"),
-                );
-            }
-        };
-        // Route: later ops, the graceful terminate, the bulk Drop and
-        // the death sweep all resolve through this. `identify.id` is
-        // the HOST-authoritative ephemeral lab id. The wire kind rides
-        // into the `lab_mcp_kinds` mirror VERBATIM so the relay stamps
-        // list-changed frames with the exact registry key the proxy
-        // registered under.
-        self.inner.routes.record(
-            &transient.response_id,
-            key,
-            HostRoute {
-                lab_id: created.identify.id.clone(),
-                machine: Some(machine),
-                machine_state: Some(machine_state),
-            },
-            mcp_kind.clone(),
-        );
-        server_response::Payload::Initialize {
-            mcp_kind,
-            result: JsonRpcResult::Ok {
-                result: InitializeReply {
-                    mcp_session_id: created.reply.mcp_session_id,
-                    result: created.reply.result,
-                },
-            },
         }
+        let Some(key) = Self::route_key(&mcp_kind) else {
+            return initialize_err(
+                -32603,
+                "conduit: not an ephemeral kind".to_string(),
+            );
+        };
+        // The single-flight entry section — NO await while the entry
+        // guard is held.
+        let mut spawn_tx = None;
+        let mut rx = {
+            use dashmap::mapref::entry::Entry;
+            match self
+                .inner
+                .routes
+                .routes
+                .entry((response_id.clone(), key.clone()))
+            {
+                Entry::Occupied(entry) => match entry.get() {
+                    // Late retry: the create already completed —
+                    // answer from the cached reply, byte-identical to
+                    // the winner's.
+                    RouteState::Live { reply: Some(reply), .. } => {
+                        let reply = reply.clone();
+                        return server_response::Payload::Initialize {
+                            mcp_kind,
+                            result: JsonRpcResult::Ok {
+                                result: InitializeReply {
+                                    mcp_session_id: reply.mcp_session_id,
+                                    result: reply.result,
+                                },
+                            },
+                        };
+                    }
+                    // Ephemeral keys always cache a reply; a reply-less
+                    // Live here is a routing bug, never a dial target.
+                    RouteState::Live { reply: None, .. } => {
+                        return initialize_err(
+                            -32603,
+                            "conduit: ephemeral route without a cached reply"
+                                .to_string(),
+                        );
+                    }
+                    // Join the in-flight create.
+                    RouteState::Creating(rx) => rx.clone(),
+                },
+                Entry::Vacant(entry) => {
+                    let (tx, rx) = tokio::sync::watch::channel(None);
+                    entry.insert(RouteState::Creating(rx.clone()));
+                    spawn_tx = Some(tx);
+                    rx
+                }
+            }
+        };
+        if let Some(tx) = spawn_tx {
+            self.spawn_ephemeral_create(
+                tx,
+                response_id,
+                key,
+                mcp_kind.clone(),
+                headers.clone(),
+            );
+        }
+        // Creator and joiners alike: park (event-driven, no polling)
+        // until the create task publishes its one-shot outcome. A
+        // dead channel (task panicked before sending) surfaces as a
+        // plain error.
+        let outcome = match rx.wait_for(|v| v.is_some()).await {
+            Ok(value) => value.clone().expect("wait_for(is_some) guarantees Some"),
+            Err(_) => {
+                Err("ephemeral create task ended without a result".to_string())
+            }
+        };
+        match outcome {
+            Ok(reply) => server_response::Payload::Initialize {
+                mcp_kind,
+                result: JsonRpcResult::Ok {
+                    result: InitializeReply {
+                        mcp_session_id: reply.mcp_session_id,
+                        result: reply.result,
+                    },
+                },
+            },
+            Err(message) => {
+                initialize_err(-32603, format!("ephemeral create: {message}"))
+            }
+        }
+    }
+
+    /// Spawn the actual create — host pick, atomic host round trip,
+    /// atomic `Creating → Live` transition — publishing the outcome
+    /// through `tx`.
+    ///
+    /// SPAWNED (not inline) so the requester's future being cancelled
+    /// (WS death mid-create) never abandons a host-side create the
+    /// daemon then knows nothing about. Captures `Weak<Inner>` — NOT
+    /// `Arc` — because creates are timeout-free: an `Arc` would pin
+    /// the conduit's death sweep behind a wedged create without
+    /// bound. If the conduit dies mid-create, the upgrade fails and
+    /// THIS task forwards the host `Drop` for its own container.
+    fn spawn_ephemeral_create(
+        &self,
+        tx: tokio::sync::watch::Sender<Option<CreateResult>>,
+        response_id: String,
+        key: RouteKey,
+        mcp_kind: McpKind,
+        headers: IndexMap<String, String>,
+    ) {
+        let weak = Arc::downgrade(&self.inner);
+        let global = self.inner.global.clone();
+        let scoped = self.inner.scoped.clone();
+        tokio::spawn(async move {
+            // Panic/early-exit net: clears OUR Creating entry (channel-
+            // identity checked) unless a deliberate exit path already
+            // resolved it. Without this, a panic would wedge the
+            // (response_id, key) in Creating forever — every retry
+            // joining a dead channel.
+            let mut guard = ClearCreatingGuard {
+                inner: weak.clone(),
+                key: Some((response_id.clone(), key.clone())),
+                rx: tx.subscribe(),
+            };
+
+            let outcome =
+                run_ephemeral_create(&global, &scoped, &response_id, &mcp_kind, headers)
+                    .await;
+
+            match outcome {
+                Err(message) => {
+                    // Remove-then-send: a retry arriving after the
+                    // removal starts a FRESH create (correct — this
+                    // one failed and the host's fail path removed the
+                    // container) instead of joining a dead exchange.
+                    guard.clear_now();
+                    let _ = tx.send(Some(Err(message)));
+                }
+                Ok((created, route)) => {
+                    let reply = created.reply;
+                    match weak.upgrade() {
+                        // Conduit died mid-create: no route table to
+                        // record into, no death sweep coming for this
+                        // container — Drop it ourselves.
+                        None => {
+                            guard.clear_now();
+                            spawn_host_drop(&global, route, response_id.clone());
+                            let _ = tx.send(Some(Err(
+                                "conduit closed during ephemeral create"
+                                    .to_string(),
+                            )));
+                        }
+                        Some(inner) => {
+                            // THE atomic transition (no await, one
+                            // entry guard): only OUR Creating entry
+                            // becomes Live, and only if no Drop
+                            // tombstoned the response meanwhile. This
+                            // linearizes against `dispatch_drop`
+                            // (tombstone-then-take): either we go Live
+                            // first and its take finds us, or we see
+                            // its tombstone and self-clean.
+                            let my_rx = tx.subscribe();
+                            let transitioned = {
+                                use dashmap::mapref::entry::Entry;
+                                match inner.routes.routes.entry((
+                                    response_id.clone(),
+                                    key.clone(),
+                                )) {
+                                    Entry::Occupied(mut entry)
+                                        if matches!(
+                                            entry.get(),
+                                            RouteState::Creating(rx)
+                                                if rx.same_channel(&my_rx)
+                                        ) =>
+                                    {
+                                        if inner.dropped_ids.contains(&response_id)
+                                        {
+                                            entry.remove();
+                                            false
+                                        } else {
+                                            entry.insert(RouteState::Live {
+                                                route: route.clone(),
+                                                reply: Some(reply.clone()),
+                                            });
+                                            true
+                                        }
+                                    }
+                                    // Vacant or foreign (terminated /
+                                    // superseded): the response no
+                                    // longer wants this container.
+                                    _ => false,
+                                }
+                            };
+                            guard.disarm();
+                            if transitioned {
+                                // Mirror write-through OUTSIDE the
+                                // routes entry guard (no cross-map
+                                // holds).
+                                if let Some(mirror) = &inner.routes.mirror {
+                                    mirror.insert(
+                                        (
+                                            response_id.clone(),
+                                            route.lab_id.clone(),
+                                        ),
+                                        mcp_kind.clone(),
+                                    );
+                                }
+                                let _ = tx.send(Some(Ok(reply)));
+                            } else {
+                                spawn_host_drop(
+                                    &global,
+                                    route,
+                                    response_id.clone(),
+                                );
+                                let _ = tx.send(Some(Err(
+                                    "response dropped during ephemeral create"
+                                        .to_string(),
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+        });
     }
 
     /// Which laboratory (if any) a payload is addressed to — the id
