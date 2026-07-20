@@ -1297,14 +1297,18 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
     /// frame to `{url}/objectiveai/command`, in stream order, one POST
     /// per frame, each carrying the request's correlation id.
     ///
-    /// Frame discipline (see [`super::CliResponse`]): stream errors
-    /// are NON-terminal (`Error` frames — the stream may keep
-    /// yielding); the exchange ALWAYS ends with a `Done` frame, even
-    /// when the run failed to start or the pump aborted. A POST
+    /// Frame discipline (see [`super::CliResponse`]): the exchange
+    /// ALWAYS opens with an `Ack` — POSTed before the run starts, so
+    /// the server knows a response is coming even when the run is
+    /// slow — and ALWAYS ends with a `Done`, even when the run failed
+    /// to start or the pump aborted. Stream errors are NON-terminal
+    /// (`Error` frames — the stream may keep yielding). A POST
     /// transport failure aborts the pump — dropping the stream cancels
     /// the run — but the final `Done` is still attempted (its own
     /// failure is ignored: there is nobody left to tell, and no
-    /// logging surface to tell them on).
+    /// logging surface to tell them on). An undeliverable `Ack` skips
+    /// the run entirely: the server is unreachable, so the output
+    /// would be undeliverable too.
     ///
     /// Spawned from the SSE listener — requests are fulfilled in
     /// PARALLEL (a long run never delays other notifications). Frame
@@ -1318,6 +1322,23 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
             super::CLI_COMMAND_ENDPOINT_SUFFIX,
         );
         let id = params.id;
+        // Opener — before execute(), which may be slow to even start.
+        if self
+            .post_cli_response(
+                &endpoint,
+                &super::CliResponse::Ack { id: id.clone() },
+            )
+            .await
+            .is_err()
+        {
+            let _ = self
+                .post_cli_response(
+                    &endpoint,
+                    &super::CliResponse::Done { id },
+                )
+                .await;
+            return;
+        }
         match self.executor.execute(params.request).await {
             Err(e) => {
                 let _ = self

@@ -89,17 +89,22 @@ pub trait McpClientCommandExecutor: Send + Sync + 'static {
 /// correlation `id` (from
 /// [`CliRequestParams`](super::CliRequestParams)).
 ///
-/// Frame rules:
+/// Frame rules — an exchange is `Ack (Item|Error)* Done`:
+/// - [`CliResponse::Ack`] — ALWAYS the opening frame, POSTed the
+///   moment the request is picked up, BEFORE the run starts: the
+///   server learns a response is coming even when the run is slow to
+///   produce its first item.
 /// - [`CliResponse::Item`] — one typed command-output item.
 /// - [`CliResponse::Error`] — a start failure or a stream error.
 ///   NON-terminal: a stream may yield errors and keep going.
 /// - [`CliResponse::Done`] — ALWAYS the final frame of an exchange,
 ///   error or no. A run that fails to start still produces
-///   `Error` then `Done`.
+///   `Ack`, `Error`, `Done`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "mcp.CliResponse")]
 pub enum CliResponse {
+    Ack { id: String },
     Item {
         id: String,
         item: crate::cli::command::ResponseItem,
@@ -167,6 +172,14 @@ mod tests {
 
     #[test]
     fn cli_response_wire_shapes() {
+        let ack = CliResponse::Ack {
+            id: "7".to_string(),
+        };
+        assert_eq!(
+            serde_json::to_value(&ack).unwrap(),
+            serde_json::json!({"type": "ack", "id": "7"}),
+        );
+
         let error = CliResponse::Error {
             id: "7".to_string(),
             error: "boom".to_string(),
