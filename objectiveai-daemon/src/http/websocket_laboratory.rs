@@ -93,6 +93,13 @@ struct HostConnection {
     /// In-flight forwards awaiting the host's correlated reply.
     /// Dropped wholesale on disconnect, failing every waiter.
     pending: DashMap<String, oneshot::Sender<ChannelResponse>>,
+    /// Displacement kill: notified by the successor's registration so
+    /// this connection's handler exits through the SAME post-loop
+    /// teardown every other ending takes (close frame, recv error,
+    /// stream end) — never a lingering zombie folding stale state
+    /// under a live identity. `notify_one` stores a permit if the
+    /// handler isn't parked yet, so there is no lost-wakeup window.
+    shutdown: tokio::sync::Notify,
 }
 
 /// One connected-set mutation, broadcast to the live `/laboratories/*`
@@ -712,9 +719,12 @@ pub(crate) async fn laboratory_handler(
         // 3. Register under (machine id, state). A live entry means
         // either a stale duplicate (the host's `laboratories` lock
         // should prevent one) or a reconnect racing its own
-        // predecessor's teardown — the NEW connection wins: displace
-        // the old entry (its pending waiters fail). Same-machine hosts
-        // of OTHER states are untouched.
+        // predecessor's teardown — the NEW connection wins: the old
+        // entry is displaced AND EXPLICITLY KILLED (its in-flight
+        // waiters fail now, its handler is sent through the shared
+        // teardown) so it can never linger as a zombie emitting stale
+        // state under this same identity. Same-machine hosts of OTHER
+        // states are untouched.
         let host_key = (identify.machine.id.clone(), identify.state.clone());
         let (tx, mut rx) = mpsc::unbounded_channel::<OutboundFrame>();
         let labs: IndexMap<String, Identify> = identify
@@ -729,11 +739,20 @@ pub(crate) async fn laboratory_handler(
             filetree: RwLock::new(IndexMap::new()),
             tx,
             pending: DashMap::new(),
+            shutdown: tokio::sync::Notify::new(),
         });
-        state
+        if let Some(displaced) = state
             .laboratories
             .hosts
-            .insert(host_key.clone(), Arc::clone(&host));
+            .insert(host_key.clone(), Arc::clone(&host))
+        {
+            // Fail its in-flight forwards NOW (dropping the oneshot
+            // senders errors every waiter) rather than whenever its
+            // handler gets around to dropping the last Arc...
+            displaced.pending.retain(|_, _| false);
+            // ...and send its handler through the shared teardown.
+            displaced.shutdown.notify_one();
+        }
         let _ = state
             .laboratories
             .events
@@ -754,9 +773,14 @@ pub(crate) async fn laboratory_handler(
         }
 
         // Pump: outbound requests + inbound correlated replies and
-        // uncorrelated notifications.
+        // uncorrelated notifications. FOUR endings, ONE teardown: the
+        // host's close frame, a recv error (incl. a keepalive-detected
+        // dead peer), the stream ending, and displacement by a
+        // successor connection all `break` to the shared
+        // deregistration below.
         loop {
             tokio::select! {
+                _ = host.shutdown.notified() => break,
                 queued = rx.recv() => match queued {
                     Some(outbound) => {
                         let serialized = match &outbound {
