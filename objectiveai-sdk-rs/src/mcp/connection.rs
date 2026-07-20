@@ -1306,9 +1306,10 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
     /// failure is ignored: there is nobody left to tell, and no
     /// logging surface to tell them on).
     ///
-    /// Called inline from the SSE listener — requests are fulfilled
-    /// ONE AT A TIME, in stream order, like the list_changed
-    /// refreshes.
+    /// Spawned from the SSE listener — requests are fulfilled in
+    /// PARALLEL (a long run never delays other notifications). Frame
+    /// order is guaranteed per run; ordering ACROSS concurrent runs is
+    /// not.
     async fn fulfill_cli_request(&self, params: super::CliRequestParams) {
         use futures_util::StreamExt;
         let endpoint = format!(
@@ -1500,15 +1501,28 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
             // the `is_reconnect` doc-comment above for the
             // refresh-AFTER-resubscribe rationale.
             if is_reconnect {
-                // tools and resources are independent locks; run the
-                // catch-up refreshes concurrently so disconnect
-                // recovery isn't sequential.
-                let _ = tokio::join!(
-                    this.refresh_tools(this.on_tools_list_changed.get()),
-                    this.refresh_resources(
-                        this.on_resources_list_changed.get()
-                    ),
-                );
+                // Spawned like every other handler — the read loop
+                // starts immediately (we're already resubscribed, so
+                // nothing is lost: a notification landing during the
+                // catch-up just spawns its own refresh). tools and
+                // resources are independent locks; the two catch-ups
+                // run concurrently inside the task.
+                let conn = Arc::clone(&this);
+                let cancel = cancel.clone();
+                tokio::spawn(async move {
+                    tokio::select! {
+                        _ = async {
+                            let tools_cb = conn.on_tools_list_changed.get();
+                            let resources_cb =
+                                conn.on_resources_list_changed.get();
+                            let _ = tokio::join!(
+                                conn.refresh_tools(tools_cb),
+                                conn.refresh_resources(resources_cb),
+                            );
+                        } => {}
+                        _ = cancel.cancelled() => {}
+                    }
+                });
             }
             is_reconnect = true;
 
@@ -1525,6 +1539,21 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
                                     Ok(n) => n,
                                     Err(_) => continue 'inner,
                                 };
+                                // EVERY handler is SPAWNED — the
+                                // listener never blocks on one, so
+                                // notifications are handled in
+                                // parallel and a long-running command
+                                // run can't delay a list_changed
+                                // refresh (or another command).
+                                //
+                                // Spawned tasks hold a strong
+                                // `Arc<ConnectionInner>` for their
+                                // duration, so a plainly-dropped
+                                // connection stays alive until its
+                                // in-flight handlers finish; explicit
+                                // teardown (`Connection::delete`)
+                                // fires the cancel token, which every
+                                // task races against and aborts on.
                                 match notification {
                                     super::JsonRpcServerNotification::ToolsListChanged { .. } => {
                                         // refresh_tools fires the
@@ -1534,25 +1563,44 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
                                         // notifications/tools/list_changed
                                         // emission lines up with the
                                         // staleness window opening.
-                                        this.refresh_tools(
-                                            this.on_tools_list_changed.get(),
-                                        )
-                                        .await;
+                                        let conn = Arc::clone(&this);
+                                        let cancel = cancel.clone();
+                                        tokio::spawn(async move {
+                                            tokio::select! {
+                                                _ = async {
+                                                    let cb = conn.on_tools_list_changed.get();
+                                                    conn.refresh_tools(cb).await;
+                                                } => {}
+                                                _ = cancel.cancelled() => {}
+                                            }
+                                        });
                                     }
                                     super::JsonRpcServerNotification::ResourcesListChanged { .. } => {
-                                        this.refresh_resources(
-                                            this.on_resources_list_changed.get(),
-                                        )
-                                        .await;
+                                        let conn = Arc::clone(&this);
+                                        let cancel = cancel.clone();
+                                        tokio::spawn(async move {
+                                            tokio::select! {
+                                                _ = async {
+                                                    let cb = conn.on_resources_list_changed.get();
+                                                    conn.refresh_resources(cb).await;
+                                                } => {}
+                                                _ = cancel.cancelled() => {}
+                                            }
+                                        });
                                     }
-                                    // Command-execution extension:
-                                    // fulfill inline — one request at
-                                    // a time, in stream order. The
+                                    // Command-execution extension. The
                                     // executor decides support (the
                                     // default answers with a
                                     // "not supported" Error frame).
                                     super::JsonRpcServerNotification::CliRequest { params, .. } => {
-                                        this.fulfill_cli_request(params).await;
+                                        let conn = Arc::clone(&this);
+                                        let cancel = cancel.clone();
+                                        tokio::spawn(async move {
+                                            tokio::select! {
+                                                _ = conn.fulfill_cli_request(params) => {}
+                                                _ = cancel.cancelled() => {}
+                                            }
+                                        });
                                     }
                                     super::JsonRpcServerNotification::Fallback { .. } => {}
                                 }

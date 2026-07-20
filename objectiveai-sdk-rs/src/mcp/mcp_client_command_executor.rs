@@ -5,8 +5,9 @@
 //! When it does, it may push
 //! `notifications/objectiveai/cli_request` frames over the connection's
 //! standing SSE stream, asking this CLIENT to run a CLI command. The
-//! connection fulfills each request — one at a time, in stream order —
-//! by running it through its [`McpClientCommandExecutor`] and POSTing
+//! connection fulfills requests IN PARALLEL (each spawned off the
+//! listener; frame order is guaranteed per run, not across runs) —
+//! by running each through its [`McpClientCommandExecutor`] and POSTing
 //! every resulting item to the server's
 //! `{mcp_url}/objectiveai/command` endpoint
 //! ([`CLI_COMMAND_ENDPOINT_SUFFIX`]) as a [`CliResponse`] frame
