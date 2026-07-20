@@ -19,10 +19,14 @@ use std::path::PathBuf;
 
 use crate::podman;
 
-/// One full sweep over this state's RUNNING laboratory containers.
-/// Errors are reported to stderr and never propagate — cleaning is
-/// best-effort by design.
+/// One full sweep over this state's RUNNING laboratory containers,
+/// plus the leftover plugin-build checkouts under `<bin>/temp` (a
+/// hard-killed predecessor's scratch — new builds mint fresh uuid
+/// dirs, and nothing builds until a channel serves, so nothing races
+/// this). Errors are reported to stderr and never propagate —
+/// cleaning is best-effort by design.
 pub async fn sweep(bin_dir: PathBuf, state: String) {
+    crate::gitrepo::sweep_temp(&bin_dir).await;
     let podman = podman::Podman::new(bin_dir);
     let ids = match podman::laboratory::list_running(&podman, &state).await {
         Ok(ids) => ids,

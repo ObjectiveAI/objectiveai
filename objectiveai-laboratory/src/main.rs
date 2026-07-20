@@ -33,9 +33,13 @@
 mod channel;
 mod cleaner;
 mod filetree;
+mod gitrepo;
 mod host;
+mod host_command;
 mod lab_tree;
 mod mount_watch;
+mod plugin_image;
+mod plugin_manifest;
 mod podman;
 mod server;
 
@@ -44,7 +48,7 @@ use std::sync::Arc;
 
 use clap::Parser;
 use objectiveai_sdk::laboratories::daemon::{
-    HostStdioAck, HostStdioCommand, Identify, IdentifyMount,
+    HostStdioAck, HostStdioCommand, Identify, IdentifyMount, IdentifyPlugin,
 };
 
 #[derive(Parser)]
@@ -87,6 +91,11 @@ pub(crate) fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Ide
         cwd: lab.cwd,
         created_at: lab.created_at,
         agent_full_id: lab.agent_full_id,
+        plugin: lab.plugin.map(|p| IdentifyPlugin {
+            owner: p.owner,
+            name: p.name,
+            version: p.version,
+        }),
         running: lab.running,
     }
 }

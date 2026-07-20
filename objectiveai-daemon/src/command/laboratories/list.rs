@@ -62,6 +62,13 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                 cwd: lab.cwd,
                 created_at: lab.created_at,
                 agent_full_id: lab.agent_full_id,
+                plugin: lab.plugin.map(|p| {
+                    objectiveai_sdk::cli::command::laboratories::list::Plugin {
+                        owner: p.owner,
+                        name: p.name,
+                        version: p.version,
+                    }
+                }),
                 machine: Some(machine),
                 machine_state: Some(machine_state),
                 running: lab.running,

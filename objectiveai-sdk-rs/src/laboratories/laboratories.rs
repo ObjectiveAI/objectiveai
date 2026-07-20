@@ -1,6 +1,15 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// The reserved id namespace for PLUGIN laboratories:
+/// `oai-plugin-{owner}-{name}-{version}` — `owner` and `name`
+/// lowercased, `version` case-PRESERVED (it maps to a case-sensitive
+/// git tag) and `v`-prefixed (Go-modules convention). Derived by the
+/// laboratory host from a plugin's coordinate trio — never
+/// user-created (`laboratories create` rejects the prefix, like
+/// [`crate::agent::AGENT_LABORATORY_ID_PREFIX`]).
+pub const PLUGIN_LABORATORY_ID_PREFIX: &str = "oai-plugin-";
+
 /// A laboratory attached to an agent completion — dialed by the proxy as a
 /// client-side MCP upstream across every agent (and fallback).
 ///

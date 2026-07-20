@@ -123,14 +123,22 @@ pub fn validate(plugins: &[Plugin]) -> Result<(), String> {
     Ok(())
 }
 
-/// Canonicalization pass for an agent's `plugins` list: normalize each
-/// entry's `arguments` (`Some("") → None` values, key-sort, collapse
-/// an empty map to `None`), then sort the list by
+/// Canonicalization pass for an agent's `plugins` list: lowercase
+/// `owner` and `name` (GitHub owner/repo lookups are case-insensitive,
+/// and the laboratory host derives container/image identity from the
+/// lowercased pair; the content-addressing impact of mixed-case
+/// declarations collapsing is accepted). `version` keeps its case —
+/// it maps to a git tag, and git refs are case-SENSITIVE (semver
+/// permits uppercase prerelease identifiers like `v1.2.3-RC1`). Then
+/// normalize each entry's `arguments` (`Some("") → None` values,
+/// key-sort, collapse an empty map to `None`), and sort the list by
 /// `(owner, name, version, arguments)`. The enclosing field uses
 /// `skip_serializing_if = "Vec::is_empty"`, so an empty list needs no
 /// collapse here.
 pub fn prepare(mut plugins: Vec<Plugin>) -> Vec<Plugin> {
     for plugin in &mut plugins {
+        plugin.owner = plugin.owner.to_lowercase();
+        plugin.name = plugin.name.to_lowercase();
         let drop_empty = match plugin.arguments.as_mut() {
             Some(args) => {
                 for (_, v) in args.iter_mut() {
@@ -221,6 +229,20 @@ mod tests {
             "1",
             &[("a", Some("2")), ("b", Some("1"))],
         )]);
+        assert_eq!(
+            serde_json::to_string(&a).unwrap(),
+            serde_json::to_string(&b).unwrap(),
+        );
+    }
+
+    #[test]
+    fn prepare_lowercases_owner_and_name_but_not_version() {
+        let a = prepare(vec![plugin("Acme", "Widgets", "v1.2.3-RC1", &[])]);
+        let b = prepare(vec![plugin("acme", "widgets", "v1.2.3-RC1", &[])]);
+        assert_eq!(a[0].owner, "acme");
+        assert_eq!(a[0].name, "widgets");
+        // version case is PRESERVED — git tags are case-sensitive
+        assert_eq!(a[0].version, "v1.2.3-RC1");
         assert_eq!(
             serde_json::to_string(&a).unwrap(),
             serde_json::to_string(&b).unwrap(),

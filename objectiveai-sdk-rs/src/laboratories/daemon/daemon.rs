@@ -73,6 +73,14 @@ pub struct Identify {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
+    /// For plugin laboratories: the plugin's canonical coordinate
+    /// trio (owner/name lowercased, version case-preserved and
+    /// `v`-prefixed). `None` for every other laboratory. Optional +
+    /// defaulted so frames from hosts predating this field still
+    /// parse (the `created_at` precedent).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<IdentifyPlugin>,
     /// Whether the laboratory's container is RUNNING right now. The
     /// lifecycle starts and stops containers on demand, and the host
     /// re-announces on every transition
@@ -81,6 +89,18 @@ pub struct Identify {
     /// field still parse (as not-running).
     #[serde(default)]
     pub running: bool,
+}
+
+/// A plugin laboratory's canonical coordinate trio, as carried by
+/// [`Identify::plugin`]: owner/name lowercased, version
+/// case-preserved and `v`-prefixed — exactly the identity the
+/// laboratory host derived the laboratory id and image tag from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.IdentifyPlugin")]
+pub struct IdentifyPlugin {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
 }
 
 /// The `/laboratory` connection's FIRST frame: who this HOST is. Sent

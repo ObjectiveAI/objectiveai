@@ -71,23 +71,49 @@ fn now_secs() -> i64 {
         .unwrap_or(0)
 }
 
+/// What makes a [`LabServer`] a PLUGIN laboratory's: the shared
+/// command bridge plus the plugin's coordinates. Its sessions connect
+/// with the command-forwarding executor
+/// ([`crate::host_command::HostCommandExecutor`]) so the plugin's MCP
+/// server can run CLI commands on the daemon; regular laboratories
+/// (`None`) connect with the executor's inert form.
+pub struct PluginSeed {
+    pub bridge: Arc<crate::host_command::CommandBridge>,
+    pub plugin: objectiveai_sdk::mcp::server::Plugin,
+}
+
+/// One per-response-id MCP session into the container.
+struct SessionEntry {
+    /// The daemon channel that opened it — a channel disconnect drops
+    /// its sessions ([`LabServer::drop_channel`]), so a dead daemon
+    /// can never pin this container running.
+    channel: u64,
+    connection:
+        Arc<objectiveai_sdk::mcp::Connection<crate::host_command::HostCommandExecutor>>,
+    /// Plugin sessions only: the session's LATEST request headers,
+    /// full-replaced on every op and read by the executor at
+    /// `execute()` time — the freshest agent identity always wins
+    /// (the proxy's transient-bag semantics). `None` on regular labs.
+    transient:
+        Option<Arc<tokio::sync::RwLock<IndexMap<String, String>>>>,
+}
+
 /// The one-laboratory server: MCP session registry + transfer registry
 /// + the container's loopback base URL.
 pub struct LabServer {
     /// The container's MCP/transfer HTTP base (`http://127.0.0.1:{port}`).
     base_url: String,
     mcp: objectiveai_sdk::mcp::Client,
-    /// Per-response-id MCP connections into the container, each
-    /// tagged with the daemon channel that opened it — a channel
-    /// disconnect drops its sessions ([`Self::drop_channel`]), so a
-    /// dead daemon can never pin this container running.
-    connections: DashMap<String, (u64, Arc<objectiveai_sdk::mcp::Connection>)>,
+    /// `Some` ⇒ this laboratory IS a plugin (see [`PluginSeed`]).
+    plugin: Option<PluginSeed>,
+    /// Per-response-id MCP connections into the container.
+    connections: DashMap<String, SessionEntry>,
     /// Parked transfer halves, keyed by manager-minted transfer id.
     transfers: DashMap<String, Arc<TransferEntry>>,
 }
 
 impl LabServer {
-    pub fn new(base_url: String) -> Self {
+    pub fn new(base_url: String, plugin: Option<PluginSeed>) -> Self {
         use std::time::Duration;
         // Match the CLI conduit's MCP client knobs (100ms/0.5/1.5/1s
         // backoff, 10-minute budget + call timeout — the laboratory is
@@ -109,6 +135,7 @@ impl LabServer {
         Self {
             base_url,
             mcp,
+            plugin,
             connections: DashMap::new(),
             transfers: DashMap::new(),
         }
@@ -125,7 +152,7 @@ impl LabServer {
     /// channel disconnects (its response ids are unreachable until the
     /// daemon reconnects and re-initializes).
     pub fn drop_channel(&self, channel: u64) {
-        self.connections.retain(|_, (ch, _)| *ch != channel);
+        self.connections.retain(|_, entry| entry.channel != channel);
     }
 
     /// Whether any transfer half is parked — in-flight exports/imports
@@ -199,6 +226,10 @@ impl LabServer {
                 -32601,
                 "laboratory server does not serve create (host-level op)".into(),
             )),
+            RequestPayload::PluginCreate(_) => ResponsePayload::PluginCreate(rpc_err(
+                -32601,
+                "laboratory server does not serve plugin create (host-level op)".into(),
+            )),
             RequestPayload::Delete(_) => ResponsePayload::Delete(rpc_err(
                 -32601,
                 "laboratory server does not serve delete (host-level op)".into(),
@@ -225,8 +256,36 @@ impl LabServer {
             return initialize_err(-32600, "missing X-OBJECTIVEAI-RESPONSE-ID header".into());
         };
         let connect_headers = sanitize_connect_headers(headers);
+        // The session's executor: plugin labs get the real
+        // command-forwarder (owned by THIS daemon channel, reading the
+        // session's live header bag at execute time); regular labs get
+        // the inert form — their container MCP never requests commands.
+        let (executor, transient) = match &self.plugin {
+            Some(seed) => {
+                let transient = Arc::new(tokio::sync::RwLock::new(headers.clone()));
+                (
+                    crate::host_command::HostCommandExecutor {
+                        inner: Some(Arc::new(
+                            crate::host_command::PluginExecutorState {
+                                bridge: Arc::clone(&seed.bridge),
+                                plugin: seed.plugin.clone(),
+                                channel,
+                                transient: Arc::clone(&transient),
+                            },
+                        )),
+                    },
+                    Some(transient),
+                )
+            }
+            None => (
+                crate::host_command::HostCommandExecutor { inner: None },
+                None,
+            ),
+        };
         let connection = match self
             .mcp
+            .clone()
+            .with_executor(executor)
             .connect(format!("{}/", self.base_url), None, Some(connect_headers))
             .await
         {
@@ -235,8 +294,14 @@ impl LabServer {
         };
         let mcp_session_id = connection.session_id.clone();
         let result = connection.initialize_result.clone();
-        self.connections
-            .insert(response_id, (channel, Arc::new(connection)));
+        self.connections.insert(
+            response_id,
+            SessionEntry {
+                channel,
+                connection: Arc::new(connection),
+                transient,
+            },
+        );
         ResponsePayload::Initialize(JsonRpcResult::Ok {
             result: InitializeReply {
                 mcp_session_id,
@@ -253,11 +318,16 @@ impl LabServer {
         let Some(response_id) = response_id_from_headers(headers) else {
             return ok();
         };
-        let Some(connection) =
-            self.connections.get(&response_id).map(|c| Arc::clone(&c.1))
+        let Some((connection, transient)) = self
+            .connections
+            .get(&response_id)
+            .map(|entry| (Arc::clone(&entry.connection), entry.transient.clone()))
         else {
             return ok();
         };
+        if let Some(transient) = transient {
+            *transient.write().await = headers.clone();
+        }
         match connection.delete().await {
             Ok(()) => {
                 self.connections.remove(&response_id);
@@ -286,12 +356,22 @@ impl LabServer {
         let Some(response_id) = response_id_from_headers(headers) else {
             return rpc_err(-32600, "missing X-OBJECTIVEAI-RESPONSE-ID header".into());
         };
-        let Some(conn) = self.connections.get(&response_id).map(|c| Arc::clone(&c.1)) else {
+        let Some((conn, transient)) = self
+            .connections
+            .get(&response_id)
+            .map(|entry| (Arc::clone(&entry.connection), entry.transient.clone()))
+        else {
             return rpc_err(
                 -32001,
                 format!("no cached connection for response id {response_id:?}"),
             );
         };
+        // Plugin sessions: full-replace the live header bag BEFORE the
+        // upstream call — a cli_request the plugin fires while serving
+        // this op reads the op's own agent identity.
+        if let Some(transient) = transient {
+            *transient.write().await = headers.clone();
+        }
         match raw_call(&conn, headers, method, params).await {
             Ok(result) => result,
             Err(message) => rpc_err(-32603, format!("laboratory: {message}")),
@@ -607,7 +687,7 @@ fn sanitize_connect_headers(headers: &IndexMap<String, String>) -> IndexMap<Stri
 /// Raw JSON-RPC POST through an `mcp::Connection` — the conduit's
 /// `upstream_call`, with a plain-`String` error.
 async fn raw_call<P, R>(
-    conn: &objectiveai_sdk::mcp::Connection,
+    conn: &objectiveai_sdk::mcp::Connection<crate::host_command::HostCommandExecutor>,
     headers: &IndexMap<String, String>,
     method: &str,
     params: &P,

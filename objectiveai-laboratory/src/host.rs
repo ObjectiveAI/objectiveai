@@ -35,8 +35,9 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use objectiveai_sdk::laboratories::daemon::{
     ChannelRequest, ChannelResponse, CreateRequest, HostIdentify, HostNotification,
-    Identify, IdentifyMount, JsonRpcResult, LocalTransferRequest, LocalTransferResult,
-    RequestPayload, ResponsePayload, TransferAck,
+    Identify, IdentifyMount, IdentifyPlugin, JsonRpcResult, LocalTransferRequest,
+    LocalTransferResult, PluginCreateRequest, RequestPayload, ResponsePayload,
+    TransferAck,
 };
 
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
@@ -67,15 +68,19 @@ pub struct HostServer {
     /// container this host started — [`Self::stop_started`] stops
     /// exactly those.
     labs: DashMap<String, Arc<tokio::sync::OnceCell<Arc<LabServer>>>>,
-    /// The CONTROL lane: one outbound frame sender per connected daemon
-    /// channel, keyed by a host-minted registration id. Unbounded but
-    /// request-paced — it carries only the identify/auth handshake,
-    /// attach-time synthesized snapshots, correlated RPC responses
-    /// (never droppable), and the rare Created/Updated/Deleted
-    /// notifications. The filetree fire hose rides
+    /// The CONTROL-lane senders (one per connected daemon channel,
+    /// keyed by a host-minted registration id) plus the in-flight
+    /// host→daemon command exchanges — both live on the shared
+    /// [`CommandBridge`](crate::host_command::CommandBridge) so plugin
+    /// sessions' executors can hold them without an Arc cycle through
+    /// this server. The control lane is unbounded but request-paced —
+    /// it carries the identify/auth handshake, attach-time synthesized
+    /// snapshots, correlated RPC responses (never droppable), the rare
+    /// Created/Updated/Deleted notifications, and now the host-minted
+    /// `HostCommandRequest` frames. The filetree fire hose rides
     /// [`Self::filetree_events`] instead. Dead senders are dropped on
     /// the next broadcast.
-    outbound: DashMap<u64, tokio::sync::mpsc::UnboundedSender<String>>,
+    bridge: Arc<crate::host_command::CommandBridge>,
     next_outbound: AtomicU64,
     /// The FILETREE lane: pre-serialized `LaboratoryFiletree` frames on
     /// a bounded ring, mirroring the daemon→viewer standard. Each
@@ -131,7 +136,7 @@ impl HostServer {
             bin_dir,
             machine,
             labs: DashMap::new(),
-            outbound: DashMap::new(),
+            bridge: Arc::new(crate::host_command::CommandBridge::new()),
             next_outbound: AtomicU64::new(0),
             // Capacity matches the kernel's inotify queue
             // (fs.inotify.max_queued_events default 16384) — the ring
@@ -187,8 +192,15 @@ impl HostServer {
         }
         let filetree_rx = self.filetree_events.subscribe();
         let id = self.next_outbound.fetch_add(1, Ordering::Relaxed);
-        self.outbound.insert(id, reply_tx);
+        self.bridge.outbound.insert(id, reply_tx);
         (id, filetree_rx)
+    }
+
+    /// The shared command bridge — the channel reader routes inbound
+    /// [`HostCommandResponse`](objectiveai_sdk::laboratories::daemon::HostCommandResponse)
+    /// frames through it.
+    pub fn bridge(&self) -> &Arc<crate::host_command::CommandBridge> {
+        &self.bridge
     }
 
     /// One synthesized `LaboratoryFiletree` Snapshot frame per
@@ -362,7 +374,10 @@ impl HostServer {
     /// and its MCP sessions — then schedule the idle check for every
     /// laboratory it touched. A dead daemon never pins a container.
     pub fn detach_channel(self: &Arc<Self>, id: u64) {
-        self.outbound.remove(&id);
+        self.bridge.outbound.remove(&id);
+        // Its in-flight command exchanges can never complete — fail
+        // them (their streams end, which consumers read as done).
+        self.bridge.detach(id);
         let mut affected: Vec<String> = Vec::new();
         self.filetree_watchers.retain(|lab_id, channels| {
             if channels.remove(&id) {
@@ -410,6 +425,13 @@ impl HostServer {
                 return ChannelResponse {
                     id: request.id,
                     payload: ResponsePayload::Create(result),
+                };
+            }
+            RequestPayload::PluginCreate(req) => {
+                let result = self.create_plugin_laboratory(req).await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::PluginCreate(result),
                 };
             }
             RequestPayload::Delete(req) => {
@@ -598,11 +620,49 @@ impl HostServer {
             podman::laboratory::start(&self.podman, &self.state, id)
                 .await
                 .map_err(|e| format!("start laboratory '{id}': {e}"))?;
-            match podman::laboratory::host_port(&self.podman, &self.state, id).await {
+            // The lab's label record decides how to serve it: a plugin
+            // lab publishes ITS manifest port (recorded at create) and
+            // connects with the command-forwarding executor; a regular
+            // lab publishes the fixed LAB_PORT and gets the filetree
+            // pump (plugin containers run the image's own entrypoint —
+            // no injected MCP, no /filetree surface).
+            let plugin = match podman::laboratory::list(&self.podman, &self.state).await
+            {
+                Ok(labs) => labs
+                    .into_iter()
+                    .find(|lab| lab.id == id)
+                    .and_then(|lab| lab.plugin),
+                Err(_) => None,
+            };
+            let internal_port = plugin
+                .as_ref()
+                .map(|p| p.port)
+                .unwrap_or(podman::laboratory::LAB_PORT);
+            match podman::laboratory::host_port(
+                &self.podman,
+                &self.state,
+                id,
+                internal_port,
+            )
+            .await
+            {
                 Ok(port) => {
                     let base_url = format!("http://127.0.0.1:{port}");
-                    self.spawn_filetree_pump(id, &base_url).await;
-                    Ok(Arc::new(LabServer::new(base_url)))
+                    let seed = plugin.map(|p| crate::server::PluginSeed {
+                        bridge: Arc::clone(&self.bridge),
+                        plugin: objectiveai_sdk::mcp::server::Plugin {
+                            owner: p.owner,
+                            name: p.name,
+                            version: p.version,
+                            // Vestigial in the one-server-per-plugin
+                            // world — the daemon keys on the trio.
+                            mcp: String::new(),
+                        },
+                    });
+                    if seed.is_none() {
+                        self.spawn_filetree_pump(id, &base_url).await;
+                    }
+                    Ok(Arc::new(LabServer::new(base_url, seed)))
                 }
                 Err(e) => {
                     // We just started it — don't leak a running
@@ -719,6 +779,24 @@ impl HostServer {
             }
             _ => {}
         }
+        // The plugin namespace is reserved the same way, but plugin
+        // laboratories are NEVER user-created: their one legitimate
+        // producer is [`Self::create_plugin_laboratory`], which builds
+        // the container itself — a `Create` claiming the prefix is a
+        // squat whatever daemon sent it.
+        if req
+            .id
+            .starts_with(objectiveai_sdk::laboratories::PLUGIN_LABORATORY_ID_PREFIX)
+        {
+            return rpc_err(
+                -32602,
+                format!(
+                    "laboratory id '{}' uses the reserved plugin-laboratory prefix '{}' — plugin laboratories are created via plugin_create",
+                    req.id,
+                    objectiveai_sdk::laboratories::PLUGIN_LABORATORY_ID_PREFIX,
+                ),
+            );
+        }
         // Ids are one URL path segment on the daemons'
         // `/laboratories/{id}` routes — reject `/` here
         // authoritatively, whatever daemon sent the create.
@@ -792,6 +870,118 @@ impl HostServer {
             cwd: req.cwd.clone(),
             created_at: None,
             agent_full_id: req.agent_full_id.clone(),
+            plugin: None,
+            // Create never starts the container.
+            running: false,
+        });
+        self.broadcast(&HostNotification::LaboratoryCreated {
+            laboratory: identify.clone(),
+        })
+        .await;
+        JsonRpcResult::Ok { result: identify }
+    }
+
+    /// `PluginCreate`: the idempotent plugin-laboratory ensure. Derive
+    /// the canonical id from the trio, reuse an existing container
+    /// verbatim, otherwise ensure the image
+    /// ([`crate::plugin_image::ensure`] — exists-fast-path, else
+    /// bin-locked clone+build+tag) and create the container (NOT
+    /// started; the existing lazy lifecycle starts it on first
+    /// demand). Broadcasts `laboratory_created` only when a container
+    /// was actually created.
+    async fn create_plugin_laboratory(
+        &self,
+        req: &PluginCreateRequest,
+    ) -> JsonRpcResult<Identify> {
+        let coords = match crate::plugin_image::PluginCoords::canonicalize(
+            &req.owner,
+            &req.name,
+            &req.version,
+        ) {
+            Ok(coords) => coords,
+            Err(message) => return rpc_err(-32602, message),
+        };
+        let id = coords.laboratory_id();
+        // Idempotent: an existing plugin laboratory for the trio IS
+        // the answer — no rebuild, no re-broadcast.
+        if let Ok(labs) = podman::laboratory::list(&self.podman, &self.state).await
+            && let Some(existing) = labs.into_iter().find(|lab| lab.id == id)
+        {
+            return JsonRpcResult::Ok {
+                result: crate::identify_from_info(existing),
+            };
+        }
+        let ensured =
+            match crate::plugin_image::ensure(&self.podman, &self.bin_dir, &coords).await
+            {
+                Ok(ensured) => ensured,
+                Err(message) => {
+                    return rpc_err(
+                        -32603,
+                        format!(
+                            "ensure plugin image {}/{}@{}: {message}",
+                            coords.owner,
+                            coords.name,
+                            coords.version,
+                        ),
+                    );
+                }
+            };
+        let label = podman::laboratory::PluginLabel {
+            owner: coords.owner.clone(),
+            name: coords.name.clone(),
+            version: coords.version.clone(),
+            port: ensured.port,
+            sha: ensured.sha,
+        };
+        if let Err(e) = podman::laboratory::create_plugin(
+            &self.podman,
+            &self.state,
+            &id,
+            &coords.image(),
+            &label,
+        )
+        .await
+        {
+            let lower = e.0.to_ascii_lowercase();
+            if lower.contains("already in use") || lower.contains("already exists") {
+                // A racing sibling created it between our existence
+                // check and this create — its container is the answer.
+                if let Ok(labs) =
+                    podman::laboratory::list(&self.podman, &self.state).await
+                    && let Some(existing) = labs.into_iter().find(|lab| lab.id == id)
+                {
+                    return JsonRpcResult::Ok {
+                        result: crate::identify_from_info(existing),
+                    };
+                }
+            }
+            return rpc_err(-32603, format!("create plugin laboratory '{id}': {e}"));
+        }
+        // Echo podman's own record (it carries `created_at`); fall back
+        // to the derived spec if the read-back races something.
+        let identify = match podman::laboratory::list(&self.podman, &self.state).await {
+            Ok(labs) => labs
+                .into_iter()
+                .find(|lab| lab.id == id)
+                .map(crate::identify_from_info),
+            Err(_) => None,
+        }
+        .unwrap_or_else(|| Identify {
+            id: id.clone(),
+            image: objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+                coords.image(),
+            ),
+            mounts: Vec::new(),
+            env: Vec::new(),
+            cwd: "/".to_string(),
+            created_at: None,
+            agent_full_id: None,
+            plugin: Some(IdentifyPlugin {
+                owner: coords.owner.clone(),
+                name: coords.name.clone(),
+                version: coords.version.clone(),
+            }),
             // Create never starts the container.
             running: false,
         });
@@ -912,7 +1102,9 @@ impl HostServer {
             return;
         };
         let _guard = self.attach_lock.lock().await;
-        self.outbound.retain(|_, tx| tx.send(frame.clone()).is_ok());
+        self.bridge
+            .outbound
+            .retain(|_, tx| tx.send(frame.clone()).is_ok());
     }
 
     /// Stop every container this host started (initialized cells only)
@@ -975,6 +1167,7 @@ fn reject(
         // Host-level ops are answered in `handle` — reaching here is a
         // routing bug, but the reply shape still pairs correctly.
         Req::Create(_) => Resp::Create(rpc_err(code, message)),
+        Req::PluginCreate(_) => Resp::PluginCreate(rpc_err(code, message)),
         Req::Delete(_) => Resp::Delete(rpc_err(code, message)),
         Req::LocalTransfer(_) => Resp::LocalTransfer(rpc_err(code, message)),
     }

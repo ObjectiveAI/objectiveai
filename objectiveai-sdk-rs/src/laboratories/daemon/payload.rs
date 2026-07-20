@@ -92,6 +92,22 @@ pub enum RequestPayload {
     /// `laboratory_id`.
     #[schemars(title = "Create")]
     Create(CreateRequest),
+    /// Ensure a PLUGIN laboratory on this host: build the plugin's
+    /// container image from its GitHub repo (`owner/name` at git tag
+    /// `v{version}`, Go-modules convention) if the image is absent,
+    /// create its container (NOT started), and answer with its
+    /// [`super::Identify`]. Idempotent: an existing plugin laboratory
+    /// for the trio answers `Ok` without re-creating. Host-level: no
+    /// envelope `laboratory_id` — the HOST derives the id
+    /// (`oai-plugin-{owner}-{name}-{version}`: owner/name lowercased,
+    /// version case-preserved and `v`-prefixed).
+    ///
+    /// NOTE for the daemon phase: ensure runs a git fetch + `podman
+    /// build` inline, which can exceed the standard RPC forward
+    /// timeout — classify this op with the timeout-free transfer
+    /// family when wiring the daemon side.
+    #[schemars(title = "PluginCreate")]
+    PluginCreate(PluginCreateRequest),
     /// Delete a laboratory from this host (podman rm). Host-level.
     #[schemars(title = "Delete")]
     Delete(DeleteRequest),
@@ -141,6 +157,8 @@ pub enum ResponsePayload {
     ImportAbort(JsonRpcResult<TransferAck>),
     #[schemars(title = "Create")]
     Create(JsonRpcResult<super::Identify>),
+    #[schemars(title = "PluginCreate")]
+    PluginCreate(JsonRpcResult<super::Identify>),
     #[schemars(title = "Delete")]
     Delete(JsonRpcResult<TransferAck>),
     #[schemars(title = "LocalTransfer")]
@@ -289,6 +307,22 @@ pub struct CreateRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
+}
+
+/// Parameters for [`RequestPayload::PluginCreate`] — the plugin's
+/// coordinate trio, verbatim from the agent declaration
+/// (`agent::plugin::prepare` already lowercases owner/name; the host
+/// re-canonicalizes defensively: lowercase owner/name, `v`-prefix the
+/// version — version CASE is preserved, git tags are case-sensitive).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginCreateRequest")]
+pub struct PluginCreateRequest {
+    /// GitHub `<owner>` segment.
+    pub owner: String,
+    /// Repository segment.
+    pub name: String,
+    /// Plugin version; git tag `v{version}` must exist on the repo.
+    pub version: String,
 }
 
 /// Parameters for [`RequestPayload::Delete`].

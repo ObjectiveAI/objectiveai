@@ -54,6 +54,12 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
+    /// For plugin laboratories: the plugin's canonical coordinate
+    /// trio (owner/name lowercased, version `v`-prefixed). `None` for
+    /// every other laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
     /// The machine whose laboratory host serves this laboratory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -68,6 +74,19 @@ pub struct ResponseItem {
     /// older daemons' items parse (as not-running).
     #[serde(default)]
     pub running: bool,
+}
+
+/// A plugin laboratory's canonical coordinate trio, as carried by
+/// [`ResponseItem::plugin`] — a local wire-shape twin of the host
+/// channel's `laboratories.daemon.IdentifyPlugin` (that module is
+/// feature-gated behind `laboratory-daemon` and deliberately not
+/// imported here).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.laboratories.list.Plugin")]
+pub struct Plugin {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
 }
 
 #[derive(clap::Args)]

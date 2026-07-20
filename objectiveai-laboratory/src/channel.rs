@@ -40,7 +40,7 @@
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
-use objectiveai_sdk::laboratories::daemon::ChannelRequest;
+use objectiveai_sdk::laboratories::daemon::{ChannelRequest, HostCommandResponse};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::host::HostServer;
@@ -168,9 +168,18 @@ pub async fn run(
                         // ignore everything else.
                         Ok(_) => continue,
                     };
+                    // ChannelRequest first (it requires `payload`,
+                    // which a command frame never carries), then the
+                    // daemon's multi-frame HostCommandResponse — the
+                    // mirror of the daemon's own demux order.
                     let Ok(request) =
                         serde_json::from_str::<ChannelRequest>(&text)
                     else {
+                        if let Ok(response) =
+                            serde_json::from_str::<HostCommandResponse>(&text)
+                        {
+                            host.bridge().deliver(response);
+                        }
                         // Forward-compat: skip frames this build
                         // doesn't know.
                         continue;
