@@ -1759,19 +1759,131 @@ impl ConduitMcpHandler {
             }
         };
 
-        // The splice: pull one chunk, push it, repeat. `eof: true`
+        // The splice, ONE-CHUNK PREFETCHED (double-buffered): while
+        // chunk N is being written to the destination, chunk N+1 is
+        // already being pulled from the source — throughput is the
+        // slower SIDE's round trip instead of the SUM of both, and
+        // memory stays bounded at two chunks in flight. `eof: true`
         // means the export side already dropped its entry (the final
         // chunk's data may still be non-empty).
+        let read_error = |other: Result<HR, String>| match other {
+            Ok(HR::ExportRead(labd::JsonRpcResult::Err {
+                code, message, ..
+            })) => err(code, format!("export read: {message}")),
+            Ok(_) => err(-32603, "export read: variant mismatch".to_string()),
+            Err(message) => err(-32603, format!("export read: {message}")),
+        };
+        let write_error = |other: Result<HR, String>| match other {
+            Ok(HR::ImportWrite(labd::JsonRpcResult::Err {
+                code, message, ..
+            })) => err(code, format!("import write: {message}")),
+            Ok(_) => err(-32603, "import write: variant mismatch".to_string()),
+            Err(message) => err(-32603, format!("import write: {message}")),
+        };
+        // Prime the pipeline with the first chunk.
+        let mut current = match forward(
+            &source,
+            P::ExportRead(labd::TransferIdRequest {
+                transfer_id: export_id.clone(),
+            }),
+        )
+        .await
+        {
+            Ok(HR::ExportRead(labd::JsonRpcResult::Ok { result })) => result,
+            other => {
+                let _ = forward(
+                    &destination,
+                    P::ImportAbort(labd::TransferIdRequest {
+                        transfer_id: import_id,
+                    }),
+                )
+                .await;
+                return read_error(other);
+            }
+        };
         loop {
-            let chunk = match forward(
+            let eof = current.eof;
+            let data = std::mem::take(&mut current.data);
+            if data.is_empty() && eof {
+                break;
+            }
+            if eof {
+                // Final chunk: nothing left to prefetch (the export
+                // entry is already gone host-side) — plain write.
+                match forward(
+                    &destination,
+                    P::ImportWrite(labd::ImportWriteRequest {
+                        transfer_id: import_id.clone(),
+                        data,
+                    }),
+                )
+                .await
+                {
+                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => {}
+                    other => {
+                        let _ = forward(
+                            &destination,
+                            P::ImportAbort(labd::TransferIdRequest {
+                                transfer_id: import_id,
+                            }),
+                        )
+                        .await;
+                        return write_error(other);
+                    }
+                }
+                break;
+            }
+            // Overlap the write of THIS chunk with the read of the
+            // NEXT (an empty non-final chunk just skips the write).
+            let write = async {
+                if data.is_empty() {
+                    return Ok(true);
+                }
+                match forward(
+                    &destination,
+                    P::ImportWrite(labd::ImportWriteRequest {
+                        transfer_id: import_id.clone(),
+                        data,
+                    }),
+                )
+                .await
+                {
+                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => Ok(true),
+                    other => Err(other),
+                }
+            };
+            let read = forward(
                 &source,
                 P::ExportRead(labd::TransferIdRequest {
                     transfer_id: export_id.clone(),
                 }),
-            )
-            .await
-            {
+            );
+            let (wrote, next) = tokio::join!(write, read);
+            if let Err(other) = wrote {
+                // Write failure aborts both halves. The export may
+                // have ended meanwhile (the prefetched read hit eof,
+                // dropping its entry) — an unknown-id abort is a
+                // harmless no-op host-side.
+                let _ = forward(
+                    &source,
+                    P::ExportAbort(labd::TransferIdRequest {
+                        transfer_id: export_id,
+                    }),
+                )
+                .await;
+                let _ = forward(
+                    &destination,
+                    P::ImportAbort(labd::TransferIdRequest {
+                        transfer_id: import_id,
+                    }),
+                )
+                .await;
+                return write_error(other);
+            }
+            current = match next {
                 Ok(HR::ExportRead(labd::JsonRpcResult::Ok { result })) => result,
+                // Read failure: the source dropped its own entry on
+                // error; only the import needs aborting.
                 other => {
                     let _ = forward(
                         &destination,
@@ -1780,69 +1892,9 @@ impl ConduitMcpHandler {
                         }),
                     )
                     .await;
-                    return match other {
-                        Ok(HR::ExportRead(labd::JsonRpcResult::Err {
-                            code,
-                            message,
-                            ..
-                        })) => err(code, format!("export read: {message}")),
-                        Ok(_) => {
-                            err(-32603, "export read: variant mismatch".to_string())
-                        }
-                        Err(message) => err(-32603, format!("export read: {message}")),
-                    };
+                    return read_error(other);
                 }
             };
-            let eof = chunk.eof;
-            if !chunk.data.is_empty() {
-                match forward(
-                    &destination,
-                    P::ImportWrite(labd::ImportWriteRequest {
-                        transfer_id: import_id.clone(),
-                        data: chunk.data,
-                    }),
-                )
-                .await
-                {
-                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => {}
-                    other => {
-                        if !eof {
-                            let _ = forward(
-                                &source,
-                                P::ExportAbort(
-                                    labd::TransferIdRequest {
-                                        transfer_id: export_id,
-                                    },
-                                ),
-                            )
-                            .await;
-                        }
-                        let _ = forward(
-                            &destination,
-                            P::ImportAbort(labd::TransferIdRequest {
-                                transfer_id: import_id,
-                            }),
-                        )
-                        .await;
-                        return match other {
-                            Ok(HR::ImportWrite(labd::JsonRpcResult::Err {
-                                code,
-                                message,
-                                ..
-                            })) => err(code, format!("import write: {message}")),
-                            Ok(_) => {
-                                err(-32603, "import write: variant mismatch".to_string())
-                            }
-                            Err(message) => {
-                                err(-32603, format!("import write: {message}"))
-                            }
-                        };
-                    }
-                }
-            }
-            if eof {
-                break;
-            }
         }
 
         // Close the import and surface the byte total.
