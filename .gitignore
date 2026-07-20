@@ -14,6 +14,9 @@ objectiveai-cli-old/
 !CLAUDE.md
 !SDK.md
 !PLUGINS.md
+# Visible-but-NEVER-committed working doc: the negation makes git
+# report it as untracked (so editors show it) — do NOT stage it.
+!FINDINGS.md
 
 # ignore temp
 temp/
