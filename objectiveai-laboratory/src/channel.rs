@@ -91,6 +91,19 @@ pub async fn run(
                 if !suppress_output {
                     eprintln!("connected: {url}");
                 }
+                // TCP keepalive on the host↔daemon channel: a
+                // silently-dead daemon must surface as a recv error so
+                // the detach path runs instead of the host serving a
+                // ghost forever.
+                match ws.get_ref() {
+                    tokio_tungstenite::MaybeTlsStream::Plain(tcp) => {
+                        objectiveai_sdk::net::set_tcp_keepalive(tcp)
+                    }
+                    tokio_tungstenite::MaybeTlsStream::Rustls(tls) => {
+                        objectiveai_sdk::net::set_tcp_keepalive(tls.get_ref().0)
+                    }
+                    _ => {}
+                }
                 let (mut sink, mut stream) = ws.split();
                 let (reply_tx, mut reply_rx) =
                     tokio::sync::mpsc::unbounded_channel::<String>();

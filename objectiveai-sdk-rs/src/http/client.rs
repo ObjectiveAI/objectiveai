@@ -578,6 +578,16 @@ impl HttpClient {
         })?;
 
         let (ws_stream, _resp) = tokio_tungstenite::connect_async(req).await?;
+        // TCP keepalive on the long-lived streaming WS: a silently-
+        // dead API host would otherwise leave this stream parked
+        // forever (an idle TCP connection has no liveness signal).
+        match ws_stream.get_ref() {
+            MaybeTlsStream::Plain(tcp) => crate::net::set_tcp_keepalive(tcp),
+            MaybeTlsStream::Rustls(tls) => {
+                crate::net::set_tcp_keepalive(tls.get_ref().0)
+            }
+            _ => {}
+        }
         let (mut sink, rx_stream): (
             _,
             SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
