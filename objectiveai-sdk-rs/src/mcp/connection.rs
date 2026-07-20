@@ -73,12 +73,29 @@ impl std::fmt::Debug for CallbackSlot {
 /// reachable via `Deref` for read-only field access (e.g.
 /// `connection.url`, `connection.initialize_result.server_info.name`),
 /// but its methods are private — you must go through `Connection`.
-#[derive(Debug)]
-pub struct Connection {
-    inner: Arc<ConnectionInner>,
+///
+/// `E` is the command-execution extension's fulfiller: when the server
+/// exposed the objectiveai capability, `cli_request` frames arriving on
+/// the SSE stream run through it and their results are POSTed back —
+/// see [`super::McpClientCommandExecutor`]. The default
+/// [`super::NotSupportedMcpClientCommandExecutor`] answers every
+/// request with a "not supported" error.
+pub struct Connection<
+    E: super::McpClientCommandExecutor =
+        super::NotSupportedMcpClientCommandExecutor,
+> {
+    inner: Arc<ConnectionInner<E>>,
 }
 
-impl Clone for Connection {
+/// Manual `Debug` (not derived) so `E` need not be `Debug` — holders
+/// (e.g. the proxy's `Upstream` enum) derive `Debug` themselves.
+impl<E: super::McpClientCommandExecutor> std::fmt::Debug for Connection<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connection").field("inner", &self.inner).finish()
+    }
+}
+
+impl<E: super::McpClientCommandExecutor> Clone for Connection<E> {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
@@ -90,14 +107,14 @@ impl Clone for Connection {
 // when the last `Arc<ConnectionInner>` clone is dropped, which drops
 // the `_listener_cancel_guard` field and cancels the listener token.
 
-impl Deref for Connection {
-    type Target = ConnectionInner;
-    fn deref(&self) -> &ConnectionInner {
+impl<E: super::McpClientCommandExecutor> Deref for Connection<E> {
+    type Target = ConnectionInner<E>;
+    fn deref(&self) -> &ConnectionInner<E> {
         &self.inner
     }
 }
 
-impl Connection {
+impl<E: super::McpClientCommandExecutor> Connection<E> {
     /// Tear this connection down explicitly.
     ///
     /// 1. Cancels the long-lived list-changed listener task immediately
@@ -187,6 +204,7 @@ impl Connection {
         call_timeout: Option<Duration>,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
+        executor: E,
     ) -> Self {
         let inner = ConnectionInner::new(
             http_client,
@@ -202,31 +220,10 @@ impl Connection {
             call_timeout,
             initialize_result,
             initial_sse_lines,
+            executor,
         )
         .await;
         Self { inner }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn new_for_test(name: String, url: String) -> Self {
-        Self {
-            inner: ConnectionInner::new_for_test(name, url),
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn new_for_test_with_caps(
-        name: String,
-        url: String,
-        capabilities: super::initialize_result::ServerCapabilities,
-    ) -> Self {
-        Self {
-            inner: ConnectionInner::new_for_test_with_caps(
-                name,
-                url,
-                capabilities,
-            ),
-        }
     }
 
     /// Returns a key identifying this connection for tool namespacing.
@@ -332,13 +329,40 @@ impl Connection {
     }
 }
 
+/// Test constructors live on the DEFAULT-executor `Connection` — the
+/// capability-gate tests never execute commands.
+#[cfg(test)]
+impl Connection {
+    pub(crate) fn new_for_test(name: String, url: String) -> Self {
+        Self {
+            inner: ConnectionInner::new_for_test(name, url),
+        }
+    }
+
+    pub(crate) fn new_for_test_with_caps(
+        name: String,
+        url: String,
+        capabilities: super::initialize_result::ServerCapabilities,
+    ) -> Self {
+        Self {
+            inner: ConnectionInner::new_for_test_with_caps(
+                name,
+                url,
+                capabilities,
+            ),
+        }
+    }
+}
+
 /// The actual connection state. Behind an `Arc` inside [`Connection`].
 ///
 /// Fields are public for read-only access (callers reach them via
 /// `Connection`'s `Deref`), but every method on this type is private —
 /// the public surface lives on [`Connection`] and delegates through.
-#[derive(Debug)]
-pub struct ConnectionInner {
+pub struct ConnectionInner<
+    E: super::McpClientCommandExecutor =
+        super::NotSupportedMcpClientCommandExecutor,
+> {
     pub http_client: reqwest::Client,
     pub url: String,
     pub session_id: String,
@@ -420,8 +444,30 @@ pub struct ConnectionInner {
     /// `notifications/resources/list_changed`.
     /// Set via [`Connection::set_on_resources_list_changed`].
     on_resources_list_changed: CallbackSlot,
+
+    /// Fulfiller for the command-execution extension. When the server
+    /// exposed the objectiveai capability, the SSE listener runs each
+    /// inbound `cli_request` through this and POSTs the results back —
+    /// see [`Self::fulfill_cli_request`].
+    executor: E,
 }
 
+/// Manual `Debug` (not derived) so `E` need not be `Debug`.
+impl<E: super::McpClientCommandExecutor> std::fmt::Debug
+    for ConnectionInner<E>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectionInner")
+            .field("url", &self.url)
+            .field("session_id", &self.session_id)
+            .field("initialize_result", &self.initialize_result)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Test constructors on the DEFAULT-executor inner — mirrors the
+/// `#[cfg(test)] impl Connection` block above.
+#[cfg(test)]
 impl ConnectionInner {
     /// Creates a minimal connection for unit testing. Declares both
     /// `tools` and `resources` capabilities with `list_changed:
@@ -429,7 +475,6 @@ impl ConnectionInner {
     /// list_changed-enabled paths in `list_*`, `refresh_*`, and
     /// `subscribe_*`. For other capability shapes use
     /// `new_for_test_with_caps`.
-    #[cfg(test)]
     fn new_for_test(name: String, url: String) -> Arc<Self> {
         Self::new_for_test_with_caps(
             name,
@@ -456,7 +501,6 @@ impl ConnectionInner {
     /// Creates a minimal connection for unit testing with an explicit
     /// `ServerCapabilities`. Used by the capability-gating tests to
     /// drive each gate's absent-cap branch.
-    #[cfg(test)]
     fn new_for_test_with_caps(
         name: String,
         url: String,
@@ -497,9 +541,12 @@ impl ConnectionInner {
             _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
+            executor: super::NotSupportedMcpClientCommandExecutor,
         })
     }
+}
 
+impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
     /// Creates a new connection and spawns background tasks to paginate
     /// all tools and resources. Called internally by
     /// [`Client::connect`](super::Client::connect) (via [`Connection::new`]).
@@ -509,8 +556,8 @@ impl ConnectionInner {
     /// first iteration, instead of opening its own GET `/`. The caller
     /// is responsible for arranging for one of these to exist whenever
     /// the upstream advertises `tools.list_changed` or
-    /// `resources.list_changed` — see
-    /// [`Client::connect`](super::Client::connect).
+    /// `resources.list_changed`, or the objectiveai command-execution
+    /// capability — see [`Client::connect`](super::Client::connect).
     async fn new(
         http_client: reqwest::Client,
         url: String,
@@ -525,6 +572,7 @@ impl ConnectionInner {
         call_timeout: Option<Duration>,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
+        executor: E,
     ) -> Arc<Self> {
         // Cancel-the-listener machinery: store the DropGuard inside the
         // inner so the cancellation fires deterministically when the
@@ -558,6 +606,7 @@ impl ConnectionInner {
             )),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
+            executor,
         });
 
         // Spawn background tool lister if the server supports tools.
@@ -1243,6 +1292,98 @@ impl ConnectionInner {
         *guard = Some(result);
     }
 
+    /// Fulfill one command-execution request from the server: run it
+    /// through the connection's executor and POST every resulting
+    /// frame to `{url}/objectiveai/command`, in stream order, one POST
+    /// per frame, each carrying the request's correlation id.
+    ///
+    /// Frame discipline (see [`super::CliResponse`]): stream errors
+    /// are NON-terminal (`Error` frames — the stream may keep
+    /// yielding); the exchange ALWAYS ends with a `Done` frame, even
+    /// when the run failed to start or the pump aborted. A POST
+    /// transport failure aborts the pump — dropping the stream cancels
+    /// the run — but the final `Done` is still attempted (its own
+    /// failure is ignored: there is nobody left to tell, and no
+    /// logging surface to tell them on).
+    ///
+    /// Called inline from the SSE listener — requests are fulfilled
+    /// ONE AT A TIME, in stream order, like the list_changed
+    /// refreshes.
+    async fn fulfill_cli_request(&self, params: super::CliRequestParams) {
+        use futures_util::StreamExt;
+        let endpoint = format!(
+            "{}{}",
+            self.url.trim_end_matches('/'),
+            super::CLI_COMMAND_ENDPOINT_SUFFIX,
+        );
+        let id = params.id;
+        match self.executor.execute(params.request).await {
+            Err(e) => {
+                let _ = self
+                    .post_cli_response(
+                        &endpoint,
+                        &super::CliResponse::Error {
+                            id: id.clone(),
+                            error: e.to_string(),
+                        },
+                    )
+                    .await;
+            }
+            Ok(stream) => {
+                let mut stream = std::pin::pin!(stream);
+                while let Some(result) = stream.next().await {
+                    let frame = match result {
+                        Ok(item) => super::CliResponse::Item {
+                            id: id.clone(),
+                            item,
+                        },
+                        Err(e) => super::CliResponse::Error {
+                            id: id.clone(),
+                            error: e.to_string(),
+                        },
+                    };
+                    if self
+                        .post_cli_response(&endpoint, &frame)
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        let _ = self
+            .post_cli_response(&endpoint, &super::CliResponse::Done { id })
+            .await;
+    }
+
+    /// POST one [`super::CliResponse`] frame to the command-response
+    /// endpoint. `Ok(())` on any 2xx; every failure mode (connect,
+    /// timeout, non-2xx) collapses to `Err(())` — the pump's only
+    /// decision is "keep going or abort".
+    async fn post_cli_response(
+        &self,
+        endpoint: &str,
+        frame: &super::CliResponse,
+    ) -> Result<(), ()> {
+        let request = super::apply_timeout(
+            self.http_client.post(endpoint),
+            self.call_timeout,
+        )
+        .headers(
+            self.build_request_headers(
+                Some("application/json"),
+                Some("application/json"),
+            )
+            .await,
+        )
+        .json(frame);
+        match request.send().await {
+            Ok(response) if response.status().is_success() => Ok(()),
+            _ => Err(()),
+        }
+    }
+
     /// Builds a GET request to the MCP endpoint for receiving server
     /// notifications via SSE.
     async fn get(&self) -> reqwest::RequestBuilder {
@@ -1404,13 +1545,15 @@ impl ConnectionInner {
                                         )
                                         .await;
                                     }
-                                    // TODO(command-execution): dispatch to
-                                    // the connection's
-                                    // McpClientCommandExecutor once the
-                                    // extension is wired into the
-                                    // connection (next step of the plugin
-                                    // refactor).
-                                    super::JsonRpcServerNotification::CliRequest { .. } => {}
+                                    // Command-execution extension:
+                                    // fulfill inline — one request at
+                                    // a time, in stream order. The
+                                    // executor decides support (the
+                                    // default answers with a
+                                    // "not supported" Error frame).
+                                    super::JsonRpcServerNotification::CliRequest { params, .. } => {
+                                        this.fulfill_cli_request(params).await;
+                                    }
                                     super::JsonRpcServerNotification::Fallback { .. } => {}
                                 }
                             }
@@ -1497,6 +1640,26 @@ mod capability_gate_tests {
             execution: None,
             _meta: None,
         }
+    }
+
+    /// The objectiveai command-execution capability is the presence of
+    /// the `"objectiveai"` key in `experimental` — other keys don't
+    /// count, absence doesn't count.
+    #[test]
+    fn objectiveai_capability_is_the_experimental_key() {
+        let mut capabilities = caps(None, None);
+        assert!(!capabilities.has_objectiveai());
+
+        let mut experimental = IndexMap::new();
+        experimental
+            .insert("objectiveai".to_string(), serde_json::json!({}));
+        capabilities.experimental = Some(experimental);
+        assert!(capabilities.has_objectiveai());
+
+        let mut experimental = IndexMap::new();
+        experimental.insert("other".to_string(), serde_json::json!({}));
+        capabilities.experimental = Some(experimental);
+        assert!(!capabilities.has_objectiveai());
     }
 
     /// 3.1 — `list_tools` short-circuits to `Ok(empty)` when the server

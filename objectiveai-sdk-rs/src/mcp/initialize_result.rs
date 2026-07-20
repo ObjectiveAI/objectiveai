@@ -87,6 +87,21 @@ pub struct ServerCapabilities {
     pub tasks: Option<TasksCapability>,
 }
 
+impl ServerCapabilities {
+    /// Server declared the objectiveai command-execution extension —
+    /// the [`super::OBJECTIVEAI_CAPABILITY`] key in `experimental`.
+    /// The key's presence IS the capability; its value is reserved for
+    /// future extension settings. When set, the server may push
+    /// `notifications/objectiveai/cli_request` frames on the standing
+    /// SSE stream, so `Client::connect` opens that stream even when no
+    /// list_changed capability asks for it.
+    pub fn has_objectiveai(&self) -> bool {
+        self.experimental
+            .as_ref()
+            .is_some_and(|m| m.contains_key(super::OBJECTIVEAI_CAPABILITY))
+    }
+}
+
 /// Capabilities for prompt templates.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.PromptsCapability")]
