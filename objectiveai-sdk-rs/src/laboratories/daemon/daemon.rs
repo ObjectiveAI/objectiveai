@@ -18,6 +18,15 @@
 //!    uncorrelated host→daemon [`HostNotification`]s whenever the
 //!    host's laboratory set changes (create/delete), so every
 //!    connected daemon's view stays current without scanning.
+//! 4. The HOST-initiated lane: the host sends a
+//!    [`HostCommandRequest`] (its OWN id space, host-minted) to run a
+//!    CLI command on the daemon, answered by a MULTI-FRAME stream of
+//!    [`HostCommandResponse`]s sharing that id — grammar
+//!    `Ack (Item|Error)* Done`. The exact same exchange the
+//!    API↔daemon reverse channel carries as its `Command` payloads,
+//!    mirrored here because the two channels stay naive to each
+//!    other's vocabulary (see [`super::RequestPayload`]'s module
+//!    docs).
 //!
 //! The daemon reaches laboratories in-process: the conduit and the
 //! `laboratories` commands call the resident laboratory registry
@@ -164,4 +173,137 @@ pub enum HostNotification {
         id: String,
         event: crate::laboratories::filetree::FileTreeEvent,
     },
+}
+
+/// Host → daemon over the `/laboratory` WS: execute a CLI command on
+/// the DAEMON on behalf of a plugin whose MCP server runs host-side —
+/// the host-initiated twin of the reverse channel's `Command` payload,
+/// working identically. Correlation `id` is HOST-minted and lives in
+/// its own id space, unrelated to [`ChannelRequest`] ids (which the
+/// daemon mints).
+///
+/// EVERY field is REQUIRED — no defaults, no header bags:
+/// - `agent_arguments`: the calling agent's identity.
+/// - `plugin`: the coordinates of the plugin whose MCP server
+///   originated the command. The daemon stamps this trio on the
+///   command's scope (this authenticated channel is, like the
+///   conduit, a deliberate exception to "never trust wire plugin
+///   identity") so the plugin run-gates apply.
+/// - `request`: the typed CLI command to run.
+///
+/// Answered by a MULTI-FRAME reply: one [`HostCommandResponse`] per
+/// event, sharing this request's `id`, streamed as items arrive —
+/// grammar `Ack (Item|Error)* Done`.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.HostCommandRequest")]
+pub struct HostCommandRequest {
+    /// Correlation id, minted by the HOST; echoed by every reply
+    /// frame.
+    pub id: String,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub plugin: crate::mcp::server::Plugin,
+    pub request: crate::cli::command::Request,
+}
+
+/// Daemon → host: one frame of the MULTI-FRAME reply to a
+/// [`HostCommandRequest`], correlated by `id` — the only exchange on
+/// this wire where one request id is answered by many frames.
+///
+/// Wire: `{"id":…,"frame":"item","item":{…}}` — `frame` is
+/// [`CommandFrame`]'s tag, flattened beside the id (no field
+/// collision: the frame carries no `id` of its own).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.HostCommandResponse")]
+pub struct HostCommandResponse {
+    pub id: String,
+    #[serde(flatten)]
+    pub frame: CommandFrame,
+}
+
+/// One frame of a [`HostCommandRequest`] exchange. The grammar is
+/// `Ack (Item|Error)* Done` — mirroring the reverse channel's
+/// `client_objectiveai_mcp.server_response.CommandFrame` (a deliberate
+/// LOCAL twin: the two channels never import each other's vocabulary):
+///
+/// - [`CommandFrame::Ack`] — ALWAYS the opening frame, sent the
+///   moment the daemon picks the request up, BEFORE the run starts.
+/// - [`CommandFrame::Item`] — one typed command-output item, sent AS
+///   IT ARRIVES (never collected, never delayed).
+/// - [`CommandFrame::Error`] — a start failure or a stream error.
+///   NON-terminal: the stream may keep yielding after one.
+/// - [`CommandFrame::Done`] — ALWAYS the final frame, error or no.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.CommandFrame")]
+#[serde(tag = "frame", rename_all = "snake_case")]
+pub enum CommandFrame {
+    Ack,
+    Item {
+        item: crate::cli::command::ResponseItem,
+    },
+    Error { error: String },
+    Done,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The daemon's inbound demux tries [`ChannelResponse`] first,
+    /// then [`HostCommandRequest`], then [`HostNotification`] — a
+    /// command request must never satisfy the earlier parses.
+    #[test]
+    fn host_command_request_is_not_a_channel_response() {
+        let request = HostCommandRequest {
+            id: "cmd-1".to_string(),
+            agent_arguments: Default::default(),
+            plugin: crate::mcp::server::Plugin {
+                owner: "acme".to_string(),
+                name: "widgets".to_string(),
+                version: "1.2.3".to_string(),
+                mcp: "main".to_string(),
+            },
+            request: crate::cli::command::Request::Update(
+                crate::cli::command::update::Request {
+                    path_type: crate::cli::command::update::Path::Update,
+                    base: crate::cli::command::RequestBase {
+                        jq: None,
+                        python: None,
+                        timeout_seconds: None,
+                        max_tokens: None,
+                    },
+                },
+            ),
+        };
+        let text = serde_json::to_string(&request).unwrap();
+        assert!(serde_json::from_str::<ChannelResponse>(&text).is_err());
+        let parsed: HostCommandRequest = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed.id, "cmd-1");
+        assert_eq!(parsed.plugin.owner, "acme");
+    }
+
+    /// Frame tags ride flattened beside the envelope id.
+    #[test]
+    fn host_command_response_wire_shape() {
+        let ack = HostCommandResponse {
+            id: "cmd-1".to_string(),
+            frame: CommandFrame::Ack,
+        };
+        assert_eq!(
+            serde_json::to_string(&ack).unwrap(),
+            r#"{"id":"cmd-1","frame":"ack"}"#,
+        );
+        let error = HostCommandResponse {
+            id: "cmd-1".to_string(),
+            frame: CommandFrame::Error {
+                error: "boom".to_string(),
+            },
+        };
+        assert_eq!(
+            serde_json::to_string(&error).unwrap(),
+            r#"{"id":"cmd-1","frame":"error","error":"boom"}"#,
+        );
+        let done: HostCommandResponse =
+            serde_json::from_str(r#"{"id":"cmd-1","frame":"done"}"#).unwrap();
+        assert!(matches!(done.frame, CommandFrame::Done));
+    }
 }

@@ -23,7 +23,12 @@
 //!    host proxies each running lab's `/filetree` SSE verbatim), which
 //!    update the registry's per-host set and per-lab materialized
 //!    trees. No scanning, no polling: the announced set + notifications
-//!    ARE the daemon's laboratory knowledge.
+//!    ARE the daemon's laboratory knowledge. The host can also
+//!    initiate its own exchange: a [`HostCommandRequest`] runs a CLI
+//!    command on the daemon and streams [`HostCommandResponse`]
+//!    frames back (`Ack (Item|Error)* Done`) — identical to the
+//!    conduit's API-side `Command` exchange, host-minted id space
+//!    (see [`dispatch_host_command`]).
 //!
 //! The set of live `/laboratory` connections IS the laboratory
 //! registry: `laboratories list` snapshots it, and a host disconnect
@@ -40,7 +45,8 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use indexmap::IndexMap;
 use objectiveai_sdk::laboratories::daemon::{
-    ChannelRequest, ChannelResponse, HostIdentify, HostNotification, Identify,
+    ChannelRequest, ChannelResponse, CommandFrame, HostCommandRequest,
+    HostCommandResponse, HostIdentify, HostNotification, Identify,
 };
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use objectiveai_sdk::machine::MachineIdentity;
@@ -50,6 +56,18 @@ use tokio::sync::{mpsc, oneshot, RwLock};
 /// calls and 2 MiB transfer chunks ride this; the API layer above owns
 /// the real deadlines.
 const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
+
+/// One daemon→host frame queued to a connection's writer half. The
+/// host demuxes by shape, exactly like the daemon does inbound —
+/// [`ChannelRequest`] carries `headers` + `payload`, a
+/// [`HostCommandResponse`] carries a flattened `frame` tag.
+enum OutboundFrame {
+    /// A daemon-minted correlated request ([`ChannelRequest`]).
+    Request(ChannelRequest),
+    /// One frame of a HOST-initiated command exchange
+    /// ([`HostCommandResponse`], correlated by the host's own id).
+    Command(HostCommandResponse),
+}
 
 /// One connected laboratory host.
 struct HostConnection {
@@ -71,7 +89,7 @@ struct HostConnection {
     filetree: RwLock<IndexMap<String, Vec<FileTreeNode>>>,
     /// Frames queued to the host (drained by the connection's writer
     /// half).
-    tx: mpsc::UnboundedSender<ChannelRequest>,
+    tx: mpsc::UnboundedSender<OutboundFrame>,
     /// In-flight forwards awaiting the host's correlated reply.
     /// Dropped wholesale on disconnect, failing every waiter.
     pending: DashMap<String, oneshot::Sender<ChannelResponse>>,
@@ -434,12 +452,12 @@ impl LaboratoryRegistry {
         };
         let (reply_tx, reply_rx) = oneshot::channel();
         host.pending.insert(id.clone(), reply_tx);
-        let sent = host.tx.send(ChannelRequest {
+        let sent = host.tx.send(OutboundFrame::Request(ChannelRequest {
             id: id.clone(),
             laboratory_id,
             headers,
             payload: request,
-        });
+        }));
         if sent.is_err() {
             host.pending.remove(&id);
             return Err(format!(
@@ -507,6 +525,136 @@ impl Drop for FiletreeWatchGuard {
     }
 }
 
+/// Fulfill a host→daemon [`HostCommandRequest`]: run the CLI command
+/// in-process — the same `crate::run` re-entry `/execute` and the
+/// conduit's `Command` exchange use — and stream one
+/// [`HostCommandResponse`] frame per event back over the WS AS ITEMS
+/// ARRIVE (never collected). The run is spawned so the connection's
+/// pump never blocks on a command.
+///
+/// Scope identity: identical to the conduit's `dispatch_command`. The
+/// REQUIRED `agent_arguments` are applied exactly like `/execute`
+/// (wire plugin claims inside them are nulled by
+/// `from_agent_arguments`), then the REQUIRED `plugin` coordinates are
+/// stamped with [`ScopedContext::with_plugin`](crate::context::ScopedContext::with_plugin).
+/// This authenticated `/laboratory` channel is, like the conduit, a
+/// deliberate exception to "never trust wire plugin identity": the
+/// host asserts the trio of the plugin whose MCP server originated the
+/// command, and the plugin run-gates then apply to nested commands.
+///
+/// Frame discipline: `Ack` is queued the moment the request is picked
+/// up — an undeliverable `Ack` (writer gone) skips the run entirely;
+/// stream errors are NON-terminal `Error` frames; `Done` is ALWAYS
+/// the final frame. A queue failure mid-stream breaks the pump —
+/// dropping the run stream cancels the command — but `Done` is still
+/// attempted.
+fn dispatch_host_command(
+    state: &crate::http::daemon_stream::DaemonHttpState,
+    host: &Arc<HostConnection>,
+    command: HostCommandRequest,
+) {
+    use futures::StreamExt;
+
+    /// One frame onto the writer queue; `false` = writer gone, stop
+    /// pumping.
+    fn send(host: &HostConnection, id: &str, frame: CommandFrame) -> bool {
+        host.tx
+            .send(OutboundFrame::Command(HostCommandResponse {
+                id: id.to_string(),
+                frame,
+            }))
+            .is_ok()
+    }
+
+    let HostCommandRequest {
+        id,
+        agent_arguments,
+        plugin,
+        request,
+    } = command;
+    if !send(host, &id, CommandFrame::Ack) {
+        return;
+    }
+    let global = state.global.clone();
+    let base_scoped = state.scoped.clone();
+    let host = Arc::clone(host);
+    tokio::spawn(async move {
+        let scoped = crate::executor::apply_agent_arguments(
+            &base_scoped,
+            Some(&agent_arguments),
+        )
+        .await
+        .into_owned()
+        .with_plugin(plugin.owner, plugin.name, plugin.version);
+
+        // The `--request` front door: serialize the typed request and
+        // re-enter `crate::run`, exactly like `/execute`.
+        let request_json = match serde_json::to_string(&request) {
+            Ok(json) => json,
+            Err(e) => {
+                let _ = send(
+                    &host,
+                    &id,
+                    CommandFrame::Error {
+                        error: format!("serialize command request: {e}"),
+                    },
+                );
+                let _ = send(&host, &id, CommandFrame::Done);
+                return;
+            }
+        };
+        let args = vec![
+            "objectiveai".to_string(),
+            "--request".to_string(),
+            request_json,
+        ];
+        match crate::run(args, Some((global, scoped))).await {
+            Ok(crate::RunStream::Execute(mut stream)) => {
+                while let Some(item) = stream.next().await {
+                    let frame = match item {
+                        Ok(item) => CommandFrame::Item { item },
+                        Err(e) => CommandFrame::Error {
+                            error: e.output_message().to_string(),
+                        },
+                    };
+                    if !send(&host, &id, frame) {
+                        break;
+                    }
+                }
+            }
+            Ok(crate::RunStream::ExecuteTransform(mut stream)) => {
+                while let Some(item) = stream.next().await {
+                    let frame = match item {
+                        // A jq/python transform yields bare JSON
+                        // values; `ResponseItem::Python` is the
+                        // untagged bare-value variant — wire-identical
+                        // passthrough.
+                        Ok(value) => CommandFrame::Item {
+                            item: objectiveai_sdk::cli::command::ResponseItem::Python(value),
+                        },
+                        Err(e) => CommandFrame::Error {
+                            error: e.output_message().to_string(),
+                        },
+                    };
+                    if !send(&host, &id, frame) {
+                        break;
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = send(
+                    &host,
+                    &id,
+                    CommandFrame::Error {
+                        error: e.output_message().to_string(),
+                    },
+                );
+            }
+        }
+        let _ = send(&host, &id, CommandFrame::Done);
+    });
+}
+
 /// `/laboratory`: upgrade, read the HostIdentify frame, consume the
 /// auth preamble (strictly second), register under the host's
 /// `(machine, state)` identity, pump until disconnect.
@@ -551,7 +699,7 @@ pub(crate) async fn laboratory_handler(
         // the old entry (its pending waiters fail). Same-machine hosts
         // of OTHER states are untouched.
         let host_key = (identify.machine.id.clone(), identify.state.clone());
-        let (tx, mut rx) = mpsc::unbounded_channel::<ChannelRequest>();
+        let (tx, mut rx) = mpsc::unbounded_channel::<OutboundFrame>();
         let labs: IndexMap<String, Identify> = identify
             .laboratories
             .into_iter()
@@ -593,8 +741,16 @@ pub(crate) async fn laboratory_handler(
         loop {
             tokio::select! {
                 queued = rx.recv() => match queued {
-                    Some(request) => {
-                        let Ok(frame) = serde_json::to_string(&request) else {
+                    Some(outbound) => {
+                        let serialized = match &outbound {
+                            OutboundFrame::Request(request) => {
+                                serde_json::to_string(request)
+                            }
+                            OutboundFrame::Command(response) => {
+                                serde_json::to_string(response)
+                            }
+                        };
+                        let Ok(frame) = serialized else {
                             continue;
                         };
                         if socket
@@ -611,13 +767,21 @@ pub(crate) async fn laboratory_handler(
                 },
                 received = socket.recv() => match received {
                     Some(Ok(axum::extract::ws::Message::Text(text))) => {
-                        // ChannelResponse first (it has `id`), then
-                        // HostNotification (no correlation id) — the
-                        // same parse strategy the API recv_loop uses.
+                        // ChannelResponse first (it has `payload`),
+                        // then HostCommandRequest (host-initiated
+                        // command exchange), then HostNotification (no
+                        // correlation id) — the same parse strategy
+                        // the API recv_loop uses.
                         if let Ok(response) = serde_json::from_str::<ChannelResponse>(&text) {
                             if let Some((_, waiter)) = host.pending.remove(&response.id) {
                                 let _ = waiter.send(response);
                             }
+                            continue;
+                        }
+                        if let Ok(command) =
+                            serde_json::from_str::<HostCommandRequest>(&text)
+                        {
+                            dispatch_host_command(&state, &host, command);
                             continue;
                         }
                         let Ok(notification) =
