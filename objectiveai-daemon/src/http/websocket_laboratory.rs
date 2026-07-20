@@ -886,6 +886,60 @@ pub(crate) async fn laboratory_handler(
                                     },
                                 );
                             }
+                            HostNotification::McpListChanged {
+                                id,
+                                response_id,
+                                kind,
+                            } => {
+                                // Relay a container connection's
+                                // list-changed up the owning response's
+                                // reverse channel. The mirror resolves
+                                // the host lab id back to the WIRE kind
+                                // the proxy registered its callback
+                                // under; the notifier is the response's
+                                // conduit WS. Either lookup missing ⇒
+                                // the session is already gone — drop
+                                // silently.
+                                let Some(hubs) = state.global.resident_hubs()
+                                else {
+                                    continue;
+                                };
+                                let Some(mcp_kind) = hubs
+                                    .lab_mcp_kinds
+                                    .get(&(response_id.clone(), id.clone()))
+                                    .map(|e| e.value().clone())
+                                else {
+                                    continue;
+                                };
+                                let Some(notifier) = hubs
+                                    .mcp_notifiers
+                                    .get(&response_id)
+                                    .map(|e| e.value().1.clone())
+                                else {
+                                    continue;
+                                };
+                                use objectiveai_sdk::client_objectiveai_mcp::client_request as cr;
+                                let change = cr::McpListChanged {
+                                    mcp_kind,
+                                    kind: match kind {
+                                        objectiveai_sdk::laboratories::daemon::McpListChangedKind::Tools => {
+                                            cr::McpListChangedKind::Tools
+                                        }
+                                        objectiveai_sdk::laboratories::daemon::McpListChangedKind::Resources => {
+                                            cr::McpListChangedKind::Resources
+                                        }
+                                    },
+                                    response_id: Some(response_id),
+                                };
+                                // Spawned: `notify_list_changed` awaits
+                                // the reverse-channel WS round trip;
+                                // this recv loop must not block on it.
+                                tokio::spawn(async move {
+                                    let _ = notifier
+                                        .notify_list_changed(change)
+                                        .await;
+                                });
+                            }
                         }
                     }
                     Some(Ok(axum::extract::ws::Message::Close(_))) | Some(Err(_)) | None => break,

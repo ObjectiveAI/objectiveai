@@ -86,13 +86,20 @@ pub enum Payload {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.client_request.McpListChanged")]
 pub struct McpListChanged {
-    /// Which CLI-hosted MCP server fired the list-changed
+    /// Which client-side MCP server fired the list-changed
     /// notification. The API uses this to look up the right
     /// per-MCP SSE broadcast and republish a standard MCP
     /// notification frame to that upstream's proxy subscriber.
     pub mcp_kind: super::super::McpKind,
     /// Which catalog changed.
     pub kind: McpListChangedKind,
+    /// The response id of the session whose upstream fired — lets the
+    /// proxy disambiguate identical kinds across swarm slots sharing
+    /// one reverse channel. Optional + defaulted for old senders; the
+    /// daemon's relay (the system's sole emitter) always populates it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
 }
 
 /// Distinguishes `tools/list_changed` from `resources/list_changed`.

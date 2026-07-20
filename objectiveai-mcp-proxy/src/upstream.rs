@@ -221,8 +221,8 @@ async fn connect_upstream(
 ) -> Result<Upstream, BadInit> {
     // Laboratory and plugin identities are authoritative from their
     // explicit typed markers (`X-MCP-Laboratories` / `X-MCP-Plugins`)
-    // — never a parse of the URL path. The only remaining URL-derived
-    // kind is `client://objectiveai`; everything else is plain HTTP.
+    // — never a parse of the URL path. An unmarked `client://` URL is
+    // a hard error; everything else is plain HTTP.
     let ws_kind = match &laboratory {
         Some(Laboratory::Client(c)) => Some(McpKind::Laboratory {
             id: c.id.clone(),
@@ -231,47 +231,36 @@ async fn connect_upstream(
             // forwards to the exact host.
             machine: c.machine.clone(),
             machine_state: c.machine_state.clone(),
-            agent: None,
         }),
         // Agent-embedded laboratory: no pinned (machine, state) — the
         // CLI conduit resolves (or creates) the laboratory from the
         // seed at Initialize.
-        Some(Laboratory::Agent(a)) => Some(McpKind::Laboratory {
+        Some(Laboratory::Agent(a)) => Some(McpKind::AgentLaboratory {
             id: a.id.clone(),
-            machine: None,
-            machine_state: None,
-            agent: Some(
-                objectiveai_sdk::client_objectiveai_mcp::AgentLaboratorySeed {
-                    agent_full_id: a.agent_full_id.clone(),
-                    laboratory: a.laboratory.clone(),
-                },
-            ),
+            agent_full_id: a.agent_full_id.clone(),
+            laboratory: a.laboratory.clone(),
         }),
         // A client:// upstream is either a marked plugin (client-side
-        // plugin — the typed marker supplies the coordinates), the
-        // primary client://objectiveai, or a hard error: unmarked ws://
-        // shapes are no longer URL-inferred.
+        // plugin — the typed marker supplies the coordinates) or a
+        // hard error: kinds are never URL-inferred.
         None if url.starts_with("client://") => match &plugin {
-            Some(p) => Some(McpKind::Plugin {
+            Some(p) => Some(McpKind::PluginLaboratory {
                 owner: p.owner.clone(),
                 name: p.name.clone(),
                 version: p.version.clone(),
             }),
-            None => match crate::reverse_channel::parse_ws_mcp_kind(url) {
-                Some(kind) => Some(kind),
-                None => {
-                    return Err(BadInit::UpstreamConnectFailed {
+            None => {
+                return Err(BadInit::UpstreamConnectFailed {
+                    url: url.to_string(),
+                    source: objectiveai_sdk::mcp::Error::MalformedResponse {
                         url: url.to_string(),
-                        source: objectiveai_sdk::mcp::Error::MalformedResponse {
-                            url: url.to_string(),
-                            message: "client:// upstream requires an \
-                                      X-MCP-Plugins or X-MCP-Laboratories \
-                                      marker (or client://objectiveai)"
-                                .into(),
-                        },
-                    });
-                }
-            },
+                        message: "client:// upstream requires an \
+                                  X-MCP-Plugins or X-MCP-Laboratories \
+                                  marker"
+                            .into(),
+                    },
+                });
+            }
         },
         None => None,
     };

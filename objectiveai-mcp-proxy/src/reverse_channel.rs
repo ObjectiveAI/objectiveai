@@ -5,8 +5,9 @@
 //! protocol over the request's WebSocket. Upstreams whose URL scheme is
 //! `ws` ([`WsUpstream`]) are reached through it instead of over HTTP:
 //!
-//! - `client://objectiveai` → [`McpKind::ObjectiveAi`]
-//! - `client:///owner/name/version/mcp` → [`McpKind::Plugin`]
+//! - marked `X-MCP-Plugins` → [`McpKind::PluginLaboratory`]
+//! - marked `X-MCP-Laboratories` → [`McpKind::Laboratory`] /
+//!   [`McpKind::AgentLaboratory`]
 //!
 //! Direction split (the API owns the WS itself):
 //! - **send**: the proxy emits a `server_request::Request` into the
@@ -69,9 +70,17 @@ struct Inner {
     /// stream). Ids are minted by [`ReverseChannel::command`] — the
     /// proxy's OWN id space, never a plugin-supplied id.
     command_streams: DashMap<String, mpsc::UnboundedSender<CommandFrame>>,
-    /// list-changed callbacks per upstream `McpKind`: `(tools, resources)`.
-    /// Fired when a matching `client_request::McpListChanged` arrives.
-    list_changed: DashMap<McpKind, (Option<ListChangedCb>, Option<ListChangedCb>)>,
+    /// list-changed callbacks per upstream, keyed by
+    /// `(session response id, McpKind)`: `(tools, resources)`. The
+    /// response-id half keeps identical kinds from colliding across
+    /// swarm slots sharing this one reverse channel; `None` is the
+    /// fallback slot for a registration whose connect headers carried
+    /// no response id. Fired when a matching
+    /// `client_request::McpListChanged` arrives.
+    list_changed: DashMap<
+        (Option<String>, McpKind),
+        (Option<ListChangedCb>, Option<ListChangedCb>),
+    >,
     /// Session registry, late-bound by [`ReverseChannel::wire_sessions`]
     /// in `setup` (the channel is built before the proxy's
     /// `SessionManager` exists). Lets inbound `client_request`s
@@ -559,7 +568,18 @@ impl ReverseChannel {
         let client_request::Request { id, payload } = request;
         match payload {
             client_request::Payload::McpListChanged(change) => {
-                if let Some(cbs) = self.0.list_changed.get(&change.mcp_kind) {
+                // Exact (response id, kind) first; fall back to the
+                // kind-only slot for registrations whose connect
+                // headers carried no response id.
+                let cbs = self
+                    .0
+                    .list_changed
+                    .get(&(change.response_id.clone(), change.mcp_kind.clone()))
+                    .or_else(|| {
+                        change.response_id.as_ref()?;
+                        self.0.list_changed.get(&(None, change.mcp_kind.clone()))
+                    });
+                if let Some(cbs) = cbs {
                     let cb = match change.kind {
                         McpListChangedKind::Tools => cbs.0.clone(),
                         McpListChangedKind::Resources => cbs.1.clone(),
@@ -649,13 +669,25 @@ impl ReverseChannel {
         }
     }
 
-    fn set_tools_list_changed(&self, mcp_kind: McpKind, cb: ListChangedCb) {
-        let mut entry = self.0.list_changed.entry(mcp_kind).or_default();
+    fn set_tools_list_changed(
+        &self,
+        response_id: Option<String>,
+        mcp_kind: McpKind,
+        cb: ListChangedCb,
+    ) {
+        let mut entry =
+            self.0.list_changed.entry((response_id, mcp_kind)).or_default();
         entry.0 = Some(cb);
     }
 
-    fn set_resources_list_changed(&self, mcp_kind: McpKind, cb: ListChangedCb) {
-        let mut entry = self.0.list_changed.entry(mcp_kind).or_default();
+    fn set_resources_list_changed(
+        &self,
+        response_id: Option<String>,
+        mcp_kind: McpKind,
+        cb: ListChangedCb,
+    ) {
+        let mut entry =
+            self.0.list_changed.entry((response_id, mcp_kind)).or_default();
         entry.1 = Some(cb);
     }
 }
@@ -860,20 +892,36 @@ impl WsUpstream {
         }
     }
 
+    /// This session's response id, off the connect-time header set —
+    /// the registry key half that keeps identical kinds from
+    /// colliding across swarm slots on the shared channel.
+    fn response_id(&self) -> Option<String> {
+        self.base_headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-RESPONSE-ID"))
+            .map(|(_, v)| v.clone())
+    }
+
     pub fn set_on_tools_list_changed<F>(&self, callback: F)
     where
         F: Fn() + Send + Sync + 'static,
     {
-        self.channel
-            .set_tools_list_changed(self.mcp_kind.clone(), Arc::new(callback));
+        self.channel.set_tools_list_changed(
+            self.response_id(),
+            self.mcp_kind.clone(),
+            Arc::new(callback),
+        );
     }
 
     pub fn set_on_resources_list_changed<F>(&self, callback: F)
     where
         F: Fn() + Send + Sync + 'static,
     {
-        self.channel
-            .set_resources_list_changed(self.mcp_kind.clone(), Arc::new(callback));
+        self.channel.set_resources_list_changed(
+            self.response_id(),
+            self.mcp_kind.clone(),
+            Arc::new(callback),
+        );
     }
 
     pub async fn set_extra_headers(&self, extras: IndexMap<String, String>) {
@@ -965,8 +1013,8 @@ impl Upstream {
     ///
     /// Read from the explicit, typed laboratory marker the API supplied
     /// (`X-MCP-Laboratories`), NOT inferred by string-parsing the
-    /// `client://laboratory/{id}` URL. HTTP upstreams and unmarked websocket
-    /// upstreams (the primary `objectiveai` MCP, plugins) are `None`.
+    /// `client://laboratory/{id}` URL. HTTP upstreams and plugin
+    /// upstreams are `None`.
     pub fn laboratory(&self) -> Option<objectiveai_sdk::laboratories::Laboratory> {
         match self {
             Upstream::Http(_) | Upstream::HttpPlugin { .. } => None,
@@ -983,7 +1031,7 @@ impl Upstream {
             Upstream::Http(_) => None,
             Upstream::HttpPlugin { plugin, .. } => Some(plugin.clone()),
             Upstream::Ws(w) => match &w.mcp_kind {
-                McpKind::Plugin {
+                McpKind::PluginLaboratory {
                     owner,
                     name,
                     version,
@@ -992,7 +1040,9 @@ impl Upstream {
                     name: name.clone(),
                     version: version.clone(),
                 }),
-                McpKind::ObjectiveAi | McpKind::Laboratory { .. } => None,
+                McpKind::Laboratory { .. } | McpKind::AgentLaboratory { .. } => {
+                    None
+                }
             },
         }
     }
@@ -1090,31 +1140,11 @@ impl Upstream {
     }
 }
 
-/// Parse a `client://objectiveai` URL into its [`McpKind`]. Returns `None`
-/// for any other shape.
-///
-/// NOTE: laboratories AND plugins are deliberately NOT parsed here.
-/// Their `McpKind`s come from the explicit, typed `X-MCP-Laboratories`
-/// / `X-MCP-Plugins` markers (see `crate::upstream`), never from
-/// string-matching the URL — so the proxy's notion of "this is a
-/// laboratory/plugin" has a single authoritative source. The primary
-/// `client://objectiveai` MCP is the one remaining URL-shaped kind.
-pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
-    let rest = url.strip_prefix("client://")?;
-    // Drop any `?query` (plugin args ride there, parsed separately).
-    let rest = rest.split('?').next().unwrap_or(rest);
-    // `client://objectiveai` → host "objectiveai", no path.
-    if rest == "objectiveai" {
-        return Some(McpKind::ObjectiveAi);
-    }
-    None
-}
-
 /// `initialize` a `client://` upstream over `channel` and build its
 /// [`WsUpstream`]. `headers` is the full set sent on the `initialize`
 /// request — the session-global transient identity headers, plus (on
 /// resume) the upstream `Mcp-Session-Id` and any auth. `args` carries
-/// plugin init arguments (empty for `objectiveai`).
+/// plugin init arguments (empty for laboratories).
 ///
 /// `connect_timeout` bounds the `initialize` round-trip (the per-request
 /// call timeout NEVER applies to connects); `call_timeout` is stored on

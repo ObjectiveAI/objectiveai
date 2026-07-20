@@ -60,9 +60,18 @@ struct SessionEntry {
 /// The one-laboratory server: MCP session registry + transfer registry
 /// + the container's loopback base URL.
 pub struct LabServer {
+    /// The host-authoritative laboratory id — stamped on outbound
+    /// [`objectiveai_sdk::laboratories::daemon::HostNotification::McpListChanged`]
+    /// frames so the daemon's mirror can resolve the wire kind.
+    id: String,
     /// The container's MCP/transfer HTTP base (`http://127.0.0.1:{port}`).
     base_url: String,
     mcp: objectiveai_sdk::mcp::Client,
+    /// The host-wide command bridge — reached for its control-lane
+    /// senders by the per-session list-changed forwarders (a SENDER is
+    /// captured, never this struct or the host; see
+    /// [`crate::upstream::install_list_changed_forwarders`]).
+    bridge: Arc<crate::host_command::CommandBridge>,
     /// `Some` ⇒ this laboratory IS a plugin (see [`PluginSeed`]).
     plugin: Option<PluginSeed>,
     /// Per-response-id MCP connections into the container.
@@ -72,11 +81,18 @@ pub struct LabServer {
 }
 
 impl LabServer {
-    pub fn new(base_url: String, plugin: Option<PluginSeed>) -> Self {
+    pub fn new(
+        id: String,
+        base_url: String,
+        bridge: Arc<crate::host_command::CommandBridge>,
+        plugin: Option<PluginSeed>,
+    ) -> Self {
         Self {
             mcp: crate::upstream::lab_mcp_client(),
             transfers: crate::transfer::Transfers::new(base_url.clone()),
+            id,
             base_url,
+            bridge,
             plugin,
             connections: DashMap::new(),
         }
@@ -249,6 +265,16 @@ impl LabServer {
             Ok(c) => c,
             Err(e) => return initialize_err(-32603, format!("connect: {e}")),
         };
+        // First hop of the list-changed relay — installed on every
+        // session (regular AND plugin labs), before the session is
+        // visible in the registry.
+        crate::upstream::install_list_changed_forwarders(
+            &self.bridge,
+            channel,
+            &self.id,
+            &response_id,
+            &connection,
+        );
         let mcp_session_id = connection.session_id.clone();
         let result = connection.initialize_result.clone();
         self.connections.insert(

@@ -50,7 +50,7 @@ pub struct Server {
 
 /// A plugin MCP server's identity — the `(owner, name, version)`
 /// coordinate trio (one plugin IS one MCP server; mirrors
-/// `McpKind::Plugin`).
+/// `McpKind::PluginLaboratory`).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "mcp.Plugin")]
 pub struct Plugin {

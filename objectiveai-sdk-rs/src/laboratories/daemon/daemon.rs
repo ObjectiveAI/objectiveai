@@ -202,6 +202,35 @@ pub enum HostNotification {
         id: String,
         event: crate::laboratories::filetree::FileTreeEvent,
     },
+    /// A served laboratory's container MCP emitted a
+    /// `tools/list_changed` or `resources/list_changed` on the session
+    /// owned by `(this channel, response_id)`. Sent ONLY to the owning
+    /// daemon channel, never broadcast — the session (and its
+    /// daemon-side notifier) exists only there. The daemon relays it
+    /// up the matching reverse channel; without this hop, container
+    /// list-changed events would be silently dropped.
+    #[schemars(title = "McpListChanged")]
+    McpListChanged {
+        /// The host-authoritative laboratory id.
+        id: String,
+        /// The owning session's agent-completion response id.
+        response_id: String,
+        kind: McpListChangedKind,
+    },
+}
+
+/// Which catalog changed, for [`HostNotification::McpListChanged`] — a
+/// deliberate LOCAL twin of the reverse channel's
+/// `client_objectiveai_mcp.client_request.McpListChangedKind` (the two
+/// vocabularies never import each other; the `CommandFrame` precedent).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
+#[schemars(rename = "laboratories.daemon.McpListChangedKind")]
+#[serde(rename_all = "snake_case")]
+pub enum McpListChangedKind {
+    Tools,
+    Resources,
 }
 
 /// Host → daemon over the `/laboratory` WS: execute a CLI command on

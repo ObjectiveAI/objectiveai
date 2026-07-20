@@ -9,7 +9,6 @@
 //!   `agent_instance_hierarchy`. Mutual exclusion across processes
 //!   for a given agent slot. Backed by [`objectiveai_sdk::lockfile`]
 //!   at the per-agent layout in [`crate::command::agents::locks`].
-//! - [`mcp_server`] — the in-process `objectiveai-mcp` server handle
 //!   the conduit forwards plugin tool calls to.
 //! - [`conduit`] — the MCP reverse-attach proxy that routes upstream
 //!   WS request frames out to upstream plugin MCPs.
@@ -51,7 +50,6 @@ pub mod daemon_auth;
 pub mod daemon_execute;
 pub mod daemon_stream;
 pub mod mcp_listener;
-pub mod mcp_server;
 pub mod agent_instance_route;
 pub mod agents_routes;
 pub mod channel_routes;

@@ -230,6 +230,10 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // single set is visible everywhere. `mcp_notifiers` replaces the
     // per-response mcp sockets.
     let mcp_notifiers = std::sync::Arc::new(dashmap::DashMap::new());
+    // `(response_id, lab_id) → wire McpKind` mirror behind the
+    // laboratory-WS list-changed relay; conduits' route tables are
+    // its sole writers.
+    let lab_mcp_kinds = std::sync::Arc::new(dashmap::DashMap::new());
     // The `/user` user-requests hub: pending outbound requests +
     // tracked per-connection delivery. Held here for the daemon's
     // life like every other hub.
@@ -243,6 +247,7 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         laboratories: laboratories.clone(),
         labs_hub: labs_hub.clone(),
         mcp_notifiers,
+        lab_mcp_kinds,
         channels: channels.clone(),
     });
     crate::http::daemon_stream::serve_http(

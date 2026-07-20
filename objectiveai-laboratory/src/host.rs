@@ -753,7 +753,12 @@ impl HostServer {
                     if seed.is_none() {
                         self.spawn_filetree_pump(id, &base_url).await;
                     }
-                    Ok(Arc::new(LabServer::new(base_url, seed)))
+                    Ok(Arc::new(LabServer::new(
+                        id.to_string(),
+                        base_url,
+                        Arc::clone(&self.bridge),
+                        seed,
+                    )))
                 }
                 Err(e) => {
                     // We just started it — don't leak a running
@@ -1232,6 +1237,17 @@ impl HostServer {
             Ok(connection) => connection,
             Err(e) => return fail(format!("connect ephemeral '{id}': {e}")).await,
         };
+        // First hop of the list-changed relay — installed while we
+        // still hold the connection, before `EphemeralLab::new`
+        // consumes it. Captures only a sender + frame string
+        // (cycle-safety rule — see the helper's docs).
+        crate::upstream::install_list_changed_forwarders(
+            &self.bridge,
+            channel,
+            id,
+            response_id,
+            &connection,
+        );
         let mcp_session_id = connection.session_id.clone();
         let initialize_result = connection.initialize_result.clone();
         // Agent ephemerals carry the injected MCP — proxy its

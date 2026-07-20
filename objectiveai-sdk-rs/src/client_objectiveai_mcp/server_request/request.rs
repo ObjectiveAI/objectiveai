@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 /// params}` envelope is unwrapped into the typed variant payload.
 ///
 /// Which CLI-hosted MCP server the request targets rides as
-/// `mcp_kind` on the envelope. The API parses this off the inbound
-/// URL path (`/objectiveai` → [`super::super::McpKind::ObjectiveAi`];
-/// `/{owner}/{name}/{version}/{mcp}` → [`super::super::McpKind::Plugin`])
-/// before forwarding.
+/// `mcp_kind` on the envelope
+/// ([`super::super::McpKind::PluginLaboratory`] from the plugin's
+/// typed marker; the two laboratory kinds from the laboratory
+/// marker).
 ///
 /// Wire shape (envelope is `{id, mcp_kind, headers?, type, …variant
 /// fields…}` after the `#[serde(flatten)]` on `payload`):
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// ```json
 /// {
 ///   "id":"…",
-///   "mcp_kind":{"type":"objective_ai"},
+///   "mcp_kind":{"type":"plugin_laboratory","owner":"…","name":"…","version":"…"},
 ///   "headers":{"Mcp-Session-Id":"…"},
 ///   "type":"tools_list",
 ///   "cursor":"…"

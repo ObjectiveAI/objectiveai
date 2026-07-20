@@ -66,10 +66,6 @@ impl InlineAgentBase {
         self.as_ref().laboratories()
     }
 
-    pub fn objectiveai_mcp(&self) -> Option<bool> {
-        self.as_ref().objectiveai_mcp()
-    }
-
     pub fn plugins(&self) -> &[super::Plugin] {
         self.as_ref().plugins()
     }
@@ -161,10 +157,6 @@ impl RemoteAgentBase {
         self.inner.laboratories()
     }
 
-    pub fn objectiveai_mcp(&self) -> Option<bool> {
-        self.inner.objectiveai_mcp()
-    }
-
     pub fn plugins(&self) -> &[super::Plugin] {
         self.inner.plugins()
     }
@@ -241,13 +233,6 @@ impl AgentBase {
         match self {
             AgentBase::Remote(r) => r.laboratories(),
             AgentBase::Inline(i) => i.laboratories(),
-        }
-    }
-
-    pub fn objectiveai_mcp(&self) -> Option<bool> {
-        match self {
-            AgentBase::Remote(r) => r.objectiveai_mcp(),
-            AgentBase::Inline(i) => i.objectiveai_mcp(),
         }
     }
 
@@ -364,16 +349,6 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::CodexSdk(b) => b.laboratories.as_ref(),
             InlineAgentRef::Mock(b) => b.laboratories.as_ref(),
             InlineAgentRef::Script(b) => b.laboratories.as_ref(),
-        }
-    }
-
-    pub fn objectiveai_mcp(&self) -> Option<bool> {
-        match self {
-            InlineAgentRef::Openrouter(b) => b.objectiveai_mcp,
-            InlineAgentRef::ClaudeAgentSdk(b) => b.objectiveai_mcp,
-            InlineAgentRef::CodexSdk(b) => b.objectiveai_mcp,
-            InlineAgentRef::Mock(b) => b.objectiveai_mcp,
-            InlineAgentRef::Script(b) => b.objectiveai_mcp,
         }
     }
 

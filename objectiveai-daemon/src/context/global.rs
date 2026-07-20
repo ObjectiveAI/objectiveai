@@ -58,8 +58,19 @@ pub(crate) struct ResidentHubs {
     pub laboratories: LaboratoryRegistry,
     /// Local-laboratory change hub (former `laboratories.sock`).
     pub labs_hub: LaboratoriesHub,
-    /// Per-`response_id` MCP notifiers (former per-response mcp sockets).
-    pub mcp_notifiers: Arc<DashMap<String, Notifier>>,
+    /// Per-`response_id` MCP notifiers (former per-response mcp
+    /// sockets), each tagged with its registering conduit's unique
+    /// token so a stale conduit's late drop can `remove_if` on token
+    /// equality instead of clobbering a respawned successor's entry.
+    pub mcp_notifiers: Arc<DashMap<String, (u64, Notifier)>>,
+    /// `(response_id, host laboratory id) → wire McpKind` mirror,
+    /// write-through-maintained by every conduit's `HostRoutes`. The
+    /// laboratory-WS relay resolves an inbound
+    /// `HostNotification::McpListChanged` here to stamp the exact wire
+    /// kind (byte-match with the proxy's list-changed registry key)
+    /// before pushing the frame up the reverse channel.
+    pub lab_mcp_kinds:
+        Arc<DashMap<(String, String), objectiveai_sdk::client_objectiveai_mcp::McpKind>>,
     /// The `/channels` duplex-channels hub (live coordination; the
     /// durable log lives in `db::channels`). See `http::channel_routes`.
     pub channels: crate::http::channel_routes::ChannelHub,
@@ -678,16 +689,6 @@ pub async fn resolve_mcp_connect_timeout_ms_opt(
         .read_config()
         .await?;
     Ok(config.api().get_mcp_connect_timeout_ms())
-}
-
-/// Effective backoff max-elapsed-time (ms) — the retry budget for the
-/// daemon's own MCP client. The merged `api.backoff_max_elapsed_time_ms`
-/// config value, or the canonical default (60000ms) when unset. The
-/// other exponential-backoff knobs keep their built-in defaults.
-pub async fn resolve_backoff_max_elapsed_time_ms(
-    fs: &filesystem::Client,
-) -> Result<u64, crate::error::Error> {
-    Ok(resolve_backoff_max_elapsed_time_ms_opt(fs).await?.unwrap_or(60000))
 }
 
 /// The configured `api.backoff_max_elapsed_time_ms`, or `None` when

@@ -14,7 +14,6 @@ publish = true
 
 [dependencies]
 objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.13", features = ["lockfile", "subprocess-reaper", "laboratory-daemon"] }
-objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.2.13" }
 axum = { version = "0.8.8", features = ["ws"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
 clap = { version = "4.6.0", features = ["derive"] }

@@ -36,6 +36,56 @@ pub(crate) fn sanitize_connect_headers(
     out
 }
 
+/// Wire a container connection's `tools/list_changed` /
+/// `resources/list_changed` callbacks to push a
+/// [`HostNotification::McpListChanged`] frame onto the OWNING daemon
+/// channel's control lane — the first hop of the end-to-end relay
+/// (host → daemon → reverse channel → proxy callback). Without this,
+/// container list-changed events die here silently.
+///
+/// CYCLE-SAFETY RULE: the callbacks are stored on the connection,
+/// which the host/lab structs own — so they must NEVER capture an
+/// `Arc<HostServer>`/`Arc<LabServer>` (that cycle is exactly what
+/// pinned the old daemon-side conduit's destructor). Each callback
+/// captures ONLY a control-lane sender clone and one pre-serialized
+/// frame `String`. A dead channel is a harmless failed send.
+pub(crate) fn install_list_changed_forwarders<E>(
+    bridge: &crate::host_command::CommandBridge,
+    channel: u64,
+    lab_id: &str,
+    response_id: &str,
+    connection: &objectiveai_sdk::mcp::Connection<E>,
+) where
+    E: objectiveai_sdk::mcp::McpClientCommandExecutor,
+{
+    use objectiveai_sdk::laboratories::daemon::{
+        HostNotification, McpListChangedKind,
+    };
+    let Some(sender) = bridge.outbound.get(&channel).map(|tx| tx.clone())
+    else {
+        return;
+    };
+    let frame = |kind: McpListChangedKind| {
+        serde_json::to_string(&HostNotification::McpListChanged {
+            id: lab_id.to_string(),
+            response_id: response_id.to_string(),
+            kind,
+        })
+        .ok()
+    };
+    if let Some(frame) = frame(McpListChangedKind::Tools) {
+        let sender = sender.clone();
+        connection.set_on_tools_list_changed(move || {
+            let _ = sender.send(frame.clone());
+        });
+    }
+    if let Some(frame) = frame(McpListChangedKind::Resources) {
+        connection.set_on_resources_list_changed(move || {
+            let _ = sender.send(frame.clone());
+        });
+    }
+}
+
 /// The MCP client every laboratory connection uses — the CLI conduit's
 /// knobs (100ms/0.5/1.5/1s backoff, 10-minute budget + call timeout;
 /// the laboratory is loopback, so these are generous). Lives here so
