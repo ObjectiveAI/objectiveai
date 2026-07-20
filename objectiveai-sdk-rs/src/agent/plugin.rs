@@ -77,9 +77,12 @@ impl Ord for Plugin {
 }
 
 impl Plugin {
-    /// `owner`, `name`, and `version` must all be non-empty, and every
-    /// `arguments` key (if present) must be non-empty (values may be
-    /// empty — they canonicalize to bare flags in [`prepare`]).
+    /// `owner`, `name`, and `version` must all be non-empty; `version`
+    /// must start with `v` — it IS the plugin repo's git tag, Go-modules
+    /// style (`v1.2.3`), byte-for-byte with no rewriting anywhere
+    /// downstream. Every `arguments` key (if present) must be non-empty
+    /// (values may be empty — they canonicalize to bare flags in
+    /// [`prepare`]).
     pub fn validate(&self) -> Result<(), String> {
         if self.owner.is_empty() {
             return Err("`owner` cannot be empty".into());
@@ -89,6 +92,12 @@ impl Plugin {
         }
         if self.version.is_empty() {
             return Err("`version` cannot be empty".into());
+        }
+        if !self.version.starts_with('v') {
+            return Err(format!(
+                "`version` {:?} must start with 'v' — it is the plugin repo's git tag, Go-modules style (v1.2.3)",
+                self.version,
+            ));
         }
         if let Some(args) = self.arguments.as_ref() {
             for (k, _) in args {
@@ -252,8 +261,8 @@ mod tests {
     #[test]
     fn validate_rejects_duplicate_coordinates() {
         let err = validate(&[
-            plugin("o", "n", "1", &[]),
-            plugin("o", "n", "1", &[("k", Some("v"))]),
+            plugin("o", "n", "v1", &[]),
+            plugin("o", "n", "v1", &[("k", Some("v"))]),
         ])
         .expect_err("duplicate coordinates must be rejected");
         assert!(err.contains("duplicate"), "unexpected error: {err}");
@@ -261,9 +270,21 @@ mod tests {
 
     #[test]
     fn validate_rejects_empty_fields() {
-        assert!(validate(&[plugin("", "n", "1", &[])]).is_err());
-        assert!(validate(&[plugin("o", "", "1", &[])]).is_err());
+        assert!(validate(&[plugin("", "n", "v1", &[])]).is_err());
+        assert!(validate(&[plugin("o", "", "v1", &[])]).is_err());
         assert!(validate(&[plugin("o", "n", "", &[])]).is_err());
-        assert!(validate(&[plugin("o", "n", "1", &[("", Some("v"))])]).is_err());
+        assert!(validate(&[plugin("o", "n", "v1", &[("", Some("v"))])]).is_err());
+    }
+
+    /// The version IS the git tag, Go-modules style: it must arrive
+    /// `v`-prefixed — nothing downstream rewrites it.
+    #[test]
+    fn validate_requires_v_prefixed_version() {
+        assert!(validate(&[plugin("o", "n", "1.2.3", &[])]).is_err());
+        // Uppercase `V` is NOT the Go convention — tags are
+        // case-sensitive and the required prefix is lowercase `v`.
+        assert!(validate(&[plugin("o", "n", "V1.2.3", &[])]).is_err());
+        assert!(validate(&[plugin("o", "n", "v1.2.3", &[])]).is_ok());
+        assert!(validate(&[plugin("o", "n", "v1.2.3-RC1", &[])]).is_ok());
     }
 }

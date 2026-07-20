@@ -55,8 +55,8 @@ pub struct ResponseItem {
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
     /// For plugin laboratories: the plugin's canonical coordinate
-    /// trio (owner/name lowercased, version `v`-prefixed). `None` for
-    /// every other laboratory.
+    /// trio (owner/name lowercased, version verbatim — the repo's
+    /// `v`-prefixed git tag). `None` for every other laboratory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin: Option<Plugin>,

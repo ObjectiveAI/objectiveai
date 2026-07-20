@@ -18,10 +18,11 @@ const PORT_LABEL: &str = "objectiveai.plugin.port";
 const SHA_LABEL: &str = "objectiveai.plugin.sha";
 
 /// A plugin's CANONICAL coordinates: `owner`/`name` lowercased (GitHub
-/// treats them case-insensitively), `version` case-PRESERVED (it names
-/// a case-sensitive git tag) and `v`-prefixed (Go-modules convention —
-/// a declared `1.2.3` and `v1.2.3` collapse to the one tag `v1.2.3`;
-/// a leading `V` also counts as already-prefixed).
+/// treats them case-insensitively), `version` VERBATIM — it IS the
+/// repo's git tag, Go-modules style (`v1.2.3`, case-sensitive). The
+/// `v` prefix is REQUIRED at the declaration layer
+/// (`agent::plugin::validate`) and never rewritten here — no prepend,
+/// no check.
 ///
 /// Everything derives from this trio:
 /// - laboratory id: `oai-plugin-{owner}-{name}-{version}` — NOTE the
@@ -31,7 +32,7 @@ const SHA_LABEL: &str = "objectiveai.plugin.sha";
 /// - image: `localhost/objectiveai-plugin:{owner}-{name}-{version}` —
 ///   the coordinates ride the TAG part, whose charset (unlike the
 ///   lowercase-only name path) tolerates repo names like `.github`.
-/// - git tag: `{version}` (the `v`-form).
+/// - git tag: `{version}`, byte-for-byte.
 pub struct PluginCoords {
     pub owner: String,
     pub name: String,
@@ -49,16 +50,6 @@ impl PluginCoords {
         let owner = owner.trim().to_lowercase();
         let name = name.trim().to_lowercase();
         let version = version.trim().to_string();
-        let version = if version.starts_with('v') || version.starts_with('V') {
-            version
-        } else {
-            format!("v{version}")
-        };
-        // A bare `v`/`V` is an EMPTY declared version dressed in the
-        // prefix (either declared that way or minted by the prepend).
-        if version.eq_ignore_ascii_case("v") {
-            return Err("plugin `version` cannot be empty".to_string());
-        }
         for (label, value, allow_upper) in [
             ("owner", &owner, false),
             ("name", &name, false),
@@ -124,7 +115,8 @@ impl PluginCoords {
         format!("localhost/objectiveai-plugin:{}", self.image_tag())
     }
 
-    /// The git tag the version names — the `v`-form itself.
+    /// The git tag the version names — the version string itself,
+    /// byte-for-byte (Go modules: tag == version).
     pub fn git_tag(&self) -> &str {
         &self.version
     }

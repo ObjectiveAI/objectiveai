@@ -94,13 +94,14 @@ pub enum RequestPayload {
     Create(CreateRequest),
     /// Ensure a PLUGIN laboratory on this host: build the plugin's
     /// container image from its GitHub repo (`owner/name` at git tag
-    /// `v{version}`, Go-modules convention) if the image is absent,
-    /// create its container (NOT started), and answer with its
+    /// `{version}` — the version IS the tag, Go-modules style, so it
+    /// arrives already `v`-prefixed) if the image is absent, create
+    /// its container (NOT started), and answer with its
     /// [`super::Identify`]. Idempotent: an existing plugin laboratory
     /// for the trio answers `Ok` without re-creating. Host-level: no
     /// envelope `laboratory_id` — the HOST derives the id
     /// (`oai-plugin-{owner}-{name}-{version}`: owner/name lowercased,
-    /// version case-preserved and `v`-prefixed).
+    /// version verbatim).
     ///
     /// NOTE for the daemon phase: ensure runs a git fetch + `podman
     /// build` inline, which can exceed the standard RPC forward
@@ -312,8 +313,9 @@ pub struct CreateRequest {
 /// Parameters for [`RequestPayload::PluginCreate`] — the plugin's
 /// coordinate trio, verbatim from the agent declaration
 /// (`agent::plugin::prepare` already lowercases owner/name; the host
-/// re-canonicalizes defensively: lowercase owner/name, `v`-prefix the
-/// version — version CASE is preserved, git tags are case-sensitive).
+/// re-lowercases them defensively — the version passes through
+/// untouched: it is required `v`-prefixed at the declaration layer
+/// and git tags are case-sensitive).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "laboratories.daemon.PluginCreateRequest")]
 pub struct PluginCreateRequest {
@@ -321,7 +323,8 @@ pub struct PluginCreateRequest {
     pub owner: String,
     /// Repository segment.
     pub name: String,
-    /// Plugin version; git tag `v{version}` must exist on the repo.
+    /// Plugin version — IS the repo's git tag (Go-modules style,
+    /// `v`-prefixed), byte-for-byte; the tag must exist.
     pub version: String,
 }
 
