@@ -419,10 +419,10 @@ pub fn apply_config_env(
     }
     match scoped.plugin_repository() {
         Some(v) => {
-            cmd.env("OBJECTIVEAI_PLUGIN_REPOSITORY", v);
+            cmd.env("OBJECTIVEAI_PLUGIN_NAME", v);
         }
         None => {
-            cmd.env_remove("OBJECTIVEAI_PLUGIN_REPOSITORY");
+            cmd.env_remove("OBJECTIVEAI_PLUGIN_NAME");
         }
     }
     match scoped.plugin_version() {

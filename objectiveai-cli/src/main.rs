@@ -311,7 +311,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
                 "OBJECTIVEAI_RESPONSE_ID",
                 "OBJECTIVEAI_RESPONSE_IDS",
                 "OBJECTIVEAI_PLUGIN_OWNER",
-                "OBJECTIVEAI_PLUGIN_REPOSITORY",
+                "OBJECTIVEAI_PLUGIN_NAME",
                 "OBJECTIVEAI_PLUGIN_VERSION",
             ] {
                 cmd.env_remove(var);

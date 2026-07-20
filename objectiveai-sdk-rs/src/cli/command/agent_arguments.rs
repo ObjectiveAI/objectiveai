@@ -18,7 +18,7 @@
 /// - `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`
 /// - `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`
 /// - `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`
-/// - `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_REPOSITORY`
+/// - `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_NAME`
 /// - `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`
 ///
 /// The three `plugin_*` fields are the PLUGIN CALLER identity —
@@ -122,7 +122,7 @@ impl AgentArguments {
             ("OBJECTIVEAI_RESPONSE_ID", &self.response_id),
             ("OBJECTIVEAI_RESPONSE_IDS", &self.response_ids),
             ("OBJECTIVEAI_PLUGIN_OWNER", &self.plugin_owner),
-            ("OBJECTIVEAI_PLUGIN_REPOSITORY", &self.plugin_repository),
+            ("OBJECTIVEAI_PLUGIN_NAME", &self.plugin_repository),
             ("OBJECTIVEAI_PLUGIN_VERSION", &self.plugin_version),
         ]
         .into_iter()
@@ -150,7 +150,7 @@ impl AgentArguments {
             ("OBJECTIVEAI_RESPONSE_ID", &self.response_id),
             ("OBJECTIVEAI_RESPONSE_IDS", &self.response_ids),
             ("OBJECTIVEAI_PLUGIN_OWNER", &self.plugin_owner),
-            ("OBJECTIVEAI_PLUGIN_REPOSITORY", &self.plugin_repository),
+            ("OBJECTIVEAI_PLUGIN_NAME", &self.plugin_repository),
             ("OBJECTIVEAI_PLUGIN_VERSION", &self.plugin_version),
         ];
         for (name, value) in pairs {
