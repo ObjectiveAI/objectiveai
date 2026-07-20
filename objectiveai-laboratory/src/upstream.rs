@@ -86,13 +86,14 @@ pub(crate) fn install_list_changed_forwarders<E>(
     }
 }
 
-/// The MCP client every laboratory connection uses — 100ms/0.5/1.5/1s
-/// backoff with a 10-minute give-up budget on ERRORING retries, and NO
-/// connect or per-call deadline: a tool call may legitimately run an
+/// The MCP client every laboratory connection uses — the canonical
+/// workspace backoff (100ms/0.5/1.5/1s, 60s give-up budget on
+/// ERRORING retries, matching the api/proxy defaults) and NO connect
+/// or per-call deadline: a tool call may legitimately run an
 /// arbitrarily long command, so a successful-but-slow op is never
-/// killed (the API layer owns any real deadlines; host/daemon channel
-/// death is the failure signal). Lives here so the knobs exist ONCE
-/// for both laboratory kinds.
+/// killed. The budget caps only how long FAILURES are retried; the
+/// failure signal for a dead peer is channel death. Lives here so the
+/// knobs exist ONCE for both laboratory kinds.
 pub(crate) fn lab_mcp_client() -> objectiveai_sdk::mcp::Client {
     use std::time::Duration;
     objectiveai_sdk::mcp::Client::new(
@@ -106,7 +107,7 @@ pub(crate) fn lab_mcp_client() -> objectiveai_sdk::mcp::Client {
         0.5,
         1.5,
         Duration::from_millis(1000),
-        Duration::from_secs(600),
+        Duration::from_secs(60),
         None,
     )
 }
