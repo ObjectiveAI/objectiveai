@@ -278,13 +278,28 @@ impl LabServer {
         let mcp_session_id = connection.session_id.clone();
         let result = connection.initialize_result.clone();
         self.connections.insert(
-            response_id,
+            response_id.clone(),
             SessionEntry {
                 channel,
                 connection: Arc::new(connection),
                 transient,
             },
         );
+        // Detach-race net (`finish_ephemeral`'s twin): the owning
+        // channel may have died during the connect await, in which
+        // case its `drop_channel` retain already ran and would never
+        // see this insert — the session would pin `has_connections()`
+        // true forever, defeating the idle stop. `detach_channel`
+        // removes the outbound sender FIRST, then sweeps: if we still
+        // see the sender here, any later sweep runs after our insert
+        // and retains us away; if it is gone, we self-clean.
+        if !self.bridge.outbound.contains_key(&channel) {
+            self.connections.remove(&response_id);
+            return initialize_err(
+                -32603,
+                "owning daemon channel disconnected".to_string(),
+            );
+        }
         ResponsePayload::Initialize(JsonRpcResult::Ok {
             result: InitializeReply {
                 mcp_session_id,
