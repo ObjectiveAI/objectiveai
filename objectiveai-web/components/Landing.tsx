@@ -203,8 +203,8 @@ export function Landing() {
         <div className={styles.footerLinks}>
           <a href="https://github.com/ObjectiveAI" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>github</a>
           <a href="https://discord.gg/gbNFHensby" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>discord</a>
-          <a href="https://x.com/mkgores" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/mkgores</a>
-          <a href="https://x.com/ronald_obj_ai" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/ronald_obj_ai</a>
+          <a href="https://x.com/mayaobjectiveai" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/mayaobjectiveai</a>
+          <a href="https://x.com/rnldobjectiveai" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/rnldobjectiveai</a>
         </div>
         <EmailSignup
           formClassName={styles.footerForm}
