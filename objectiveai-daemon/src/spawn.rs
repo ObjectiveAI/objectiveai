@@ -38,30 +38,6 @@ pub fn kill_pid(pid: u32) -> usize {
     }
 }
 
-/// Absolutize a relative exec *path* against `cwd`; keep bare names'
-/// PATH-lookup semantics. Shared by `tools run` and `plugins run`,
-/// whose manifest exec paths are relative to their version / `cli`
-/// folder (e.g. `./count-tool.exe`) — but on Windows `CreateProcess`
-/// resolves a relative program against the PARENT's cwd, not the
-/// child's `current_dir` (rust-lang/rust#37868), so the spawn would
-/// miss the binary entirely without this.
-///
-/// Path-vs-name is decided by `Path::components()`, which encodes
-/// the platform split for us:
-///   - Windows: `/` and `\` are both separators (and both illegal
-///     in file names), so either marks a path — 2+ components.
-///   - Unix: only `/` separates; `\` is a legal filename byte, so
-///     a program literally named `my\tool` stays a bare name —
-///     1 component — and still resolves via PATH.
-pub fn resolve_program(program: String, cwd: &Path) -> std::ffi::OsString {
-    let path = Path::new(&program);
-    if path.components().count() > 1 && path.is_relative() {
-        cwd.join(path).into_os_string()
-    } else {
-        program.into()
-    }
-}
-
 /// Lock-based DETACHED spawn — used only by `daemon spawn` for peer
 /// plugins-daemons (the persistent servers use
 /// [`spawn_leashed_until_ready`] instead).

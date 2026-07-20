@@ -20,8 +20,8 @@ pub enum Payload {
     /// POST `initialize`. The proxy's `protocolVersion` doesn't ride
     /// across this hop — the API discards it on the way in and
     /// substitutes its own `canonical_initialize_result` on the way
-    /// out. The variant carries the plugin arguments the CLI needs at
-    /// dial time (parsed by the API off the URL query string).
+    /// out. Plugin arguments do NOT ride here — they are headers-only
+    /// (see [`InitializeRequest`]).
     #[schemars(title = "Initialize")]
     Initialize {
         mcp_kind: super::super::McpKind,
@@ -377,22 +377,20 @@ pub struct LaboratoryLocalTransferRequest {
     pub destination_path: String,
 }
 
-/// Parameters for [`Payload::Initialize`].
+/// Parameters for [`Payload::Initialize`]. Currently EMPTY — kept as
+/// a struct so the wire shape survives and future per-connect
+/// parameters have a home.
 ///
-/// Carries plugin arguments lifted off the inbound URL's query
-/// string (`?key=value&flag` → `{"key": Some("value"), "flag": None}`).
-/// Empty for [`super::super::McpKind::ObjectiveAi`] (the primary
-/// upstream takes no args).
+/// Plugin arguments deliberately do NOT ride here: they are
+/// HEADERS-ONLY — the API stamps the per-upstream
+/// `X-OBJECTIVEAI-ARGUMENTS` header, which flows through this
+/// request's envelope headers → the daemon's `/laboratory` forward
+/// (`ChannelRequest.headers`) → the host's connect headers → the
+/// plugin container's MCP server, on initialize and on every later
+/// call.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.InitializeRequest")]
-pub struct InitializeRequest {
-    /// Plugin arguments the CLI passes through to
-    /// `<plugin> mcp <mcp_name> begin --<key> [value]`. `None` value
-    /// means presence-only flag (`--key`); `Some(v)` means `--key v`.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    #[schemars(extend("omitempty" = true))]
-    pub args: IndexMap<String, Option<String>>,
-}
+pub struct InitializeRequest {}
 
 /// Parameters for [`Payload::Script`].
 ///
@@ -463,7 +461,6 @@ mod command_request_tests {
                 owner: "acme".to_string(),
                 name: "widgets".to_string(),
                 version: "1.2.3".to_string(),
-                mcp: "main".to_string(),
             },
             request: update_request(),
         };

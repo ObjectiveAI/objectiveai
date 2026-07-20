@@ -335,6 +335,18 @@ impl LaboratoryRegistry {
             .contains_key(&(machine_id.to_string(), state.to_string()))
     }
 
+    /// A UNIFORMLY RANDOM connected host `(machine id, state)` — the
+    /// whole load balancer for ephemeral laboratory creates: every
+    /// individual plugin/agent laboratory request routes to an
+    /// independent random pick. `None` when no host is connected (the
+    /// caller then ensures the local host).
+    pub fn random_host(&self) -> Option<(String, String)> {
+        use rand::prelude::IndexedRandom;
+        let keys: Vec<(String, String)> =
+            self.hosts.iter().map(|entry| entry.key().clone()).collect();
+        keys.choose(&mut rand::rng()).cloned()
+    }
+
     /// The identity of the exact connected host `(machine id, state)`.
     pub fn machine(&self, machine_id: &str, state: &str) -> Option<MachineIdentity> {
         self.hosts
@@ -435,7 +447,10 @@ impl LaboratoryRegistry {
         let id = uuid::Uuid::new_v4().to_string();
         // Transfer-family ops are timeout-free: an archive can exceed
         // any fixed cap, and the host disconnect (pending-map drop) is
-        // the failure signal. Everything else keeps the standard cap.
+        // the failure signal. Ephemeral creates join them — their
+        // inline image pull/build can exceed any cap (a cold plugin
+        // build clones + builds a container image). Everything else
+        // keeps the standard cap.
         let timeout_free = {
             use objectiveai_sdk::laboratories::daemon::RequestPayload as P;
             matches!(
@@ -448,6 +463,8 @@ impl LaboratoryRegistry {
                     | P::ImportEnd(_)
                     | P::ImportAbort(_)
                     | P::LocalTransfer(_)
+                    | P::AgentEphemeralCreate(_)
+                    | P::PluginEphemeralCreate(_)
             )
         };
         let (reply_tx, reply_rx) = oneshot::channel();

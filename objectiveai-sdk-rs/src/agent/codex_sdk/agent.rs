@@ -59,12 +59,6 @@ pub struct AgentBase {
     #[schemars(extend("omitempty" = true))]
     pub laboratories: Option<super::super::Laboratories>,
 
-    /// Client-side ObjectiveAI MCP surface the calling client is
-    /// expected to expose locally back to the API (objectiveai
-    /// built-in, plus specific plugins / tools by owner+name+version).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
 
     /// Expose the built-in `objectiveai-mcp` to this agent. Canonical
     /// form keeps only `Some(true)` — `prepare` drops `false` / `None`
@@ -127,10 +121,6 @@ impl AgentBase {
             }
             None => None,
         };
-        self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
-            Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
-            None => None,
-        };
         self.objectiveai_mcp = match self.objectiveai_mcp {
             Some(true) => Some(true),
             _ => None,
@@ -162,9 +152,6 @@ impl AgentBase {
         }
         if let Some(laboratories) = &self.laboratories {
             super::super::laboratory::laboratories::validate(laboratories)?;
-        }
-        if let Some(cm) = &self.client_objectiveai_mcp {
-            super::super::client_objectiveai_mcp::validate(cm)?;
         }
         super::super::plugin::validate(&self.plugins)?;
         Ok(())

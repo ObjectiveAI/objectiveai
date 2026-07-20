@@ -528,7 +528,7 @@ where
         // mints a new session and re-dials its upstreams each turn.
 
         // Per-agent reverse-attach registration. For every surviving
-        // agent that declares `client_objectiveai_mcp`, register that
+        // agent that declares client-side MCP, register that
         // agent's `response_id` against the inbound WS's
         // `ReverseAttachHandle` — same value the proxy stamps on every
         // outbound reverse-channel request as
@@ -553,20 +553,18 @@ where
         //   across turns, so the proxy mints a new session and re-dials its
         //   upstreams every turn. Nothing cross-turn keys off the MCP
         //   session id anymore.
-        // A CLI-hosted MCP (`client_objectiveai_mcp`) needs this request's
-        // reverse channel (the WS). No per-agent registration: the
-        // per-request proxy holds the channel directly — there's no
-        // response-id routing registry to populate anymore.
-        // Laboratories are completion-wide client-side MCP servers: they
-        // apply to every agent (and fallback) and, like
-        // `client_objectiveai_mcp`, require this request's reverse channel
-        // (the WS).
+        // Client-side MCP (the objectiveai server, plugins,
+        // laboratories) needs this request's reverse channel (the WS).
+        // No per-agent registration: the per-request proxy holds the
+        // channel directly — there's no response-id routing registry
+        // to populate anymore.
         let has_laboratories =
             params.laboratories.as_ref().is_some_and(|l| !l.is_empty());
         let agent_needs_reverse_attach: Vec<bool> = filtered_agents
             .iter()
             .map(|agent| {
-                (agent.base().client_objectiveai_mcp().is_some()
+                (agent.base().objectiveai_mcp().unwrap_or(false)
+                    || !agent.base().plugins().is_empty()
                     || agent.base().laboratories().is_some()
                     || has_laboratories)
                     && ctx.reverse_channel().is_some()
@@ -608,25 +606,25 @@ where
                     .unwrap_or_default();
                 urls.extend(extra_mcp_servers.iter().map(|s| s.url.clone()));
 
-                // If the agent declares `client_objectiveai_mcp` AND
-                // a WS-attached CLI is on the other end, emit one
-                // synthetic URL per CLI-hosted MCP server. The proxy
-                // dials each as an independent upstream; the API's
-                // loopback MCP router parses the path back into a
-                // [`McpKind`] and forwards over the WS conduit. The
-                // CLI conduit treats each URL as a separate MCP
-                // session with its own `Mcp-Session-Id`, no
-                // aggregation, no tool renaming.
+                // If the agent declares client-side MCP surface
+                // (`objectiveai_mcp` / `plugins`) AND a WS-attached
+                // CLI is on the other end, emit one synthetic URL per
+                // client-side MCP server. The proxy dials each as an
+                // independent upstream; the API's loopback MCP router
+                // parses the path back into a [`McpKind`] and forwards
+                // over the WS conduit. The CLI conduit treats each URL
+                // as a separate MCP session with its own
+                // `Mcp-Session-Id`, no aggregation, no tool renaming.
                 //
-                // - `/objectiveai` is emitted only when the agent
-                //   actually needs the primary upstream (declared
-                //   `tools`, set `objectiveai = true`, or declared an
-                //   `executable` plugin — non-executable plugins are
-                //   present purely for their `mcp_servers`).
-                // - One `/{owner}/{name}/{version}/{mcp}` per declared
-                //   plugin MCP server. Plugin args ride alongside as
-                //   `X-OBJECTIVEAI-ARGUMENTS` (per-URL header), JSON-
-                //   serialized in declaration order.
+                // - `/objectiveai` is emitted iff `objectiveai_mcp` is
+                //   true — the daemon's in-process server.
+                // - One `/{owner}/{name}/{version}` per declared
+                //   plugin — ONE plugin IS ONE MCP server, run as an
+                //   ephemeral container on a laboratory host. Plugin
+                //   args ride alongside as `X-OBJECTIVEAI-ARGUMENTS`
+                //   (per-URL header), JSON-serialized in declaration
+                //   order — HEADERS-ONLY, all the way to the plugin's
+                //   server.
                 // Typed plugin marker (url → Plugin), filled alongside the
                 // synthetic plugin URLs below. The URL is just the
                 // upstream's address; the proxy must NOT infer plugin
@@ -640,52 +638,37 @@ where
                 let mut client_mcp_synthetic_urls: Vec<(
                     String,
                     Option<indexmap::IndexMap<String, Option<String>>>,
-                )> = match (
-                    needs_reverse_attach,
-                    agent.base().client_objectiveai_mcp(),
-                ) {
-                    (true, Some(client_mcp)) => {
-                        let mut out: Vec<(
-                            String,
-                            Option<indexmap::IndexMap<String, Option<String>>>,
-                        )> = Vec::new();
-                        let needs_objectiveai = !client_mcp.tools.is_empty()
-                            || client_mcp.objectiveai.unwrap_or(false)
-                            || client_mcp.plugins.iter().any(|p| p.executable);
-                        if needs_objectiveai {
-                            out.push(("client://objectiveai".to_string(), None));
-                        }
-                        for plugin in &client_mcp.plugins {
-                            for entry in plugin.mcp_servers.as_deref().unwrap_or(&[]) {
-                                let path = format!(
-                                    "{owner}/{name}/{version}/{mcp}",
-                                    owner = percent_encode_segment(&plugin.owner),
-                                    name = percent_encode_segment(&plugin.name),
-                                    version = percent_encode_segment(&plugin.version),
-                                    mcp = percent_encode_segment(&entry.name),
-                                );
-                                let url = format!("client:///{path}");
-                                plugins_by_url.insert(
-                                    url.clone(),
-                                    objectiveai_sdk::mcp::server::Plugin {
-                                        owner: plugin.owner.clone(),
-                                        name: plugin.name.clone(),
-                                        version: plugin.version.clone(),
-                                        mcp: entry.name.clone(),
-                                    },
-                                );
-                                out.push((url, entry.arguments.clone()));
-                            }
-                        }
-                        out
+                )> = Vec::new();
+                if needs_reverse_attach {
+                    if agent.base().objectiveai_mcp().unwrap_or(false) {
+                        client_mcp_synthetic_urls
+                            .push(("client://objectiveai".to_string(), None));
                     }
-                    _ => Vec::new(),
-                };
+                    for plugin in agent.base().plugins() {
+                        let path = format!(
+                            "{owner}/{name}/{version}",
+                            owner = percent_encode_segment(&plugin.owner),
+                            name = percent_encode_segment(&plugin.name),
+                            version = percent_encode_segment(&plugin.version),
+                        );
+                        let url = format!("client:///{path}");
+                        plugins_by_url.insert(
+                            url.clone(),
+                            objectiveai_sdk::mcp::server::Plugin {
+                                owner: plugin.owner.clone(),
+                                name: plugin.name.clone(),
+                                version: plugin.version.clone(),
+                            },
+                        );
+                        client_mcp_synthetic_urls
+                            .push((url, plugin.arguments.clone()));
+                    }
+                }
                 // Laboratories: completion-wide client-side MCP servers,
                 // appended to every agent (and fallback) when a WS-attached
-                // CLI is present. Gated on `needs_reverse_attach` (not on
-                // `client_objectiveai_mcp`) — labs apply even when the agent
-                // declares no `client_objectiveai_mcp`. Each becomes a
+                // CLI is present. Gated on `needs_reverse_attach` alone —
+                // labs apply even when the agent declares no
+                // objectiveai_mcp/plugins surface. Each becomes a
                 // synthetic `client://laboratory/{id}` upstream (no args), flowing through
                 // the same URL/header plumbing as the other synthetic URLs.
                 //
@@ -801,8 +784,8 @@ where
                     }
                 }
                 // Plugin URLs carry `X-OBJECTIVEAI-ARGUMENTS` —
-                // JSON-serialized declaration-order IndexMap the CLI
-                // uses to spawn `<plugin> mcp <mcp> begin --<k> [v]`.
+                // JSON-serialized declaration-order IndexMap delivered
+                // to the plugin's MCP server as a header on every call.
                 // The URL path carries the McpKind discriminator.
                 // `X-OBJECTIVEAI-RESPONSE-ID` is NOT stamped per-URL —
                 // it's session-global, transmitted at the top level
@@ -823,26 +806,12 @@ where
                     }
                 }
 
-                // Stamp the three `X-OBJECTIVEAI-MCP-*` headers on
-                // the `/objectiveai` per-URL entry. Stamped
-                // unconditionally — the proxy ignores inbound
-                // `X-MCP-Headers` entirely on its resume path (it
-                // rebuilds the per-URL header bag from the AEAD-encoded
-                // payload), so emitting them on a resume is inert.
-                // `per_url_headers` only contains the `/objectiveai`
-                // key when `client_mcp_synthetic_urls` synthesized it
-                // above (driven by `needs_objectiveai`), so a missing
-                // entry is the correct no-op signal.
-                if let Some(client_mcp) = agent.base().client_objectiveai_mcp() {
-                    let objectiveai_url = "client://objectiveai".to_string();
-                    if let Some(entry) =
-                        per_url_headers.get_mut(&objectiveai_url)
-                    {
-                        for (k, v) in client_mcp.mcp_headers().to_headers() {
-                            entry.insert(k, v);
-                        }
-                    }
-                }
+                // No `X-OBJECTIVEAI-MCP-*` headers are stamped:
+                // objectiveai-mcp treats an ABSENT
+                // `X-OBJECTIVEAI-MCP-ROOT` as true, which matches the
+                // only case the `/objectiveai` URL exists (the
+                // `objectiveai_mcp` flag); the TOOLS/PLUGINS filter
+                // headers died with the legacy declaration surface.
 
                 // Both `agent_instance_hierarchy` and `id` here are the closure's
                 // per-slot bindings (zipped in from `agent_instance_hierarchies` and
@@ -911,20 +880,13 @@ where
                 // parallel.
                 //
                 // Plugin MCP upstreams are NOT dialed here — the CLI
-                // dials them inside its `initialize` handler.
+                // daemon materializes each as an EPHEMERAL container on
+                // a laboratory host inside its `initialize` handler
+                // (the atomic create+connect: a failed container or
+                // handshake fails the upstream connect).
                 //
                 // `session_id` is `None`: we never resume a prior proxy
                 // session, so the proxy mints a fresh one every turn.
-                //
-                // No `list_tools` round-trip: presence of the agent's
-                // declared `client_objectiveai_mcp` tools/plugins is
-                // enforced by objectiveai-mcp itself, which validates
-                // the `X-OBJECTIVEAI-MCP-{TOOLS,PLUGINS}` filter sets by
-                // `{owner, name, version}` against the installed
-                // manifest and errors at connect time on any miss. The
-                // server must NOT re-validate against the upstream's
-                // advertised tool names — that would wrongly couple it
-                // to the client's tool-name scheme.
                 //
                 // Error type is `Arc<mcp::Error>` to match the SDK's
                 // shared-ref error shape uniformly.
@@ -1028,25 +990,29 @@ where
                 // session needed); only skip when the agent declared
                 // servers and the connect failed.
                 //
-                // `client_objectiveai_mcp` declarations REQUIRE an
-                // mcp_connection: on the SSE/unary path
-                // (`ctx.reverse_attach()` is `None`) no synthetic URL
-                // is added → `urls.is_empty()` → `connect_handle` is
-                // `None` → `attempt_connections[idx]` is `None` →
+                // Client-side MCP declarations (objectiveai_mcp /
+                // plugins) REQUIRE an mcp_connection: on the SSE/unary
+                // path (`ctx.reverse_attach()` is `None`) no synthetic
+                // URL is added → `urls.is_empty()` → `connect_handle`
+                // is `None` → `attempt_connections[idx]` is `None` →
                 // we surface `ClientObjectiveaiMcpUnavailable` so the
                 // caller knows reverse-attach was required but not
                 // available.
+                let declares_client_mcp = attempt
+                    .agent
+                    .base()
+                    .objectiveai_mcp()
+                    .unwrap_or(false)
+                    || !attempt.agent.base().plugins().is_empty();
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
                     || !extra_mcp_servers.is_empty()
-                    || attempt.agent.base().client_objectiveai_mcp().is_some()
+                    || declares_client_mcp
                     || attempt.agent.base().laboratories().is_some()
                     || has_laboratories;
                 let mcp_connection: Option<objectiveai_sdk::mcp::Connection> =
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
-                    if attempt.agent.base().client_objectiveai_mcp().is_some()
-                        && ctx.reverse_attach().is_none()
-                    {
+                    if declares_client_mcp && ctx.reverse_attach().is_none() {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
                     } else {
                         // NEVER skip silently: the connect failed on an

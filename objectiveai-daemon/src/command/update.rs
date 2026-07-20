@@ -63,11 +63,11 @@ const METADATA_TIMEOUT: Duration = Duration::from_secs(10);
 // full archive on slower links.
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// Entries under `bin/` the wipe preserves: user-installed plugins
-/// and tools. (The former machine-wide `config.json` is retired —
-/// config is per-state only — so a stale one is wiped like any other
-/// leftover.)
-const WIPE_KEEP: &[&str] = &["plugins"];
+/// Entries under `bin/` the wipe preserves. EMPTY since the installed
+/// plugin/tool trees were retired (plugins are container images built
+/// on laboratory hosts now) — the mechanism stays for whatever needs
+/// preserving next.
+const WIPE_KEEP: &[&str] = &[];
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);

@@ -748,9 +748,6 @@ impl HostServer {
                             owner: p.owner,
                             name: p.name,
                             version: p.version,
-                            // Vestigial in the one-server-per-plugin
-                            // world — the daemon keys on the trio.
-                            mcp: String::new(),
                         },
                     });
                     if seed.is_none() {
@@ -1124,9 +1121,6 @@ impl HostServer {
             owner: coords.owner.clone(),
             name: coords.name.clone(),
             version: coords.version.clone(),
-            // Vestigial in the one-server-per-plugin world — the
-            // daemon keys on the trio.
-            mcp: String::new(),
         };
         self.finish_ephemeral(
             channel,

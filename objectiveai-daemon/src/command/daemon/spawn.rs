@@ -11,19 +11,16 @@
 //! singleton lock (publishing the client-connect `http://` URL as the lock
 //! content, like `objectiveai-api` publishes its `http://` URL), brings
 //! up the [`crate::http::daemon_stream`] hub (`/listen` broadcast SSE +
-//! `/execute` POST→SSE runner + fixed-name producer socket), then launches
-//! every `daemon: true` plugin via the SHARED plugin executor
-//! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
-//! plugin gets the full bidirectional protocol (it can execute nested
-//! commands, exactly like `plugins run` and the conduit's `mcp begin`).
-//! The plugins are leashed to this process; if any exits, the whole
-//! daemon exits (and the OS releases the lock).
+//! `/execute` POST→SSE runner + fixed-name producer socket), then stays
+//! resident holding the singleton lock until killed. (The former
+//! resident `daemon: true` plugin launcher is retired — plugins are
+//! ephemeral containers on laboratory hosts now, with no daemon-spawned
+//! processes of any kind.)
 
 use std::pin::Pin;
 
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use objectiveai_sdk::cli::command::daemon::spawn::{Request, ResponseItem};
-use objectiveai_sdk::cli::command::plugins::run::{Path as RunPath, Request as RunRequest};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -278,59 +275,18 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     tokio::spawn(active.clone().watch_attachment_changes());
     tokio::spawn(active.clone().watch_active_laboratory_changes());
 
-    // Launch every daemon plugin under the SHARED plugin executor, run
-    // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed
-    // and drives the full nested-command protocol; we consume (drive) its
-    // stream below.
-    let manifests: Vec<crate::filesystem::plugins::Manifest> = scoped
-        .filesystem
-        .list_plugins(0, usize::MAX)
-        .await
-        .into_iter()
-        .filter(|m| m.daemon)
-        .collect();
-    let mut streams = Vec::new();
-    for manifest in manifests {
-        let request = RunRequest {
-            path_type: RunPath::PluginsRun,
-            owner: manifest.owner,
-            name: manifest.name,
-            version: manifest.version,
-            args: vec!["daemon".to_string(), "begin".to_string()],
-            base: Default::default(),
-        };
-        let stream = crate::command::plugins::run::execute(global, scoped, request).await?;
-        streams.push(stream);
-    }
-
     let stream = async_stream::stream! {
         // Hold the lock claim for the daemon's whole life: `LockClaim`
         // never releases on drop (the OS reclaims the handles on process
         // exit — exactly the liveness we want).
         let _claim = claim;
 
-        let mut drains = futures::stream::FuturesUnordered::new();
-        for plugin_stream in streams {
-            drains.push(async move {
-                let mut plugin_stream = plugin_stream;
-                // Draining the stream DRIVES the plugin's protocol —
-                // nested commands run as items are consumed. The stream
-                // ends only when the plugin exits.
-                while plugin_stream.next().await.is_some() {}
-            });
-        }
-
         // Ready: the launcher's handshake (and the lone item a direct
         // `daemon spawn --foreground` watcher would see).
         yield Ok::<ResponseItem, Error>(ResponseItem { ok: true });
 
-        if drains.is_empty() {
-            // No daemon plugins: stay resident so the singleton is held.
-            std::future::pending::<()>().await;
-        } else {
-            // Any plugin exiting ends the whole daemon.
-            let _ = drains.next().await;
-        }
+        // Stay resident so the singleton is held until killed.
+        std::future::pending::<()>().await;
     };
     Ok(Box::pin(stream))
 }

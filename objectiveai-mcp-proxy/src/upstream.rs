@@ -256,7 +256,6 @@ async fn connect_upstream(
                 owner: p.owner.clone(),
                 name: p.name.clone(),
                 version: p.version.clone(),
-                mcp: p.mcp.clone(),
             }),
             None => match crate::reverse_channel::parse_ws_mcp_kind(url) {
                 Some(kind) => Some(kind),
@@ -292,15 +291,10 @@ async fn connect_upstream(
             headers.insert(MCP_SESSION_ID_KEY.to_string(), sid);
         }
         // Plugin args ride as the `X-OBJECTIVEAI-ARGUMENTS` per-upstream
-        // header (JSON `{key: value|null}`), the same way the loopback path
-        // carried them; lift them into the typed `InitializeRequest.args`
-        // the CLI's `dial_plugin` reads. The header itself stays in
-        // `headers` (later requests that touch the plugin env still read it).
-        let args: IndexMap<String, Option<String>> = headers
-            .iter()
-            .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-ARGUMENTS"))
-            .and_then(|(_, v)| serde_json::from_str(v).ok())
-            .unwrap_or_default();
+        // header (JSON `{key: value|null}`) and stay HEADERS-ONLY: the
+        // header flows through the whole forward chain to the plugin
+        // container's MCP server — nothing lifts it into typed params.
+        //
         // Timeouts come from the per-request proxy config via the SDK
         // client: the connect timeout bounds the `initialize`, the call
         // timeout (per-request `X-MCP-CALL-TIMEOUT`; `None` = unbounded)
@@ -309,7 +303,6 @@ async fn connect_upstream(
             channel,
             url.to_string(),
             mcp_kind,
-            args,
             headers,
             laboratory,
             client.connect_timeout,

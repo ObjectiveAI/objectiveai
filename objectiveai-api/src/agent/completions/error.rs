@@ -35,7 +35,7 @@ pub enum Error {
     McpProxyBootstrap(String),
 
     #[error(
-        "client_objectiveai_mcp is declared but no reverse-attach is available (request must be over WebSocket)"
+        "agent requires client-side MCP (objectiveai_mcp / plugins) but no reverse-attach is available (request must be over WebSocket)"
     )]
     ClientObjectiveaiMcpUnavailable,
 

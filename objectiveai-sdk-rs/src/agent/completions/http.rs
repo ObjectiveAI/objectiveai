@@ -41,7 +41,7 @@ pub async fn create_agent_completion_unary(
 /// `server_request` (tools/list, tools/call) the API forwards from a
 /// proxy upstream that dialed `/objectiveai-mcp/{session_id}`. Pass
 /// [`crate::http::RejectHandler`] if the calling client doesn't host
-/// objectiveai-mcp — agents that declare `client_objectiveai_mcp`
+/// objectiveai-mcp — agents that declare client-side MCP
 /// will then fall through to the next fallback agent server-side.
 pub async fn create_agent_completion_streaming<H: McpHandler>(
     client: &HttpClient,

@@ -1,9 +1,7 @@
 mod client;
 pub mod config;
 mod error;
-pub mod install;
 mod jq;
-pub mod plugins;
 pub mod publish;
 mod read;
 pub(crate) mod util;

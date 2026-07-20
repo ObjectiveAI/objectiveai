@@ -322,15 +322,6 @@ async fn servers_list_and_name_filter() {
             "upstream": "mock",
             "output_mode": "instruction",
             "instruction": "done",
-            "client_objectiveai_mcp": {
-                "plugins": [{
-                    "owner": "testorg",
-                    "name": "test-mcp-plugin-self-call",
-                    "version": "1.0.0",
-                    "executable": false,
-                    "mcp_servers": [{ "name": "lab-driver" }]
-                }]
-            },
             "calls": [
                 { "tool_calls": [{ "name": "test-mcp-plugin-self-call_do_servers_list", "arguments": "{}" }], "content": "" },
                 { "tool_calls": [{ "name": "test-mcp-plugin-self-call_do_tools_named", "arguments": tools_named_args }], "content": "" }
@@ -611,15 +602,6 @@ async fn laboratory_transfer_absent_with_one_lab() {
         "upstream": "mock",
         "output_mode": "instruction",
         "instruction": "done",
-        "client_objectiveai_mcp": {
-            "plugins": [{
-                "owner": "testorg",
-                "name": "test-mcp-plugin-self-call",
-                "version": "1.0.0",
-                "executable": false,
-                "mcp_servers": [{ "name": "list-tools" }]
-            }]
-        },
         "calls": [
             { "tool_calls": [{ "name": "test-mcp-plugin-self-call_do_list_tools", "arguments": "{}" }], "content": "" }
         ]
@@ -748,15 +730,6 @@ async fn servers_list_reflects_attach_and_detach() {
             "upstream": "mock",
             "output_mode": "instruction",
             "instruction": "done",
-            "client_objectiveai_mcp": {
-                "plugins": [{
-                    "owner": "testorg",
-                    "name": "test-mcp-plugin-self-call",
-                    "version": "1.0.0",
-                    "executable": false,
-                    "mcp_servers": [{ "name": "lab-driver" }]
-                }]
-            },
             "calls": [
                 { "tool_calls": [{ "name": "test-mcp-plugin-self-call_do_servers_list", "arguments": "{}" }], "content": "" }
             ]

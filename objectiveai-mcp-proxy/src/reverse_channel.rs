@@ -987,12 +987,10 @@ impl Upstream {
                     owner,
                     name,
                     version,
-                    mcp,
                 } => Some(objectiveai_sdk::mcp::server::Plugin {
                     owner: owner.clone(),
                     name: name.clone(),
                     version: version.clone(),
-                    mcp: mcp.clone(),
                 }),
                 McpKind::ObjectiveAi | McpKind::Laboratory { .. } => None,
             },
@@ -1125,7 +1123,6 @@ pub async fn connect_ws(
     channel: ReverseChannel,
     url: String,
     mcp_kind: McpKind,
-    args: IndexMap<String, Option<String>>,
     mut headers: IndexMap<String, String>,
     laboratory: Option<objectiveai_sdk::laboratories::Laboratory>,
     connect_timeout: Option<Duration>,
@@ -1135,7 +1132,7 @@ pub async fn connect_ws(
         .request(
             server_request::Payload::Initialize {
                 mcp_kind: mcp_kind.clone(),
-                params: InitializeRequest { args },
+                params: InitializeRequest::default(),
             },
             headers.clone(),
             connect_timeout,

@@ -13,12 +13,12 @@ use serde::{Deserialize, Serialize};
 /// rather than by parsing the proxy's URL path on every hop.
 ///
 /// Wire shape: `{"type":"objective_ai"}`,
-/// `{"type":"plugin","owner":"…","name":"…","version":"…","mcp":"…"}`, or
+/// `{"type":"plugin","owner":"…","name":"…","version":"…"}`, or
 /// `{"type":"laboratory","id":"…"}`.
 ///
-/// The four discriminator fields on `Plugin` mirror the API's
-/// `/{owner}/{name}/{version}/{mcp}` URL path that the proxy dials
-/// for plugin-hosted MCP servers.
+/// The coordinate trio on `Plugin` mirrors the API's
+/// `/{owner}/{name}/{version}` URL path that the proxy dials for
+/// plugin MCP servers — one plugin IS one MCP server.
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema,
 )]
@@ -30,17 +30,15 @@ pub enum McpKind {
     #[schemars(title = "ObjectiveAI")]
     ObjectiveAi,
 
-    /// A plugin-hosted MCP server. Identified by the plugin's
-    /// `(owner, name, version)` tuple plus the `mcp` server name
-    /// within that plugin's manifest. Mirrors the API URL
-    /// `/{owner}/{name}/{version}/{mcp}` and the agent declaration's
-    /// `plugins[i].{owner,name,version}.mcp_servers[j].name`.
+    /// A plugin's MCP server — one plugin IS one MCP server,
+    /// identified by the plugin's `(owner, name, version)` coordinate
+    /// trio. Mirrors the API URL `/{owner}/{name}/{version}` and the
+    /// agent declaration's `plugins[i].{owner,name,version}`.
     #[schemars(title = "Plugin")]
     Plugin {
         owner: String,
         name: String,
         version: String,
-        mcp: String,
     },
 
     /// A laboratory-hosted MCP server, identified by an opaque `id`.

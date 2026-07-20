@@ -289,7 +289,6 @@ mod tests {
                 owner: "acme".to_string(),
                 name: "widgets".to_string(),
                 version: "1.2.3".to_string(),
-                mcp: "main".to_string(),
             },
             request: crate::cli::command::Request::Update(
                 crate::cli::command::update::Request {
