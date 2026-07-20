@@ -1448,6 +1448,16 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
         // consumed by the inner loop on its next read.
         let mut is_reconnect = false;
 
+        // The stream's SSE last-event-id, updated from every `id:`
+        // line. Reconnects send it as the `Last-Event-ID` header so a
+        // spec-conformant server (rmcp caches server→client frames in
+        // a ring buffer) resumes PRECISELY after the last event we
+        // processed. Without it, rmcp treats a bare GET as
+        // resume-from-0 and replays its whole retained cache — for
+        // list_changed that's harmless, but a replayed `cli_request`
+        // would re-execute a command we already ran.
+        let mut last_event_id: Option<String> = None;
+
         loop {
             // The token cancels deterministically when the last
             // `Arc<ConnectionInner>` clone is dropped (see
@@ -1472,7 +1482,12 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
                     // under heavy churn).
                     let send_outcome = tokio::select! {
                         out = async {
-                            this.get().await.send().await
+                            let mut request = this.get().await;
+                            if let Some(id) = last_event_id.as_deref() {
+                                request =
+                                    request.header("Last-Event-ID", id);
+                            }
+                            request.send().await
                         } => out,
                         _ = cancel.cancelled() => {
                             drop(this);
@@ -1481,7 +1496,19 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
                     };
                     let response = match send_outcome {
                         Ok(r) if r.status().is_success() => r,
-                        _ => {
+                        outcome => {
+                            // A definite HTTP rejection may mean the
+                            // server no longer honors our
+                            // Last-Event-ID (index evicted from its
+                            // cache, restarted session) — drop it so
+                            // the next attempt reconnects plain
+                            // instead of retrying a permanently
+                            // rejected resume forever. Transport
+                            // errors keep it: the id may still be
+                            // good once the network recovers.
+                            if outcome.is_ok() {
+                                last_event_id = None;
+                            }
                             drop(this);
                             // Sleep with cancel-arm: instant exit on
                             // drop, no zombie retries.
@@ -1531,6 +1558,18 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
                     line_result = lines.next_line() => {
                         match line_result {
                             Ok(Some(line)) => {
+                                // SSE `id:` lines set the stream's
+                                // last-event-id — remember it (empty
+                                // value ignored) for precise resume
+                                // on reconnect.
+                                if let Some(id) = line.strip_prefix("id:") {
+                                    let id = id.trim();
+                                    if !id.is_empty() {
+                                        last_event_id =
+                                            Some(id.to_string());
+                                    }
+                                    continue 'inner;
+                                }
                                 // SSE data lines start with "data: ".
                                 let Some(data) = line.strip_prefix("data: ") else {
                                     continue 'inner;
