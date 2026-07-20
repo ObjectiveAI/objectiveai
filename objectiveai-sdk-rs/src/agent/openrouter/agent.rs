@@ -81,6 +81,19 @@ pub struct AgentBase {
     #[schemars(extend("omitempty" = true))]
     pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
 
+    /// Expose the built-in `objectiveai-mcp` to this agent. Canonical
+    /// form keeps only `Some(true)` — `prepare` drops `false` / `None`
+    /// (unspecified and explicitly-off hash identically to absent).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub objectiveai_mcp: Option<bool>,
+
+    /// Plugins this agent uses — each IS one MCP server (the
+    /// next-iteration plugin shape; see [`super::super::plugin`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugins: Vec<super::super::Plugin>,
+
     // --- OpenAI-compatible parameters ---
     /// Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -218,6 +231,12 @@ impl AgentBase {
             Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
             None => None,
         };
+        self.objectiveai_mcp = match self.objectiveai_mcp {
+            Some(true) => Some(true),
+            _ => None,
+        };
+        self.plugins =
+            super::super::plugin::prepare(std::mem::take(&mut self.plugins));
         self.frequency_penalty = match self.frequency_penalty {
             Some(frequency_penalty) if frequency_penalty == 0.0 => None,
             other => other,
@@ -351,6 +370,7 @@ impl AgentBase {
         if let Some(cm) = &self.client_objectiveai_mcp {
             super::super::client_objectiveai_mcp::validate(cm)?;
         }
+        super::super::plugin::validate(&self.plugins)?;
         validate_f64("frequency_penalty", self.frequency_penalty, -2.0, 2.0)?;
         if let Some(logit_bias) = &self.logit_bias {
             for (token, weight) in logit_bias {

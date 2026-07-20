@@ -72,6 +72,14 @@ impl InlineAgentBase {
         self.as_ref().client_objectiveai_mcp()
     }
 
+    pub fn objectiveai_mcp(&self) -> Option<bool> {
+        self.as_ref().objectiveai_mcp()
+    }
+
+    pub fn plugins(&self) -> &[super::Plugin] {
+        self.as_ref().plugins()
+    }
+
     pub fn prepare(&mut self) {
         match self {
             InlineAgentBase::Openrouter(b) => b.prepare(),
@@ -165,6 +173,14 @@ impl RemoteAgentBase {
         self.inner.client_objectiveai_mcp()
     }
 
+    pub fn objectiveai_mcp(&self) -> Option<bool> {
+        self.inner.objectiveai_mcp()
+    }
+
+    pub fn plugins(&self) -> &[super::Plugin] {
+        self.inner.plugins()
+    }
+
     pub fn prepare(&mut self) {
         self.inner.prepare()
     }
@@ -246,6 +262,20 @@ impl AgentBase {
         match self {
             AgentBase::Remote(r) => r.client_objectiveai_mcp(),
             AgentBase::Inline(i) => i.client_objectiveai_mcp(),
+        }
+    }
+
+    pub fn objectiveai_mcp(&self) -> Option<bool> {
+        match self {
+            AgentBase::Remote(r) => r.objectiveai_mcp(),
+            AgentBase::Inline(i) => i.objectiveai_mcp(),
+        }
+    }
+
+    pub fn plugins(&self) -> &[super::Plugin] {
+        match self {
+            AgentBase::Remote(r) => r.plugins(),
+            AgentBase::Inline(i) => i.plugins(),
         }
     }
 
@@ -369,6 +399,26 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::CodexSdk(b) => b.client_objectiveai_mcp.as_ref(),
             InlineAgentRef::Mock(b) => b.client_objectiveai_mcp.as_ref(),
             InlineAgentRef::Script(b) => b.client_objectiveai_mcp.as_ref(),
+        }
+    }
+
+    pub fn objectiveai_mcp(&self) -> Option<bool> {
+        match self {
+            InlineAgentRef::Openrouter(b) => b.objectiveai_mcp,
+            InlineAgentRef::ClaudeAgentSdk(b) => b.objectiveai_mcp,
+            InlineAgentRef::CodexSdk(b) => b.objectiveai_mcp,
+            InlineAgentRef::Mock(b) => b.objectiveai_mcp,
+            InlineAgentRef::Script(b) => b.objectiveai_mcp,
+        }
+    }
+
+    pub fn plugins(&self) -> &'a [super::Plugin] {
+        match self {
+            InlineAgentRef::Openrouter(b) => &b.plugins,
+            InlineAgentRef::ClaudeAgentSdk(b) => &b.plugins,
+            InlineAgentRef::CodexSdk(b) => &b.plugins,
+            InlineAgentRef::Mock(b) => &b.plugins,
+            InlineAgentRef::Script(b) => &b.plugins,
         }
     }
 

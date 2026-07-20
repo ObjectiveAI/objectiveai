@@ -38,6 +38,7 @@ pub mod mock;
 pub mod openrouter;
 pub mod script;
 mod output_mode;
+mod plugin;
 mod upstream;
 
 pub use agent::*;
@@ -46,4 +47,5 @@ pub use continuation::*;
 pub use laboratory::*;
 pub use mcp::*;
 pub use output_mode::*;
+pub use plugin::*;
 pub use upstream::*;

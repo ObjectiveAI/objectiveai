@@ -32,10 +32,6 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::mcp::Command,
     },
-    Plugins {
-        #[command(subcommand)]
-        command: super::plugins::Command,
-    },
     /// Run a Python snippet and return its output as JSON.
     Python(super::python::Command),
     Swarms {
@@ -71,8 +67,6 @@ pub enum Request {
     Laboratories(super::laboratories::Request),
     #[schemars(title = "Mcp")]
     Mcp(super::mcp::Request),
-    #[schemars(title = "Plugins")]
-    Plugins(super::plugins::Request),
     #[schemars(title = "Python")]
     Python(super::python::Request),
     #[schemars(title = "PythonRequestSchema")]
@@ -117,8 +111,6 @@ pub enum ResponseItem {
     Laboratories(super::laboratories::ResponseItem),
     #[schemars(title = "Mcp")]
     Mcp(super::mcp::Response),
-    #[schemars(title = "Plugins")]
-    Plugins(super::plugins::ResponseItem),
     #[schemars(title = "Python")]
     Python(serde_json::Value),
     #[schemars(title = "PythonRequestSchema")]
@@ -150,7 +142,6 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::Functions(v) => v.into_mcp(),
             ResponseItem::Laboratories(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
-            ResponseItem::Plugins(v) => v.into_mcp(),
             ResponseItem::Python(v) => v.into_mcp(),
             ResponseItem::PythonRequestSchema(v) => v.into_mcp(),
             ResponseItem::PythonResponseSchema(v) => v.into_mcp(),
@@ -182,8 +173,6 @@ impl TryFrom<Subcommand> for Request {
                 Ok(Request::Laboratories(super::laboratories::Request::try_from(command)?)),
             Subcommand::Mcp { command } =>
                 Ok(Request::Mcp(super::mcp::Request::try_from(command)?)),
-            Subcommand::Plugins { command } =>
-                Ok(Request::Plugins(super::plugins::Request::try_from(command)?)),
             Subcommand::Python(cmd) => match cmd.schema {
                 None => Ok(Request::Python(super::python::Request::try_from(cmd.args)?)),
                 Some(super::python::Schema::RequestSchema(args)) =>
@@ -242,7 +231,6 @@ impl super::CommandRequest for Request {
             Request::Functions(inner) => inner.request_base(),
             Request::Laboratories(inner) => inner.request_base(),
             Request::Mcp(inner) => inner.request_base(),
-            Request::Plugins(inner) => inner.request_base(),
             Request::Python(inner) => inner.request_base(),
             Request::PythonRequestSchema(inner) => inner.request_base(),
             Request::PythonResponseSchema(inner) => inner.request_base(),
@@ -264,7 +252,6 @@ impl super::CommandRequest for Request {
             Request::Functions(inner) => inner.request_base_mut(),
             Request::Laboratories(inner) => inner.request_base_mut(),
             Request::Mcp(inner) => inner.request_base_mut(),
-            Request::Plugins(inner) => inner.request_base_mut(),
             Request::Python(inner) => inner.request_base_mut(),
             Request::PythonRequestSchema(inner) => inner.request_base_mut(),
             Request::PythonResponseSchema(inner) => inner.request_base_mut(),
@@ -318,10 +305,6 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Mcp(req) => {
                 let inner = super::mcp::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))
-            }
-            Request::Plugins(req) => {
-                let inner = super::plugins::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
             }
             Request::Python(req) => {
                 let value = super::python::execute(executor, req, agent_arguments).await?;
@@ -402,10 +385,6 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             }
             Request::Mcp(req) => {
                 let inner = super::mcp::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Plugins(req) => {
-                let inner = super::plugins::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Python(req) => {
@@ -545,7 +524,6 @@ pub enum ListenerExecution {
     Functions(super::functions::ListenerExecution),
     Laboratories(super::laboratories::ListenerExecution),
     Mcp(super::mcp::ListenerExecution),
-    Plugins(super::plugins::ListenerExecution),
     Python(super::python::ListenerExecution),
     PythonRequestSchema(super::python::request_schema::ListenerExecution),
     PythonResponseSchema(super::python::response_schema::ListenerExecution),

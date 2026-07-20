@@ -52,7 +52,6 @@ pub mod db;
 pub mod functions;
 pub mod laboratories;
 pub mod mcp;
-pub mod plugins;
 pub mod python;
 pub mod swarms;
 pub mod update;

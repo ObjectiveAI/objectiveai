@@ -48,6 +48,19 @@ pub struct AgentBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
+
+    /// Expose the built-in `objectiveai-mcp` to this agent. Canonical
+    /// form keeps only `Some(true)` — `prepare` drops `false` / `None`
+    /// (unspecified and explicitly-off hash identically to absent).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub objectiveai_mcp: Option<bool>,
+
+    /// Plugins this agent uses — each IS one MCP server (the
+    /// next-iteration plugin shape; see [`super::super::plugin`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugins: Vec<super::super::Plugin>,
 }
 
 impl AgentBase {
@@ -71,6 +84,12 @@ impl AgentBase {
             Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
             None => None,
         };
+        self.objectiveai_mcp = match self.objectiveai_mcp {
+            Some(true) => Some(true),
+            _ => None,
+        };
+        self.plugins =
+            super::super::plugin::prepare(std::mem::take(&mut self.plugins));
     }
 
     /// Validates the configuration.
@@ -85,6 +104,7 @@ impl AgentBase {
         if let Some(cm) = &self.client_objectiveai_mcp {
             super::super::client_objectiveai_mcp::validate(cm)?;
         }
+        super::super::plugin::validate(&self.plugins)?;
         Ok(())
     }
 

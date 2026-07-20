@@ -19,7 +19,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use objectiveai_sdk::agent::ClientObjectiveaiMcpEntry;
 use objectiveai_sdk::cli::command::AgentArguments;
 use rmcp::transport::common::server_side_http::SessionId;
 use tokio::sync::RwLock;
@@ -35,16 +34,11 @@ use tokio::sync::RwLock;
 /// `mcp_root` resolves to `true` when the
 /// `X-OBJECTIVEAI-MCP-ROOT` header is absent on connect — the
 /// header parser writes the resolved value here, so anything
-/// stored is the final per-session decision. `mcp_tools` /
-/// `mcp_plugins` are `None` when the corresponding header is
-/// absent ⇒ no filter at list time. `Some(vec![])` means
-/// "explicitly allow none."
+/// stored is the final per-session decision.
 #[derive(Debug, Clone)]
 pub struct SessionState {
     pub args: AgentArguments,
     pub mcp_root: bool,
-    pub mcp_tools: Option<Vec<ClientObjectiveaiMcpEntry>>,
-    pub mcp_plugins: Option<Vec<ClientObjectiveaiMcpEntry>>,
 }
 
 /// Shared registry of per-session [`SessionState`]. Cheap to clone

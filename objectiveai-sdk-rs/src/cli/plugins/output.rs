@@ -13,24 +13,22 @@ use serde::{Deserialize, Serialize};
 
 use super::Command;
 use crate::cli::Error;
-use crate::cli::command::plugins::run::Mcp;
 
 /// One line of plugin output. Untagged outer enum — deserialization
 /// tries each typed variant by its constant `type:"…"` discriminator
 /// in source order and falls through to [`Output::Notification`] as
 /// a catch-all carrying the raw JSON value.
 ///
-/// [`Mcp`] is imported from
-/// [`crate::cli::command::plugins::run`] — this module does NOT
-/// re-export it; importers reach it by its canonical path.
+/// The former `Mcp` announcement variant was removed with the
+/// `plugins run` machinery — future plugins have no stdout protocol
+/// at all; an MCP-URL announcement lands in the `Notification`
+/// catch-all like any other untyped line.
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.plugins.Output")]
 pub enum Output {
     #[schemars(title = "Command")]
     Command(Command),
-    #[schemars(title = "Mcp")]
-    Mcp(Mcp),
     #[schemars(title = "Error")]
     Error(Error),
     /// Final fallback — anything that didn't match a typed variant

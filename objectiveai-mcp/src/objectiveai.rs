@@ -1,10 +1,6 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
 use std::sync::Arc;
 
-use futures::FutureExt;
 use futures::StreamExt;
-use objectiveai_sdk::agent::ClientObjectiveaiMcpEntry;
 use objectiveai_sdk::cli::Error as CliError;
 use objectiveai_sdk::cli::ErrorType as CliErrorType;
 use objectiveai_sdk::cli::Level as CliLevel;
@@ -18,14 +14,13 @@ use objectiveai_sdk::cli::command::ResponseItem;
 use objectiveai_sdk::cli::command::RequestBase;
 use objectiveai_sdk::cli::command::Transform;
 use objectiveai_sdk::cli::command::parse_request;
-use objectiveai_sdk::cli::command::plugins;
 use rmcp::{
     ServerHandler,
-    handler::server::router::tool::{ToolRoute, ToolRouter},
-    handler::server::tool::{Extension, parse_json_object, schema_for_type},
+    handler::server::router::tool::ToolRouter,
+    handler::server::tool::Extension,
     handler::server::wrapper::Parameters,
     model::{
-        CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
+        CallToolResult, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
     },
     schemars, tool, tool_router,
 };
@@ -39,26 +34,6 @@ pub struct ObjectiveAiRequest {
         description = "The command arguments to pass to the ObjectiveAI CLI (e.g. [\"agents\", \"list\"] or [\"functions\", \"executions\", \"create\", \"--help\"])"
     )]
     pub command: Vec<String>,
-    #[schemars(
-        description = "Timeout for the whole command, humantime (e.g. \"30s\", \"5m\", \"1h30m\")."
-    )]
-    pub timeout: String,
-    #[schemars(description = "Output token budget for the response.")]
-    pub max_tokens: u64,
-    #[schemars(
-        description = "Optional jq filter applied to each output line. Return null to discard the output line. Ignored when `python` is also set."
-    )]
-    pub jq: Option<String>,
-    #[schemars(
-        description = "Optional Python transform applied to each output line. The item arrives as the global `input`; print the transformed result as valid JSON, or return null to discard the output line. Overrides `jq` when both are set."
-    )]
-    pub python: Option<String>,
-}
-
-#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
-pub struct PluginRequest {
-    #[schemars(description = "Args forwarded to the plugin binary's argv.")]
-    pub args: Vec<String>,
     #[schemars(
         description = "Timeout for the whole command, humantime (e.g. \"30s\", \"5m\", \"1h30m\")."
     )]
@@ -112,11 +87,6 @@ pub struct ObjectiveAiMcpCli<E> {
     /// this registry to recover the caller's identity — request
     /// headers on non-initialize calls are intentionally ignored.
     pub registry: Arc<AgentArgumentsRegistry>,
-    /// Tool-name → manifest triple for every CLI plugin registered as
-    /// a dynamic route. Used by the hand-written `list_tools` handler
-    /// to classify each routed tool by origin and apply the
-    /// per-session `X-OBJECTIVEAI-MCP-PLUGINS` filter.
-    pub plugins_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry>,
 }
 
 impl<E> Clone for ObjectiveAiMcpCli<E> {
@@ -125,7 +95,6 @@ impl<E> Clone for ObjectiveAiMcpCli<E> {
             tool_router: self.tool_router.clone(),
             executor: self.executor.clone(),
             registry: self.registry.clone(),
-            plugins_by_tool_name: self.plugins_by_tool_name.clone(),
         }
     }
 }
@@ -136,97 +105,14 @@ where
     E: CommandExecutor + Send + Sync + 'static,
     E::Error: std::fmt::Display + Send + 'static,
 {
-    /// Build a handler with one dynamic tool per discovered CLI plugin,
-    /// plus the static `ObjectiveAI` catch-all. Plugins are listed once
-    /// at server startup (see `run::setup`); this constructor is not
-    /// re-invoked when a plugin is added later, so hot reload is
-    /// intentionally out of scope.
-    ///
-    /// Name collisions: `ObjectiveAI` itself is always skipped so the
-    /// built-in catch-all is never shadowed.
-    pub fn with_plugins(
-        executor: Arc<E>,
-        plugins_list: Vec<plugins::list::ResponseItem>,
-        registry: Arc<AgentArgumentsRegistry>,
-    ) -> Self {
-        let mut tool_router = Self::tool_router();
-        let mut plugins_by_tool_name: HashMap<String, ClientObjectiveaiMcpEntry> =
-            HashMap::new();
-        for plugin in plugins_list {
-            if plugin.name == "ObjectiveAI" {
-                continue;
-            }
-            plugins_by_tool_name.insert(
-                plugin.tool_name(),
-                ClientObjectiveaiMcpEntry {
-                    owner: plugin.owner.clone(),
-                    name: plugin.name.clone(),
-                    version: plugin.version.clone(),
-                },
-            );
-            let plugin_owner = plugin.owner.clone();
-            let plugin_name = plugin.name.clone();
-            let plugin_version = plugin.version.clone();
-            let executor_for_route = executor.clone();
-            let tool = Tool::new(
-                Cow::Owned(plugin.tool_name()),
-                Cow::Owned(plugin.description.clone()),
-                schema_for_type::<PluginRequest>(),
-            );
-            let registry_for_route = registry.clone();
-            tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
-                let executor = executor_for_route.clone();
-                let plugin_owner = plugin_owner.clone();
-                let plugin_name = plugin_name.clone();
-                let plugin_version = plugin_version.clone();
-                let registry = registry_for_route.clone();
-                let session_id = session_id_from_extensions(&ctx.request_context.extensions);
-                async move {
-                    let arguments = ctx.arguments.unwrap_or_default();
-                    let req: PluginRequest = parse_json_object(arguments)?;
-                    let (timeout_seconds, max_tokens) =
-                        match parse_caps(&req.timeout, req.max_tokens) {
-                            Ok(v) => v,
-                            Err(msg) => {
-                                let item = synthetic_error(msg).into_mcp();
-                                return Ok(CallToolResult::success(format_items(vec![item])));
-                            }
-                        };
-                    let transform = build_transform(req.jq, req.python);
-                    let request = plugins::run::Request {
-                        path_type: plugins::run::Path::PluginsRun,
-                        owner: plugin_owner,
-                        name: plugin_name,
-                        version: plugin_version,
-                        args: req.args,
-                        base: RequestBase {
-                            jq: None,
-                            python: None,
-                            timeout_seconds: Some(timeout_seconds),
-                            max_tokens: Some(max_tokens),
-                        },
-                    };
-                    let state = match session_id {
-                        Some(sid) => registry.get(&sid.into()).await,
-                        None => None,
-                    };
-                    let blocks = dispatch_plugins_run(
-                        &*executor,
-                        request,
-                        transform,
-                        state.as_deref().map(|s| &s.args),
-                    )
-                    .await;
-                    Ok(CallToolResult::success(blocks))
-                }
-                .boxed()
-            }));
-        }
+    /// Build the handler: the single static `ObjectiveAI` catch-all
+    /// tool over the given executor. (The per-plugin dynamic tool
+    /// routes were removed with the "installed plugins" surface.)
+    pub fn new(executor: Arc<E>, registry: Arc<AgentArgumentsRegistry>) -> Self {
         Self {
-            tool_router,
+            tool_router: Self::tool_router(),
             executor,
             registry,
-            plugins_by_tool_name,
         }
     }
 
@@ -338,40 +224,6 @@ where
     }
 }
 
-async fn dispatch_plugins_run<E>(
-    executor: &E,
-    request: plugins::run::Request,
-    transform: Option<Transform>,
-    agent_arguments: Option<&AgentArguments>,
-) -> Vec<rmcp::model::Content>
-where
-    E: CommandExecutor,
-    E::Error: std::fmt::Display,
-{
-    match transform {
-        None => {
-            let stream = match plugins::run::execute(executor, request, agent_arguments).await {
-                Ok(s) => s,
-                Err(e) => {
-                    return format_items(vec![convert::<plugins::run::ResponseItem, _>(Err(e))]);
-                }
-            };
-            let items: Vec<McpResponseItem> =
-                stream.map(convert::<plugins::run::ResponseItem, _>).collect().await;
-            format_items(items)
-        }
-        Some(t) => {
-            let stream =
-                match plugins::run::execute_transform(executor, request, t, agent_arguments).await {
-                    Ok(s) => s,
-                    Err(e) => return format_items(vec![convert_value(Err(e))]),
-                };
-            let items: Vec<McpResponseItem> = stream.map(convert_value).collect().await;
-            format_items(items)
-        }
-    }
-}
-
 /// Collapse a `Result<T, ExecErr>` (the executor's per-item shape)
 /// into an `McpResponseItem`. The executor's error gets formatted
 /// via `Display` into a synthetic `cli::Error` so it renders through
@@ -411,21 +263,13 @@ fn synthetic_error(message: impl Into<String>) -> CliError {
 // Hand-written `ServerHandler` impl, replacing `#[tool_handler]`.
 // `call_tool` and `get_tool` are byte-identical copies of what the
 // macro emits (see `rmcp-macros::tool_handler`). `list_tools` is the
-// custom bit: it filters the macro-default's `self.tool_router
-// .list_all()` by the per-session `ClientObjectiveaiMcpSessionFilter`
-// stamped by `header_session_manager::extract_mcp_filter`.
+// custom bit: it gates the `ObjectiveAI` tool on the per-session
+// `mcp_root` flag stamped by `header_session_manager`.
 //
-// Classification order in `list_tools`:
-//   1. `ObjectiveAI` ⇒ gated on `filter.root`.
-//   2. Tool name in `plugins_by_tool_name` ⇒ filtered by
-//      `filter.plugins` (None ⇒ allow; Some ⇒ membership check).
-//   3. Anything else ⇒ allow (defensive; the existing route loop
-//      registers nothing outside those two categories).
-//
-// No filter recorded for the session (no header parser ran, e.g.
-// GET-only flow) ⇒ behave as `root=true, plugins=None` — every
-// tool advertised. Mirrors the user-spelled "absent ⇒ default"
-// semantics for each field.
+// Classification in `list_tools`: `ObjectiveAI` (the only registered
+// tool) is gated on the per-session `mcp_root`. No filter recorded for
+// the session (no header parser ran, e.g. GET-only flow) ⇒ behave as
+// `root=true` — the tool is advertised.
 impl<E> ServerHandler for ObjectiveAiMcpCli<E>
 where
     E: CommandExecutor + Send + Sync + 'static,
@@ -465,7 +309,6 @@ where
             None => None,
         };
         let root = state.as_deref().map(|s| s.mcp_root).unwrap_or(true);
-        let plugin_filter = state.as_deref().and_then(|s| s.mcp_plugins.as_deref());
 
         let tools = self
             .tool_router
@@ -474,9 +317,6 @@ where
             .filter(|t| {
                 if t.name.as_ref() == "ObjectiveAI" {
                     return root;
-                }
-                if let Some(entry) = self.plugins_by_tool_name.get(t.name.as_ref()) {
-                    return plugin_filter.map_or(true, |f| f.contains(entry));
                 }
                 true
             })

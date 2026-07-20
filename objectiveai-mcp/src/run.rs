@@ -9,9 +9,7 @@
 use std::sync::Arc;
 
 use envconfig::Envconfig;
-use futures::StreamExt;
 use objectiveai_sdk::cli::command::CommandExecutor;
-use objectiveai_sdk::cli::command::plugins;
 use rmcp::transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService};
 use tokio_util::sync::CancellationToken;
 
@@ -104,10 +102,7 @@ pub struct Config {
     pub objectiveai_state: String,
 }
 
-/// Build the rmcp `(TcpListener, axum::Router)` pair. The executor is
-/// `Arc`-wrapped internally so the dynamic plugin / tool route
-/// closures and the static `ObjectiveAI` handler share a single
-/// instance.
+/// Build the rmcp `(TcpListener, axum::Router)` pair.
 pub async fn setup<E>(
     config: Config,
     executor: E,
@@ -126,31 +121,17 @@ where
 
     let executor = Arc::new(executor);
 
-    // Discover registered plugins at startup — one SDK call that
-    // spawns a single cli subprocess. The list is shared (via Arc)
-    // between `with_plugins` (which registers one dynamic tool per
-    // entry) and `HeaderSessionManager::new` (which validates the
-    // optional `X-OBJECTIVEAI-MCP-PLUGINS` filter set against the
-    // same installed manifest at connect time).
-    let plugins_list = Arc::new(list_plugins(&*executor).await);
-
-    // Shared per-rmcp-session bag of SessionState (wraps the
-    // legacy AgentArguments identity bag alongside the three
-    // optional X-OBJECTIVEAI-MCP-* filter values). Populated by
-    // the HeaderSessionManager on every initialize (fresh + lazy
-    // reconnect); consumed by every tool dispatcher and the
-    // hand-written `list_tools` handler.
+    // Shared per-rmcp-session bag of SessionState (the
+    // AgentArguments identity bag plus the X-OBJECTIVEAI-MCP-ROOT
+    // gate). Populated by the HeaderSessionManager on every
+    // initialize (fresh + lazy reconnect); consumed by the tool
+    // dispatcher and the hand-written `list_tools` handler.
     let registry = Arc::new(AgentArgumentsRegistry::new());
 
-    let server = ObjectiveAiMcpCli::with_plugins(
-        executor.clone(),
-        (*plugins_list).clone(),
-        registry.clone(),
-    );
+    let server = ObjectiveAiMcpCli::new(executor.clone(), registry.clone());
     let session_manager = Arc::new(HeaderSessionManager::new(
         registry.clone(),
         server.clone(),
-        plugins_list.clone(),
     ));
     let ct = CancellationToken::new();
 
@@ -211,22 +192,3 @@ where
     serve(listener, app).await
 }
 
-/// Best-effort plugin discovery: drain `plugins list`, drop per-item
-/// errors. A discovery failure (cli binary missing, etc.) returns an
-/// empty list so the server still starts.
-async fn list_plugins<E>(executor: &E) -> Vec<plugins::list::ResponseItem>
-where
-    E: CommandExecutor + Send + Sync + 'static,
-    E::Error: std::fmt::Display + Send + 'static,
-{
-    let request = plugins::list::Request {
-        path_type: plugins::list::Path::PluginsList,
-        offset: None,
-        limit: None,
-        base: Default::default(),
-    };
-    match plugins::list::execute(executor, request, None).await {
-        Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
-        Err(_) => Vec::new(),
-    }
-}

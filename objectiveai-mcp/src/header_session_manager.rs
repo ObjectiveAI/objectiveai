@@ -32,8 +32,7 @@
 use std::sync::Arc;
 
 use futures::Stream;
-use objectiveai_sdk::agent::ClientObjectiveaiMcpEntry;
-use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor, plugins};
+use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor};
 use rmcp::model::{
     ClientCapabilities, ClientJsonRpcMessage, ClientRequest, GetExtensions, Implementation,
     InitializeRequestParams, JsonRpcRequest, JsonRpcVersion2_0, NumberOrString, ProtocolVersion,
@@ -76,9 +75,6 @@ pub struct HeaderSessionManager<E> {
     /// Used by [`Self::ensure_session`] to spawn a service end onto
     /// each lazily-created worker.
     service: ObjectiveAiMcpCli<E>,
-    /// Startup-captured plugin manifest list, used to validate the
-    /// optional `X-OBJECTIVEAI-MCP-PLUGINS` set at connect time.
-    plugins_list: Arc<Vec<plugins::list::ResponseItem>>,
 }
 
 impl<E> HeaderSessionManager<E>
@@ -89,18 +85,16 @@ where
     pub fn new(
         registry: Arc<AgentArgumentsRegistry>,
         service: ObjectiveAiMcpCli<E>,
-        plugins_list: Arc<Vec<plugins::list::ResponseItem>>,
     ) -> Self {
         Self {
             inner: Arc::new(LocalSessionManager::default()),
             registry,
             service,
-            plugins_list,
         }
     }
 
     /// Mint a fresh worker for `id`: extract the agent-identity +
-    /// MCP-filter headers off `message`, register the resulting
+    /// root-gate headers off `message`, register the resulting
     /// [`SessionState`], spawn the worker plus its service end, and
     /// return the handle. The worker is NOT yet driven past its initial
     /// `InitializeRequest` wait and is NOT yet inserted into the inner
@@ -115,15 +109,9 @@ where
     ) -> Result<LocalSessionHandle, LocalSessionManagerError> {
         let args = extract_agent_args(message);
 
-        let (mcp_root, mcp_tools, mcp_plugins) = extract_mcp_filter(message)?;
-        validate_mcp_filter(mcp_plugins.as_deref(), &self.plugins_list)?;
+        let mcp_root = extract_mcp_root(message)?;
 
-        let state = Arc::new(SessionState {
-            args,
-            mcp_root,
-            mcp_tools,
-            mcp_plugins,
-        });
+        let state = Arc::new(SessionState { args, mcp_root });
         self.registry.record(id.clone(), state).await;
 
         let (handle, worker) = create_local_session(id.clone(), SessionConfig::default());
@@ -204,15 +192,9 @@ where
         // this).
         let args = extract_agent_args(&message);
 
-        let (mcp_root, mcp_tools, mcp_plugins) = extract_mcp_filter(&message)?;
-        validate_mcp_filter(mcp_plugins.as_deref(), &self.plugins_list)?;
+        let mcp_root = extract_mcp_root(&message)?;
 
-        let state = Arc::new(SessionState {
-            args,
-            mcp_root,
-            mcp_tools,
-            mcp_plugins,
-        });
+        let state = Arc::new(SessionState { args, mcp_root });
         self.registry.record(id.clone(), state).await;
         self.inner.initialize_session(id, message).await
     }
@@ -377,29 +359,17 @@ fn error_invalid_input(msg: String) -> LocalSessionManagerError {
 
 /// Pull the three optional `X-OBJECTIVEAI-MCP-*` header values off
 /// the message's injected [`http::request::Parts`] as a
-/// `(root, tools, plugins)` triple ready to inline onto a
-/// [`SessionState`].
+/// The `x-objectiveai-mcp-root` gate off the initialize request's
+/// headers:
 ///
-/// - `x-objectiveai-mcp-root`: `"true"` / `"false"` ⇒ matching bool.
-///   Header absent ⇒ default `true`. Anything else ⇒
-///   `error_invalid_input`.
-/// - `x-objectiveai-mcp-tools` / `x-objectiveai-mcp-plugins`: a JSON
-///   array of `{owner, name, version}` objects (matching the
-///   [`ClientObjectiveaiMcpEntry`] wire shape stamped by the api
-///   side). Header absent ⇒ `None`. Header present but malformed ⇒
-///   `error_invalid_input`. Header present and well-formed ⇒
-///   `Some(vec)` (validated against the installed manifest by
-///   [`validate_mcp_filter`]).
-fn extract_mcp_filter(
+/// - `"true"` / `"false"` ⇒ matching bool. Header absent ⇒ default
+///   `true`. Anything else ⇒ `error_invalid_input`.
+///
+/// (The former `-tools` / `-plugins` filter headers were removed with
+/// the "installed plugins" surface.)
+fn extract_mcp_root(
     message: &ClientJsonRpcMessage,
-) -> Result<
-    (
-        bool,
-        Option<Vec<ClientObjectiveaiMcpEntry>>,
-        Option<Vec<ClientObjectiveaiMcpEntry>>,
-    ),
-    LocalSessionManagerError,
-> {
+) -> Result<bool, LocalSessionManagerError> {
     let parts = match message {
         ClientJsonRpcMessage::Request(r) => {
             r.request.extensions().get::<http::request::Parts>()
@@ -410,11 +380,9 @@ fn extract_mcp_filter(
         _ => None,
     };
     let Some(p) = parts else {
-        return Ok((true, None, None));
+        return Ok(true);
     };
     let mut root = true;
-    let mut tools: Option<Vec<ClientObjectiveaiMcpEntry>> = None;
-    let mut plugins: Option<Vec<ClientObjectiveaiMcpEntry>> = None;
     if let Some(v) = p.headers.get("x-objectiveai-mcp-root").and_then(|v| v.to_str().ok()) {
         let s = v.trim();
         root = match s {
@@ -427,62 +395,5 @@ fn extract_mcp_filter(
             }
         };
     }
-    if let Some(v) = p.headers.get("x-objectiveai-mcp-tools").and_then(|v| v.to_str().ok()) {
-        let s = v.trim();
-        if !s.is_empty() {
-            let parsed: Vec<ClientObjectiveaiMcpEntry> =
-                serde_json::from_str(s).map_err(|e| {
-                    error_invalid_input(format!(
-                        "x-objectiveai-mcp-tools: invalid JSON ({e})"
-                    ))
-                })?;
-            tools = Some(parsed);
-        }
-    }
-    if let Some(v) = p.headers.get("x-objectiveai-mcp-plugins").and_then(|v| v.to_str().ok()) {
-        let s = v.trim();
-        if !s.is_empty() {
-            let parsed: Vec<ClientObjectiveaiMcpEntry> =
-                serde_json::from_str(s).map_err(|e| {
-                    error_invalid_input(format!(
-                        "x-objectiveai-mcp-plugins: invalid JSON ({e})"
-                    ))
-                })?;
-            plugins = Some(parsed);
-        }
-    }
-    Ok((root, tools, plugins))
-}
-
-/// Validate that every `(owner, name, version)` triple in the
-/// caller-supplied `plugins` filter exists in the startup-captured
-/// manifest list. Missing entries reject the session via
-/// `error_invalid_input` — the caller shouldn't be declaring plugins
-/// it can't reach. `None` filter ⇒ no check.
-///
-/// The parallel `x-objectiveai-mcp-tools` filter is still parsed and
-/// carried on the session (and applied by the `list_tools` handler),
-/// but there is no longer a CLI-tools manifest to validate it
-/// against, so that membership check is dropped: declaring a tool
-/// simply matches nothing at advertise time.
-fn validate_mcp_filter(
-    plugins: Option<&[ClientObjectiveaiMcpEntry]>,
-    plugins_list: &[plugins::list::ResponseItem],
-) -> Result<(), LocalSessionManagerError> {
-    if let Some(declared) = plugins {
-        for entry in declared {
-            let found = plugins_list.iter().any(|p| {
-                p.owner == entry.owner
-                    && p.name == entry.name
-                    && p.version == entry.version
-            });
-            if !found {
-                return Err(error_invalid_input(format!(
-                    "plugin {}/{}@{} not installed",
-                    entry.owner, entry.name, entry.version
-                )));
-            }
-        }
-    }
-    Ok(())
+    Ok(root)
 }
