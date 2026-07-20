@@ -81,6 +81,14 @@ pub struct Identify {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin: Option<IdentifyPlugin>,
+    /// For EPHEMERAL laboratories (agent and plugin): the
+    /// agent-completion response id the laboratory serves — its id
+    /// embeds it, and its lifetime is its single MCP connection's.
+    /// `None` for regular laboratories. Optional + defaulted so
+    /// frames from hosts predating this field still parse.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
     /// Whether the laboratory's container is RUNNING right now. The
     /// lifecycle starts and stops containers on demand, and the host
     /// re-announces on every transition

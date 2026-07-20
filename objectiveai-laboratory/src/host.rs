@@ -34,10 +34,10 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use objectiveai_sdk::laboratories::daemon::{
-    ChannelRequest, ChannelResponse, CreateRequest, HostIdentify, HostNotification,
-    Identify, IdentifyMount, IdentifyPlugin, JsonRpcResult, LocalTransferRequest,
-    LocalTransferResult, PluginCreateRequest, RequestPayload, ResponsePayload,
-    TransferAck,
+    AgentEphemeralCreateRequest, ChannelRequest, ChannelResponse, CreateRequest,
+    EphemeralCreated, HostIdentify, HostNotification, Identify, IdentifyMount,
+    InitializeReply, JsonRpcResult, LocalTransferRequest, LocalTransferResult,
+    PluginEphemeralCreateRequest, RequestPayload, ResponsePayload, TransferAck,
 };
 
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
@@ -68,6 +68,14 @@ pub struct HostServer {
     /// container this host started — [`Self::stop_started`] stops
     /// exactly those.
     labs: DashMap<String, Arc<tokio::sync::OnceCell<Arc<LabServer>>>>,
+    /// The live EPHEMERAL laboratories — a fully separate registry
+    /// with a fully separate lifetime model (see
+    /// [`crate::ephemeral::EphemeralLab`]): registered by the atomic
+    /// create+connect op, removed (and the container `rm -f`ed, zero
+    /// grace) by [`Self::evaporate`] the moment their single MCP
+    /// connection ends. None of the lazy-start/idle-stop machinery
+    /// below applies to them.
+    ephemerals: DashMap<String, Arc<crate::ephemeral::EphemeralLab>>,
     /// The CONTROL-lane senders (one per connected daemon channel,
     /// keyed by a host-minted registration id) plus the in-flight
     /// host→daemon command exchanges — both live on the shared
@@ -136,6 +144,7 @@ impl HostServer {
             bin_dir,
             machine,
             labs: DashMap::new(),
+            ephemerals: DashMap::new(),
             bridge: Arc::new(crate::host_command::CommandBridge::new()),
             next_outbound: AtomicU64::new(0),
             // Capacity matches the kernel's inotify queue
@@ -378,6 +387,20 @@ impl HostServer {
         // Its in-flight command exchanges can never complete — fail
         // them (their streams end, which consumers read as done).
         self.bridge.detach(id);
+        // Its ephemerals' single connections are unreachable forever —
+        // evaporate each one (zero grace, rm -f).
+        let orphaned: Vec<String> = self
+            .ephemerals
+            .iter()
+            .filter(|entry| entry.value().channel == id)
+            .map(|entry| entry.key().clone())
+            .collect();
+        for lab_id in orphaned {
+            let host = Arc::clone(self);
+            tokio::spawn(async move {
+                host.evaporate(&lab_id).await;
+            });
+        }
         let mut affected: Vec<String> = Vec::new();
         self.filetree_watchers.retain(|lab_id, channels| {
             if channels.remove(&id) {
@@ -427,11 +450,22 @@ impl HostServer {
                     payload: ResponsePayload::Create(result),
                 };
             }
-            RequestPayload::PluginCreate(req) => {
-                let result = self.create_plugin_laboratory(req).await;
+            RequestPayload::AgentEphemeralCreate(req) => {
+                let result = self
+                    .create_agent_ephemeral(channel, &request.headers, req)
+                    .await;
                 return ChannelResponse {
                     id: request.id,
-                    payload: ResponsePayload::PluginCreate(result),
+                    payload: ResponsePayload::AgentEphemeralCreate(result),
+                };
+            }
+            RequestPayload::PluginEphemeralCreate(req) => {
+                let result = self
+                    .create_plugin_ephemeral(channel, &request.headers, req)
+                    .await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::PluginEphemeralCreate(result),
                 };
             }
             RequestPayload::Delete(req) => {
@@ -464,6 +498,19 @@ impl HostServer {
                         id: request.id,
                     };
                 };
+                // Live ephemerals ack watch state without registering
+                // anything: watches never drive their lifetime, and
+                // the daemon's edge-triggered reconnect replay must
+                // stay harmless. (A dead ephemeral falls through and
+                // fails at the regular lazy start — the lab is gone.)
+                if self.ephemerals.contains_key(&lab_id) {
+                    return ChannelResponse {
+                        id: request.id,
+                        payload: ResponsePayload::Filetree(JsonRpcResult::Ok {
+                            result: TransferAck {},
+                        }),
+                    };
+                }
                 let result = self.set_filetree_watch(channel, &lab_id, req.on).await;
                 return ChannelResponse {
                     id: request.id,
@@ -482,6 +529,53 @@ impl HostServer {
                 id: request.id,
             };
         };
+        // EPHEMERAL demux: the lifetime-ending ops evaporate at THIS
+        // layer (it owns the registry); everything else routes to the
+        // lab. Early return — none of the regular idle machinery
+        // below applies.
+        if let Some(lab) = self.ephemerals.get(&lab_id).map(|e| Arc::clone(e.value())) {
+            let payload = match &request.payload {
+                RequestPayload::SessionTerminate => {
+                    // The one connection's owner is the only party who
+                    // may end the laboratory.
+                    let owns = crate::upstream::response_id_from_headers(&request.headers)
+                        .as_deref()
+                        == Some(lab.response_id.as_str());
+                    if owns {
+                        self.evaporate(&lab_id).await;
+                        ResponsePayload::SessionTerminate(JsonRpcResult::Ok {
+                            result: (),
+                        })
+                    } else {
+                        ResponsePayload::SessionTerminate(rpc_err(
+                            -32001,
+                            "response id does not own this ephemeral laboratory".into(),
+                        ))
+                    }
+                }
+                RequestPayload::Drop(req) => {
+                    if req.response_id == lab.response_id {
+                        self.evaporate(&lab_id).await;
+                        ResponsePayload::Drop(
+                            objectiveai_sdk::laboratories::daemon::DropResult {
+                                dropped: true,
+                            },
+                        )
+                    } else {
+                        ResponsePayload::Drop(
+                            objectiveai_sdk::laboratories::daemon::DropResult {
+                                dropped: false,
+                            },
+                        )
+                    }
+                }
+                _ => return lab.handle(request).await,
+            };
+            return ChannelResponse {
+                id: request.id,
+                payload,
+            };
+        }
         // A session-ending op may leave the lab idle — schedule the
         // graced stop check after serving it.
         let ends_session = matches!(
@@ -747,43 +841,33 @@ impl HostServer {
         if let Err(message) = req.image.validate() {
             return rpc_err(-32602, format!("image: {message}"));
         }
-        // Reserved-prefix ⇔ agent provenance, BIDIRECTIONALLY: an
-        // `oai-agent-` id must carry its agent_full_id (only the CLI
-        // conduit's on-the-fly create does), and agent provenance must
-        // live under the reserved prefix. User creates pass neither —
-        // a manual create squatting on the namespace is rejected here
-        // authoritatively, whatever daemon sent it.
-        let agent_prefixed = req
-            .id
-            .starts_with(objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX);
-        match (agent_prefixed, req.agent_full_id.is_some()) {
-            (true, false) => {
-                return rpc_err(
-                    -32602,
-                    format!(
-                        "laboratory id '{}' uses the reserved agent-laboratory prefix '{}' but carries no agent_full_id",
-                        req.id,
-                        objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX,
-                    ),
-                );
-            }
-            (false, true) => {
-                return rpc_err(
-                    -32602,
-                    format!(
-                        "laboratory '{}' carries agent_full_id but its id is not under the reserved '{}' prefix",
-                        req.id,
-                        objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX,
-                    ),
-                );
-            }
-            _ => {}
+        // Agent and plugin laboratories are EPHEMERAL now — created
+        // exclusively by the atomic create+connect ops, never via
+        // `Create`. Any agent provenance or reserved-prefix claim on
+        // this path is rejected authoritatively, whatever daemon sent
+        // it.
+        if req.agent_full_id.is_some() {
+            return rpc_err(
+                -32602,
+                format!(
+                    "laboratory '{}' carries agent_full_id — agent laboratories are ephemeral, created via agent_ephemeral_create",
+                    req.id,
+                ),
+            );
         }
-        // The plugin namespace is reserved the same way, but plugin
-        // laboratories are NEVER user-created: their one legitimate
-        // producer is [`Self::create_plugin_laboratory`], which builds
-        // the container itself — a `Create` claiming the prefix is a
-        // squat whatever daemon sent it.
+        if req
+            .id
+            .starts_with(objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX)
+        {
+            return rpc_err(
+                -32602,
+                format!(
+                    "laboratory id '{}' uses the reserved agent-laboratory prefix '{}'",
+                    req.id,
+                    objectiveai_sdk::agent::AGENT_LABORATORY_ID_PREFIX,
+                ),
+            );
+        }
         if req
             .id
             .starts_with(objectiveai_sdk::laboratories::PLUGIN_LABORATORY_ID_PREFIX)
@@ -791,7 +875,7 @@ impl HostServer {
             return rpc_err(
                 -32602,
                 format!(
-                    "laboratory id '{}' uses the reserved plugin-laboratory prefix '{}' — plugin laboratories are created via plugin_create",
+                    "laboratory id '{}' uses the reserved plugin-laboratory prefix '{}' — plugin laboratories are ephemeral, created via plugin_ephemeral_create",
                     req.id,
                     objectiveai_sdk::laboratories::PLUGIN_LABORATORY_ID_PREFIX,
                 ),
@@ -833,7 +917,6 @@ impl HostServer {
             &mounts,
             &env,
             &req.cwd,
-            req.agent_full_id.as_deref(),
         )
         .await
         {
@@ -869,8 +952,9 @@ impl HostServer {
             env: req.env.clone(),
             cwd: req.cwd.clone(),
             created_at: None,
-            agent_full_id: req.agent_full_id.clone(),
+            agent_full_id: None,
             plugin: None,
+            response_id: None,
             // Create never starts the container.
             running: false,
         });
@@ -881,18 +965,108 @@ impl HostServer {
         JsonRpcResult::Ok { result: identify }
     }
 
-    /// `PluginCreate`: the idempotent plugin-laboratory ensure. Derive
-    /// the canonical id from the trio, reuse an existing container
-    /// verbatim, otherwise ensure the image
-    /// ([`crate::plugin_image::ensure`] — exists-fast-path, else
-    /// bin-locked clone+build+tag) and create the container (NOT
-    /// started; the existing lazy lifecycle starts it on first
-    /// demand). Broadcasts `laboratory_created` only when a container
-    /// was actually created.
-    async fn create_plugin_laboratory(
-        &self,
-        req: &PluginCreateRequest,
-    ) -> JsonRpcResult<Identify> {
+    /// `AgentEphemeralCreate`: the atomic create+connect for an
+    /// EPHEMERAL agent laboratory. See [`Self::finish_ephemeral`] for
+    /// the shared back half; the front half is the agent-specific
+    /// identity + image ensure.
+    async fn create_agent_ephemeral(
+        self: &Arc<Self>,
+        channel: u64,
+        headers: &indexmap::IndexMap<String, String>,
+        req: &AgentEphemeralCreateRequest,
+    ) -> JsonRpcResult<EphemeralCreated> {
+        if let Err(message) = validate_response_id(&req.response_id) {
+            return rpc_err(-32602, message);
+        }
+        if req.agent_full_id.is_empty() {
+            return rpc_err(-32602, "`agent_full_id` cannot be empty".into());
+        }
+        if let Err(message) = req.laboratory.image.validate() {
+            return rpc_err(-32602, format!("image: {message}"));
+        }
+        let derived = objectiveai_sdk::agent::laboratories::derived_id(
+            &req.agent_full_id,
+            &req.laboratory,
+        );
+        let id = format!("{derived}-{}", req.response_id);
+        // Serialize the whole create under the per-id lifecycle lock —
+        // a crashed/retried sibling create for the same response id
+        // waits its turn and then sees (and removes) the stale
+        // container.
+        let lock = self.lifecycle(&id);
+        let _guard = lock.lock().await;
+        let resolved = match podman::laboratory::ensure_agent_image(
+            &self.podman,
+            &derived,
+            &req.laboratory.image,
+        )
+        .await
+        {
+            Ok(resolved) => resolved,
+            Err(e) => return rpc_err(-32603, format!("ensure agent image: {e}")),
+        };
+        // Stale duplicate (crash/retry — response ids are unique per
+        // completion): evaporate + recreate fresh. The remove is
+        // unconditional and idempotent, covering containers that
+        // survived a host restart without a map entry.
+        self.evaporate(&id).await;
+        if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, &id).await
+        {
+            return rpc_err(-32603, format!("remove stale ephemeral '{id}': {e}"));
+        }
+        let env: Vec<(String, String)> = req
+            .laboratory
+            .env
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|[key, value]| (key, value))
+            .collect();
+        let cwd = req.laboratory.cwd.clone().unwrap_or_else(|| "/".to_string());
+        let laboratory_binary = self.bin_dir.join("objectiveai-mcp-laboratory");
+        if let Err(e) = podman::laboratory::create_agent_ephemeral(
+            &self.podman,
+            &self.state,
+            &self.machine.id,
+            &laboratory_binary,
+            &id,
+            &req.laboratory.image,
+            &resolved,
+            &env,
+            &cwd,
+            &req.agent_full_id,
+            &req.response_id,
+        )
+        .await
+        {
+            return rpc_err(-32603, format!("create ephemeral '{id}': {e}"));
+        }
+        self.finish_ephemeral(
+            channel,
+            headers,
+            &id,
+            &req.response_id,
+            podman::laboratory::LAB_PORT,
+            None,
+            true,
+        )
+        .await
+    }
+
+    /// `PluginEphemeralCreate`: the plugin twin —
+    /// [`crate::plugin_image::ensure`] (exists-fast-path, else
+    /// bin-locked clone+build+tag) supplies the image and the
+    /// manifest port, then the shared back half connects with the
+    /// command-forwarding executor.
+    async fn create_plugin_ephemeral(
+        self: &Arc<Self>,
+        channel: u64,
+        headers: &indexmap::IndexMap<String, String>,
+        req: &PluginEphemeralCreateRequest,
+    ) -> JsonRpcResult<EphemeralCreated> {
+        if let Err(message) = validate_response_id(&req.response_id) {
+            return rpc_err(-32602, message);
+        }
         let coords = match crate::plugin_image::PluginCoords::canonicalize(
             &req.owner,
             &req.name,
@@ -901,16 +1075,9 @@ impl HostServer {
             Ok(coords) => coords,
             Err(message) => return rpc_err(-32602, message),
         };
-        let id = coords.laboratory_id();
-        // Idempotent: an existing plugin laboratory for the trio IS
-        // the answer — no rebuild, no re-broadcast.
-        if let Ok(labs) = podman::laboratory::list(&self.podman, &self.state).await
-            && let Some(existing) = labs.into_iter().find(|lab| lab.id == id)
-        {
-            return JsonRpcResult::Ok {
-                result: crate::identify_from_info(existing),
-            };
-        }
+        let id = coords.ephemeral_laboratory_id(&req.response_id);
+        let lock = self.lifecycle(&id);
+        let _guard = lock.lock().await;
         let ensured =
             match crate::plugin_image::ensure(&self.podman, &self.bin_dir, &coords).await
             {
@@ -927,6 +1094,13 @@ impl HostServer {
                     );
                 }
             };
+        // Stale duplicate: evaporate + recreate fresh (see the agent
+        // twin for the rationale).
+        self.evaporate(&id).await;
+        if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, &id).await
+        {
+            return rpc_err(-32603, format!("remove stale ephemeral '{id}': {e}"));
+        }
         let label = podman::laboratory::PluginLabel {
             owner: coords.owner.clone(),
             name: coords.name.clone(),
@@ -940,26 +1114,120 @@ impl HostServer {
             &id,
             &coords.image(),
             &label,
+            &req.response_id,
         )
         .await
         {
-            let lower = e.0.to_ascii_lowercase();
-            if lower.contains("already in use") || lower.contains("already exists") {
-                // A racing sibling created it between our existence
-                // check and this create — its container is the answer.
-                if let Ok(labs) =
-                    podman::laboratory::list(&self.podman, &self.state).await
-                    && let Some(existing) = labs.into_iter().find(|lab| lab.id == id)
-                {
-                    return JsonRpcResult::Ok {
-                        result: crate::identify_from_info(existing),
-                    };
-                }
-            }
-            return rpc_err(-32603, format!("create plugin laboratory '{id}': {e}"));
+            return rpc_err(-32603, format!("create ephemeral '{id}': {e}"));
         }
-        // Echo podman's own record (it carries `created_at`); fall back
-        // to the derived spec if the read-back races something.
+        let plugin = objectiveai_sdk::mcp::server::Plugin {
+            owner: coords.owner.clone(),
+            name: coords.name.clone(),
+            version: coords.version.clone(),
+            // Vestigial in the one-server-per-plugin world — the
+            // daemon keys on the trio.
+            mcp: String::new(),
+        };
+        self.finish_ephemeral(
+            channel,
+            headers,
+            &id,
+            &req.response_id,
+            ensured.port,
+            Some(plugin),
+            false,
+        )
+        .await
+    }
+
+    /// The shared back half of both ephemeral creates: the container
+    /// EXISTS (created, not started) — start it, resolve the
+    /// published port, open THE single MCP connection with the
+    /// request's headers (they carry the full agent-argument set the
+    /// in-container server requires), spawn the filetree pump (agent
+    /// kind only), register + broadcast, and reply with identity AND
+    /// initialize result. ANY failure past this point removes the
+    /// container — a half-made ephemeral is never left behind.
+    #[allow(clippy::too_many_arguments)]
+    async fn finish_ephemeral(
+        self: &Arc<Self>,
+        channel: u64,
+        headers: &indexmap::IndexMap<String, String>,
+        id: &str,
+        response_id: &str,
+        internal_port: u16,
+        plugin: Option<objectiveai_sdk::mcp::server::Plugin>,
+        filetree: bool,
+    ) -> JsonRpcResult<EphemeralCreated> {
+        let fail = |message: String| async move {
+            let _ = podman::laboratory::remove(&self.podman, &self.state, id).await;
+            rpc_err(-32603, message)
+        };
+        if let Err(e) = podman::laboratory::start(&self.podman, &self.state, id).await {
+            return fail(format!("start ephemeral '{id}': {e}")).await;
+        }
+        let port = match podman::laboratory::host_port(
+            &self.podman,
+            &self.state,
+            id,
+            internal_port,
+        )
+        .await
+        {
+            Ok(port) => port,
+            Err(e) => return fail(format!("ephemeral '{id}' port: {e}")).await,
+        };
+        let base_url = format!("http://127.0.0.1:{port}");
+        // THE connection — same executor construction as
+        // LabServer::initialize: plugin ephemerals get the real
+        // command-forwarder reading the live header bag, agent
+        // ephemerals the inert form.
+        let (executor, transient) = match plugin {
+            Some(plugin) => {
+                let transient =
+                    Arc::new(tokio::sync::RwLock::new(headers.clone()));
+                (
+                    crate::host_command::HostCommandExecutor {
+                        inner: Some(Arc::new(
+                            crate::host_command::PluginExecutorState {
+                                bridge: Arc::clone(&self.bridge),
+                                plugin,
+                                channel,
+                                transient: Arc::clone(&transient),
+                            },
+                        )),
+                    },
+                    Some(transient),
+                )
+            }
+            None => (
+                crate::host_command::HostCommandExecutor { inner: None },
+                None,
+            ),
+        };
+        let connection = match crate::upstream::lab_mcp_client()
+            .with_executor(executor)
+            .connect(
+                format!("{base_url}/"),
+                None,
+                Some(crate::upstream::sanitize_connect_headers(headers)),
+            )
+            .await
+        {
+            Ok(connection) => connection,
+            Err(e) => return fail(format!("connect ephemeral '{id}': {e}")).await,
+        };
+        let mcp_session_id = connection.session_id.clone();
+        let initialize_result = connection.initialize_result.clone();
+        // Agent ephemerals carry the injected MCP — proxy its
+        // /filetree like any regular lab (observation only, never
+        // lifetime demand).
+        if filetree {
+            self.spawn_filetree_pump(id, &base_url).await;
+        }
+        // Echo podman's own record (it carries `created_at` +
+        // `response_id`); fall back to a minimal identity if the
+        // read-back races something.
         let identify = match podman::laboratory::list(&self.podman, &self.state).await {
             Ok(labs) => labs
                 .into_iter()
@@ -967,29 +1235,82 @@ impl HostServer {
                 .map(crate::identify_from_info),
             Err(_) => None,
         }
+        .map(|mut identify| {
+            // The container was started microseconds ago; the ps
+            // read-back may race the state flip.
+            identify.running = true;
+            identify
+        })
         .unwrap_or_else(|| Identify {
-            id: id.clone(),
+            id: id.to_string(),
             image: objectiveai_sdk::laboratories::LaboratoryImage::Registry(
-                coords.image(),
+                objectiveai_sdk::laboratories::RegistryLaboratoryImage {
+                    registry: "localhost".to_string(),
+                    name: "objectiveai-ephemeral".to_string(),
+                    pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                        "unknown".to_string(),
+                    ),
+                },
             ),
             mounts: Vec::new(),
             env: Vec::new(),
             cwd: "/".to_string(),
             created_at: None,
             agent_full_id: None,
-            plugin: Some(IdentifyPlugin {
-                owner: coords.owner.clone(),
-                name: coords.name.clone(),
-                version: coords.version.clone(),
-            }),
-            // Create never starts the container.
-            running: false,
+            plugin: None,
+            response_id: Some(response_id.to_string()),
+            running: true,
         });
+        let lab = Arc::new(crate::ephemeral::EphemeralLab::new(
+            response_id.to_string(),
+            channel,
+            base_url,
+            connection,
+            transient,
+        ));
+        self.ephemerals.insert(id.to_string(), lab);
         self.broadcast(&HostNotification::LaboratoryCreated {
             laboratory: identify.clone(),
         })
         .await;
-        JsonRpcResult::Ok { result: identify }
+        JsonRpcResult::Ok {
+            result: EphemeralCreated {
+                identify,
+                reply: InitializeReply {
+                    mcp_session_id,
+                    result: initialize_result,
+                },
+            },
+        }
+    }
+
+    /// EVAPORATE an ephemeral laboratory: remove it from the registry,
+    /// tear down its filetree state, `podman rm -f` its container —
+    /// zero grace — and broadcast `laboratory_deleted`. Every lifetime
+    /// end funnels here (SessionTerminate, its Drop, the owning
+    /// channel's death, host shutdown, stale-duplicate replacement).
+    /// A no-op for ids not in the registry.
+    async fn evaporate(self: &Arc<Self>, id: &str) {
+        let Some((_, _lab)) = self.ephemerals.remove(id) else {
+            return;
+        };
+        // Filetree teardown, exactly the delete_laboratory shape (see
+        // its comment for why the pump abort holds attach_lock).
+        {
+            let _guard = self.attach_lock.lock().await;
+            if let Some((_, pump)) = self.filetree_pumps.remove(id) {
+                pump.abort();
+            }
+            self.filetree.remove(id);
+        }
+        self.mounts.detach_lab(id);
+        self.filetree_watchers.remove(id);
+        self.lifecycle.remove(id);
+        if let Err(e) = podman::laboratory::remove(&self.podman, &self.state, id).await {
+            eprintln!("evaporate laboratory '{id}': {e}");
+        }
+        self.broadcast(&HostNotification::LaboratoryDeleted { id: id.to_string() })
+            .await;
     }
 
     /// `LaboratoryDelete`: retire the lab's server first (its MCP
@@ -997,9 +1318,18 @@ impl HostServer {
     /// not an error — podman's `rm -f` semantics), broadcast
     /// `laboratory_deleted`.
     async fn delete_laboratory(
-        &self,
+        self: &Arc<Self>,
         id: &str,
     ) -> JsonRpcResult<TransferAck> {
+        // Defensive: a host-level Delete addressed at a live ephemeral
+        // evaporates it (registry + container + broadcast) rather than
+        // leaving a dangling map entry behind the rm below.
+        if self.ephemerals.contains_key(id) {
+            self.evaporate(id).await;
+            return JsonRpcResult::Ok {
+                result: TransferAck {},
+            };
+        }
         self.labs.remove(id);
         // The lab's filetree watch dies with it — abort the pump and
         // drop the materialized tree (daemons clear theirs on the
@@ -1042,14 +1372,14 @@ impl HostServer {
         self: &Arc<Self>,
         req: &LocalTransferRequest,
     ) -> JsonRpcResult<LocalTransferResult> {
-        let source = match self.lab_server(&req.source_id).await {
-            Ok(server) => server,
+        let source = match self.transfer_base_url(&req.source_id).await {
+            Ok(base_url) => base_url,
             Err(message) => {
                 return rpc_err(-32603, format!("source '{}': {message}", req.source_id));
             }
         };
-        let destination = match self.lab_server(&req.destination_id).await {
-            Ok(server) => server,
+        let destination = match self.transfer_base_url(&req.destination_id).await {
+            Ok(base_url) => base_url,
             Err(message) => {
                 return rpc_err(
                     -32603,
@@ -1057,9 +1387,13 @@ impl HostServer {
                 );
             }
         };
-        match source
-            .pipe_export_into(&req.source_path, &destination, &req.destination_path)
-            .await
+        match crate::transfer::pipe_export(
+            &source,
+            &req.source_path,
+            &destination,
+            &req.destination_path,
+        )
+        .await
         {
             Ok(bytes) => JsonRpcResult::Ok {
                 result: LocalTransferResult { bytes },
@@ -1072,6 +1406,16 @@ impl HostServer {
                 ),
             ),
         }
+    }
+
+    /// A laboratory's transfer HTTP base, whichever kind it is: a
+    /// live ephemeral's recorded base URL, else the regular lab's
+    /// (lazily started).
+    async fn transfer_base_url(self: &Arc<Self>, id: &str) -> Result<String, String> {
+        if let Some(lab) = self.ephemerals.get(id) {
+            return Ok(lab.base_url.clone());
+        }
+        Ok(self.lab_server(id).await?.base_url().to_string())
     }
 
     /// Re-announce one laboratory's CURRENT identity — podman's
@@ -1107,10 +1451,22 @@ impl HostServer {
             .retain(|_, tx| tx.send(frame.clone()).is_ok());
     }
 
-    /// Stop every container this host started (initialized cells only)
-    /// — the graceful-shutdown path. Stopped, never removed: they and
-    /// their filesystems survive for the next host to `start` again.
-    pub async fn stop_started(&self) {
+    /// The graceful-shutdown path. REGULAR containers this host
+    /// started (initialized cells only) are STOPPED, never removed:
+    /// they and their filesystems survive for the next host to
+    /// `start` again. EPHEMERAL laboratories are EVAPORATED — their
+    /// single connections die with this host, so the containers are
+    /// garbage by definition.
+    pub async fn stop_started(self: &Arc<Self>) {
+        let ephemeral_ids: Vec<String> = self
+            .ephemerals
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+        futures::future::join_all(
+            ephemeral_ids.iter().map(|id| self.evaporate(id)),
+        )
+        .await;
         let ids: Vec<String> = self
             .labs
             .iter()
@@ -1167,8 +1523,29 @@ fn reject(
         // Host-level ops are answered in `handle` — reaching here is a
         // routing bug, but the reply shape still pairs correctly.
         Req::Create(_) => Resp::Create(rpc_err(code, message)),
-        Req::PluginCreate(_) => Resp::PluginCreate(rpc_err(code, message)),
+        Req::AgentEphemeralCreate(_) => {
+            Resp::AgentEphemeralCreate(rpc_err(code, message))
+        }
+        Req::PluginEphemeralCreate(_) => {
+            Resp::PluginEphemeralCreate(rpc_err(code, message))
+        }
         Req::Delete(_) => Resp::Delete(rpc_err(code, message)),
         Req::LocalTransfer(_) => Resp::LocalTransfer(rpc_err(code, message)),
     }
+}
+
+/// The caller-provided response id becomes an id suffix, a container
+/// name segment, and a label field — require the bare-base62 shape the
+/// API mints (non-empty, pure ASCII alphanumeric), which is safe in
+/// all three positions.
+fn validate_response_id(response_id: &str) -> Result<(), String> {
+    if response_id.is_empty() {
+        return Err("`response_id` cannot be empty".to_string());
+    }
+    if !response_id.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err(format!(
+            "`response_id` {response_id:?} must be ASCII alphanumeric",
+        ));
+    }
+    Ok(())
 }

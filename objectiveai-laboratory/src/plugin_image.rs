@@ -81,7 +81,8 @@ impl PluginCoords {
         Ok(coords)
     }
 
-    /// The derived laboratory id.
+    /// The derived laboratory id (the coordinate part, without a
+    /// response id).
     pub fn laboratory_id(&self) -> String {
         format!(
             "{}{}-{}-{}",
@@ -90,6 +91,13 @@ impl PluginCoords {
             self.name,
             self.version,
         )
+    }
+
+    /// The EPHEMERAL laboratory id for ONE agent-completion response:
+    /// the coordinate id plus the response id. Ephemeral laboratories
+    /// live exactly as long as their single MCP connection.
+    pub fn ephemeral_laboratory_id(&self, response_id: &str) -> String {
+        format!("{}-{response_id}", self.laboratory_id())
     }
 
     /// The image reference's TAG part.

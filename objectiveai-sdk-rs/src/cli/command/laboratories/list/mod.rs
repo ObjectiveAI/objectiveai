@@ -60,6 +60,13 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin: Option<Plugin>,
+    /// For EPHEMERAL laboratories (agent and plugin): the
+    /// agent-completion response id the laboratory serves — its
+    /// lifetime is that completion's single MCP connection. `None`
+    /// for regular laboratories.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
     /// The machine whose laboratory host serves this laboratory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

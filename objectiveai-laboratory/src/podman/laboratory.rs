@@ -292,6 +292,9 @@ pub struct LaboratoryInfo {
     /// the build metadata the host needs at start time (the container's
     /// internal MCP port). `None` for every other laboratory.
     pub plugin: Option<PluginLabel>,
+    /// For EPHEMERAL laboratories: the agent-completion response id
+    /// the laboratory serves. `None` for regular laboratories.
+    pub response_id: Option<String>,
     /// Whether the container is RUNNING right now (podman's `State`),
     /// so consumers can distinguish a live laboratory from a created/
     /// stopped one — the lifecycle starts and stops containers on
@@ -336,6 +339,12 @@ struct Label {
     /// pre-plugin labels round-trip.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     plugin: Option<PluginLabel>,
+    /// For EPHEMERAL laboratories (agent and plugin): the
+    /// agent-completion response id the laboratory serves. `Some` ⇔
+    /// the container is ephemeral — the boot sweep REMOVES it instead
+    /// of stopping it. Defaulted so pre-ephemeral labels round-trip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    response_id: Option<String>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -344,19 +353,67 @@ struct LabelMount {
     container: String,
 }
 
-/// Create a laboratory container (created, NOT started): `podman create` →
-/// `podman cp` (inject the bundled `objectiveai-mcp-laboratory` musl binary).
-/// Starting it is done elsewhere.
+/// Ensure the STABLE content-addressed agent image
+/// (`localhost/objectiveai-agent:{derived_id}`) exists locally and
+/// return its reference. Exists ⇒ use it verbatim — no build, no
+/// pull. Missing ⇒ take the machine-wide bin lock, RE-CHECK (a
+/// sibling host may have finished while we waited), then build
+/// (Inline) or pull+tag (Registry — external images are tagged too,
+/// pinning the exact image ID), releasing the lock the moment the
+/// tag lands.
 ///
-/// The container is named [`container_name`]`(state, id)`, publishes its fixed
-/// internal [`LAB_PORT`] to a random `127.0.0.1` host port (looked up later by
-/// [`host_port`]), forces `PORT=14978` (appended after the user's env so it
-/// wins), bakes in the default working directory new agents start in
-/// (`OBJECTIVEAI_LABORATORY_CWD=<cwd>`), records its spec in the
-/// `objectiveai.laboratory` label, and overrides the entrypoint to a shell
-/// wrapper that `chmod +x`es then exec's the injected MCP binary (so the
-/// `podman cp`'d binary is executable regardless of the host's file mode, and
-/// the container lifetime == MCP lifetime).
+/// Keyed by the DERIVED (content-addressed) id — NOT the ephemeral
+/// container id: every completion of the same (agent, spec) shares
+/// one cached image while getting its own container.
+pub async fn ensure_agent_image(
+    podman: &Podman,
+    derived_id: &str,
+    image: &objectiveai_sdk::laboratories::LaboratoryImage,
+) -> Result<String, Error> {
+    let stable = agent_image_reference(derived_id);
+    if image_exists(podman, &stable).await? {
+        return Ok(stable);
+    }
+    let claim = objectiveai_sdk::lockfile::wait_acquire(
+        &podman.bin_dir().join("locks"),
+        &format!("agent-image-{derived_id}"),
+        &format!("pid {}", std::process::id()),
+    )
+    .await
+    .map_err(|e| Error(format!("bin lock: {e}")))?;
+    let result = async {
+        // Double-checked under the lock.
+        if image_exists(podman, &stable).await? {
+            return Ok(());
+        }
+        match image {
+            objectiveai_sdk::laboratories::LaboratoryImage::Registry(registry) => {
+                let joined = registry_reference(registry);
+                image_pull(podman, &joined).await?;
+                image_tag(podman, &joined, &stable).await
+            }
+            objectiveai_sdk::laboratories::LaboratoryImage::Inline(inline) => {
+                build_inline(podman, &stable, &inline.containerfile).await
+            }
+        }
+    }
+    .await;
+    // Release on EVERY path — a LockClaim drop deliberately does NOT
+    // release (podman/install.rs pattern).
+    claim
+        .release()
+        .map_err(|e| Error(format!("bin lock release: {e}")))?;
+    result?;
+    Ok(stable)
+}
+
+/// Create a REGULAR laboratory container (created, NOT started):
+/// resolve the image (a registry reference joined here — the only
+/// place the joined form exists — or an inline build under the
+/// per-create FNV tag), then assemble the injected container.
+/// Starting it is done elsewhere. Agent laboratories no longer pass
+/// through here — they are EPHEMERAL, created via
+/// [`create_agent_ephemeral`].
 pub async fn create(
     podman: &Podman,
     state: &str,
@@ -367,11 +424,7 @@ pub async fn create(
     mounts: &[Mount],
     env: &[(String, String)],
     cwd: &str,
-    agent_full_id: Option<&str>,
 ) -> Result<(), Error> {
-    let exe = podman.executable().await?;
-    let name = container_name(state, id);
-
     let label = Label {
         id: id.to_string(),
         image: image.clone(),
@@ -384,71 +437,102 @@ pub async fn create(
             .collect(),
         env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
         cwd: cwd.to_string(),
-        agent_full_id: agent_full_id.map(str::to_string),
+        agent_full_id: None,
         plugin: None,
+        response_id: None,
     };
-    // Resolve what podman actually instantiates.
-    //
-    // AGENT laboratories (content-addressed ids) get a STABLE local
-    // tag: if it exists, use it verbatim — no build, no pull. If not,
-    // take the machine-wide bin lock, RE-CHECK (a sibling host may
-    // have finished while we waited), then build (Inline) or pull+tag
-    // (Registry — external images are tagged too, pinning the exact
-    // image ID), releasing the lock the moment the tag lands.
-    //
-    // Everything else keeps the historic behavior: a registry
-    // reference joined here (the only place the joined form exists),
-    // or an inline build under the per-create FNV tag.
-    let podman_image = if agent_full_id.is_some() {
-        let stable = agent_image_reference(id);
-        if !image_exists(podman, &stable).await? {
-            let claim = objectiveai_sdk::lockfile::wait_acquire(
-                &podman.bin_dir().join("locks"),
-                &format!("agent-image-{id}"),
-                &format!("pid {}", std::process::id()),
-            )
-            .await
-            .map_err(|e| Error(format!("bin lock: {e}")))?;
-            let result = async {
-                // Double-checked under the lock.
-                if image_exists(podman, &stable).await? {
-                    return Ok(());
-                }
-                match image {
-                    objectiveai_sdk::laboratories::LaboratoryImage::Registry(
-                        registry,
-                    ) => {
-                        let joined = registry_reference(registry);
-                        image_pull(podman, &joined).await?;
-                        image_tag(podman, &joined, &stable).await
-                    }
-                    objectiveai_sdk::laboratories::LaboratoryImage::Inline(inline) => {
-                        build_inline(podman, &stable, &inline.containerfile).await
-                    }
-                }
-            }
-            .await;
-            // Release on EVERY path — a LockClaim drop deliberately
-            // does NOT release (podman/install.rs pattern).
-            claim
-                .release()
-                .map_err(|e| Error(format!("bin lock release: {e}")))?;
-            result?;
+    let podman_image = match image {
+        objectiveai_sdk::laboratories::LaboratoryImage::Registry(registry) => {
+            registry_reference(registry)
         }
-        stable
-    } else {
-        match image {
-            objectiveai_sdk::laboratories::LaboratoryImage::Registry(registry) => {
-                registry_reference(registry)
-            }
-            objectiveai_sdk::laboratories::LaboratoryImage::Inline(inline) => {
-                let tag = inline_tag(state, id);
-                build_inline(podman, &tag, &inline.containerfile).await?;
-                tag
-            }
+        objectiveai_sdk::laboratories::LaboratoryImage::Inline(inline) => {
+            let tag = inline_tag(state, id);
+            build_inline(podman, &tag, &inline.containerfile).await?;
+            tag
         }
     };
-    let label_json = serde_json::to_string(&label)
+    create_injected_container(
+        podman,
+        state,
+        machine_id,
+        laboratory_binary,
+        id,
+        &podman_image,
+        mounts,
+        env,
+        cwd,
+        &label,
+    )
+    .await
+}
+
+/// Create an EPHEMERAL agent-laboratory container (created, NOT
+/// started — the ephemeral flow starts it immediately after). The
+/// container id embeds the completion's response id; `resolved_image`
+/// is the pre-ensured stable agent tag ([`ensure_agent_image`]); the
+/// label records the WIRE image spec plus the agent provenance AND
+/// the response id (`Some` ⇔ ephemeral — the boot sweep removes it).
+/// Agent laboratories have no mounts.
+pub async fn create_agent_ephemeral(
+    podman: &Podman,
+    state: &str,
+    machine_id: &str,
+    laboratory_binary: &Path,
+    id: &str,
+    image: &objectiveai_sdk::laboratories::LaboratoryImage,
+    resolved_image: &str,
+    env: &[(String, String)],
+    cwd: &str,
+    agent_full_id: &str,
+    response_id: &str,
+) -> Result<(), Error> {
+    let label = Label {
+        id: id.to_string(),
+        image: image.clone(),
+        mounts: Vec::new(),
+        env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
+        cwd: cwd.to_string(),
+        agent_full_id: Some(agent_full_id.to_string()),
+        plugin: None,
+        response_id: Some(response_id.to_string()),
+    };
+    create_injected_container(
+        podman,
+        state,
+        machine_id,
+        laboratory_binary,
+        id,
+        resolved_image,
+        &[],
+        env,
+        cwd,
+        &label,
+    )
+    .await
+}
+
+/// The shared assembly core for INJECTED-MCP containers (regular and
+/// ephemeral-agent laboratories): `podman create` — [`LAB_PORT`]
+/// publish, `-v` mounts, user env, then the host-owned stamps
+/// (`PORT`, `OBJECTIVEAI_LABORATORY_ID`, `OBJECTIVEAI_LABORATORY_CWD`,
+/// `OBJECTIVEAI_FILETREE_IGNORE`), the `objectiveai.laboratory`
+/// label, and the chmod+exec entrypoint wrapper — followed by
+/// `podman cp` of the `objectiveai-mcp-laboratory` musl binary.
+async fn create_injected_container(
+    podman: &Podman,
+    state: &str,
+    machine_id: &str,
+    laboratory_binary: &Path,
+    id: &str,
+    podman_image: &str,
+    mounts: &[Mount],
+    env: &[(String, String)],
+    cwd: &str,
+    label: &Label,
+) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let name = container_name(state, id);
+    let label_json = serde_json::to_string(label)
         .map_err(|e| Error(format!("serialize laboratory label: {e}")))?;
 
     // 1. podman create
@@ -579,7 +663,8 @@ pub async fn create(
     Ok(())
 }
 
-/// Create a PLUGIN laboratory container (created, NOT started).
+/// Create an EPHEMERAL PLUGIN laboratory container (created, NOT
+/// started — the ephemeral flow starts it immediately after).
 ///
 /// Deliberately minimal next to [`create`]: the image's OWN entrypoint
 /// runs the plugin's MCP server — NO `objectiveai-mcp-laboratory`
@@ -588,15 +673,15 @@ pub async fn create(
 /// force). The manifest port is published to a random loopback host
 /// port ([`host_port`] resolves it with `plugin.port` as the internal
 /// port), and the `objectiveai.laboratory` label records the localhost
-/// image reference plus the [`PluginLabel`] so [`list`] round-trips
-/// the identity and the start path recovers the port without any
-/// manifest re-read.
+/// image reference, the [`PluginLabel`], and the completion's
+/// response id (`Some` ⇔ ephemeral — the boot sweep removes it).
 pub async fn create_plugin(
     podman: &Podman,
     state: &str,
     id: &str,
     image: &objectiveai_sdk::laboratories::RegistryLaboratoryImage,
     plugin: &PluginLabel,
+    response_id: &str,
 ) -> Result<(), Error> {
     let exe = podman.executable().await?;
     let name = container_name(state, id);
@@ -610,6 +695,7 @@ pub async fn create_plugin(
         cwd: default_cwd(),
         agent_full_id: None,
         plugin: Some(plugin.clone()),
+        response_id: Some(response_id.to_string()),
     };
     let label_json = serde_json::to_string(&label)
         .map_err(|e| Error(format!("serialize laboratory label: {e}")))?;
@@ -743,54 +829,6 @@ pub async fn host_port(
     })
 }
 
-/// The ids of this state's laboratory containers that are RUNNING
-/// right now (`podman ps` without `-a`), from the authoritative
-/// `objectiveai.laboratory` label. The cleaner's candidate set —
-/// stopped containers need no cleaning.
-pub async fn list_running(podman: &Podman, state: &str) -> Result<Vec<String>, Error> {
-    let exe = podman.executable().await?;
-    let output = container_command(exe)
-        .arg("ps")
-        .arg("--filter")
-        .arg(format!("name=objectiveai-laboratory-{state}-"))
-        .arg("--filter")
-        .arg("status=running")
-        .arg("--format")
-        .arg("json")
-        .output()
-        .await
-        .map_err(|e| Error(format!("spawn podman ps: {e}")))?;
-    if !output.status.success() {
-        return Err(Error(format!(
-            "podman ps: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let value: serde_json::Value = serde_json::from_str(&stdout)
-        .map_err(|e| Error(format!("parse podman ps output: {e}")))?;
-    let array = value
-        .as_array()
-        .ok_or_else(|| Error("podman ps output: expected a JSON array".to_string()))?;
-    let mut ids = Vec::new();
-    for elem in array {
-        let Some(label_str) = elem
-            .get("Labels")
-            .and_then(|l| l.get("objectiveai.laboratory"))
-            .and_then(|v| v.as_str())
-        else {
-            continue;
-        };
-        // An unparseable label means the container is NOT ours — a
-        // name/label coincidence from outside the objectiveai system
-        // (or a pre-split-image relic). Treat it as nonexistent.
-        let Ok(label) = serde_json::from_str::<Label>(label_str) else {
-            continue;
-        };
-        ids.push(label.id);
-    }
-    Ok(ids)
-}
 
 /// The laboratory containers created in this state, reconstructed from each
 /// container's `objectiveai.laboratory` label.
@@ -854,6 +892,7 @@ pub async fn list(podman: &Podman, state: &str) -> Result<Vec<LaboratoryInfo>, E
             created_at: created_at_from_container(elem),
             agent_full_id: label.agent_full_id,
             plugin: label.plugin,
+            response_id: label.response_id,
             running: elem
                 .get("State")
                 .and_then(|s| s.as_str())

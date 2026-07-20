@@ -118,4 +118,17 @@ pub mod laboratories {
             base62::encode(hasher.finish_128())
         )
     }
+
+    /// The EPHEMERAL laboratory id for ONE agent-completion response:
+    /// the content-addressed [`derived_id`] (which keys the cached
+    /// agent image) plus the response id (which makes the container
+    /// unique to its completion). Ephemeral laboratories live exactly
+    /// as long as their single MCP connection.
+    pub fn ephemeral_id(
+        agent_full_id: &str,
+        laboratory: &super::Laboratory,
+        response_id: &str,
+    ) -> String {
+        format!("{}-{response_id}", derived_id(agent_full_id, laboratory))
+    }
 }

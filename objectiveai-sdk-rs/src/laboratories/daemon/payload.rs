@@ -92,23 +92,34 @@ pub enum RequestPayload {
     /// `laboratory_id`.
     #[schemars(title = "Create")]
     Create(CreateRequest),
-    /// Ensure a PLUGIN laboratory on this host: build the plugin's
-    /// container image from its GitHub repo (`owner/name` at git tag
-    /// `{version}` — the version IS the tag, Go-modules style, so it
-    /// arrives already `v`-prefixed) if the image is absent, create
-    /// its container (NOT started), and answer with its
-    /// [`super::Identify`]. Idempotent: an existing plugin laboratory
-    /// for the trio answers `Ok` without re-creating. Host-level: no
-    /// envelope `laboratory_id` — the HOST derives the id
-    /// (`oai-plugin-{owner}-{name}-{version}`: owner/name lowercased,
-    /// version verbatim).
+    /// Create an EPHEMERAL agent laboratory AND establish its single
+    /// MCP connection, atomically: ensure the content-addressed agent
+    /// image, `rm -f` any stale container for the id, create + start
+    /// the container, connect using THIS request's envelope headers
+    /// (they carry the FULL originating header set — the agent
+    /// arguments the in-container MCP requires; unlike `Create`, which
+    /// rides with an empty map). Succeeds only when BOTH the container
+    /// and the connection exist; the reply carries identity AND the
+    /// initialize result. Exactly ONE connection, ever — the
+    /// laboratory's lifetime IS that connection's, and the container
+    /// evaporates (`rm -f`, zero grace) the moment it ends. Host-level:
+    /// no envelope `laboratory_id` — the HOST derives the id
+    /// (`{derived_id}-{response_id}`, see
+    /// [`crate::agent::laboratories::ephemeral_id`]).
     ///
-    /// NOTE for the daemon phase: ensure runs a git fetch + `podman
-    /// build` inline, which can exceed the standard RPC forward
-    /// timeout — classify this op with the timeout-free transfer
-    /// family when wiring the daemon side.
-    #[schemars(title = "PluginCreate")]
-    PluginCreate(PluginCreateRequest),
+    /// NOTE for the daemon phase: the image ensure runs a pull/build
+    /// inline, which can exceed the standard RPC forward timeout —
+    /// classify this op with the timeout-free transfer family.
+    #[schemars(title = "AgentEphemeralCreate")]
+    AgentEphemeralCreate(AgentEphemeralCreateRequest),
+    /// The PLUGIN twin of [`RequestPayload::AgentEphemeralCreate`]:
+    /// ensure the plugin image (git fetch at the version tag + `podman
+    /// build` — timeout-free family, same note as above), then the
+    /// same atomic create + start + connect with this request's
+    /// headers. The HOST derives the id
+    /// (`oai-plugin-{owner}-{name}-{version}-{response_id}`).
+    #[schemars(title = "PluginEphemeralCreate")]
+    PluginEphemeralCreate(PluginEphemeralCreateRequest),
     /// Delete a laboratory from this host (podman rm). Host-level.
     #[schemars(title = "Delete")]
     Delete(DeleteRequest),
@@ -158,8 +169,10 @@ pub enum ResponsePayload {
     ImportAbort(JsonRpcResult<TransferAck>),
     #[schemars(title = "Create")]
     Create(JsonRpcResult<super::Identify>),
-    #[schemars(title = "PluginCreate")]
-    PluginCreate(JsonRpcResult<super::Identify>),
+    #[schemars(title = "AgentEphemeralCreate")]
+    AgentEphemeralCreate(JsonRpcResult<EphemeralCreated>),
+    #[schemars(title = "PluginEphemeralCreate")]
+    PluginEphemeralCreate(JsonRpcResult<EphemeralCreated>),
     #[schemars(title = "Delete")]
     Delete(JsonRpcResult<TransferAck>),
     #[schemars(title = "LocalTransfer")]
@@ -310,15 +323,33 @@ pub struct CreateRequest {
     pub agent_full_id: Option<String>,
 }
 
-/// Parameters for [`RequestPayload::PluginCreate`] — the plugin's
-/// coordinate trio, verbatim from the agent declaration
-/// (`agent::plugin::prepare` already lowercases owner/name; the host
-/// re-lowercases them defensively — the version passes through
-/// untouched: it is required `v`-prefixed at the declaration layer
-/// and git tags are case-sensitive).
+/// Parameters for [`RequestPayload::AgentEphemeralCreate`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "laboratories.daemon.PluginCreateRequest")]
-pub struct PluginCreateRequest {
+#[schemars(rename = "laboratories.daemon.AgentEphemeralCreateRequest")]
+pub struct AgentEphemeralCreateRequest {
+    /// The agent-completion response id this laboratory serves — bare
+    /// base62, unique per completion. Becomes the laboratory id's
+    /// suffix and the container label's `response_id`.
+    pub response_id: String,
+    /// The full id of the agent the laboratory derives from.
+    pub agent_full_id: String,
+    /// The agent-embedded laboratory spec (image, env, cwd) — the
+    /// host re-derives the content-addressed image key from
+    /// `(agent_full_id, laboratory)`.
+    pub laboratory: crate::agent::Laboratory,
+}
+
+/// Parameters for [`RequestPayload::PluginEphemeralCreate`] — the
+/// plugin's coordinate trio (`agent::plugin::prepare` already
+/// lowercases owner/name; the host re-lowercases them defensively —
+/// the version passes through untouched: it is required `v`-prefixed
+/// at the declaration layer and git tags are case-sensitive) plus the
+/// response id the laboratory serves.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginEphemeralCreateRequest")]
+pub struct PluginEphemeralCreateRequest {
+    /// The agent-completion response id this laboratory serves.
+    pub response_id: String,
     /// GitHub `<owner>` segment.
     pub owner: String,
     /// Repository segment.
@@ -326,6 +357,17 @@ pub struct PluginCreateRequest {
     /// Plugin version — IS the repo's git tag (Go-modules style,
     /// `v`-prefixed), byte-for-byte; the tag must exist.
     pub version: String,
+}
+
+/// Successful payload for BOTH ephemeral-create replies: the created
+/// laboratory's identity (`response_id` Some, `running` true) AND its
+/// single MCP connection's initialize result — one round trip, both
+/// or neither.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.EphemeralCreated")]
+pub struct EphemeralCreated {
+    pub identify: super::Identify,
+    pub reply: InitializeReply,
 }
 
 /// Parameters for [`RequestPayload::Delete`].

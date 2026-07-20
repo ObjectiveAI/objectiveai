@@ -32,6 +32,7 @@
 
 mod channel;
 mod cleaner;
+mod ephemeral;
 mod filetree;
 mod gitrepo;
 mod host;
@@ -42,6 +43,8 @@ mod plugin_image;
 mod plugin_manifest;
 mod podman;
 mod server;
+mod transfer;
+mod upstream;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -96,6 +99,7 @@ pub(crate) fn identify_from_info(lab: podman::laboratory::LaboratoryInfo) -> Ide
             name: p.name,
             version: p.version,
         }),
+        response_id: lab.response_id,
         running: lab.running,
     }
 }

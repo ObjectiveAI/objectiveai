@@ -69,6 +69,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                         version: p.version,
                     }
                 }),
+                response_id: lab.response_id,
                 machine: Some(machine),
                 machine_state: Some(machine_state),
                 running: lab.running,
