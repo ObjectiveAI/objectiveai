@@ -106,7 +106,11 @@ pub fn serve_http(
     // at /mcp, tool calls executing in-process through the daemon
     // executor. Auth is a wrapping middleware rather than an inline
     // handler check because the routes belong to rmcp's service — the
-    // one route family whose handlers aren't ours.
+    // one route family whose handlers aren't ours. The signature is
+    // accepted via `Authorization` too (the header MCP clients
+    // conventionally support); the secret is read LIVE per request,
+    // so `daemon config` changes apply immediately like everywhere
+    // else.
     let (mcp_service, mcp_ct) = crate::http::mcp::service(
         crate::executor::DaemonCommandExecutor::new(
             global.clone(),
@@ -122,7 +126,7 @@ pub fn serve_http(
                 let global = mcp_auth_global.clone();
                 async move {
                     use axum::response::IntoResponse;
-                    if !crate::http::daemon_auth::authenticate_header(
+                    if !crate::http::daemon_auth::authenticate_mcp(
                         req.headers(),
                         global.auth_secret().as_ref(),
                     ) {

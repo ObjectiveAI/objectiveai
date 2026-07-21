@@ -3,6 +3,10 @@
 //! - **HTTP routes** (everything except `/laboratory`): the
 //!   `X-OBJECTIVEAI-SIGNATURE` request header, checked by
 //!   [`authenticate_header`]. `401` on a missing/invalid signature.
+//!   The `/mcp` routes additionally accept the same signature via the
+//!   standard `Authorization` header (optionally `Bearer `-prefixed),
+//!   since that is the header MCP clients conventionally support —
+//!   [`authenticate_mcp`].
 //! - **The `/laboratory` WebSocket** (the daemon's ONE remaining WS —
 //!   the bidirectional host channel): a first-message text-frame
 //!   preamble, the SDK [`AuthEnvelope`] —
@@ -68,6 +72,34 @@ pub(crate) fn authenticate_header(
     headers
         .get("X-OBJECTIVEAI-SIGNATURE")
         .and_then(|v| v.to_str().ok())
+        .is_some_and(|signature| verify_signature(secret, signature))
+}
+
+/// Auth for the `/mcp` routes: same signature, either spelling. MCP
+/// clients (Claude Desktop, Cursor, …) conventionally send the
+/// standard `Authorization` header — accept the signature there (an
+/// optional `Bearer ` prefix is stripped) OR via the daemon-standard
+/// `X-OBJECTIVEAI-SIGNATURE`. Policy identical to
+/// [`authenticate_header`]: secret configured ⇒ one of the two must
+/// carry a valid signature; no secret ⇒ open.
+pub(crate) fn authenticate_mcp(
+    headers: &axum::http::HeaderMap,
+    secret: Option<&Arc<String>>,
+) -> bool {
+    let Some(secret) = secret else {
+        return true;
+    };
+    if headers
+        .get("X-OBJECTIVEAI-SIGNATURE")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|signature| verify_signature(secret, signature))
+    {
+        return true;
+    }
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.strip_prefix("Bearer ").unwrap_or(v))
         .is_some_and(|signature| verify_signature(secret, signature))
 }
 
