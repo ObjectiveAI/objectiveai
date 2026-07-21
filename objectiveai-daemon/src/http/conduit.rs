@@ -981,33 +981,36 @@ async fn run_ephemeral_create(
     let Some(hubs) = global.resident_hubs() else {
         return Err("ephemeral create requires the resident daemon".to_string());
     };
-    let (machine, machine_state) = match hubs.laboratories.random_host() {
-        Some(pair) => pair,
-        None => {
-            if let Err(e) =
+    // The host pick and (for plugins) the DB-credential resolution are
+    // INDEPENDENT — neither needs the other's result — and each can
+    // cold-start a leashed child (podman lab host / embedded Postgres).
+    // Run them CONCURRENTLY so a fresh daemon's first plugin doesn't
+    // pay both cold starts serially. `join!` runs both on this task
+    // (shared `&` borrows of `global`/`scoped`/`hubs`), never a spawn.
+    let host_pick = async {
+        match hubs.laboratories.random_host() {
+            Some(pair) => Ok::<_, String>(pair),
+            None => {
                 crate::command::laboratories::ensure_local_host(global, scoped)
                     .await
-            {
-                return Err(format!("local host: {e}"));
+                    .map_err(|e| format!("local host: {e}"))?;
+                Ok((
+                    objectiveai_sdk::machine::machine_id(scoped.filesystem.dir()),
+                    scoped.filesystem.state().to_string(),
+                ))
             }
-            (
-                objectiveai_sdk::machine::machine_id(scoped.filesystem.dir()),
-                scoped.filesystem.state().to_string(),
-            )
         }
     };
-    let create = match mcp_kind {
-        McpKind::PluginLaboratory {
+    let cred_resolve = async {
+        // Plugin only: mint-or-fetch + provision the Postgres
+        // compartment credential (MANDATORY — a failure fails the
+        // create). No-op for agent labs.
+        if let McpKind::PluginLaboratory {
             owner,
             name,
             version,
-        } => {
-            // Resolve (mint-or-fetch + provision) the plugin's Postgres
-            // compartment credential BEFORE the create is forwarded.
-            // MANDATORY: a failure fails the whole create — a plugin
-            // never runs without its DB credential. The host builds
-            // the connection URL from these parts + its own tunnel
-            // listener address.
+        } = mcp_kind
+        {
             let handle = global
                 .db_handle()
                 .await
@@ -1017,6 +1020,22 @@ async fn run_ephemeral_create(
             )
             .await
             .map_err(|e| format!("plugin db credential: {e}"))?;
+            Ok::<_, String>(Some(cred))
+        } else {
+            Ok(None)
+        }
+    };
+    let (host_result, cred_result) = tokio::join!(host_pick, cred_resolve);
+    let (machine, machine_state) = host_result?;
+    let plugin_cred = cred_result?;
+    let create = match mcp_kind {
+        McpKind::PluginLaboratory {
+            owner,
+            name,
+            version,
+        } => {
+            let cred = plugin_cred
+                .expect("PluginLaboratory always resolves a credential above");
             objectiveai_sdk::laboratories::daemon::RequestPayload::PluginEphemeralCreate(
                 objectiveai_sdk::laboratories::daemon::PluginEphemeralCreateRequest {
                     response_id: response_id.to_string(),
