@@ -276,6 +276,13 @@ async fn spawn_leashed_inner(
         }
     };
 
+    // PUSH death signal: the persistent drain below is the daemon's own
+    // observation point for the child's exit (its `events` recv returns
+    // `None` when the child's stdout+stderr pipes hit EOF). Flip this
+    // watch there so a waiter can `changed().await` the death instead of
+    // polling `try_wait`.
+    let (dead_tx, dead_rx) = tokio::sync::watch::channel(false);
+
     let stdio_handle = if let Some(stdin) = stdin.take() {
         // Ack ROUTER, replacing the discard drain: stdout lines that
         // parse as dial-list acks are forwarded to the LabHostStdio
@@ -298,6 +305,8 @@ async fn spawn_leashed_inner(
                 }
             }
             while events.recv().await.is_some() {}
+            // Pipes closed — the child is gone. Announce it.
+            let _ = dead_tx.send(true);
         });
         Some(std::sync::Arc::new(crate::context::LabHostStdio::new(
             stdin, ack_rx,
@@ -309,11 +318,15 @@ async fn spawn_leashed_inner(
         // the pipe or EPIPE-killing the server. Anything observable
         // goes through the server's published channel or the DB, per
         // the standing convention.
-        tokio::spawn(async move { while events.recv().await.is_some() {} });
+        tokio::spawn(async move {
+            while events.recv().await.is_some() {}
+            // Pipes closed — the child is gone. Announce it.
+            let _ = dead_tx.send(true);
+        });
         None
     };
 
-    global.hold_resident_child(key, child, address.clone(), stdio_handle);
+    global.hold_resident_child(key, child, address.clone(), stdio_handle, dead_rx);
     Ok((address, true))
 }
 

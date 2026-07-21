@@ -118,33 +118,73 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     }
 
     // Readiness. LOCAL: connected = this machine's host visible in the
-    // daemon registry — poll it (NO deadline: a cold podman machine can
-    // legitimately take minutes to enumerate, and we don't cap that),
-    // failing fast ONLY if the leashed host child dies. Remote-only:
-    // this machine cannot see the remote registries; the stdout ready
+    // daemon registry. The daemon is the WS SERVER for the host's
+    // `/laboratory` connection, so it OBSERVES the registration directly
+    // — we AWAIT the registry's `HostConnected` broadcast, never poll.
+    // No deadline: a cold podman machine can legitimately take minutes
+    // to enumerate for its HostIdentify, and we don't cap that. The one
+    // failure we watch is the leashed host child dying before it
+    // connects — a PUSH watch, not a `try_wait` poll. Remote-only: this
+    // machine cannot see the remote registries; the stdout ready
     // handshake plus the acked seed is the whole contract (the host
     // retries its dials forever).
     if local {
         let machine_id =
             objectiveai_sdk::machine::machine_id(scoped.filesystem.dir());
+        let state = scoped.filesystem.state();
+        let hubs = global.resident_hubs().ok_or_else(|| {
+            Error::Laboratory("laboratories spawn requires the resident daemon".to_string())
+        })?;
+        // Subscribe BEFORE the first check: a registration racing in
+        // after this point lands as a buffered event — none is lost.
+        let mut changes = hubs.laboratories.subscribe();
+        // PUSH death watch of the freshly-spawned child (fired by its
+        // drain task on pipe EOF); `None`/already-`true` = already gone.
+        let mut dead = global.resident_child_dead_rx("laboratories");
         loop {
             // Readiness = OUR host — the exact (machine, OWN state)
             // pair; a same-machine host of another state is somebody
-            // else's.
-            if let Some(hubs) = global.resident_hubs()
-                && hubs
-                    .laboratories
-                    .has_host(&machine_id, scoped.filesystem.state())
-            {
+            // else's. Checked FIRST every wake, so a host that
+            // registers and then dies still counts as up.
+            if hubs.laboratories.has_host(&machine_id, state) {
                 break;
             }
-            if !global.server_child_alive("laboratories") {
+            let already_dead = match dead.as_ref() {
+                Some(rx) => *rx.borrow(),
+                None => true,
+            };
+            if already_dead {
                 return Err(Error::Laboratory(
                     "the laboratory host exited before connecting to the daemon"
                         .to_string(),
                 ));
             }
-            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            tokio::select! {
+                // A connected-set change (or a lagged feed) → re-check
+                // has_host at the top. A CLOSED feed = the registry is
+                // gone (daemon teardown); stop waiting.
+                recv = changes.recv() => {
+                    if matches!(
+                        recv,
+                        Err(tokio::sync::broadcast::error::RecvError::Closed)
+                    ) {
+                        return Err(Error::Laboratory(
+                            "the daemon registry closed before the host connected"
+                                .to_string(),
+                        ));
+                    }
+                }
+                // The child died → wake and let the top re-check (it
+                // sees `already_dead` unless a registration also landed).
+                _ = async {
+                    match dead.as_mut() {
+                        Some(rx) => {
+                            let _ = rx.changed().await;
+                        }
+                        None => std::future::pending().await,
+                    }
+                } => {}
+            }
         }
     }
 

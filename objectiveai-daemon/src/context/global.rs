@@ -87,6 +87,12 @@ pub(crate) struct ResidentChild {
     pub(crate) child: tokio::process::Child,
     pub(crate) address: Option<String>,
     pub(crate) stdio: Option<Arc<LabHostStdio>>,
+    /// PUSH death signal: flips `false → true` when the child's stdout
+    /// + stderr pipes hit EOF (i.e. the process exited), fired by the
+    /// spawn's persistent drain task. Lets a waiter `changed().await`
+    /// on the child's death instead of polling `try_wait` — a subscribe
+    /// to the fact the daemon already observes.
+    pub(crate) dead_rx: tokio::sync::watch::Receiver<bool>,
 }
 
 /// The laboratory host's stdin/stdout dial-list channel (see
@@ -410,6 +416,7 @@ impl GlobalContext {
         child: tokio::process::Child,
         address: Option<String>,
         stdio: Option<Arc<LabHostStdio>>,
+        dead_rx: tokio::sync::watch::Receiver<bool>,
     ) {
         self.resident_children.insert(
             key.to_string(),
@@ -417,8 +424,22 @@ impl GlobalContext {
                 child,
                 address,
                 stdio,
+                dead_rx,
             },
         );
+    }
+
+    /// A clone of the resident `key` child's PUSH death watch (see
+    /// [`ResidentChild::dead_rx`]), for a waiter that wants to
+    /// `changed().await` the child's exit rather than poll. `None` when
+    /// the key holds no child. Does NOT probe liveness — the returned
+    /// receiver's current `*borrow()` already tells the caller whether
+    /// the child is dead.
+    pub(crate) fn resident_child_dead_rx(
+        &self,
+        key: &str,
+    ) -> Option<tokio::sync::watch::Receiver<bool>> {
+        self.resident_children.get(key).map(|rc| rc.dead_rx.clone())
     }
 
     /// The LIVE laboratory host's stdio dial-list channel. `None` when
