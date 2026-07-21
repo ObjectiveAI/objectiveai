@@ -237,6 +237,11 @@ pub struct GlobalContext {
     /// the daemon couldn't be spawned. Shared across clones; first set
     /// wins.
     daemon_address: Arc<std::sync::OnceLock<String>>,
+    /// The raw TCP Postgres proxy's bound `host:port` (its own random
+    /// system port; see [`crate::http::db_proxy`]). Set once at daemon
+    /// boot after the listener binds; `None` outside the resident
+    /// daemon.
+    db_proxy_address: Arc<std::sync::OnceLock<String>>,
     /// Lazily-connected db handle (pool + admin coordinates) — an
     /// INVALIDATABLE cache, not a memo-forever cell: `db config` set
     /// commands kill the resident db and clear this slot
@@ -315,6 +320,7 @@ impl GlobalContext {
             filesystem,
             http: reqwest::Client::new(),
             daemon_address: Arc::new(std::sync::OnceLock::new()),
+            db_proxy_address: Arc::new(std::sync::OnceLock::new()),
             db: Arc::new(tokio::sync::RwLock::new(None)),
             db_init_gate: Arc::new(tokio::sync::Mutex::new(())),
             db_epoch: Arc::new(tokio::sync::watch::channel(0).0),
@@ -481,6 +487,18 @@ impl GlobalContext {
     /// went through `run`).
     pub fn daemon_address(&self) -> Option<&str> {
         self.daemon_address.get().map(String::as_str)
+    }
+
+    /// Record the raw TCP Postgres proxy's bound `host:port`. Called
+    /// once at daemon boot after its listener binds; first set wins.
+    pub fn set_db_proxy_address(&self, address: String) {
+        let _ = self.db_proxy_address.set(address);
+    }
+
+    /// The raw TCP Postgres proxy's bound `host:port`, when this
+    /// context belongs to the resident daemon and the proxy bound.
+    pub fn db_proxy_address(&self) -> Option<&str> {
+        self.db_proxy_address.get().map(String::as_str)
     }
 
     /// Publish the resident daemon's in-process hubs. Called once by
