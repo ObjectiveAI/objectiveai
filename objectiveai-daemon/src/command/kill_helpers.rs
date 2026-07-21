@@ -8,15 +8,19 @@
 //! whole-teardown path: killing the daemon takes every leashed
 //! resident child with it.)
 //!
-//! A server is one of the daemon's LEASHED resident children (held on
-//! [`crate::context::GlobalContext`] since the stdout-readiness refactor — there are no
-//! server lockfiles to resolve pids through anymore). Killing one
-//! means taking its [`tokio::process::Child`] off the map and
-//! terminating it: SIGTERM first (the laboratory host's handler stops
-//! its containers; the viewer tears down its windows; Windows gets
-//! `TerminateProcess`, its only option), a bounded wait, then a hard
-//! kill. For db, killing the supervisor takes the postmaster with it
-//! (job object / `PR_SET_PDEATHSIG`).
+//! A server is one of the daemon's LEASHED resident children
+//! (metadata on [`crate::context::GlobalContext`]; the
+//! [`tokio::process::Child`] itself is owned by its spawn's lifecycle
+//! task — there are no server lockfiles to resolve pids through
+//! anymore). Killing one means removing its map entry
+//! (generation-guarded) and driving the child-appropriate shutdown
+//! via its lifecycle task: the stdio child (laboratory host) dies
+//! GRACEFULLY by the stdin EOF the removal itself causes; everything
+//! else gets SIGTERM (the viewer tears down its windows; Windows gets
+//! `TerminateProcess`, its only option), a bounded wait, then
+//! SIGKILL. See [`kill_resident_child`]. For db, killing the
+//! supervisor takes the postmaster with it (job object /
+//! `PR_SET_PDEATHSIG`).
 //!
 //! Scope is inherently THIS daemon: other states' servers belong to
 //! other daemons and die with them — the former cross-state lockfile
@@ -35,83 +39,83 @@ use std::path::PathBuf;
 use crate::context::GlobalContext;
 use crate::error::Error;
 
-/// How long the graceful SIGTERM gets before the hard kill.
+/// How long the signal path's SIGTERM gets before the SIGKILL
+/// escalation. (Signal-killed children only — the stdio child's
+/// graceful EOF shutdown is unbounded by design.)
 const TERM_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// Kill this daemon's resident `key` child, if any: SIGTERM → bounded
-/// wait → hard kill. Fallible core: `Ok(count)` (0 or 1) when the
-/// child is gone — a missing/already-dead child is `Ok(0)`, never an
-/// error — and `Err` only when a LIVE child could not be terminated
-/// (its exit wait failed, or the hard kill after the grace window
-/// errored).
-pub async fn try_kill_resident_child(
-    global: &GlobalContext,
-    key: &str,
-) -> Result<usize, Error> {
-    let Some(mut child) = global.take_resident_child(key) else {
-        return Ok(0);
-    };
-    let Some(pid) = child.id() else {
-        // Already reaped.
-        return Ok(0);
-    };
-    // Graceful first: Unix SIGTERM (handlers run — the laboratory
-    // host stops its containers), Windows TerminateProcess.
-    let _ = objectiveai_sdk::process::kill_pid(pid);
-    match tokio::time::timeout(TERM_GRACE, child.wait()).await {
-        Ok(Ok(_status)) => Ok(1),
-        Ok(Err(e)) => Err(Error::Spawn(format!("wait for killed {key} child"), e)),
-        Err(_) => {
-            // Didn't exit in the grace window — hard kill (and reap).
-            child
-                .kill()
-                .await
-                .map_err(|e| Error::Spawn(format!("hard-kill {key} child"), e))?;
-            Ok(1)
-        }
-    }
-}
-
-/// Best-effort form of [`try_kill_resident_child`]: a kill failure
-/// still counts the child as terminated (it was taken off the map
-/// either way — the old behavior of the kill commands).
-pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
-    try_kill_resident_child(global, key).await.unwrap_or(1)
-}
-
-/// GRACEFUL kill of the laboratory-host resident `key` child: take it
-/// off the map — which drops the [`LabHostStdio`] and closes the
-/// host's stdin — and let the resulting EOF drive its own shutdown
-/// (`server.stop_started`: regular containers stopped, ephemerals
-/// evaporated). Unlike [`try_kill_resident_child`] this sends NO signal
-/// first (on Windows `TerminateProcess` is a hard, ungraceful kill that
-/// would race the EOF) and NO hard-kill fallback: we WAIT, UNBOUNDED,
-/// for the host to exit on its own. No premature cap — the host's
-/// `stop_started` is itself bounded by `podman stop` (SIGTERM→SIGKILL
-/// on podman's own grace), and a cold podman machine legitimately takes
-/// minutes we don't want to cut short. A genuinely wedged host holds
-/// this future open; the operator falls back to `daemon kill`.
+/// THE kill for a resident `key` child — kill semantics are declared
+/// by the child's own shape, not chosen per call site:
 ///
-/// `Ok(0)` when nothing was running (never an error); `Ok(1)` once the
-/// child has exited; `Err` only when the exit wait itself failed.
-pub async fn graceful_kill_resident_child(
-    global: &GlobalContext,
-    key: &str,
-) -> Result<usize, Error> {
-    let Some(mut child) = global.take_resident_child(key) else {
-        return Ok(0);
+/// - **stdio child** (the laboratory host — it holds a
+///   [`crate::context::LabHostStdio`]): GRACEFUL, always. Removing the
+///   map entry drops the stdio Arc, closing the host's stdin — EOF is
+///   its shutdown signal (`server.stop_started`: regular containers
+///   stopped, ephemerals evaporated). NO signal first (on Windows
+///   `TerminateProcess` is a hard, ungraceful kill that would race the
+///   EOF), NO hard-kill fallback, UNBOUNDED wait: `stop_started` is
+///   itself bounded by `podman stop` (SIGTERM→SIGKILL on podman's own
+///   grace), and a cold podman machine legitimately takes minutes. A
+///   genuinely wedged host holds this future open; the operator falls
+///   back to killing the daemon (the OS leash takes the host with it).
+/// - **everything else** (db / api / mcp / viewer): signal path —
+///   `Term` (SIGTERM; handlers run / `TerminateProcess`), a bounded
+///   [`TERM_GRACE`] wait, then `Kill` (SIGKILL) and an unbounded wait
+///   (SIGKILL always lands; the exit is only an OS-reap away).
+///
+/// Signals are routed THROUGH the child's lifecycle task
+/// ([`crate::context::KillRequest`]) — it owns the un-reaped `Child`,
+/// so a signal can never hit a recycled pid — and the exit is awaited
+/// on the death watch the same task fires from `child.wait()`.
+/// INFALLIBLE by construction: a closed kill channel or death watch
+/// means the child already exited. Returns the number of children
+/// terminated (0 or 1); an absent/already-dead child is 0, never an
+/// error.
+///
+/// The entry is removed UP FRONT (generation-guarded, so a racing
+/// respawn's successor is never touched): concurrent spawns see the
+/// key as absent immediately — a dying old-config server can never be
+/// "reused" during its own teardown, which is what keeps the api/db
+/// config brackets airtight.
+pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
+    let Some(snapshot) = global.resident_child_kill_snapshot(key) else {
+        return 0;
     };
-    if child.id().is_none() {
-        // Already reaped.
-        return Ok(0);
+    let mut dead_rx = snapshot.dead_rx;
+    // Remove OUR entry first — for the stdio child this IS the kill
+    // signal (stdin EOF once in-flight `lab_host_stdio` borrowers drop
+    // their clones — the host is alive and acking, so that's bounded).
+    global.remove_resident_child_if(key, snapshot.generation);
+    if *dead_rx.borrow() {
+        // Already exited (the removal above was just cleanup).
+        return 0;
     }
-    // stdin is now closed (the map held the only lasting `LabHostStdio`
-    // Arc). Wait — unbounded — for the host's own EOF-driven graceful
-    // shutdown.
-    match child.wait().await {
-        Ok(_status) => Ok(1),
-        Err(e) => Err(Error::Spawn(format!("wait for graceful {key} child"), e)),
+    if snapshot.has_stdio {
+        // Graceful EOF shutdown — wait, unbounded, for true exit. A
+        // closed watch = the lifecycle task is gone = the child
+        // exited.
+        let _ = dead_rx.changed().await;
+        return 1;
     }
+    // Signal path. Send errors mean the lifecycle task already
+    // observed the exit — nothing left to kill.
+    if snapshot
+        .kill_tx
+        .send(crate::context::KillRequest::Term)
+        .is_err()
+    {
+        return 1;
+    }
+    if tokio::time::timeout(TERM_GRACE, dead_rx.changed())
+        .await
+        .is_err()
+    {
+        // Didn't exit in the grace window — escalate to SIGKILL and
+        // wait it out (unbounded: SIGKILL always lands).
+        let _ = snapshot.kill_tx.send(crate::context::KillRequest::Kill);
+        let _ = dead_rx.changed().await;
+    }
+    1
 }
 
 /// Retire the resident db BEFORE a `db config` mutation is written —
@@ -121,16 +125,16 @@ pub async fn graceful_kill_resident_child(
 /// child is mid-birth and no handle-store can race the kill. The
 /// cached [`crate::db::DbHandle`] is invalidated in the same critical
 /// section (the respawned local db binds a NEW random port, so the old
-/// pool can never be reused). FALLIBLE — a live db that cannot be
-/// terminated aborts the config change. Not running is `Ok`. May wait
-/// out an in-flight cold db spawn (seconds) — a rare admin op paying
-/// for correctness.
+/// pool can never be reused). The kill always lands (signal path
+/// escalates to SIGKILL) — a stale server never survives a set. Not
+/// running is a no-op. May wait out an in-flight cold db spawn
+/// (seconds) — a rare admin op paying for correctness.
 pub async fn kill_db_before_config_change(
     global: &GlobalContext,
 ) -> Result<(), Error> {
     let gate = global.db_init_gate();
     let _guard = gate.lock().await;
-    try_kill_resident_child(global, "db").await?;
+    kill_resident_child(global, "db").await;
     global.invalidate_db().await;
     Ok(())
 }
@@ -140,34 +144,35 @@ pub async fn kill_db_before_config_change(
 /// first kill and the write landing resolved the OLD config — waiting
 /// on the gate here serializes after it, then retires its child and
 /// clears its stored handle, so the next acquire rebuilds on the NEW
-/// config. Best-effort by design: the write already landed.
+/// config. The write already landed either way.
 pub async fn kill_db_after_config_change(global: &GlobalContext) {
     let gate = global.db_init_gate();
     let _guard = gate.lock().await;
-    let _ = kill_resident_child(global, "db").await;
+    kill_resident_child(global, "db").await;
     global.invalidate_db().await;
 }
 
 /// Retire the resident api server BEFORE an `api config` mutation is
 /// written: the running server was spawned with (and its address
-/// resolved under) the config being replaced. FALLIBLE — a live api
-/// that cannot be terminated aborts the config change, so a stale
-/// server never survives a set. Not running is `Ok` (nothing to
-/// retire).
+/// resolved under) the config being replaced. The kill always lands
+/// (signal path escalates to SIGKILL), so a stale server never
+/// survives a set. Not running is a no-op. `Result` kept for caller
+/// symmetry with the db bracket.
 pub async fn kill_api_before_config_change(
     global: &GlobalContext,
 ) -> Result<(), Error> {
-    try_kill_resident_child(global, "api").await.map(|_| ())
+    kill_resident_child(global, "api").await;
+    Ok(())
 }
 
 /// The AFTER-write sweep paired with
 /// [`kill_api_before_config_change`]: a concurrent request may have
 /// respawned the api against the OLD config in the window between the
-/// first kill and the write landing — retire that straggler too.
-/// Best-effort by design (the write already landed; the change is in
-/// effect for every later spawn): its failure is ignored.
+/// first kill and the write landing — retire that straggler too. The
+/// write already landed; the change is in effect for every later
+/// spawn.
 pub async fn kill_api_after_config_change(global: &GlobalContext) {
-    let _ = kill_resident_child(global, "api").await;
+    kill_resident_child(global, "api").await;
 }
 
 /// The viewer's respawn half of a `daemon config` mutation
@@ -190,7 +195,7 @@ pub async fn respawn_viewer_after_config_change(
     if !viewer_was_running {
         return Ok(());
     }
-    let _ = kill_resident_child(global, "viewer").await;
+    kill_resident_child(global, "viewer").await;
     crate::command::viewer::spawn::spawn(global, scoped).await.map(|_| ())
 }
 

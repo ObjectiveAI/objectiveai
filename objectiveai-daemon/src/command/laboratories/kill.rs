@@ -1,18 +1,19 @@
 //! `laboratories kill` — GRACEFULLY terminate this daemon's resident
-//! laboratory-host child. Closing the host's stdin (which
-//! [`graceful_kill_resident_child`] does by taking the child off the
-//! map) is its shutdown signal: it stops every regular container it
-//! serves and evaporates every ephemeral before exiting. Idempotent:
-//! no running host is a count of zero, not an error.
+//! laboratory-host child. [`kill_resident_child`] recognizes the host
+//! by its stdio channel: removing the map entry closes the host's
+//! stdin, and that EOF is its shutdown signal — it stops every
+//! regular container it serves and evaporates every ephemeral before
+//! exiting. Idempotent: no running host is a count of zero, not an
+//! error.
 
 use objectiveai_sdk::cli::command::laboratories::kill::{Request, Response};
 
-use crate::command::kill_helpers::graceful_kill_resident_child;
+use crate::command::kill_helpers::kill_resident_child;
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
 pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
-    let killed = graceful_kill_resident_child(global, "laboratories").await?;
+    let killed = kill_resident_child(global, "laboratories").await;
     Ok(Response { killed })
 }
 

@@ -276,13 +276,6 @@ async fn spawn_leashed_inner(
         }
     };
 
-    // PUSH death signal: the persistent drain below is the daemon's own
-    // observation point for the child's exit (its `events` recv returns
-    // `None` when the child's stdout+stderr pipes hit EOF). Flip this
-    // watch there so a waiter can `changed().await` the death instead of
-    // polling `try_wait`.
-    let (dead_tx, dead_rx) = tokio::sync::watch::channel(false);
-
     let stdio_handle = if let Some(stdin) = stdin.take() {
         // Ack ROUTER, replacing the discard drain: stdout lines that
         // parse as dial-list acks are forwarded to the LabHostStdio
@@ -305,8 +298,6 @@ async fn spawn_leashed_inner(
                 }
             }
             while events.recv().await.is_some() {}
-            // Pipes closed — the child is gone. Announce it.
-            let _ = dead_tx.send(true);
         });
         Some(std::sync::Arc::new(crate::context::LabHostStdio::new(
             stdin, ack_rx,
@@ -318,15 +309,56 @@ async fn spawn_leashed_inner(
         // the pipe or EPIPE-killing the server. Anything observable
         // goes through the server's published channel or the DB, per
         // the standing convention.
-        tokio::spawn(async move {
-            while events.recv().await.is_some() {}
-            // Pipes closed — the child is gone. Announce it.
-            let _ = dead_tx.send(true);
-        });
+        tokio::spawn(async move { while events.recv().await.is_some() {} });
         None
     };
 
-    global.hold_resident_child(key, child, address.clone(), stdio_handle, dead_rx);
+    // Lifecycle wiring: the map entry is metadata; the CHILD ITSELF
+    // goes to a lifecycle task that (a) executes kill requests —
+    // `Term` by pid while the un-reaped handle provably pins the pid,
+    // `Kill` via the handle — and (b) awaits `child.wait()`, the TRUE
+    // process exit, then fires the death watch and removes the entry
+    // (generation-guarded: never a respawned successor's). Insert
+    // FIRST (still under the spawn gate), THEN spawn the task, so
+    // even an instantly-dying child's removal finds its own entry.
+    let pid = child.id().unwrap_or_default();
+    let generation = crate::context::next_child_generation();
+    let (dead_tx, dead_rx) = tokio::sync::watch::channel(false);
+    let (kill_tx, mut kill_rx) =
+        tokio::sync::mpsc::unbounded_channel::<crate::context::KillRequest>();
+    global.hold_resident_child(
+        key,
+        generation,
+        kill_tx,
+        address.clone(),
+        stdio_handle,
+        dead_rx,
+    );
+    let lifecycle_global = global.clone();
+    let lifecycle_key = key.to_string();
+    tokio::spawn(async move {
+        let mut kill_closed = false;
+        loop {
+            tokio::select! {
+                // `Child::wait` is cancel-safe; stdin was taken long
+                // before the first poll, so no EOF side effect.
+                _status = child.wait() => break,
+                req = kill_rx.recv(), if !kill_closed => match req {
+                    Some(crate::context::KillRequest::Term) => {
+                        let _ = objectiveai_sdk::process::kill_pid(pid);
+                    }
+                    Some(crate::context::KillRequest::Kill) => {
+                        let _ = child.start_kill();
+                    }
+                    // Entry removed and every kill path done — just
+                    // wait out the exit.
+                    None => kill_closed = true,
+                },
+            }
+        }
+        let _ = dead_tx.send(true);
+        lifecycle_global.remove_resident_child_if(&lifecycle_key, generation);
+    });
     Ok((address, true))
 }
 

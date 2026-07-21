@@ -232,13 +232,16 @@ async fn run(
 
     // Kill the running servers before touching bin/: on Windows a live
     // child holds its .exe file-locked, which would defeat the wipe.
-    // First this daemon's leashed resident children, then a LEGACY
-    // lock-owner sweep (api in bin/locks; db/viewer per state) so an
-    // in-place update over a ≤2.2.12 install also reaps the old-style
-    // detached servers. Best-effort: a kill failure shouldn't abort the
-    // install.
+    // First this daemon's leashed resident children — the laboratory
+    // host GRACEFULLY (stdin EOF; it stops its containers first, and
+    // the update waits that out, unbounded, BY DESIGN — no premature
+    // cap; a wedged host blocks the update rather than leaking running
+    // containers), the rest by signal. Then a LEGACY lock-owner sweep
+    // (api in bin/locks; db/viewer per state) so an in-place update
+    // over a ≤2.2.12 install also reaps the old-style detached
+    // servers.
     for key in ["api", "db", "viewer", "laboratories"] {
-        let _ = kill_resident_child(global, key).await;
+        kill_resident_child(global, key).await;
     }
     let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;
     kill_state_servers(states_root).await;
