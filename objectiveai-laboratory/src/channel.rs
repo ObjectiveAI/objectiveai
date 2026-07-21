@@ -219,8 +219,9 @@ pub async fn run(
                         Ok(Message::Text(text)) => text,
                         Ok(Message::Binary(bytes)) => {
                             // Chunk-bearing requests (ImportWrite) ride
-                            // the binary sandwich; other binary frames
-                            // are dropped (forward-compat).
+                            // the binary sandwich; then Postgres tunnel
+                            // bytes; other binary frames are dropped
+                            // (forward-compat).
                             if let Some(request) =
                                 ChannelRequest::from_binary(&bytes)
                             {
@@ -229,6 +230,14 @@ pub async fn run(
                                     channel_id,
                                     &reply_tx,
                                     request,
+                                );
+                            } else if let Some(data) =
+                                objectiveai_sdk::laboratories::daemon::PostgresData::from_binary(&bytes)
+                            {
+                                host.bridge().deliver_postgres_data(
+                                    channel_id,
+                                    &data.stream_id,
+                                    data.bytes,
                                 );
                             }
                             continue;
@@ -249,6 +258,15 @@ pub async fn run(
                             serde_json::from_str::<HostCommandResponse>(&text)
                         {
                             host.bridge().deliver(response);
+                        } else if let Ok(
+                            objectiveai_sdk::laboratories::daemon::DaemonPostgres::Close {
+                                stream_id,
+                            },
+                        ) = serde_json::from_str::<
+                            objectiveai_sdk::laboratories::daemon::DaemonPostgres,
+                        >(&text)
+                        {
+                            host.bridge().close_postgres(channel_id, &stream_id);
                         }
                         // Forward-compat: skip frames this build
                         // doesn't know.

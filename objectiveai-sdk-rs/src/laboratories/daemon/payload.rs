@@ -362,6 +362,16 @@ pub struct PluginEphemeralCreateRequest {
     /// Plugin version — IS the repo's git tag (Go-modules style,
     /// `v`-prefixed), byte-for-byte; the tag must exist.
     pub version: String,
+    /// The plugin's Postgres compartment ROLE, resolved (and
+    /// provisioned) daemon-side before the create is forwarded. The
+    /// host builds `OBJECTIVEAI_POSTGRES_URL` from this + its own
+    /// tunnel-listener address (it never sees the daemon's own DB
+    /// address).
+    pub db_role: String,
+    /// The compartment role's password (random, stored daemon-side).
+    pub db_password: String,
+    /// The application database name.
+    pub db_database: String,
 }
 
 /// Successful payload for BOTH ephemeral-create replies: the created

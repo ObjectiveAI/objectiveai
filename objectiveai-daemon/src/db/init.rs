@@ -396,6 +396,18 @@ CREATE OR REPLACE TRIGGER message_queue_inactive_notify
 AFTER UPDATE OF active ON objectiveai.message_queue
 FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_message_queue_inactive();
 
+-- Per-plugin Postgres compartment credentials. One random, STORED
+-- password per plugin (owner/name lowercased, version byte-for-byte),
+-- minted on first ephemeral plugin create and reused thereafter. See
+-- db/compartment.rs::resolve_plugin_db_credential.
+CREATE TABLE IF NOT EXISTS objectiveai.plugin_db_credentials (
+    owner TEXT NOT NULL,
+    name TEXT NOT NULL,
+    version TEXT NOT NULL,
+    password TEXT NOT NULL,
+    PRIMARY KEY (owner, name, version)
+);
+
 "#;
 
 /// `logs.*` schema. Pulled from `src/db/logs/schema.sql` so the

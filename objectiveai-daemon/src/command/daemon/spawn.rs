@@ -261,35 +261,6 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         labs_hub.clone(),
         channels,
     );
-    // Raw TCP Postgres proxy — its OWN random system port on the
-    // daemon's bind interface. A stock client dials this `host:port`
-    // and speaks native Postgres straight through to the configured
-    // cluster. Best-effort: a bind failure just means no proxy this
-    // run (nothing else depends on it).
-    match tokio::net::TcpListener::bind((global.daemon_bind_address.as_str(), 0))
-        .await
-    {
-        Ok(db_listener) => {
-            if let Ok(addr) = db_listener.local_addr() {
-                let connect_ip = match addr.ip() {
-                    std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
-                        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
-                    }
-                    std::net::IpAddr::V6(v6) if v6.is_unspecified() => {
-                        std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)
-                    }
-                    ip => ip,
-                };
-                global.set_db_proxy_address(
-                    std::net::SocketAddr::new(connect_ip, addr.port()).to_string(),
-                );
-            }
-            tokio::spawn(crate::http::db_proxy::serve(global.clone(), db_listener));
-        }
-        Err(e) => {
-            eprintln!("db proxy bind failed: {e}");
-        }
-    }
     // Best-effort: seed the registry with agents already holding a lock
     // when the daemon started (off the boot path — no DB round-trip block).
     tokio::spawn({

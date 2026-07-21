@@ -59,6 +59,11 @@ pub struct CommandBridge {
     /// In-flight command exchanges: host-minted uuid → (owning daemon
     /// channel, frame sender). The proxy's `command_streams` shape.
     command_streams: DashMap<String, (u64, mpsc::UnboundedSender<CommandFrame>)>,
+    /// In-flight Postgres tunnel streams: host-minted stream_id →
+    /// (owning daemon channel, container-write sender). Daemon→host
+    /// `PostgresData` bytes are routed to the container's write task
+    /// through here. Same shape as `command_streams`.
+    postgres_streams: DashMap<String, (u64, mpsc::UnboundedSender<Vec<u8>>)>,
 }
 
 impl CommandBridge {
@@ -66,7 +71,48 @@ impl CommandBridge {
         Self {
             outbound: DashMap::new(),
             command_streams: DashMap::new(),
+            postgres_streams: DashMap::new(),
         }
+    }
+
+    /// Register a Postgres tunnel stream (its container-write sender)
+    /// under `stream_id`, owned by `channel`.
+    pub fn register_postgres(
+        &self,
+        stream_id: String,
+        channel: u64,
+        write_tx: mpsc::UnboundedSender<Vec<u8>>,
+    ) {
+        self.postgres_streams.insert(stream_id, (channel, write_tx));
+    }
+
+    /// Route one daemon→host `PostgresData` payload to its container
+    /// write task. The `channel` the frame arrived on MUST match the
+    /// stream's owning channel (defends against a rogue/buggy daemon
+    /// injecting into another channel's stream). Unknown / mismatched
+    /// → dropped.
+    pub fn deliver_postgres_data(&self, channel: u64, stream_id: &str, bytes: Vec<u8>) {
+        if let Some(entry) = self.postgres_streams.get(stream_id) {
+            let (owner, tx) = entry.value();
+            if *owner == channel {
+                let _ = tx.send(bytes);
+            }
+        }
+    }
+
+    /// Tear down a Postgres tunnel stream (daemon-originated close, or
+    /// host-side end). Removing it drops the container-write sender,
+    /// ending that stream's write task. Channel-checked like
+    /// [`Self::deliver_postgres_data`].
+    pub fn close_postgres(&self, channel: u64, stream_id: &str) {
+        self.postgres_streams
+            .remove_if(stream_id, |_, (owner, _)| *owner == channel);
+    }
+
+    /// Remove a Postgres stream unconditionally (host-side teardown:
+    /// the container socket ended or the lab is evaporating).
+    pub fn remove_postgres(&self, stream_id: &str) {
+        self.postgres_streams.remove(stream_id);
     }
 
     /// Route one [`HostCommandResponse`] frame to its exchange. The
@@ -93,6 +139,11 @@ impl CommandBridge {
     /// same consumer contract a proxy connection death has).
     pub fn detach(&self, channel: u64) {
         self.command_streams
+            .retain(|_, (owner, _)| *owner != channel);
+        // Backstop: drop this channel's Postgres streams too (the
+        // per-lab cancel is the primary teardown; this catches any
+        // stragglers if a channel dies without its labs evaporating).
+        self.postgres_streams
             .retain(|_, (owner, _)| *owner != channel);
     }
 

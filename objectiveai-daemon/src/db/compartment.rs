@@ -9,18 +9,76 @@
 //! caveat, accepted by design: other compartments' object NAMES
 //! remain visible through `pg_catalog` — their data does not.
 //!
-//! [`ensure`] is idempotent and runs on every `tools run` /
-//! `plugins run` spawn, returning the role-specific connection URL
-//! the child receives as `OBJECTIVEAI_POSTGRES_URL`.
+//! [`ensure`] is idempotent and runs on every plugin-ephemeral
+//! create, provisioning the role with a caller-supplied password and
+//! returning the role NAME (the caller — the host — builds the
+//! connection URL from it).
 //!
-//! The role's password is DERIVED — `xxh3_128(admin_password ":"
-//! role_name)` — rather than randomized per spawn: N children of the
-//! same compartment can spawn concurrently, and a rotate-on-spawn
-//! scheme would invalidate URLs already handed to in-flight
-//! siblings. Nothing is stored; if the admin password changes, the
-//! next provision's `ALTER ROLE` re-derives in stride.
+//! The password is RANDOM and STORED, one per `(owner, name,
+//! version)` in `objectiveai.plugin_db_credentials`
+//! ([`resolve_plugin_db_credential`]) — NOT derived. A stored random
+//! secret is unguessable by a plugin that holds only its own
+//! credential (the earlier derived scheme, `xxh3` over the public
+//! admin password, was crackable). N concurrent sibling spawns of one
+//! compartment converge on the single committed password via the
+//! upsert's `RETURNING`, so nothing is invalidated mid-flight.
 
 use super::{DbHandle, Error};
+
+/// A resolved plugin Postgres compartment credential — the parts the
+/// host needs to assemble `OBJECTIVEAI_POSTGRES_URL` (it supplies the
+/// address itself, from its own tunnel listener).
+pub struct PluginDbCredential {
+    pub role: String,
+    pub password: String,
+    pub database: String,
+}
+
+/// Get-or-create the plugin's stored compartment credential and
+/// provision its role. Owner/name are lowercased (version verbatim)
+/// to match the plugin coordinate canonicalization. The upsert is
+/// concurrency-safe: `ON CONFLICT DO UPDATE SET password = <self>
+/// RETURNING password` hands every racing sibling the single
+/// committed winner's password in one round trip (no read-visibility
+/// gap), and [`ensure`]'s advisory lock serializes the `ALTER ROLE`.
+pub async fn resolve_plugin_db_credential(
+    handle: &DbHandle,
+    owner: &str,
+    name: &str,
+    version: &str,
+) -> Result<PluginDbCredential, Error> {
+    let owner = owner.to_ascii_lowercase();
+    let name = name.to_ascii_lowercase();
+    let candidate = random_password();
+    let stored: String = sqlx::query_scalar(
+        "INSERT INTO objectiveai.plugin_db_credentials (owner, name, version, password) \
+         VALUES ($1, $2, $3, $4) \
+         ON CONFLICT (owner, name, version) \
+         DO UPDATE SET password = objectiveai.plugin_db_credentials.password \
+         RETURNING password",
+    )
+    .bind(&owner)
+    .bind(&name)
+    .bind(version)
+    .bind(&candidate)
+    .fetch_one(&*handle.pool)
+    .await?;
+    let role = ensure(handle, Kind::Plugin, &owner, &name, version, &stored).await?;
+    Ok(PluginDbCredential {
+        role,
+        password: stored,
+        database: handle.database.clone(),
+    })
+}
+
+/// A fresh 32-hex-char random password (128 bits). Hex is URL-safe,
+/// so it needs no percent-encoding in the connection string.
+fn random_password() -> String {
+    use rand::RngCore as _;
+    let mut bytes = [0u8; 16];
+    rand::rng().fill_bytes(&mut bytes);
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
 
 /// Which spawn surface owns the compartment. Folded into the
 /// compartment name so a plugin and a tool with the same coordinates
@@ -46,19 +104,20 @@ impl Kind {
 const COMPARTMENT_LOCK_KEY: i64 = 0x0C0_3B_A87_AE_57_i64;
 
 /// Ensure the compartment role + schema exist with the expected
-/// grants, and return the child's connection URL.
+/// grants and the given `password`, returning the role NAME (the
+/// caller builds the connection URL — it, not the daemon, knows the
+/// reachable address).
 pub async fn ensure(
     handle: &DbHandle,
     kind: Kind,
     owner: &str,
     name: &str,
     version: &str,
+    password: &str,
 ) -> Result<String, Error> {
     let role = compartment_name(kind, owner, name, version);
-    let password = derived_password(&handle.admin_password, &role);
     // The password rides as a SQL string literal (role DDL takes no
-    // bind parameters); it's hex from the derivation, but escape
-    // defensively anyway.
+    // bind parameters); it's hex, but escape defensively anyway.
     let password_literal = password.replace('\'', "''");
     // `role` is structurally `[a-z0-9_]` from the sanitizer, so
     // interpolating it as an identifier is injection-free. The
@@ -77,7 +136,7 @@ pub async fn ensure(
     ))
     .execute(&mut *tx)
     .await?;
-    // 2. …then unconditionally normalized: login with the derived
+    // 2. …then unconditionally normalized: login with the stored
     //    password, explicitly INHERIT (the read grants arrive via
     //    group membership), and nothing else.
     sqlx::query(&format!(
@@ -109,14 +168,7 @@ pub async fn ensure(
     .await?;
     tx.commit().await?;
 
-    Ok(format!(
-        "postgres://{role}:{password}@{address}/{database}",
-        address = handle.address,
-        database = percent_encoding::utf8_percent_encode(
-            &handle.database,
-            percent_encoding::NON_ALPHANUMERIC,
-        ),
-    ))
+    Ok(role)
 }
 
 /// `{kind}_{owner}_{name}_{version}_{hash8}`, sanitized to
@@ -146,19 +198,6 @@ fn sanitize(part: &str) -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect()
-}
-
-/// Deterministic compartment password: 32 hex chars of
-/// `xxh3_128(admin_password ":" role_name)`. Underivable without
-/// the admin password (which already owns the whole database), and
-/// stable so concurrent spawns of one compartment all mint the same
-/// working URL.
-fn derived_password(admin_password: &str, role: &str) -> String {
-    let input = format!("{admin_password}:{role}");
-    format!(
-        "{:032x}",
-        twox_hash::XxHash3_128::oneshot(input.as_bytes())
-    )
 }
 
 #[cfg(test)]

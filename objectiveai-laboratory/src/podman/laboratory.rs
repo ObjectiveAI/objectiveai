@@ -721,11 +721,16 @@ pub async fn create_plugin(
         .arg("--name")
         .arg(&name)
         .arg("-p")
-        .arg(format!("127.0.0.1::{}/tcp", plugin.port));
-    // The AGENT-IDENTITY environment — the ONLY env a plugin
-    // container gets (the completion it serves is static for the
-    // container's whole life; everything else the plugin needs rides
-    // headers).
+        .arg(format!("127.0.0.1::{}/tcp", plugin.port))
+        // Make `host.containers.internal` resolve to the host so the
+        // plugin can reach this host's Postgres tunnel listener
+        // (`OBJECTIVEAI_POSTGRES_URL`).
+        .arg("--add-host")
+        .arg("host.containers.internal:host-gateway");
+    // The AGENT-IDENTITY environment (plus `OBJECTIVEAI_POSTGRES_URL`)
+    // — the env a plugin container gets (the completion it serves is
+    // static for the container's whole life; everything else the
+    // plugin needs rides headers).
     for (k, v) in identity_env {
         create_cmd.arg("-e").arg(format!("{k}={v}"));
     }

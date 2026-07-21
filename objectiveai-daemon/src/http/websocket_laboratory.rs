@@ -62,7 +62,25 @@ enum OutboundFrame {
     /// One frame of a HOST-initiated command exchange
     /// ([`HostCommandResponse`], correlated by the host's own id).
     Command(HostCommandResponse),
+    /// Raw Postgres bytes for a tunnel stream (daemon → host).
+    PostgresData(objectiveai_sdk::laboratories::daemon::PostgresData),
+    /// Postgres tunnel stream teardown (daemon → host): pg EOF, dial
+    /// failure, or connection death. Carries the `stream_id`.
+    PostgresClose(String),
 }
+
+/// One live Postgres tunnel stream on this connection: the write half
+/// (bytes host→daemon→pg, drained by a spawned write task) and the
+/// abort handle for the pg→host read pump.
+struct PgStream {
+    write_tx: mpsc::UnboundedSender<Vec<u8>>,
+    read_pump: tokio::task::AbortHandle,
+}
+
+/// Max raw Postgres bytes per `PostgresData` frame — bounds per-frame
+/// wire time so a busy pg stream can't monopolize the single WS
+/// against control/command traffic.
+const PG_CHUNK: usize = 64 * 1024;
 
 /// One connected laboratory host.
 struct HostConnection {
@@ -88,6 +106,11 @@ struct HostConnection {
     /// In-flight forwards awaiting the host's correlated reply.
     /// Dropped wholesale on disconnect, failing every waiter.
     pending: DashMap<String, oneshot::Sender<ChannelResponse>>,
+    /// Live Postgres tunnel streams keyed by host-minted `stream_id`.
+    /// Living inside `HostConnection` keys it implicitly by (this
+    /// connection, stream_id) — no cross-connection collision. Drained
+    /// on teardown: every write half dropped, every read pump aborted.
+    postgres_streams: DashMap<String, PgStream>,
     /// Displacement kill: notified by the successor's registration so
     /// this connection's handler exits through the SAME post-loop
     /// teardown every other ending takes (close frame, recv error,
@@ -535,6 +558,104 @@ impl Drop for FiletreeWatchGuard {
 /// the final frame. A queue failure mid-stream breaks the pump —
 /// dropping the run stream cancels the command — but `Done` is still
 /// attempted.
+/// Handle one host→daemon Postgres tunnel control frame. `Open` dials
+/// THIS daemon's configured Postgres and attaches the stream (a dumb
+/// byte pipe — never parses pgwire, so the client's SSL rides through
+/// end to end); `Close` tears the stream down. Data frames
+/// (`PostgresData`) are handled inline in the binary demux arm.
+fn dispatch_host_postgres(
+    state: &crate::http::daemon_stream::DaemonHttpState,
+    host: &Arc<HostConnection>,
+    frame: objectiveai_sdk::laboratories::daemon::HostPostgres,
+) {
+    use objectiveai_sdk::laboratories::daemon::HostPostgres;
+    match frame {
+        HostPostgres::Open { stream_id } => {
+            let global = state.global.clone();
+            let host = Arc::clone(host);
+            tokio::spawn(async move {
+                // Resolve + dial this daemon's Postgres. Any failure
+                // closes the stream (a runtime pg error to the plugin);
+                // it never touched the create.
+                let close = |host: &HostConnection, id: &str| {
+                    let _ = host
+                        .tx
+                        .send(OutboundFrame::PostgresClose(id.to_string()));
+                };
+                let addr = match global.db_handle().await {
+                    Ok(handle) => handle.address,
+                    Err(_) => return close(&host, &stream_id),
+                };
+                let pg = match tokio::net::TcpStream::connect(&addr).await {
+                    Ok(pg) => pg,
+                    Err(_) => return close(&host, &stream_id),
+                };
+                let _ = pg.set_nodelay(true);
+                objectiveai_sdk::net::set_tcp_keepalive(&pg);
+                let (mut pg_read, mut pg_write) = pg.into_split();
+
+                // Write task: drain host→pg bytes.
+                let (write_tx, mut write_rx) =
+                    mpsc::unbounded_channel::<Vec<u8>>();
+                tokio::spawn(async move {
+                    use tokio::io::AsyncWriteExt;
+                    while let Some(bytes) = write_rx.recv().await {
+                        if pg_write.write_all(&bytes).await.is_err() {
+                            break;
+                        }
+                    }
+                    let _ = pg_write.shutdown().await;
+                });
+
+                // Read pump: pg→host as PostgresData frames.
+                let pump_host = Arc::clone(&host);
+                let pump_id = stream_id.clone();
+                let read_pump = tokio::spawn(async move {
+                    use tokio::io::AsyncReadExt;
+                    let mut buf = vec![0u8; PG_CHUNK];
+                    loop {
+                        match pg_read.read(&mut buf).await {
+                            Ok(0) | Err(_) => break,
+                            Ok(n) => {
+                                let sent = pump_host.tx.send(
+                                    OutboundFrame::PostgresData(
+                                        objectiveai_sdk::laboratories::daemon::PostgresData {
+                                            stream_id: pump_id.clone(),
+                                            bytes: buf[..n].to_vec(),
+                                        },
+                                    ),
+                                );
+                                if sent.is_err() {
+                                    return; // writer gone; teardown handles close
+                                }
+                            }
+                        }
+                    }
+                    // pg EOF/error: tell the host and forget the stream.
+                    let _ = pump_host
+                        .tx
+                        .send(OutboundFrame::PostgresClose(pump_id.clone()));
+                    pump_host.postgres_streams.remove(&pump_id);
+                });
+
+                host.postgres_streams.insert(
+                    stream_id,
+                    PgStream {
+                        write_tx,
+                        read_pump: read_pump.abort_handle(),
+                    },
+                );
+            });
+        }
+        HostPostgres::Close { stream_id } => {
+            if let Some((_, stream)) = host.postgres_streams.remove(&stream_id) {
+                stream.read_pump.abort();
+                // Dropping `stream.write_tx` ends the write task.
+            }
+        }
+    }
+}
+
 fn dispatch_host_command(
     state: &crate::http::daemon_stream::DaemonHttpState,
     host: &Arc<HostConnection>,
@@ -702,6 +823,7 @@ pub(crate) async fn laboratory_handler(
             filetree: RwLock::new(IndexMap::new()),
             tx,
             pending: DashMap::new(),
+            postgres_streams: DashMap::new(),
             shutdown: tokio::sync::Notify::new(),
         });
         if let Some(displaced) = state
@@ -769,6 +891,24 @@ pub(crate) async fn laboratory_handler(
                                     Err(_) => continue,
                                 }
                             }
+                            OutboundFrame::PostgresData(data) => {
+                                // Raw pg bytes ride the binary sandwich.
+                                match data.to_wire() {
+                                    Ok(objectiveai_sdk::binary_frame::WireFrame::Binary(frame)) => {
+                                        axum::extract::ws::Message::Binary(frame.into())
+                                    }
+                                    _ => continue,
+                                }
+                            }
+                            OutboundFrame::PostgresClose(stream_id) => {
+                                let close = objectiveai_sdk::laboratories::daemon::DaemonPostgres::Close {
+                                    stream_id: stream_id.clone(),
+                                };
+                                match serde_json::to_string(&close) {
+                                    Ok(frame) => axum::extract::ws::Message::Text(frame.into()),
+                                    Err(_) => continue,
+                                }
+                            }
                         };
                         if socket.send(msg).await.is_err() {
                             break;
@@ -792,6 +932,17 @@ pub(crate) async fn laboratory_handler(
                             {
                                 let _ = waiter.send(response);
                             }
+                            continue;
+                        }
+                        // Postgres tunnel bytes (host→daemon→pg).
+                        if let Some(data) =
+                            objectiveai_sdk::laboratories::daemon::PostgresData::from_binary(&bytes)
+                        {
+                            if let Some(stream) =
+                                host.postgres_streams.get(&data.stream_id)
+                            {
+                                let _ = stream.write_tx.send(data.bytes);
+                            }
                         }
                         continue;
                     }
@@ -811,6 +962,13 @@ pub(crate) async fn laboratory_handler(
                             serde_json::from_str::<HostCommandRequest>(&text)
                         {
                             dispatch_host_command(&state, &host, command);
+                            continue;
+                        }
+                        if let Ok(pg) = serde_json::from_str::<
+                            objectiveai_sdk::laboratories::daemon::HostPostgres,
+                        >(&text)
+                        {
+                            dispatch_host_postgres(&state, &host, pg);
                             continue;
                         }
                         let Ok(notification) =
@@ -959,6 +1117,16 @@ pub(crate) async fn laboratory_handler(
                 },
             }
         }
+
+        // Tear down every Postgres tunnel stream: abort the pg→host
+        // read pumps and drop the host→pg write halves (ends their
+        // write tasks, closes the pg sockets). Covers all four
+        // endings (close frame, recv error, keepalive death,
+        // displacement).
+        for entry in host.postgres_streams.iter() {
+            entry.read_pump.abort();
+        }
+        host.postgres_streams.clear();
 
         // Deregister — but only if the entry is still OURS (a reconnect
         // may have displaced it already).

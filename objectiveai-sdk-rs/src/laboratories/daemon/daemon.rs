@@ -391,6 +391,86 @@ pub enum CommandFrame {
     Done,
 }
 
+// ── Per-plugin Postgres tunnel ───────────────────────────────────
+//
+// A plugin container connects to `OBJECTIVEAI_POSTGRES_URL` (a
+// per-plugin TCP port the HOST listens on); the host tunnels those
+// RAW Postgres wire bytes over this same `/laboratory` WS to the
+// owning daemon, which dials its OWN configured Postgres as a client
+// and pipes opaquely. The daemon binds no port. Auth/isolation is
+// Postgres-native (the per-plugin compartment role); the frames below
+// are a dumb byte pipe — they never parse the pgwire protocol, so a
+// client's SSL negotiation rides through end to end.
+//
+// One `stream_id` (HOST-minted UUID) per plugin TCP connection. The
+// control frames are TEXT; the byte payload is a BINARY sandwich
+// (`crate::binary_frame`, header `{stream_id}`, raw bytes after).
+// Disjoint serde tag key `"postgres"` keeps them out of the
+// `HostNotification` (`type`) and `HostCommandRequest` parses.
+
+/// Host → daemon control frames for a Postgres tunnel stream.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.HostPostgres")]
+#[serde(tag = "postgres", rename_all = "snake_case")]
+pub enum HostPostgres {
+    /// A container opened a Postgres connection — the daemon should
+    /// dial its cluster and attach this stream.
+    Open { stream_id: String },
+    /// The container socket ended (or the host is tearing the stream
+    /// down); the daemon drops its Postgres socket for `stream_id`.
+    Close { stream_id: String },
+}
+
+/// Daemon → host control frame for a Postgres tunnel stream — the
+/// only direction-specific control frame (data rides [`PostgresData`]
+/// both ways).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.DaemonPostgres")]
+#[serde(tag = "postgres", rename_all = "snake_case")]
+pub enum DaemonPostgres {
+    /// Postgres EOF, a dial failure, or connection teardown; the host
+    /// drops the container socket for `stream_id`.
+    Close { stream_id: String },
+}
+
+/// Raw Postgres bytes for one tunnel stream, flowing in BOTH
+/// directions. Rides the [`crate::binary_frame`] sandwich: the JSON
+/// header carries `stream_id` (its `bytes` field is `#[serde(skip)]`),
+/// the raw payload follows out of band.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PostgresData")]
+pub struct PostgresData {
+    pub stream_id: String,
+    /// Raw Postgres wire bytes — never in the JSON header; rides the
+    /// binary frame's payload.
+    #[serde(skip)]
+    pub bytes: Vec<u8>,
+}
+
+impl PostgresData {
+    /// Serialize as the binary sandwich: `[u32 len][JSON header][raw
+    /// bytes]`.
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(crate::binary_frame::WireFrame::Binary(
+            crate::binary_frame::encode(&header, &self.bytes),
+        ))
+    }
+
+    /// Parse a BINARY wire frame into a `PostgresData`. `None` for a
+    /// malformed sandwich or a header that isn't this type (a
+    /// `ChannelResponse`/`ChannelRequest` sandwich carries `id` /
+    /// `payload`, so it won't deserialize here).
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        parsed.bytes = payload.to_vec();
+        Some(parsed)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -451,5 +531,57 @@ mod tests {
         let done: HostCommandResponse =
             serde_json::from_str(r#"{"id":"cmd-1","frame":"done"}"#).unwrap();
         assert!(matches!(done.frame, CommandFrame::Done));
+    }
+
+    /// A `HostPostgres::Open` text frame must satisfy NONE of the
+    /// earlier demux parses (its `"postgres"` tag is disjoint from
+    /// `id`/`payload`/`type`).
+    #[test]
+    fn host_postgres_open_is_disjoint() {
+        let open = HostPostgres::Open {
+            stream_id: "pg-1".to_string(),
+        };
+        let text = serde_json::to_string(&open).unwrap();
+        assert_eq!(text, r#"{"postgres":"open","stream_id":"pg-1"}"#);
+        assert!(serde_json::from_str::<ChannelResponse>(&text).is_err());
+        assert!(serde_json::from_str::<ChannelRequest>(&text).is_err());
+        assert!(serde_json::from_str::<HostCommandRequest>(&text).is_err());
+        assert!(serde_json::from_str::<HostNotification>(&text).is_err());
+    }
+
+    /// `PostgresData` round-trips through the binary sandwich, and a
+    /// `ChannelResponse` sandwich is NOT mistaken for one (its header
+    /// carries `id`/`payload`, not `stream_id`).
+    #[test]
+    fn postgres_data_binary_round_trip() {
+        let data = PostgresData {
+            stream_id: "pg-1".to_string(),
+            bytes: vec![0, 1, 2, 255, 254],
+        };
+        let crate::binary_frame::WireFrame::Binary(frame) = data.to_wire().unwrap()
+        else {
+            panic!("PostgresData must serialize as a binary sandwich");
+        };
+        let parsed = PostgresData::from_binary(&frame).unwrap();
+        assert_eq!(parsed.stream_id, "pg-1");
+        assert_eq!(parsed.bytes, vec![0, 1, 2, 255, 254]);
+        // A chunk-bearing ChannelResponse sandwich must not parse here.
+        let chan = ChannelResponse {
+            id: "c-1".to_string(),
+            payload: super::super::ResponsePayload::ExportRead(
+                super::super::JsonRpcResult::Ok {
+                    result: super::super::ExportChunk {
+                        data: vec![9, 9, 9],
+                        eof: false,
+                    },
+                },
+            ),
+        };
+        let crate::binary_frame::WireFrame::Binary(chan_frame) =
+            chan.to_wire().unwrap()
+        else {
+            panic!("chunk-bearing ChannelResponse is binary");
+        };
+        assert!(PostgresData::from_binary(&chan_frame).is_none());
     }
 }

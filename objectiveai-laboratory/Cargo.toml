@@ -23,4 +23,5 @@ tokio = { version = "1.51.1", features = ["full"] }
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-native-roots"] }
 uuid = { version = "1.22", features = ["v4"] }
+percent-encoding = "2.3"
 zip = { version = "2.4.0", default-features = false, features = ["deflate"] }

@@ -1001,14 +1001,34 @@ async fn run_ephemeral_create(
             owner,
             name,
             version,
-        } => objectiveai_sdk::laboratories::daemon::RequestPayload::PluginEphemeralCreate(
-            objectiveai_sdk::laboratories::daemon::PluginEphemeralCreateRequest {
-                response_id: response_id.to_string(),
-                owner: owner.clone(),
-                name: name.clone(),
-                version: version.clone(),
-            },
-        ),
+        } => {
+            // Resolve (mint-or-fetch + provision) the plugin's Postgres
+            // compartment credential BEFORE the create is forwarded.
+            // MANDATORY: a failure fails the whole create — a plugin
+            // never runs without its DB credential. The host builds
+            // the connection URL from these parts + its own tunnel
+            // listener address.
+            let handle = global
+                .db_handle()
+                .await
+                .map_err(|e| format!("plugin db: {e}"))?;
+            let cred = crate::db::compartment::resolve_plugin_db_credential(
+                &handle, owner, name, version,
+            )
+            .await
+            .map_err(|e| format!("plugin db credential: {e}"))?;
+            objectiveai_sdk::laboratories::daemon::RequestPayload::PluginEphemeralCreate(
+                objectiveai_sdk::laboratories::daemon::PluginEphemeralCreateRequest {
+                    response_id: response_id.to_string(),
+                    owner: owner.clone(),
+                    name: name.clone(),
+                    version: version.clone(),
+                    db_role: cred.role,
+                    db_password: cred.password,
+                    db_database: cred.database,
+                },
+            )
+        }
         McpKind::AgentLaboratory {
             id: _,
             agent_full_id,

@@ -61,9 +61,22 @@ pub struct EphemeralLab {
     transient: Option<Arc<tokio::sync::RwLock<IndexMap<String, String>>>>,
     /// Parked transfer halves — alive exactly as long as the lab.
     pub transfers: crate::transfer::Transfers,
+    /// Plugin ephemerals only: the per-plugin Postgres tunnel proxy.
+    /// `None` for agent ephemerals. Dropping it (or sending its
+    /// cancel) tears down the listener + every live stream.
+    pub pg: Option<PgProxy>,
+}
+
+/// A plugin ephemeral's Postgres tunnel proxy: the host TCP port the
+/// container dials (`OBJECTIVEAI_POSTGRES_URL`) plus the ONE cancel
+/// governing its accept task and every per-connection pump.
+pub struct PgProxy {
+    pub port: u16,
+    pub cancel: tokio::sync::watch::Sender<bool>,
 }
 
 impl EphemeralLab {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         response_id: String,
         channel: u64,
@@ -72,6 +85,7 @@ impl EphemeralLab {
             crate::host_command::HostCommandExecutor,
         >,
         transient: Option<Arc<tokio::sync::RwLock<IndexMap<String, String>>>>,
+        pg: Option<PgProxy>,
     ) -> Self {
         Self {
             transfers: crate::transfer::Transfers::new(base_url.clone()),
@@ -80,6 +94,7 @@ impl EphemeralLab {
             base_url,
             connection: Arc::new(connection),
             transient,
+            pg,
         }
     }
 
