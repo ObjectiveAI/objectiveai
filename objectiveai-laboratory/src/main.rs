@@ -68,6 +68,43 @@ struct Args {
     suppress_output: bool,
 }
 
+/// Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
+/// stdin/stdout/stderr handles — which are the DAEMON'S pipes (the
+/// stdin dial-list channel, the stdout ready/ack lane). Called ONCE at
+/// startup, before any podman spawn: piped-stdio spawns set
+/// `bInheritHandles=TRUE`, which copies EVERY inheritable handle into
+/// the child — so without this, a podman child (worst case a long-lived
+/// machine-VM helper) would hold the host→daemon pipe write ends past
+/// the host's own death, and the daemon would never see pipe EOF (its
+/// push death signal for this child, and its drain task's exit).
+/// Best-effort, same contract as the daemon's `clear_stdio_inheritance`.
+#[cfg(windows)]
+fn clear_stdio_inheritance() {
+    use std::os::windows::io::AsRawHandle;
+
+    const HANDLE_FLAG_INHERIT: u32 = 0x1;
+    // kernel32 is always linked on Windows targets; no #[link] needed.
+    unsafe extern "system" {
+        fn SetHandleInformation(
+            h_object: *mut std::ffi::c_void,
+            dw_mask: u32,
+            dw_flags: u32,
+        ) -> i32;
+    }
+
+    for handle in [
+        std::io::stdin().as_raw_handle(),
+        std::io::stdout().as_raw_handle(),
+        std::io::stderr().as_raw_handle(),
+    ] {
+        if !handle.is_null() {
+            unsafe {
+                SetHandleInformation(handle, HANDLE_FLAG_INHERIT, 0);
+            }
+        }
+    }
+}
+
 /// `<args.objectiveai_dir or ~/.objectiveai>` — the layout root.
 fn resolve_objectiveai_dir(dir: &Option<PathBuf>) -> PathBuf {
     dir.clone().unwrap_or_else(|| {
@@ -191,6 +228,11 @@ async fn stdin_loop(
 
 #[tokio::main]
 async fn main() {
+    // FIRST, before any podman spawn: keep the daemon's pipes out of
+    // our children (see `clear_stdio_inheritance`).
+    #[cfg(windows)]
+    clear_stdio_inheritance();
+
     // No dotenv, no env reads — this binary's whole configuration is
     // its argv plus the stdin dial-list channel (see the module docs).
     let args = Args::parse();

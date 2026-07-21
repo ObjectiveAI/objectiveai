@@ -174,8 +174,12 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
                         ));
                     }
                 }
-                // The child died → wake and let the top re-check (it
-                // sees `already_dead` unless a registration also landed).
+                // The child died (watch fired) OR its watch CLOSED
+                // without firing (drain task gone — the observer is
+                // dead, so nothing would ever fire; treating it as
+                // alive would busy-spin on the closed channel). Either
+                // way: drop the watch so the top of the loop errors
+                // unless a registration also landed this wake.
                 _ = async {
                     match dead.as_mut() {
                         Some(rx) => {
@@ -183,7 +187,16 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
                         }
                         None => std::future::pending().await,
                     }
-                } => {}
+                } => {
+                    let fired = dead
+                        .as_ref()
+                        .is_some_and(|rx| *rx.borrow());
+                    if !fired {
+                        // Closed-without-firing: no death signal will
+                        // ever come. `None` reads as dead at the top.
+                        dead = None;
+                    }
+                }
             }
         }
     }
