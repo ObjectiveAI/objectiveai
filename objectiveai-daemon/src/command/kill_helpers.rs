@@ -79,24 +79,21 @@ pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
     try_kill_resident_child(global, key).await.unwrap_or(1)
 }
 
-/// How long a stdin-EOF graceful shutdown gets before the hard kill.
-/// Generous: the laboratory host stops/evaporates every container it
-/// serves on the way out, and podman (its machine VM included) can be
-/// slow.
-const GRACEFUL_STDIN_EOF_GRACE: std::time::Duration = std::time::Duration::from_secs(30);
-
 /// GRACEFUL kill of the laboratory-host resident `key` child: take it
 /// off the map — which drops the [`LabHostStdio`] and closes the
 /// host's stdin — and let the resulting EOF drive its own shutdown
 /// (`server.stop_started`: regular containers stopped, ephemerals
 /// evaporated). Unlike [`try_kill_resident_child`] this sends NO signal
-/// first: on Windows `TerminateProcess` is a hard, ungraceful kill that
-/// would race the EOF, so we WAIT for the host to exit on its own and
-/// only hard-kill as a fallback if it overruns the grace window.
+/// first (on Windows `TerminateProcess` is a hard, ungraceful kill that
+/// would race the EOF) and NO hard-kill fallback: we WAIT, UNBOUNDED,
+/// for the host to exit on its own. No premature cap — the host's
+/// `stop_started` is itself bounded by `podman stop` (SIGTERM→SIGKILL
+/// on podman's own grace), and a cold podman machine legitimately takes
+/// minutes we don't want to cut short. A genuinely wedged host holds
+/// this future open; the operator falls back to `daemon kill`.
 ///
 /// `Ok(0)` when nothing was running (never an error); `Ok(1)` once the
-/// child is gone (graceful exit or fallback hard kill); `Err` only when
-/// a live child could neither be waited on nor hard-killed.
+/// child has exited; `Err` only when the exit wait itself failed.
 pub async fn graceful_kill_resident_child(
     global: &GlobalContext,
     key: &str,
@@ -109,18 +106,11 @@ pub async fn graceful_kill_resident_child(
         return Ok(0);
     }
     // stdin is now closed (the map held the only lasting `LabHostStdio`
-    // Arc). Wait for the host's own EOF-driven graceful shutdown.
-    match tokio::time::timeout(GRACEFUL_STDIN_EOF_GRACE, child.wait()).await {
-        Ok(Ok(_status)) => Ok(1),
-        Ok(Err(e)) => Err(Error::Spawn(format!("wait for graceful {key} child"), e)),
-        Err(_) => {
-            // Overran the grace window — hard kill (and reap).
-            child
-                .kill()
-                .await
-                .map_err(|e| Error::Spawn(format!("hard-kill {key} child"), e))?;
-            Ok(1)
-        }
+    // Arc). Wait — unbounded — for the host's own EOF-driven graceful
+    // shutdown.
+    match child.wait().await {
+        Ok(_status) => Ok(1),
+        Err(e) => Err(Error::Spawn(format!("wait for graceful {key} child"), e)),
     }
 }
 

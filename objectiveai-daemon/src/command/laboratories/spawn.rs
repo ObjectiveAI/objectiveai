@@ -26,10 +26,6 @@ use objectiveai_sdk::cli::command::laboratories::spawn::{Request, Response};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-/// How long a LOCAL spawn waits for the host to appear in the daemon
-/// registry. Generous: podman (and its machine VM) may be cold.
-const READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
-
 /// The spawn flow itself. Idempotent and cheap when the host is already
 /// up: a live resident child returns without spawning. Returns every
 /// address the host was told to dial.
@@ -122,14 +118,15 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     }
 
     // Readiness. LOCAL: connected = this machine's host visible in the
-    // daemon registry — poll it, failing fast if the leashed host
-    // child dies. Remote-only: this machine cannot see the remote
-    // registries; the stdout ready handshake plus the acked seed is
-    // the whole contract (the host retries its dials forever).
+    // daemon registry — poll it (NO deadline: a cold podman machine can
+    // legitimately take minutes to enumerate, and we don't cap that),
+    // failing fast ONLY if the leashed host child dies. Remote-only:
+    // this machine cannot see the remote registries; the stdout ready
+    // handshake plus the acked seed is the whole contract (the host
+    // retries its dials forever).
     if local {
         let machine_id =
             objectiveai_sdk::machine::machine_id(scoped.filesystem.dir());
-        let deadline = std::time::Instant::now() + READY_TIMEOUT;
         loop {
             // Readiness = OUR host — the exact (machine, OWN state)
             // pair; a same-machine host of another state is somebody
@@ -146,12 +143,6 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
                     "the laboratory host exited before connecting to the daemon"
                         .to_string(),
                 ));
-            }
-            if std::time::Instant::now() >= deadline {
-                return Err(Error::Laboratory(format!(
-                    "the laboratory host did not connect to the daemon within {}s",
-                    READY_TIMEOUT.as_secs()
-                )));
             }
             tokio::time::sleep(std::time::Duration::from_millis(250)).await;
         }
