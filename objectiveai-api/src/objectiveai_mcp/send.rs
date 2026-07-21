@@ -11,12 +11,14 @@ use futures::SinkExt;
 use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use tokio::sync::oneshot;
 
-/// Register a oneshot under `request.id`, write the request as a text
-/// frame, and return the receiver. The caller is responsible for
-/// minting the id (and putting it on the request) and applying a
-/// timeout (via `tokio::time::timeout`) on the await. On connection
-/// drop the recv loop returns and pending oneshots are dropped —
-/// receivers observe the close as `Err(RecvError)`.
+/// Register a oneshot under `request.id`, write the request (JSON
+/// text for ordinary requests; the `objectiveai_sdk::binary_frame`
+/// sandwich for the chunk-bearing `LaboratoryImportWrite`), and
+/// return the receiver. The caller is responsible for minting the id
+/// (and putting it on the request) and applying a timeout (via
+/// `tokio::time::timeout`) on the await. On connection drop the recv
+/// loop returns and pending oneshots are dropped — receivers observe
+/// the close as `Err(RecvError)`.
 pub async fn send_server_request(
     sink: &SharedSink,
     pending: &PendingRequests,
@@ -26,15 +28,20 @@ pub async fn send_server_request(
     let (tx, rx) = oneshot::channel();
     pending.insert(id.clone(), tx);
 
-    let frame = match serde_json::to_string(&request) {
-        Ok(s) => s,
+    let msg = match request.to_wire() {
+        Ok(objectiveai_sdk::binary_frame::WireFrame::Text(frame)) => {
+            Message::Text(frame.into())
+        }
+        Ok(objectiveai_sdk::binary_frame::WireFrame::Binary(frame)) => {
+            Message::Binary(frame.into())
+        }
         Err(_) => {
             pending.remove(&id);
             return Err(());
         }
     };
     let mut guard = sink.lock().await;
-    let send_result = guard.send(Message::Text(frame.into())).await;
+    let send_result = guard.send(msg).await;
     if send_result.is_err() {
         drop(guard);
         pending.remove(&id);

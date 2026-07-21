@@ -76,12 +76,14 @@ pub(crate) fn install_list_changed_forwarders<E>(
     if let Some(frame) = frame(McpListChangedKind::Tools) {
         let sender = sender.clone();
         connection.set_on_tools_list_changed(move || {
-            let _ = sender.send(frame.clone());
+            let _ = sender
+                .send(crate::host_command::LaneFrame::Text(frame.clone()));
         });
     }
     if let Some(frame) = frame(McpListChangedKind::Resources) {
         connection.set_on_resources_list_changed(move || {
-            let _ = sender.send(frame.clone());
+            let _ = sender
+                .send(crate::host_command::LaneFrame::Text(frame.clone()));
         });
     }
 }

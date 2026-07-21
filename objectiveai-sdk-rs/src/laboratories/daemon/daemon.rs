@@ -167,6 +167,95 @@ pub struct ChannelResponse {
     pub payload: super::ResponsePayload,
 }
 
+// ── Wire framing ────────────────────────────────────────────────
+//
+// Chunk-bearing frames (`ImportWrite` requests, successful
+// `ExportRead` replies) ride the BINARY sandwich of
+// [`crate::binary_frame`]: the envelope's normal JSON (whose `data`
+// field serde skips) is the header, the raw bytes follow. The choice
+// is VARIANT-keyed — those variants are always binary, even with an
+// empty payload — so both ends share one unambiguous rule. Everything
+// else stays a plain JSON text frame.
+
+impl ChannelRequest {
+    fn wire_payload(&self) -> Option<&[u8]> {
+        match &self.payload {
+            super::RequestPayload::ImportWrite(req) => Some(&req.data),
+            _ => None,
+        }
+    }
+
+    /// Serialize for the wire: text for ordinary frames, the binary
+    /// sandwich for chunk-bearing ones.
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(match self.wire_payload() {
+            None => crate::binary_frame::WireFrame::Text(header),
+            Some(payload) => crate::binary_frame::WireFrame::Binary(
+                crate::binary_frame::encode(&header, payload),
+            ),
+        })
+    }
+
+    /// Parse a BINARY wire frame. `None` for anything that isn't a
+    /// well-formed sandwich around a chunk-bearing request (dropped by
+    /// receivers, the forward-compat posture).
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        match &mut parsed.payload {
+            super::RequestPayload::ImportWrite(req) => {
+                req.data = payload.to_vec();
+                Some(parsed)
+            }
+            _ => None,
+        }
+    }
+}
+
+impl ChannelResponse {
+    fn wire_payload(&self) -> Option<&[u8]> {
+        match &self.payload {
+            super::ResponsePayload::ExportRead(super::JsonRpcResult::Ok {
+                result,
+            }) => Some(&result.data),
+            _ => None,
+        }
+    }
+
+    /// Serialize for the wire: text for ordinary frames, the binary
+    /// sandwich for chunk-bearing ones.
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(match self.wire_payload() {
+            None => crate::binary_frame::WireFrame::Text(header),
+            Some(payload) => crate::binary_frame::WireFrame::Binary(
+                crate::binary_frame::encode(&header, payload),
+            ),
+        })
+    }
+
+    /// Parse a BINARY wire frame. `None` for anything that isn't a
+    /// well-formed sandwich around a chunk-bearing reply.
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        match &mut parsed.payload {
+            super::ResponsePayload::ExportRead(super::JsonRpcResult::Ok {
+                result,
+            }) => {
+                result.data = payload.to_vec();
+                Some(parsed)
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Host → daemon, UNCORRELATED: the host's laboratory set (or a
 /// served laboratory's live file tree) changed. The daemon's pump
 /// tries [`ChannelResponse`] first (it has `id`), then this —

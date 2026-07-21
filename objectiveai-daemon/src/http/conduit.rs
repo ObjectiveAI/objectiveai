@@ -1658,12 +1658,14 @@ impl ConduitMcpHandler {
 
     /// The daemon-side splice for a cross-host client-to-client
     /// transfer: export from the source host, import into the
-    /// destination host, exactly ONE chunk in transit - the API never
-    /// touches payload bytes, and this daemon never accumulates beyond
-    /// the chunk being moved (the `data` strings pass through opaque,
-    /// no base64 work). Abort discipline mirrors the proxy's old
-    /// splice: an import-side failure aborts the parked export and
-    /// vice versa, so neither host leaks a parked transfer.
+    /// destination host, at most TWO chunks in flight (one-chunk
+    /// prefetch) — the API never touches payload bytes, and this
+    /// daemon never accumulates beyond the chunks being moved (the
+    /// raw `data` bytes pass through opaque; chunks ride the channel's
+    /// binary frames, no base64 anywhere). Abort discipline mirrors
+    /// the proxy's old splice: an import-side failure aborts the
+    /// parked export and vice versa, so neither host leaks a parked
+    /// transfer.
     async fn dispatch_laboratory_transfer(
         &self,
         headers: &IndexMap<String, String>,

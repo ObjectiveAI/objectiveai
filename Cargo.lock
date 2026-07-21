@@ -4320,7 +4320,6 @@ dependencies = [
 name = "objectiveai-laboratory"
 version = "2.2.13"
 dependencies = [
- "base64 0.22.1",
  "chrono",
  "clap",
  "dashmap",

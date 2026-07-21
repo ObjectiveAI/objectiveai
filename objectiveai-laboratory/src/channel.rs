@@ -59,6 +59,35 @@ fn http_to_ws(url: &str) -> String {
     }
 }
 
+/// Spawn one request's handling: run it against the [`HostServer`],
+/// frame the reply via `to_wire` (chunk-bearing `ExportRead` replies
+/// go out as binary sandwiches, everything else as text), and queue it
+/// on the control lane. Shared by the text and binary demux arms.
+fn spawn_handle(
+    host: &Arc<HostServer>,
+    channel_id: u64,
+    reply_tx: &tokio::sync::mpsc::UnboundedSender<crate::host_command::LaneFrame>,
+    request: ChannelRequest,
+) {
+    let host = Arc::clone(host);
+    let reply_tx = reply_tx.clone();
+    tokio::spawn(async move {
+        let response = host.handle(channel_id, request).await;
+        let Ok(frame) = response.to_wire() else {
+            return;
+        };
+        let frame = match frame {
+            objectiveai_sdk::binary_frame::WireFrame::Text(text) => {
+                crate::host_command::LaneFrame::Text(text)
+            }
+            objectiveai_sdk::binary_frame::WireFrame::Binary(bytes) => {
+                crate::host_command::LaneFrame::Binary(bytes)
+            }
+        };
+        let _ = reply_tx.send(frame);
+    });
+}
+
 pub async fn run(
     daemon_address: String,
     signature: Option<String>,
@@ -105,8 +134,9 @@ pub async fn run(
                     _ => {}
                 }
                 let (mut sink, mut stream) = ws.split();
-                let (reply_tx, mut reply_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<String>();
+                let (reply_tx, mut reply_rx) = tokio::sync::mpsc::unbounded_channel::<
+                    crate::host_command::LaneFrame,
+                >();
                 // Attach FIRST: enqueues identify + auth + snapshots on
                 // the control lane and subscribes the filetree ring,
                 // atomically against broadcasts and folds. The frames
@@ -124,7 +154,18 @@ pub async fn run(
                             biased;
                             frame = reply_rx.recv() => match frame {
                                 Some(frame) => {
-                                    if sink.send(Message::Text(frame)).await.is_err() {
+                                    // Control frames arrive pre-framed:
+                                    // JSON text, or the binary sandwich
+                                    // for chunk-bearing replies.
+                                    let msg = match frame {
+                                        crate::host_command::LaneFrame::Text(text) => {
+                                            Message::Text(text)
+                                        }
+                                        crate::host_command::LaneFrame::Binary(bytes) => {
+                                            Message::Binary(bytes)
+                                        }
+                                    };
+                                    if sink.send(msg).await.is_err() {
                                         break;
                                     }
                                 }
@@ -176,6 +217,22 @@ pub async fn run(
                     };
                     let text = match frame {
                         Ok(Message::Text(text)) => text,
+                        Ok(Message::Binary(bytes)) => {
+                            // Chunk-bearing requests (ImportWrite) ride
+                            // the binary sandwich; other binary frames
+                            // are dropped (forward-compat).
+                            if let Some(request) =
+                                ChannelRequest::from_binary(&bytes)
+                            {
+                                spawn_handle(
+                                    &host,
+                                    channel_id,
+                                    &reply_tx,
+                                    request,
+                                );
+                            }
+                            continue;
+                        }
                         Ok(Message::Close(_)) | Err(_) => break,
                         // Pings are answered by tungstenite itself;
                         // ignore everything else.
@@ -197,14 +254,7 @@ pub async fn run(
                         // doesn't know.
                         continue;
                     };
-                    let host = Arc::clone(&host);
-                    let reply_tx = reply_tx.clone();
-                    tokio::spawn(async move {
-                        let response = host.handle(channel_id, request).await;
-                        if let Ok(frame) = serde_json::to_string(&response) {
-                            let _ = reply_tx.send(frame);
-                        }
-                    });
+                    spawn_handle(&host, channel_id, &reply_tx, request);
                 }
                 host.detach_channel(channel_id);
                 drop(reply_tx);

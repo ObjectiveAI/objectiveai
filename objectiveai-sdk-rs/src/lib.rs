@@ -94,6 +94,8 @@ pub mod subprocess_reaper;
 #[cfg(feature = "net")]
 pub mod net;
 
+pub mod binary_frame;
+
 // `client_objectiveai_mcp` is the reverse-attach protocol's wire
 // envelope. The typed `server_request::Payload` and
 // `server_response::Payload` variants reference `mcp::tool::*` /

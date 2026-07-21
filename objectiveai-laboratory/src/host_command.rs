@@ -38,13 +38,24 @@ use tokio::sync::{mpsc, RwLock};
 /// a whole agent run). Mirrors the proxy's ack-timeout policy.
 pub const ACK_TIMEOUT: Duration = Duration::from_secs(30);
 
+/// One frame queued onto a channel's control lane, already framed for
+/// the wire: JSON text for ordinary messages, the
+/// `objectiveai_sdk::binary_frame` sandwich for chunk-bearing ones
+/// (`ExportRead` replies). The writer maps these 1:1 onto WS
+/// text/binary messages.
+#[derive(Debug, Clone)]
+pub enum LaneFrame {
+    Text(String),
+    Binary(Vec<u8>),
+}
+
 /// The host-wide outbound registry + in-flight command exchanges.
 pub struct CommandBridge {
     /// The CONTROL lane senders, one per connected daemon channel,
     /// keyed by the host-minted registration id (moved verbatim from
     /// `HostServer::outbound` — `attach_channel`/`broadcast` reach it
     /// through here now).
-    pub outbound: DashMap<u64, mpsc::UnboundedSender<String>>,
+    pub outbound: DashMap<u64, mpsc::UnboundedSender<LaneFrame>>,
     /// In-flight command exchanges: host-minted uuid → (owning daemon
     /// channel, frame sender). The proxy's `command_streams` shape.
     command_streams: DashMap<String, (u64, mpsc::UnboundedSender<CommandFrame>)>,
@@ -123,7 +134,7 @@ impl CommandBridge {
                 )));
             }
         };
-        if control.send(frame).is_err() {
+        if control.send(LaneFrame::Text(frame)).is_err() {
             self.command_streams.remove(&id);
             return Err(transport_error("daemon channel closed before send"));
         }

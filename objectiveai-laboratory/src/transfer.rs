@@ -18,7 +18,8 @@ use objectiveai_sdk::laboratories::daemon::{
 
 use crate::upstream::rpc_err;
 
-/// Raw bytes per `LaboratoryExportRead` chunk (base64 on the wire).
+/// Raw bytes per `ExportRead` chunk (raw on the wire too — chunks
+/// ride binary frames, never base64).
 const TRANSFER_CHUNK_SIZE: usize = 2 * 1024 * 1024;
 
 /// A transfer half untouched this long was abandoned by its driver —
@@ -116,7 +117,6 @@ impl Transfers {
     }
 
     pub async fn export_read(&self, req: TransferIdRequest) -> ResponsePayload {
-        use base64::Engine as _;
         let err = |m: String| ResponsePayload::ExportRead(rpc_err(-32603, m));
         let entry = match self.entries.get(&req.transfer_id) {
             Some(e) => Arc::clone(&e),
@@ -153,10 +153,9 @@ impl Transfers {
             self.entries.remove(&req.transfer_id);
         }
         ResponsePayload::ExportRead(JsonRpcResult::Ok {
-            result: ExportChunk {
-                data: base64::engine::general_purpose::STANDARD.encode(&buf),
-                eof,
-            },
+            // Raw bytes — they ride OUT OF BAND in the channel's
+            // binary wire frame, never inside the JSON header.
+            result: ExportChunk { data: buf, eof },
         })
     }
 
@@ -204,7 +203,6 @@ impl Transfers {
     }
 
     pub async fn import_write(&self, req: ImportWriteRequest) -> ResponsePayload {
-        use base64::Engine as _;
         let err = |m: String| ResponsePayload::ImportWrite(rpc_err(-32603, m));
         let entry = match self.entries.get(&req.transfer_id) {
             Some(e) => Arc::clone(&e),
@@ -214,10 +212,8 @@ impl Transfers {
             return err(format!("transfer '{}' is an export", req.transfer_id));
         };
         entry.touch();
-        let data = match base64::engine::general_purpose::STANDARD.decode(&req.data) {
-            Ok(d) => d,
-            Err(e) => return err(format!("chunk is not valid base64: {e}")),
-        };
+        // Raw bytes straight off the binary wire frame.
+        let data = req.data;
         let guard = tx.lock().await;
         let Some(sender) = guard.as_ref() else {
             return err(format!("import transfer '{}' already closed", req.transfer_id));
@@ -284,7 +280,7 @@ impl Transfers {
 
 /// The local-transfer fast path: pipe one laboratory's `/export`
 /// stream STRAIGHT into another's `/import` body — no chunk staging,
-/// no base64, no parked transfer entries; reqwest streams the tar end
+/// no chunking, no parked transfer entries; reqwest streams the tar end
 /// to end and the HTTP bodies provide the backpressure. Returns the
 /// byte total the destination ingested. Dropping the export response
 /// on any failure aborts the GET, so nothing leaks. Free over the two

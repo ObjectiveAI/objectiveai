@@ -267,8 +267,10 @@ pub struct LaboratoryTransferBeginResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryExportChunk")]
 pub struct LaboratoryExportChunk {
-    /// Base64-encoded tar bytes.
-    pub data: String,
+    /// RAW tar bytes. Never in the JSON header — rides OUT OF BAND in
+    /// the binary wire frame (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
     pub eof: bool,
 }
 

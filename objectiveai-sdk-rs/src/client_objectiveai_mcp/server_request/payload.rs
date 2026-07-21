@@ -305,8 +305,10 @@ pub struct LaboratoryImportBeginRequest {
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportWriteRequest")]
 pub struct LaboratoryImportWriteRequest {
     pub transfer_id: String,
-    /// Base64-encoded tar bytes.
-    pub data: String,
+    /// RAW tar bytes. Never in the JSON header — rides OUT OF BAND in
+    /// the binary wire frame (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
 }
 
 /// Parameters for [`Payload::LaboratoryImportEnd`].

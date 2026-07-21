@@ -746,22 +746,31 @@ pub(crate) async fn laboratory_handler(
                 _ = host.shutdown.notified() => break,
                 queued = rx.recv() => match queued {
                     Some(outbound) => {
-                        let serialized = match &outbound {
+                        // Requests frame via `to_wire`: chunk-bearing
+                        // ImportWrite goes out as ONE binary sandwich
+                        // (raw bytes after the JSON header — see
+                        // `objectiveai_sdk::binary_frame`), everything
+                        // else as JSON text.
+                        let msg = match &outbound {
                             OutboundFrame::Request(request) => {
-                                serde_json::to_string(request)
+                                match request.to_wire() {
+                                    Ok(objectiveai_sdk::binary_frame::WireFrame::Text(frame)) => {
+                                        axum::extract::ws::Message::Text(frame.into())
+                                    }
+                                    Ok(objectiveai_sdk::binary_frame::WireFrame::Binary(frame)) => {
+                                        axum::extract::ws::Message::Binary(frame.into())
+                                    }
+                                    Err(_) => continue,
+                                }
                             }
                             OutboundFrame::Command(response) => {
-                                serde_json::to_string(response)
+                                match serde_json::to_string(response) {
+                                    Ok(frame) => axum::extract::ws::Message::Text(frame.into()),
+                                    Err(_) => continue,
+                                }
                             }
                         };
-                        let Ok(frame) = serialized else {
-                            continue;
-                        };
-                        if socket
-                            .send(axum::extract::ws::Message::Text(frame.into()))
-                            .await
-                            .is_err()
-                        {
+                        if socket.send(msg).await.is_err() {
                             break;
                         }
                     }
@@ -770,6 +779,22 @@ pub(crate) async fn laboratory_handler(
                     None => break,
                 },
                 received = socket.recv() => match received {
+                    Some(Ok(axum::extract::ws::Message::Binary(bytes))) => {
+                        // Chunk-bearing replies (ExportRead) ride the
+                        // binary sandwich (`objectiveai_sdk::binary_frame`);
+                        // any other binary frame is dropped
+                        // (forward-compat).
+                        if let Some(response) =
+                            ChannelResponse::from_binary(&bytes)
+                        {
+                            if let Some((_, waiter)) =
+                                host.pending.remove(&response.id)
+                            {
+                                let _ = waiter.send(response);
+                            }
+                        }
+                        continue;
+                    }
                     Some(Ok(axum::extract::ws::Message::Text(text))) => {
                         // ChannelResponse first (it has `payload`),
                         // then HostCommandRequest (host-initiated

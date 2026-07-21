@@ -198,12 +198,19 @@ pub async fn drain_reverse_channel(
     >,
 ) {
     while let Some(req) = req_rx.recv().await {
-        let frame = match serde_json::to_string(&req) {
-            Ok(s) => s,
+        // Chunk-bearing ImportWrite requests go out as binary
+        // sandwiches; everything else as JSON text.
+        let msg = match req.to_wire() {
+            Ok(objectiveai_sdk::binary_frame::WireFrame::Text(frame)) => {
+                Message::Text(frame.into())
+            }
+            Ok(objectiveai_sdk::binary_frame::WireFrame::Binary(frame)) => {
+                Message::Binary(frame.into())
+            }
             Err(_) => continue,
         };
         let mut guard = sink.lock().await;
-        if guard.send(Message::Text(frame.into())).await.is_err() {
+        if guard.send(msg).await.is_err() {
             return;
         }
     }
@@ -299,12 +306,55 @@ pub async fn recv_loop(
                 return;
             }
         };
+        // Shared server_response routing — used by the text cascade
+        // AND the binary arm (chunk-bearing ExportRead replies arrive
+        // as binary sandwiches carrying the same envelope).
+        let route_server_response = |response: ServerResponse| {
+            // Demux by type: the 6 MCP variants (`mcp_kind().is_some()`)
+            // belong to this request's proxy; `ReadMessageQueue`/`Retrieve`
+            // (no mcp_kind) are the API's own (queue delegate + retrieval),
+            // awaited on `pending`. The laboratory-transfer ops are ALSO
+            // proxy-bound (issued on the proxy's reverse channel) but carry
+            // no `mcp_kind`, so they must be routed to the proxy explicitly —
+            // otherwise they fall through to the API `pending` map, are not
+            // found, and get dropped (hanging the transfer waiter). The
+            // MULTI-FRAME `Command` responses (also no mcp_kind, also
+            // proxy-issued) route the same way — N frames per id pass
+            // through here untouched; only the proxy's command-stream map
+            // knows when an exchange ends.
+            let proxy_bound = response.payload.mcp_kind().is_some()
+                || is_laboratory_transfer_response(&response.payload)
+                || matches!(
+                    response.payload,
+                    objectiveai_sdk::client_objectiveai_mcp::server_response::Payload::Command { .. },
+                );
+            if proxy_bound {
+                channel.deliver_response(response);
+            } else {
+                match pending.remove(&response.id) {
+                    Some((_, tx)) => {
+                        let _ = tx.send(response);
+                    }
+                    None => {
+                        eprintln!(
+                            "dropping server_response for unknown id {:?}",
+                            response.id
+                        );
+                    }
+                }
+            }
+        };
         let text = match msg {
             Ok(Message::Text(t)) => {
                 t
             }
-            Ok(Message::Binary(_)) => {
-                eprintln!("ignoring binary frame on streaming WS recv side");
+            Ok(Message::Binary(bytes)) => {
+                // Chunk-bearing replies ride the binary sandwich
+                // (`objectiveai_sdk::binary_frame`); any other binary
+                // frame is dropped (forward-compat).
+                if let Some(response) = ServerResponse::from_binary(&bytes) {
+                    route_server_response(response);
+                }
                 continue;
             }
             Ok(Message::Ping(_) | Message::Pong(_)) => continue,
@@ -346,39 +396,7 @@ pub async fn recv_loop(
         }
 
         if let Ok(response) = serde_json::from_str::<ServerResponse>(text.as_str()) {
-            // Demux by type: the 6 MCP variants (`mcp_kind().is_some()`)
-            // belong to this request's proxy; `ReadMessageQueue`/`Retrieve`
-            // (no mcp_kind) are the API's own (queue delegate + retrieval),
-            // awaited on `pending`. The laboratory-transfer ops are ALSO
-            // proxy-bound (issued on the proxy's reverse channel) but carry
-            // no `mcp_kind`, so they must be routed to the proxy explicitly —
-            // otherwise they fall through to the API `pending` map, are not
-            // found, and get dropped (hanging the transfer waiter). The
-            // MULTI-FRAME `Command` responses (also no mcp_kind, also
-            // proxy-issued) route the same way — N frames per id pass
-            // through here untouched; only the proxy's command-stream map
-            // knows when an exchange ends.
-            let proxy_bound = response.payload.mcp_kind().is_some()
-                || is_laboratory_transfer_response(&response.payload)
-                || matches!(
-                    response.payload,
-                    objectiveai_sdk::client_objectiveai_mcp::server_response::Payload::Command { .. },
-                );
-            if proxy_bound {
-                channel.deliver_response(response);
-            } else {
-                match pending.remove(&response.id) {
-                    Some((_, tx)) => {
-                        let _ = tx.send(response);
-                    }
-                    None => {
-                        eprintln!(
-                            "dropping server_response for unknown id {:?}",
-                            response.id
-                        );
-                    }
-                }
-            }
+            route_server_response(response);
             continue;
         }
 

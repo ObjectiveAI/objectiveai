@@ -262,8 +262,10 @@ pub struct TransferIdRequest {
 #[schemars(rename = "laboratories.daemon.ImportWriteRequest")]
 pub struct ImportWriteRequest {
     pub transfer_id: String,
-    /// Base64-encoded tar bytes.
-    pub data: String,
+    /// RAW tar bytes. Never in the JSON header — rides OUT OF BAND in
+    /// the binary wire frame (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
 }
 
 /// Successful payload for the two `*Begin` transfer replies.
@@ -277,8 +279,11 @@ pub struct TransferBeginResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "laboratories.daemon.ExportChunk")]
 pub struct ExportChunk {
-    /// Base64-encoded tar bytes; may be non-empty on the final chunk.
-    pub data: String,
+    /// RAW tar bytes; may be non-empty on the final chunk. Never in
+    /// the JSON header — rides OUT OF BAND in the binary wire frame
+    /// (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
     /// `true` ⇒ the export completed and its parked entry is gone.
     pub eof: bool,
 }

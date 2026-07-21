@@ -374,11 +374,12 @@ impl ReverseChannel {
         }
     }
 
-    /// `LaboratoryImportWrite`: push one chunk.
+    /// `LaboratoryImportWrite`: push one chunk (raw bytes — the frame
+    /// codec puts them out of band in the binary sandwich).
     pub async fn laboratory_import_write(
         &self,
         transfer_id: String,
-        data: String,
+        data: Vec<u8>,
     ) -> Result<(), McpError> {
         let response = self
             .request(

@@ -179,9 +179,10 @@ impl HostServer {
     /// [`Self::detach_channel`] with, plus the channel's ring receiver.
     pub async fn attach_channel(
         &self,
-        reply_tx: tokio::sync::mpsc::UnboundedSender<String>,
+        reply_tx: tokio::sync::mpsc::UnboundedSender<crate::host_command::LaneFrame>,
         auth_frame: String,
     ) -> (u64, tokio::sync::broadcast::Receiver<String>) {
+        use crate::host_command::LaneFrame;
         let _guard = self.attach_lock.lock().await;
         let identify = HostIdentify {
             state: self.state.clone(),
@@ -190,14 +191,14 @@ impl HostServer {
         };
         let identify_frame =
             serde_json::to_string(&identify).expect("identify serializes");
-        let _ = reply_tx.send(identify_frame);
-        let _ = reply_tx.send(auth_frame);
+        let _ = reply_tx.send(LaneFrame::Text(identify_frame));
+        let _ = reply_tx.send(LaneFrame::Text(auth_frame));
         // A synthesized file-tree snapshot per WATCHED laboratory, so
         // this daemon's materialized trees start current — the same
         // snapshot-then-deltas contract the lab endpoint itself opens
         // with. Under `attach_lock`, atomic against the pumps' folds.
         for frame in self.filetree_snapshot_frames() {
-            let _ = reply_tx.send(frame);
+            let _ = reply_tx.send(LaneFrame::Text(frame));
         }
         let filetree_rx = self.filetree_events.subscribe();
         let id = self.next_outbound.fetch_add(1, Ordering::Relaxed);
@@ -1577,9 +1578,10 @@ impl HostServer {
             return;
         };
         let _guard = self.attach_lock.lock().await;
-        self.bridge
-            .outbound
-            .retain(|_, tx| tx.send(frame.clone()).is_ok());
+        self.bridge.outbound.retain(|_, tx| {
+            tx.send(crate::host_command::LaneFrame::Text(frame.clone()))
+                .is_ok()
+        });
     }
 
     /// The graceful-shutdown path. REGULAR containers this host

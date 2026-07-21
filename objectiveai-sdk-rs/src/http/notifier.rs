@@ -260,11 +260,23 @@ impl Notifier {
         &self,
         response: &server_response::Response,
     ) -> Result<(), super::HttpError> {
-        let frame = serde_json::to_string(response)
-            .map_err(super::HttpError::NotifySerialize)?;
+        // `to_wire` frames chunk-bearing replies as binary sandwiches
+        // (`crate::binary_frame`); everything sent through here today
+        // is text, but the framing rule lives in ONE place.
+        let msg = match response
+            .to_wire()
+            .map_err(super::HttpError::NotifySerialize)?
+        {
+            crate::binary_frame::WireFrame::Text(frame) => {
+                tungstenite::Message::Text(frame.into())
+            }
+            crate::binary_frame::WireFrame::Binary(frame) => {
+                tungstenite::Message::Binary(frame)
+            }
+        };
         let mut guard = self.sink.lock().await;
         guard
-            .send(tungstenite::Message::Text(frame.into()))
+            .send(msg)
             .await
             .map_err(super::HttpError::NotifySend)
     }
