@@ -5,8 +5,8 @@
 //! `attach`/`detach` record/remove a laboratory id on an agent target
 //! (a tag, or an instance hierarchy). Read attachments back via
 //! `agents instances get` (the `laboratories` field). The machine's
-//! resident laboratory HOST process is daemon-managed (spawned on
-//! first need, dies with the daemon — no spawn/kill commands);
+//! resident laboratory HOST process is spawned EXPLICITLY via
+//! `spawn` and gracefully shut down via `kill` (no more auto-spawn);
 //! `config` holds the addresses it connects to (+ the `local` toggle).
 
 use crate::cli::command::CommandRequest;
@@ -16,7 +16,9 @@ pub mod config;
 pub mod create;
 pub mod delete;
 pub mod detach;
+pub mod kill;
 pub mod list;
+pub mod spawn;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -33,8 +35,12 @@ pub enum Command {
     Delete(delete::Command),
     /// Detach a laboratory id from an agent target.
     Detach(detach::Command),
+    /// Gracefully shut down the running local laboratory host.
+    Kill(kill::Command),
     /// List the laboratory containers created in this state.
     List(list::Command),
+    /// Explicitly spawn the local laboratory host.
+    Spawn(spawn::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -73,6 +79,18 @@ pub enum Request {
     ListRequestSchema(list::request_schema::Request),
     #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Kill")]
+    Kill(kill::Request),
+    #[schemars(title = "KillRequestSchema")]
+    KillRequestSchema(kill::request_schema::Request),
+    #[schemars(title = "KillResponseSchema")]
+    KillResponseSchema(kill::response_schema::Request),
+    #[schemars(title = "Spawn")]
+    Spawn(spawn::Request),
+    #[schemars(title = "SpawnRequestSchema")]
+    SpawnRequestSchema(spawn::request_schema::Request),
+    #[schemars(title = "SpawnResponseSchema")]
+    SpawnResponseSchema(spawn::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -114,6 +132,18 @@ pub enum ResponseItem {
     ListRequestSchema(list::request_schema::Response),
     #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Kill")]
+    Kill(kill::Response),
+    #[schemars(title = "KillRequestSchema")]
+    KillRequestSchema(kill::request_schema::Response),
+    #[schemars(title = "KillResponseSchema")]
+    KillResponseSchema(kill::response_schema::Response),
+    #[schemars(title = "Spawn")]
+    Spawn(spawn::Response),
+    #[schemars(title = "SpawnRequestSchema")]
+    SpawnRequestSchema(spawn::request_schema::Response),
+    #[schemars(title = "SpawnResponseSchema")]
+    SpawnResponseSchema(spawn::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -136,6 +166,12 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Kill(v) => v.into_mcp(),
+            ResponseItem::KillRequestSchema(v) => v.into_mcp(),
+            ResponseItem::KillResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Spawn(v) => v.into_mcp(),
+            ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
+            ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -192,6 +228,24 @@ impl TryFrom<Command> for Request {
                     list::response_schema::Request::try_from(args)?,
                 )),
             },
+            Command::Kill(cmd) => match cmd.schema {
+                None => Ok(Request::Kill(kill::Request::try_from(cmd.args)?)),
+                Some(kill::Schema::RequestSchema(args)) => Ok(Request::KillRequestSchema(
+                    kill::request_schema::Request::try_from(args)?,
+                )),
+                Some(kill::Schema::ResponseSchema(args)) => Ok(Request::KillResponseSchema(
+                    kill::response_schema::Request::try_from(args)?,
+                )),
+            },
+            Command::Spawn(cmd) => match cmd.schema {
+                None => Ok(Request::Spawn(spawn::Request::try_from(cmd.args)?)),
+                Some(spawn::Schema::RequestSchema(args)) => Ok(Request::SpawnRequestSchema(
+                    spawn::request_schema::Request::try_from(args)?,
+                )),
+                Some(spawn::Schema::ResponseSchema(args)) => Ok(Request::SpawnResponseSchema(
+                    spawn::response_schema::Request::try_from(args)?,
+                )),
+            },
         }
     }
 }
@@ -215,6 +269,12 @@ impl CommandRequest for Request {
             Request::List(inner) => inner.request_base(),
             Request::ListRequestSchema(inner) => inner.request_base(),
             Request::ListResponseSchema(inner) => inner.request_base(),
+            Request::Kill(inner) => inner.request_base(),
+            Request::KillRequestSchema(inner) => inner.request_base(),
+            Request::KillResponseSchema(inner) => inner.request_base(),
+            Request::Spawn(inner) => inner.request_base(),
+            Request::SpawnRequestSchema(inner) => inner.request_base(),
+            Request::SpawnResponseSchema(inner) => inner.request_base(),
         }
     }
 
@@ -236,6 +296,12 @@ impl CommandRequest for Request {
             Request::List(inner) => inner.request_base_mut(),
             Request::ListRequestSchema(inner) => inner.request_base_mut(),
             Request::ListResponseSchema(inner) => inner.request_base_mut(),
+            Request::Kill(inner) => inner.request_base_mut(),
+            Request::KillRequestSchema(inner) => inner.request_base_mut(),
+            Request::KillResponseSchema(inner) => inner.request_base_mut(),
+            Request::Spawn(inner) => inner.request_base_mut(),
+            Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
+            Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -343,6 +409,42 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             let value = list::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::ListResponseSchema(value),
+            )))
+        }
+        Request::Kill(req) => {
+            let value = kill::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Kill(value),
+            )))
+        }
+        Request::KillRequestSchema(req) => {
+            let value = kill::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::KillRequestSchema(value),
+            )))
+        }
+        Request::KillResponseSchema(req) => {
+            let value = kill::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::KillResponseSchema(value),
+            )))
+        }
+        Request::Spawn(req) => {
+            let value = spawn::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Spawn(value),
+            )))
+        }
+        Request::SpawnRequestSchema(req) => {
+            let value = spawn::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::SpawnRequestSchema(value),
+            )))
+        }
+        Request::SpawnResponseSchema(req) => {
+            let value = spawn::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::SpawnResponseSchema(value),
             )))
         }
     };
@@ -486,6 +588,42 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             .await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
+        Request::Kill(req) => {
+            let value = kill::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::KillRequestSchema(req) => {
+            let value = kill::request_schema::execute_transform(
+                executor, req, transform, agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::KillResponseSchema(req) => {
+            let value = kill::response_schema::execute_transform(
+                executor, req, transform, agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Spawn(req) => {
+            let value = spawn::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::SpawnRequestSchema(req) => {
+            let value = spawn::request_schema::execute_transform(
+                executor, req, transform, agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::SpawnResponseSchema(req) => {
+            let value = spawn::response_schema::execute_transform(
+                executor, req, transform, agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
     };
     Ok(stream)
 }
@@ -510,4 +648,10 @@ pub enum ListenerExecution {
     List(list::ListenerExecution),
     ListRequestSchema(list::request_schema::ListenerExecution),
     ListResponseSchema(list::response_schema::ListenerExecution),
+    Kill(kill::ListenerExecution),
+    KillRequestSchema(kill::request_schema::ListenerExecution),
+    KillResponseSchema(kill::response_schema::ListenerExecution),
+    Spawn(spawn::ListenerExecution),
+    SpawnRequestSchema(spawn::request_schema::ListenerExecution),
+    SpawnResponseSchema(spawn::response_schema::ListenerExecution),
 }

@@ -1,9 +1,11 @@
-//! Internal laboratory-HOST spawn — the daemon starts the machine's
-//! resident host as a leashed per-state child whenever a laboratories
-//! flow needs it (there is no wire `laboratories spawn` command
-//! anymore; `ensure_host`/`ensure_local_host` in the tier `mod.rs`
-//! are the entries). The host is a WebSocket client (no listener), so
-//! its stdout ready line carries no address — pure readiness.
+//! Laboratory-HOST spawn — the daemon starts the machine's resident
+//! host as a leashed per-state child. The host must be spawned
+//! EXPLICITLY: `laboratories spawn` (its wire handler is [`execute`]
+//! below) is the only entry; no flow auto-spawns it. Like the other
+//! `spawn` commands it is a no-op when a host is already running on
+//! this machine — a live resident child is reused, not respawned. The
+//! host is a WebSocket client (no listener), so its stdout ready line
+//! carries no address — pure readiness.
 //!
 //! The dial list comes from config but rides STDIN, not argv: unless
 //! `laboratories config local` is false, the LOCAL daemon is ensured
@@ -19,6 +21,8 @@
 //! `--suppress-output`); the host binary reads NO environment
 //! variables, by design.
 
+use objectiveai_sdk::cli::command::laboratories::spawn::{Request, Response};
+
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
@@ -26,10 +30,9 @@ use crate::error::Error;
 /// registry. Generous: podman (and its machine VM) may be cold.
 const READY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
-/// The spawn flow itself (used by the tier's `ensure_host` /
-/// `ensure_local_host` auto-spawns). Idempotent and cheap when the
-/// host is already up: a live resident child returns without
-/// spawning. Returns every address the host was told to dial.
+/// The spawn flow itself. Idempotent and cheap when the host is already
+/// up: a live resident child returns without spawning. Returns every
+/// address the host was told to dial.
 pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec<String>, Error> {
     let config = scoped
         .filesystem
@@ -155,4 +158,34 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     }
 
     Ok(entries.into_iter().map(|(address, _)| address).collect())
+}
+
+pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+    Ok(Response {
+        addresses: spawn(global, scoped).await?,
+    })
+}
+
+pub mod request_schema {
+    use objectiveai_sdk::cli::command::laboratories::spawn as sdk;
+    use objectiveai_sdk::cli::command::laboratories::spawn::request_schema::{Request, Response};
+
+    use crate::context::{GlobalContext, ScopedContext};
+    use crate::error::Error;
+
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
+    }
+}
+
+pub mod response_schema {
+    use objectiveai_sdk::cli::command::laboratories::spawn as sdk;
+    use objectiveai_sdk::cli::command::laboratories::spawn::response_schema::{Request, Response};
+
+    use crate::context::{GlobalContext, ScopedContext};
+    use crate::error::Error;
+
+    pub async fn execute(_global: &GlobalContext, _scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
+    }
 }

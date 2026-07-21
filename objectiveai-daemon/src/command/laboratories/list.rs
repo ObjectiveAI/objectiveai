@@ -20,19 +20,17 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
     // `Server` later forces a decision here.
     match request.kind {
         Kind::Client => {}
     }
 
-    // Best-effort local host: a fresh machine's laboratories should
-    // list without a prior explicit spawn. `local: false` (or any
-    // spawn failure — no binary, cold podman error) is NOT a list
-    // error: the registry may still hold remote hosts.
-    let _ = super::ensure_local_host(global, scoped).await;
-
+    // `list` never spawns — it reflects whatever hosts have connected
+    // to the daemon registry (local host up via `laboratories spawn`,
+    // plus any remote hosts). An empty registry is an empty list, not
+    // an error.
     let labs = match global.resident_hubs() {
         Some(hubs) => hubs.laboratories.list().await,
         None => {

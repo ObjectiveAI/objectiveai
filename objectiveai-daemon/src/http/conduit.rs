@@ -959,15 +959,14 @@ impl Drop for ClearCreatingGuard {
     }
 }
 
-/// The create's host half: pick a host (uniformly random; ensure the
-/// local one only when NONE is connected), build the kind's
-/// ephemeral-create payload, and run the ONE atomic host round trip.
-/// Timeout-free by design (a cold image build can take minutes); only
-/// host-channel death fails it. Returns the host's reply plus the
+/// The create's host half: pick a connected host (uniformly random;
+/// no host is an error — the host is never auto-spawned), build the
+/// kind's ephemeral-create payload, and run the ONE atomic host round
+/// trip. Timeout-free by design (a cold image build can take minutes);
+/// only host-channel death fails it. Returns the host's reply plus the
 /// pinned route.
 async fn run_ephemeral_create(
     global: &crate::context::GlobalContext,
-    scoped: &crate::context::ScopedContext,
     response_id: &str,
     mcp_kind: &McpKind,
     headers: IndexMap<String, String>,
@@ -982,24 +981,17 @@ async fn run_ephemeral_create(
         return Err("ephemeral create requires the resident daemon".to_string());
     };
     // The host pick and (for plugins) the DB-credential resolution are
-    // INDEPENDENT — neither needs the other's result — and each can
-    // cold-start a leashed child (podman lab host / embedded Postgres).
-    // Run them CONCURRENTLY so a fresh daemon's first plugin doesn't
-    // pay both cold starts serially. `join!` runs both on this task
-    // (shared `&` borrows of `global`/`scoped`/`hubs`), never a spawn.
+    // INDEPENDENT — neither needs the other's result — and the
+    // credential resolution can cold-start a leashed child (embedded
+    // Postgres). Run them CONCURRENTLY so a fresh daemon's first plugin
+    // doesn't pay that cold start after the pick. `join!` runs both on
+    // this task (shared `&` borrows of `global`/`hubs`), never a spawn.
+    // The host is NEVER auto-spawned: no connected host is an error
+    // (run `laboratories spawn` first).
     let host_pick = async {
-        match hubs.laboratories.random_host() {
-            Some(pair) => Ok::<_, String>(pair),
-            None => {
-                crate::command::laboratories::ensure_local_host(global, scoped)
-                    .await
-                    .map_err(|e| format!("local host: {e}"))?;
-                Ok((
-                    objectiveai_sdk::machine::machine_id(scoped.filesystem.dir()),
-                    scoped.filesystem.state().to_string(),
-                ))
-            }
-        }
+        hubs.laboratories.random_host().ok_or_else(|| {
+            "no laboratory host is connected — run `laboratories spawn` first".to_string()
+        })
     };
     let cred_resolve = async {
         // Plugin only: mint-or-fetch + provision the Postgres
@@ -1362,7 +1354,6 @@ impl ConduitMcpHandler {
     ) {
         let weak = Arc::downgrade(&self.inner);
         let global = self.inner.global.clone();
-        let scoped = self.inner.scoped.clone();
         tokio::spawn(async move {
             // Panic/early-exit net: clears OUR Creating entry (channel-
             // identity checked) unless a deliberate exit path already
@@ -1376,7 +1367,7 @@ impl ConduitMcpHandler {
             };
 
             let outcome =
-                run_ephemeral_create(&global, &scoped, &response_id, &mcp_kind, headers)
+                run_ephemeral_create(&global, &response_id, &mcp_kind, headers)
                     .await;
 
             match outcome {
@@ -1568,46 +1559,10 @@ impl ConduitMcpHandler {
                 "laboratory forward requires the resident daemon".to_string(),
             );
         };
-        // A laboratory addressed to (or plausibly living on) THIS
-        // daemon's own (machine, state) may have no CONNECTED host
-        // simply because the daemon restarted since the lab was
-        // created — the host is a leashed daemon child and died with
-        // it. Mirror the id-routed commands' best-effort local ensure
-        // BEFORE forwarding: an exact local pair ensures; a pair-less
-        // id no connected host serves ensures too (it may well be a
-        // local lab). Remote pairs keep the registry's own no-host
-        // error — this daemon cannot spawn a host elsewhere.
-        {
-            let local_machine = objectiveai_sdk::machine::machine_id(
-                self.inner.scoped.filesystem.dir(),
-            );
-            let local_state = self.inner.scoped.filesystem.state();
-            let addressed_local = target.machine.as_deref()
-                == Some(local_machine.as_str())
-                && target.machine_state.as_deref() == Some(local_state);
-            let pairless_unserved = target.machine.is_none()
-                && target.machine_state.is_none()
-                && hubs
-                    .laboratories
-                    .host_for_laboratory(&target.id)
-                    .await
-                    .is_none();
-            if (addressed_local || pairless_unserved)
-                && !hubs.laboratories.has_host(&local_machine, local_state)
-            {
-                if let Err(e) = crate::command::laboratories::ensure_local_host(
-                    &self.inner.global,
-                    &self.inner.scoped,
-                )
-                .await
-                {
-                    return shape.error(
-                        -32603,
-                        format!("laboratory {}: local host: {e}", target.id),
-                    );
-                }
-            }
-        }
+        // The host is NEVER auto-spawned on demand: if the local host
+        // died with a daemon restart (it is a leashed daemon child),
+        // the forward hits the registry's own no-host error and the
+        // operator brings it back with `laboratories spawn`.
         // Session routes: remember every CLIENT-lab Initialize this
         // reverse connection forwards (keyed by response id + the
         // resolved routing triple), and forget on the graceful end —

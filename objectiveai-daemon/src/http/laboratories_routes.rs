@@ -19,16 +19,15 @@
 //! what they last sent — events carry no payloads worth trusting, and
 //! a lagged subscriber self-heals on its next rebuild.
 //!
-//! VISIBILITY FOLLOWS THE HOST, and hosts spawn LAZILY: a laboratory
-//! is in this list only while a connected host serves it, and nothing
-//! spawns the local host until an operation needs it (`laboratories
-//! create`/`attach` → `ensure_host`). So a client connecting to a
-//! fresh daemon legitimately receives an EMPTY snapshot even when
-//! containers exist in podman — they surface all at once (as
-//! `Upserted` deltas) the moment something spawns the host and it
-//! announces podman's current set. Not a snapshot bug; the list means
-//! "laboratories on connected hosts", not "laboratories on this
-//! machine".
+//! VISIBILITY FOLLOWS THE HOST, and the host is spawned EXPLICITLY: a
+//! laboratory is in this list only while a connected host serves it,
+//! and nothing auto-spawns the local host — the operator brings it up
+//! with `laboratories spawn`. So a client connecting to a fresh daemon
+//! legitimately receives an EMPTY snapshot even when containers exist
+//! in podman — they surface all at once (as `Upserted` deltas) the
+//! moment the host is spawned and it announces podman's current set.
+//! Not a snapshot bug; the list means "laboratories on connected
+//! hosts", not "laboratories on this machine".
 
 use std::collections::BTreeMap;
 

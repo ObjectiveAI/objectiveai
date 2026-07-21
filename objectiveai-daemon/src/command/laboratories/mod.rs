@@ -2,12 +2,14 @@
 //! (podman containers the conduit dials as client-side MCP servers).
 //! The machine's resident laboratory HOST (one process per (machine,
 //! state), serving ALL of its laboratories over `/laboratory`
-//! connections to every configured daemon) is spawned implicitly by
-//! the flows that need it (`ensure_host`/`ensure_local_host`) and
-//! dies with the daemon — no spawn/kill commands; `config`
-//! holds its dial list (`addresses`, each with an optional signature)
-//! and the `local` toggle. `create`/`delete` forward over the owning
-//! host's WS — podman runs host-side, wherever that is. `list` streams
+//! connections to every configured daemon) must be spawned EXPLICITLY
+//! via `spawn` — no flow auto-spawns it; `kill` shuts it down
+//! gracefully (stdin EOF: containers stopped, ephemerals evaporated);
+//! it also dies with the daemon. `config` holds its dial list
+//! (`addresses`, each with an optional signature) and the `local`
+//! toggle. `create`/`delete` forward over the owning host's WS —
+//! podman runs host-side, wherever that is; they REQUIRE the host to
+//! be up already (`require_host`), erroring otherwise. `list` streams
 //! the daemon's registry (hosts announce + notify; nothing scans).
 //! `attach`/`detach` record/remove a laboratory id on an agent target
 //! (a tag, or an instance hierarchy) in the CLI's database — read
@@ -29,6 +31,7 @@ pub mod config;
 pub mod create;
 pub mod delete;
 pub mod detach;
+pub mod kill;
 pub mod list;
 pub mod spawn;
 
@@ -106,6 +109,30 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let value = list::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::ListResponseSchema(value)))
         }
+        Request::Kill(req) => {
+            let value = kill::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::Kill(value)))
+        }
+        Request::KillRequestSchema(req) => {
+            let value = kill::request_schema::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::KillRequestSchema(value)))
+        }
+        Request::KillResponseSchema(req) => {
+            let value = kill::response_schema::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::KillResponseSchema(value)))
+        }
+        Request::Spawn(req) => {
+            let value = spawn::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::Spawn(value)))
+        }
+        Request::SpawnRequestSchema(req) => {
+            let value = spawn::request_schema::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::SpawnRequestSchema(value)))
+        }
+        Request::SpawnResponseSchema(req) => {
+            let value = spawn::response_schema::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::SpawnResponseSchema(value)))
+        }
     };
     Ok(stream)
 }
@@ -135,13 +162,12 @@ pub(super) fn resolve_pair(
     }
 }
 
-/// Ensure a CONNECTED host for the exact `(machine id, state)` pair,
-/// auto-spawning when the pair IS this daemon's own (local machine +
-/// own state — the spawn errors when `laboratories config local` is
-/// false, and waits for the host to register otherwise).
-/// Any other unconnected pair is an error: this daemon cannot spawn a
-/// host elsewhere (nor for another state).
-pub(super) async fn ensure_host(
+/// Require a CONNECTED host for the exact `(machine id, state)` pair —
+/// CHECK-ONLY, never spawns. The host must be brought up explicitly
+/// (`laboratories spawn` for this machine's own-state host); every
+/// unconnected pair, local included, is an error. This daemon cannot
+/// spawn a host elsewhere (nor for another state) in any case.
+pub(super) fn require_host(
     global: &GlobalContext, scoped: &ScopedContext,
     machine: &str,
     machine_state: &str,
@@ -154,35 +180,18 @@ pub(super) async fn ensure_host(
     }
     let local_machine = objectiveai_sdk::machine::machine_id(scoped.filesystem.dir());
     if machine == local_machine && machine_state == scoped.filesystem.state() {
-        // `spawn::spawn` waits for the local host to appear in the
-        // registry (or fails fast), so the caller can forward
-        // immediately after.
-        spawn::spawn(global, scoped).await?;
-        Ok(())
+        Err(Error::Laboratory(
+            "no laboratory host is running for this machine/state — run \
+             `laboratories spawn` first"
+                .to_string(),
+        ))
     } else {
         Err(Error::Laboratory(format!(
             "no laboratory host connected for machine '{machine}' state \
-             '{machine_state}' — run any laboratories command on that \
-             machine/state (its daemon auto-spawns the host) with this \
-             daemon's address configured"
+             '{machine_state}' — run `laboratories spawn` on that \
+             machine/state with this daemon's address configured"
         )))
     }
-}
-
-/// Best-effort local-host ensure for id-routed commands (`delete`,
-/// `list`): spawn THIS machine's OWN-STATE host if it isn't connected.
-/// Errors propagate (`delete` surfaces them; `list` drops them) —
-/// including the `laboratories config local: false` refusal.
-pub(crate) async fn ensure_local_host(global: &GlobalContext, scoped: &ScopedContext) -> Result<(), Error> {
-    let local_machine = objectiveai_sdk::machine::machine_id(scoped.filesystem.dir());
-    let connected = global.resident_hubs().is_some_and(|hubs| {
-        hubs.laboratories
-            .has_host(&local_machine, scoped.filesystem.state())
-    });
-    if !connected {
-        spawn::spawn(global, scoped).await?;
-    }
-    Ok(())
 }
 
 /// Resolve the agent target to its DB key. Shared by `attach` +

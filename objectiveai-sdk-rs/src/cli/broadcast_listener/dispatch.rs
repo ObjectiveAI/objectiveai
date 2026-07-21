@@ -1679,6 +1679,42 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::laboratories::list::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::ListResponseSchema(execution)), feed))
         }
+        "laboratories/kill" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::Response>(path_type);
+            let execution = crate::cli::command::laboratories::kill::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Kill(execution)), feed))
+        }
+        "laboratories/kill/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::kill::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::KillRequestSchema(execution)), feed))
+        }
+        "laboratories/kill/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::kill::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::kill::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::kill::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::KillResponseSchema(execution)), feed))
+        }
+        "laboratories/spawn" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::Response>(path_type);
+            let execution = crate::cli::command::laboratories::spawn::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::Spawn(execution)), feed))
+        }
+        "laboratories/spawn/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::request_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::spawn::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::SpawnRequestSchema(execution)), feed))
+        }
+        "laboratories/spawn/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::laboratories::spawn::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::laboratories::spawn::response_schema::Response>(path_type);
+            let execution = crate::cli::command::laboratories::spawn::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Laboratories(crate::cli::command::laboratories::ListenerExecution::SpawnResponseSchema(execution)), feed))
+        }
         "python" => {
             let parsed = serde_json::from_str::<crate::cli::command::python::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::python::Response>(path_type);
