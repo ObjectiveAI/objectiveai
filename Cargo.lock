@@ -4348,29 +4348,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai-mcp"
-version = "2.2.13"
-dependencies = [
- "anyhow",
- "axum",
- "dirs",
- "dotenv",
- "envconfig",
- "futures",
- "http",
- "humantime",
- "indexmap 2.14.0",
- "json-escape",
- "objectiveai-sdk",
- "rmcp",
- "schemars 1.2.1",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
-]
-
-[[package]]
 name = "objectiveai-mcp-laboratory"
 version = "2.2.13"
 dependencies = [

@@ -370,13 +370,11 @@ jobs:
           publish_crate objectiveai-sdk
           wait_crate objectiveai-sdk
 
-          # --no-verify on api/cli/mcp/mcp-proxy: their build.rs / dev-only
+          # --no-verify on api/cli/mcp-proxy: their build.rs / dev-only
           # path deps don't resolve from the published tarball alone.
           publish_crate objectiveai-mcp-proxy --no-verify
           publish_crate objectiveai-mcp-laboratory
-          publish_crate objectiveai-mcp --no-verify
           wait_crate objectiveai-mcp-proxy
-          wait_crate objectiveai-mcp
 
           publish_crate objectiveai-api --no-verify
           publish_crate objectiveai-cli --no-verify

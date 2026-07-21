@@ -4,7 +4,6 @@ members = [
     "objectiveai-api",
     "objectiveai-db",
     "objectiveai-laboratory",
-    "objectiveai-mcp",
     "objectiveai-mcp-laboratory",
     "objectiveai-mcp-proxy",
     "objectiveai-sdk-rs",
