@@ -14,9 +14,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "super::DbConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub db: Option<super::DbConfig>,
-    #[serde(skip_serializing_if = "super::McpConfig::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub mcp: Option<super::McpConfig>,
     #[serde(skip_serializing_if = "super::LaboratoriesConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub laboratories: Option<super::LaboratoriesConfig>,
@@ -33,10 +30,6 @@ impl Config {
 
     pub fn db(&mut self) -> &mut super::DbConfig {
         self.db.get_or_insert_with(super::DbConfig::default)
-    }
-
-    pub fn mcp(&mut self) -> &mut super::McpConfig {
-        self.mcp.get_or_insert_with(super::McpConfig::default)
     }
 
     pub fn laboratories(&mut self) -> &mut super::LaboratoriesConfig {

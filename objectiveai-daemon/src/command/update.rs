@@ -238,7 +238,7 @@ async fn run(
     // in-place update over a ≤2.2.12 install also reaps the old-style
     // detached servers. Best-effort: a kill failure shouldn't abort the
     // install.
-    for key in ["api", "db", "mcp", "viewer", "laboratories"] {
+    for key in ["api", "db", "viewer", "laboratories"] {
         let _ = kill_resident_child(global, key).await;
     }
     let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;

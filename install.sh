@@ -34,7 +34,6 @@
 #   <dir>/bin/objectiveai-api{.exe}
 #   <dir>/bin/objectiveai-laboratory{.exe}
 #   <dir>/bin/objectiveai-viewer{.exe}
-#   <dir>/bin/objectiveai-mcp{.exe}
 #   <dir>/bin/objectiveai-db{.exe}
 #   <dir>/bin/objectiveai-claude-agent-sdk-runner{.exe}
 #   <dir>/bin/objectiveai-codex-sdk-runner{.exe}

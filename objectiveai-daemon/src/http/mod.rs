@@ -49,6 +49,7 @@ pub mod conduit;
 pub mod daemon_auth;
 pub mod daemon_execute;
 pub mod daemon_stream;
+pub mod mcp;
 pub mod mcp_listener;
 pub mod agent_instance_route;
 pub mod agents_routes;

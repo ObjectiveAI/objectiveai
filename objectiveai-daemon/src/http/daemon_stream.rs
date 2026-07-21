@@ -102,7 +102,41 @@ pub fn serve_http(
     labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
     channels: crate::http::channel_routes::ChannelHub,
 ) -> tokio::task::JoinHandle<()> {
+    // The daemon's own MCP server (#276): rmcp streamable HTTP nested
+    // at /mcp, tool calls executing in-process through the daemon
+    // executor. Auth is a wrapping middleware rather than an inline
+    // handler check because the routes belong to rmcp's service — the
+    // one route family whose handlers aren't ours.
+    let (mcp_service, mcp_ct) = crate::http::mcp::service(
+        crate::executor::DaemonCommandExecutor::new(
+            global.clone(),
+            scoped.clone(),
+            None,
+        ),
+    );
+    let mcp_auth_global = global.clone();
+    let mcp_service = tower::Layer::layer(
+        &axum::middleware::from_fn(
+            move |req: axum::extract::Request,
+                  next: axum::middleware::Next| {
+                let global = mcp_auth_global.clone();
+                async move {
+                    use axum::response::IntoResponse;
+                    if !crate::http::daemon_auth::authenticate_header(
+                        req.headers(),
+                        global.auth_secret().as_ref(),
+                    ) {
+                        return axum::http::StatusCode::UNAUTHORIZED
+                            .into_response();
+                    }
+                    next.run(req).await
+                }
+            },
+        ),
+        mcp_service,
+    );
     let app = axum::Router::new()
+        .nest_service("/mcp", mcp_service)
         .route("/listen", axum::routing::get(listen_handler))
         .route(
             "/execute",
@@ -185,6 +219,10 @@ pub fn serve_http(
                 .expose_headers(tower_http::cors::Any),
         );
     tokio::spawn(async move {
+        // The MCP session workers' cancellation root lives (uncancelled)
+        // for the server's whole life — the daemon never tears its HTTP
+        // server down separately from the process.
+        let _mcp_ct = mcp_ct;
         // TCP keepalive on every accepted connection (host /laboratory
         // WSes, /listen + /user SSE, viewer traffic): a silently-dead
         // peer surfaces as a socket error instead of an eternally-idle

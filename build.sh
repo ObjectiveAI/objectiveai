@@ -261,7 +261,7 @@ if [ "$NO_ZIP" != "1" ]; then
     # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
     # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
     # `--no-test-integration` case (FIXTURE_CRATES left empty).
-    for crate in objectiveai-cli objectiveai-daemon objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
+    for crate in objectiveai-cli objectiveai-daemon objectiveai-api objectiveai-db objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
@@ -441,7 +441,7 @@ package_host_zip() {
   # The CLI + daemon + server crates from the cargo build (built-name ->
   # ship-name; the thin objectiveai-cli crate builds the `objectiveai`
   # binary, and the daemon crate builds/ships `objectiveai-daemon`).
-  local pairs="objectiveai|objectiveai objectiveai-daemon|objectiveai-daemon objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
+  local pairs="objectiveai|objectiveai objectiveai-daemon|objectiveai-daemon objectiveai-api|objectiveai-api objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
   local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"

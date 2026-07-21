@@ -51,7 +51,6 @@ pub mod daemon;
 pub mod db;
 pub mod functions;
 pub mod laboratories;
-pub mod mcp;
 pub mod python;
 pub mod swarms;
 pub mod update;

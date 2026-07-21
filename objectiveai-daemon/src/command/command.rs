@@ -54,10 +54,6 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let inner = super::laboratories::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
         }
-        Request::Mcp(req) => {
-            let inner = super::mcp::execute(global, scoped, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))
-        }
         Request::Python(req) => {
             let value = super::python::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::Python(value)))

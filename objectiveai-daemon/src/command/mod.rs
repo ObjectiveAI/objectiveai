@@ -19,7 +19,6 @@ pub mod detached;
 pub mod functions;
 pub mod kill_helpers;
 pub mod laboratories;
-pub mod mcp;
 pub mod python;
 pub mod reexec;
 pub mod swarms;
