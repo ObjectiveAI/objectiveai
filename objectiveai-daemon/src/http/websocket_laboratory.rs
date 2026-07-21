@@ -70,11 +70,12 @@ enum OutboundFrame {
 }
 
 /// One live Postgres tunnel stream on this connection: the write half
-/// (bytes host→daemon→pg, drained by a spawned write task) and the
-/// abort handle for the pg→host read pump.
+/// (bytes host→daemon→pg, drained by a spawned write task). Dropping
+/// the entry ends the write task (→ pg write half shuts down → pg
+/// closes → the read pump reads EOF and exits), so removal is the one
+/// teardown lever — no separate abort handle needed.
 struct PgStream {
     write_tx: mpsc::UnboundedSender<Vec<u8>>,
-    read_pump: tokio::task::AbortHandle,
 }
 
 /// Max raw Postgres bytes per `PostgresData` frame — bounds per-frame
@@ -571,33 +572,47 @@ fn dispatch_host_postgres(
     use objectiveai_sdk::laboratories::daemon::HostPostgres;
     match frame {
         HostPostgres::Open { stream_id } => {
+            // Register the write half SYNCHRONOUSLY, before dialing.
+            // The host pipes the container's first bytes (the pgwire
+            // StartupMessage) the instant it accepts, so they arrive
+            // right behind `Open`; with the entry present they queue in
+            // this unbounded channel instead of being dropped during
+            // the dial. Synchronous insert also means the connection's
+            // post-loop drain can never miss this stream (both run on
+            // the one handler task — insert happens-before teardown).
+            let (write_tx, mut write_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+            host.postgres_streams
+                .insert(stream_id.clone(), PgStream { write_tx });
             let global = state.global.clone();
             let host = Arc::clone(host);
             tokio::spawn(async move {
                 // Resolve + dial this daemon's Postgres. Any failure
-                // closes the stream (a runtime pg error to the plugin);
-                // it never touched the create.
-                let close = |host: &HostConnection, id: &str| {
+                // closes the stream (a runtime pg error to the plugin;
+                // it never touched the create): drop the entry (ends
+                // any queued write) and tell the host.
+                let fail = |host: &HostConnection, id: &str| {
+                    host.postgres_streams.remove(id);
                     let _ = host
                         .tx
                         .send(OutboundFrame::PostgresClose(id.to_string()));
                 };
                 let addr = match global.db_handle().await {
                     Ok(handle) => handle.address,
-                    Err(_) => return close(&host, &stream_id),
+                    Err(_) => return fail(&host, &stream_id),
                 };
                 let pg = match tokio::net::TcpStream::connect(&addr).await {
                     Ok(pg) => pg,
-                    Err(_) => return close(&host, &stream_id),
+                    Err(_) => return fail(&host, &stream_id),
                 };
                 let _ = pg.set_nodelay(true);
                 objectiveai_sdk::net::set_tcp_keepalive(&pg);
                 let (mut pg_read, mut pg_write) = pg.into_split();
 
-                // Write task: drain host→pg bytes.
-                let (write_tx, mut write_rx) =
-                    mpsc::unbounded_channel::<Vec<u8>>();
-                tokio::spawn(async move {
+                // Write task: drain host→pg bytes (incl. the ones that
+                // queued during the dial). Ends when the stream entry is
+                // dropped (teardown / Close / read-side EOF) → the pg
+                // write half shuts down.
+                let write = tokio::spawn(async move {
                     use tokio::io::AsyncWriteExt;
                     while let Some(bytes) = write_rx.recv().await {
                         if pg_write.write_all(&bytes).await.is_err() {
@@ -607,51 +622,40 @@ fn dispatch_host_postgres(
                     let _ = pg_write.shutdown().await;
                 });
 
-                // Read pump: pg→host as PostgresData frames.
-                let pump_host = Arc::clone(&host);
-                let pump_id = stream_id.clone();
-                let read_pump = tokio::spawn(async move {
-                    use tokio::io::AsyncReadExt;
-                    let mut buf = vec![0u8; PG_CHUNK];
-                    loop {
-                        match pg_read.read(&mut buf).await {
-                            Ok(0) | Err(_) => break,
-                            Ok(n) => {
-                                let sent = pump_host.tx.send(
-                                    OutboundFrame::PostgresData(
-                                        objectiveai_sdk::laboratories::daemon::PostgresData {
-                                            stream_id: pump_id.clone(),
-                                            bytes: buf[..n].to_vec(),
-                                        },
-                                    ),
-                                );
-                                if sent.is_err() {
-                                    return; // writer gone; teardown handles close
-                                }
+                // Read pump (this task): pg→host as PostgresData frames.
+                use tokio::io::AsyncReadExt;
+                let mut buf = vec![0u8; PG_CHUNK];
+                loop {
+                    match pg_read.read(&mut buf).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            let sent = host.tx.send(OutboundFrame::PostgresData(
+                                objectiveai_sdk::laboratories::daemon::PostgresData {
+                                    stream_id: stream_id.clone(),
+                                    bytes: buf[..n].to_vec(),
+                                },
+                            ));
+                            if sent.is_err() {
+                                break; // WS writer gone
                             }
                         }
                     }
-                    // pg EOF/error: tell the host and forget the stream.
-                    let _ = pump_host
-                        .tx
-                        .send(OutboundFrame::PostgresClose(pump_id.clone()));
-                    pump_host.postgres_streams.remove(&pump_id);
-                });
-
-                host.postgres_streams.insert(
-                    stream_id,
-                    PgStream {
-                        write_tx,
-                        read_pump: read_pump.abort_handle(),
-                    },
-                );
+                }
+                // pg EOF/error (or WS gone): drop the entry (ends the
+                // write task → pg write half closes), tell the host,
+                // and stop the write task promptly.
+                host.postgres_streams.remove(&stream_id);
+                let _ = host
+                    .tx
+                    .send(OutboundFrame::PostgresClose(stream_id.clone()));
+                write.abort();
             });
         }
         HostPostgres::Close { stream_id } => {
-            if let Some((_, stream)) = host.postgres_streams.remove(&stream_id) {
-                stream.read_pump.abort();
-                // Dropping `stream.write_tx` ends the write task.
-            }
+            // Dropping the entry drops `write_tx` → the write task ends
+            // → the pg write half shuts down → pg closes → the read
+            // pump reads EOF and exits, closing the backend.
+            host.postgres_streams.remove(&stream_id);
         }
     }
 }
@@ -1118,14 +1122,14 @@ pub(crate) async fn laboratory_handler(
             }
         }
 
-        // Tear down every Postgres tunnel stream: abort the pg→host
-        // read pumps and drop the host→pg write halves (ends their
-        // write tasks, closes the pg sockets). Covers all four
-        // endings (close frame, recv error, keepalive death,
-        // displacement).
-        for entry in host.postgres_streams.iter() {
-            entry.read_pump.abort();
-        }
+        // Tear down every Postgres tunnel stream: clearing the map
+        // drops each `write_tx`, which ends the write task → shuts the
+        // pg write half → pg closes → the read pump reads EOF and
+        // exits (releasing its `Arc<HostConnection>`, so this
+        // connection can finally drop). This is the one lever that
+        // breaks the read-pump ↔ HostConnection reference cycle.
+        // Covers all four endings (close frame, recv error, keepalive
+        // death, displacement).
         host.postgres_streams.clear();
 
         // Deregister — but only if the entry is still OURS (a reconnect
