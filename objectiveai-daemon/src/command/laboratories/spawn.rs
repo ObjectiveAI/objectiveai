@@ -1,22 +1,29 @@
-//! Laboratory-HOST spawn — the daemon starts the machine's resident
-//! host as a leashed per-state child. The host must be spawned
-//! EXPLICITLY: `laboratories spawn` (its wire handler is [`execute`]
-//! below) is the only entry; no flow auto-spawns it. Like the other
-//! `spawn` commands it is a no-op when a host is already running on
-//! this machine — a live resident child is reused, not respawned. The
-//! host is a WebSocket client (no listener), so its stdout ready line
-//! carries no address — pure readiness.
+//! Laboratory-HOST spawn + dial-list CONVERGENCE — the daemon starts
+//! the machine's resident host as a leashed per-state child. The host
+//! must be spawned EXPLICITLY: `laboratories spawn` (its wire handler
+//! is [`execute`] below) is the only entry; no flow auto-spawns it.
+//! Like the other `spawn` commands it is a no-op when a host is
+//! already running on this machine — a live resident child is reused,
+//! not respawned. The host is a WebSocket client (no listener), so
+//! its stdout ready line carries no address — pure readiness.
 //!
-//! The dial list comes from config but rides STDIN, not argv: unless
-//! `laboratories config local` is false, the LOCAL daemon is ensured
-//! and dialed first (with the signature from the DAEMON's own config —
-//! bare `SIGNATURE` env, else derived from `SECRET`); then every
-//! `laboratories config addresses` entry, each with its own optional
-//! signature. A FRESHLY spawned host is seeded with one ack-gated
-//! [`objectiveai_sdk::laboratories::daemon::HostStdioCommand::AddAddress`]
-//! per entry right after its ready line; a reused live child is NOT
-//! re-seeded — config changes reach it through the `laboratories
-//! config` handlers' stdio sends. Argv is layout-only
+//! The dial list is DECLARATIVE: config is the desired state, and
+//! [`converge`] reconciles a LIVE host to it with one ack-gated
+//! [`objectiveai_sdk::laboratories::daemon::HostStdioCommand::SetAddresses`]
+//! (the host diffs — undesired connections torn down, new ones
+//! dialed, identical live ones untouched). No host running means
+//! nothing to reconcile: converge no-ops WITHOUT spawning or
+//! blocking, and the next `spawn` converges from config. Every
+//! `spawn` converges (fresh or reused — idempotent by construction),
+//! and every `laboratories config` mutation converges after its
+//! write; there is no seed/re-seed asymmetry and no compensating
+//! revert choreography anymore.
+//!
+//! Desired entries: unless `laboratories config local` is false, the
+//! LOCAL daemon is ensured and dialed first (with the signature from
+//! the DAEMON's own config — bare `SIGNATURE` env, else derived from
+//! `SECRET`); then every `laboratories config addresses` entry, each
+//! with its own optional signature. Argv is layout-only
 //! (`--objectiveai-dir` / `--objectiveai-state` /
 //! `--suppress-output`); the host binary reads NO environment
 //! variables, by design.
@@ -26,10 +33,16 @@ use objectiveai_sdk::cli::command::laboratories::spawn::{Request, Response};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
-/// The spawn flow itself. Idempotent and cheap when the host is already
-/// up: a live resident child returns without spawning. Returns every
-/// address the host was told to dial.
-pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec<String>, Error> {
+/// The DESIRED dial list, straight from config: the local daemon
+/// first (ensured — idempotent — with the daemon's own client
+/// signature) unless `local` is false, then the configured addresses,
+/// deduped (one connection per address; the local signature wins).
+/// May legitimately be EMPTY (`local: false`, no addresses) — the
+/// caller decides whether that's an error ([`spawn`]'s pre-flight) or
+/// a valid "host idles" state ([`converge`]).
+async fn desired_entries(
+    global: &GlobalContext, scoped: &ScopedContext,
+) -> Result<Vec<(String, Option<String>)>, Error> {
     let config = scoped
         .filesystem
         .read_config()
@@ -55,7 +68,75 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
         let signature = (!signature.is_empty()).then_some(signature);
         entries.push((address, signature));
     }
-    if entries.is_empty() {
+    Ok(entries)
+}
+
+/// Reconcile a LIVE host's dial list to config — the ONLY sender of
+/// dial-list state. `Ok(None)` when there is nothing to reconcile: no
+/// host running (converge NEVER spawns one — and never ensures the
+/// daemon either, so a config command with no host has zero side
+/// effects and returns immediately), or the host died mid-send (disk
+/// already holds the desired state; the next `spawn` converges it).
+/// `Ok(Some(addresses))` once the host acked the full list.
+///
+/// Serialized by its own gate ("laboratories/converge" — distinct
+/// from the spawn gate, no nesting anywhere): the config is re-read
+/// FRESH under the gate, so the last converge in gate order sends a
+/// list at least as new as every write that preceded its lock — a
+/// stale converge can never be the final word. A converge that errors
+/// (or finds no host) leaves a live host at most temporarily behind
+/// desired state; any later converge catches it up — self-healing,
+/// no periodic reconciler.
+pub(super) async fn converge(
+    global: &GlobalContext, scoped: &ScopedContext,
+) -> Result<Option<Vec<String>>, Error> {
+    let gate = global.spawn_gate("laboratories/converge");
+    let _guard = gate.lock().await;
+    // Host check FIRST — before building entries — so a hostless
+    // converge has no side effects (no local-daemon ensure).
+    let Some(stdio) = global.lab_host_stdio() else {
+        return Ok(None);
+    };
+    let entries = desired_entries(global, scoped).await?;
+    let command = objectiveai_sdk::laboratories::daemon::HostStdioCommand::SetAddresses {
+        addresses: entries
+            .iter()
+            .map(|(address, signature)| {
+                objectiveai_sdk::laboratories::daemon::DialEntry {
+                    address: address.clone(),
+                    signature: signature.clone(),
+                }
+            })
+            .collect(),
+    };
+    if stdio.send_host_stdio(&command).await.is_err() {
+        // Broken channel = the host died between the liveness check
+        // and the send. Not a command failure: config is the desired
+        // state, and the next spawn converges from it.
+        return Ok(None);
+    }
+    Ok(Some(
+        entries.into_iter().map(|(address, _)| address).collect(),
+    ))
+}
+
+/// The spawn flow itself. Idempotent and cheap when the host is
+/// already up: a live resident child is reused, and the converge
+/// below is a no-op diff host-side. Returns every address the host
+/// dials.
+pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec<String>, Error> {
+    // Pre-flight on the CURRENT config: spawning a host with nothing
+    // to dial is an error here (converge, by contrast, legitimately
+    // sends an empty list — `del` of the last address idles the
+    // host). Read once for the `local` readiness decision too.
+    let config = scoped
+        .filesystem
+        .read_config()
+        .await?
+        .laboratories
+        .unwrap_or_default();
+    let local = config.local != Some(false);
+    if !local && config.addresses.as_ref().is_none_or(|a| a.is_empty()) {
         return Err(Error::Laboratory(
             "laboratories config local is false and no addresses are configured — \
              the host would have nothing to dial"
@@ -68,7 +149,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     } else {
         "objectiveai-laboratory"
     });
-    let (_, freshly_spawned) = crate::spawn::spawn_leashed_until_ready_with_stdio(
+    crate::spawn::spawn_leashed_until_ready_with_stdio(
         global,
         "laboratories",
         &exe,
@@ -84,38 +165,17 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
     )
     .await?;
 
-    // Seed the fresh host's dial list, ack-gated per address. A host
-    // that cannot accept its seed list is broken — propagate, but
-    // RETIRE the child first: it was parked as the resident host
-    // before seeding, and leaving it would make every later ensure
-    // reuse a dial-less host (fresh children are the only ones
-    // seeded).
-    if freshly_spawned {
-        let seed = async {
-            let stdio = global.lab_host_stdio().ok_or_else(|| {
-                Error::Laboratory(
-                    "the laboratory host exited before its dial list could be seeded"
-                        .to_string(),
-                )
-            })?;
-            for (address, signature) in &entries {
-                stdio
-                    .send_host_stdio(
-                        &objectiveai_sdk::laboratories::daemon::HostStdioCommand::AddAddress {
-                            address: address.clone(),
-                            signature: signature.clone(),
-                        },
-                    )
-                    .await?;
-            }
-            Ok::<(), Error>(())
-        };
-        if let Err(e) = seed.await {
-            let _ = crate::command::kill_helpers::kill_resident_child(global, "laboratories")
-                .await;
-            return Err(e);
-        }
-    }
+    // Converge the (fresh or reused) host to config — the one dial-
+    // list mechanism. `None` here means the host we JUST ensured died
+    // before it could be converged: error, don't wait on a dial-less
+    // host. (It is NOT killed on a converge error — a resident host
+    // with a stale/empty list self-heals on any later converge.)
+    let Some(entries) = converge(global, scoped).await? else {
+        return Err(Error::Laboratory(
+            "the laboratory host exited before its dial list could be converged"
+                .to_string(),
+        ));
+    };
 
     // Readiness. LOCAL: connected = this machine's host visible in the
     // daemon registry. The daemon is the WS SERVER for the host's
@@ -201,7 +261,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Vec
         }
     }
 
-    Ok(entries.into_iter().map(|(address, _)| address).collect())
+    Ok(entries)
 }
 
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<Response, Error> {

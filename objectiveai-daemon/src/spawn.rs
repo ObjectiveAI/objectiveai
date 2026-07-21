@@ -16,27 +16,7 @@
 
 use std::path::Path;
 
-use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, Signal, System};
 use tokio::process::Command;
-
-/// Send SIGTERM (Unix) / TerminateProcess (Windows) to one specific
-/// pid. Returns 1 if a live process with that pid existed and was
-/// targeted, 0 otherwise. Kills strictly by pid — a name match would
-/// hit unrelated processes (e.g. other postgres servers). Used by the
-/// legacy lock-owner sweep in `command::kill_helpers`.
-pub fn kill_pid(pid: u32) -> usize {
-    let mut sys = System::new();
-    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
-    match sys.process(sysinfo::Pid::from_u32(pid)) {
-        Some(process) => {
-            let _ = process
-                .kill_with(Signal::Term)
-                .or_else(|| Some(process.kill()));
-            1
-        }
-        None => 0,
-    }
-}
 
 /// Lock-based DETACHED spawn — used only by `daemon spawn` for peer
 /// plugins-daemons (the persistent servers use
@@ -149,9 +129,7 @@ pub async fn spawn_leashed_until_ready(
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, false)
-        .await
-        .map(|(address, _freshly_spawned)| address)
+    spawn_leashed_inner(global, key, exe, configure, false).await
 }
 
 /// [`spawn_leashed_until_ready`] for the laboratory host: stdin is
@@ -159,35 +137,34 @@ pub async fn spawn_leashed_until_ready(
 /// line, the pipe receiver goes to an ack ROUTER task (stdout lines
 /// parsing as [`objectiveai_sdk::laboratories::daemon::HostStdioAck`]
 /// are forwarded to the [`crate::context::LabHostStdio`] parked on the
-/// resident entry; everything else is discarded as before). Also
-/// returns whether THIS call spawned the child — the caller seeds the
-/// dial list over stdio only then (a reused live child already has
-/// its list; config changes reach it through the config handlers).
+/// resident entry; everything else is discarded as before). Fresh or
+/// reused makes no difference to the caller — every `laboratories
+/// spawn` CONVERGES the dial list afterward (idempotent host-side
+/// diff).
 pub async fn spawn_leashed_until_ready_with_stdio(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
-) -> Result<(Option<String>, bool), crate::error::Error> {
+) -> Result<Option<String>, crate::error::Error> {
     spawn_leashed_inner(global, key, exe, configure, true).await
 }
 
 /// The shared core of the two spawn entry points; `stdio` selects the
 /// laboratory host's piped-stdin + ack-router mode. Returns the ready
-/// address and whether a child was actually spawned (`false` = a live
-/// resident child was reused).
+/// address (a live resident child is reused, not respawned).
 async fn spawn_leashed_inner(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
     stdio: bool,
-) -> Result<(Option<String>, bool), crate::error::Error> {
+) -> Result<Option<String>, crate::error::Error> {
     let gate = global.spawn_gate(key);
     let _guard = gate.lock().await;
 
     if let Some(address) = global.resident_child_address(key) {
-        return Ok((address, false));
+        return Ok(address);
     }
 
     let name = exe
@@ -359,7 +336,7 @@ async fn spawn_leashed_inner(
         let _ = dead_tx.send(true);
         lifecycle_global.remove_resident_child_if(&lifecycle_key, generation);
     });
-    Ok((address, true))
+    Ok(address)
 }
 
 /// Basename-or-path display name for spawn errors.

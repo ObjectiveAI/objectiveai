@@ -71,8 +71,6 @@ const WIPE_KEEP: &[&str] = &[];
 pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
     let bin_dir = scoped.filesystem.bin_dir();
-    // db/viewer locks are per-state under <dir>/state/<name>/locks.
-    let states_root = scoped.filesystem.dir().join("state");
     // The GitHub credential lives in the on-disk json config only
     // (`api config github-authorization set`), not the env Config.
     let github_authorization = scoped
@@ -88,7 +86,6 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: R
         if let Err(e) = run(
             &global,
             &bin_dir,
-            &states_root,
             github_authorization.as_deref(),
             &tx,
         )
@@ -106,7 +103,6 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, _request: R
 async fn run(
     global: &GlobalContext,
     bin_dir: &Path,
-    states_root: &Path,
     github_authorization: Option<&str>,
     tx: &tokio::sync::mpsc::Sender<Result<ResponseItem, Error>>,
 ) -> Result<(), Error> {
@@ -232,19 +228,14 @@ async fn run(
 
     // Kill the running servers before touching bin/: on Windows a live
     // child holds its .exe file-locked, which would defeat the wipe.
-    // First this daemon's leashed resident children — the laboratory
-    // host GRACEFULLY (stdin EOF; it stops its containers first, and
-    // the update waits that out, unbounded, BY DESIGN — no premature
-    // cap; a wedged host blocks the update rather than leaking running
-    // containers), the rest by signal. Then a LEGACY lock-owner sweep
-    // (api in bin/locks; db/viewer per state) so an in-place update
-    // over a ≤2.2.12 install also reaps the old-style detached
-    // servers.
+    // This daemon's leashed resident children — the laboratory host
+    // GRACEFULLY (stdin EOF; it stops its containers first, and the
+    // update waits that out, unbounded, BY DESIGN — no premature cap;
+    // a wedged host blocks the update rather than leaking running
+    // containers), the rest by signal.
     for key in ["api", "db", "viewer", "laboratories"] {
         kill_resident_child(global, key).await;
     }
-    let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;
-    kill_state_servers(states_root).await;
 
     // Free the running updater's own slot so the unzip can replace it
     // (Windows can't overwrite a running .exe; renaming aside frees the
@@ -332,27 +323,7 @@ fn looks_like_dev_tree(current_exe: &Path) -> bool {
     })
 }
 
-use crate::command::kill_helpers::{kill_lock_owners, kill_resident_child};
-
-/// LEGACY: kill the per-state `db` and `viewer` lock owners across
-/// every state under `<dir>/state/<name>/locks` — pre-2.2.13 detached
-/// servers only; current servers are this daemon's resident children.
-/// Best-effort — failures are swallowed so a stuck state doesn't abort
-/// the install.
-async fn kill_state_servers(states_root: &Path) {
-    let mut rd = match tokio::fs::read_dir(states_root).await {
-        Ok(rd) => rd,
-        // No state dir at all → nothing running per-state.
-        Err(_) => return,
-    };
-    while let Ok(Some(entry)) = rd.next_entry().await {
-        if entry.file_type().await.map(|t| t.is_dir()).unwrap_or(false) {
-            let locks = entry.path().join("locks");
-            let _ = kill_lock_owners(locks.clone(), "db").await;
-            let _ = kill_lock_owners(locks, "viewer").await;
-        }
-    }
-}
+use crate::command::kill_helpers::kill_resident_child;
 
 #[cfg(windows)]
 fn rename_running_cli_aside(current_exe: &Path) {

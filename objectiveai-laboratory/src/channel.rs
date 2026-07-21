@@ -1,11 +1,11 @@
 //! One daemon channel: dial `<daemon>/laboratory`, attach, then serve
 //! [`ChannelRequest`]s until the socket drops — forever, with a 1s
 //! reconnect pause, so a daemon restart just re-registers us — or
-//! until the `cancel` watch fires (the stdin dial-list removed this
-//! address), which tears down through the SAME detach path as a
-//! natural disconnect and then ends the task instead of reconnecting.
-//! The host runs one `run` task per stdin-added daemon address, all
-//! sharing one [`HostServer`].
+//! until the `cancel` watch fires (a stdin `set_addresses` convergence
+//! dropped this address), which tears down through the SAME detach
+//! path as a natural disconnect and then ends the task instead of
+//! reconnecting. The host runs one `run` task per desired daemon
+//! address, all sharing one [`HostServer`].
 //!
 //! Wire order is load-bearing: the FIRST text frame is the
 //! `HostIdentify` (who this HOST is — state, machine identity, and its

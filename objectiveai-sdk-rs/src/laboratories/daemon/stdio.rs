@@ -3,21 +3,24 @@
 //! its pipes) and the host binary.
 //!
 //! The host is born with ZERO daemon connections: no `--address` argv
-//! exists. The daemon writes one [`HostStdioRequest`] JSON object per
-//! stdin line (seeding the config-derived list right after the
-//! [`crate::process::ServerReady`] handshake, and again on every
-//! `laboratories config` mutation), and the host answers each request
-//! with one [`HostStdioAck`] line on stdout, echoing the request's
-//! daemon-generated `id` — the correlation key.
+//! exists. The protocol is DECLARATIVE — one command,
+//! [`HostStdioCommand::SetAddresses`], carries the ENTIRE desired dial
+//! list, and the host CONVERGES to it: connections absent from the
+//! list are torn down, new ones dialed, changed-signature ones
+//! re-dialed, identical live ones left untouched. The daemon writes
+//! one [`HostStdioRequest`] JSON object per stdin line (converging the
+//! config-derived list right after the [`crate::process::ServerReady`]
+//! handshake, and again on every `laboratories config` mutation), and
+//! the host answers each request with one [`HostStdioAck`] line on
+//! stdout, echoing the request's daemon-generated `id` — the
+//! correlation key.
 //!
-//! An ack confirms the DIAL-LIST mutation was applied (the dial task
-//! spawned or cancelled), NOT connectivity: dialing retries forever,
-//! and connection success is observed through the daemon's registry
-//! exactly as before. Requests are idempotent — adding an address the
-//! host already dials REPLACES that connection (the old one is torn
-//! down first, then the new one dialed, so the host NEVER holds two
-//! connections to one address — e.g. a changed signature re-dials
-//! with the new preamble); removing an absent one still acks.
+//! An ack confirms the dial list was CONVERGED (tasks spawned /
+//! cancelled), NOT connectivity: dialing retries forever, and
+//! connection success is observed through the daemon's registry
+//! exactly as before. Convergence is idempotent by construction — the
+//! same list twice is a no-op, and the host NEVER holds two
+//! connections to one address.
 //!
 //! This is a different transport from the `/laboratory` WebSocket
 //! vocabulary in the sibling modules, and deliberately NAIVE to it.
@@ -35,21 +38,24 @@ pub struct HostStdioRequest {
     pub command: HostStdioCommand,
 }
 
-/// The mutation a [`HostStdioRequest`] carries.
+/// The command a [`HostStdioRequest`] carries.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HostStdioCommand {
-    /// Dial `address` (a daemon `http://` base; the host appends
-    /// `/laboratory`), presenting `signature` in the auth preamble
-    /// (`None` ⇒ unauthenticated). An existing connection to the same
-    /// address is replaced (torn down before the new dial).
-    AddAddress {
-        address: String,
-        signature: Option<String>,
-    },
-    /// Stop dialing `address` and close its connection. Absent is a
-    /// no-op (still acked).
-    RemoveAddress { address: String },
+    /// The ENTIRE desired dial list — the host converges its live
+    /// connections to exactly this set (see the module docs). An empty
+    /// list is legal: the host idles with zero connections. Duplicate
+    /// addresses: last entry wins.
+    SetAddresses { addresses: Vec<DialEntry> },
+}
+
+/// One desired dial-list entry: `address` is a daemon `http://` base
+/// (the host appends `/laboratory`); `signature` is presented in the
+/// auth preamble (`None` ⇒ unauthenticated).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DialEntry {
+    pub address: String,
+    pub signature: Option<String>,
 }
 
 /// The host's answer to one [`HostStdioRequest`], host → daemon, one

@@ -1,40 +1,29 @@
-//! Shared kill logic for the `{mcp,viewer} kill` commands, `update`'s
-//! pre-install teardown, and the `{api,db} config` mutation handlers'
-//! kill-on-config-change ([`kill_api_before_config_change`] /
+//! Shared kill logic for the `{mcp,viewer,laboratories} kill`
+//! commands, `update`'s pre-install teardown, and the `{api,db}`
+//! config mutation handlers' kill-on-config-change
+//! ([`kill_api_before_config_change`] /
 //! [`kill_api_after_config_change`] and the gate-held db pair
 //! [`kill_db_before_config_change`] /
-//! [`kill_db_after_config_change`]). (The api / db / laboratories
-//! kill commands and `kill-all` were retired — `daemon kill` is the
+//! [`kill_db_after_config_change`]). `daemon kill` is the
 //! whole-teardown path: killing the daemon takes every leashed
-//! resident child with it.)
+//! resident child with it.
 //!
 //! A server is one of the daemon's LEASHED resident children
 //! (metadata on [`crate::context::GlobalContext`]; the
 //! [`tokio::process::Child`] itself is owned by its spawn's lifecycle
 //! task — there are no server lockfiles to resolve pids through
-//! anymore). Killing one means removing its map entry
-//! (generation-guarded) and driving the child-appropriate shutdown
-//! via its lifecycle task: the stdio child (laboratory host) dies
-//! GRACEFULLY by the stdin EOF the removal itself causes; everything
-//! else gets SIGTERM (the viewer tears down its windows; Windows gets
-//! `TerminateProcess`, its only option), a bounded wait, then
-//! SIGKILL. See [`kill_resident_child`]. For db, killing the
-//! supervisor takes the postmaster with it (job object /
+//! anymore, and no legacy lock-owner sweep either). Killing one means
+//! removing its map entry (generation-guarded) and driving the
+//! child-appropriate shutdown via its lifecycle task: the stdio child
+//! (laboratory host) dies GRACEFULLY by the stdin EOF the removal
+//! itself causes; everything else gets SIGTERM (the viewer tears down
+//! its windows; Windows gets `TerminateProcess`, its only option), a
+//! bounded wait, then SIGKILL. See [`kill_resident_child`]. For db,
+//! killing the supervisor takes the postmaster with it (job object /
 //! `PR_SET_PDEATHSIG`).
 //!
 //! Scope is inherently THIS daemon: other states' servers belong to
-//! other daemons and die with them — the former cross-state lockfile
-//! sweep (`kill_per_state`) is gone with the locks. The kill request
-//! wire shapes keep their `scope` field for compatibility; both
-//! scopes mean "this daemon's resident child".
-//!
-//! `kill_lock_owners` survives solely as `update`'s LEGACY sweep: an
-//! in-place update over a ≤2.2.12 install may find old-style detached
-//! servers still holding locks; killing them by owner pid is the only
-//! way to reach them. Remove once updates from those versions stop
-//! mattering.
-
-use std::path::PathBuf;
+//! other daemons and die with them.
 
 use crate::context::GlobalContext;
 use crate::error::Error;
@@ -199,17 +188,3 @@ pub async fn respawn_viewer_after_config_change(
     crate::command::viewer::spawn::spawn(global, scoped).await.map(|_| ())
 }
 
-/// LEGACY: read the owner PIDs of `(locks_dir, key)` and kill each —
-/// the pre-2.2.13 servers held readiness locks; `update` sweeps them
-/// so an in-place update can replace their binaries. Returns the
-/// count actually terminated; no live owner yields zero.
-pub async fn kill_lock_owners(locks_dir: PathBuf, key: &str) -> Result<usize, Error> {
-    let pids = objectiveai_sdk::lockfile::owners(&locks_dir, key)
-        .await
-        .map_err(|e| Error::Spawn(format!("read lock owners for {key}"), e))?;
-    let mut killed = 0;
-    for pid in pids {
-        killed += crate::spawn::kill_pid(pid);
-    }
-    Ok(killed)
-}
