@@ -1049,6 +1049,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Path),
         schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Request),
         schemars::schema_for!(crate::cli::command::tasks::delete::Path),
+        schemars::schema_for!(crate::cli::command::tasks::delete::DeleteNamespace),
         schemars::schema_for!(crate::cli::command::tasks::delete::Request),
         schemars::schema_for!(crate::cli::command::tasks::delete::Response),
         schemars::schema_for!(crate::cli::command::tasks::delete::request_schema::Path),
