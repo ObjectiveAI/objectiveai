@@ -51,7 +51,9 @@ pub enum ChannelLogEntry {
         plugin_repository: String,
         plugin_version: String,
     },
-    /// An owner→publisher message. The replier is not a plugin.
+    /// An owner→publisher message. The replier is typically not a
+    /// plugin, so the plugin trio is OPTIONAL — present only when a
+    /// plugin happened to send the reply.
     #[schemars(title = "Reply")]
     Reply {
         /// The entry's `channel_messages.id`.
@@ -61,6 +63,17 @@ pub enum ChannelLogEntry {
         /// The AIH of the agent that sent the entry (always present —
         /// the daemon defaults it).
         sender_agent_instance_hierarchy: String,
+        /// The originating plugin (owner/repository/version) — present
+        /// only when a plugin sent the reply.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        plugin_owner: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        plugin_repository: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        plugin_version: Option<String>,
     },
 }
 

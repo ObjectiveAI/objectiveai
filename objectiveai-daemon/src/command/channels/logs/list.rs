@@ -48,6 +48,11 @@ pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
             id: envelope.id,
             timestamp,
             sender_agent_instance_hierarchy: sender,
+            // Optional: the replier is usually not a plugin, but a
+            // plugin reply passes its trio through verbatim.
+            plugin_owner: identity.plugin_owner,
+            plugin_repository: identity.plugin_repository,
+            plugin_version: identity.plugin_version,
         },
     }
 }
