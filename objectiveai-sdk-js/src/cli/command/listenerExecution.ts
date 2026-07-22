@@ -7,13 +7,10 @@ import { type CliCommandDaemonListenerExecution } from "./daemon/listenerExecuti
 import { type CliCommandDbListenerExecution } from "./db/listenerExecution";
 import { type CliCommandFunctionsListenerExecution } from "./functions/listenerExecution";
 import { type CliCommandLaboratoriesListenerExecution } from "./laboratories/listenerExecution";
-import { type CliCommandMcpListenerExecution } from "./mcp/listenerExecution";
-import { type CliCommandPluginsListenerExecution } from "./plugins/listenerExecution";
 import { type CliCommandPythonListenerExecution } from "./python/listenerExecution";
 import { type CliCommandPythonRequestSchemaListenerExecution } from "./python/request_schema/listenerExecution";
 import { type CliCommandPythonResponseSchemaListenerExecution } from "./python/response_schema/listenerExecution";
 import { type CliCommandSwarmsListenerExecution } from "./swarms/listenerExecution";
-import { type CliCommandToolsListenerExecution } from "./tools/listenerExecution";
 import { type CliCommandUpdateListenerExecution } from "./update/listenerExecution";
 import { type CliCommandUpdateRequestSchemaListenerExecution } from "./update/request_schema/listenerExecution";
 import { type CliCommandUpdateResponseSchemaListenerExecution } from "./update/response_schema/listenerExecution";
@@ -27,13 +24,10 @@ export type CliCommandListenerExecution =
   | CliCommandDbListenerExecution
   | CliCommandFunctionsListenerExecution
   | CliCommandLaboratoriesListenerExecution
-  | CliCommandMcpListenerExecution
-  | CliCommandPluginsListenerExecution
   | CliCommandPythonListenerExecution
   | CliCommandPythonRequestSchemaListenerExecution
   | CliCommandPythonResponseSchemaListenerExecution
   | CliCommandSwarmsListenerExecution
-  | CliCommandToolsListenerExecution
   | CliCommandUpdateListenerExecution
   | CliCommandUpdateRequestSchemaListenerExecution
   | CliCommandUpdateResponseSchemaListenerExecution
@@ -318,48 +312,15 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "laboratories/detach": "unary",
   "laboratories/detach/request_schema": "unary",
   "laboratories/detach/response_schema": "unary",
+  "laboratories/kill": "unary",
+  "laboratories/kill/request_schema": "unary",
+  "laboratories/kill/response_schema": "unary",
   "laboratories/list": "stream",
   "laboratories/list/request_schema": "unary",
   "laboratories/list/response_schema": "unary",
-  "mcp/config/address/get": "unary",
-  "mcp/config/address/get/request_schema": "unary",
-  "mcp/config/address/get/response_schema": "unary",
-  "mcp/config/address/set": "unary",
-  "mcp/config/address/set/request_schema": "unary",
-  "mcp/config/address/set/response_schema": "unary",
-  "mcp/config/get": "unary",
-  "mcp/config/get/request_schema": "unary",
-  "mcp/config/get/response_schema": "unary",
-  "mcp/config/port/get": "unary",
-  "mcp/config/port/get/request_schema": "unary",
-  "mcp/config/port/get/response_schema": "unary",
-  "mcp/config/port/set": "unary",
-  "mcp/config/port/set/request_schema": "unary",
-  "mcp/config/port/set/response_schema": "unary",
-  "mcp/kill": "unary",
-  "mcp/kill/request_schema": "unary",
-  "mcp/kill/response_schema": "unary",
-  "mcp/spawn": "unary",
-  "mcp/spawn/request_schema": "unary",
-  "mcp/spawn/response_schema": "unary",
-  "plugins/get": "unary",
-  "plugins/get/request_schema": "unary",
-  "plugins/get/response_schema": "unary",
-  "plugins/install/filesystem": "unary",
-  "plugins/install/filesystem/request_schema": "unary",
-  "plugins/install/filesystem/response_schema": "unary",
-  "plugins/install/github": "unary",
-  "plugins/install/github/request_schema": "unary",
-  "plugins/install/github/response_schema": "unary",
-  "plugins/list": "stream",
-  "plugins/list/request_schema": "unary",
-  "plugins/list/response_schema": "unary",
-  "plugins/logs/list": "stream",
-  "plugins/logs/list/request_schema": "unary",
-  "plugins/logs/list/response_schema": "unary",
-  "plugins/run": "stream",
-  "plugins/run/request_schema": "unary",
-  "plugins/run/response_schema": "unary",
+  "laboratories/spawn": "unary",
+  "laboratories/spawn/request_schema": "unary",
+  "laboratories/spawn/response_schema": "unary",
   "python": "unary",
   "python/request_schema": "unary",
   "python/response_schema": "unary",
@@ -372,21 +333,6 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "swarms/publish": "unary",
   "swarms/publish/request_schema": "unary",
   "swarms/publish/response_schema": "unary",
-  "tools/get": "unary",
-  "tools/get/request_schema": "unary",
-  "tools/get/response_schema": "unary",
-  "tools/install/filesystem": "unary",
-  "tools/install/filesystem/request_schema": "unary",
-  "tools/install/filesystem/response_schema": "unary",
-  "tools/install/github": "unary",
-  "tools/install/github/request_schema": "unary",
-  "tools/install/github/response_schema": "unary",
-  "tools/list": "stream",
-  "tools/list/request_schema": "unary",
-  "tools/list/response_schema": "unary",
-  "tools/run": "stream",
-  "tools/run/request_schema": "unary",
-  "tools/run/response_schema": "unary",
   "update": "stream",
   "update/request_schema": "unary",
   "update/response_schema": "unary",

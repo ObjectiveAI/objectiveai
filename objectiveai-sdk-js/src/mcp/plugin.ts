@@ -3,9 +3,8 @@
 import { z } from "zod";
 
 export const McpPluginSchema = z.object({
-  mcp: z.string(),
   name: z.string(),
   owner: z.string(),
   version: z.string(),
-}).describe("A plugin-hosted MCP server's identity — the four coordinates that name\na plugin's MCP (mirrors `McpKind::Plugin`).").meta({ title: "mcp.Plugin" });
+}).describe("A plugin MCP server's identity — the `(owner, name, version)`\ncoordinate trio (one plugin IS one MCP server; mirrors\n`McpKind::PluginLaboratory`).").meta({ title: "mcp.Plugin" });
 export type McpPlugin = z.infer<typeof McpPluginSchema>;

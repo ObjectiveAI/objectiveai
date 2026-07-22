@@ -5,6 +5,8 @@ export * from "./config/index";
 export * from "./create/index";
 export * from "./delete/index";
 export * from "./detach/index";
+export * from "./kill/index";
 export * from "./list/index";
+export * from "./spawn/index";
 export * from "./request";
 export * from "./listenerExecution";

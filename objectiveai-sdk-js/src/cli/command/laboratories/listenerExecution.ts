@@ -13,9 +13,15 @@ import { type CliCommandLaboratoriesDeleteResponseSchemaListenerExecution } from
 import { type CliCommandLaboratoriesDetachListenerExecution } from "./detach/listenerExecution";
 import { type CliCommandLaboratoriesDetachRequestSchemaListenerExecution } from "./detach/request_schema/listenerExecution";
 import { type CliCommandLaboratoriesDetachResponseSchemaListenerExecution } from "./detach/response_schema/listenerExecution";
+import { type CliCommandLaboratoriesKillListenerExecution } from "./kill/listenerExecution";
+import { type CliCommandLaboratoriesKillRequestSchemaListenerExecution } from "./kill/request_schema/listenerExecution";
+import { type CliCommandLaboratoriesKillResponseSchemaListenerExecution } from "./kill/response_schema/listenerExecution";
 import { type CliCommandLaboratoriesListListenerExecution } from "./list/listenerExecution";
 import { type CliCommandLaboratoriesListRequestSchemaListenerExecution } from "./list/request_schema/listenerExecution";
 import { type CliCommandLaboratoriesListResponseSchemaListenerExecution } from "./list/response_schema/listenerExecution";
+import { type CliCommandLaboratoriesSpawnListenerExecution } from "./spawn/listenerExecution";
+import { type CliCommandLaboratoriesSpawnRequestSchemaListenerExecution } from "./spawn/request_schema/listenerExecution";
+import { type CliCommandLaboratoriesSpawnResponseSchemaListenerExecution } from "./spawn/response_schema/listenerExecution";
 
 /** `/listen` mirror of `laboratories`'s request aggregate: one member per child listener execution. */
 export type CliCommandLaboratoriesListenerExecution =
@@ -34,4 +40,10 @@ export type CliCommandLaboratoriesListenerExecution =
   | CliCommandLaboratoriesDetachResponseSchemaListenerExecution
   | CliCommandLaboratoriesListListenerExecution
   | CliCommandLaboratoriesListRequestSchemaListenerExecution
-  | CliCommandLaboratoriesListResponseSchemaListenerExecution;
+  | CliCommandLaboratoriesListResponseSchemaListenerExecution
+  | CliCommandLaboratoriesKillListenerExecution
+  | CliCommandLaboratoriesKillRequestSchemaListenerExecution
+  | CliCommandLaboratoriesKillResponseSchemaListenerExecution
+  | CliCommandLaboratoriesSpawnListenerExecution
+  | CliCommandLaboratoriesSpawnRequestSchemaListenerExecution
+  | CliCommandLaboratoriesSpawnResponseSchemaListenerExecution;
