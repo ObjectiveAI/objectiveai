@@ -3,25 +3,25 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.codex_sdk.effort import Effort
 from objectiveai_sdk.agent.codex_sdk.output_mode import OutputMode
 from objectiveai_sdk.agent.codex_sdk.upstream import Upstream
 from objectiveai_sdk.agent.completions.message.rich_content import RichContent
 from objectiveai_sdk.agent.laboratory import Laboratory
 from objectiveai_sdk.agent.mcp_server import McpServer
+from objectiveai_sdk.agent.plugin import Plugin
 
 
 class AgentBase(BaseModel):
     """The base configuration for a Codex SDK Agent (without computed ID)."""
     model_config = ConfigDict(title='agent.codex_sdk.AgentBase')
 
-    client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     effort: Optional[Effort] = Field(None, description="Reasoning effort — maps to Codex's `model_reasoning_effort`.", json_schema_extra={'omitempty': True})
     laboratories: Optional[list[Laboratory]] = Field(None, description="Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).", json_schema_extra={'omitempty': True})
     mcp_servers: Optional[list[McpServer]] = Field(None, description='MCP servers the agent can connect to.', json_schema_extra={'omitempty': True})
     model: str = Field(..., description='The upstream language model identifier (e.g. `gpt-5`).')
     output_mode: OutputMode = Field(..., description='The output mode for vector completions. Ignored for agent completions.')
+    plugins: list[Plugin] = Field(..., description='Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).', json_schema_extra={'omitempty': True})
     prefix_content: Optional[RichContent] = Field(None, description="Rich content prepended to the user's prompt.", json_schema_extra={'omitempty': True})
     suffix_content: Optional[RichContent] = Field(None, description="Rich content appended after the user's prompt.", json_schema_extra={'omitempty': True})
     upstream: Upstream = Field(..., description='The upstream provider marker.')

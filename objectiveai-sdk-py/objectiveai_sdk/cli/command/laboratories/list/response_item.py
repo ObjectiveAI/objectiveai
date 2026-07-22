@@ -5,6 +5,7 @@ from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.cli.command.laboratories.create.env_var import EnvVar
 from objectiveai_sdk.cli.command.laboratories.create.mount import Mount
+from objectiveai_sdk.cli.command.laboratories.list.plugin import Plugin
 from objectiveai_sdk.laboratories.laboratory_image import LaboratoryImage
 from objectiveai_sdk.machine.machine_identity import MachineIdentity
 
@@ -24,5 +25,7 @@ the same logic regardless of where the host runs."""
     machine: Optional[MachineIdentity] = Field(None, description='The machine whose laboratory host serves this laboratory.', json_schema_extra={'omitempty': True})
     machine_state: Optional[str] = Field(None, description='The state (on that machine) the serving host serves —\nlaboratory ids are only unique per (machine, state).', json_schema_extra={'omitempty': True})
     mounts: list[Mount]
+    plugin: Optional[Plugin] = Field(None, description="For plugin laboratories: the plugin's canonical coordinate\ntrio (owner/name lowercased, version verbatim — the repo's\n`v`-prefixed git tag). `None` for every other laboratory.", json_schema_extra={'omitempty': True})
+    response_id: Optional[str] = Field(None, description="For EPHEMERAL laboratories (agent and plugin): the\nagent-completion response id the laboratory serves — its\nlifetime is that completion's single MCP connection. `None`\nfor regular laboratories.", json_schema_extra={'omitempty': True})
     running: bool = Field(False, description="Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running).")
 

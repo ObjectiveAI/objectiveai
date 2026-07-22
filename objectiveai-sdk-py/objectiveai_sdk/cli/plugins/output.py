@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Union
 from objectiveai_sdk.json_value import JsonValue
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.cli.command.plugins.run.mcp import Mcp
 from objectiveai_sdk.cli.error import Error
 from objectiveai_sdk.cli.plugins.command import Command
 
@@ -13,12 +12,6 @@ class OutputCommand(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Command'})
 
     root: Command
-
-
-class OutputMcp(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Mcp'})
-
-    root: Mcp
 
 
 class OutputError(RootModel):
@@ -42,10 +35,11 @@ tries each typed variant by its constant `type:"…"` discriminator
 in source order and falls through to [`Output::Notification`] as
 a catch-all carrying the raw JSON value.
 
-[`Mcp`] is imported from
-[`crate::cli::command::plugins::run`] — this module does NOT
-re-export it; importers reach it by its canonical path."""
+The former `Mcp` announcement variant was removed with the
+`plugins run` machinery — future plugins have no stdout protocol
+at all; an MCP-URL announcement lands in the `Notification`
+catch-all like any other untyped line."""
     model_config = ConfigDict(title='cli.plugins.Output')
 
-    root: Union[OutputCommand, OutputMcp, OutputError, OutputNotification]
+    root: Union[OutputCommand, OutputError, OutputNotification]
 

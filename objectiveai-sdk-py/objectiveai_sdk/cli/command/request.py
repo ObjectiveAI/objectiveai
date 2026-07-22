@@ -10,13 +10,10 @@ from objectiveai_sdk.cli.command.daemon.request import Request as CliCommandDaem
 from objectiveai_sdk.cli.command.db.request import Request as CliCommandDbRequest
 from objectiveai_sdk.cli.command.functions.request import Request as CliCommandFunctionsRequest
 from objectiveai_sdk.cli.command.laboratories.request import Request as CliCommandLaboratoriesRequest
-from objectiveai_sdk.cli.command.mcp.request import Request as CliCommandMcpRequest
-from objectiveai_sdk.cli.command.plugins.request import Request as CliCommandPluginsRequest
 from objectiveai_sdk.cli.command.python.request import Request as CliCommandPythonRequest
 from objectiveai_sdk.cli.command.python.request_schema.request import Request as CliCommandPythonRequestSchemaRequest
 from objectiveai_sdk.cli.command.python.response_schema.request import Request as CliCommandPythonResponseSchemaRequest
 from objectiveai_sdk.cli.command.swarms.request import Request as CliCommandSwarmsRequest
-from objectiveai_sdk.cli.command.tools.request import Request as CliCommandToolsRequest
 from objectiveai_sdk.cli.command.update.request import Request as CliCommandUpdateRequest
 from objectiveai_sdk.cli.command.update.request_schema.request import Request as CliCommandUpdateRequestSchemaRequest
 from objectiveai_sdk.cli.command.update.response_schema.request import Request as CliCommandUpdateResponseSchemaRequest
@@ -59,18 +56,6 @@ class RequestLaboratories(RootModel):
     root: CliCommandLaboratoriesRequest
 
 
-class RequestMcp(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Mcp'})
-
-    root: CliCommandMcpRequest
-
-
-class RequestPlugins(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Plugins'})
-
-    root: CliCommandPluginsRequest
-
-
 class RequestPython(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Python'})
 
@@ -93,12 +78,6 @@ class RequestSwarms(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Swarms'})
 
     root: CliCommandSwarmsRequest
-
-
-class RequestTools(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Tools'})
-
-    root: CliCommandToolsRequest
 
 
 class RequestUpdate(RootModel):
@@ -134,5 +113,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestLaboratories, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestChannels, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestLaboratories, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestChannels, RequestViewer]
 
