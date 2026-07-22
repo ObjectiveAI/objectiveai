@@ -39,6 +39,10 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::channels::Command,
     },
+    Tasks {
+        #[command(subcommand)]
+        command: super::tasks::Command,
+    },
     Viewer {
         #[command(subcommand)]
         command: super::viewer::Command,
@@ -77,6 +81,8 @@ pub enum Request {
     UpdateResponseSchema(super::update::response_schema::Request),
     #[schemars(title = "Channels")]
     Channels(super::channels::Request),
+    #[schemars(title = "Tasks")]
+    Tasks(super::tasks::Request),
     #[schemars(title = "Viewer")]
     Viewer(super::viewer::Request),
 }
@@ -119,6 +125,8 @@ pub enum ResponseItem {
     UpdateResponseSchema(super::update::response_schema::Response),
     #[schemars(title = "Channels")]
     Channels(super::channels::ResponseItem),
+    #[schemars(title = "Tasks")]
+    Tasks(super::tasks::ResponseItem),
     #[schemars(title = "Viewer")]
     Viewer(super::viewer::Response),
 }
@@ -141,6 +149,7 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
             ResponseItem::UpdateResponseSchema(v) => v.into_mcp(),
             ResponseItem::Channels(v) => v.into_mcp(),
+            ResponseItem::Tasks(v) => v.into_mcp(),
             ResponseItem::Viewer(v) => v.into_mcp(),
         }
     }
@@ -180,6 +189,8 @@ impl TryFrom<Subcommand> for Request {
             },
             Subcommand::Channels { command } =>
                 Ok(Request::Channels(super::channels::Request::try_from(command)?)),
+            Subcommand::Tasks { command } =>
+                Ok(Request::Tasks(super::tasks::Request::try_from(command)?)),
             Subcommand::Viewer { command } =>
                 Ok(Request::Viewer(super::viewer::Request::try_from(command)?)),
         }
@@ -227,6 +238,7 @@ impl super::CommandRequest for Request {
             Request::UpdateRequestSchema(inner) => inner.request_base(),
             Request::UpdateResponseSchema(inner) => inner.request_base(),
             Request::Channels(inner) => inner.request_base(),
+            Request::Tasks(inner) => inner.request_base(),
             Request::Viewer(inner) => inner.request_base(),
         }
     }
@@ -247,6 +259,7 @@ impl super::CommandRequest for Request {
             Request::UpdateRequestSchema(inner) => inner.request_base_mut(),
             Request::UpdateResponseSchema(inner) => inner.request_base_mut(),
             Request::Channels(inner) => inner.request_base_mut(),
+            Request::Tasks(inner) => inner.request_base_mut(),
             Request::Viewer(inner) => inner.request_base_mut(),
         }
     }
@@ -320,6 +333,10 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Channels(req) => {
                 let inner = super::channels::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Channels)))
+            }
+            Request::Tasks(req) => {
+                let inner = super::tasks::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
             }
             Request::Viewer(req) => {
                 let inner = super::viewer::execute(executor, req, agent_arguments).await?;
@@ -396,6 +413,10 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             }
             Request::Channels(req) => {
                 let inner = super::channels::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Tasks(req) => {
+                let inner = super::tasks::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Viewer(req) => {
@@ -510,5 +531,6 @@ pub enum ListenerExecution {
     UpdateRequestSchema(super::update::request_schema::ListenerExecution),
     UpdateResponseSchema(super::update::response_schema::ListenerExecution),
     Channels(super::channels::ListenerExecution),
+    Tasks(super::tasks::ListenerExecution),
     Viewer(super::viewer::ListenerExecution),
 }

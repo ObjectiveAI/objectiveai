@@ -1787,6 +1787,60 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::swarms::publish::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Swarms(crate::cli::command::swarms::ListenerExecution::PublishResponseSchema(execution)), feed))
         }
+        "tasks/create" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::create::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::create::Response>(path_type);
+            let execution = crate::cli::command::tasks::create::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::Create(execution)), feed))
+        }
+        "tasks/create/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::create::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::create::request_schema::Response>(path_type);
+            let execution = crate::cli::command::tasks::create::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::CreateRequestSchema(execution)), feed))
+        }
+        "tasks/create/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::create::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::create::response_schema::Response>(path_type);
+            let execution = crate::cli::command::tasks::create::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::CreateResponseSchema(execution)), feed))
+        }
+        "tasks/list" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::list::Request>(request.get()).ok()?;
+            let (response, feed) = stream_feed::<crate::cli::command::tasks::list::ResponseItem>();
+            let execution = crate::cli::command::tasks::list::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::List(execution)), feed))
+        }
+        "tasks/list/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::list::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::list::request_schema::Response>(path_type);
+            let execution = crate::cli::command::tasks::list::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::ListRequestSchema(execution)), feed))
+        }
+        "tasks/list/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::list::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::list::response_schema::Response>(path_type);
+            let execution = crate::cli::command::tasks::list::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::ListResponseSchema(execution)), feed))
+        }
+        "tasks/delete" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::delete::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::delete::Response>(path_type);
+            let execution = crate::cli::command::tasks::delete::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::Delete(execution)), feed))
+        }
+        "tasks/delete/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::delete::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::delete::request_schema::Response>(path_type);
+            let execution = crate::cli::command::tasks::delete::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::DeleteRequestSchema(execution)), feed))
+        }
+        "tasks/delete/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::tasks::delete::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::tasks::delete::response_schema::Response>(path_type);
+            let execution = crate::cli::command::tasks::delete::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Tasks(crate::cli::command::tasks::ListenerExecution::DeleteResponseSchema(execution)), feed))
+        }
         "update" => {
             let parsed = serde_json::from_str::<crate::cli::command::update::Request>(request.get()).ok()?;
             let (response, feed) = stream_feed::<crate::cli::command::update::ResponseItem>();

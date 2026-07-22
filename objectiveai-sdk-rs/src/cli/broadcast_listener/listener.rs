@@ -154,6 +154,10 @@ struct Frame<'a> {
     plugin_repository: Option<String>,
     #[serde(default)]
     plugin_version: Option<String>,
+    /// Task-scheduler-fired run marker (typed BOOL on the wire; absent
+    /// = false on frames from older daemons).
+    #[serde(default)]
+    task: bool,
 }
 
 impl Frame<'_> {
@@ -172,6 +176,7 @@ impl Frame<'_> {
             plugin_owner: self.plugin_owner.take(),
             plugin_repository: self.plugin_repository.take(),
             plugin_version: self.plugin_version.take(),
+            task: self.task,
         }
     }
 }

@@ -55,6 +55,11 @@ pub struct ListenerRequest<T> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin_version: Option<String>,
+    /// The run was fired by the task scheduler — daemon-authored,
+    /// `false` for every other producer. Always present; `default`
+    /// only tolerates frames from older producers.
+    #[serde(default)]
+    pub task: bool,
     /// The run's actual request.
     pub value: T,
 }

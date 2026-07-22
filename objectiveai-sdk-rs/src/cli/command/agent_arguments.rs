@@ -28,6 +28,12 @@
 /// env informationally); wire requests and the CLI environment can
 /// NEVER assert them — the daemon ignores any inbound claim. They
 /// appear only in daemon-AUTHORED payloads (e.g. user requests).
+///
+/// `task` marks a run FIRED BY THE TASK SCHEDULER (`tasks create`) —
+/// daemon-authored exactly like the plugin trio: never read from
+/// headers or the environment, set only by the scheduler's in-process
+/// scope, stamped outward (`OBJECTIVEAI_TASK`) informationally when
+/// true.
 #[derive(
     Debug,
     Clone,
@@ -67,6 +73,11 @@ pub struct AgentArguments {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin_version: Option<String>,
+    /// Fired by the task scheduler (daemon-authored; see the struct
+    /// docs). Always present on the wire; `default` only tolerates
+    /// frames from older producers.
+    #[serde(default)]
+    pub task: bool,
 }
 
 impl AgentArguments {
@@ -98,6 +109,9 @@ impl AgentArguments {
             plugin_owner: None,
             plugin_repository: None,
             plugin_version: None,
+            // Daemon-authored like the trio — a header claim is
+            // ignored.
+            task: false,
         }
     }
 
@@ -129,6 +143,12 @@ impl AgentArguments {
         .filter_map(|(name, value)| {
             value.as_ref().map(|v| (name.to_string(), v.clone()))
         })
+        .chain(
+            // Boolean: stamped only when true (the
+            // `CONFIG_SET_FORBIDDEN` convention).
+            self.task
+                .then(|| ("OBJECTIVEAI_TASK".to_string(), "true".to_string())),
+        )
         .collect()
     }
 
@@ -162,6 +182,13 @@ impl AgentArguments {
                     command.env_remove(name);
                 }
             }
+        }
+        // Boolean: stamped only when true, removed otherwise so the
+        // parent's value can't leak through.
+        if self.task {
+            command.env("OBJECTIVEAI_TASK", "true");
+        } else {
+            command.env_remove("OBJECTIVEAI_TASK");
         }
     }
 }

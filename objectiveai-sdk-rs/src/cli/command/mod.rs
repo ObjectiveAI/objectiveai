@@ -53,5 +53,6 @@ pub mod functions;
 pub mod laboratories;
 pub mod python;
 pub mod swarms;
+pub mod tasks;
 pub mod update;
 pub mod viewer;
