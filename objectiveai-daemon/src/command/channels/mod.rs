@@ -21,6 +21,26 @@ fn once<T: Send + 'static>(
     Box::pin(futures::stream::once(async move { item }))
 }
 
+/// Require a PLUGIN caller on the publisher side of a channel
+/// (`publish` and `logs request`): the requester of a channel is a
+/// plugin, so its unspoofable trio must be present. `command` names
+/// the offending command in the error. The `reply` side is NOT gated
+/// — the replier is never a plugin.
+pub(crate) fn require_plugin(
+    scoped: &ScopedContext,
+    command: &'static str,
+) -> Result<(), Error> {
+    // The trio is stamped as a set by `plugins run`; any field absent
+    // means the caller is not a plugin.
+    if scoped.plugin_owner().is_none()
+        || scoped.plugin_repository().is_none()
+        || scoped.plugin_version().is_none()
+    {
+        return Err(Error::ChannelRequiresPlugin(command));
+    }
+    Ok(())
+}
+
 /// The daemon-authored agent identity for a channel offer/write — from
 /// the caller's scope, plugin trio included (unspoofable; only
 /// `plugins run` stamps it).

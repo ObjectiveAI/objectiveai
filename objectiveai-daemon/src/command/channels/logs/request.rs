@@ -25,6 +25,9 @@ pub async fn execute(
             "channels logs request requires the publisher secret".to_string(),
         ));
     }
+    // The publisher side is a plugin: a `request` entry always carries
+    // the plugin trio (required, non-optional, on the wire).
+    crate::command::channels::require_plugin(scoped, "logs request")?;
     if auth.state == ChannelState::Closed {
         return Ok(Response::ChannelClosed);
     }

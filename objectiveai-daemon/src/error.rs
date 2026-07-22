@@ -63,6 +63,8 @@ pub enum Error {
     PluginExit(i32),
     #[error("plugins may not invoke `{0}` commands")]
     PluginCommandForbidden(&'static str),
+    #[error("channels {0} requires a plugin caller: no plugin identity on this request")]
+    ChannelRequiresPlugin(&'static str),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]

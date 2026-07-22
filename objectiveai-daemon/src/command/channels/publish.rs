@@ -45,6 +45,10 @@ pub async fn execute(
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Instance("channels publish requires the resident daemon".to_string())
     })?;
+    // A channel's PUBLISHER (its requester side) must be a plugin —
+    // the trio is stored as the channel's origin and surfaces as the
+    // required plugin identity on every `request` log entry.
+    super::require_plugin(scoped, "publish")?;
     let identity = super::scope_identity(scoped);
     let (channel_id, secret, rx) = hubs.channels.create_offer(
         request.key,

@@ -10,7 +10,8 @@ use crate::context::{GlobalContext, ScopedContext};
 use crate::db::channels::{self, Direction, MessageEnvelope};
 use crate::error::Error;
 
-/// Map a stored direction to the wire kind.
+/// Map a stored direction to the wire kind (used by `logs open`, whose
+/// flat entry still carries a `kind` field).
 pub(crate) fn to_kind(direction: Direction) -> MessageKind {
     match direction {
         Direction::Request => MessageKind::Request,
@@ -19,19 +20,35 @@ pub(crate) fn to_kind(direction: Direction) -> MessageKind {
 }
 
 /// Map a DB envelope to the wire entry (unix-seconds → RFC3339). The
-/// stored full identity is projected to the inline sender-only shape:
-/// the sender AIH + the originating plugin; the rest of the argument
-/// bag stays in the DB, unshown.
+/// stored full identity is projected to the inline sender-only shape;
+/// the entry variant follows the direction: a `request` (publisher
+/// write) carries the REQUIRED plugin trio — guaranteed present, since
+/// `publish` and `logs request` both require a plugin caller — while a
+/// `reply` (owner write) carries no plugin identity.
 pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
     let identity = envelope.identity;
-    ChannelLogEntry {
-        id: envelope.id,
-        timestamp: crate::db::time::unix_to_rfc3339(envelope.delivered_at),
-        kind: to_kind(envelope.direction),
-        sender_agent_instance_hierarchy: identity.agent_instance_hierarchy,
-        plugin_owner: identity.plugin_owner,
-        plugin_repository: identity.plugin_repository,
-        plugin_version: identity.plugin_version,
+    let timestamp = crate::db::time::unix_to_rfc3339(envelope.delivered_at);
+    // The AIH is always stored (the daemon defaults it in
+    // `scope_identity`), so `unwrap_or_default` never actually
+    // defaults on a live row.
+    let sender = identity.agent_instance_hierarchy.unwrap_or_default();
+    match envelope.direction {
+        Direction::Request => ChannelLogEntry::Request {
+            id: envelope.id,
+            timestamp,
+            sender_agent_instance_hierarchy: sender,
+            // Present by construction (require_plugin on the write
+            // path); `unwrap_or_default` only guards a pre-enforcement
+            // legacy row, never a live write.
+            plugin_owner: identity.plugin_owner.unwrap_or_default(),
+            plugin_repository: identity.plugin_repository.unwrap_or_default(),
+            plugin_version: identity.plugin_version.unwrap_or_default(),
+        },
+        Direction::Reply => ChannelLogEntry::Reply {
+            id: envelope.id,
+            timestamp,
+            sender_agent_instance_hierarchy: sender,
+        },
     }
 }
 
