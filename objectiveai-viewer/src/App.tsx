@@ -6,98 +6,15 @@ import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri, tauriListen } from "./lib/tauri";
 import {
   tabsSnapshot,
-  type TabDesc,
   type TabsSnapshot,
   type WindowTabs,
 } from "./lib/tabs";
-import {
-  useAgentsInstancesList,
-  type AgentStatus,
-} from "./hooks/useAgentsInstancesList";
+import { useAgentsInstancesList } from "./hooks/useAgentsInstancesList";
 import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
-import { HierarchyTree } from "./components/HierarchyTree";
-import { LaboratoriesPane } from "./components/LaboratoriesPane";
 import { TabStrip } from "./components/TabStrip";
-import { ConversationView } from "./components/ConversationView";
-import { AgentChat } from "./components/AgentChat";
-import { LaboratoryBrowser } from "./components/LaboratoryBrowser";
+import { TabContent } from "./components/TabContent";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
-
-/** The agents home tab: watermark + hierarchy tree. */
-function AgentsPane({
-  transport,
-  agents,
-  zoom,
-}: {
-  transport: ViewerTransport | null;
-  agents: AgentStatus[];
-  zoom: number;
-}) {
-  return (
-    <div className={cn("relative", "flex-1", "min-h-0")}>
-      {/* The brand mark: perfectly centered, always behind the body. */}
-      <div
-        className={cn(
-          "absolute",
-          "inset-0",
-          "flex",
-          "flex-col",
-          "items-center",
-          "justify-center",
-          "gap-3",
-          "pointer-events-none",
-          "select-none",
-        )}
-      >
-        <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
-        <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
-      </div>
-      {/* The body: the agent hierarchy tree, over the watermark. */}
-      <HierarchyTree transport={transport} agents={agents} zoom={zoom} />
-    </div>
-  );
-}
-
-/** One tab's content, by kind. Rendered ALWAYS (every tab in the
- * window stays mounted; visibility is CSS) so listeners and streams
- * keep running on background tabs. */
-function TabContent({
-  tab,
-  transport,
-  agents,
-  zoom,
-}: {
-  tab: TabDesc;
-  transport: ViewerTransport | null;
-  agents: AgentStatus[];
-  zoom: number;
-}) {
-  switch (tab.kind.type) {
-    case "agents":
-      return <AgentsPane transport={transport} agents={agents} zoom={zoom} />;
-    case "laboratories":
-      return <LaboratoriesPane transport={transport} />;
-    case "agent":
-      return (
-        <>
-          <div className={cn("flex-1", "min-h-0")}>
-            <ConversationView transport={transport} hierarchy={tab.kind.aih} />
-          </div>
-          <AgentChat hierarchy={tab.kind.aih} />
-        </>
-      );
-    case "laboratory":
-      return (
-        <LaboratoryBrowser
-          transport={transport}
-          id={tab.kind.id}
-          machine={tab.kind.machine ?? undefined}
-          machineState={tab.kind.machine_state ?? undefined}
-        />
-      );
-  }
-}
 
 /** This window's label — the registry key for its slice of tabs. */
 const WINDOW_LABEL = isTauri() ? getCurrentWebviewWindow().label : "main";
@@ -215,12 +132,7 @@ function App() {
               tab.id === windowTabs.active ? "flex" : "hidden",
             )}
           >
-            <TabContent
-              tab={tab}
-              transport={transport}
-              agents={agents}
-              zoom={zoom}
-            />
+            <TabContent tab={tab} transport={transport} zoom={zoom} />
           </div>
         ))}
       </div>

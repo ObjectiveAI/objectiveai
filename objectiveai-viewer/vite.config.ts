@@ -6,9 +6,19 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(async () => ({
   plugins: [tailwindcss(), react()],
-  // ONE entry: every OS window — main and detached tab shells alike —
-  // runs the same shell (`index.html`); the Rust tab registry decides
-  // what each window shows.
+  // TWO entries: `index.html` is the CHROME (tab strip + status bar,
+  // one per OS window) and `tab.html` is the CONTENT (one child
+  // webview per tab). The Rust shell registry decides which windows
+  // host which tab webviews. NOTE: an explicit rollup input drops the
+  // implicit default — both entries must be listed.
+  build: {
+    rollupOptions: {
+      input: {
+        index: "index.html",
+        tab: "tab.html",
+      },
+    },
+  },
   clearScreen: false,
   server: {
     port: 1420,

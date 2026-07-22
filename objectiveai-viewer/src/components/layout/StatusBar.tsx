@@ -35,7 +35,10 @@ export function StatusBar({
   }
 
   return (
-    <footer role="status" aria-live="polite" className={cn("flex", "items-center", "gap-4", "px-4", "py-2", "border-t", "border-node-border", "bg-ground-raised", "font-mono", "text-[10px]", "text-info-dim", "tabular-nums", "select-none", "overflow-hidden", "whitespace-nowrap", "min-w-0")}>
+    // Fixed h-8 (32px): the Rust side carves the content webviews'
+    // rect out of the window as strip (40) + footer (32) — keep in
+    // sync with STATUS_HEIGHT_LOGICAL (shell/native.rs).
+    <footer role="status" aria-live="polite" className={cn("flex", "items-center", "h-8", "shrink-0", "gap-4", "px-4", "border-t", "border-node-border", "bg-ground-raised", "font-mono", "text-[10px]", "text-info-dim", "tabular-nums", "select-none", "overflow-hidden", "whitespace-nowrap", "min-w-0")}>
       <div className={cn("flex", "items-center", "gap-1.5", "shrink-0")}>
         <div className={cn("w-1.5", "h-1.5", "rounded-full", activeAgents > 0 ? cn("bg-copper-hot", "animate-pulse") : "bg-info-dim")} />
         <span>{activeAgents} active {activeAgents === 1 ? "agent" : "agents"}</span>

@@ -21,7 +21,15 @@ function subscribe(callback: () => void): () => void {
 }
 
 export function toggleOrientation(): void {
-  orientation = orientation === "vertical" ? "horizontal" : "vertical";
+  setOrientation(orientation === "vertical" ? "horizontal" : "vertical");
+}
+
+/** Set the orientation outright — how a content webview adopts the
+ * value pushed from its window's chrome (module stores are per
+ * webview; the bridge rides `ui://changed` events). */
+export function setOrientation(next: Orientation): void {
+  if (next === orientation) return;
+  orientation = next;
   for (const subscriber of [...subscribers]) {
     subscriber();
   }
