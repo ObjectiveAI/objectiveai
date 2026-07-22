@@ -18,7 +18,7 @@
 /// - `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`
 /// - `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`
 /// - `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`
-/// - `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_NAME`
+/// - `plugin_name` ↔ `OBJECTIVEAI_PLUGIN_NAME`
 /// - `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`
 ///
 /// The three `plugin_*` fields are the PLUGIN CALLER identity —
@@ -69,7 +69,7 @@ pub struct AgentArguments {
     pub plugin_owner: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub plugin_repository: Option<String>,
+    pub plugin_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin_version: Option<String>,
@@ -107,7 +107,7 @@ impl AgentArguments {
             response_id: get("X-OBJECTIVEAI-RESPONSE-ID"),
             response_ids: get("X-OBJECTIVEAI-RESPONSE-IDS"),
             plugin_owner: None,
-            plugin_repository: None,
+            plugin_name: None,
             plugin_version: None,
             // Daemon-authored like the trio — a header claim is
             // ignored.
@@ -136,7 +136,7 @@ impl AgentArguments {
             ("OBJECTIVEAI_RESPONSE_ID", &self.response_id),
             ("OBJECTIVEAI_RESPONSE_IDS", &self.response_ids),
             ("OBJECTIVEAI_PLUGIN_OWNER", &self.plugin_owner),
-            ("OBJECTIVEAI_PLUGIN_NAME", &self.plugin_repository),
+            ("OBJECTIVEAI_PLUGIN_NAME", &self.plugin_name),
             ("OBJECTIVEAI_PLUGIN_VERSION", &self.plugin_version),
         ]
         .into_iter()
@@ -170,7 +170,7 @@ impl AgentArguments {
             ("OBJECTIVEAI_RESPONSE_ID", &self.response_id),
             ("OBJECTIVEAI_RESPONSE_IDS", &self.response_ids),
             ("OBJECTIVEAI_PLUGIN_OWNER", &self.plugin_owner),
-            ("OBJECTIVEAI_PLUGIN_NAME", &self.plugin_repository),
+            ("OBJECTIVEAI_PLUGIN_NAME", &self.plugin_name),
             ("OBJECTIVEAI_PLUGIN_VERSION", &self.plugin_version),
         ];
         for (name, value) in pairs {

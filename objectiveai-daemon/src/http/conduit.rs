@@ -2348,7 +2348,7 @@ async fn dispatch_script(
             // writer is `plugins run`. Same for the task flag — the
             // scheduler is its single writer.
             plugin_owner: None,
-            plugin_repository: None,
+            plugin_name: None,
             plugin_version: None,
             task: false,
         })

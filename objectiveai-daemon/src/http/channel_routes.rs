@@ -57,7 +57,7 @@ struct Offer {
     key: String,
     details: serde_json::Value,
     plugin_owner: Option<String>,
-    plugin_repository: Option<String>,
+    plugin_name: Option<String>,
     plugin_version: Option<String>,
     agent_arguments: AgentArguments,
     /// Accept arbitration AND the publish unblock: the first accept
@@ -142,7 +142,7 @@ impl ChannelHub {
         key: String,
         details: serde_json::Value,
         plugin_owner: Option<String>,
-        plugin_repository: Option<String>,
+        plugin_name: Option<String>,
         plugin_version: Option<String>,
         agent_arguments: AgentArguments,
     ) -> (String, String, oneshot::Receiver<()>) {
@@ -152,7 +152,7 @@ impl ChannelHub {
             offer: ChannelOffer {
                 channel_id: channel_id.clone(),
                 plugin_owner: plugin_owner.clone(),
-                plugin_repository: plugin_repository.clone(),
+                plugin_name: plugin_name.clone(),
                 plugin_version: plugin_version.clone(),
                 agent_arguments: agent_arguments.clone(),
                 key: key.clone(),
@@ -167,7 +167,7 @@ impl ChannelHub {
             key,
             details,
             plugin_owner,
-            plugin_repository,
+            plugin_name,
             plugin_version,
             agent_arguments,
             accept: std::sync::Mutex::new(Some(accept_tx)),
@@ -236,7 +236,7 @@ impl ChannelHub {
             &offer.details,
             &crate::db::channels::PluginOrigin {
                 owner: offer.plugin_owner.as_deref(),
-                repository: offer.plugin_repository.as_deref(),
+                name: offer.plugin_name.as_deref(),
                 version: offer.plugin_version.as_deref(),
             },
             &offer.agent_arguments,

@@ -33,7 +33,7 @@ pub(crate) fn require_plugin(
     // The trio is stamped as a set by `plugins run`; any field absent
     // means the caller is not a plugin.
     if scoped.plugin_owner().is_none()
-        || scoped.plugin_repository().is_none()
+        || scoped.plugin_name().is_none()
         || scoped.plugin_version().is_none()
     {
         return Err(Error::ChannelRequiresPlugin(command));
@@ -53,7 +53,7 @@ pub(crate) fn scope_identity(scoped: &ScopedContext) -> AgentArguments {
         response_id: scoped.response_id().map(String::from),
         response_ids: scoped.response_ids().map(String::from),
         plugin_owner: scoped.plugin_owner().map(String::from),
-        plugin_repository: scoped.plugin_repository().map(String::from),
+        plugin_name: scoped.plugin_name().map(String::from),
         plugin_version: scoped.plugin_version().map(String::from),
         task: scoped.task(),
     }

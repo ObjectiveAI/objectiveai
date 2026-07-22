@@ -397,7 +397,7 @@ fn agent_arguments_from_env() -> AgentArguments {
         // identity is unspoofable — only the daemon's own `plugins
         // run` may assert it, in-process. An env claim is ignored.
         plugin_owner: None,
-        plugin_repository: None,
+        plugin_name: None,
         plugin_version: None,
         // Same discipline: only the daemon's task scheduler stamps
         // this, in-process. An env claim is ignored.

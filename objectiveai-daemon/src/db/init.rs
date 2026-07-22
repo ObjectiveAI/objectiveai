@@ -31,15 +31,6 @@ use super::{Error, Pool};
 /// no migration framework (nobody is on this DB yet).
 const SCHEMA: &str = include_str!("schema.sql");
 
-/// `logs.*` schema. Pulled from `src/db/logs/schema.sql` so the
-/// canonical definitions live in a real .sql file (readable by
-/// tooling, syntax-highlighted by editors) instead of as a string
-/// constant baked into Rust source.
-const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
-
-/// `channels.*` schema (durable duplex channels + message log). Pulled
-/// from `src/db/channels/schema.sql`, applied alongside [`LOGS_SCHEMA`].
-const CHANNELS_SCHEMA: &str = include_str!("channels/schema.sql");
 
 /// The shared readonly group every plugin/tool compartment role
 /// joins (see [`super::compartment`]): USAGE + SELECT over the base
@@ -150,8 +141,6 @@ pub async fn init(url: &str, database: &str) -> Result<Pool, Error> {
             .await?;
         let apply_result: Result<(), Error> = async {
             conn.execute(SCHEMA).await?;
-            conn.execute(LOGS_SCHEMA).await?;
-            conn.execute(CHANNELS_SCHEMA).await?;
             conn.execute(READER_GROUP).await?;
             Ok(())
         }

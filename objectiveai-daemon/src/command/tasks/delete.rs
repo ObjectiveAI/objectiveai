@@ -9,14 +9,26 @@ use crate::error::Error;
 
 pub async fn execute(
     global: &GlobalContext,
-    _scoped: &ScopedContext,
+    scoped: &ScopedContext,
     request: Request,
 ) -> Result<Response, Error> {
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Task("tasks delete requires the resident daemon".to_string())
     })?;
     let db = global.db_client().await?;
-    let deleted = crate::db::tasks::delete_task(&db, &request.id).await?;
+    // The id resolves within the CALLER's plugin namespace — a plugin
+    // can only delete its own tasks' ids, a non-plugin caller only
+    // the all-NULL namespace. Plain identity scoping, not auth.
+    let deleted = crate::db::tasks::delete_task(
+        &db,
+        (
+            scoped.plugin_owner(),
+            scoped.plugin_name(),
+            scoped.plugin_version(),
+        ),
+        &request.id,
+    )
+    .await?;
     hubs.tasks.notify();
     Ok(Response { deleted })
 }

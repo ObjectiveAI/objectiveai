@@ -36,17 +36,21 @@ pub async fn execute(
         }
         _ => {}
     }
+    if request.id.is_empty() {
+        return Err(Error::Task("--id must not be empty".to_string()));
+    }
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Task("tasks create requires the resident daemon".to_string())
     })?;
     let db = global.db_client().await?;
-    let id = uuid::Uuid::new_v4().to_string();
     let command = serde_json::to_value(&*request.command)
         .map_err(|e| Error::Task(format!("serialize command: {e}")))?;
+    // The stored identity IS the id's namespace (its plugin trio) and
+    // what the fired run reconstructs.
     let identity = crate::command::channels::scope_identity(scoped);
-    crate::db::tasks::insert_task(
+    let inserted = crate::db::tasks::insert_task(
         &db,
-        &id,
+        &request.id,
         &command,
         &identity,
         request.delay_secs as i64,
@@ -54,10 +58,16 @@ pub async fn execute(
         request.repeat_count.map(|c| c as i64),
     )
     .await?;
+    if !inserted {
+        return Err(Error::Task(format!(
+            "a task with id {:?} already exists",
+            request.id,
+        )));
+    }
     // Write first, THEN wake the driver (notify stores a permit — no
     // lost wakeup).
     hubs.tasks.notify();
-    Ok(Response { id })
+    Ok(Response { id: request.id })
 }
 
 pub mod request_schema {

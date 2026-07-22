@@ -96,7 +96,7 @@ pub struct ResponseItem {
     pub plugin_owner: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub plugin_repository: Option<String>,
+    pub plugin_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin_version: Option<String>,

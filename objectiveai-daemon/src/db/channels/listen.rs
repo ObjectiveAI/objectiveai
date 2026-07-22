@@ -1,6 +1,6 @@
 //! Wake source for `channels logs subscribe`.
 //!
-//! Two triggers in `channels/schema.sql` fire NOTIFY with the channel
+//! Two triggers in the root `db/schema.sql` fire NOTIFY with the channel
 //! id as payload: `channel_messages_inserted` on every new message,
 //! `channel_closed` on the open→closed transition. A subscriber
 //! attaches [`channel_event_listener`] BEFORE its pending/state check,

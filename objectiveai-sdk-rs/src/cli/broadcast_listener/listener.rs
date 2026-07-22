@@ -151,7 +151,7 @@ struct Frame<'a> {
     #[serde(default)]
     plugin_owner: Option<String>,
     #[serde(default)]
-    plugin_repository: Option<String>,
+    plugin_name: Option<String>,
     #[serde(default)]
     plugin_version: Option<String>,
     /// Task-scheduler-fired run marker (typed BOOL on the wire; absent
@@ -174,7 +174,7 @@ impl Frame<'_> {
             response_id: self.response_id.take(),
             response_ids: self.response_ids.take(),
             plugin_owner: self.plugin_owner.take(),
-            plugin_repository: self.plugin_repository.take(),
+            plugin_name: self.plugin_name.take(),
             plugin_version: self.plugin_version.take(),
             task: self.task,
         }

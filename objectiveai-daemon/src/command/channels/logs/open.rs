@@ -29,7 +29,7 @@ pub async fn execute(
                 kind: super::list::to_kind(entry.direction),
                 sender_agent_instance_hierarchy: identity.agent_instance_hierarchy,
                 plugin_owner: identity.plugin_owner,
-                plugin_repository: identity.plugin_repository,
+                plugin_name: identity.plugin_name,
                 plugin_version: identity.plugin_version,
                 content: entry.content,
             })

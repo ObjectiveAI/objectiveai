@@ -10,7 +10,7 @@ use super::Direction;
 /// all-`None` when the publisher wasn't a plugin.
 pub struct PluginOrigin<'a> {
     pub owner: Option<&'a str>,
-    pub repository: Option<&'a str>,
+    pub name: Option<&'a str>,
     pub version: Option<&'a str>,
 }
 
@@ -31,7 +31,7 @@ pub async fn insert_channel(
     sqlx::query(
         "INSERT INTO objectiveai.channels \
          (id, pub_secret, owner_secret, state, key, details, \
-          plugin_owner, plugin_repository, plugin_version, agent_arguments, \
+          plugin_owner, plugin_name, plugin_version, agent_arguments, \
           pub_read_index, owner_read_index, created_at) \
          VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, 0, 0, $10)",
     )
@@ -41,7 +41,7 @@ pub async fn insert_channel(
     .bind(key)
     .bind(sqlx::types::Json(details))
     .bind(plugin.owner)
-    .bind(plugin.repository)
+    .bind(plugin.name)
     .bind(plugin.version)
     .bind(sqlx::types::Json(agent_arguments))
     .bind(now)

@@ -1,6 +1,6 @@
 //! `logs_messages_inserted` channel subscriber.
 //!
-//! The trigger in `logs/schema.sql` fires NOTIFY on every new
+//! The trigger in the root `db/schema.sql` fires NOTIFY on every new
 //! `objectiveai.messages` row with `NEW.agent_instance_hierarchy` as the
 //! payload. This helper attaches a `PgListener`, drops every
 //! notification whose payload doesn't equal `target_aih`, and

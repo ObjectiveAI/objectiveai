@@ -19,6 +19,12 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.tasks.create.Request")]
 pub struct Request {
     pub path_type: Path,
+    /// The task's user-chosen name — REQUIRED, laboratory-style.
+    /// Unique per creating plugin (non-plugin creators share one
+    /// namespace); `tasks delete --id` and re-creation resolve
+    /// against it. This is the caller's handle, distinct from the
+    /// daemon's internal surrogate key.
+    pub id: String,
     /// The command to run — the full typed command request.
     /// Schema-opaque (`serde_json::Value`) ON PURPOSE: embedding the
     /// root request enum's schema in a leaf transitively expands the
@@ -67,9 +73,13 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("id_required").required(true).args(["id"])))]
 #[command(group(clap::ArgGroup::new("command_required").required(true).args(["command"])))]
 #[command(group(clap::ArgGroup::new("delay_required").required(true).args(["delay_secs"])))]
 pub struct Args {
+    /// The task's name — unique per creating plugin. Required.
+    #[arg(long)]
+    pub id: Option<String>,
     /// The command to run: a full command-request JSON object (the
     /// same shape `--request` accepts).
     #[arg(long)]
@@ -109,6 +119,12 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let id = args.id.ok_or_else(|| {
+            crate::cli::command::FromArgsError::path_parse(
+                "id",
+                "--id is required".to_string(),
+            )
+        })?;
         let command = args.command.ok_or_else(|| {
             crate::cli::command::FromArgsError::path_parse(
                 "command",
@@ -131,6 +147,7 @@ impl TryFrom<Args> for Request {
         })?;
         Ok(Self {
             path_type: Path::TasksCreate,
+            id,
             command,
             delay_secs,
             repeat: args.repeat,

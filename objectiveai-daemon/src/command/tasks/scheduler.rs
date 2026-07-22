@@ -160,7 +160,7 @@ fn fire(
         // an AUTHORITY like `plugins run`.
         if let (Some(owner), Some(repository), Some(version)) = (
             stored.plugin_owner.as_deref(),
-            stored.plugin_repository.as_deref(),
+            stored.plugin_name.as_deref(),
             stored.plugin_version.as_deref(),
         ) {
             run_scope = run_scope.with_plugin(owner, repository, version);
@@ -196,13 +196,21 @@ fn fire(
             Err(_) => true,
         };
 
-        // Completion UPDATE — matches nothing when the task was
-        // deleted mid-run (by design), errors are swallowed (the boot
-        // reconcile re-arms a stranded `running` row).
+        // Completion UPDATE — targets the task by its sole identity
+        // (`id` within its plugin namespace). Matches nothing when the
+        // task was deleted mid-run (by design); errors are swallowed
+        // (the boot reconcile re-arms a stranded `running` row).
         if let Ok(pool) = global.db_client().await {
             let now = chrono::Utc::now().timestamp();
-            let _ =
-                crate::db::tasks::complete_run(&pool, &task.id, errored, now).await;
+            let plugin = (
+                task.agent_arguments.plugin_owner.as_deref(),
+                task.agent_arguments.plugin_name.as_deref(),
+                task.agent_arguments.plugin_version.as_deref(),
+            );
+            let _ = crate::db::tasks::complete_run(
+                &pool, plugin, &task.id, errored, now,
+            )
+            .await;
         }
         scheduler.notify();
     });

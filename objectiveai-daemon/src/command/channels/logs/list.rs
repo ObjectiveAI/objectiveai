@@ -41,7 +41,7 @@ pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
             // path); `unwrap_or_default` only guards a pre-enforcement
             // legacy row, never a live write.
             plugin_owner: identity.plugin_owner.unwrap_or_default(),
-            plugin_repository: identity.plugin_repository.unwrap_or_default(),
+            plugin_name: identity.plugin_name.unwrap_or_default(),
             plugin_version: identity.plugin_version.unwrap_or_default(),
         },
         Direction::Reply => ChannelLogEntry::Reply {
@@ -51,7 +51,7 @@ pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
             // Optional: the replier is usually not a plugin, but a
             // plugin reply passes its trio through verbatim.
             plugin_owner: identity.plugin_owner,
-            plugin_repository: identity.plugin_repository,
+            plugin_name: identity.plugin_name,
             plugin_version: identity.plugin_version,
         },
     }

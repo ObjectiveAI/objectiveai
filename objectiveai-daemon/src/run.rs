@@ -430,7 +430,7 @@ fn tee_context(scoped: &ScopedContext) -> serde_json::Value {
         // only source; wire claims are ignored), so /listen observers
         // can trust which installed plugin ran the command.
         ("plugin_owner", scoped.plugin_owner()),
-        ("plugin_repository", scoped.plugin_repository()),
+        ("plugin_name", scoped.plugin_name()),
         ("plugin_version", scoped.plugin_version()),
     ] {
         if let Some(val) = value {

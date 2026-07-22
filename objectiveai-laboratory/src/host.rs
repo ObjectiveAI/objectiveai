@@ -1328,7 +1328,7 @@ impl HostServer {
                     headers,
                 );
             args.plugin_owner = Some(coords.owner.clone());
-            args.plugin_repository = Some(coords.name.clone());
+            args.plugin_name = Some(coords.name.clone());
             args.plugin_version = Some(coords.version.clone());
             let mut env = args.identity_env();
             let enc = |s: &str| {

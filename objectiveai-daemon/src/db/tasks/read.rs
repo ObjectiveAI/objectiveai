@@ -8,19 +8,19 @@ use super::TaskRow;
 /// Every task, ascending by creation time (completed tasks included —
 /// they stay listed until deleted).
 pub async fn list_tasks(pool: &Pool) -> Result<Vec<TaskRow>, Error> {
-    let rows = sqlx::query(
-        "SELECT id, command, agent_arguments, delay_secs, repeat, \
+    let rows = sqlx::query(&format!(
+        "SELECT id, command, {}, delay_secs, repeat, \
                 repeat_count, run_count, error_count, last_result, \
                 state, created_at, next_run_at \
          FROM objectiveai.tasks ORDER BY created_at, id",
-    )
+        super::IDENTITY_COLUMNS,
+    ))
     .fetch_all(&**pool)
     .await?;
     rows.into_iter()
         .map(|row| {
             let sqlx::types::Json(command) = row.try_get("command")?;
-            let sqlx::types::Json(agent_arguments) =
-                row.try_get("agent_arguments")?;
+            let agent_arguments = super::identity_from_row(&row)?;
             let state: String = row.try_get("state")?;
             Ok(TaskRow {
                 id: row.try_get("id")?,

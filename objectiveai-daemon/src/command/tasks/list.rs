@@ -54,7 +54,7 @@ pub async fn execute(
                 next_run_at: row.next_run_at.map(crate::db::time::unix_to_rfc3339),
                 agent_instance_hierarchy: identity.agent_instance_hierarchy,
                 plugin_owner: identity.plugin_owner,
-                plugin_repository: identity.plugin_repository,
+                plugin_name: identity.plugin_name,
                 plugin_version: identity.plugin_version,
             });
         }

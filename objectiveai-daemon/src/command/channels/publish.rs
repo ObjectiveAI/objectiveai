@@ -54,7 +54,7 @@ pub async fn execute(
         request.key,
         request.details,
         scoped.plugin_owner().map(String::from),
-        scoped.plugin_repository().map(String::from),
+        scoped.plugin_name().map(String::from),
         scoped.plugin_version().map(String::from),
         identity,
     );

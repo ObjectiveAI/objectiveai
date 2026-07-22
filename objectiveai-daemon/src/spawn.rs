@@ -439,7 +439,7 @@ pub fn apply_config_env(
             cmd.env_remove("OBJECTIVEAI_PLUGIN_OWNER");
         }
     }
-    match scoped.plugin_repository() {
+    match scoped.plugin_name() {
         Some(v) => {
             cmd.env("OBJECTIVEAI_PLUGIN_NAME", v);
         }

@@ -48,7 +48,7 @@ pub enum ChannelLogEntry {
         /// The originating plugin (owner/repository/version) — always
         /// present: a channel's requester is a plugin.
         plugin_owner: String,
-        plugin_repository: String,
+        plugin_name: String,
         plugin_version: String,
     },
     /// An owner→publisher message. The replier is typically not a
@@ -70,7 +70,7 @@ pub enum ChannelLogEntry {
         plugin_owner: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
-        plugin_repository: Option<String>,
+        plugin_name: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         plugin_version: Option<String>,
