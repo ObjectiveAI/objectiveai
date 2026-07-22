@@ -9,12 +9,9 @@
 //! marker (content `"ready"`).
 
 use envconfig::Envconfig;
-use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Notify;
-
-use crate::plugins::serve_plugin_asset;
 
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
@@ -295,26 +292,6 @@ pub struct Config {
     pub agent_instance_hierarchy: Option<String>,
 }
 
-/// The one Rust-side command executor: `list_plugins_with_viewer`
-/// discovers plugins through it at startup. Everything else is
-/// JS-native. Commands travel to the daemon's `/execute` route and
-/// run in-process there — the viewer never spawns the cli binary, so
-/// it can live on a different machine than the CLI. `daemon_address`
-/// is the daemon's published base `http://` URL (the same one the JS
-/// frontend connects to).
-pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> SseCommandExecutor {
-    let executor = SseCommandExecutor::new(format!("{daemon_address}/execute"));
-    match signature {
-        Some(signature) => executor.signature(signature),
-        None => executor,
-    }
-}
-
-/// Resolve the shell's supporting state. No IO.
-pub fn setup(config: &Config) -> PathBuf {
-    crate::plugins::plugins_dir(&config.objectiveai_dir)
-}
-
 /// A function that exits the viewer's event loop with the given exit code.
 pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 
@@ -327,10 +304,8 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 ///
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
-    executor: SseCommandExecutor,
     proxy: crate::daemon_proxy::DaemonProxy,
     agents_dir: AgentsDir,
-    plugins_dir: PathBuf,
     lab_env: crate::laboratories::LabEnv,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
     agent_window: Option<String>,
@@ -340,17 +315,11 @@ pub fn serve(
     // for later.
     let ready = Arc::new(Notify::new());
 
-    let plugins_dir_for_protocol = plugins_dir.clone();
     let builder = tauri::Builder::default()
         .manage(ready)
-        .manage(executor)
         .manage(proxy)
         .manage(agents_dir)
-        .manage(lab_env)
-        .manage(crate::plugins::PluginsDir(plugins_dir))
-        .register_uri_scheme_protocol("plugin", move |_app, request| {
-            serve_plugin_asset(&plugins_dir_for_protocol, request)
-        });
+        .manage(lab_env);
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -367,7 +336,6 @@ pub fn serve(
         crate::daemon_proxy::daemon_user,
         crate::daemon_proxy::daemon_user_reply,
         crate::daemon_proxy::daemon_stream_close,
-        crate::plugins::list_plugins_with_viewer,
         crate::laboratories::machine_identity,
     ]);
     builder
@@ -418,8 +386,6 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         .join("state")
         .join(&config.objectiveai_state)
         .join("locks");
-    let plugins_dir = setup(&config);
-    let executor = make_executor(&daemon_address, config.daemon_signature.as_deref());
 
     // There is only ever ONE viewer per STATE (unlike the api, which
     // is one per OBJECTIVEAI_DIR): claim key "viewer" in
@@ -462,10 +428,8 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     };
 
     Ok(serve(
-        executor,
         proxy,
         agents_dir,
-        plugins_dir,
         lab_env,
         None,
         config.agent_instance_hierarchy.clone(),

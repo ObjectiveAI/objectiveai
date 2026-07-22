@@ -33,6 +33,17 @@ use futures::StreamExt;
 use tauri::ipc::Channel;
 use tokio_util::sync::CancellationToken;
 
+/// Per-call identity for viewer-initiated daemon runs: instance
+/// hierarchy `"Viewer"`, every other field `None` so the daemon
+/// clears rather than inherits it — nothing leaks from the daemon's
+/// own environment into a viewer-initiated run.
+fn viewer_agent_arguments() -> objectiveai_sdk::cli::command::AgentArguments {
+    objectiveai_sdk::cli::command::AgentArguments {
+        agent_instance_hierarchy: Some("Viewer".to_string()),
+        ..Default::default()
+    }
+}
+
 /// Managed state: the daemon coordinates every proxy dial uses, one
 /// pooled client, and the live-stream cancellation registry.
 pub struct DaemonProxy {
@@ -210,7 +221,7 @@ pub(crate) async fn daemon_execute(
     if let Some(signature) = &proxy.signature {
         req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
     }
-    let args = crate::plugins::viewer_agent_arguments();
+    let args = viewer_agent_arguments();
     if let Some(v) = &args.agent_instance_hierarchy {
         req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
     }
@@ -346,7 +357,7 @@ pub(crate) async fn daemon_user_reply(
     if let Some(signature) = &proxy.signature {
         req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
     }
-    let args = crate::plugins::viewer_agent_arguments();
+    let args = viewer_agent_arguments();
     if let Some(v) = &args.agent_instance_hierarchy {
         req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
     }

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import cn from "classnames";
-import { tauriInvoke } from "./lib/tauri";
 import { viewerTransport } from "./lib/viewer-transport";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import {
@@ -13,7 +12,6 @@ import { ErrorToast } from "./components/ErrorToast";
 import { HierarchyTree } from "./components/HierarchyTree";
 import { LaboratoriesPane } from "./components/LaboratoriesPane";
 import { TabBar, type Tab } from "./TabBar";
-import { PluginPane } from "./PluginPane";
 import { CommandPalette } from "./components/shared/CommandPalette";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
@@ -63,8 +61,7 @@ function ObjectiveAIView({
       <TabBar tabs={HOME_TABS} activeTab={homeTab} onSelect={setHomeTab} />
       {/* Both panes stay mounted; only the active one shows — the
           hierarchy tree's per-agent listeners keep running while the
-          laboratories pane is focused (same pattern as the main
-          plugin tabs). */}
+          laboratories pane is focused. */}
       <div
         className={cn(
           "relative",
@@ -114,23 +111,12 @@ function ObjectiveAIView({
   );
 }
 
-const OBJECTIVEAI_TAB_ID = "objectiveai";
-
-export interface ViewerPluginInfo {
-  owner: string;
-  name: string;
-  version: string;
-  iframe_src: string;
-}
-
 /** The status-bar inputs ObjectiveAIView reports up to App. */
 interface ViewerStatus {
   entries: Entry[];
 }
 
 function App() {
-  const [plugins, setPlugins] = useState<ViewerPluginInfo[]>([]);
-  const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
   const [status, setStatus] = useState<ViewerStatus>({
     entries: [],
   });
@@ -150,93 +136,15 @@ function App() {
   // The app's ONE agents-list connection: {aih, active} items, live.
   const agents = useAgentsInstancesList(transport);
   const activeAgents = agents.filter((agent) => agent.active).length;
-  // Canvas zoom — the footer slider drives it; the main tab's canvas
-  // consumes it (per-tab zoom for plugin panes comes later).
+  // Canvas zoom — the footer slider drives it; the main canvas
+  // consumes it.
   const [zoom, setZoom] = useState(1);
-
-  useEffect(() => {
-    tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
-      .then((p) => { if (p) setPlugins(p); })
-      .catch((e) => {
-        // eslint-disable-next-line no-console
-        console.warn("list_plugins_with_viewer failed:", e);
-      });
-  }, []);
-
-  const tabs: Tab[] = [
-    { id: OBJECTIVEAI_TAB_ID, label: "ObjectiveAI" },
-    ...plugins.map((p) => ({ id: p.name, label: p.name })),
-  ];
-
-  if (plugins.length === 0) {
-    return (
-      <div className={cn("flex", "flex-col", "h-screen")}>
-        <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-          <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
-        </div>
-        <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
-      <ErrorToast />
-      </div>
-    );
-  }
 
   return (
     <div className={cn("flex", "flex-col", "h-screen")}>
-      <div
-        className={cn(
-          "flex",
-          "flex-row",
-          "items-stretch",
-          "bg-neutral-100",
-          "dark:bg-neutral-900",
-          "border-b",
-          "border-neutral-300",
-          "dark:border-neutral-700",
-        )}
-      >
-        <div className={cn("flex-1", "min-w-0")}>
-          <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
-        </div>
+      <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
+        <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
       </div>
-      <div
-        className={cn(
-          "relative",
-          "flex",
-          "flex-col",
-          "flex-1",
-          "min-h-0",
-        )}
-      >
-        {/* Every pane stays mounted at all times; only the active one is
-            shown (the rest are display:none). Keeping plugin iframes
-            mounted means their JS — and any daemon SSE
-            connections they hold — keeps running regardless of which
-            tab is focused. */}
-        <div
-          className={cn(
-            "flex-col",
-            "flex-1",
-            "min-h-0",
-            activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
-          )}
-        >
-          <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
-        </div>
-        {plugins.map((p) => (
-          <div
-            key={p.name}
-            className={cn(
-              "flex-col",
-              "flex-1",
-              "min-h-0",
-              activeTab === p.name ? "flex" : "hidden",
-            )}
-          >
-            <PluginPane info={p} />
-          </div>
-        ))}
-      </div>
-      {/* Spans every tab — plugin panes included. */}
       <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
       <ErrorToast />
     </div>
