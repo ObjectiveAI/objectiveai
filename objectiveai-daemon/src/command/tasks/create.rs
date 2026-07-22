@@ -1,13 +1,10 @@
 //! `tasks create` — validate, persist, arm. The command arrives TYPED
-//! (deserialization already validated it); create additionally
-//! forbids the classes that must never run unattended:
-//!
-//! - `daemon …` — a scheduled `daemon kill` is a boot-loop suicide
-//!   (the kill dies with the daemon mid-run; the boot reconcile
-//!   re-arms it and it re-fires on every boot).
-//! - `update` — self-update mid-flight, same crash-mid-run family.
-//! - `tasks …` — tasks creating tasks is an unbounded fork bomb under
-//!   `--repeat`.
+//! (deserialization already validated it). No command class is
+//! forbidden: any restriction here would be theater, since a
+//! scheduled `python` snippet (or a script agent) can execute the
+//! same commands transitively anyway — the caller owns the
+//! consequences of scheduling e.g. `daemon kill` (which dies with the
+//! daemon mid-run and re-fires on every boot via the reconcile).
 //!
 //! The stored identity is the CREATOR's whole scope identity (agent
 //! arguments + plugin trio) — what the fired run reconstructs.
@@ -39,28 +36,6 @@ pub async fn execute(
         }
         _ => {}
     }
-    {
-        use objectiveai_sdk::cli::command::Request as Cmd;
-        match &*request.command {
-            Cmd::Daemon(_) => {
-                return Err(Error::Task(
-                    "daemon commands may not be scheduled".to_string(),
-                ));
-            }
-            Cmd::Update(_) | Cmd::UpdateRequestSchema(_) | Cmd::UpdateResponseSchema(_) => {
-                return Err(Error::Task(
-                    "update may not be scheduled".to_string(),
-                ));
-            }
-            Cmd::Tasks(_) => {
-                return Err(Error::Task(
-                    "tasks commands may not be scheduled".to_string(),
-                ));
-            }
-            _ => {}
-        }
-    }
-
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Task("tasks create requires the resident daemon".to_string())
     })?;
