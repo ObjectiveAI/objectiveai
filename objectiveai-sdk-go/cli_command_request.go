@@ -14,13 +14,10 @@ type CliCommandRequest struct {
 	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
 	Laboratories *CliCommandLaboratoriesRequest 
-	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
-	Plugins *CliCommandPluginsRequest 
 	Python *CliCommandPythonRequest 
 	PythonRequestSchema *CliCommandPythonRequestSchemaRequest 
 	PythonResponseSchema *CliCommandPythonResponseSchemaRequest 
 	Swarms *CliCommandSwarmsRequest 
-	Tools *CliCommandToolsRequest 
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
 	UpdateResponseSchema *CliCommandUpdateResponseSchemaRequest 
@@ -47,12 +44,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.Laboratories != nil {
 		return json.Marshal(v.Laboratories)
 	}
-	if v.MCP != nil {
-		return json.Marshal(v.MCP)
-	}
-	if v.Plugins != nil {
-		return json.Marshal(v.Plugins)
-	}
 	if v.Python != nil {
 		return json.Marshal(v.Python)
 	}
@@ -64,9 +55,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Swarms != nil {
 		return json.Marshal(v.Swarms)
-	}
-	if v.Tools != nil {
-		return json.Marshal(v.Tools)
 	}
 	if v.Update != nil {
 		return json.Marshal(v.Update)
@@ -154,28 +142,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandMcpRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.MCP = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandPluginsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.Plugins = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandPythonRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -213,17 +179,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.Swarms = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandToolsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.Tools = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -296,13 +251,10 @@ func (v CliCommandRequest) Validate() error {
 	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
 	if v.Laboratories != nil { count++ }
-	if v.MCP != nil { count++ }
-	if v.Plugins != nil { count++ }
 	if v.Python != nil { count++ }
 	if v.PythonRequestSchema != nil { count++ }
 	if v.PythonResponseSchema != nil { count++ }
 	if v.Swarms != nil { count++ }
-	if v.Tools != nil { count++ }
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }
 	if v.UpdateResponseSchema != nil { count++ }

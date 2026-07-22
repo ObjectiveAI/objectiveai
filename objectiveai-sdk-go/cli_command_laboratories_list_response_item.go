@@ -28,6 +28,15 @@ type CliCommandLaboratoriesListResponseItem struct {
 	// laboratory ids are only unique per (machine, state).
 	MachineState *string `json:"machine_state,omitempty"`
 	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
+	// For plugin laboratories: the plugin's canonical coordinate
+	// trio (owner/name lowercased, version verbatim — the repo's
+	// `v`-prefixed git tag). `None` for every other laboratory.
+	Plugin *CliCommandLaboratoriesListPlugin `json:"plugin,omitempty"`
+	// For EPHEMERAL laboratories (agent and plugin): the
+	// agent-completion response id the laboratory serves — its
+	// lifetime is that completion's single MCP connection. `None`
+	// for regular laboratories.
+	ResponseID *string `json:"response_id,omitempty"`
 	// Whether the laboratory's CONTAINER is running right now (the
 	// lifecycle starts and stops containers on demand). Defaulted so
 	// older daemons' items parse (as not-running).

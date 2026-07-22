@@ -10,10 +10,6 @@ import (
 // A validated Script Agent with its computed content-addressed ID.
 type AgentScriptAgent struct {
 	AgentScriptScript
-	// Client-side ObjectiveAI MCP surface the calling client is
-	// expected to expose locally back to the API (objectiveai
-	// built-in, plus specific plugins / tools by owner+name+version).
-	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// The deterministic content-addressed ID (22-character base62 string).
 	ID string `json:"id"`
 	// Laboratories provisioned for the agent — each becomes a
@@ -25,6 +21,9 @@ type AgentScriptAgent struct {
 	MCPServers *[]AgentMcpServer `json:"mcp_servers,omitempty"`
 	// The output mode for vector completions. Ignored for agent completions.
 	OutputMode AgentScriptOutputMode `json:"output_mode"`
+	// Plugins this agent uses — each IS one MCP server (the
+	// next-iteration plugin shape; see [`super::super::plugin`]).
+	Plugins []AgentPlugin `json:"plugins,omitempty"`
 	// The upstream provider marker.
 	Upstream AgentScriptUpstream `json:"upstream"`
 }
@@ -39,18 +38,13 @@ func (v *AgentScriptAgent) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "output_mode", "upstream"} {
+	for _, key := range []string{"id", "output_mode", "plugins", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentScriptAgent: missing required field %q", key)
 		}
 	}
 	if err := json.Unmarshal(data, &v.AgentScriptScript); err != nil {
 		return err
-	}
-	if rawField, ok := raw["client_objectiveai_mcp"]; ok {
-		if err := json.Unmarshal(rawField, &v.ClientObjectiveaiMCP); err != nil {
-			return err
-		}
 	}
 	if rawField, ok := raw["id"]; ok {
 		if err := json.Unmarshal(rawField, &v.ID); err != nil {
@@ -72,6 +66,11 @@ func (v *AgentScriptAgent) UnmarshalJSON(data []byte) error {
 			return err
 		}
 	}
+	if rawField, ok := raw["plugins"]; ok {
+		if err := json.Unmarshal(rawField, &v.Plugins); err != nil {
+			return err
+		}
+	}
 	if rawField, ok := raw["upstream"]; ok {
 		if err := json.Unmarshal(rawField, &v.Upstream); err != nil {
 			return err
@@ -87,11 +86,6 @@ func (v AgentScriptAgent) MarshalJSON() ([]byte, error) {
 	}
 	var merged map[string]json.RawMessage
 	json.Unmarshal(base, &merged)
-	if v.ClientObjectiveaiMCP != nil {
-		if raw, err := json.Marshal(v.ClientObjectiveaiMCP); err == nil {
-			merged["client_objectiveai_mcp"] = raw
-		}
-	}
 	if raw, err := json.Marshal(v.ID); err == nil {
 		merged["id"] = raw
 	}
@@ -107,6 +101,9 @@ func (v AgentScriptAgent) MarshalJSON() ([]byte, error) {
 	}
 	if raw, err := json.Marshal(v.OutputMode); err == nil {
 		merged["output_mode"] = raw
+	}
+	if raw, err := json.Marshal(v.Plugins); err == nil {
+		merged["plugins"] = raw
 	}
 	if raw, err := json.Marshal(v.Upstream); err == nil {
 		merged["upstream"] = raw

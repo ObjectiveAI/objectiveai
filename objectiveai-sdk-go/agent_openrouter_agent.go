@@ -9,10 +9,6 @@ import (
 
 // A validated OpenRouter Agent with its computed content-addressed ID.
 type AgentOpenrouterAgent struct {
-	// Client-side ObjectiveAI MCP surface the calling client is
-	// expected to expose locally back to the API (objectiveai
-	// built-in, plus specific plugins / tools by owner+name+version).
-	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// Context compression engine for long contexts. When set, the
 	// upstream client emits the matching `plugins` entry on the
 	// outgoing OpenRouter chat-completions request.
@@ -40,6 +36,9 @@ type AgentOpenrouterAgent struct {
 	Model string `json:"model"`
 	// The output mode for vector completions. Ignored for agent completions.
 	OutputMode AgentOpenrouterOutputMode `json:"output_mode" default:"instruction"`
+	// Plugins this agent uses — each IS one MCP server (the
+	// next-iteration plugin shape; see [`super::super::plugin`]).
+	Plugins []AgentPlugin `json:"plugins,omitempty"`
 	// Messages prepended to the user's prompt.
 	PrefixMessages *[]AgentCompletionsMessageMessage `json:"prefix_messages,omitempty"`
 	// Penalizes tokens based on their presence in the output so far (-2.0 to 2.0).
@@ -89,7 +88,7 @@ func (v *AgentOpenrouterAgent) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "model", "output_mode", "upstream"} {
+	for _, key := range []string{"id", "model", "output_mode", "plugins", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentOpenrouterAgent: missing required field %q", key)
 		}
