@@ -6,7 +6,7 @@ import {
   classifyLaboratories,
   type DisplayLaboratory,
 } from "../lib/laboratories";
-import { tauriInvoke } from "../lib/tauri";
+import { tabsOpen } from "../lib/tabs";
 import { LogoMark } from "./shared/Logo";
 import { OpenTab } from "./shared/OpenTab";
 
@@ -23,7 +23,6 @@ export function LaboratoriesPane({
   transport,
 }: {
   transport: ViewerTransport | null;
-  active: boolean;
 }) {
   const daemon = useLaboratoriesList(transport);
   const laboratories = classifyLaboratories(daemon);
@@ -75,15 +74,16 @@ export function LaboratoriesPane({
   );
 }
 
-/** Open (or focus) the laboratory's filesystem WINDOW — a real Tauri
- * window on the `laboratory.html` entry, created by the Rust shell
- * (`open_laboratory_window`). */
+/** Open (or focus) the laboratory's filesystem TAB — appended to this
+ * window's strip, or focused wherever it already lives (the tab
+ * registry dedupes by kind). */
 function openLaboratoryWindow(lab: DisplayLaboratory): void {
-  void tauriInvoke("open_laboratory_window", {
+  tabsOpen({
+    type: "laboratory",
     id: lab.id,
     machine: lab.machine?.id ?? null,
-    machineState: lab.machineState,
-    machineOs: lab.machine?.os ?? null,
+    machine_state: lab.machineState ?? null,
+    machine_os: lab.machine?.os ?? null,
   });
 }
 

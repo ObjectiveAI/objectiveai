@@ -1,0 +1,207 @@
+//! The reattach half of the tab system: dragging a shell window over
+//! another window's TAB STRIP docks it — every tab it carries merges
+//! into the target and the source window closes (Chrome semantics).
+//!
+//! There is no native drag-end event (tao does not surface
+//! `WM_EXITSIZEMOVE`), so the dock commits on a heuristic that is
+//! made SAFE on Windows by a real button check:
+//!
+//! 1. Every `Moved` event feeds a per-label debounce (~200ms).
+//! 2. When a window goes quiet, the mouse button state is read
+//!    (`GetAsyncKeyState(VK_LBUTTON)`): still held ⇒ the user merely
+//!    PAUSED mid-drag — re-arm and wait. Committing while the OS
+//!    modal move loop still owns the window would destroy the window
+//!    mid-drag (input-state corruption). Non-Windows falls back to
+//!    debounce-only.
+//! 3. Quiet + button up ⇒ if the cursor sits inside another window's
+//!    strip band (top [`STRIP_HEIGHT_LOGICAL`] logical px of its
+//!    client area, scaled by THAT window's DPI — all math in physical
+//!    screen coordinates, so mixed-DPI monitors are safe), merge.
+//!
+//! The MAIN window is never a dock SOURCE (dragging your main window
+//! around must never dissolve it); any window can be a TARGET.
+//! Minimized/mid-destroy windows are skipped. Multiple band hits
+//! (overlapping windows — no z-order API exists) prefer the focused
+//! window. During movement a throttled `tabs://dock-preview` event
+//! highlights the hovered strip; a trailing clear makes sure no
+//! highlight ever sticks.
+
+use tauri::{Emitter, Manager};
+
+use crate::tabs::{STRIP_HEIGHT_LOGICAL, TabRegistry};
+
+/// Quiet time after the last `Moved` before a dock is considered.
+const SETTLE: std::time::Duration = std::time::Duration::from_millis(200);
+
+/// Is the primary mouse button currently held? Windows: the real
+/// answer; elsewhere: `false` (debounce-only commit).
+fn primary_button_down() -> bool {
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+            GetAsyncKeyState, VK_LBUTTON,
+        };
+        // High bit set = currently down.
+        (unsafe { GetAsyncKeyState(VK_LBUTTON as i32) } as u16) & 0x8000 != 0
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
+/// The window label (≠ `moving`, alive, not minimized) whose strip
+/// band contains the physical `cursor`, preferring the focused one on
+/// overlap.
+fn strip_hit(
+    app: &tauri::AppHandle,
+    moving: &str,
+    cursor: tauri::PhysicalPosition<f64>,
+) -> Option<String> {
+    let mut hit: Option<(String, bool)> = None;
+    for (label, window) in app.webview_windows() {
+        if label == moving {
+            continue;
+        }
+        if window.is_minimized().unwrap_or(true) {
+            continue;
+        }
+        let Ok(pos) = window.inner_position() else {
+            continue;
+        };
+        let Ok(size) = window.inner_size() else {
+            continue;
+        };
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let band = STRIP_HEIGHT_LOGICAL * scale;
+        let inside = cursor.x >= pos.x as f64
+            && cursor.x < pos.x as f64 + size.width as f64
+            && cursor.y >= pos.y as f64
+            && cursor.y < pos.y as f64 + band;
+        if !inside {
+            continue;
+        }
+        let focused = window.is_focused().unwrap_or(false);
+        match &hit {
+            Some((_, true)) => {}
+            _ => hit = Some((label.clone(), focused)),
+        }
+        if focused {
+            hit = Some((label, true));
+        }
+    }
+    hit.map(|(label, _)| label)
+}
+
+/// Spawn the docking task. `run_return`'s closure feeds it every
+/// `Moved` label through the paired sender.
+pub fn spawn(
+    app: tauri::AppHandle,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<String>,
+) {
+    tauri::async_runtime::spawn(async move {
+        // The window currently "in flight" — a Moved from a different
+        // window simply retargets (one drag at a time is the physical
+        // reality). `previewed` = the strip currently highlighted.
+        let mut previewed: Option<String> = None;
+        loop {
+            let Some(mut label) = rx.recv().await else {
+                return;
+            };
+            // A dock requires an actual mouse DRAG: remember whether
+            // the button was ever observed down during this gesture,
+            // so keyboard-driven moves (Win+arrow snap, programmatic
+            // repositioning) can never dock a window. On non-Windows
+            // (no button API) this stays true — debounce-only.
+            let mut was_drag = cfg!(not(windows)) || primary_button_down();
+            // One GESTURE: alternate between swallowing Moved events
+            // (updating the preview) and, on each SETTLE of quiet,
+            // checking the button — held means a mid-drag pause (keep
+            // waiting; the timeout doubles as the poll timer), up
+            // means the drag ended (commit-check once, done).
+            loop {
+                match tokio::time::timeout(SETTLE, rx.recv()).await {
+                    Ok(Some(next)) => {
+                        label = next;
+                        was_drag = was_drag || primary_button_down();
+                        if label != "main" {
+                            let target = app
+                                .cursor_position()
+                                .ok()
+                                .and_then(|c| strip_hit(&app, &label, c));
+                            if target != previewed {
+                                if let Some(old) = &previewed {
+                                    let _ = app.emit_to(
+                                        old.as_str(),
+                                        "tabs://dock-preview",
+                                        false,
+                                    );
+                                }
+                                if let Some(new) = &target {
+                                    let _ = app.emit_to(
+                                        new.as_str(),
+                                        "tabs://dock-preview",
+                                        true,
+                                    );
+                                }
+                                previewed = target;
+                            }
+                        }
+                    }
+                    Ok(None) => return,
+                    Err(_) => {
+                        if primary_button_down() {
+                            // Paused mid-drag — never commit while the
+                            // OS modal move loop may still own the
+                            // window; keep waiting.
+                            continue;
+                        }
+                        // Quiet + button up = the drag is over.
+                        if was_drag && label != "main" {
+                            if let Ok(cursor) = app.cursor_position() {
+                                if let Some(target) =
+                                    strip_hit(&app, &label, cursor)
+                                {
+                                    dock(&app, &label, &target);
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            // Gesture resolved — no highlight may outlive it.
+            if let Some(old) = previewed.take() {
+                let _ = app.emit_to(old.as_str(), "tabs://dock-preview", false);
+            }
+        }
+    });
+}
+
+/// Merge `source`'s tabs into `target` and close `source`. All
+/// best-effort — a window that vanished mid-flight makes this a
+/// no-op.
+fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
+    let registry = app.state::<TabRegistry>();
+    if !registry.merge_windows(source, target) {
+        return;
+    }
+    let snapshot = registry.snapshot();
+    let _ = app.emit("tabs://changed", &snapshot);
+    if let Some(window) = app.get_webview_window(target) {
+        let title = snapshot
+            .windows
+            .get(target)
+            .and_then(|wt| wt.tabs.iter().find(|t| t.id == wt.active))
+            .map(|t| t.title.clone());
+        if target != "main" {
+            if let Some(title) = title {
+                let _ = window.set_title(&title);
+            }
+        }
+        let _ = window.set_focus();
+    }
+    if let Some(window) = app.get_webview_window(source) {
+        let _ = window.close();
+    }
+}

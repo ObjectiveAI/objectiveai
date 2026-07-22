@@ -1,0 +1,63 @@
+// The TS mirror of the Rust tab registry types (src-tauri/src/tabs.rs)
+// and the invoke helpers the shell + strip drive it with. The
+// registry is the single source of truth: every mutation broadcasts a
+// full `tabs://changed` snapshot with a bumped generation; consumers
+// apply a payload (event OR snapshot response) only when its
+// generation advances, so a stale snapshot can never clobber a newer
+// event.
+
+import { tauriInvoke } from "./tauri";
+
+export type TabKind =
+  | { type: "agents" }
+  | { type: "laboratories" }
+  | { type: "agent"; aih: string }
+  | {
+      type: "laboratory";
+      id: string;
+      machine: string | null;
+      machine_state: string | null;
+      machine_os: string | null;
+    };
+
+export interface TabDesc {
+  id: number;
+  kind: TabKind;
+  title: string;
+  closable: boolean;
+}
+
+export interface WindowTabs {
+  tabs: TabDesc[];
+  /** The active tab's id (0 = none — an empty window). */
+  active: number;
+}
+
+export interface TabsSnapshot {
+  generation: number;
+  windows: Record<string, WindowTabs>;
+}
+
+export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
+  return tauriInvoke<TabsSnapshot>("tabs_snapshot");
+}
+
+export function tabsOpen(kind: TabKind): void {
+  void tauriInvoke("tabs_open", { kind });
+}
+
+export function tabsSelect(tabId: number): void {
+  void tauriInvoke("tabs_select", { tabId });
+}
+
+export function tabsClose(tabId: number): void {
+  void tauriInvoke("tabs_close", { tabId });
+}
+
+export function tabsMove(tabId: number, index: number): void {
+  void tauriInvoke("tabs_move", { tabId, index });
+}
+
+export function tabsDetach(tabId: number): void {
+  void tauriInvoke("tabs_detach", { tabId });
+}

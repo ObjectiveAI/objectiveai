@@ -1,7 +1,15 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import cn from "classnames";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { viewerTransport } from "./lib/viewer-transport";
 import type { ViewerTransport } from "@objectiveai/sdk";
+import { isTauri, tauriListen } from "./lib/tauri";
+import {
+  tabsSnapshot,
+  type TabDesc,
+  type TabsSnapshot,
+  type WindowTabs,
+} from "./lib/tabs";
 import {
   useAgentsInstancesList,
   type AgentStatus,
@@ -11,35 +19,32 @@ import { StatusBar } from "./components/layout/StatusBar";
 import { ErrorToast } from "./components/ErrorToast";
 import { HierarchyTree } from "./components/HierarchyTree";
 import { LaboratoriesPane } from "./components/LaboratoriesPane";
-import { TabBar, type Tab } from "./TabBar";
+import { TabStrip } from "./components/TabStrip";
+import { ConversationView } from "./components/ConversationView";
+import { AgentChat } from "./components/AgentChat";
+import { LaboratoryBrowser } from "./components/LaboratoryBrowser";
 import { CommandPalette } from "./components/shared/CommandPalette";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
-import type { Entry } from "./types";
 
-/** The home pane's second-level tabs — the row below the main header
- * bar. `agents` is the historic hierarchy view; `laboratories` hosts
- * the laboratory builder. */
-const HOME_TABS: Tab[] = [
-  { id: "agents", label: "agents" },
-  { id: "laboratories", label: "laboratories" },
-];
-
-function ObjectiveAIView({
+/** The agents home tab: command palette + watermark + hierarchy tree.
+ * The Ctrl/Cmd-K palette toggle is gated on this tab being ACTIVE in
+ * its window — every tab stays mounted, and a hidden pane must not
+ * swallow the shortcut (or pop an invisible palette). */
+function AgentsPane({
   transport,
   agents,
   zoom,
-  onStatusChange,
+  active,
 }: {
   transport: ViewerTransport | null;
   agents: AgentStatus[];
   zoom: number;
-  onStatusChange?: (status: ViewerStatus) => void;
+  active: boolean;
 }) {
-  const entries = useEntries();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [homeTab, setHomeTab] = useState<string>("agents");
 
   useEffect(() => {
+    if (!active) return;
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
@@ -48,81 +53,142 @@ function ObjectiveAIView({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // Report the status-bar inputs up to App — the bar spans every tab,
-  // so it lives above the panes.
-  useEffect(() => {
-    onStatusChange?.({ entries });
-  }, [entries, onStatusChange]);
+  }, [active]);
 
   return (
-    <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-      <TabBar tabs={HOME_TABS} activeTab={homeTab} onSelect={setHomeTab} />
-      {/* Both panes stay mounted; only the active one shows — the
-          hierarchy tree's per-agent listeners keep running while the
-          laboratories pane is focused. */}
+    <div className={cn("relative", "flex-1", "min-h-0")}>
+      <CommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+      />
+      {/* The brand mark: perfectly centered, always behind the body. */}
       <div
         className={cn(
-          "relative",
-          "flex-1",
-          "min-h-0",
-          homeTab === "agents" ? "block" : "hidden",
-        )}
-      >
-        <CommandPalette
-          open={commandPaletteOpen}
-          onOpenChange={setCommandPaletteOpen}
-        />
-        {/* The brand mark: perfectly centered, always behind the body. */}
-        <div
-          className={cn(
-            "absolute",
-            "inset-0",
-            "flex",
-            "flex-col",
-            "items-center",
-            "justify-center",
-            "gap-3",
-            "pointer-events-none",
-            "select-none",
-          )}
-        >
-          <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
-          <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
-        </div>
-        {/* The body: the agent hierarchy tree, over the watermark. */}
-        <HierarchyTree transport={transport} agents={agents} zoom={zoom} />
-      </div>
-      <div
-        className={cn(
+          "absolute",
+          "inset-0",
+          "flex",
           "flex-col",
-          "flex-1",
-          "min-h-0",
-          homeTab === "laboratories" ? "flex" : "hidden",
+          "items-center",
+          "justify-center",
+          "gap-3",
+          "pointer-events-none",
+          "select-none",
         )}
       >
-        <LaboratoriesPane
-          transport={transport}
-          active={homeTab === "laboratories"}
-        />
+        <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
+        <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
       </div>
+      {/* The body: the agent hierarchy tree, over the watermark. */}
+      <HierarchyTree transport={transport} agents={agents} zoom={zoom} />
     </div>
   );
 }
 
-/** The status-bar inputs ObjectiveAIView reports up to App. */
-interface ViewerStatus {
-  entries: Entry[];
+/** One tab's content, by kind. Rendered ALWAYS (every tab in the
+ * window stays mounted; visibility is CSS) so listeners and streams
+ * keep running on background tabs. */
+function TabContent({
+  tab,
+  transport,
+  agents,
+  zoom,
+  active,
+}: {
+  tab: TabDesc;
+  transport: ViewerTransport | null;
+  agents: AgentStatus[];
+  zoom: number;
+  active: boolean;
+}) {
+  switch (tab.kind.type) {
+    case "agents":
+      return (
+        <AgentsPane
+          transport={transport}
+          agents={agents}
+          zoom={zoom}
+          active={active}
+        />
+      );
+    case "laboratories":
+      return <LaboratoriesPane transport={transport} />;
+    case "agent":
+      return (
+        <>
+          <div className={cn("flex-1", "min-h-0")}>
+            <ConversationView transport={transport} hierarchy={tab.kind.aih} />
+          </div>
+          <AgentChat hierarchy={tab.kind.aih} />
+        </>
+      );
+    case "laboratory":
+      return (
+        <LaboratoryBrowser
+          transport={transport}
+          id={tab.kind.id}
+          machine={tab.kind.machine ?? undefined}
+          machineState={tab.kind.machine_state ?? undefined}
+        />
+      );
+  }
 }
 
+/** This window's label — the registry key for its slice of tabs. */
+const WINDOW_LABEL = isTauri() ? getCurrentWebviewWindow().label : "main";
+
 function App() {
-  const [status, setStatus] = useState<ViewerStatus>({
-    entries: [],
+  // This window's slice of the tab registry, rebuilt from every
+  // `tabs://changed` snapshot (generation-guarded: a stale snapshot
+  // response can never clobber a newer event).
+  const [windowTabs, setWindowTabs] = useState<WindowTabs>({
+    tabs: [],
+    active: 0,
   });
+  const generation = useRef(0);
+  const [dockPreview, setDockPreview] = useState(false);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    let unlistenPreview: (() => void) | undefined;
+    const apply = (snapshot: TabsSnapshot) => {
+      if (disposed || snapshot.generation <= generation.current) return;
+      generation.current = snapshot.generation;
+      setWindowTabs(
+        snapshot.windows[WINDOW_LABEL] ?? { tabs: [], active: 0 },
+      );
+    };
+    void (async () => {
+      // Subscribe FIRST (events are not queued for future listeners),
+      // then snapshot; the generation guard orders the two.
+      unlisten = await tauriListen<TabsSnapshot>("tabs://changed", (e) =>
+        apply(e.payload),
+      );
+      unlistenPreview = await tauriListen<boolean>(
+        "tabs://dock-preview",
+        (e) => {
+          if (!disposed) setDockPreview(e.payload);
+        },
+      );
+      if (disposed) {
+        unlisten?.();
+        unlistenPreview?.();
+        return;
+      }
+      const snapshot = await tabsSnapshot();
+      if (snapshot) apply(snapshot);
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+      unlistenPreview?.();
+    };
+  }, []);
+
   // The daemon transport (the Rust proxy's invoke + Channel), fetched
-  // once. There is no global listener singleton — App threads this
-  // down and components construct and own their own listeners.
+  // once per window. There is no global listener singleton — App
+  // threads this down and components construct and own their own
+  // listeners.
   const [transport, setTransport] = useState<ViewerTransport | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -133,19 +199,72 @@ function App() {
       cancelled = true;
     };
   }, []);
-  // The app's ONE agents-list connection: {aih, active} items, live.
+  // This window's agents-list connection: {aih, active} items, live.
   const agents = useAgentsInstancesList(transport);
   const activeAgents = agents.filter((agent) => agent.active).length;
-  // Canvas zoom — the footer slider drives it; the main canvas
-  // consumes it.
+  // Status-bar entries + canvas zoom (the footer slider drives it).
+  const entries = useEntries();
   const [zoom, setZoom] = useState(1);
 
   return (
     <div className={cn("flex", "flex-col", "h-screen")}>
-      <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-        <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
+      <TabStrip
+        tabs={windowTabs.tabs}
+        activeId={windowTabs.active}
+        dockPreview={dockPreview}
+      />
+      <div className={cn("relative", "flex", "flex-col", "flex-1", "min-h-0")}>
+        {windowTabs.tabs.length === 0 && (
+          // A tab-less window (only possible on main — shells
+          // auto-close empty): the brand mark plus a hint. Tabs can
+          // be dragged back in.
+          <div
+            className={cn(
+              "absolute",
+              "inset-0",
+              "flex",
+              "flex-col",
+              "items-center",
+              "justify-center",
+              "gap-3",
+              "select-none",
+            )}
+          >
+            <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
+            <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
+            <div className={cn("font-mono", "text-[11px]", "text-info-dim")}>
+              drag a tab here
+            </div>
+          </div>
+        )}
+        {/* Every tab stays mounted; only the active one is shown —
+            background tabs keep their listeners and streams running. */}
+        {windowTabs.tabs.map((tab) => (
+          <div
+            key={tab.id}
+            className={cn(
+              "flex-col",
+              "flex-1",
+              "min-h-0",
+              tab.id === windowTabs.active ? "flex" : "hidden",
+            )}
+          >
+            <TabContent
+              tab={tab}
+              transport={transport}
+              agents={agents}
+              zoom={zoom}
+              active={tab.id === windowTabs.active}
+            />
+          </div>
+        ))}
       </div>
-      <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
+      <StatusBar
+        entries={entries}
+        activeAgents={activeAgents}
+        zoom={zoom}
+        onZoomChange={setZoom}
+      />
       <ErrorToast />
     </div>
   );

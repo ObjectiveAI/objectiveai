@@ -27,5 +27,11 @@ tauri = { version = "2.10.3", features = [] }
 tokio = { version = "1.50.0", features = ["full"] }
 tokio-util = "0.7"
 
+[target."cfg(windows)".dependencies]
+# The docking task's mouse-button check (GetAsyncKeyState): a dock
+# must never commit while the OS modal move loop still owns the
+# dragged window.
+windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }

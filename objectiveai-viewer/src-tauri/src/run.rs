@@ -55,145 +55,6 @@ fn open_url(url: String) -> Result<(), String> {
     open::that_detached(&url).map_err(|e| e.to_string())
 }
 
-/// The deterministic-within-one-process window label for an AIH —
-/// labels must be alphanumeric/`-`/`_` and AIHs contain `/`, so the
-/// label is a hash; create-or-focus keys on it.
-fn agent_window_label(agent_instance_hierarchy: &str) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    agent_instance_hierarchy.hash(&mut hasher);
-    format!("agent-{:016x}", hasher.finish())
-}
-
-/// Create — or focus, when already open — the agent conversation
-/// window for one AIH: the `agent.html` entry (the popup UI as a full
-/// window; no tabs, no footer). The AIH reaches the page via an
-/// initialization script (a global set before any page script runs) —
-/// NOT a URL query: `WebviewUrl::App` is a PathBuf, so a query string
-/// would be treated as part of the asset path and 404 to a white
-/// window.
-fn open_agent_window_impl(
-    app: &tauri::AppHandle,
-    agent_instance_hierarchy: &str,
-) -> tauri::Result<()> {
-    use tauri::Manager;
-    let label = agent_window_label(agent_instance_hierarchy);
-    if let Some(existing) = app.get_webview_window(&label) {
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-    let aih_json = serde_json::to_string(agent_instance_hierarchy)
-        .expect("a str serializes infallibly");
-    tauri::WebviewWindowBuilder::new(
-        app,
-        &label,
-        tauri::WebviewUrl::App("agent.html".into()),
-    )
-    .initialization_script(format!(
-        "window.__AGENT_INSTANCE_HIERARCHY__ = {aih_json};"
-    ))
-    .title(agent_instance_hierarchy)
-    .inner_size(1024.0, 768.0)
-    .build()?;
-    Ok(())
-}
-
-/// Open (or focus) the agent conversation window for `aih` — the tree's
-/// explicit `open` chip calls this instead of an in-page popup.
-///
-/// ASYNC on purpose: a sync command runs on the MAIN thread, and
-/// webview creation on Windows contends with that same event loop —
-/// the window shell appears but the page never initializes (a white
-/// window). An async command runs off the main thread, so the
-/// creation dispatches cleanly.
-#[tauri::command]
-async fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), String> {
-    open_agent_window_impl(&app, &aih).map_err(|e| e.to_string())
-}
-
-/// The deterministic-within-one-process window label for one
-/// laboratory. Lab ids are only unique per (machine, machine_state),
-/// so all three feed the hash; `Hash for str` is length-prefixed, so
-/// sequential hashing needs no separators.
-fn laboratory_window_label(
-    id: &str,
-    machine: Option<&str>,
-    machine_state: Option<&str>,
-) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    machine.unwrap_or("").hash(&mut hasher);
-    machine_state.unwrap_or("").hash(&mut hasher);
-    format!("laboratory-{:016x}", hasher.finish())
-}
-
-/// Create — or focus, when already open — the laboratory filesystem
-/// window for one laboratory: the `laboratory.html` entry. The
-/// identity reaches the page via an initialization script (a global
-/// set before any page script runs) — NOT a URL query:
-/// `WebviewUrl::App` is a PathBuf, so a query string would be treated
-/// as part of the asset path and 404 to a white window (same as
-/// [`open_agent_window_impl`]).
-fn open_laboratory_window_impl(
-    app: &tauri::AppHandle,
-    id: &str,
-    machine: Option<&str>,
-    machine_state: Option<&str>,
-    machine_os: Option<&str>,
-) -> tauri::Result<()> {
-    use tauri::Manager;
-    let label = laboratory_window_label(id, machine, machine_state);
-    if let Some(existing) = app.get_webview_window(&label) {
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-    let global = serde_json::json!({
-        "id": id,
-        "machine": machine,
-        "machineState": machine_state,
-    })
-    .to_string();
-    // `{os}/{machine id}/{lab id}` — the serving machine's identity as
-    // the window's name, unknown segments rendered as `?`.
-    let title = format!(
-        "{}/{}/{id}",
-        machine_os.unwrap_or("?"),
-        machine.unwrap_or("?"),
-    );
-    tauri::WebviewWindowBuilder::new(
-        app,
-        &label,
-        tauri::WebviewUrl::App("laboratory.html".into()),
-    )
-    .initialization_script(format!("window.__LABORATORY__ = {global};"))
-    .title(title)
-    .inner_size(1024.0, 768.0)
-    .build()?;
-    Ok(())
-}
-
-/// Open (or focus) the laboratory filesystem window — the laboratory
-/// card's `open` tab calls this. ASYNC on purpose, same as
-/// [`open_agent_window`]: a sync command white-screens webview
-/// creation on Windows.
-#[tauri::command]
-async fn open_laboratory_window(
-    app: tauri::AppHandle,
-    id: String,
-    machine: Option<String>,
-    machine_state: Option<String>,
-    machine_os: Option<String>,
-) -> Result<(), String> {
-    open_laboratory_window_impl(
-        &app,
-        &id,
-        machine.as_deref(),
-        machine_state.as_deref(),
-        machine_os.as_deref(),
-    )
-    .map_err(|e| e.to_string())
-}
 
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
@@ -315,17 +176,45 @@ pub fn serve(
     // for later.
     let ready = Arc::new(Notify::new());
 
+    // The tab registry — seeded BEFORE the shell boots so the main
+    // window's first snapshot already holds its tabs. Normal boot:
+    // the two home tabs. `--agent-instance-hierarchy`: one agent
+    // conversation tab (a scoped debug instance; closing it leaves
+    // the main empty state).
+    let registry = crate::tabs::TabRegistry::default();
+    match &agent_window {
+        Some(aih) => registry.seed(
+            "main",
+            vec![crate::tabs::TabKind::Agent { aih: aih.clone() }],
+        ),
+        None => registry.seed(
+            "main",
+            vec![
+                crate::tabs::TabKind::Agents,
+                crate::tabs::TabKind::Laboratories,
+            ],
+        ),
+    }
+    let main_title = agent_window
+        .clone()
+        .unwrap_or_else(|| "ObjectiveAI Viewer".to_string());
+
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(proxy)
         .manage(agents_dir)
-        .manage(lab_env);
+        .manage(lab_env)
+        .manage(registry);
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
         open_url,
-        open_agent_window,
-        open_laboratory_window,
+        crate::tabs::tabs_snapshot,
+        crate::tabs::tabs_open,
+        crate::tabs::tabs_select,
+        crate::tabs::tabs_close,
+        crate::tabs::tabs_move,
+        crate::tabs::tabs_detach,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,
@@ -338,35 +227,68 @@ pub fn serve(
         crate::daemon_proxy::daemon_stream_close,
         crate::laboratories::machine_identity,
     ]);
-    builder
+    // The docking task's Moved feed — the run_return closure is the
+    // producer; the task (spawned in setup, where an AppHandle
+    // exists) is the consumer.
+    let (dock_tx, dock_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let mut dock_rx = Some(dock_rx);
+    let app = builder
         .setup(move |tauri_app| {
             if let Some(tx) = exiter_tx {
                 let exit_handle = tauri_app.handle().clone();
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
             }
-            // Windows are created HERE, not in tauri.conf.json —
-            // `--agent-instance-hierarchy` opens ONLY that agent's
-            // conversation window; otherwise the main window opens.
-            match &agent_window {
-                Some(aih) => {
-                    open_agent_window_impl(tauri_app.handle(), aih)?;
-                }
-                None => {
-                    tauri::WebviewWindowBuilder::new(
-                        tauri_app,
-                        "main",
-                        tauri::WebviewUrl::App("index.html".into()),
-                    )
-                    .title("ObjectiveAI Viewer")
-                    .inner_size(1024.0, 768.0)
-                    .build()?;
-                }
-            }
+            crate::docking::spawn(
+                tauri_app.handle().clone(),
+                dock_rx.take().expect("setup runs once"),
+            );
+            // Windows are created HERE, not in tauri.conf.json. Every
+            // window — main included — runs the SAME shell entry; the
+            // registry decides what it shows.
+            tauri::WebviewWindowBuilder::new(
+                tauri_app,
+                "main",
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title(&main_title)
+            .inner_size(1024.0, 768.0)
+            .build()?;
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error building tauri application")
-        .run_return(|_, _| {})
+        .expect("error building tauri application");
+    app.run_return(move |app_handle, event| {
+        use tauri::Manager;
+        if let tauri::RunEvent::WindowEvent { label, event, .. } = event {
+            match event {
+                // Feed the docking task. Send errors (task gone at
+                // teardown) are meaningless.
+                tauri::WindowEvent::Moved(_) => {
+                    let _ = dock_tx.send(label);
+                }
+                // The main window IS the app: closing it takes every
+                // shell window (and the process) with it.
+                tauri::WindowEvent::CloseRequested { .. } => {
+                    if label == "main" {
+                        app_handle.exit(0);
+                    }
+                }
+                // A window died (user close, tabs_close auto-close,
+                // dock merge, teardown) — drop its registry slice.
+                // Idempotent, and every Result is ignored: this also
+                // runs during app teardown.
+                tauri::WindowEvent::Destroyed => {
+                    let registry = app_handle.state::<crate::tabs::TabRegistry>();
+                    if registry.remove_window(&label) {
+                        use tauri::Emitter;
+                        let snapshot = registry.snapshot();
+                        let _ = app_handle.emit("tabs://changed", &snapshot);
+                    }
+                }
+                _ => {}
+            }
+        }
+    })
 }
 
 /// Sets up and serves the viewer. Returns the exit code from Tauri's event loop.

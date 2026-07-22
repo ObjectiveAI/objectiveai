@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
+import { tabsOpen } from "../lib/tabs";
 import {
   agentsTagsApplyExecute,
   agentsTagsRemoveExecute,
@@ -179,10 +180,11 @@ export function HierarchyTree({
   );
 }
 
-/** Open (or focus) the agent's conversation WINDOW — a real Tauri
- * window on the `agent.html` entry, created by the Rust shell. */
+/** Open (or focus) the agent's conversation TAB — appended to this
+ * window's strip, or focused wherever it already lives (the tab
+ * registry dedupes by kind). */
 function openAgentWindow(hierarchy: string): void {
-  void tauriInvoke("open_agent_window", { aih: hierarchy });
+  tabsOpen({ type: "agent", aih: hierarchy });
 }
 
 /**
