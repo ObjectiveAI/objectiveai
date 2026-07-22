@@ -88,6 +88,9 @@ pub(crate) fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments
         plugin_owner: None,
         plugin_repository: None,
         plugin_version: None,
+        // Same discipline: only the task scheduler stamps this,
+        // in-process (`ScopedContext::with_task`).
+        task: false,
     }
 }
 

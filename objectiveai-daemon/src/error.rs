@@ -65,6 +65,8 @@ pub enum Error {
     PluginCommandForbidden(&'static str),
     #[error("channels {0} requires a plugin caller: no plugin identity on this request")]
     ChannelRequiresPlugin(&'static str),
+    #[error("task: {0}")]
+    Task(String),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]

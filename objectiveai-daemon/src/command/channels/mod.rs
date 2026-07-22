@@ -55,6 +55,7 @@ pub(crate) fn scope_identity(scoped: &ScopedContext) -> AgentArguments {
         plugin_owner: scoped.plugin_owner().map(String::from),
         plugin_repository: scoped.plugin_repository().map(String::from),
         plugin_version: scoped.plugin_version().map(String::from),
+        task: scoped.task(),
     }
 }
 

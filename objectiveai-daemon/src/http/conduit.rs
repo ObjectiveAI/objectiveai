@@ -2345,10 +2345,12 @@ async fn dispatch_script(
             response_id: Some(req.response_id.clone()),
             response_ids: req.response_ids.clone(),
             // Script agents are not plugins; the trio's single
-            // writer is `plugins run`.
+            // writer is `plugins run`. Same for the task flag — the
+            // scheduler is its single writer.
             plugin_owner: None,
             plugin_repository: None,
             plugin_version: None,
+            task: false,
         })
         .await;
     let python = match inner.global.python().await {

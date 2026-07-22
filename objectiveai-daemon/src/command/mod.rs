@@ -12,6 +12,7 @@
 pub mod agents;
 pub mod api;
 pub mod channels;
+pub mod tasks;
 pub mod command;
 pub mod daemon;
 pub mod db;

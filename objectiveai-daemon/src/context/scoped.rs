@@ -40,6 +40,10 @@ pub struct ScopeIdentity {
     pub plugin_owner: Option<String>,
     pub plugin_repository: Option<String>,
     pub plugin_version: Option<String>,
+    /// Fired by the task scheduler — daemon-authored like the plugin
+    /// trio: never taken from a wire envelope, set only via
+    /// [`ScopedContext::with_task`].
+    pub task: bool,
 }
 
 impl ScopeIdentity {
@@ -61,6 +65,7 @@ impl ScopeIdentity {
             plugin_owner: None,
             plugin_repository: None,
             plugin_version: None,
+            task: false,
         }
     }
 
@@ -87,6 +92,9 @@ impl ScopeIdentity {
             plugin_owner: None,
             plugin_repository: None,
             plugin_version: None,
+            // Daemon-authored like the trio — never taken from a wire
+            // envelope; the task scheduler re-stamps via `with_task`.
+            task: false,
         }
     }
 }
@@ -111,6 +119,9 @@ pub struct ScopedContext {
     plugin_owner: Option<String>,
     plugin_repository: Option<String>,
     plugin_version: Option<String>,
+    /// Task-scheduler-fired run marker — daemon-authored (see
+    /// [`ScopeIdentity::task`]); set only by [`Self::with_task`].
+    task: bool,
     /// When true, the embedded python's `objectiveai.execute(...)`
     /// host call raises instead of dispatching a CLI command. Set by
     /// the `python --no-objectiveai` flag and automatically for the
@@ -151,6 +162,7 @@ impl ScopedContext {
             plugin_owner: None,
             plugin_repository: None,
             plugin_version: None,
+            task: false,
             no_objectiveai: false,
             api: Arc::new(OnceCell::new()),
         }
@@ -202,6 +214,7 @@ impl ScopedContext {
             plugin_owner: identity.plugin_owner,
             plugin_repository: identity.plugin_repository,
             plugin_version: identity.plugin_version,
+            task: identity.task,
             no_objectiveai: self.no_objectiveai,
             api: Arc::new(OnceCell::new()),
         }
@@ -267,6 +280,20 @@ impl ScopedContext {
         clone.plugin_owner = Some(owner.into());
         clone.plugin_repository = Some(repository.into());
         clone.plugin_version = Some(version.into());
+        clone
+    }
+
+    /// Whether this scope is a task-scheduler-fired run.
+    pub fn task(&self) -> bool {
+        self.task
+    }
+
+    /// Derive a clone marked as a task-scheduler-fired run — the
+    /// SCHEDULER is the only caller (daemon-authored, like
+    /// [`Self::with_plugin`] for the trio).
+    pub fn with_task(&self) -> Self {
+        let mut clone = self.clone();
+        clone.task = true;
         clone
     }
 

@@ -74,6 +74,9 @@ pub(crate) struct ResidentHubs {
     /// The `/channels` duplex-channels hub (live coordination; the
     /// durable log lives in `db::channels`). See `http::channel_routes`.
     pub channels: crate::http::channel_routes::ChannelHub,
+    /// The resident task scheduler's handle (durable rows live in
+    /// `db::tasks`). `notify()` wakes the driver on schedule changes.
+    pub tasks: crate::command::tasks::scheduler::TaskScheduler,
 }
 
 /// One leashed resident server — the map entry is METADATA ONLY. The

@@ -48,15 +48,16 @@ impl CommandRequest for Request {
 pub struct ResponseItem {
     /// The task id (`tasks delete --id`).
     pub id: String,
-    /// The stored command — the full typed command request.
-    /// Schema-opaque (`serde_json::Value`) ON PURPOSE: embedding the
-    /// root request enum's schema in a leaf transitively expands the
-    /// whole command tree (TS7056) — same reasoning as `create`. A
-    /// stored row that no longer parses as the current request type
-    /// (a pre-wire-change task) surfaces as an error ITEM in the list
-    /// stream rather than a listed entry.
+    /// The stored command — the full typed command request. Unboxed:
+    /// unlike `create::Request`, this type is not part of the request
+    /// enum's own cycle. Schema-opaque (`serde_json::Value`) ON
+    /// PURPOSE: embedding the root request enum's schema in a leaf
+    /// transitively expands the whole command tree (TS7056) — same
+    /// reasoning as `create`. A stored row that no longer parses as
+    /// the current request type (a pre-wire-change task) surfaces as
+    /// an error ITEM in the list stream rather than a listed entry.
     #[schemars(with = "serde_json::Value")]
-    pub command: Box<crate::cli::command::Request>,
+    pub command: crate::cli::command::Request,
     /// Seconds until the (first) run / between runs.
     pub delay_secs: u64,
     pub repeat: bool,

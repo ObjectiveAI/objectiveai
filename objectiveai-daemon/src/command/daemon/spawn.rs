@@ -240,6 +240,10 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // The `/channels` duplex-channels hub: live connection + offer
     // coordination (the durable log lives in the DB).
     let channels = crate::http::channel_routes::ChannelHub::new();
+    // The resident task scheduler: handle published on the hubs,
+    // driver spawned below (it re-arms from the DB and parks until
+    // notified).
+    let tasks = crate::command::tasks::scheduler::TaskScheduler::new();
     global.set_resident_hubs(crate::context::ResidentHubs {
         broadcast: tx.clone(),
         active: active.clone(),
@@ -249,7 +253,9 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         mcp_notifiers,
         lab_mcp_kinds,
         channels: channels.clone(),
+        tasks: tasks.clone(),
     });
+    tasks.spawn_driver(global.clone(), scoped.clone());
     crate::http::daemon_stream::serve_http(
         http_listener,
         tx.clone(),

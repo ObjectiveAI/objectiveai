@@ -437,6 +437,10 @@ fn tee_context(scoped: &ScopedContext) -> serde_json::Value {
             map.insert(key.to_string(), serde_json::Value::String(val.to_string()));
         }
     }
+    // Task-scheduler-fired marker: ALWAYS present, and a typed BOOL —
+    // the listener's `Frame` deserializes it as `bool`, so a string
+    // here would fail the whole frame and silently skip the run.
+    map.insert("task".to_string(), serde_json::Value::Bool(scoped.task()));
     serde_json::Value::Object(map)
 }
 

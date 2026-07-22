@@ -399,6 +399,9 @@ fn agent_arguments_from_env() -> AgentArguments {
         plugin_owner: None,
         plugin_repository: None,
         plugin_version: None,
+        // Same discipline: only the daemon's task scheduler stamps
+        // this, in-process. An env claim is ignored.
+        task: false,
     }
 }
 

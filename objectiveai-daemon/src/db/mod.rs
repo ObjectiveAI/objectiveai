@@ -26,6 +26,7 @@ pub mod laboratory_attachments;
 pub mod logs;
 pub mod query;
 pub mod tags;
+pub mod tasks;
 pub mod time;
 pub mod tag_groups;
 pub mod message_queue;

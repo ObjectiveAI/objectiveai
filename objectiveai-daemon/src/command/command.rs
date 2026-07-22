@@ -86,6 +86,10 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let inner = super::channels::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Channels)))
         }
+        Request::Tasks(req) => {
+            let inner = super::tasks::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
+        }
         Request::Viewer(req) => {
             let inner = super::viewer::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))

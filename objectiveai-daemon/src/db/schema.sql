@@ -377,3 +377,43 @@ CREATE TABLE IF NOT EXISTS objectiveai.plugin_db_credentials (
     PRIMARY KEY (owner, name, version)
 );
 
+
+-- Durable scheduled commands (`tasks create` / `list` / `delete`).
+--
+-- One row per task, not per occurrence. `state` is TEXT + CHECK (not
+-- a PG enum), the channels convention:
+--
+--   scheduled  armed; fires when next_run_at is due
+--   running    claimed by a scheduler fire (in flight)
+--   complete   will never fire again; stays listed until deleted
+--
+-- The fire CLAIM is a single atomic UPDATE (scheduled -> running,
+-- WHERE next_run_at is due), which serializes concurrent schedulers —
+-- including two daemons pointed at one shared remote Postgres — so a
+-- task can never double-fire or overlap itself (a running task is
+-- never due). Completion is a single atomic UPDATE (running ->
+-- scheduled|complete). Rows found in 'running' at daemon boot are a
+-- crash's orphans: reconciled back to 'scheduled', due immediately —
+-- execution is AT-LEAST-ONCE and run_count counts COMPLETED runs.
+--
+-- Repeat semantics: errored runs (last stream item was an error) do
+-- NOT consume the repeat_count budget — a permanently-failing counted
+-- repeat retries forever, BY DESIGN.
+--
+-- `command` is the stored command-request JSON. Like the channels
+-- secrets, it is readable by the reader group; it may embed secrets
+-- the creator put in command arguments — same exposure class.
+CREATE TABLE IF NOT EXISTS objectiveai.tasks (
+    id              TEXT    PRIMARY KEY,
+    command         JSONB   NOT NULL,
+    agent_arguments JSONB   NOT NULL,
+    delay_secs      BIGINT  NOT NULL,
+    repeat          BOOLEAN NOT NULL,
+    repeat_count    BIGINT,
+    run_count       BIGINT  NOT NULL DEFAULT 0,
+    error_count     BIGINT  NOT NULL DEFAULT 0,
+    last_result     TEXT    CHECK (last_result IN ('success', 'error')),
+    state           TEXT    NOT NULL CHECK (state IN ('scheduled', 'running', 'complete')),
+    created_at      BIGINT  NOT NULL,
+    next_run_at     BIGINT
+);
