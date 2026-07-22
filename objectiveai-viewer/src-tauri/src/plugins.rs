@@ -2,18 +2,28 @@
 //! installed plugins, and the custom `plugin://` URI scheme handler
 //! that serves plugin UI bundles out of `<plugins_dir>/<name>/viewer/`.
 //!
-//! Plugin discovery goes through the daemon: [`list_all_plugins`]
-//! drives the SDK's typed `plugins list` leaf over the
-//! [`SseCommandExecutor`]. Plugin iframes currently have NO daemon
-//! access — the webview no longer holds daemon coordinates (every
-//! daemon stream rides [`crate::daemon_proxy`]'s Tauri commands,
-//! which a sandboxed iframe cannot invoke); see the TODO(plugins) in
-//! `src/PluginPane.tsx`.
+//! TODO(plugins, #271/#282): plugin discovery is STUBBED to an empty
+//! list — the SDK's `plugins list` command tree was retired with the
+//! zip-install surface (plugins are being containerized, #271), and
+//! this whole iframe surface is slated for replacement by
+//! runtime-imported components in per-plugin webviews (#282). A
+//! viewer with zero plugin tabs is still a working viewer. Plugin
+//! iframes currently have NO daemon access — the webview no longer
+//! holds daemon coordinates (every daemon stream rides
+//! [`crate::daemon_proxy`]'s Tauri commands, which a sandboxed iframe
+//! cannot invoke); see the TODO(plugins) in `src/PluginPane.tsx`.
 
-use futures::StreamExt;
 use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
-use objectiveai_sdk::cli::command::plugins::list as plugins_list;
-use objectiveai_sdk::cli::command::plugins::list::ResponseItem as PluginManifest;
+
+/// The subset of the retired `plugins list` response this module's
+/// tab-filtering logic reads. Local stand-in until #271/#282 define
+/// the containerized discovery surface.
+pub(crate) struct PluginManifest {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
+    pub viewer_url: Option<String>,
+}
 
 /// Per-call identity for shell-initiated cli runs: instance
 /// hierarchy `"Viewer"`, every other field `None` so the daemon
@@ -35,34 +45,12 @@ pub(crate) fn plugins_dir(objectiveai_dir: &std::path::Path) -> std::path::PathB
     objectiveai_dir.join("bin").join("plugins")
 }
 
-/// List every installed plugin manifest by spawning
-/// `objectiveai plugins list` through the executor. Resilient on
-/// purpose: a missing binary or a malformed line is logged to stderr
-/// and yields an empty/partial list rather than failing viewer
-/// startup — a viewer with zero plugin tabs is still a working viewer.
-pub(crate) async fn list_all_plugins(executor: &SseCommandExecutor) -> Vec<PluginManifest> {
-    let request = plugins_list::Request {
-        path_type: plugins_list::Path::PluginsList,
-        offset: None,
-        limit: None,
-        base: Default::default(),
-    };
-    let agent_arguments = viewer_agent_arguments();
-    let mut stream = match plugins_list::execute(executor, request, Some(&agent_arguments)).await {
-        Ok(stream) => stream,
-        Err(e) => {
-            eprintln!("plugins list failed to spawn the cli: {e:?}");
-            return Vec::new();
-        }
-    };
-    let mut plugins = Vec::new();
-    while let Some(item) = stream.next().await {
-        match item {
-            Ok(manifest) => plugins.push(manifest),
-            Err(e) => eprintln!("plugins list emitted an error item: {e:?}"),
-        }
-    }
-    plugins
+/// List installed plugin manifests. STUBBED empty (see the module
+/// docs): the `plugins list` wire command was retired with the
+/// zip-install surface, and containerized discovery (#271) + the new
+/// viewer-plugin architecture (#282) will replace this path wholesale.
+pub(crate) async fn list_all_plugins(_executor: &SseCommandExecutor) -> Vec<PluginManifest> {
+    Vec::new()
 }
 
 /// Percent-encode characters in a plugin name that would change the
