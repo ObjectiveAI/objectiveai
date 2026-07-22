@@ -1,10 +1,13 @@
 /**
  * The viewer's error inbox — anything that would otherwise die in a
  * silent `catch` (connection failures, render throws, unhandled
- * rejections) reports here, and the bottom-right
- * [`ErrorToast`](../components/ErrorToast.tsx) surfaces it: a badge
- * you can click for the details. Pure UI plumbing (a tiny module
- * store), deliberately NOT part of the daemon-data flow.
+ * rejections) reports here via [`reportError`]. Currently COLLECT-ONLY:
+ * nothing renders the store. The visible surface (the old bottom-right
+ * toast) was removed pending the footer "logs" button that lands with
+ * the per-tab-webview refactor — at which point the footer reads this
+ * store (and, for cross-webview errors, an injected forwarder feeds
+ * it; see the error-forwarding discussion). Pure UI plumbing (a tiny
+ * module store), deliberately NOT part of the daemon-data flow.
  *
  * Flood control: identical consecutive (source, message) reports
  * coalesce into one entry with a bumped count (a 1s reconnect loop

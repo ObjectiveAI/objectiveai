@@ -16,51 +16,26 @@ import {
 } from "./hooks/useAgentsInstancesList";
 import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
-import { ErrorToast } from "./components/ErrorToast";
 import { HierarchyTree } from "./components/HierarchyTree";
 import { LaboratoriesPane } from "./components/LaboratoriesPane";
 import { TabStrip } from "./components/TabStrip";
 import { ConversationView } from "./components/ConversationView";
 import { AgentChat } from "./components/AgentChat";
 import { LaboratoryBrowser } from "./components/LaboratoryBrowser";
-import { CommandPalette } from "./components/shared/CommandPalette";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 
-/** The agents home tab: command palette + watermark + hierarchy tree.
- * The Ctrl/Cmd-K palette toggle is gated on this tab being ACTIVE in
- * its window — every tab stays mounted, and a hidden pane must not
- * swallow the shortcut (or pop an invisible palette). */
+/** The agents home tab: watermark + hierarchy tree. */
 function AgentsPane({
   transport,
   agents,
   zoom,
-  active,
 }: {
   transport: ViewerTransport | null;
   agents: AgentStatus[];
   zoom: number;
-  active: boolean;
 }) {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-
-  useEffect(() => {
-    if (!active) return;
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setCommandPaletteOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [active]);
-
   return (
     <div className={cn("relative", "flex-1", "min-h-0")}>
-      <CommandPalette
-        open={commandPaletteOpen}
-        onOpenChange={setCommandPaletteOpen}
-      />
       {/* The brand mark: perfectly centered, always behind the body. */}
       <div
         className={cn(
@@ -92,24 +67,15 @@ function TabContent({
   transport,
   agents,
   zoom,
-  active,
 }: {
   tab: TabDesc;
   transport: ViewerTransport | null;
   agents: AgentStatus[];
   zoom: number;
-  active: boolean;
 }) {
   switch (tab.kind.type) {
     case "agents":
-      return (
-        <AgentsPane
-          transport={transport}
-          agents={agents}
-          zoom={zoom}
-          active={active}
-        />
-      );
+      return <AgentsPane transport={transport} agents={agents} zoom={zoom} />;
     case "laboratories":
       return <LaboratoriesPane transport={transport} />;
     case "agent":
@@ -254,7 +220,6 @@ function App() {
               transport={transport}
               agents={agents}
               zoom={zoom}
-              active={tab.id === windowTabs.active}
             />
           </div>
         ))}
@@ -265,7 +230,6 @@ function App() {
         zoom={zoom}
         onZoomChange={setZoom}
       />
-      <ErrorToast />
     </div>
   );
 }
