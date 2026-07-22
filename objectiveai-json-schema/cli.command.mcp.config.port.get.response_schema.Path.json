@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.mcp.config.port.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "mcp/config/port/get/response_schema"
-  ]
-}

@@ -18,18 +18,6 @@
       ],
       "omitempty": true
     },
-    "client_objectiveai_mcp": {
-      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
-      "anyOf": [
-        {
-          "$ref": "agent.ClientObjectiveaiMcp"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "error": {
       "description": "If true, the mock client will return an error instead of a response.",
       "anyOf": [
@@ -89,6 +77,14 @@
     "output_mode": {
       "description": "The output mode for vector completions. Ignored for agent completions.",
       "$ref": "agent.mock.OutputMode"
+    },
+    "plugins": {
+      "description": "Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).",
+      "type": "array",
+      "items": {
+        "$ref": "agent.Plugin"
+      },
+      "omitempty": true
     },
     "top_logprobs": {
       "description": "Number of top log probabilities to return (2-20).\n\n**Vector completions only.** Ignored for agent completions.",

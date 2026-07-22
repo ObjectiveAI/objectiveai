@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.laboratories.spawn.Response",
+  "type": "object",
+  "properties": {
+    "addresses": {
+      "description": "Every daemon address the spawned host was told to connect to\n(the local daemon first when `laboratories config local` is not\nfalse, then the configured `addresses` entries).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

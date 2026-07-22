@@ -1,8 +1,0 @@
-{
-  "title": "cli.command.plugins.run.McpType",
-  "description": "Single-variant discriminator for [`Mcp`]'s `type` field. Always\n`\"mcp\"` on the wire.",
-  "type": "string",
-  "enum": [
-    "mcp"
-  ]
-}

@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.laboratories.spawn.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "laboratories/spawn/response_schema"
+  ]
+}

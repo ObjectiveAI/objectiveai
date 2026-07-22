@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.install.github.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "plugins/install/github/response_schema"
-  ]
-}

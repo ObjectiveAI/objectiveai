@@ -26,14 +26,6 @@
       "$ref": "cli.command.laboratories.Request"
     },
     {
-      "title": "Mcp",
-      "$ref": "cli.command.mcp.Request"
-    },
-    {
-      "title": "Plugins",
-      "$ref": "cli.command.plugins.Request"
-    },
-    {
       "title": "Python",
       "$ref": "cli.command.python.Request"
     },
@@ -48,10 +40,6 @@
     {
       "title": "Swarms",
       "$ref": "cli.command.swarms.Request"
-    },
-    {
-      "title": "Tools",
-      "$ref": "cli.command.tools.Request"
     },
     {
       "title": "Update",

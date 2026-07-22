@@ -3,18 +3,6 @@
   "description": "A validated OpenRouter Agent with its computed content-addressed ID.",
   "type": "object",
   "properties": {
-    "client_objectiveai_mcp": {
-      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
-      "anyOf": [
-        {
-          "$ref": "agent.ClientObjectiveaiMcp"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "context_compression": {
       "description": "Context compression engine for long contexts. When set, the\nupstream client emits the matching `plugins` entry on the\noutgoing OpenRouter chat-completions request.",
       "anyOf": [
@@ -142,6 +130,14 @@
       "description": "The output mode for vector completions. Ignored for agent completions.",
       "$ref": "agent.openrouter.OutputMode",
       "default": "instruction"
+    },
+    "plugins": {
+      "description": "Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).",
+      "type": "array",
+      "items": {
+        "$ref": "agent.Plugin"
+      },
+      "omitempty": true
     },
     "prefix_messages": {
       "description": "Messages prepended to the user's prompt.",
