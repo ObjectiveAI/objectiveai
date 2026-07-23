@@ -161,6 +161,7 @@ pub fn serve(
     proxy: crate::daemon_proxy::DaemonProxy,
     agents_dir: AgentsDir,
     lab_env: crate::laboratories::LabEnv,
+    log_sink: crate::shell::LogSink,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
@@ -182,7 +183,7 @@ pub fn serve(
         .manage(lab_env)
         .manage(model)
         .manage(crate::shell::WebviewSync::default())
-        .manage(crate::shell::LogStore::default());
+        .manage(log_sink);
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -196,7 +197,7 @@ pub fn serve(
         crate::shell::ui_set,
         crate::shell::ui_get,
         crate::shell::logs_report,
-        crate::shell::logs_snapshot,
+        crate::shell::logs_pull,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,
@@ -332,5 +333,16 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         state: config.objectiveai_state.clone(),
     };
 
-    Ok(serve(proxy, agents_dir, lab_env, None))
+    // This run's logfile sink — timestamped at viewer start, under
+    // the state folder: <dir>/state/<state>/viewer/viewer-logs/.
+    let log_sink = crate::shell::LogSink::new(
+        config
+            .objectiveai_dir
+            .join("state")
+            .join(&config.objectiveai_state)
+            .join("viewer")
+            .join("viewer-logs"),
+    );
+
+    Ok(serve(proxy, agents_dir, lab_env, log_sink, None))
 }

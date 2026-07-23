@@ -1,23 +1,26 @@
 import { useEffect, useState } from "react";
 import cn from "classnames";
 import { tauriListen } from "../lib/tauri";
-import { logsSnapshot, type LogEntry } from "../lib/logs";
+import { logsPull, type LogEntry } from "../lib/logs";
 import { useAgo } from "../hooks/useAgo";
 
-/** Client-side cap: the Rust ring holds 1000, but live upserts can
- * accumulate past whatever the boot snapshot carried — trim from the
- * oldest seq once comfortably past the server cap. */
+/** How much history one pull asks for (the Rust side caps at 1000). */
+const PULL_COUNT = 1000;
+
+/** The JS-side ring: Rust streams from disk and holds no history, so
+ * the memory bound lives HERE — once past the cap, the oldest seqs
+ * fall off. */
 const CLIENT_CAP = 1200;
 
 /** Levels rendered as failures (error accent + emphasized message). */
 const ERROR_LEVELS = new Set(["error", "uncaught", "unhandledrejection"]);
 
 /** The viewer-logs home tab: everything the capture initialization
- * script hoovered out of every webview, newest first. Pure view over
- * the Rust-side ring — subscribe FIRST, then snapshot, upsert both by
- * `seq` (a coalesced repeat re-broadcasts its seq with a bumped
- * count; on a seq collision the higher count wins, so a stale
- * snapshot can never roll an entry back). */
+ * script hoovered out of every webview, oldest first. A pure view
+ * over the Rust-side logfile — subscribe FIRST (live appends), then
+ * pull history (streamed newest-first off disk, i.e. prepends); the
+ * two flows interleave safely because everything keys by `seq` and
+ * inserts are idempotent. */
 export function ViewerLogsPane() {
   const [entries, setEntries] = useState<ReadonlyMap<number, LogEntry>>(
     new Map(),
@@ -26,18 +29,15 @@ export function ViewerLogsPane() {
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;
-    const upsert = (incoming: LogEntry[]) => {
+    const insert = (entry: LogEntry) => {
+      if (disposed) return;
       setEntries((prev) => {
+        if (prev.has(entry.seq)) return prev;
         const next = new Map(prev);
-        for (const entry of incoming) {
-          const have = next.get(entry.seq);
-          if (!have || entry.count >= have.count) {
-            next.set(entry.seq, entry);
-          }
-        }
+        next.set(entry.seq, entry);
         if (next.size > CLIENT_CAP) {
-          const excess = [...next.keys()].sort((a, b) => a - b);
-          for (const seq of excess.slice(0, next.size - CLIENT_CAP)) {
+          const seqs = [...next.keys()].sort((a, b) => a - b);
+          for (const seq of seqs.slice(0, next.size - CLIENT_CAP)) {
             next.delete(seq);
           }
         }
@@ -46,14 +46,13 @@ export function ViewerLogsPane() {
     };
     void (async () => {
       unlisten = await tauriListen<LogEntry>("logs://appended", (e) => {
-        if (!disposed) upsert([e.payload]);
+        insert(e.payload);
       });
       if (disposed) {
         unlisten?.();
         return;
       }
-      const snapshot = await logsSnapshot();
-      if (snapshot && !disposed) upsert(snapshot);
+      await logsPull(PULL_COUNT, insert);
     })();
     return () => {
       disposed = true;
@@ -63,12 +62,30 @@ export function ViewerLogsPane() {
 
   // Oldest first, newest at the end — plain document flow (short
   // content sits at the TOP, and the default scroll position is the
-  // top; no col-reverse trickery, no scroll JS).
-  const list = [...entries.values()].sort((a, b) => a.seq - b.seq);
+  // top). Consecutive identical (source, level, message) entries
+  // merge into one DISPLAY row with a ×count — render-time
+  // coalescing; the store keeps every entry distinct.
+  const rows: { entry: LogEntry; count: number }[] = [];
+  for (const entry of [...entries.values()].sort((a, b) => a.seq - b.seq)) {
+    const last = rows[rows.length - 1];
+    if (
+      last !== undefined &&
+      last.entry.source === entry.source &&
+      last.entry.level === entry.level &&
+      last.entry.message === entry.message
+    ) {
+      last.count += 1;
+      if (last.entry.detail === null && entry.detail !== null) {
+        last.entry = { ...last.entry, detail: entry.detail };
+      }
+    } else {
+      rows.push({ entry, count: 1 });
+    }
+  }
 
   return (
     <div className={cn("flex-1", "min-h-0", "overflow-y-auto")}>
-      {list.length === 0 && (
+      {rows.length === 0 && (
         <div
           className={cn(
             "p-6",
@@ -81,16 +98,16 @@ export function ViewerLogsPane() {
           nothing captured yet
         </div>
       )}
-      {list.map((entry) => (
-        <LogRow key={entry.seq} entry={entry} />
+      {rows.map((row) => (
+        <LogRow key={row.entry.seq} entry={row.entry} count={row.count} />
       ))}
     </div>
   );
 }
 
-/** One entry. A separate component because `useAgo` is a hook (can't
- * run inside the map). */
-function LogRow({ entry }: { entry: LogEntry }) {
+/** One display row. A separate component because `useAgo` is a hook
+ * (can't run inside the map). */
+function LogRow({ entry, count }: { entry: LogEntry; count: number }) {
   const at = new Date(entry.at_ms);
   const ago = useAgo(at.toISOString());
   const isError = ERROR_LEVELS.has(entry.level);
@@ -139,10 +156,10 @@ function LogRow({ entry }: { entry: LogEntry }) {
         >
           {entry.message}
         </span>
-        {entry.count > 1 && (
+        {count > 1 && (
           <span
             data-log-count
-            title="consecutive identical reports"
+            title="consecutive identical entries"
             className={cn(
               "shrink-0",
               "px-1",
@@ -152,7 +169,7 @@ function LogRow({ entry }: { entry: LogEntry }) {
               "tabular-nums",
             )}
           >
-            ×{entry.count}
+            ×{count}
           </span>
         )}
         <span
