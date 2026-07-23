@@ -29,8 +29,9 @@ import { memo, useMemo } from "react";
  * ([`unescapeNewlines`]): the continuation sits at the line's own
  * (key) indentation — 2ch SHALLOWER than a wrap's hang, which is
  * what tells "the string contains a newline" apart from "this line
- * wrapped". The quotes stay, and NO other escape is touched (`\t`,
- * `\"`, and a literal `\\n` all render escaped).
+ * wrapped". Escaped tabs (`\t`) render as 4 spaces. The quotes stay,
+ * and NO other escape is touched (`\"`, and literal `\\n` / `\\t`
+ * all render escaped).
  */
 
 /** How deep string-embedded JSON expansion recurses before giving up
@@ -93,14 +94,14 @@ function displayText(value: unknown): string {
   );
 }
 
-/** Replace the two-character `\n` escape inside STRING tokens with a
- * real line break, the continuation indented at the line's own (key)
- * indentation. A character scanner, not a regex, because escape
- * sequences must be consumed as units: `\\n` is a literal backslash
- * followed by `n` — NOT a newline — and every non-`\n` escape passes
- * through untouched. Lines of pretty-printed JSON are self-contained
- * (stringify never emits a raw newline inside a token), so scanning
- * per line is sound. */
+/** Replace, inside STRING tokens: the two-character `\n` escape with
+ * a real line break (continuation indented at the line's own (key)
+ * indentation) and the `\t` escape with 4 spaces. A character
+ * scanner, not a regex, because escape sequences must be consumed as
+ * units: `\\n` is a literal backslash followed by `n` — NOT a
+ * newline — and every other escape passes through untouched. Lines
+ * of pretty-printed JSON are self-contained (stringify never emits a
+ * raw newline inside a token), so scanning per line is sound. */
 function unescapeNewlines(text: string): string {
   return text
     .split("\n")
@@ -113,7 +114,7 @@ function unescapeNewlines(text: string): string {
         const c = line[i];
         if (inString && c === "\\") {
           const next = line[i + 1] ?? "";
-          out += next === "n" ? brk : c + next;
+          out += next === "n" ? brk : next === "t" ? "    " : c + next;
           i++;
           continue;
         }
