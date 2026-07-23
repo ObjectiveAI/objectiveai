@@ -139,7 +139,9 @@ pub fn spawn_plugin_loader(app: tauri::AppHandle, plugins_root: PathBuf, window:
             let Some(viewer) = &plugin.manifest.viewer else {
                 continue;
             };
-            let identity = format!("{}/{}", plugin.owner, plugin.name);
+            // Version INCLUDED — multiple versions can be installed,
+            // and the surface must say which one is actually running.
+            let identity = format!("{}/{}@{}", plugin.owner, plugin.name, plugin.version);
             let icon = match viewer.icon.as_deref().map(normalize) {
                 Some(None) => {
                     super::report_shell(
