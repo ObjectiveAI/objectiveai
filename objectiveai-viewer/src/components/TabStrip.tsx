@@ -225,13 +225,13 @@ export function TabStrip({
           >
             {/* Identity over name, stacked — whose surface this is,
                 then which one. */}
-            <span className={cn("flex", "flex-col", "min-w-0")}>
+            <span className={cn("flex", "flex-col", "gap-0.5", "min-w-0")}>
               <span
                 data-tab-identity
                 className={cn(
                   "truncate",
-                  "text-[8px]",
-                  "leading-tight",
+                  "text-[9px]",
+                  "leading-none",
                   "text-info-dim",
                 )}
               >
