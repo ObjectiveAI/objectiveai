@@ -21,11 +21,13 @@ type CliChannelListenerChannelOffer struct {
 	// Caller-chosen discriminator (e.g. `"browser.login"`) — how a
 	// user surface decides whether/how to accept the offer.
 	Key string `json:"key"`
+	// Human-readable offer message, opaque to the daemon.
+	Message string `json:"message"`
+	PluginName *string `json:"plugin_name,omitempty"`
 	// The PLUGIN that originated the offer — daemon-authored
 	// (unspoofable; stamped by `plugins run`), absent when the
 	// caller wasn't a plugin.
 	PluginOwner *string `json:"plugin_owner,omitempty"`
-	PluginRepository *string `json:"plugin_repository,omitempty"`
 	PluginVersion *string `json:"plugin_version,omitempty"`
 }
 
@@ -39,7 +41,7 @@ func (v *CliChannelListenerChannelOffer) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_arguments", "channel_id", "details", "key"} {
+	for _, key := range []string{"agent_arguments", "channel_id", "details", "key", "message"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliChannelListenerChannelOffer: missing required field %q", key)
 		}

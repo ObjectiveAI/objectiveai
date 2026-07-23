@@ -8,7 +8,9 @@ import (
 )
 
 // Which side of the channel an entry came from — `request` is
-// publisher→owner, `reply` is owner→publisher.
+// publisher→owner, `reply` is owner→publisher. Retained for
+// [`super::open`]'s flat entry; [`ChannelLogEntry`] is now split by
+// this same axis into an enum instead.
 type CliCommandChannelsLogsListMessageKind struct {
 	Request *string `validate:"omitempty,oneof=request"`
 	Reply *string `validate:"omitempty,oneof=reply"`

@@ -11,9 +11,9 @@ type CliCommandChannelsLogsOpenResponseEntry struct {
 	Content JsonValue `json:"content"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Kind CliCommandChannelsLogsListMessageKind `json:"kind"`
+	PluginName *string `json:"plugin_name,omitempty"`
 	// The originating plugin — present only when a plugin sent it.
 	PluginOwner *string `json:"plugin_owner,omitempty"`
-	PluginRepository *string `json:"plugin_repository,omitempty"`
 	PluginVersion *string `json:"plugin_version,omitempty"`
 	// The AIH of the agent that sent the entry.
 	SenderAgentInstanceHierarchy *string `json:"sender_agent_instance_hierarchy"`

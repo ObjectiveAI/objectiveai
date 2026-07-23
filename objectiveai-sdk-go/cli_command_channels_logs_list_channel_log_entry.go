@@ -7,46 +7,147 @@ import (
 	"fmt"
 )
 
-// One channel-log entry ENVELOPE — no content (open reveals that).
-// Identity is INLINE (the sender AIH + the originating plugin),
-// mirroring the sender-only shape `agents logs` surfaces — not the
-// full argument bag. Daemon-authored (unspoofable).
-type CliCommandChannelsLogsListChannelLogEntry struct {
-	// The entry's `channel_messages.id` — the cursor for `--after-id`
-	// and the `--entry-id` for `channels logs open`.
+// A publisher→owner message. The publisher is a plugin, so the
+// originating plugin trio is always present.
+type CliCommandChannelsLogsListChannelLogEntryRequest struct {
+	// The entry's `channel_messages.id` — the cursor for
+	// `--after-id` and the `--entry-id` for `channels logs open`.
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	Kind CliCommandChannelsLogsListMessageKind `json:"kind"`
-	// The originating plugin (owner/repository/version) — present only
-	// when a plugin sent the entry.
-	PluginOwner *string `json:"plugin_owner,omitempty"`
-	PluginRepository *string `json:"plugin_repository,omitempty"`
-	PluginVersion *string `json:"plugin_version,omitempty"`
-	// The AIH of the agent that sent the entry.
-	SenderAgentInstanceHierarchy *string `json:"sender_agent_instance_hierarchy"`
+	Kind string `json:"kind" validate:"oneof=request"`
+	PluginName string `json:"plugin_name"`
+	// The originating plugin (owner/repository/version) — always
+	// present: a channel's requester is a plugin.
+	PluginOwner string `json:"plugin_owner"`
+	PluginVersion string `json:"plugin_version"`
+	// The AIH of the agent that sent the entry (always present —
+	// the daemon defaults it).
+	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
 	// RFC3339 delivery time.
 	Timestamp string `json:"timestamp"`
 }
 
-func (CliCommandChannelsLogsListChannelLogEntry) SchemaTitle() string { return "cli.command.channels.logs.list.ChannelLogEntry" }
-func (v CliCommandChannelsLogsListChannelLogEntry) Validate() error {
-	return variantValidator.Struct(v)
-}
-
-func (v *CliCommandChannelsLogsListChannelLogEntry) UnmarshalJSON(data []byte) error {
+func (v *CliCommandChannelsLogsListChannelLogEntryRequest) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "kind", "timestamp"} {
+	for _, key := range []string{"id", "kind", "plugin_name", "plugin_owner", "plugin_version", "sender_agent_instance_hierarchy", "timestamp"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntry: missing required field %q", key)
+			return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntryRequest: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandChannelsLogsListChannelLogEntry
+	type Alias CliCommandChannelsLogsListChannelLogEntryRequest
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandChannelsLogsListChannelLogEntry(alias)
+	*v = CliCommandChannelsLogsListChannelLogEntryRequest(alias)
 	return nil
 }
+func (CliCommandChannelsLogsListChannelLogEntryRequest) SchemaVariantTitle() string { return "Request" }
+
+// An owner→publisher message. The replier is typically not a
+// plugin, so the plugin trio is OPTIONAL — present only when a
+// plugin happened to send the reply.
+type CliCommandChannelsLogsListChannelLogEntryReply struct {
+	// The entry's `channel_messages.id`.
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Kind string `json:"kind" validate:"oneof=reply"`
+	PluginName *string `json:"plugin_name,omitempty"`
+	// The originating plugin (owner/repository/version) — present
+	// only when a plugin sent the reply.
+	PluginOwner *string `json:"plugin_owner,omitempty"`
+	PluginVersion *string `json:"plugin_version,omitempty"`
+	// The AIH of the agent that sent the entry (always present —
+	// the daemon defaults it).
+	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
+	// RFC3339 delivery time.
+	Timestamp string `json:"timestamp"`
+}
+
+func (v *CliCommandChannelsLogsListChannelLogEntryReply) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "kind", "sender_agent_instance_hierarchy", "timestamp"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntryReply: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandChannelsLogsListChannelLogEntryReply
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandChannelsLogsListChannelLogEntryReply(alias)
+	return nil
+}
+func (CliCommandChannelsLogsListChannelLogEntryReply) SchemaVariantTitle() string { return "Reply" }
+
+// One channel-log entry ENVELOPE — no content (open reveals that).
+// Identity is INLINE and daemon-authored (unspoofable). The two
+// directions are ASYMMETRIC in identity, so the entry is an enum
+// tagged by `kind`:
+//
+// - `request` (publisher→owner): the publisher is a PLUGIN — the
+//   plugin trio is REQUIRED.
+// - `reply` (owner→publisher): the replier is never a plugin — no
+//   plugin trio at all.
+type CliCommandChannelsLogsListChannelLogEntry struct {
+	// A publisher→owner message. The publisher is a plugin, so the
+	// originating plugin trio is always present.
+	Request *CliCommandChannelsLogsListChannelLogEntryRequest `outerObject:"true"`
+	// An owner→publisher message. The replier is typically not a
+	// plugin, so the plugin trio is OPTIONAL — present only when a
+	// plugin happened to send the reply.
+	Reply *CliCommandChannelsLogsListChannelLogEntryReply `outerObject:"true"`
+}
+
+func (v CliCommandChannelsLogsListChannelLogEntry) MarshalJSON() ([]byte, error) {
+	if v.Request != nil {
+		return json.Marshal(v.Request)
+	}
+	if v.Reply != nil {
+		return json.Marshal(v.Reply)
+	}
+	return []byte("null"), nil
+}
+
+func (v *CliCommandChannelsLogsListChannelLogEntry) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandChannelsLogsListChannelLogEntryRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsLogsListChannelLogEntry{}
+			candidate.Request = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandChannelsLogsListChannelLogEntryReply
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsLogsListChannelLogEntry{}
+			candidate.Reply = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of CliCommandChannelsLogsListChannelLogEntry")
+}
+
+func (v CliCommandChannelsLogsListChannelLogEntry) Validate() error {
+	count := 0
+	if v.Request != nil { count++ }
+	if v.Reply != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntry: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (CliCommandChannelsLogsListChannelLogEntry) SchemaTitle() string { return "cli.command.channels.logs.list.ChannelLogEntry" }
+

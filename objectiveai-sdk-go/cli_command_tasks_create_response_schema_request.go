@@ -7,23 +7,15 @@ import (
 	"fmt"
 )
 
-type CliCommandChannelsPublishRequest struct {
-	// Arbitrary offer payload, opaque to the daemon.
-	Details JsonValue `json:"details"`
+type CliCommandTasksCreateResponseSchemaRequest struct {
 	// jq filter applied to the JSON output. Ignored when `python`
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
-	// Caller-chosen discriminator (e.g. `"browser.login"`) — how a
-	// user surface decides whether/how to accept the offer.
-	Key string `json:"key"`
 	// Response token budget, `>= 1` (`0` is rejected at parse
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.
 	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
-	// Human-readable offer message, opaque to the daemon. Capped at
-	// 512 characters of the raw (unescaped) string.
-	Message string `json:"message"`
-	PathType CliCommandChannelsPublishPath `json:"path_type"`
+	PathType CliCommandTasksCreateResponseSchemaPath `json:"path_type"`
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
@@ -34,26 +26,26 @@ type CliCommandChannelsPublishRequest struct {
 	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
-func (CliCommandChannelsPublishRequest) SchemaTitle() string { return "cli.command.channels.publish.Request" }
-func (v CliCommandChannelsPublishRequest) Validate() error {
+func (CliCommandTasksCreateResponseSchemaRequest) SchemaTitle() string { return "cli.command.tasks.create.response_schema.Request" }
+func (v CliCommandTasksCreateResponseSchemaRequest) Validate() error {
 	return variantValidator.Struct(v)
 }
 
-func (v *CliCommandChannelsPublishRequest) UnmarshalJSON(data []byte) error {
+func (v *CliCommandTasksCreateResponseSchemaRequest) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"details", "key", "message", "path_type"} {
+	for _, key := range []string{"path_type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandChannelsPublishRequest: missing required field %q", key)
+			return fmt.Errorf("CliCommandTasksCreateResponseSchemaRequest: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandChannelsPublishRequest
+	type Alias CliCommandTasksCreateResponseSchemaRequest
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandChannelsPublishRequest(alias)
+	*v = CliCommandTasksCreateResponseSchemaRequest(alias)
 	return nil
 }
