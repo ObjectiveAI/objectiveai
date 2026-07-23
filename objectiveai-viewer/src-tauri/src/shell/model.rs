@@ -226,15 +226,19 @@ pub struct ShellModel {
 }
 
 impl ShellModel {
-    /// A model pre-seeded with the boot window's initial tab set (the
-    /// generation starts advanced so the first snapshot is post-seed).
-    /// The boot window is NOT special — it's minted like any other
-    /// shell; returns `(model, its label, its initial title)`.
-    pub fn seeded(kinds: Vec<TabKind>) -> (Self, String, String) {
+    /// A model pre-seeded with the boot window holding the home tabs
+    /// (the generation starts advanced so the first snapshot is
+    /// post-seed). The boot window is NOT special — it's minted like
+    /// any other shell; returns `(model, its label, its initial
+    /// title)`.
+    pub fn seeded() -> (Self, String, String) {
         let mut inner = Inner::default();
         inner.next_shell += 1;
         let label = format!("shell-{}", inner.next_shell);
-        let tabs: Vec<Tab> = kinds.into_iter().map(|k| inner.mint_tab(k)).collect();
+        let tabs: Vec<Tab> = [TabKind::Agents, TabKind::Laboratories, TabKind::ViewerLogs]
+            .into_iter()
+            .map(|k| inner.mint_tab(k))
+            .collect();
         let active = tabs.first().map(|t| t.id).unwrap_or(0);
         let title = tabs
             .first()

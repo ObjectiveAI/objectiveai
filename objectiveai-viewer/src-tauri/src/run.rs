@@ -124,7 +124,6 @@ impl ConfigBuilder {
             objectiveai_state: self
                 .objectiveai_state
                 .unwrap_or_else(|| "default".to_string()),
-            agent_instance_hierarchy: None,
         }
     }
 }
@@ -145,12 +144,6 @@ pub struct Config {
     pub objectiveai_dir: PathBuf,
     /// State name (`OBJECTIVEAI_STATE`); default `"default"`.
     pub objectiveai_state: String,
-    /// `--agent-instance-hierarchy`: open ONLY the agent conversation
-    /// window for this AIH (the home tabs never open, and the
-    /// per-state viewer singleton lock is NOT taken — a scoped debug
-    /// instance, not THE viewer). Set by `main.rs` from clap, not the
-    /// environment.
-    pub agent_instance_hierarchy: Option<String>,
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -169,29 +162,18 @@ pub fn serve(
     agents_dir: AgentsDir,
     lab_env: crate::laboratories::LabEnv,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
-    agent_window: Option<String>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
     // notification today; the command is kept as a startup signal
     // for later.
     let ready = Arc::new(Notify::new());
 
-    // The shell model — seeded BEFORE the shell boots so the boot
-    // window's chrome finds its tabs in the first snapshot. The boot
-    // window is an ORDINARY shell window (no window is special; the
-    // app lives exactly as long as windows exist). Normal boot: the
-    // two home tabs. `--agent-instance-hierarchy`: one agent
-    // conversation tab (a scoped debug instance).
-    let (model, boot_label, boot_title) = match &agent_window {
-        Some(aih) => crate::shell::ShellModel::seeded(vec![crate::shell::TabKind::Agent {
-            aih: aih.clone(),
-        }]),
-        None => crate::shell::ShellModel::seeded(vec![
-            crate::shell::TabKind::Agents,
-            crate::shell::TabKind::Laboratories,
-            crate::shell::TabKind::ViewerLogs,
-        ]),
-    };
+    // The shell model — seeded with the home tabs BEFORE the shell
+    // boots so the boot window's chrome finds its tabs in the first
+    // snapshot. The boot window is an ORDINARY shell window (no
+    // window is special; the app lives exactly as long as windows
+    // exist).
+    let (model, boot_label, boot_title) = crate::shell::ShellModel::seeded();
 
     let builder = tauri::Builder::default()
         .manage(ready)
@@ -323,30 +305,11 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         )
     })?;
 
-    let lock_dir = config
-        .objectiveai_dir
-        .join("state")
-        .join(&config.objectiveai_state)
-        .join("locks");
-
-    // There is only ever ONE viewer per STATE (unlike the api, which
-    // is one per OBJECTIVEAI_DIR): claim key "viewer" in
-    // <dir>/state/<state>/locks. The viewer is an HTTP client of the daemon (no
-    // listener), so the content is a plain readiness marker, not a
-    // URL. The claim is held until process death (LockClaim leaks on
-    // drop by design) and the kernel releases it on any exit, crash
-    // included. An `--agent-instance-hierarchy` instance is a SCOPED
-    // debug window, not THE viewer — it takes no lock and coexists
-    // with a running main viewer.
-    if config.agent_instance_hierarchy.is_none() {
-        // Readiness handshake: the daemon (this viewer's spawner and
-        // leash-holder) blocks on this stdout line. No address — the
-        // viewer is a client, not a server. No lockfile: the daemon
-        // owns this process's lifetime outright. Scoped debug windows
-        // (--agent-instance-hierarchy) stay silent — they are not THE
-        // viewer.
-        objectiveai_sdk::process::print_ready(None);
-    }
+    // Readiness handshake: the daemon (this viewer's spawner and
+    // leash-holder) blocks on this stdout line. No address — the
+    // viewer is a client of the daemon, not a server; the daemon owns
+    // this process's lifetime outright.
+    objectiveai_sdk::process::print_ready(None);
 
     // ALL daemon streams flow through the Rust-side proxy commands
     // (`crate::daemon_proxy`) — the JS frontend never holds the
@@ -369,11 +332,5 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         state: config.objectiveai_state.clone(),
     };
 
-    Ok(serve(
-        proxy,
-        agents_dir,
-        lab_env,
-        None,
-        config.agent_instance_hierarchy.clone(),
-    ))
+    Ok(serve(proxy, agents_dir, lab_env, None))
 }
