@@ -21,6 +21,11 @@ use tauri::{Emitter, Manager};
 
 use super::model::{ShellModel, Snapshot};
 
+/// The theme's ground color (`--color-ground: #0c0a09` in app.css) —
+/// painted behind every webview while its document boots, so neither
+/// window creation nor tab creation ever flashes white.
+const GROUND: tauri::webview::Color = tauri::webview::Color(0x0c, 0x0a, 0x09, 0xff);
+
 /// The tab strip's height in LOGICAL pixels — the chrome's TabStrip
 /// is styled to exactly this (`h-10`), and the docking hit-test
 /// scales it by the target window's `scale_factor()`.
@@ -93,7 +98,8 @@ pub fn build_shell_window(
             chrome_label(label),
             tauri::WebviewUrl::App("index.html".into()),
         )
-        .auto_resize(),
+        .auto_resize()
+        .background_color(GROUND),
         tauri::LogicalPosition::new(0.0, 0.0),
         size,
     )?;
@@ -163,7 +169,8 @@ pub async fn sync(app: &tauri::AppHandle) {
                         &label,
                         tauri::WebviewUrl::App("tab.html".into()),
                     )
-                    .focused(false);
+                    .focused(false)
+                    .background_color(GROUND);
                     match window.add_child(builder, rect.position, rect.size) {
                         Ok(webview) => webview,
                         // Best-effort; the next sync retries.
