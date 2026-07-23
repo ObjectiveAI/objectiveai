@@ -6,9 +6,11 @@
 //! plus one CONTENT webview per tab (`tab-<id>`, the `tab.html`
 //! entry) placed into the content rect between the strip and the
 //! status bar. Content webviews composite ABOVE the chrome's middle;
-//! the active tab is shown, background tabs are hidden but ALIVE
-//! (their streams and listeners keep running — the old always-mounted
-//! CSS-hidden tabs, one webview each).
+//! the active tab sits in the content rect, background tabs are
+//! PARKED far offscreen but fully ALIVE and laid out (never
+//! `hide()`n — see [`PARK_Y_LOGICAL`]; their streams and listeners
+//! keep running — the old always-mounted CSS-hidden tabs, one
+//! webview each).
 //!
 //! [`sync`] is the RECONCILER: it makes the native webview set match
 //! the model, creating, reparenting (the lossless pop-out/pop-in
@@ -70,6 +72,27 @@ fn content_rect(window: &tauri::Window) -> Option<tauri::Rect> {
         )
         .into(),
     })
+}
+
+/// Background tabs are PARKED — full content-rect size, positioned
+/// far outside the window — never `hide()`n: a hidden WebView2
+/// suspends rendering before the document ever lays out at its real
+/// bounds, so the first `show()` painted a stale tiny-viewport
+/// layout (the "small width flicker"). A parked webview stays live
+/// and correctly laid out at all times, and activation is a pure
+/// MOVE — which cannot reflow.
+const PARK_Y_LOGICAL: f64 = 100_000.0;
+
+/// Detection threshold for "is currently parked", in PHYSICAL px —
+/// generously below the logical offset at any plausible scale.
+const PARK_Y_PHYSICAL_THRESHOLD: i32 = 50_000;
+
+/// `rect`, displaced to the parking position (same size).
+fn parked(rect: &tauri::Rect) -> tauri::Rect {
+    tauri::Rect {
+        position: tauri::LogicalPosition::new(0.0, PARK_Y_LOGICAL).into(),
+        size: rect.size,
+    }
 }
 
 /// Build one shell window: a raw window + its chrome webview
@@ -148,6 +171,13 @@ pub async fn sync(app: &tauri::AppHandle) {
         };
         for tab in &ws.tabs {
             let label = tab_label(tab.id);
+            // Active = the content rect; background = parked (same
+            // size, far offscreen — see PARK_Y_LOGICAL).
+            let target = if tab.id == ws.active {
+                rect
+            } else {
+                parked(&rect)
+            };
             let webview = match app.get_webview(&label) {
                 Some(webview) if webview.window().label() == win_label => Some(webview),
                 Some(webview) => match webview.reparent(&window) {
@@ -174,7 +204,7 @@ pub async fn sync(app: &tauri::AppHandle) {
                     .focused(false)
                     .background_color(GROUND)
                     .initialization_script(super::CAPTURE_INIT_SCRIPT);
-                    match window.add_child(builder, rect.position, rect.size) {
+                    match window.add_child(builder, target.position, target.size) {
                         Ok(webview) => webview,
                         // Best-effort; the next sync retries.
                         Err(_) => continue,
@@ -182,12 +212,7 @@ pub async fn sync(app: &tauri::AppHandle) {
                 }
             };
             // Reparent does NOT reset bounds — always re-bound.
-            let _ = webview.set_bounds(rect);
-            if tab.id == ws.active {
-                let _ = webview.show();
-            } else {
-                let _ = webview.hide();
-            }
+            let _ = webview.set_bounds(target);
             // Push the hosting window's UI state: adoption on create,
             // detach, and dock. (Targeted — the content listens with
             // a webview-scoped listener; its boot get covers the
@@ -200,6 +225,9 @@ pub async fn sync(app: &tauri::AppHandle) {
 /// Re-bound one window's content webviews (Resized /
 /// ScaleFactorChanged — high-frequency, so no model lock and no
 /// reconcile: purely a relayout of whatever is already placed).
+/// Parked webviews STAY parked (detected by their current position,
+/// so no model read is needed) but track the new size — their layout
+/// is always current, which is the whole point of parking.
 pub fn layout_window(app: &tauri::AppHandle, label: &str) {
     let Some(window) = app.get_window(label) else {
         return;
@@ -209,7 +237,10 @@ pub fn layout_window(app: &tauri::AppHandle, label: &str) {
     };
     for webview in window.webviews() {
         if tab_id(webview.label()).is_some() {
-            let _ = webview.set_bounds(rect);
+            let is_parked = webview
+                .position()
+                .is_ok_and(|p| p.y > PARK_Y_PHYSICAL_THRESHOLD);
+            let _ = webview.set_bounds(if is_parked { parked(&rect) } else { rect });
         }
     }
 }
