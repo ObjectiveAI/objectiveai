@@ -202,6 +202,17 @@ pub struct Detached {
     pub touched: Vec<String>,
 }
 
+/// What [`ShellModel::spawn_window_with_tab`] did.
+pub struct SpawnedWindow {
+    /// The freshly minted shell window label.
+    pub label: String,
+    /// The new window's initial title (`<identity> - <tab name>`).
+    pub title: String,
+    /// The freshly minted tab's id.
+    pub tab_id: u64,
+    pub snapshot: Snapshot,
+}
+
 /// The managed model. Seeded at construction (setup-time), mutated
 /// only through the methods below (commands + docking + the Destroyed
 /// cleanup).
@@ -480,6 +491,43 @@ impl ShellModel {
             snapshot: inner.snapshot(),
             touched: vec![caller.to_string()],
         })
+    }
+
+    /// Mint a FRESH shell entry holding one freshly minted tab
+    /// (active) — the channel-offer spawn: a brand-new window whose
+    /// only tab never lived anywhere else (unlike
+    /// [`detach_to`](Self::detach_to), which moves an existing one).
+    /// A failed window build rolls back via
+    /// [`remove_window`](Self::remove_window) — the tab has no prior
+    /// home to return to.
+    pub async fn spawn_window_with_tab(
+        &self,
+        kind: TabKind,
+        title: String,
+        closable: bool,
+        icon: Option<String>,
+    ) -> SpawnedWindow {
+        let mut inner = self.inner.lock().await;
+        inner.next_shell += 1;
+        let label = format!("shell-{}", inner.next_shell);
+        let tab = inner.mint_tab(kind, title, closable, icon);
+        let tab_id = tab.id;
+        let window_title = format!("{} - {}", tab.kind.identity, tab.title);
+        inner.windows.insert(
+            label.clone(),
+            WindowState {
+                tabs: vec![tab],
+                active: tab_id,
+                ui: UiState::default(),
+            },
+        );
+        inner.generation += 1;
+        SpawnedWindow {
+            label,
+            title: window_title,
+            tab_id,
+            snapshot: inner.snapshot(),
+        }
     }
 
     /// Undo a [`detach_to`](Self::detach_to) whose window build

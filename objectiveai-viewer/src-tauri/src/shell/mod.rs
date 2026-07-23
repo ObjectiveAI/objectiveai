@@ -1,3 +1,5 @@
+mod channels;
+pub use channels::*;
 mod command_logs;
 pub use command_logs::*;
 mod commands;

@@ -78,6 +78,12 @@ impl DaemonProxy {
         self.get(format!("{}/listen", self.address))
     }
 
+    /// The `GET /channels` dial — the shell's resident channel-offer
+    /// listener connects with this (auth = signature header only).
+    pub(crate) fn channels_builder(&self) -> reqwest::RequestBuilder {
+        self.get(format!("{}/channels", self.address))
+    }
+
     /// GET builder for an SSE route: accept header + auth signature.
     fn get(&self, url: String) -> reqwest::RequestBuilder {
         let mut req = self

@@ -114,6 +114,24 @@ export async function declareTabs(): Promise<void> {
   await tauriInvoke("tabs_declare", { entries: ROOT_TABS });
 }
 
+/** Declare the channel-request tab TEMPLATE — the component the
+ * shell's resident /channels listener spawns for every incoming
+ * offer. Same first-wins contract as `declareTabs`; the listener
+ * won't connect until a chrome has declared (dev/prod module
+ * knowledge stays here — Rust knows no module paths). */
+export async function declareChannelRequestTab(): Promise<void> {
+  await tauriInvoke("channel_request_declare", {
+    module: builtinTabModule("channel-request"),
+  });
+}
+
+/** Close this content webview's OWN tab (the channel-request tab's
+ * Decline). The sole tab of a spawned window closes the window with
+ * it. */
+export function tabsCloseSelf(): void {
+  void tauriInvoke("tabs_close_self");
+}
+
 /** One inventory row — mirrors the shell's `InventoryEntry`. */
 export interface TabInventoryEntry {
   identity: string;

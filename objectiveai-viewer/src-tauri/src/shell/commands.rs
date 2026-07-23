@@ -72,7 +72,7 @@ async fn sender_identity(webview: &tauri::Webview, model: &ShellModel) -> String
 /// `module` must stay INSIDE the sender identity's root: a plain
 /// absolute-from-root path, no scheme, no traversal. This check is
 /// the load-bearing seam that makes caller-supplied modules safe.
-fn validate_module(module: &str) -> Result<(), String> {
+pub(crate) fn validate_module(module: &str) -> Result<(), String> {
     if module.starts_with('/')
         && !module.contains("://")
         && !module.contains('\\')
@@ -229,19 +229,40 @@ pub(crate) async fn select_tab(app: &tauri::AppHandle, window: &str, tab_id: u64
 #[tauri::command]
 pub async fn tabs_close(
     app: tauri::AppHandle,
-    model: tauri::State<'_, ShellModel>,
     tab_id: u64,
 ) -> Result<(), String> {
+    close_tab(&app, tab_id).await;
+    Ok(())
+}
+
+/// The internal close path — the command above, the channel-offer
+/// withdrawal handler, and the self-close land here.
+pub(crate) async fn close_tab(app: &tauri::AppHandle, tab_id: u64) {
+    let model = app.state::<ShellModel>();
     let Some(closed) = model.close(tab_id).await else {
-        return Ok(());
+        return;
     };
-    native::publish(&app, &closed.snapshot, &closed.touched);
-    native::sync(&app).await;
+    native::publish(app, &closed.snapshot, &closed.touched);
+    native::sync(app).await;
     if let Some(label) = closed.close_window {
         if let Some(window) = app.get_window(&label) {
             let _ = window.close();
         }
     }
+}
+
+/// Close the CALLING content webview's OWN tab — self-scoped like
+/// `tab_self` (the descriptor carries no tab id; the label does).
+/// The channel-request tab's Decline rides this; a window whose sole
+/// tab this is closes with it.
+#[tauri::command]
+pub async fn tabs_close_self(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<(), String> {
+    let id = native::tab_id(webview.label())
+        .ok_or_else(|| "tabs_close_self: not a content webview".to_string())?;
+    close_tab(&app, id).await;
     Ok(())
 }
 
@@ -317,7 +338,7 @@ pub async fn tabs_detach(
         tauri::LogicalPosition::new(cursor.x / scale - 60.0, cursor.y / scale - 20.0)
     });
     let new_window =
-        match native::build_shell_window(&app, &detached.label, &detached.title, position) {
+        match native::build_shell_window(&app, &detached.label, &detached.title, position, true) {
             Ok(window) => window,
             Err(e) => {
                 // Roll back: the tab returns to the source window, the

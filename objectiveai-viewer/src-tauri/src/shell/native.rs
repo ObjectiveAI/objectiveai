@@ -98,15 +98,19 @@ fn parked(rect: &tauri::Rect) -> tauri::Rect {
 /// (full-window, proportional auto-resize — full-window IS
 /// expressible as 1.0 rates, unlike the fixed-band content rect).
 /// Content webviews are the reconciler's job, not this one's.
+/// `focused` = whether the new window takes keyboard focus (an
+/// unsolicited spawn — a channel offer — must not steal it).
 pub fn build_shell_window(
     app: &tauri::AppHandle,
     label: &str,
     title: &str,
     position: Option<tauri::LogicalPosition<f64>>,
+    focused: bool,
 ) -> tauri::Result<tauri::Window> {
     let mut builder = tauri::window::WindowBuilder::new(app, label)
         .title(title)
-        .inner_size(1024.0, 768.0);
+        .inner_size(1024.0, 768.0)
+        .focused(focused);
     if let Some(position) = position {
         builder = builder.position(position.x, position.y);
     }

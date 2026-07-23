@@ -16,6 +16,7 @@ import { viewerTransport } from "./lib/viewer-transport";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri, tauriListen } from "./lib/tauri";
 import {
+  declareChannelRequestTab,
   declareTabs,
   tabsSnapshot,
   uiSet,
@@ -52,6 +53,7 @@ function App() {
   // orchestrator opens the enabled tabs.
   useEffect(() => {
     void declareTabs();
+    void declareChannelRequestTab();
   }, []);
 
 

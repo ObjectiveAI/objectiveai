@@ -114,7 +114,7 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
 /// CWD-style) into the kind's uniform root-relative form: `./`
 /// stripped, stored with a leading `/` whose root IS the plugin's
 /// viewer dir. `None` = a path that tries to leave the root.
-fn normalize(path: &str) -> Option<String> {
+pub(crate) fn normalize(path: &str) -> Option<String> {
     let path = path.strip_prefix("./").unwrap_or(path);
     if path.is_empty()
         || path.starts_with('/')
@@ -125,6 +125,41 @@ fn normalize(path: &str) -> Option<String> {
         return None;
     }
     Some(format!("/{path}"))
+}
+
+/// The manifest icon of ONE exact installed version, normalized
+/// root-relative — the channel-offer tab's icon lookup (on-demand: a
+/// plugin may carry an icon while declaring no tabs, so the
+/// inventory's per-tab entries can't answer this). The trio arrives
+/// over the wire: segments are rejected outright if empty or
+/// path-meaningful (separators, `.`/`..`) rather than sanitized.
+/// Owner/name are lowercased to match the install path (the path IS
+/// the identity); the version is exact-case. `None` on any miss —
+/// best-effort, silent.
+pub(crate) async fn plugin_icon(
+    plugins_root: &Path,
+    owner: &str,
+    name: &str,
+    version: &str,
+) -> Option<String> {
+    let safe = |segment: &str| {
+        !segment.is_empty()
+            && !segment.contains('/')
+            && !segment.contains('\\')
+            && segment != "."
+            && segment != ".."
+    };
+    if !safe(owner) || !safe(name) || !safe(version) {
+        return None;
+    }
+    let manifest_path = plugins_root
+        .join(owner.to_lowercase())
+        .join(name.to_lowercase())
+        .join(version)
+        .join("objectiveai.json");
+    let bytes = tokio::fs::read(&manifest_path).await.ok()?;
+    let manifest = serde_json::from_slice::<Manifest>(&bytes).ok()?;
+    normalize(manifest.viewer?.icon?.as_str())
 }
 
 /// Scan the tree and turn every declared plugin tab into a

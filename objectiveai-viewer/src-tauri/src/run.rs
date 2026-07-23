@@ -189,7 +189,8 @@ pub fn serve(
         .manage(crate::shell::WebviewSync::default())
         .manage(log_sink)
         .manage(command_log_sink)
-        .manage(tab_inventory);
+        .manage(tab_inventory)
+        .manage(crate::shell::ChannelRequests::new());
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -203,6 +204,8 @@ pub fn serve(
         crate::shell::tabs_reorder,
         crate::shell::tabs_select,
         crate::shell::tabs_close,
+        crate::shell::tabs_close_self,
+        crate::shell::channel_request_declare,
         crate::shell::tabs_move,
         crate::shell::tabs_detach,
         crate::shell::ui_set,
@@ -242,6 +245,12 @@ pub fn serve(
             // stream for the viewer's whole life; the command-logs
             // tab is just a view over what it writes.
             crate::shell::spawn_command_listener(tauri_app.handle().clone());
+            // The resident /channels listener — every incoming offer
+            // spawns a detached channel-request window.
+            crate::shell::spawn_channel_listener(
+                tauri_app.handle().clone(),
+                plugins_root.clone(),
+            );
             // Windows are created HERE, not in tauri.conf.json. Every
             // window is a raw Window + a chrome webview (strip +
             // status bar); the model decides which tab webviews it
@@ -252,6 +261,7 @@ pub fn serve(
                 &boot_label,
                 "ObjectiveAI Viewer",
                 None,
+                true,
             )?;
             // The boot orchestrator: await the chrome's root-tab
             // declaration + the bin/plugins scan, then open every
