@@ -13,8 +13,8 @@ class ResponseEntry(BaseModel):
     content: JsonValue
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     kind: MessageKind
+    plugin_name: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_owner: Optional[str] = Field(None, description='The originating plugin — present only when a plugin sent it.', json_schema_extra={'omitempty': True})
-    plugin_repository: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_version: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     sender_agent_instance_hierarchy: Optional[str] = Field(None, description='The AIH of the agent that sent the entry.')
     timestamp: str

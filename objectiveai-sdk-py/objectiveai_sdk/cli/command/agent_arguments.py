@@ -26,7 +26,7 @@ Field ↔ env-var mapping (same as `EnvConfigBuilder` in
 - `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`
 - `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`
 - `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`
-- `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_NAME`
+- `plugin_name` ↔ `OBJECTIVEAI_PLUGIN_NAME`
 - `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`
 
 The three `plugin_*` fields are the PLUGIN CALLER identity —
@@ -35,16 +35,23 @@ design: the daemon's own `plugins run` is the only writer (it
 stamps the nested command scope in-process and the plugin child's
 env informationally); wire requests and the CLI environment can
 NEVER assert them — the daemon ignores any inbound claim. They
-appear only in daemon-AUTHORED payloads (e.g. user requests)."""
+appear only in daemon-AUTHORED payloads (e.g. user requests).
+
+`task` marks a run FIRED BY THE TASK SCHEDULER (`tasks create`) —
+daemon-authored exactly like the plugin trio: never read from
+headers or the environment, set only by the scheduler's in-process
+scope, stamped outward (`OBJECTIVEAI_TASK`) informationally when
+true."""
     model_config = ConfigDict(title='cli.command.AgentArguments')
 
     agent_full_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_instance_hierarchy: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_remote: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    plugin_name: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_owner: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    plugin_repository: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_version: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     response_id: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     response_ids: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    task: bool = Field(False, description='Fired by the task scheduler (daemon-authored; see the struct\ndocs). Always present on the wire; `default` only tolerates\nframes from older producers.')
 

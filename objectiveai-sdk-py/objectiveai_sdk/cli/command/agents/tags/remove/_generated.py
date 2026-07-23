@@ -4,4 +4,3 @@ from .path import Path  # noqa: F401
 from .removed import Removed, RemovedBound, RemovedGrouped  # noqa: F401
 from .request import Request  # noqa: F401
 from .response import Response, ResponseBound, ResponseGrouped  # noqa: F401
-from ._execute import execute, execute_transform  # noqa: F401

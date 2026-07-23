@@ -18,7 +18,8 @@ over the accepting connection's stream."""
     channel_id: str = Field(..., description='The daemon-minted channel id — the accept + log routing key.')
     details: JsonValue = Field(..., description='Arbitrary offer payload, opaque to the daemon.')
     key: str = Field(..., description='Caller-chosen discriminator (e.g. `"browser.login"`) — how a\nuser surface decides whether/how to accept the offer.')
+    message: str = Field(..., description='Human-readable offer message, opaque to the daemon.')
+    plugin_name: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_owner: Optional[str] = Field(None, description="The PLUGIN that originated the offer — daemon-authored\n(unspoofable; stamped by `plugins run`), absent when the\ncaller wasn't a plugin.", json_schema_extra={'omitempty': True})
-    plugin_repository: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_version: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
 

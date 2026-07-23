@@ -7,7 +7,9 @@ from pydantic import ConfigDict, RootModel
 
 class MessageKind(RootModel):
     """Which side of the channel an entry came from — `request` is
-publisher→owner, `reply` is owner→publisher."""
+publisher→owner, `reply` is owner→publisher. Retained for
+[`super::open`]'s flat entry; [`ChannelLogEntry`] is now split by
+this same axis into an enum instead."""
     model_config = ConfigDict(title='cli.command.channels.logs.list.MessageKind')
 
     root: Literal['request', 'reply']

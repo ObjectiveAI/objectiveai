@@ -5,4 +5,3 @@ from .path import Path  # noqa: F401
 from .request import Request  # noqa: F401
 from .response import Response, ResponseAgent, ResponseAgentInstance, ResponseAgentTag, ResponseAgentTagBound, ResponseAgentTagGrouped  # noqa: F401
 from .target import Target, TargetAgent, TargetAgentInstance, TargetAgentTag  # noqa: F401
-from ._execute import execute, execute_transform  # noqa: F401
