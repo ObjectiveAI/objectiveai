@@ -8,6 +8,7 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   SortableContext,
   useSortable,
@@ -102,7 +103,9 @@ export default function TabsTab() {
   };
 
   return (
-    <div className={cn("flex-1", "min-h-0", "overflow-y-auto")}>
+    // overflow-x-hidden: dnd transforms can momentarily poke past
+    // the right edge — never show a horizontal scrollbar for it.
+    <div className={cn("flex-1", "min-h-0", "overflow-y-auto", "overflow-x-hidden")}>
       {display.length === 0 && (
         <div
           className={cn(
@@ -119,6 +122,9 @@ export default function TabsTab() {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        // Vertical only — a row can never poke sideways (no width
+        // scroller; overflow-x-hidden stays as belt).
+        modifiers={[restrictToVerticalAxis]}
         onDragEnd={onDragEnd}
       >
         <SortableContext
