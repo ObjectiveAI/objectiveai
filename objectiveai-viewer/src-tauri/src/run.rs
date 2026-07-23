@@ -298,18 +298,14 @@ pub fn serve(
                         }
                     });
                 }
-                // Keep the content webviews' rect glued to the strip
-                // and status-bar bands. Spawned: the relayout reads
-                // the MODEL (tokio mutex — this closure is
-                // synchronous on the runtime thread) for which tab
-                // is active vs parked, and recomputes the rect from
-                // the window's CURRENT size so late tasks converge.
+                // Keep the content webviews SIZED to the content
+                // band. Inline + size-only: positions (active and
+                // parked alike) are constants that resize never
+                // changes, so no model read and no dispatch round
+                // trips — set_size fast-paths on this thread.
                 tauri::WindowEvent::Resized(_)
                 | tauri::WindowEvent::ScaleFactorChanged { .. } => {
-                    tauri::async_runtime::spawn(crate::shell::layout_window(
-                        app_handle.clone(),
-                        label,
-                    ));
+                    crate::shell::layout_window(app_handle, &label);
                 }
                 _ => {}
             }

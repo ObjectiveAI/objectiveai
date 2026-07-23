@@ -221,29 +221,23 @@ pub async fn sync(app: &tauri::AppHandle) {
     }
 }
 
-/// Re-bound one window's content webviews (Resized /
-/// ScaleFactorChanged). Which tab is active — and therefore in the
-/// content rect vs parked — comes from the MODEL; the rect comes
-/// from the window's CURRENT size (not the event payload), so even
-/// out-of-order resize tasks converge on the truth. Serialized on
-/// the reconciler's mutex to order against concurrent syncs.
-pub async fn layout_window(app: tauri::AppHandle, label: String) {
-    let sync_state = app.state::<WebviewSync>();
-    let _guard = sync_state.0.lock().await;
-    let active = app.state::<ShellModel>().active_tab(&label).await;
-    let Some(window) = app.get_window(&label) else {
+/// Resize one window's content webviews (Resized /
+/// ScaleFactorChanged). SIZE ONLY: the active position (0, strip)
+/// and the parked position (0, PARK_Y) are both constants, so a
+/// resize never needs to know who is active — placement belongs to
+/// [`sync`] alone. Synchronous and inline on the main thread (the
+/// event closure), where set_size takes the dispatch fast path —
+/// no locks, no spawned tasks, no round trips.
+pub fn layout_window(app: &tauri::AppHandle, label: &str) {
+    let Some(window) = app.get_window(label) else {
         return;
     };
     let Some(rect) = content_rect(&window) else {
         return;
     };
     for webview in window.webviews() {
-        if let Some(id) = tab_id(webview.label()) {
-            let _ = webview.set_bounds(if Some(id) == active {
-                rect
-            } else {
-                parked(&rect)
-            });
+        if tab_id(webview.label()).is_some() {
+            let _ = webview.set_size(rect.size);
         }
     }
 }
