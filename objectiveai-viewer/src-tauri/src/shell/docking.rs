@@ -202,6 +202,17 @@ async fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
     if let Some(window) = app.get_window(target) {
         let _ = window.set_focus();
     }
+    // Park keyboard focus INSIDE the active tab's webview — leaving
+    // it on the window HWND makes the next click into any child
+    // webview get eaten moving focus in (the post-dock "first click
+    // does nothing"); select semantics put it here anyway.
+    if let Some(active) = snapshot.windows.get(target).map(|ws| ws.active) {
+        if active != 0 {
+            if let Some(webview) = app.get_webview(&native::tab_label(active)) {
+                let _ = webview.set_focus();
+            }
+        }
+    }
     if let Some(window) = app.get_window(source) {
         let _ = window.close();
     }
