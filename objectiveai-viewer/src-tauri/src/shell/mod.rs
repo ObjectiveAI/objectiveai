@@ -1,7 +1,11 @@
+mod command_logs;
+pub use command_logs::*;
 mod commands;
 pub use commands::*;
 mod docking;
 pub use docking::*;
+mod jsonl;
+pub use jsonl::*;
 mod logs;
 pub use logs::*;
 mod model;

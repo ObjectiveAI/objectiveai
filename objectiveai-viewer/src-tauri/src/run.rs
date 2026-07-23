@@ -162,6 +162,7 @@ pub fn serve(
     agents_dir: AgentsDir,
     lab_env: crate::laboratories::LabEnv,
     log_sink: crate::shell::LogSink,
+    command_log_sink: crate::shell::CommandLogSink,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
@@ -183,7 +184,8 @@ pub fn serve(
         .manage(lab_env)
         .manage(model)
         .manage(crate::shell::WebviewSync::default())
-        .manage(log_sink);
+        .manage(log_sink)
+        .manage(command_log_sink);
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -198,6 +200,8 @@ pub fn serve(
         crate::shell::ui_get,
         crate::shell::logs_report,
         crate::shell::logs_pull,
+        crate::shell::command_logs_pull,
+        crate::shell::command_log_items_pull,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,
@@ -225,6 +229,10 @@ pub fn serve(
                 tauri_app.handle().clone(),
                 dock_rx.take().expect("setup runs once"),
             );
+            // The resident /listen capture — Rust holds the daemon
+            // stream for the viewer's whole life; the command-logs
+            // tab is just a view over what it writes.
+            crate::shell::spawn_command_listener(tauri_app.handle().clone());
             // Windows are created HERE, not in tauri.conf.json. Every
             // window is a raw Window + a chrome webview (strip +
             // status bar); the model decides which tab webviews it
@@ -333,16 +341,17 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         state: config.objectiveai_state.clone(),
     };
 
-    // This run's logfile sink — timestamped at viewer start, under
-    // the state folder: <dir>/state/<state>/viewer/viewer-logs/.
-    let log_sink = crate::shell::LogSink::new(
-        config
-            .objectiveai_dir
-            .join("state")
-            .join(&config.objectiveai_state)
-            .join("viewer")
-            .join("viewer-logs"),
-    );
+    // This run's logfile sinks — timestamped at viewer start, under
+    // the state folder: <dir>/state/<state>/viewer/{viewer-logs,
+    // command-logs}.
+    let viewer_dir = config
+        .objectiveai_dir
+        .join("state")
+        .join(&config.objectiveai_state)
+        .join("viewer");
+    let log_sink = crate::shell::LogSink::new(viewer_dir.join("viewer-logs"));
+    let command_log_sink =
+        crate::shell::CommandLogSink::new(viewer_dir.join("command-logs"));
 
-    Ok(serve(proxy, agents_dir, lab_env, log_sink, None))
+    Ok(serve(proxy, agents_dir, lab_env, log_sink, command_log_sink, None))
 }

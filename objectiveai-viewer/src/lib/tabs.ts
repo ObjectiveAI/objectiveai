@@ -14,6 +14,8 @@ export type TabKind =
   | { type: "agents" }
   | { type: "laboratories" }
   | { type: "viewer_logs" }
+  | { type: "command_logs" }
+  | { type: "command_log"; id: string; path: string }
   | { type: "agent"; aih: string }
   | {
       type: "laboratory";

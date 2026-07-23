@@ -71,6 +71,13 @@ impl DaemonProxy {
         }
     }
 
+    /// The `/listen` broadcast dial — the shell's resident
+    /// command-logs capture task connects with this (same route the
+    /// `daemon_listen` proxy serves to webviews).
+    pub(crate) fn listen_builder(&self) -> reqwest::RequestBuilder {
+        self.get(format!("{}/listen", self.address))
+    }
+
     /// GET builder for an SSE route: accept header + auth signature.
     fn get(&self, url: String) -> reqwest::RequestBuilder {
         let mut req = self

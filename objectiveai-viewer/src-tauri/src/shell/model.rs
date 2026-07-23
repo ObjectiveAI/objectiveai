@@ -31,6 +31,12 @@ pub enum TabKind {
     /// initialization script hoovers out of every webview (console,
     /// uncaught errors, unhandled rejections; see `shell/logs.rs`).
     ViewerLogs,
+    /// The daemon's `/listen` broadcast — the request list captured
+    /// by the resident command-logs task (see `shell/command_logs.rs`).
+    CommandLogs,
+    /// One captured request's response items, by its broadcast id
+    /// (opened by clicking a row in the command-logs tab).
+    CommandLog { id: String, path: String },
     /// One agent conversation, by its instance hierarchy.
     Agent { aih: String },
     /// One laboratory browser, by id + optional host pin.
@@ -50,6 +56,11 @@ impl TabKind {
             TabKind::Agents => "agents".to_string(),
             TabKind::Laboratories => "laboratories".to_string(),
             TabKind::ViewerLogs => "viewer-logs".to_string(),
+            TabKind::CommandLogs => "command-logs".to_string(),
+            TabKind::CommandLog { id, path } => {
+                let short: String = id.chars().take(8).collect();
+                format!("{path} · {short}")
+            }
             TabKind::Agent { aih } => aih.clone(),
             TabKind::Laboratory {
                 id,
@@ -69,7 +80,10 @@ impl TabKind {
     fn closable(&self) -> bool {
         !matches!(
             self,
-            TabKind::Agents | TabKind::Laboratories | TabKind::ViewerLogs
+            TabKind::Agents
+                | TabKind::Laboratories
+                | TabKind::ViewerLogs
+                | TabKind::CommandLogs
         )
     }
 }
@@ -235,10 +249,15 @@ impl ShellModel {
         let mut inner = Inner::default();
         inner.next_shell += 1;
         let label = format!("shell-{}", inner.next_shell);
-        let tabs: Vec<Tab> = [TabKind::Agents, TabKind::Laboratories, TabKind::ViewerLogs]
-            .into_iter()
-            .map(|k| inner.mint_tab(k))
-            .collect();
+        let tabs: Vec<Tab> = [
+            TabKind::Agents,
+            TabKind::Laboratories,
+            TabKind::ViewerLogs,
+            TabKind::CommandLogs,
+        ]
+        .into_iter()
+        .map(|k| inner.mint_tab(k))
+        .collect();
         let active = tabs.first().map(|t| t.id).unwrap_or(0);
         let title = tabs
             .first()

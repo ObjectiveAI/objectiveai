@@ -5,6 +5,8 @@ import { useAgentsInstancesList } from "../hooks/useAgentsInstancesList";
 import { HierarchyTree } from "./HierarchyTree";
 import { LaboratoriesPane } from "./LaboratoriesPane";
 import { ViewerLogsPane } from "./ViewerLogsPane";
+import { CommandLogsPane } from "./CommandLogsPane";
+import { CommandLogPane } from "./CommandLogPane";
 import { ConversationView } from "./ConversationView";
 import { AgentChat } from "./AgentChat";
 import { LaboratoryBrowser } from "./LaboratoryBrowser";
@@ -65,6 +67,10 @@ export function TabContent({
       return <LaboratoriesPane transport={transport} />;
     case "viewer_logs":
       return <ViewerLogsPane />;
+    case "command_logs":
+      return <CommandLogsPane />;
+    case "command_log":
+      return <CommandLogPane id={tab.kind.id} />;
     case "agent":
       return (
         <>
