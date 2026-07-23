@@ -14,6 +14,7 @@ import { reportError } from "../lib/errors";
 import { daemonExecutor } from "../lib/executor";
 import { LoadingDots } from "./LoadingDots";
 import { ContextMenu, ContextMenuItem } from "./shared/ContextMenu";
+import { JsonBlock } from "./shared/JsonBlock";
 import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
@@ -986,25 +987,23 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         >
           inline
         </span>
-        <pre
-          data-agent-definition
-          className={cn(
-            "max-w-full",
-            "text-xs",
-            "text-[#c3bfbb]",
-            "text-left",
-            // Wrap (the node box sets nowrap): pretty-printed lines
-            // keep their newlines/indentation, long lines fold, and
-            // unbreakable tokens (ids, base64) break mid-word.
-            "whitespace-pre-wrap",
-            "break-words",
-            "leading-snug",
-            "px-1.5",
-            "py-1",
-          )}
-        >
-          {formatDefinition(agent)}
-        </pre>
+        {/* The shared wrap-safe renderer: wrapped continuations hang
+            at each line's own indentation instead of snapping back
+            to column zero (and string-embedded JSON expands, like
+            everywhere else). */}
+        <div data-agent-definition className={cn("max-w-full")}>
+          <JsonBlock
+            value={stripNulls(agent)}
+            className={cn(
+              "text-xs",
+              "text-[#c3bfbb]",
+              "text-left",
+              "leading-snug",
+              "px-1.5",
+              "py-1",
+            )}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1263,13 +1262,14 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
   );
 }
 
-/** Pretty-print the definition, omitting every null-valued key (at
- * any depth) — nulls are wire noise, not information. */
-function formatDefinition(agent: unknown): string {
-  return JSON.stringify(
-    agent,
-    (_key, value: unknown) => (value === null ? undefined : value),
-    2,
+/** The definition with every null-valued key omitted (at any depth)
+ * — nulls are wire noise, not information. A VALUE transform so the
+ * shared [`JsonBlock`] owns the actual rendering. */
+function stripNulls(agent: unknown): unknown {
+  return JSON.parse(
+    JSON.stringify(agent, (_key, value: unknown) =>
+      value === null ? undefined : value,
+    ) ?? "null",
   );
 }
 
