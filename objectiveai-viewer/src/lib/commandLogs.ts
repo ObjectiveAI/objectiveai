@@ -43,6 +43,9 @@ export interface CommandItemEntry {
   at_ms: number;
   /** The response item, verbatim (absent on the end terminator). */
   value?: unknown;
+  /** This line is the run's REQUEST — exactly one, first (absent
+   * only when the announcement predated the viewer run). */
+  request?: boolean;
   /** The stream ended — exactly one, last. */
   end?: boolean;
 }

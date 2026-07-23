@@ -8,6 +8,7 @@ import {
 } from "../lib/commandLogs";
 import { useAgo } from "../hooks/useAgo";
 import { useBottomTether } from "../hooks/useBottomTether";
+import { JsonBlock } from "./shared/JsonBlock";
 
 /** How much history one pull asks for (the Rust side caps at 1000). */
 const PULL_COUNT = 1000;
@@ -124,17 +125,26 @@ function ItemRow({ item }: { item: CommandItemEntry }) {
             stream ended
           </span>
         ) : (
-          <span
-            data-item-value
-            className={cn(
-              "min-w-0",
-              "break-words",
-              "whitespace-pre-wrap",
-              "text-info-mid",
+          <>
+            {item.request === true && (
+              <span
+                data-item-request
+                className={cn(
+                  "shrink-0",
+                  "text-info-dim",
+                  "uppercase",
+                  "text-[9px]",
+                  "tracking-wider",
+                )}
+              >
+                request
+              </span>
             )}
-          >
-            {JSON.stringify(item.value)}
-          </span>
+            <JsonBlock
+              value={item.value}
+              className={cn("min-w-0", "flex-1", "text-info-mid")}
+            />
+          </>
         )}
         <span
           data-item-at

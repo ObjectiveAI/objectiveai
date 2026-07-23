@@ -8,10 +8,11 @@
 //!   path, the producer's FULL identity (agent fields, plugin trio,
 //!   the `task` bool), and the request itself. This is the root list
 //!   the tab shows.
-//! - `<dir>/.../command-logs/<start>/<id>.jsonl` — every response
-//!   item for that request (and its `end` terminator), one file per
-//!   broadcast id. Clicking a request opens a tab that reads exactly
-//!   one of these.
+//! - `<dir>/.../command-logs/<start>/<id>.jsonl` — the REQUEST
+//!   itself first (flagged `request: true`, so the tab shows what was
+//!   asked before what came back), then every response item for that
+//!   request (and its `end` terminator), one file per broadcast id.
+//!   Clicking a request opens a tab that reads exactly one of these.
 //!
 //! Same flow discipline as `viewer-logs`: each line is appended then
 //! emitted (`command-logs://request` / `command-logs://item`), and
@@ -89,6 +90,10 @@ pub struct ItemEntry {
     /// The response item, verbatim (`None` on the end terminator).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<serde_json::Value>,
+    /// This line is the run's REQUEST — exactly one, first (absent
+    /// only when the announcement predated this viewer run).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub request: bool,
     /// The stream ended — exactly one, last.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub end: bool,
@@ -220,6 +225,7 @@ async fn handle_frame(app: &tauri::AppHandle, data: &str) {
                 seq: items.next_seq,
                 at_ms,
                 value: None,
+                request: false,
                 end: true,
             };
             items.file.append(&item).await;
@@ -240,7 +246,7 @@ async fn handle_frame(app: &tauri::AppHandle, data: &str) {
                 .map(str::to_string)
         };
         let request = frame.get("value").cloned().unwrap_or(serde_json::Value::Null);
-        let entry = {
+        let (entry, item) = {
             let mut inner = sink.inner.lock().await;
             inner.next_seq += 1;
             let entry = RequestEntry {
@@ -264,9 +270,23 @@ async fn handle_frame(app: &tauri::AppHandle, data: &str) {
                 request,
             };
             inner.root.append(&entry).await;
-            entry
+            // The request doubles as the items file's FIRST line, so
+            // the per-request tab shows what was asked before what
+            // came back.
+            let items = inner.items(&id);
+            items.next_seq += 1;
+            let item = ItemEntry {
+                seq: items.next_seq,
+                at_ms,
+                value: Some(entry.request.clone()),
+                request: true,
+                end: false,
+            };
+            items.file.append(&item).await;
+            (entry, item)
         };
         let _ = app.emit("command-logs://request", &entry);
+        let _ = app.emit("command-logs://item", &ItemEvent { request_id: id, item });
         return;
     }
 
@@ -281,6 +301,7 @@ async fn handle_frame(app: &tauri::AppHandle, data: &str) {
             seq: items.next_seq,
             at_ms,
             value: Some(value),
+            request: false,
             end: false,
         };
         items.file.append(&item).await;
