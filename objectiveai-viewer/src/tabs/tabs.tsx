@@ -1,5 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import cn from "classnames";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { tauriListen } from "../lib/tauri";
 import {
   tabIconUrl,
@@ -19,30 +32,22 @@ import { IdentityIcon } from "../components/shared/IdentityIcon";
  * toggleable, not draggable (but displaceable by other rows'
  * moves).
  *
- * STICKINESS (drag semantics): dragging an ENABLED row carries its
- * trailing run of MIDDLE disabled rows (sandwiched runs belong to
- * the enabled row above them); drops land only at block boundaries,
- * and never before the leading disabled run nor after the trailing
- * one — start/end disabled rows stay pinned. Dragging a DISABLED
- * row moves just itself, anywhere (re-parenting is the point).
+ * STICKINESS (applied at DROP time; dnd-kit owns the sensors and
+ * shift animations): dragging an ENABLED row carries its trailing
+ * run of MIDDLE disabled rows (sandwiched runs belong to the
+ * enabled row above them); the drop snaps to block boundaries, and
+ * never before the leading disabled run nor past the trailing one —
+ * start/end disabled rows stay pinned. Dragging a DISABLED row
+ * moves just itself, anywhere (re-parenting is the point).
  *
  * Pure view over the Rust inventory — subscribe FIRST
  * (`inventory://changed` carries the full ordered list on every
- * change), then pull. During a drag a local overlay previews the
- * order; the commit round-trips through Rust and the next inventory
- * event is truth. */
+ * change), then pull. A drop shows its computed order immediately
+ * (local overlay); the commit round-trips through Rust and the next
+ * inventory event is truth. */
 export default function TabsTab() {
   const [entries, setEntries] = useState<TabInventoryEntry[]>([]);
   const [overlay, setOverlay] = useState<TabInventoryEntry[] | null>(null);
-  const gesture = useRef<{
-    pointerId: number;
-    key: string;
-    enabled: boolean;
-    startY: number;
-    rowHeight: number;
-    moved: boolean;
-  } | null>(null);
-  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -52,9 +57,6 @@ export default function TabsTab() {
         "inventory://changed",
         (e) => {
           if (disposed) return;
-          // External truth — replaces everything, and cancels any
-          // in-flight gesture (its base just went stale).
-          gesture.current = null;
           setEntries(e.payload);
           setOverlay(null);
         },
@@ -74,59 +76,25 @@ export default function TabsTab() {
 
   const display = overlay ?? entries;
 
-  const cancelGesture = () => {
-    if (gesture.current) {
-      gesture.current = null;
-      setOverlay(null);
-    }
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+  );
 
-  const onRowPointerDown = (
-    e: React.PointerEvent<HTMLDivElement>,
-    entry: TabInventoryEntry,
-  ) => {
-    if (entry.permanent || e.button !== 0) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    gesture.current = {
-      pointerId: e.pointerId,
-      key: rowKey(entry),
-      enabled: entry.enabled,
-      startY: e.clientY,
-      rowHeight: e.currentTarget.offsetHeight || 1,
-      moved: false,
-    };
-  };
-
-  const onRowPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gesture.current;
-    if (!g || g.pointerId !== e.pointerId) return;
-    if (!g.moved && Math.abs(e.clientY - g.startY) < 3) return;
-    g.moved = true;
-    const list = listRef.current;
-    if (!list) return;
-    const rect = list.getBoundingClientRect();
-    const y = e.clientY - rect.top + list.scrollTop;
-    // Always recompute from the COMMITTED base — no incremental
-    // drift as the overlay reshuffles under the pointer.
-    const next = movedOrder(entries, g.key, g.enabled, y, g.rowHeight);
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const dragged = display.find((entry) => rowKey(entry) === active.id);
+    const to = display.findIndex((entry) => rowKey(entry) === over.id);
+    if (!dragged || to < 0) return;
+    const next = movedOrder(display, rowKey(dragged), dragged.enabled, to);
+    if (next === null) return;
     setOverlay(next);
-  };
-
-  const onRowPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gesture.current;
-    if (!g || g.pointerId !== e.pointerId) return;
-    gesture.current = null;
-    if (!g.moved || overlay === null) {
-      setOverlay(null);
-      return;
-    }
-    // Commit; keep the overlay showing until the inventory event
-    // round-trips the truth. A rejection (stale base) re-fetches.
-    const order = overlay.map((entry) => ({
+    const order = next.map((entry) => ({
       identityKey: entry.identityKey,
       name: entry.name,
     }));
     void tabsReorder(order).catch(async () => {
+      // Rejected (the base raced a change) — re-fetch truth.
       const inventory = await tabsInventory();
       if (inventory) setEntries(inventory);
       setOverlay(null);
@@ -134,10 +102,7 @@ export default function TabsTab() {
   };
 
   return (
-    <div
-      ref={listRef}
-      className={cn("flex-1", "min-h-0", "overflow-y-auto")}
-    >
+    <div className={cn("flex-1", "min-h-0", "overflow-y-auto")}>
       {display.length === 0 && (
         <div
           className={cn(
@@ -151,21 +116,20 @@ export default function TabsTab() {
           no tabs loaded
         </div>
       )}
-      {display.map((entry) => (
-        <TabRow
-          key={rowKey(entry)}
-          entry={entry}
-          dragging={
-            gesture.current?.moved === true &&
-            gesture.current.key === rowKey(entry)
-          }
-          onPointerDown={onRowPointerDown}
-          onPointerMove={onRowPointerMove}
-          onPointerUp={onRowPointerUp}
-          onPointerCancel={cancelGesture}
-          onLostPointerCapture={cancelGesture}
-        />
-      ))}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+      >
+        <SortableContext
+          items={display.map(rowKey)}
+          strategy={verticalListSortingStrategy}
+        >
+          {display.map((entry) => (
+            <TabRow key={rowKey(entry)} entry={entry} />
+          ))}
+        </SortableContext>
+      </DndContext>
     </div>
   );
 }
@@ -174,16 +138,14 @@ function rowKey(entry: { identityKey: string; name: string }): string {
   return `${entry.identityKey}\n${entry.name}`;
 }
 
-/** The new display order for dragging `key` (an `enabled` row drags
- * its BLOCK; a disabled row drags itself) to pointer offset `y` —
- * or `null` when nothing changes. Pure function of the committed
- * base. */
+/** The new display order for dropping `key` (an `enabled` row drags
+ * its BLOCK; a disabled row drags itself) onto row index `to` — or
+ * `null` when nothing changes. */
 function movedOrder(
   base: TabInventoryEntry[],
   key: string,
   enabled: boolean,
-  y: number,
-  rowHeight: number,
+  to: number,
 ): TabInventoryEntry[] | null {
   const from = base.findIndex((entry) => rowKey(entry) === key);
   if (from < 0) return null;
@@ -198,8 +160,9 @@ function movedOrder(
   }
   const blockLen = blockEnd - from + 1;
 
-  // Raw insertion boundary by nearest row edge.
-  const raw = Math.max(0, Math.min(base.length, Math.round(y / rowHeight)));
+  // Sortable semantics: dropping ON index `to` inserts before it
+  // when moving up, after it when moving down.
+  const raw = to > from ? to + 1 : to;
 
   // Allowed boundaries. Disabled rows: anywhere (re-parenting).
   // Enabled blocks: block boundaries only, after the start-pinned
@@ -214,9 +177,10 @@ function movedOrder(
     for (let p = startPin; p <= endPin; p++) {
       if (p === startPin || p === endPin || base[p].enabled) allowed.push(p);
     }
+    if (allowed.length === 0) return null;
     boundary = allowed.reduce(
       (best, p) => (Math.abs(p - raw) < Math.abs(best - raw) ? p : best),
-      allowed[0] ?? raw,
+      allowed[0],
     );
   }
 
@@ -235,35 +199,28 @@ function movedOrder(
 /** One inventory row: icon, identity, tab title, toggle. Permanent
  * rows are greyed and inert (not draggable, not toggleable) but can
  * be displaced by other rows' moves. */
-function TabRow({
-  entry,
-  dragging,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onLostPointerCapture,
-}: {
-  entry: TabInventoryEntry;
-  dragging: boolean;
-  onPointerDown: (
-    e: React.PointerEvent<HTMLDivElement>,
-    entry: TabInventoryEntry,
-  ) => void;
-  onPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void;
-  onPointerCancel: () => void;
-  onLostPointerCapture: () => void;
-}) {
+function TabRow({ entry }: { entry: TabInventoryEntry }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: rowKey(entry), disabled: entry.permanent });
   const iconUrl = tabIconUrl(entry.identity, entry.icon);
   return (
     <div
+      ref={setNodeRef}
       data-inventory-row
-      onPointerDown={(e) => onPointerDown(e, entry)}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onLostPointerCapture={onLostPointerCapture}
+      style={{
+        transform: transform
+          ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+          : undefined,
+        transition,
+      }}
+      {...attributes}
+      {...listeners}
       className={cn(
         "flex",
         "items-center",
@@ -276,8 +233,9 @@ function TabRow({
         "text-sm",
         "select-none",
         "touch-none",
+        "bg-ground",
         entry.permanent ? "opacity-40" : "cursor-grab",
-        dragging && "opacity-60",
+        isDragging && cn("opacity-60", "relative", "z-10"),
       )}
     >
       {iconUrl !== undefined ? (
@@ -330,7 +288,7 @@ function Toggle({ entry }: { entry: TabInventoryEntry }) {
             : "enable this tab"
       }
       // The row owns the drag — the pill must not start one (the
-      // strip's ✕-button precedent).
+      // drag sensor activates on pointerdown).
       onPointerDown={(e) => e.stopPropagation()}
       onClick={() => {
         if (!entry.permanent) {
