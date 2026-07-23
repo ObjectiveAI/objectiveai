@@ -126,20 +126,18 @@ function ItemRow({ item }: { item: CommandItemEntry }) {
           </span>
         ) : (
           <>
-            {item.request === true && (
-              <span
-                data-item-request
-                className={cn(
-                  "shrink-0",
-                  "text-info-dim",
-                  "uppercase",
-                  "text-[9px]",
-                  "tracking-wider",
-                )}
-              >
-                request
-              </span>
-            )}
+            <span
+              data-item-kind
+              className={cn(
+                "shrink-0",
+                "text-info-dim",
+                "uppercase",
+                "text-[9px]",
+                "tracking-wider",
+              )}
+            >
+              {item.request === true ? "request" : "response"}
+            </span>
             <JsonBlock
               value={item.value}
               className={cn("min-w-0", "flex-1", "text-info-mid")}
