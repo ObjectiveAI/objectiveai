@@ -7,6 +7,7 @@ import {
 } from "../lib/commandLogs";
 import { tabsOpen } from "../lib/tabs";
 import { useAgo } from "../hooks/useAgo";
+import { useBottomTether } from "../hooks/useBottomTether";
 
 /** How much history one pull asks for (the Rust side caps at 1000). */
 const PULL_COUNT = 1000;
@@ -61,10 +62,18 @@ export function CommandLogsPane() {
     };
   }, []);
 
+  // Bottom-tether: appends keep the scroller at the bottom while it
+  // IS at the bottom; scrolling up releases it.
+  const { ref, onScroll } = useBottomTether(entries);
+
   const list = [...entries.values()].sort((a, b) => a.seq - b.seq);
 
   return (
-    <div className={cn("flex-1", "min-h-0", "overflow-y-auto")}>
+    <div
+      ref={ref}
+      onScroll={onScroll}
+      className={cn("flex-1", "min-h-0", "overflow-y-auto")}
+    >
       {list.length === 0 && (
         <div
           className={cn(

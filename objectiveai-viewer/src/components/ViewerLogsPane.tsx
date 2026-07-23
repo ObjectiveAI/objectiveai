@@ -3,6 +3,7 @@ import cn from "classnames";
 import { tauriListen } from "../lib/tauri";
 import { logsPull, type LogEntry } from "../lib/logs";
 import { useAgo } from "../hooks/useAgo";
+import { useBottomTether } from "../hooks/useBottomTether";
 
 /** How much history one pull asks for (the Rust side caps at 1000). */
 const PULL_COUNT = 1000;
@@ -60,11 +61,14 @@ export function ViewerLogsPane() {
     };
   }, []);
 
+  // Bottom-tether: appends keep the scroller at the bottom while it
+  // IS at the bottom; scrolling up releases it.
+  const { ref, onScroll } = useBottomTether(entries);
+
   // Oldest first, newest at the end — plain document flow (short
-  // content sits at the TOP, and the default scroll position is the
-  // top). Consecutive identical (source, level, message) entries
-  // merge into one DISPLAY row with a ×count — render-time
-  // coalescing; the store keeps every entry distinct.
+  // content sits at the TOP). Consecutive identical (source, level,
+  // message) entries merge into one DISPLAY row with a ×count —
+  // render-time coalescing; the store keeps every entry distinct.
   const rows: { entry: LogEntry; count: number }[] = [];
   for (const entry of [...entries.values()].sort((a, b) => a.seq - b.seq)) {
     const last = rows[rows.length - 1];
@@ -84,7 +88,11 @@ export function ViewerLogsPane() {
   }
 
   return (
-    <div className={cn("flex-1", "min-h-0", "overflow-y-auto")}>
+    <div
+      ref={ref}
+      onScroll={onScroll}
+      className={cn("flex-1", "min-h-0", "overflow-y-auto")}
+    >
       {rows.length === 0 && (
         <div
           className={cn(
