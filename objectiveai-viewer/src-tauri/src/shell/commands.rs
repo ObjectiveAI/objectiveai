@@ -127,6 +127,7 @@ pub async fn tabs_open(
         tab.title,
         tab.closable.unwrap_or(true),
         tab.icon,
+        true,
     )
     .await;
     if let Some(label) = opened.focus {
@@ -137,9 +138,10 @@ pub async fn tabs_open(
     Ok(())
 }
 
-/// The one internal open path — the command above and the plugin
-/// loader both land here: mutate the model, publish, reconcile.
-/// Focus is the CALLER's decision (the loader never steals it).
+/// The one internal open path — the command above, the boot
+/// orchestrator, and the toggle all land here: mutate the model,
+/// publish, reconcile. `activate` = whether the tab becomes active
+/// (a toggle-on appends QUIETLY); focus is the caller's decision.
 pub(crate) async fn open_tab(
     app: &tauri::AppHandle,
     window: &str,
@@ -147,10 +149,11 @@ pub(crate) async fn open_tab(
     title: String,
     closable: bool,
     icon: Option<String>,
+    activate: bool,
 ) -> super::model::Opened {
     let model = app.state::<ShellModel>();
     let opened = model
-        .open_or_focus(window, kind, title, closable, icon, |label| {
+        .open_or_focus(window, kind, title, closable, icon, activate, |label| {
             app.get_window(label).is_some()
         })
         .await;
@@ -441,6 +444,8 @@ pub async fn tabs_toggle(
         super::report_shell(&app, "error", format!("tabs: persist toggle: {e}")).await;
     }
     if enabled {
+        // QUIET append — the user is working in the tabs pane;
+        // enabling must not yank them to the new tab.
         let window = webview.window().label().to_string();
         open_tab(
             &app,
@@ -449,6 +454,7 @@ pub async fn tabs_toggle(
             entry.title.clone(),
             entry.closable,
             entry.icon.clone(),
+            false,
         )
         .await;
     } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {

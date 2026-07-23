@@ -278,6 +278,7 @@ pub fn spawn_boot_orchestrator(
                 item.entry.title.clone(),
                 item.entry.closable,
                 item.entry.icon.clone(),
+                true,
             )
             .await;
         }

@@ -267,10 +267,13 @@ impl ShellModel {
 
     /// Open `kind`: if a tab with this exact kind exists ANYWHERE (and
     /// its window is still alive per `window_alive` — a vanished
-    /// window's stale entry is dropped), activate it there; otherwise
-    /// append a fresh tab (opener-titled, opener-closable) to
-    /// `caller` and activate it. A dedupe hit keeps the EXISTING
-    /// tab's title/closable — those are cosmetic, not identity.
+    /// window's stale entry is dropped), it wins the dedupe;
+    /// otherwise append a fresh tab (opener-titled, opener-closable)
+    /// to `caller`. `activate` decides whether the opened/found tab
+    /// becomes its window's active one (user-driven opens: yes; a
+    /// toggle-on quietly appends: no). A dedupe hit keeps the
+    /// EXISTING tab's title/closable — those are cosmetic, not
+    /// identity.
     pub async fn open_or_focus(
         &self,
         caller: &str,
@@ -278,18 +281,21 @@ impl ShellModel {
         title: String,
         closable: bool,
         icon: Option<String>,
+        activate: bool,
         window_alive: impl Fn(&str) -> bool,
     ) -> Opened {
         let mut inner = self.inner.lock().await;
         if let Some((label, tab_id)) = inner.locate_kind(&kind) {
             if window_alive(&label) {
-                if let Some(ws) = inner.windows.get_mut(&label) {
-                    ws.active = tab_id;
+                if activate {
+                    if let Some(ws) = inner.windows.get_mut(&label) {
+                        ws.active = tab_id;
+                    }
                 }
                 inner.generation += 1;
                 return Opened {
                     snapshot: inner.snapshot(),
-                    focus: Some(label.clone()),
+                    focus: activate.then(|| label.clone()),
                     touched: vec![label],
                 };
             }
@@ -302,7 +308,11 @@ impl ShellModel {
         let id = tab.id;
         let ws = inner.windows.entry(caller.to_string()).or_default();
         ws.tabs.push(tab);
-        ws.active = id;
+        if activate || ws.active == 0 {
+            // A quiet append still adopts activation in a previously
+            // EMPTY window — a window must not sit with no active tab.
+            ws.active = id;
+        }
         inner.generation += 1;
         Opened {
             snapshot: inner.snapshot(),
