@@ -245,11 +245,9 @@ export function TabStrip({
                   // Inlined when SVG: explicit fills render as
                   // authored; currentColor inherits this line's
                   // color — the icon chooses.
-                  // Icon at text-base while the identity text beside
-                  // it stays text-xs.
                   <IdentityIcon
                     url={tabIconUrl(tab)!}
-                    className={cn("size-[var(--text-base)]", "shrink-0")}
+                    className={cn("w-3.5", "h-3.5", "shrink-0")}
                   />
                 )}
                 <span className={cn("truncate", "min-w-0")}>
