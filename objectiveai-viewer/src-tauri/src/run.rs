@@ -170,12 +170,13 @@ pub fn serve(
     // for later.
     let ready = Arc::new(Notify::new());
 
-    // The shell model — seeded with the home tabs BEFORE the shell
-    // boots so the boot window's chrome finds its tabs in the first
-    // snapshot. The boot window is an ORDINARY shell window (no
-    // window is special; the app lives exactly as long as windows
-    // exist).
-    let (model, boot_label, boot_title) = crate::shell::ShellModel::seeded();
+    // The shell model — one EMPTY boot window. Rust seeds no tabs
+    // and knows no tab names: the boot chrome opens the home tabs
+    // through `tabs_open`, the same API every identity (plugins
+    // included, later) uses. The boot window is an ORDINARY shell
+    // window (no window is special; the app lives exactly as long as
+    // windows exist).
+    let (model, boot_label) = crate::shell::ShellModel::boot();
 
     let builder = tauri::Builder::default()
         .manage(ready)
@@ -192,6 +193,7 @@ pub fn serve(
         open_url,
         crate::shell::tabs_snapshot,
         crate::shell::tabs_open,
+        crate::shell::tab_self,
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_move,
@@ -241,7 +243,7 @@ pub fn serve(
             crate::shell::build_shell_window(
                 tauri_app.handle(),
                 &boot_label,
-                &boot_title,
+                "ObjectiveAI Viewer",
                 None,
             )?;
             let handle = tauri_app.handle().clone();

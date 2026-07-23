@@ -1,14 +1,17 @@
 /**
- * The CONTENT entry — one webview, one tab. The chrome webview
- * (`index.html`) renders the strip + footer; each tab's content runs
- * here, in its own child webview labeled `tab-<id>`, so pop-out /
- * pop-in is a native `reparent` and nothing here ever remounts.
+ * The CONTENT bootstrap — one webview, one tab, ZERO routing
+ * knowledge. The chrome webview (`index.html`) renders the strip +
+ * footer; each tab's content runs here, in its own child webview
+ * labeled `tab-<id>`, so pop-out / pop-in is a native `reparent` and
+ * nothing here ever remounts.
  *
- * Identity comes from the webview LABEL (tab ids are minted by the
- * Rust registry and never reused); the tab's immutable kind is looked
- * up once from the registry snapshot. This entry deliberately does
- * NOT subscribe to `tabs://changed` — content doesn't care where its
- * tab lives, only what it is.
+ * This document is a dumb executor of whatever Rust says: it asks
+ * `tab_self` for its descriptor, dynamic-imports the module Rust
+ * chose, and renders the named export under the harness. There is no
+ * switch, no name table, no resolver — a built-in tab and (later) a
+ * plugin tab differ only in the descriptor and the origin serving
+ * them. It deliberately does NOT subscribe to `tabs://changed` —
+ * content doesn't care where its tab lives, only what it is.
  */
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
@@ -17,40 +20,36 @@ import cn from "classnames";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri } from "./lib/tauri";
 import { viewerTransport } from "./lib/viewer-transport";
-import { tabsSnapshot, uiGet, type TabDesc, type UiState } from "./lib/tabs";
+import { tabSelf, uiGet, type UiState } from "./lib/tabs";
 import { setOrientation } from "./hooks/useOrientation";
-import { TabContent } from "./components/TabContent";
+import {
+  TabHarnessProvider,
+  type TabComponentProps,
+} from "./lib/tabHarness";
 import "./function-tree/styles/function-tree.css";
 import "./app.css";
 
-/** This webview's tab id, from its `tab-<id>` label. */
-async function currentTabId(): Promise<number | null> {
-  if (!isTauri()) return null;
-  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-  const label = getCurrentWebview().label;
-  if (!label.startsWith("tab-")) return null;
-  const id = Number(label.slice("tab-".length));
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
-
 function TabRoot() {
-  // The tab's descriptor, found once — kinds are immutable, so a
-  // single snapshot lookup at boot is the whole registry dependency.
-  const [tab, setTab] = useState<TabDesc | null>(null);
+  // The descriptor + the component it named, loaded once — kinds are
+  // immutable, so this is the whole registry dependency.
+  const [loaded, setLoaded] = useState<{
+    Component: React.ComponentType<TabComponentProps>;
+    arguments: unknown;
+  } | null>(null);
   useEffect(() => {
     let disposed = false;
     void (async () => {
-      const tabId = await currentTabId();
-      if (tabId === null) return;
-      const snapshot = await tabsSnapshot();
-      if (disposed || !snapshot) return;
-      for (const windowTabs of Object.values(snapshot.windows)) {
-        const found = windowTabs.tabs.find((t) => t.id === tabId);
-        if (found) {
-          setTab(found);
-          return;
-        }
-      }
+      const descriptor = await tabSelf();
+      if (!descriptor || disposed) return;
+      const module = (await import(
+        /* @vite-ignore */ descriptor.module
+      )) as Record<string, unknown>;
+      const component = module[descriptor.export ?? "default"];
+      if (disposed || typeof component !== "function") return;
+      setLoaded({
+        Component: component as React.ComponentType<TabComponentProps>,
+        arguments: descriptor.arguments,
+      });
     })();
     return () => {
       disposed = true;
@@ -103,10 +102,13 @@ function TabRoot() {
     };
   }, []);
 
-  if (!tab) return null;
+  if (loaded === null) return null;
+  const { Component } = loaded;
   return (
     <div className={cn("flex", "flex-col", "h-screen")}>
-      <TabContent tab={tab} transport={transport} zoom={zoom} />
+      <TabHarnessProvider value={{ transport, zoom }}>
+        <Component arguments={loaded.arguments} />
+      </TabHarnessProvider>
     </div>
   );
 }

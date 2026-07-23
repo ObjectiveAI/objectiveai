@@ -6,7 +6,7 @@ import {
   classifyLaboratories,
   type DisplayLaboratory,
 } from "../lib/laboratories";
-import { tabsOpen } from "../lib/tabs";
+import { builtinTabModule, tabsOpen } from "../lib/tabs";
 import { LogoMark } from "./shared/Logo";
 import { OpenTab } from "./shared/OpenTab";
 
@@ -75,15 +75,20 @@ export function LaboratoriesPane({
 }
 
 /** Open (or focus) the laboratory's filesystem TAB — appended to this
- * window's strip, or focused wherever it already lives (the tab
- * registry dedupes by kind). */
+ * window's strip, or focused wherever it already lives (the shell
+ * dedupes by kind). The `{os}/{machine}/{id}` title format is the
+ * old bespoke window title's. */
 function openLaboratoryWindow(lab: DisplayLaboratory): void {
-  tabsOpen({
-    type: "laboratory",
-    id: lab.id,
-    machine: lab.machine?.id ?? null,
-    machine_state: lab.machineState ?? null,
-    machine_os: lab.machine?.os ?? null,
+  void tabsOpen({
+    module: builtinTabModule("laboratory"),
+    title: `${lab.machine?.os ?? "?"}/${lab.machine?.id ?? "?"}/${lab.id}`,
+    arguments: {
+      id: lab.id,
+      ...(lab.machine?.id !== undefined ? { machine: lab.machine.id } : {}),
+      ...(lab.machineState !== undefined && lab.machineState !== null
+        ? { machine_state: lab.machineState }
+        : {}),
+    },
   });
 }
 

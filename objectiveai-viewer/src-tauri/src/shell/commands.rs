@@ -11,8 +11,74 @@
 
 use tauri::Manager;
 
-use super::model::{ShellModel, Snapshot, TabKind, UiState};
+use super::model::{ROOT_IDENTITY, ShellModel, Snapshot, TabKind, UiState};
 use super::native;
+
+/// One tab open request — everything a tab is, supplied by the
+/// opener. The sender's IDENTITY is never part of it: Rust derives
+/// it from the calling webview and `module` resolves against that
+/// identity's root. The TS mirror is the SDK's `ViewerOpenTab`.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpenTab {
+    /// Component module path, identity-root-relative.
+    pub module: String,
+    /// The export holding the component (`None` = `"default"`).
+    #[serde(default)]
+    pub export: Option<String>,
+    /// The tab's display title.
+    pub title: String,
+    /// Opaque component props, stored verbatim.
+    #[serde(default)]
+    pub arguments: Option<serde_json::Value>,
+    /// Whether the strip shows a close button (`None` = closable).
+    /// The chrome seeds the permanent home tabs with `false`.
+    #[serde(default)]
+    pub closable: Option<bool>,
+}
+
+/// What a content webview learns about itself at boot — everything
+/// the ONE generic bootstrap needs to render: the module coordinates
+/// to `import()`, the props, the labels. No JS-side resolver exists.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TabDescriptor {
+    pub identity: String,
+    pub module: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub export: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<serde_json::Value>,
+    pub title: String,
+}
+
+/// Whose namespace does this webview speak? Chrome speaks the root
+/// identity; a content webview speaks whatever identity OWNS its tab
+/// — a fact read from the model, never from the caller.
+async fn sender_identity(webview: &tauri::Webview, model: &ShellModel) -> String {
+    match native::tab_id(webview.label()) {
+        None => ROOT_IDENTITY.to_string(),
+        Some(id) => match model.tab(id).await {
+            Some(tab) => tab.kind.identity,
+            None => ROOT_IDENTITY.to_string(),
+        },
+    }
+}
+
+/// `module` must stay INSIDE the sender identity's root: a plain
+/// absolute-from-root path, no scheme, no traversal. This check is
+/// the load-bearing seam that makes caller-supplied modules safe.
+fn validate_module(module: &str) -> Result<(), String> {
+    if module.starts_with('/')
+        && !module.contains("://")
+        && !module.contains('\\')
+        && !module.starts_with("//")
+        && module.split('/').all(|segment| segment != "..")
+    {
+        Ok(())
+    } else {
+        Err(format!("invalid module path {module:?}"))
+    }
+}
 
 /// The model snapshot — a chrome's boot read. (Subscribe to
 /// `tabs://changed` FIRST, then snapshot; apply either only when the
@@ -24,20 +90,36 @@ pub async fn tabs_snapshot(
     Ok(model.snapshot().await)
 }
 
-/// Open `kind`: if a tab with this exact kind exists ANYWHERE,
-/// activate + focus its window (open-or-focus, like the old bespoke
-/// windows); otherwise append a fresh tab to the CALLER's window and
-/// activate it.
+/// Open a tab: if one with this exact kind (identity + module +
+/// export + arguments) exists ANYWHERE, activate + focus its window
+/// (open-or-focus); otherwise append a fresh tab to the CALLER's
+/// window and activate it. The sender's identity is baked in — a
+/// caller can only ever open tabs whose code lives under its own
+/// root.
 #[tauri::command]
 pub async fn tabs_open(
     app: tauri::AppHandle,
     webview: tauri::Webview,
     model: tauri::State<'_, ShellModel>,
-    kind: TabKind,
+    tab: OpenTab,
 ) -> Result<(), String> {
+    validate_module(&tab.module)?;
+    let identity = sender_identity(&webview, &model).await;
+    let kind = TabKind {
+        identity,
+        module: tab.module,
+        export: tab.export,
+        arguments: tab.arguments,
+    };
     let caller = webview.window().label().to_string();
     let opened = model
-        .open_or_focus(&caller, kind, |label| app.get_window(label).is_some())
+        .open_or_focus(
+            &caller,
+            kind,
+            tab.title,
+            tab.closable.unwrap_or(true),
+            |label| app.get_window(label).is_some(),
+        )
         .await;
     native::publish(&app, &opened.snapshot, &opened.touched);
     native::sync(&app).await;
@@ -47,6 +129,30 @@ pub async fn tabs_open(
         }
     }
     Ok(())
+}
+
+/// "What am I": the calling content webview's OWN descriptor,
+/// resolved from its label — the generic bootstrap's one boot read.
+/// Self-scoped by construction: a content webview can learn only
+/// about itself, never the registry.
+#[tauri::command]
+pub async fn tab_self(
+    webview: tauri::Webview,
+    model: tauri::State<'_, ShellModel>,
+) -> Result<TabDescriptor, String> {
+    let id = native::tab_id(webview.label())
+        .ok_or_else(|| "tab_self: not a content webview".to_string())?;
+    let tab = model
+        .tab(id)
+        .await
+        .ok_or_else(|| "tab_self: unknown tab".to_string())?;
+    Ok(TabDescriptor {
+        identity: tab.kind.identity,
+        module: tab.kind.module,
+        export: tab.kind.export,
+        arguments: tab.kind.arguments,
+        title: tab.title,
+    })
 }
 
 /// Activate a tab in the calling window, and hand it keyboard focus.

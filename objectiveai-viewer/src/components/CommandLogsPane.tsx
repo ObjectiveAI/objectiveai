@@ -5,7 +5,7 @@ import {
   commandLogsPull,
   type CommandRequestEntry,
 } from "../lib/commandLogs";
-import { tabsOpen } from "../lib/tabs";
+import { builtinTabModule, tabsOpen } from "../lib/tabs";
 import { useAgo } from "../hooks/useAgo";
 import { useBottomTether } from "../hooks/useBottomTether";
 
@@ -147,7 +147,11 @@ function RequestRow({ entry }: { entry: CommandRequestEntry }) {
       type="button"
       data-request-row
       onClick={() =>
-        tabsOpen({ type: "command_log", id: entry.id, path })
+        void tabsOpen({
+          module: builtinTabModule("command-log"),
+          title: `${path} · ${entry.id.slice(0, 8)}`,
+          arguments: { id: entry.id },
+        })
       }
       className={cn(
         "block",

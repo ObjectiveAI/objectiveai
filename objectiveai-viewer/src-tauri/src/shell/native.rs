@@ -225,8 +225,9 @@ pub fn publish(app: &tauri::AppHandle, snapshot: &Snapshot, touched: &[String]) 
     }
 }
 
-/// A window's title follows its ACTIVE tab (product name when it has
-/// none) — every window alike; none is special.
+/// A window's title follows its ACTIVE tab as `<identity> - <name>`
+/// (product name when it has none) — every window alike; none is
+/// special.
 pub fn sync_title(app: &tauri::AppHandle, snapshot: &Snapshot, label: &str) {
     let Some(window) = app.get_window(label) else {
         return;
@@ -235,7 +236,7 @@ pub fn sync_title(app: &tauri::AppHandle, snapshot: &Snapshot, label: &str) {
         .windows
         .get(label)
         .and_then(|wt| wt.tabs.iter().find(|t| t.id == wt.active))
-        .map(|t| t.title.clone())
+        .map(|t| format!("{} - {}", t.kind.identity, t.title))
         .unwrap_or_else(|| "ObjectiveAI Viewer".to_string());
     let _ = window.set_title(&title);
 }

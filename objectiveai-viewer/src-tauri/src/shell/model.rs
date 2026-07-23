@@ -18,75 +18,36 @@
 
 use std::collections::HashMap;
 
-/// What a tab IS — everything needed to render its content anywhere.
-/// Serde-tagged; the TS mirror lives in the frontend's `lib/tabs.ts`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum TabKind {
-    /// The agents home (watermark + hierarchy tree).
-    Agents,
-    /// The laboratories home (laboratory builder / list).
-    Laboratories,
-    /// The viewer's own log inbox — everything the capture
-    /// initialization script hoovers out of every webview (console,
-    /// uncaught errors, unhandled rejections; see `shell/logs.rs`).
-    ViewerLogs,
-    /// The daemon's `/listen` broadcast — the request list captured
-    /// by the resident command-logs task (see `shell/command_logs.rs`).
-    CommandLogs,
-    /// One captured request's response items, by its broadcast id
-    /// (opened by clicking a row in the command-logs tab).
-    CommandLog { id: String, path: String },
-    /// One agent conversation, by its instance hierarchy.
-    Agent { aih: String },
-    /// One laboratory browser, by id + optional host pin.
-    Laboratory {
-        id: String,
-        machine: Option<String>,
-        machine_state: Option<String>,
-        machine_os: Option<String>,
-    },
+/// What a tab IS — one UNIFORM shape for every identity: the
+/// component coordinates the generic bootstrap dereferences
+/// (`import(module)[export]`), plus opaque props. Built-in tabs are
+/// identity `objectiveai`; plugins will be their own identity, with
+/// `module` resolved against that identity's root. Rust stores all
+/// of it verbatim — there is no name→component table anywhere.
+/// Kind equality (identity + module + export + arguments; title is
+/// cosmetic and lives outside) is the open-or-focus dedupe key.
+/// The TS mirror lives in the frontend's `lib/tabs.ts`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct TabKind {
+    /// The OWNING identity — always derived from the opener's
+    /// webview, never claimed by arguments.
+    pub identity: String,
+    /// Component module path, relative to the identity's root.
+    pub module: String,
+    /// The export holding the component (`None` = `"default"`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export: Option<String>,
+    /// Opaque component props — stored verbatim, delivered verbatim
+    /// at boot. Rust never looks inside.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arguments: Option<serde_json::Value>,
 }
 
-impl TabKind {
-    /// The tab's display title. Labs keep the `{os}/{machine}/{id}`
-    /// format the bespoke window title used (unknown segments `?`).
-    fn title(&self) -> String {
-        match self {
-            TabKind::Agents => "agents".to_string(),
-            TabKind::Laboratories => "laboratories".to_string(),
-            TabKind::ViewerLogs => "viewer-logs".to_string(),
-            TabKind::CommandLogs => "command-logs".to_string(),
-            TabKind::CommandLog { id, path } => {
-                let short: String = id.chars().take(8).collect();
-                format!("{path} · {short}")
-            }
-            TabKind::Agent { aih } => aih.clone(),
-            TabKind::Laboratory {
-                id,
-                machine,
-                machine_os,
-                ..
-            } => format!(
-                "{}/{}/{id}",
-                machine_os.as_deref().unwrap_or("?"),
-                machine.as_deref().unwrap_or("?"),
-            ),
-        }
-    }
-
-    /// Whether the shell shows a close button. The home tabs are
-    /// permanent (movable, never closable).
-    fn closable(&self) -> bool {
-        !matches!(
-            self,
-            TabKind::Agents
-                | TabKind::Laboratories
-                | TabKind::ViewerLogs
-                | TabKind::CommandLogs
-        )
-    }
-}
+/// The ROOT identity — what a CHROME webview speaks as. This is the
+/// ONLY identity fact Rust knows; it knows no tab names and no
+/// module paths for anyone, the root included (the chrome seeds the
+/// home tabs through the same `tabs_open` API a plugin will use).
+pub const ROOT_IDENTITY: &str = "objectiveai";
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Tab {
@@ -194,12 +155,12 @@ impl Inner {
     /// Tab ids are monotonic and NEVER reused — content-webview
     /// labels (`tab-<id>`) can therefore never collide across a tab's
     /// whole close/reopen life.
-    fn mint_tab(&mut self, kind: TabKind) -> Tab {
+    fn mint_tab(&mut self, kind: TabKind, title: String, closable: bool) -> Tab {
         self.next_tab += 1;
         Tab {
             id: self.next_tab,
-            title: kind.title(),
-            closable: kind.closable(),
+            title,
+            closable,
             kind,
         }
     }
@@ -226,7 +187,7 @@ pub struct Closed {
 pub struct Detached {
     /// The freshly minted shell window label the tab moved to.
     pub label: String,
-    /// The moved tab's title (the new window's initial title).
+    /// The new window's initial title (`<identity> - <tab name>`).
     pub title: String,
     pub snapshot: Snapshot,
     pub touched: Vec<String>,
@@ -240,44 +201,23 @@ pub struct ShellModel {
 }
 
 impl ShellModel {
-    /// A model pre-seeded with the boot window holding the home tabs
-    /// (the generation starts advanced so the first snapshot is
-    /// post-seed). The boot window is NOT special — it's minted like
-    /// any other shell; returns `(model, its label, its initial
-    /// title)`.
-    pub fn seeded() -> (Self, String, String) {
+    /// A model holding one EMPTY boot window. Rust seeds no tabs —
+    /// it knows none: the boot chrome opens the home tabs through
+    /// `tabs_open`, the same API every identity uses. Returns
+    /// `(model, the boot window's label)`.
+    pub fn boot() -> (Self, String) {
         let mut inner = Inner::default();
         inner.next_shell += 1;
         let label = format!("shell-{}", inner.next_shell);
-        let tabs: Vec<Tab> = [
-            TabKind::Agents,
-            TabKind::Laboratories,
-            TabKind::ViewerLogs,
-            TabKind::CommandLogs,
-        ]
-        .into_iter()
-        .map(|k| inner.mint_tab(k))
-        .collect();
-        let active = tabs.first().map(|t| t.id).unwrap_or(0);
-        let title = tabs
-            .first()
-            .map(|t| t.title.clone())
-            .unwrap_or_else(|| "ObjectiveAI Viewer".to_string());
-        inner.windows.insert(
-            label.clone(),
-            WindowState {
-                tabs,
-                active,
-                ui: UiState::default(),
-            },
-        );
+        inner
+            .windows
+            .insert(label.clone(), WindowState::default());
         inner.generation += 1;
         (
             Self {
                 inner: tokio::sync::Mutex::new(inner),
             },
             label,
-            title,
         )
     }
 
@@ -294,11 +234,15 @@ impl ShellModel {
     /// Open `kind`: if a tab with this exact kind exists ANYWHERE (and
     /// its window is still alive per `window_alive` — a vanished
     /// window's stale entry is dropped), activate it there; otherwise
-    /// append a fresh tab to `caller` and activate it.
+    /// append a fresh tab (opener-titled, opener-closable) to
+    /// `caller` and activate it. A dedupe hit keeps the EXISTING
+    /// tab's title/closable — those are cosmetic, not identity.
     pub async fn open_or_focus(
         &self,
         caller: &str,
         kind: TabKind,
+        title: String,
+        closable: bool,
         window_alive: impl Fn(&str) -> bool,
     ) -> Opened {
         let mut inner = self.inner.lock().await;
@@ -319,7 +263,7 @@ impl ShellModel {
             // on the caller.
             inner.windows.remove(&label);
         }
-        let tab = inner.mint_tab(kind);
+        let tab = inner.mint_tab(kind, title, closable);
         let id = tab.id;
         let ws = inner.windows.entry(caller.to_string()).or_default();
         ws.tabs.push(tab);
@@ -330,6 +274,14 @@ impl ShellModel {
             focus: None,
             touched: vec![caller.to_string()],
         }
+    }
+
+    /// One tab, whole, by id (`None` = no such tab) — the boot-time
+    /// `tab_self` read.
+    pub async fn tab(&self, tab_id: u64) -> Option<Tab> {
+        let inner = self.inner.lock().await;
+        let (label, idx) = inner.locate(tab_id)?;
+        Some(inner.windows[&label].tabs[idx].clone())
     }
 
     /// Activate a tab in `caller`. Unknown ids / no-change no-op.
@@ -419,7 +371,7 @@ impl ShellModel {
                 .unwrap_or(0);
         }
         let id = tab.id;
-        let title = tab.title.clone();
+        let title = format!("{} - {}", tab.kind.identity, tab.title);
         inner.windows.insert(
             label.clone(),
             WindowState {

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
-import { tabsOpen } from "../lib/tabs";
+import { builtinTabModule, tabsOpen } from "../lib/tabs";
 import {
   agentsTagsApplyExecute,
   agentsTagsRemoveExecute,
@@ -182,10 +182,14 @@ export function HierarchyTree({
 }
 
 /** Open (or focus) the agent's conversation TAB — appended to this
- * window's strip, or focused wherever it already lives (the tab
- * registry dedupes by kind). */
+ * window's strip, or focused wherever it already lives (the shell
+ * dedupes by kind). */
 function openAgentWindow(hierarchy: string): void {
-  tabsOpen({ type: "agent", aih: hierarchy });
+  void tabsOpen({
+    module: builtinTabModule("agent"),
+    title: hierarchy,
+    arguments: { aih: hierarchy },
+  });
 }
 
 /**

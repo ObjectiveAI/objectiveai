@@ -181,7 +181,7 @@ export function TabStrip({
             data-tab-id={tab.id}
             role="tab"
             aria-selected={active}
-            title={tab.title}
+            title={`${tab.kind.identity} - ${tab.title}`}
             onPointerDown={(e) => onPointerDown(e, tab)}
             onPointerMove={onPointerMove}
             onPointerUp={(e) => onPointerUp(e, tab)}
@@ -194,7 +194,7 @@ export function TabStrip({
               "items-center",
               "gap-1.5",
               "px-3",
-              "py-1.5",
+              "py-1",
               "rounded-sm",
               "font-mono",
               "text-xs",
@@ -223,7 +223,24 @@ export function TabStrip({
                 "border-l-2 border-l-copper-hot",
             )}
           >
-            <span className={cn("truncate", "min-w-0")}>{tab.title}</span>
+            {/* Identity over name, stacked — whose surface this is,
+                then which one. */}
+            <span className={cn("flex", "flex-col", "min-w-0")}>
+              <span
+                data-tab-identity
+                className={cn(
+                  "truncate",
+                  "text-[8px]",
+                  "leading-tight",
+                  "text-info-dim",
+                )}
+              >
+                {tab.kind.identity}
+              </span>
+              <span className={cn("truncate", "min-w-0", "leading-tight")}>
+                {tab.title}
+              </span>
+            </span>
             {tab.closable && (
               <button
                 type="button"

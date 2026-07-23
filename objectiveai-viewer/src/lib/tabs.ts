@@ -7,23 +7,25 @@
 // clobber a newer event. UI state (zoom/orientation) is per WINDOW,
 // rides targeted `ui://changed` events instead of the snapshot, and
 // is bridged chrome → content via `ui_set`/`ui_get`.
+//
+// A tab's KIND is the uniform component-coordinates shape — Rust
+// knows no tab names, ours included: the chrome seeds the home tabs
+// through the same `tabs_open` (the SDK's `openViewerTab`) every
+// identity uses, and content webviews learn who they are via
+// `tab_self`.
 
+import { openViewerTab, type ViewerOpenTab } from "@objectiveai/sdk";
 import { tauriInvoke } from "./tauri";
+import { viewerTransport } from "./viewer-transport";
 
-export type TabKind =
-  | { type: "agents" }
-  | { type: "laboratories" }
-  | { type: "viewer_logs" }
-  | { type: "command_logs" }
-  | { type: "command_log"; id: string; path: string }
-  | { type: "agent"; aih: string }
-  | {
-      type: "laboratory";
-      id: string;
-      machine: string | null;
-      machine_state: string | null;
-      machine_os: string | null;
-    };
+/** What a tab IS — identity + component coordinates + opaque props.
+ * Kind equality (all four fields) is the shell's dedupe key. */
+export interface TabKind {
+  identity: string;
+  module: string;
+  export?: string;
+  arguments?: unknown;
+}
 
 export interface TabDesc {
   id: number;
@@ -43,12 +45,75 @@ export interface TabsSnapshot {
   windows: Record<string, WindowTabs>;
 }
 
+/** What a content webview learns about itself at boot — the generic
+ * bootstrap's whole input. */
+export interface TabDescriptor {
+  identity: string;
+  module: string;
+  export?: string;
+  arguments?: unknown;
+  title: string;
+}
+
+/** A built-in tab component's module path: vite source paths in dev
+ * (the dev server transpiles on demand), the stably-named built
+ * chunks in production. JS owns this knowledge — Rust knows no
+ * module paths. */
+export function builtinTabModule(stem: string): string {
+  return import.meta.env.DEV ? `/src/tabs/${stem}.tsx` : `/tabs/${stem}.js`;
+}
+
+/** The home tabs the boot chrome seeds (in strip order), through the
+ * same open API every identity uses. */
+export const HOME_TABS = [
+  "agents",
+  "laboratories",
+  "viewer-logs",
+  "command-logs",
+] as const;
+
 export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
   return tauriInvoke<TabsSnapshot>("tabs_snapshot");
 }
 
-export function tabsOpen(kind: TabKind): void {
-  void tauriInvoke("tabs_open", { kind });
+/** Open (or focus) a tab — the SDK helper over the shell's
+ * `tabs_open`; the sender's identity is derived Rust-side from THIS
+ * webview. */
+export async function tabsOpen(tab: ViewerOpenTab): Promise<void> {
+  const transport = await viewerTransport();
+  if (transport !== null) {
+    await openViewerTab(transport, tab);
+  }
+}
+
+/** Seed the home tabs into an EMPTY shell (the boot chrome calls
+ * this once, when the whole model holds zero tabs), then hand focus
+ * back to the first of them. */
+export async function seedHomeTabs(): Promise<void> {
+  for (const stem of HOME_TABS) {
+    await tabsOpen({
+      module: builtinTabModule(stem),
+      title: stem,
+      closable: false,
+    });
+  }
+  // Each open activated its own tab — re-activate the FIRST home
+  // tab (it lives in this chrome's window; select acts there).
+  const snapshot = await tabsSnapshot();
+  if (!snapshot) return;
+  const first = builtinTabModule(HOME_TABS[0]);
+  for (const windowTabs of Object.values(snapshot.windows)) {
+    const tab = windowTabs.tabs.find((t) => t.kind.module === first);
+    if (tab) {
+      tabsSelect(tab.id);
+      return;
+    }
+  }
+}
+
+/** This content webview's own descriptor. */
+export function tabSelf(): Promise<TabDescriptor | undefined> {
+  return tauriInvoke<TabDescriptor>("tab_self");
 }
 
 export function tabsSelect(tabId: number): void {
