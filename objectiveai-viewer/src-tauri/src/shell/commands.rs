@@ -72,9 +72,9 @@ pub async fn tabs_select(
     Ok(())
 }
 
-/// Close a tab (idempotent). A SHELL window whose last tab closes is
-/// itself closed; the main window never auto-closes (it renders an
-/// empty state instead).
+/// Close a tab (idempotent). A window whose last tab closes is
+/// itself closed — every window; when the LAST window goes, the app
+/// exits (the Destroyed handler's empty-check).
 #[tauri::command]
 pub async fn tabs_close(
     app: tauri::AppHandle,
@@ -117,9 +117,10 @@ pub async fn tabs_move(
 /// under the cursor, then hand the user's still-held drag to the OS
 /// (`start_dragging`). The tab's content webview RIDES ALONG — a
 /// reparent, not a rebuild: nothing in it reloads. Idempotent per tab
-/// (a second racing call finds the tab already moved and no-ops). A
-/// 1-tab shell window skips the pointless rebuild: the whole window
-/// IS the tab — just start dragging it.
+/// (a second racing call finds the tab already moved and no-ops).
+/// Dragging a window's LAST tab drags the window itself — every
+/// window, no exceptions (no window is special): detach can never
+/// leave an empty window behind.
 #[tauri::command]
 pub async fn tabs_detach(
     app: tauri::AppHandle,
@@ -129,8 +130,8 @@ pub async fn tabs_detach(
 ) -> Result<(), String> {
     let caller = webview.window().label().to_string();
 
-    // 1-tab shell: drag the source window itself.
-    if caller != "main" && model.is_sole_tab(&caller, tab_id).await {
+    // Sole tab: the whole window IS the tab — drag the window itself.
+    if model.is_sole_tab(&caller, tab_id).await {
         let _ = webview.window().start_dragging();
         return Ok(());
     }

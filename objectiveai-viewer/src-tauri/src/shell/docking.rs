@@ -19,8 +19,9 @@
 //!    client area, scaled by THAT window's DPI — all math in physical
 //!    screen coordinates, so mixed-DPI monitors are safe), merge.
 //!
-//! The MAIN window is never a dock SOURCE (dragging your main window
-//! around must never dissolve it); any window can be a TARGET.
+//! ANY window can be a source and any window a target — no window is
+//! special (the drag gate above keeps ordinary repositioning from
+//! docking: only a real mouse drag released over a strip commits).
 //! Minimized/mid-destroy windows are skipped. Multiple band hits
 //! (overlapping windows — no z-order API exists) prefer the focused
 //! window. During movement a throttled `tabs://dock-preview` event
@@ -126,28 +127,26 @@ pub fn spawn_docking(
                     Ok(Some(next)) => {
                         label = next;
                         was_drag = was_drag || primary_button_down();
-                        if label != "main" {
-                            let target = app
-                                .cursor_position()
-                                .ok()
-                                .and_then(|c| strip_hit(&app, &label, c));
-                            if target != previewed {
-                                if let Some(old) = &previewed {
-                                    let _ = app.emit_to(
-                                        native::chrome_label(old).as_str(),
-                                        "tabs://dock-preview",
-                                        false,
-                                    );
-                                }
-                                if let Some(new) = &target {
-                                    let _ = app.emit_to(
-                                        native::chrome_label(new).as_str(),
-                                        "tabs://dock-preview",
-                                        true,
-                                    );
-                                }
-                                previewed = target;
+                        let target = app
+                            .cursor_position()
+                            .ok()
+                            .and_then(|c| strip_hit(&app, &label, c));
+                        if target != previewed {
+                            if let Some(old) = &previewed {
+                                let _ = app.emit_to(
+                                    native::chrome_label(old).as_str(),
+                                    "tabs://dock-preview",
+                                    false,
+                                );
                             }
+                            if let Some(new) = &target {
+                                let _ = app.emit_to(
+                                    native::chrome_label(new).as_str(),
+                                    "tabs://dock-preview",
+                                    true,
+                                );
+                            }
+                            previewed = target;
                         }
                     }
                     Ok(None) => return,
@@ -159,7 +158,7 @@ pub fn spawn_docking(
                             continue;
                         }
                         // Quiet + button up = the drag is over.
-                        if was_drag && label != "main" {
+                        if was_drag {
                             if let Ok(cursor) = app.cursor_position() {
                                 if let Some(target) =
                                     strip_hit(&app, &label, cursor)

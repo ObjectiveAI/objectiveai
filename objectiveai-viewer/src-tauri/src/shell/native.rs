@@ -1,5 +1,6 @@
 //! The shell's NATIVE half: windows and webviews. Every OS window is
-//! a raw [`tauri::Window`] (label `main` / `shell-N`) hosting exactly
+//! a raw [`tauri::Window`] (label `shell-N` — ALL of them, none is
+//! special; the boot window is just the first mint) hosting exactly
 //! one CHROME webview (`chrome-<window>`, the `index.html` entry —
 //! tab strip + status bar, full-window with proportional auto-resize)
 //! plus one CONTENT webview per tab (`tab-<id>`, the `tab.html`
@@ -222,16 +223,12 @@ pub fn publish(app: &tauri::AppHandle, snapshot: &Snapshot, touched: &[String]) 
     }
 }
 
-/// A window's title follows its ACTIVE tab; the main window keeps its
-/// product name.
+/// A window's title follows its ACTIVE tab (product name when it has
+/// none) — every window alike; none is special.
 pub fn sync_title(app: &tauri::AppHandle, snapshot: &Snapshot, label: &str) {
     let Some(window) = app.get_window(label) else {
         return;
     };
-    if label == "main" {
-        let _ = window.set_title("ObjectiveAI Viewer");
-        return;
-    }
     let title = snapshot
         .windows
         .get(label)

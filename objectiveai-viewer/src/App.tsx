@@ -26,13 +26,13 @@ import { useAgentsInstancesList } from "./hooks/useAgentsInstancesList";
 import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
 import { TabStrip } from "./components/TabStrip";
-import { LogoMark, Wordmark } from "./components/shared/Logo";
 
 /** This chrome's WINDOW label — the model key for its slice of tabs
- * (the chrome webview itself is labeled `chrome-<window>`). */
+ * (the chrome webview itself is labeled `chrome-<window>`; every
+ * window is a shell-N, none is special). */
 const WINDOW_LABEL = isTauri()
   ? getCurrentWebview().label.replace(/^chrome-/, "")
-  : "main";
+  : "shell-1";
 
 function App() {
   // This window's slice of the shell model, rebuilt from every
@@ -120,33 +120,10 @@ function App() {
         dockPreview={dockPreview}
       />
       {/* The middle band belongs to the content webviews, composited
-          above this document — the chrome paints only the empty
-          state beneath them. */}
-      <div className={cn("relative", "flex", "flex-col", "flex-1", "min-h-0")}>
-        {windowTabs.tabs.length === 0 && (
-          // A tab-less window (only possible on main — shells
-          // auto-close empty): the brand mark plus a hint. Tabs can
-          // be dragged back in.
-          <div
-            className={cn(
-              "absolute",
-              "inset-0",
-              "flex",
-              "flex-col",
-              "items-center",
-              "justify-center",
-              "gap-3",
-              "select-none",
-            )}
-          >
-            <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
-            <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
-            <div className={cn("font-mono", "text-[11px]", "text-info-dim")}>
-              drag a tab here
-            </div>
-          </div>
-        )}
-      </div>
+          above this document — the chrome paints bare ground beneath
+          them. (A tab-less window doesn't exist: every window closes
+          with its last tab, so there is no empty state.) */}
+      <div className={cn("flex-1", "min-h-0")} />
       <StatusBar
         entries={entries}
         activeAgents={activeAgents}

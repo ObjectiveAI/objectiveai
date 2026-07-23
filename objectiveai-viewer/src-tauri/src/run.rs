@@ -146,7 +146,7 @@ pub struct Config {
     /// State name (`OBJECTIVEAI_STATE`); default `"default"`.
     pub objectiveai_state: String,
     /// `--agent-instance-hierarchy`: open ONLY the agent conversation
-    /// window for this AIH (the main window never opens, and the
+    /// window for this AIH (the home tabs never open, and the
     /// per-state viewer singleton lock is NOT taken — a scoped debug
     /// instance, not THE viewer). Set by `main.rs` from clap, not the
     /// environment.
@@ -176,27 +176,21 @@ pub fn serve(
     // for later.
     let ready = Arc::new(Notify::new());
 
-    // The shell model — seeded BEFORE the shell boots so the main
-    // window's chrome finds its tabs in the first snapshot. Normal
-    // boot: the two home tabs. `--agent-instance-hierarchy`: one
-    // agent conversation tab (a scoped debug instance; closing it
-    // leaves the main empty state).
-    let model = match &agent_window {
-        Some(aih) => crate::shell::ShellModel::seeded(
-            "main",
-            vec![crate::shell::TabKind::Agent { aih: aih.clone() }],
-        ),
-        None => crate::shell::ShellModel::seeded(
-            "main",
-            vec![
-                crate::shell::TabKind::Agents,
-                crate::shell::TabKind::Laboratories,
-            ],
-        ),
+    // The shell model — seeded BEFORE the shell boots so the boot
+    // window's chrome finds its tabs in the first snapshot. The boot
+    // window is an ORDINARY shell window (no window is special; the
+    // app lives exactly as long as windows exist). Normal boot: the
+    // two home tabs. `--agent-instance-hierarchy`: one agent
+    // conversation tab (a scoped debug instance).
+    let (model, boot_label, boot_title) = match &agent_window {
+        Some(aih) => crate::shell::ShellModel::seeded(vec![crate::shell::TabKind::Agent {
+            aih: aih.clone(),
+        }]),
+        None => crate::shell::ShellModel::seeded(vec![
+            crate::shell::TabKind::Agents,
+            crate::shell::TabKind::Laboratories,
+        ]),
     };
-    let main_title = agent_window
-        .clone()
-        .unwrap_or_else(|| "ObjectiveAI Viewer".to_string());
 
     let builder = tauri::Builder::default()
         .manage(ready)
@@ -251,8 +245,8 @@ pub fn serve(
             // webviews.
             crate::shell::build_shell_window(
                 tauri_app.handle(),
-                "main",
-                &main_title,
+                &boot_label,
+                &boot_title,
                 None,
             )?;
             let handle = tauri_app.handle().clone();
@@ -272,13 +266,6 @@ pub fn serve(
                 tauri::WindowEvent::Moved(_) => {
                     let _ = dock_tx.send(label);
                 }
-                // The main window IS the app: closing it takes every
-                // shell window (and the process) with it.
-                tauri::WindowEvent::CloseRequested { .. } => {
-                    if label == "main" {
-                        app_handle.exit(0);
-                    }
-                }
                 // A window died (user close, tabs_close auto-close,
                 // dock merge, teardown) — drop its model slice, then
                 // reconcile (belt-and-braces: its content webviews
@@ -286,6 +273,12 @@ pub fn serve(
                 // closure is synchronous on the runtime's thread and
                 // the model lock is a tokio mutex. Idempotent, every
                 // Result ignored — this also runs during teardown.
+                //
+                // No window is special, so the app's lifetime is
+                // simply "while windows exist": the LAST window's
+                // death exits the process. (Detach can't hit this —
+                // a sole tab drags its window whole; dock closes the
+                // source only after the target proved alive.)
                 tauri::WindowEvent::Destroyed => {
                     let handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
@@ -293,6 +286,9 @@ pub fn serve(
                         if let Some(snapshot) = model.remove_window(&label).await {
                             crate::shell::publish(&handle, &snapshot, &[]);
                             crate::shell::sync(&handle).await;
+                        }
+                        if handle.windows().is_empty() {
+                            handle.exit(0);
                         }
                     });
                 }

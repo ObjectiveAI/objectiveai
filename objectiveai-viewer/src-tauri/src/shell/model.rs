@@ -218,14 +218,22 @@ pub struct ShellModel {
 }
 
 impl ShellModel {
-    /// A model pre-seeded with one window's initial tab set (the
+    /// A model pre-seeded with the boot window's initial tab set (the
     /// generation starts advanced so the first snapshot is post-seed).
-    pub fn seeded(label: &str, kinds: Vec<TabKind>) -> Self {
+    /// The boot window is NOT special — it's minted like any other
+    /// shell; returns `(model, its label, its initial title)`.
+    pub fn seeded(kinds: Vec<TabKind>) -> (Self, String, String) {
         let mut inner = Inner::default();
+        inner.next_shell += 1;
+        let label = format!("shell-{}", inner.next_shell);
         let tabs: Vec<Tab> = kinds.into_iter().map(|k| inner.mint_tab(k)).collect();
         let active = tabs.first().map(|t| t.id).unwrap_or(0);
+        let title = tabs
+            .first()
+            .map(|t| t.title.clone())
+            .unwrap_or_else(|| "ObjectiveAI Viewer".to_string());
         inner.windows.insert(
-            label.to_string(),
+            label.clone(),
             WindowState {
                 tabs,
                 active,
@@ -233,9 +241,13 @@ impl ShellModel {
             },
         );
         inner.generation += 1;
-        Self {
-            inner: tokio::sync::Mutex::new(inner),
-        }
+        (
+            Self {
+                inner: tokio::sync::Mutex::new(inner),
+            },
+            label,
+            title,
+        )
     }
 
     pub async fn snapshot(&self) -> Snapshot {
@@ -302,9 +314,10 @@ impl ShellModel {
     }
 
     /// Close a tab (idempotent). The neighbor (previous index, else
-    /// first) becomes active. Reports a shell window left empty; its
-    /// model entry stays until the window's Destroyed cleanup (keeps
-    /// the close idempotent).
+    /// first) becomes active. Reports a window left empty — EVERY
+    /// window closes when its last tab does (no window is special);
+    /// its model entry stays until the window's Destroyed cleanup
+    /// (keeps the close idempotent).
     pub async fn close(&self, tab_id: u64) -> Option<Closed> {
         let mut inner = self.inner.lock().await;
         let (label, idx) = inner.locate(tab_id)?;
@@ -321,7 +334,7 @@ impl ShellModel {
                 .map(|t| t.id)
                 .unwrap_or(0);
         }
-        let close_window = ws.tabs.is_empty() && label != "main";
+        let close_window = ws.tabs.is_empty();
         inner.generation += 1;
         Some(Closed {
             snapshot: inner.snapshot(),

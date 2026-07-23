@@ -9,7 +9,7 @@ use envconfig::Envconfig;
 #[derive(Parser)]
 struct Args {
     /// Open ONLY the agent conversation window for this AIH — the
-    /// main window never opens. The fast path for debugging one
+    /// home tabs never open. The fast path for debugging one
     /// agent's conversation UI.
     #[arg(long)]
     agent_instance_hierarchy: Option<String>,
