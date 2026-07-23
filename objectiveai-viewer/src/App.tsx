@@ -61,9 +61,14 @@ function App() {
       setWindowTabs(
         snapshot.windows[WINDOW_LABEL] ?? { tabs: [], active: 0 },
       );
+      // Seed when no OBJECTIVEAI tab exists anywhere — plugin tabs
+      // may already be present (the Rust loader races this boot), and
+      // must not suppress the home tabs.
       if (
         !seeded.current &&
-        Object.values(snapshot.windows).every((wt) => wt.tabs.length === 0)
+        Object.values(snapshot.windows).every((wt) =>
+          wt.tabs.every((t) => t.kind.identity !== "objectiveai"),
+        )
       ) {
         seeded.current = true;
         void seedHomeTabs();

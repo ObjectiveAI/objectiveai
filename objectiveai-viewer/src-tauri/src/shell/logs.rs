@@ -73,28 +73,18 @@ impl LogSink {
     }
 }
 
-/// The capture forwarder's sink: stamp, append to the logfile, then
-/// broadcast as `logs://appended`. The emit happens even if the disk
-/// write failed — the live view must not die with the disk.
-#[tauri::command]
-pub async fn logs_report(
-    app: tauri::AppHandle,
-    webview: tauri::Webview,
-    model: tauri::State<'_, super::ShellModel>,
-    sink: tauri::State<'_, LogSink>,
+/// Stamp + append + broadcast one entry — the shared tail of every
+/// report path. The emit happens even if the disk write failed: the
+/// live view must not die with the disk.
+async fn record(
+    app: &tauri::AppHandle,
+    source: String,
     level: String,
     message: String,
     detail: Option<String>,
-) -> Result<(), String> {
-    let label = webview.label().to_string();
-    let source = match super::tab_id(&label) {
-        Some(id) => model.tab_title(id).await.unwrap_or(label),
-        // The chrome (strip + status bar) reports under one friendly
-        // name — which window's chrome it was doesn't matter to the
-        // reader.
-        None if label.starts_with("chrome-") => "viewer-container".to_string(),
-        None => label,
-    };
+) {
+    use tauri::Manager;
+    let sink = app.state::<LogSink>();
     let entry = {
         let mut inner = sink.inner.lock().await;
         inner.next_seq += 1;
@@ -110,6 +100,42 @@ pub async fn logs_report(
         entry
     };
     let _ = app.emit("logs://appended", &entry);
+}
+
+/// The SHELL's own report path — Rust-side diagnostics (the plugin
+/// loader, etc.) land in the same viewer-logs inbox the webviews
+/// feed, under one source.
+pub(crate) async fn report_shell(app: &tauri::AppHandle, level: &str, message: String) {
+    record(
+        app,
+        "viewer-shell".to_string(),
+        level.to_string(),
+        message,
+        None,
+    )
+    .await;
+}
+
+/// The capture forwarder's sink.
+#[tauri::command]
+pub async fn logs_report(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    model: tauri::State<'_, super::ShellModel>,
+    level: String,
+    message: String,
+    detail: Option<String>,
+) -> Result<(), String> {
+    let label = webview.label().to_string();
+    let source = match super::tab_id(&label) {
+        Some(id) => model.tab_title(id).await.unwrap_or(label),
+        // The chrome (strip + status bar) reports under one friendly
+        // name — which window's chrome it was doesn't matter to the
+        // reader.
+        None if label.starts_with("chrome-") => "viewer-container".to_string(),
+        None => label,
+    };
+    record(&app, source, level, message, detail).await;
     Ok(())
 }
 

@@ -163,6 +163,7 @@ pub fn serve(
     lab_env: crate::laboratories::LabEnv,
     log_sink: crate::shell::LogSink,
     command_log_sink: crate::shell::CommandLogSink,
+    plugins_root: std::path::PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
@@ -246,6 +247,14 @@ pub fn serve(
                 "ObjectiveAI Viewer",
                 None,
             )?;
+            // The plugin loader: scan bin/plugins for manifests and
+            // open every declared plugin tab into the boot window
+            // (nothing, with no plugins installed).
+            crate::shell::spawn_plugin_loader(
+                tauri_app.handle().clone(),
+                plugins_root,
+                boot_label.clone(),
+            );
             let handle = tauri_app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 crate::shell::sync(&handle).await;
@@ -355,5 +364,16 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     let command_log_sink =
         crate::shell::CommandLogSink::new(viewer_dir.join("command-logs"));
 
-    Ok(serve(proxy, agents_dir, lab_env, log_sink, command_log_sink, None))
+    // The installed-plugin tree (machine-wide, shared across states).
+    let plugins_root = config.objectiveai_dir.join("bin").join("plugins");
+
+    Ok(serve(
+        proxy,
+        agents_dir,
+        lab_env,
+        log_sink,
+        command_log_sink,
+        plugins_root,
+        None,
+    ))
 }

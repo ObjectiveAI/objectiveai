@@ -120,24 +120,51 @@ pub async fn tabs_open(
         arguments: tab.arguments,
     };
     let caller = webview.window().label().to_string();
-    let opened = model
-        .open_or_focus(
-            &caller,
-            kind,
-            tab.title,
-            tab.closable.unwrap_or(true),
-            tab.icon,
-            |label| app.get_window(label).is_some(),
-        )
-        .await;
-    native::publish(&app, &opened.snapshot, &opened.touched);
-    native::sync(&app).await;
+    let opened = open_tab(
+        &app,
+        &caller,
+        kind,
+        tab.title,
+        tab.closable.unwrap_or(true),
+        tab.icon,
+    )
+    .await;
     if let Some(label) = opened.focus {
         if let Some(target) = app.get_window(&label) {
             let _ = target.set_focus();
         }
     }
     Ok(())
+}
+
+/// The one internal open path — the command above and the plugin
+/// loader both land here: mutate the model, publish, reconcile.
+/// Focus is the CALLER's decision (the loader never steals it).
+pub(crate) async fn open_tab(
+    app: &tauri::AppHandle,
+    window: &str,
+    kind: TabKind,
+    title: String,
+    closable: bool,
+    icon: Option<String>,
+) -> super::model::Opened {
+    let model = app.state::<ShellModel>();
+    let opened = model
+        .open_or_focus(window, kind, title, closable, icon, |label| {
+            app.get_window(label).is_some()
+        })
+        .await;
+    native::publish(app, &opened.snapshot, &opened.touched);
+    // Reconcile in the BACKGROUND (sync serializes on its own mutex
+    // and always takes a fresh snapshot): the open returns at
+    // publish, so a BURST of opens — the home-tab seeding, the
+    // plugin loader — lands in the strip at once instead of gating
+    // each tab behind the previous webview's creation.
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        native::sync(&app).await;
+    });
+    opened
 }
 
 /// "What am I": the calling content webview's OWN descriptor,
