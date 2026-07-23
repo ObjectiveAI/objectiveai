@@ -11,6 +11,7 @@ export * from "./functions/index";
 export * from "./laboratories/index";
 export * from "./python/index";
 export * from "./swarms/index";
+export * from "./tasks/index";
 export * from "./update/index";
 export * from "./viewer/index";
 export * from "./agentArguments";

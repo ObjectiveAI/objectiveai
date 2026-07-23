@@ -11,6 +11,7 @@ import { type CliCommandPythonListenerExecution } from "./python/listenerExecuti
 import { type CliCommandPythonRequestSchemaListenerExecution } from "./python/request_schema/listenerExecution";
 import { type CliCommandPythonResponseSchemaListenerExecution } from "./python/response_schema/listenerExecution";
 import { type CliCommandSwarmsListenerExecution } from "./swarms/listenerExecution";
+import { type CliCommandTasksListenerExecution } from "./tasks/listenerExecution";
 import { type CliCommandUpdateListenerExecution } from "./update/listenerExecution";
 import { type CliCommandUpdateRequestSchemaListenerExecution } from "./update/request_schema/listenerExecution";
 import { type CliCommandUpdateResponseSchemaListenerExecution } from "./update/response_schema/listenerExecution";
@@ -32,6 +33,7 @@ export type CliCommandListenerExecution =
   | CliCommandUpdateRequestSchemaListenerExecution
   | CliCommandUpdateResponseSchemaListenerExecution
   | CliCommandChannelsListenerExecution
+  | CliCommandTasksListenerExecution
   | CliCommandViewerListenerExecution;
 
 /** Runtime `path_type → mode` table for the viewer `WebSocketListener`. No validation — the types are structural claims over the wire. */
@@ -333,6 +335,15 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "swarms/publish": "unary",
   "swarms/publish/request_schema": "unary",
   "swarms/publish/response_schema": "unary",
+  "tasks/create": "unary",
+  "tasks/create/request_schema": "unary",
+  "tasks/create/response_schema": "unary",
+  "tasks/delete": "unary",
+  "tasks/delete/request_schema": "unary",
+  "tasks/delete/response_schema": "unary",
+  "tasks/list": "stream",
+  "tasks/list/request_schema": "unary",
+  "tasks/list/response_schema": "unary",
   "update": "stream",
   "update/request_schema": "unary",
   "update/response_schema": "unary",

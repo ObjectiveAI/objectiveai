@@ -9,6 +9,7 @@ export const CliCommandChannelsPublishRequestSchema = z.object({
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
   key: z.string().describe("Caller-chosen discriminator (e.g. `\"browser.login\"`) — how a\nuser surface decides whether/how to accept the offer."),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
+  message: z.string().describe("Human-readable offer message, opaque to the daemon. Capped at\n512 characters of the raw (unescaped) string."),
   path_type: CliCommandChannelsPublishPathSchema,
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),

@@ -57,6 +57,7 @@ import {
   CLI_COMMAND_LISTENER_EXECUTION_MODES,
   type CliCommandListenerExecution,
 } from "./command/listenerExecution";
+import { type CliCommandAgentArguments } from "./command/agentArguments";
 import { connectSse } from "./sse";
 import { connectViewerStream, type ViewerTransport } from "./viewer";
 
@@ -461,11 +462,15 @@ export class BroadcastListener {
 }
 
 /** Pick the agent-argument fields off a request frame's context.
- * `mcp_session_id` is never teed onto the broadcast. */
+ * `mcp_session_id` is never teed onto the broadcast; `task` is the
+ * daemon-authored scheduler flag (always present on the wire,
+ * defaulting false for older producers). */
 function extractAgentArguments(
   frame: Record<string, unknown>,
-): Record<string, string | null> {
-  const agentArguments: Record<string, string | null> = {};
+): CliCommandAgentArguments {
+  const agentArguments: CliCommandAgentArguments = {
+    task: frame.task === true,
+  };
   for (const key of [
     "agent_instance_hierarchy",
     "agent_id",
