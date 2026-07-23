@@ -15,8 +15,7 @@
         "kind": {
           "$ref": "cli.command.channels.logs.list.MessageKind"
         },
-        "plugin_owner": {
-          "description": "The originating plugin — present only when a plugin sent it.",
+        "plugin_name": {
           "anyOf": [
             {
               "type": "string"
@@ -27,7 +26,8 @@
           ],
           "omitempty": true
         },
-        "plugin_repository": {
+        "plugin_owner": {
+          "description": "The originating plugin — present only when a plugin sent it.",
           "anyOf": [
             {
               "type": "string"

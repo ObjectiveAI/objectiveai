@@ -1,0 +1,35 @@
+{
+  "title": "cli.plugins.ViewerTab",
+  "description": "One declared viewer tab: the component coordinates the viewer's\ngeneric bootstrap dereferences (`import(module)[export]`).",
+  "type": "object",
+  "properties": {
+    "export": {
+      "description": "The export holding the component (`None` = `\"default\"`).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "module": {
+      "description": "The component's module path, relative to `viewer/`.",
+      "type": "string"
+    },
+    "title": {
+      "description": "Display title (`None` = the tab's name key).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "title": "cli.plugins.Manifest",
+  "description": "An installed plugin's `objectiveai.json` — the typed slice of it.",
+  "type": "object",
+  "properties": {
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "viewer": {
+      "description": "The plugin's viewer surface — ABSENT for plugins with no UI.",
+      "anyOf": [
+        {
+          "$ref": "cli.plugins.Viewer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

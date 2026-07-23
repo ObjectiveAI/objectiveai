@@ -1,10 +1,7 @@
 {
-  "title": "cli.command.channels.publish.Request",
+  "title": "cli.command.tasks.delete.response_schema.Request",
   "type": "object",
   "properties": {
-    "details": {
-      "description": "Arbitrary offer payload, opaque to the daemon."
-    },
     "jq": {
       "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
       "anyOf": [
@@ -15,10 +12,6 @@
           "type": "null"
         }
       ]
-    },
-    "key": {
-      "description": "Caller-chosen discriminator (e.g. `\"browser.login\"`) — how a\nuser surface decides whether/how to accept the offer.",
-      "type": "string"
     },
     "max_tokens": {
       "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
@@ -34,12 +27,8 @@
       ],
       "omitempty": true
     },
-    "message": {
-      "description": "Human-readable offer message, opaque to the daemon. Capped at\n512 characters of the raw (unescaped) string.",
-      "type": "string"
-    },
     "path_type": {
-      "$ref": "cli.command.channels.publish.Path"
+      "$ref": "cli.command.tasks.delete.response_schema.Path"
     },
     "python": {
       "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",

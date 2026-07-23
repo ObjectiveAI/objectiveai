@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.tasks.create.Response",
+  "description": "The created task's id.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    }
+  }
+}

@@ -18,8 +18,11 @@
       "description": "Caller-chosen discriminator (e.g. `\"browser.login\"`) — how a\nuser surface decides whether/how to accept the offer.",
       "type": "string"
     },
-    "plugin_owner": {
-      "description": "The PLUGIN that originated the offer — daemon-authored\n(unspoofable; stamped by `plugins run`), absent when the\ncaller wasn't a plugin.",
+    "message": {
+      "description": "Human-readable offer message, opaque to the daemon.",
+      "type": "string"
+    },
+    "plugin_name": {
       "anyOf": [
         {
           "type": "string"
@@ -30,7 +33,8 @@
       ],
       "omitempty": true
     },
-    "plugin_repository": {
+    "plugin_owner": {
+      "description": "The PLUGIN that originated the offer — daemon-authored\n(unspoofable; stamped by `plugins run`), absent when the\ncaller wasn't a plugin.",
       "anyOf": [
         {
           "type": "string"

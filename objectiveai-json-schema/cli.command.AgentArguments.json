@@ -1,6 +1,6 @@
 {
   "title": "cli.command.AgentArguments",
-  "description": "Agent identity + response routing args carried per call.\n\nWhen passed as `Some(&AgentArguments)` to a [`CommandExecutor`],\nsubprocess-spawning executors (e.g. [`binary::BinaryExecutor`])\napply ALL nine fields to the spawned child's env atomically —\n`Some(v)` → set, `None` → `env_remove` so the parent's value for\nthat var can't leak through. `None` for the whole bag means\n\"inherit parent env unmodified\". In-process executors (e.g.\n[`plugin::PluginExecutor`]) ignore the bag.\n\nField ↔ env-var mapping (same as `EnvConfigBuilder` in\n`objectiveai-cli/src/run.rs`):\n\n- `agent_instance_hierarchy` ↔ `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY`\n- `agent_id` ↔ `OBJECTIVEAI_AGENT_ID`\n- `agent_full_id` ↔ `OBJECTIVEAI_AGENT_FULL_ID`\n- `agent_remote` ↔ `OBJECTIVEAI_AGENT_REMOTE`\n- `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`\n- `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`\n- `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`\n- `plugin_repository` ↔ `OBJECTIVEAI_PLUGIN_NAME`\n- `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`\n\nThe three `plugin_*` fields are the PLUGIN CALLER identity —\nwhich installed plugin originated this request. UNSPOOFABLE by\ndesign: the daemon's own `plugins run` is the only writer (it\nstamps the nested command scope in-process and the plugin child's\nenv informationally); wire requests and the CLI environment can\nNEVER assert them — the daemon ignores any inbound claim. They\nappear only in daemon-AUTHORED payloads (e.g. user requests).",
+  "description": "Agent identity + response routing args carried per call.\n\nWhen passed as `Some(&AgentArguments)` to a [`CommandExecutor`],\nsubprocess-spawning executors (e.g. [`binary::BinaryExecutor`])\napply ALL nine fields to the spawned child's env atomically —\n`Some(v)` → set, `None` → `env_remove` so the parent's value for\nthat var can't leak through. `None` for the whole bag means\n\"inherit parent env unmodified\". In-process executors (e.g.\n[`plugin::PluginExecutor`]) ignore the bag.\n\nField ↔ env-var mapping (same as `EnvConfigBuilder` in\n`objectiveai-cli/src/run.rs`):\n\n- `agent_instance_hierarchy` ↔ `OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY`\n- `agent_id` ↔ `OBJECTIVEAI_AGENT_ID`\n- `agent_full_id` ↔ `OBJECTIVEAI_AGENT_FULL_ID`\n- `agent_remote` ↔ `OBJECTIVEAI_AGENT_REMOTE`\n- `response_id` ↔ `OBJECTIVEAI_RESPONSE_ID`\n- `response_ids` ↔ `OBJECTIVEAI_RESPONSE_IDS`\n- `plugin_owner` ↔ `OBJECTIVEAI_PLUGIN_OWNER`\n- `plugin_name` ↔ `OBJECTIVEAI_PLUGIN_NAME`\n- `plugin_version` ↔ `OBJECTIVEAI_PLUGIN_VERSION`\n\nThe three `plugin_*` fields are the PLUGIN CALLER identity —\nwhich installed plugin originated this request. UNSPOOFABLE by\ndesign: the daemon's own `plugins run` is the only writer (it\nstamps the nested command scope in-process and the plugin child's\nenv informationally); wire requests and the CLI environment can\nNEVER assert them — the daemon ignores any inbound claim. They\nappear only in daemon-AUTHORED payloads (e.g. user requests).\n\n`task` marks a run FIRED BY THE TASK SCHEDULER (`tasks create`) —\ndaemon-authored exactly like the plugin trio: never read from\nheaders or the environment, set only by the scheduler's in-process\nscope, stamped outward (`OBJECTIVEAI_TASK`) informationally when\ntrue.",
   "type": "object",
   "properties": {
     "agent_full_id": {
@@ -47,7 +47,7 @@
       ],
       "omitempty": true
     },
-    "plugin_owner": {
+    "plugin_name": {
       "anyOf": [
         {
           "type": "string"
@@ -58,7 +58,7 @@
       ],
       "omitempty": true
     },
-    "plugin_repository": {
+    "plugin_owner": {
       "anyOf": [
         {
           "type": "string"
@@ -101,6 +101,11 @@
         }
       ],
       "omitempty": true
+    },
+    "task": {
+      "description": "Fired by the task scheduler (daemon-authored; see the struct\ndocs). Always present on the wire; `default` only tolerates\nframes from older producers.",
+      "type": "boolean",
+      "default": false
     }
   }
 }
