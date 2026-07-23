@@ -1,5 +1,13 @@
 //! Git checkouts for plugin-image builds: fetch exactly ONE tag of a
-//! GitHub repo into a throwaway dir under `<bin>/temp`.
+//! plugin repo into a throwaway dir under `<bin>/temp`.
+//!
+//! The source is LOCAL-FIRST: if `<objectiveai_dir>/plugins/<owner>/<name>`
+//! holds a git repo containing the tag, the fetch pulls from that repo
+//! (how local plugin installation works — no push to GitHub needed);
+//! otherwise it pulls from `https://github.com/{owner}/{name}.git`.
+//! The owner/name directory segments match case-INSENSITIVELY (coords
+//! arrive lowercased, the on-disk dirs may keep the repo's original
+//! casing) while the tag stays exact-case everywhere.
 //!
 //! Not a general clone: `Repository::init` + an anonymous remote + a
 //! single-refspec shallow fetch (`+refs/tags/{tag}:refs/tags/{tag}`,
@@ -29,8 +37,10 @@ pub fn temp_dir(bin_dir: &Path) -> PathBuf {
     bin_dir.join("temp")
 }
 
-/// Shallow-fetch `refs/tags/{tag}` of `https://github.com/{owner}/{name}.git`
-/// into a fresh `<bin>/temp/<uuid>` dir and check it out detached.
+/// Shallow-fetch `refs/tags/{tag}` of the plugin repo — the local
+/// `<objectiveai_dir>/plugins/<owner>/<name>` repo when it holds the
+/// tag, `https://github.com/{owner}/{name}.git` otherwise — into a
+/// fresh `<bin>/temp/<uuid>` dir and check it out detached.
 /// The caller owns the returned dir and MUST [`remove_checkout`] it
 /// when done — this function only cleans up after its own failures.
 ///
@@ -48,13 +58,16 @@ pub async fn fetch_at_tag(
         .map_err(|e| format!("create checkout dir: {e}"))?;
     let result = {
         let dir = dir.clone();
-        let url = format!("https://github.com/{owner}/{name}.git");
+        // `<objectiveai_dir>/plugins` — bin_dir is always
+        // `<objectiveai_dir>/bin` (main.rs derives it that way).
+        let plugins_dir = bin_dir.parent().map(|dir| dir.join("plugins"));
         let refspec = format!("+refs/tags/{tag}:refs/tags/{tag}");
         let reference = format!("refs/tags/{tag}");
         let owner = owner.to_string();
         let name = name.to_string();
         let tag = tag.to_string();
         tokio::task::spawn_blocking(move || {
+            let url = resolve_source(plugins_dir.as_deref(), &owner, &name, &tag);
             fetch_at_tag_blocking(&dir, &url, &refspec, &reference, &owner, &name, &tag)
         })
         .await
@@ -67,6 +80,65 @@ pub async fn fetch_at_tag(
             Err(message)
         }
     }
+}
+
+/// Pick the fetch source: the local `<plugins>/<owner>/<name>` repo
+/// when it exists (case-insensitive segments) AND contains the tag
+/// (exact-case); the GitHub URL otherwise. Once the local source is
+/// chosen a fetch failure is a hard error — a present tag is a
+/// deliberate local override, never silently skipped.
+fn resolve_source(plugins_dir: Option<&Path>, owner: &str, name: &str, tag: &str) -> String {
+    if let Some(plugins_dir) = plugins_dir
+        && let Some(local) = local_plugin_dir(plugins_dir, owner, name)
+        && local_has_tag(&local, tag)
+    {
+        // libgit2's local transport takes a plain path; forward
+        // slashes keep Windows drive paths unambiguous as a URL-ish
+        // string.
+        return local.to_string_lossy().replace('\\', "/");
+    }
+    format!("https://github.com/{owner}/{name}.git")
+}
+
+/// `<plugins>/<owner>/<name>` with BOTH segments resolved
+/// case-insensitively against the actual directory entries.
+fn local_plugin_dir(plugins_dir: &Path, owner: &str, name: &str) -> Option<PathBuf> {
+    let owner_dir = resolve_segment_ci(plugins_dir, owner)?;
+    resolve_segment_ci(&owner_dir, name)
+}
+
+/// Resolve one child of `parent` by name, case-insensitively: an
+/// exact-case match wins; otherwise the first `eq_ignore_ascii_case`
+/// entry. `None` on an unreadable parent or no match.
+fn resolve_segment_ci(parent: &Path, target: &str) -> Option<PathBuf> {
+    let entries: Vec<PathBuf> = std::fs::read_dir(parent)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .collect();
+    let matches_target = |path: &&PathBuf, exact: bool| {
+        path.file_name().and_then(|n| n.to_str()).is_some_and(|n| {
+            if exact {
+                n == target
+            } else {
+                n.eq_ignore_ascii_case(target)
+            }
+        })
+    };
+    entries
+        .iter()
+        .find(|path| matches_target(path, true))
+        .or_else(|| entries.iter().find(|path| matches_target(path, false)))
+        .cloned()
+}
+
+/// Whether `dir` is a git repo containing `refs/tags/{tag}`
+/// (exact-case — the tag IS the version). False on not-a-repo or
+/// missing tag; both mean "fall back to GitHub".
+fn local_has_tag(dir: &Path, tag: &str) -> bool {
+    git2::Repository::open(dir)
+        .and_then(|repo| repo.refname_to_id(&format!("refs/tags/{tag}")))
+        .is_ok()
 }
 
 fn fetch_at_tag_blocking(
