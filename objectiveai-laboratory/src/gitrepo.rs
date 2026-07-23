@@ -92,10 +92,16 @@ fn resolve_source(plugins_dir: Option<&Path>, owner: &str, name: &str, tag: &str
         && let Some(local) = local_plugin_dir(plugins_dir, owner, name)
         && local_has_tag(&local, tag)
     {
-        // libgit2's local transport takes a plain path; forward
-        // slashes keep Windows drive paths unambiguous as a URL-ish
-        // string.
-        return local.to_string_lossy().replace('\\', "/");
+        // libgit2's local transport takes a plain path on every OS.
+        // Backslashes are path separators ONLY on Windows — on
+        // Linux/macOS they are legal filename bytes and must pass
+        // through untouched.
+        let local = local.to_string_lossy();
+        return if cfg!(windows) {
+            local.replace('\\', "/")
+        } else {
+            local.into_owned()
+        };
     }
     format!("https://github.com/{owner}/{name}.git")
 }
