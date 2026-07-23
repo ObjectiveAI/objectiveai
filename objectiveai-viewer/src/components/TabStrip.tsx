@@ -198,7 +198,7 @@ export function TabStrip({
               "py-1",
               "rounded-sm",
               "font-mono",
-              "text-xs",
+              "text-sm",
               "border-b-2",
               "transition-colors",
               "cursor-pointer",
@@ -235,10 +235,7 @@ export function TabStrip({
                   "items-center",
                   "gap-1",
                   "min-w-0",
-                  // One step below text-xs, derived from the theme
-                  // variable by the same ×0.875 ratio tailwind's own
-                  // scale steps use (base→sm) — 0.75rem → 0.65625rem.
-                  "text-[length:calc(var(--text-xs)*0.875)]",
+                  "text-xs",
                   "leading-none",
                   "text-info-dim",
                 )}
