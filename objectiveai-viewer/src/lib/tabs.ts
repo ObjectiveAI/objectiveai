@@ -140,6 +140,20 @@ export function tabsToggle(
   void tauriInvoke("tabs_toggle", { identityKey, name, enabled });
 }
 
+/** One (identityKey, name) pair in a display order. */
+export interface TabOrderRef {
+  identityKey: string;
+  name: string;
+}
+
+/** Persist a new tab order (the FULL display order — every loaded
+ * entry, enabled and disabled). Awaitable: a rejection (stale order
+ * raced a rescan) lets the pane re-fetch and self-heal. Outside
+ * user-controlled mode the live strip follows. */
+export async function tabsReorder(order: TabOrderRef[]): Promise<void> {
+  await tauriInvoke("tabs_reorder", { order });
+}
+
 export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
   return tauriInvoke<TabsSnapshot>("tabs_snapshot");
 }

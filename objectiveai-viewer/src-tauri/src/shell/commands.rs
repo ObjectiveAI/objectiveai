@@ -253,6 +253,7 @@ pub async fn tabs_move(
     app: tauri::AppHandle,
     webview: tauri::Webview,
     model: tauri::State<'_, ShellModel>,
+    inventory: tauri::State<'_, super::TabInventory>,
     tab_id: u64,
     index: usize,
 ) -> Result<(), String> {
@@ -260,6 +261,9 @@ pub async fn tabs_move(
     let Some(snapshot) = model.move_tab(&caller, tab_id, index).await else {
         return Ok(());
     };
+    // A manual strip reorder: the live strip is the USER's for the
+    // rest of this session — pane reorders stop live-applying.
+    inventory.set_user_controlled();
     native::publish(&app, &snapshot, &[caller]);
     Ok(())
 }
@@ -277,9 +281,15 @@ pub async fn tabs_detach(
     app: tauri::AppHandle,
     webview: tauri::Webview,
     model: tauri::State<'_, ShellModel>,
+    inventory: tauri::State<'_, super::TabInventory>,
     tab_id: u64,
 ) -> Result<(), String> {
     let caller = webview.window().label().to_string();
+
+    // A pop-out: user-controlled for the session — set BEFORE the
+    // sole-tab shortcut, so even dragging the only window's sole tab
+    // (a plain window drag) counts, per spec.
+    inventory.set_user_controlled();
 
     // Sole tab: the whole window IS the tab — drag the window itself.
     if model.is_sole_tab(&caller, tab_id).await {
@@ -440,9 +450,17 @@ pub async fn tabs_toggle(
     if entry.permanent {
         return Err(format!("tabs_toggle: {identity_key:?}/{name:?} is permanent"));
     }
+    // A toggle never changes display order (writes materialize the
+    // order first), so the live-apply input can be computed up front
+    // — keeping the persist/apply futures on ONE lock each.
+    let live_apply_kinds = if enabled && !inventory.user_controlled() {
+        Some(inventory.display_kinds().await)
+    } else {
+        None
+    };
     // Persist and apply IN PARALLEL — the disk write and the model
     // mutation are independent.
-    let persist = inventory.set_override(&identity_key, &name, enabled);
+    let persist = inventory.set_enabled(&identity_key, &name, enabled);
     let apply = async {
         if enabled {
             // QUIET append — the user is working in the tabs pane;
@@ -458,6 +476,14 @@ pub async fn tabs_toggle(
                 false,
             )
             .await;
+            // Outside user-controlled mode the strip mirrors the
+            // config order — slot the reopened tab into place
+            // instead of leaving it at the end.
+            if let Some(kinds) = &live_apply_kinds {
+                if let Some(snapshot) = model.reorder_all(kinds).await {
+                    native::publish(&app, &snapshot, &[]);
+                }
+            }
         } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {
             native::publish(&app, &closed.snapshot, &closed.touched);
             native::sync(&app).await;
@@ -471,6 +497,56 @@ pub async fn tabs_toggle(
     let (persisted, ()) = tokio::join!(persist, apply);
     if let Err(e) = persisted {
         super::report_shell(&app, "error", format!("tabs: persist toggle: {e}")).await;
+    }
+    use tauri::Emitter;
+    let _ = app.emit("inventory://changed", &inventory.inventory().await);
+    Ok(())
+}
+
+/// One (identityKey, name) pair in a pane-sent display order.
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct ReorderRef {
+    pub identity_key: String,
+    pub name: String,
+}
+
+/// Persist a new tab order from the tabs pane (the FULL display
+/// order — every loaded entry, enabled and disabled). Outside
+/// user-controlled mode the live strip follows; inside it, the
+/// order only takes effect next boot. Root-identity callers only.
+#[tauri::command]
+pub async fn tabs_reorder(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    model: tauri::State<'_, ShellModel>,
+    inventory: tauri::State<'_, super::TabInventory>,
+    order: Vec<ReorderRef>,
+) -> Result<(), String> {
+    if sender_identity(&webview, &model).await != ROOT_IDENTITY {
+        return Err("tabs_reorder: root identity only".to_string());
+    }
+    let d: Vec<(String, String)> = order
+        .into_iter()
+        .map(|r| (r.identity_key, r.name))
+        .collect();
+    // Inventory lock first, fully released before any model work —
+    // the two locks are never held together.
+    match inventory.reorder(d).await {
+        Err(rejected) => return Err(rejected),
+        Ok(Err(io)) => {
+            super::report_shell(&app, "error", format!("tabs: persist order: {io}")).await;
+        }
+        Ok(Ok(())) => {}
+    }
+    if !inventory.user_controlled() {
+        let kinds = inventory.display_kinds().await;
+        if let Some(snapshot) = model.reorder_all(&kinds).await {
+            // Publish only — a permutation changes neither placement
+            // nor the active tab, so no reconcile (the tabs_move
+            // precedent).
+            native::publish(&app, &snapshot, &[]);
+        }
     }
     use tauri::Emitter;
     let _ = app.emit("inventory://changed", &inventory.inventory().await);

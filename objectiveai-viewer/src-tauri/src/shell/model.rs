@@ -377,6 +377,48 @@ impl ShellModel {
         inner.locate_kind(kind).map(|(_, id)| id)
     }
 
+    /// Reorder every window's INVENTORY tabs to `ordered_kinds` — a
+    /// SLOT permutation per window: the indices currently holding
+    /// matching tabs are refilled in the given order, kinds not
+    /// present are skipped (a strip-closed plugin tab), and every
+    /// non-matching (dynamic) tab keeps its exact index. `active` is
+    /// an id — untouched. `None` = nothing actually moved.
+    pub async fn reorder_all(&self, ordered_kinds: &[TabKind]) -> Option<Snapshot> {
+        let mut inner = self.inner.lock().await;
+        let mut changed = false;
+        for ws in inner.windows.values_mut() {
+            let slots: Vec<usize> = ws
+                .tabs
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| ordered_kinds.contains(&t.kind))
+                .map(|(i, _)| i)
+                .collect();
+            if slots.len() < 2 {
+                continue;
+            }
+            let mut desired: Vec<Tab> = Vec::with_capacity(slots.len());
+            for kind in ordered_kinds {
+                if let Some(pos) = ws.tabs.iter().position(|t| &t.kind == kind) {
+                    desired.push(ws.tabs[pos].clone());
+                }
+            }
+            let before: Vec<u64> = slots.iter().map(|&i| ws.tabs[i].id).collect();
+            for (&slot, tab) in slots.iter().zip(desired.into_iter()) {
+                ws.tabs[slot] = tab;
+            }
+            let after: Vec<u64> = slots.iter().map(|&i| ws.tabs[i].id).collect();
+            if before != after {
+                changed = true;
+            }
+        }
+        if !changed {
+            return None;
+        }
+        inner.generation += 1;
+        Some(inner.snapshot())
+    }
+
     /// Reorder a tab WITHIN `caller` (cross-window moves ride the dock
     /// flow, not this). `index` is clamped.
     pub async fn move_tab(&self, caller: &str, tab_id: u64, index: usize) -> Option<Snapshot> {

@@ -194,6 +194,9 @@ async fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
     let Some(snapshot) = model.merge_windows(source, target).await else {
         return;
     };
+    // A dock is user arrangement too (unreachable without a prior
+    // detach, which already set this — free insurance).
+    app.state::<super::TabInventory>().set_user_controlled();
     native::publish(app, &snapshot, &[target.to_string()]);
     native::sync(app).await;
     if let Some(window) = app.get_window(target) {

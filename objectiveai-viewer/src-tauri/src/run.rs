@@ -200,6 +200,7 @@ pub fn serve(
         crate::shell::tabs_declare,
         crate::shell::tabs_inventory,
         crate::shell::tabs_toggle,
+        crate::shell::tabs_reorder,
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_move,
