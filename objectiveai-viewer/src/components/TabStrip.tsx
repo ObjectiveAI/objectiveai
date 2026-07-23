@@ -7,7 +7,6 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
@@ -63,13 +62,22 @@ export function TabStrip({
   // hands this gesture to the OS.
   const [dndEpoch, setDndEpoch] = useState(0);
   const gesture = useRef<{
-    startX: number;
+    tabId: number;
     startY: number;
     detached: boolean;
+    cleanup: () => void;
   } | null>(null);
   // A completed drag fires a trailing click on the dragged tab —
   // swallow exactly one.
   const suppressClick = useRef(false);
+
+  // Unmount safety: never leak a gesture's raw-pointer listener.
+  useEffect(() => {
+    return () => {
+      gesture.current?.cleanup();
+      gesture.current = null;
+    };
+  }, []);
 
   // Keep the active tab visible whenever it changes.
   useEffect(() => {
@@ -84,39 +92,42 @@ export function TabStrip({
   );
 
   const onDragStart = (event: DragStartEvent) => {
+    if (typeof event.active.id !== "number") return;
     const activator = event.activatorEvent as PointerEvent;
+    // Detach detection rides a RAW window pointermove listener for
+    // this gesture only: the horizontal-axis modifier zeroes dnd's
+    // own event deltas (delta.y is ALWAYS 0 under it), so vertical
+    // travel is invisible to onDragMove — the OS coordinates aren't.
+    const onRawMove = (e: PointerEvent) => {
+      const g = gesture.current;
+      if (!g || g.detached) return;
+      const outOfBand =
+        Math.abs(e.clientY - g.startY) > 40 ||
+        e.clientX < 0 ||
+        e.clientY < 0 ||
+        e.clientX > window.innerWidth ||
+        e.clientY > window.innerHeight;
+      if (!outOfBand) return;
+      // Detach ONCE: kill the dnd gesture FIRST (remount — the OS
+      // drag takes over and this webview may never see another
+      // pointer event), then hand the tab to Rust.
+      g.detached = true;
+      g.cleanup();
+      setDndEpoch((epoch) => epoch + 1);
+      tabsDetach(g.tabId);
+    };
+    window.addEventListener("pointermove", onRawMove);
     gesture.current = {
-      startX: activator.clientX ?? 0,
+      tabId: event.active.id,
       startY: activator.clientY ?? 0,
       detached: false,
+      cleanup: () => window.removeEventListener("pointermove", onRawMove),
     };
-  };
-
-  const onDragMove = (event: DragMoveEvent) => {
-    const g = gesture.current;
-    if (!g || g.detached) return;
-    const x = g.startX + event.delta.x;
-    const y = g.startY + event.delta.y;
-    const outOfBand =
-      Math.abs(event.delta.y) > 40 ||
-      x < 0 ||
-      y < 0 ||
-      x > window.innerWidth ||
-      y > window.innerHeight;
-    if (!outOfBand) return;
-    // Detach ONCE: kill the dnd gesture FIRST (remount — the OS drag
-    // takes over and this webview may never see another pointer
-    // event), then hand the tab to Rust.
-    g.detached = true;
-    const tabId = event.active.id;
-    setDndEpoch((epoch) => epoch + 1);
-    if (typeof tabId === "number") {
-      tabsDetach(tabId);
-    }
   };
 
   const onDragEnd = (event: DragEndEvent) => {
     const g = gesture.current;
+    g?.cleanup();
     gesture.current = null;
     suppressClick.current = true;
     if (!g || g.detached) return;
@@ -173,9 +184,9 @@ export function TabStrip({
         // pointer deltas (used for detach detection) are unaffected.
         modifiers={[restrictToHorizontalAxis]}
         onDragStart={onDragStart}
-        onDragMove={onDragMove}
         onDragEnd={onDragEnd}
         onDragCancel={() => {
+          gesture.current?.cleanup();
           gesture.current = null;
         }}
       >
