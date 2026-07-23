@@ -73,6 +73,10 @@ pub async fn logs_report(
     let label = webview.label().to_string();
     let source = match super::tab_id(&label) {
         Some(id) => model.tab_title(id).await.unwrap_or(label),
+        // The chrome (strip + status bar) reports under one friendly
+        // name — which window's chrome it was doesn't matter to the
+        // reader.
+        None if label.starts_with("chrome-") => "viewer-container".to_string(),
         None => label,
     };
     let at_ms = std::time::SystemTime::now()

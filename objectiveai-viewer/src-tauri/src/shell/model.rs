@@ -49,7 +49,7 @@ impl TabKind {
         match self {
             TabKind::Agents => "agents".to_string(),
             TabKind::Laboratories => "laboratories".to_string(),
-            TabKind::ViewerLogs => "viewer logs".to_string(),
+            TabKind::ViewerLogs => "viewer-logs".to_string(),
             TabKind::Agent { aih } => aih.clone(),
             TabKind::Laboratory {
                 id,
