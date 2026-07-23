@@ -13,6 +13,7 @@ import { tauriInvoke } from "./tauri";
 export type TabKind =
   | { type: "agents" }
   | { type: "laboratories" }
+  | { type: "viewer_logs" }
   | { type: "agent"; aih: string }
   | {
       type: "laboratory";

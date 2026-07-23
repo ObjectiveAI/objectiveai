@@ -4,6 +4,7 @@ import type { TabDesc } from "../lib/tabs";
 import { useAgentsInstancesList } from "../hooks/useAgentsInstancesList";
 import { HierarchyTree } from "./HierarchyTree";
 import { LaboratoriesPane } from "./LaboratoriesPane";
+import { ViewerLogsPane } from "./ViewerLogsPane";
 import { ConversationView } from "./ConversationView";
 import { AgentChat } from "./AgentChat";
 import { LaboratoryBrowser } from "./LaboratoryBrowser";
@@ -62,6 +63,8 @@ export function TabContent({
       return <AgentsPane transport={transport} zoom={zoom} />;
     case "laboratories":
       return <LaboratoriesPane transport={transport} />;
+    case "viewer_logs":
+      return <ViewerLogsPane />;
     case "agent":
       return (
         <>

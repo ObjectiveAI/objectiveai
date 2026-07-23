@@ -2,6 +2,8 @@ mod commands;
 pub use commands::*;
 mod docking;
 pub use docking::*;
+mod logs;
+pub use logs::*;
 mod model;
 pub use model::*;
 mod native;

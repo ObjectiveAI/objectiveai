@@ -100,7 +100,8 @@ pub fn build_shell_window(
             tauri::WebviewUrl::App("index.html".into()),
         )
         .auto_resize()
-        .background_color(GROUND),
+        .background_color(GROUND)
+        .initialization_script(super::CAPTURE_INIT_SCRIPT),
         tauri::LogicalPosition::new(0.0, 0.0),
         size,
     )?;
@@ -171,7 +172,8 @@ pub async fn sync(app: &tauri::AppHandle) {
                         tauri::WebviewUrl::App("tab.html".into()),
                     )
                     .focused(false)
-                    .background_color(GROUND);
+                    .background_color(GROUND)
+                    .initialization_script(super::CAPTURE_INIT_SCRIPT);
                     match window.add_child(builder, rect.position, rect.size) {
                         Ok(webview) => webview,
                         // Best-effort; the next sync retries.

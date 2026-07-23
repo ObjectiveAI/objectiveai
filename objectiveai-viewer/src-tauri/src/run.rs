@@ -189,6 +189,7 @@ pub fn serve(
         None => crate::shell::ShellModel::seeded(vec![
             crate::shell::TabKind::Agents,
             crate::shell::TabKind::Laboratories,
+            crate::shell::TabKind::ViewerLogs,
         ]),
     };
 
@@ -198,7 +199,8 @@ pub fn serve(
         .manage(agents_dir)
         .manage(lab_env)
         .manage(model)
-        .manage(crate::shell::WebviewSync::default());
+        .manage(crate::shell::WebviewSync::default())
+        .manage(crate::shell::LogStore::default());
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -211,6 +213,8 @@ pub fn serve(
         crate::shell::tabs_detach,
         crate::shell::ui_set,
         crate::shell::ui_get,
+        crate::shell::logs_report,
+        crate::shell::logs_snapshot,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,

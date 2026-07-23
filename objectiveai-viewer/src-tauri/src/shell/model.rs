@@ -27,6 +27,10 @@ pub enum TabKind {
     Agents,
     /// The laboratories home (laboratory builder / list).
     Laboratories,
+    /// The viewer's own log inbox — everything the capture
+    /// initialization script hoovers out of every webview (console,
+    /// uncaught errors, unhandled rejections; see `shell/logs.rs`).
+    ViewerLogs,
     /// One agent conversation, by its instance hierarchy.
     Agent { aih: String },
     /// One laboratory browser, by id + optional host pin.
@@ -45,6 +49,7 @@ impl TabKind {
         match self {
             TabKind::Agents => "agents".to_string(),
             TabKind::Laboratories => "laboratories".to_string(),
+            TabKind::ViewerLogs => "viewer logs".to_string(),
             TabKind::Agent { aih } => aih.clone(),
             TabKind::Laboratory {
                 id,
@@ -59,10 +64,13 @@ impl TabKind {
         }
     }
 
-    /// Whether the shell shows a close button. The two home tabs are
+    /// Whether the shell shows a close button. The home tabs are
     /// permanent (movable, never closable).
     fn closable(&self) -> bool {
-        !matches!(self, TabKind::Agents | TabKind::Laboratories)
+        !matches!(
+            self,
+            TabKind::Agents | TabKind::Laboratories | TabKind::ViewerLogs
+        )
     }
 }
 
@@ -469,6 +477,13 @@ impl ShellModel {
             ws.ui.orientation = orientation;
         }
         Some((ws.ui.clone(), ws.tabs.iter().map(|t| t.id).collect()))
+    }
+
+    /// A tab's title, wherever it lives (`None` = no such tab).
+    pub async fn tab_title(&self, tab_id: u64) -> Option<String> {
+        let inner = self.inner.lock().await;
+        let (label, idx) = inner.locate(tab_id)?;
+        Some(inner.windows[&label].tabs[idx].title.clone())
     }
 
     /// `window`'s UI state (defaults for unknown windows).
