@@ -440,31 +440,37 @@ pub async fn tabs_toggle(
     if entry.permanent {
         return Err(format!("tabs_toggle: {identity_key:?}/{name:?} is permanent"));
     }
-    if let Err(e) = inventory.set_override(&identity_key, &name, enabled).await {
-        super::report_shell(&app, "error", format!("tabs: persist toggle: {e}")).await;
-    }
-    if enabled {
-        // QUIET append — the user is working in the tabs pane;
-        // enabling must not yank them to the new tab.
-        let window = webview.window().label().to_string();
-        open_tab(
-            &app,
-            &window,
-            entry.kind(),
-            entry.title.clone(),
-            entry.closable,
-            entry.icon.clone(),
-            false,
-        )
-        .await;
-    } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {
-        native::publish(&app, &closed.snapshot, &closed.touched);
-        native::sync(&app).await;
-        if let Some(label) = closed.close_window {
-            if let Some(window) = app.get_window(&label) {
-                let _ = window.close();
+    // Persist and apply IN PARALLEL — the disk write and the model
+    // mutation are independent.
+    let persist = inventory.set_override(&identity_key, &name, enabled);
+    let apply = async {
+        if enabled {
+            // QUIET append — the user is working in the tabs pane;
+            // enabling must not yank them to the new tab.
+            let window = webview.window().label().to_string();
+            open_tab(
+                &app,
+                &window,
+                entry.kind(),
+                entry.title.clone(),
+                entry.closable,
+                entry.icon.clone(),
+                false,
+            )
+            .await;
+        } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {
+            native::publish(&app, &closed.snapshot, &closed.touched);
+            native::sync(&app).await;
+            if let Some(label) = closed.close_window {
+                if let Some(window) = app.get_window(&label) {
+                    let _ = window.close();
+                }
             }
         }
+    };
+    let (persisted, ()) = tokio::join!(persist, apply);
+    if let Err(e) = persisted {
+        super::report_shell(&app, "error", format!("tabs: persist toggle: {e}")).await;
     }
     use tauri::Emitter;
     let _ = app.emit("inventory://changed", &inventory.inventory().await);
