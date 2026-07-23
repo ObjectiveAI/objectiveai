@@ -156,15 +156,9 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
           <>
             <DetailRow label="os" value={lab.machine.os} />
             <DetailRow label="hostname" value={lab.machine.hostname ?? ""} />
-            <DetailRow
-              label="machine"
-              value={
-                lab.machine.id.length > 16
-                  ? `${lab.machine.id.slice(0, 16)}…`
-                  : lab.machine.id
-              }
-              title={lab.machine.id}
-            />
+            {/* The FULL id — DetailRow wraps (break-all) if the card
+                genuinely runs out of room; no pre-truncation. */}
+            <DetailRow label="machine" value={lab.machine.id} />
             <DetailRow label="state" value={lab.machineState ?? ""} />
           </>
         )}
