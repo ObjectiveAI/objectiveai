@@ -17,7 +17,8 @@ import cn from "classnames";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri } from "./lib/tauri";
 import { viewerTransport } from "./lib/viewer-transport";
-import { tabsSnapshot, type TabDesc } from "./lib/tabs";
+import { tabsSnapshot, uiGet, type TabDesc, type UiState } from "./lib/tabs";
+import { setOrientation } from "./hooks/useOrientation";
 import { TabContent } from "./components/TabContent";
 import "./function-tree/styles/function-tree.css";
 import "./app.css";
@@ -69,10 +70,43 @@ function TabRoot() {
     };
   }, []);
 
+  // The hosting window's UI state (zoom / orientation), adopted live.
+  // The listener MUST be webview-scoped: a plain `listen` has target
+  // Any and would receive every other tab's targeted `ui://changed`
+  // too. Listen first, then get — the boot-read race pattern.
+  const [zoom, setZoom] = useState(1);
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    const apply = (ui: UiState) => {
+      if (disposed) return;
+      setZoom(ui.zoom);
+      setOrientation(ui.orientation);
+    };
+    void (async () => {
+      if (!isTauri()) return;
+      const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+      unlisten = await getCurrentWebview().listen<UiState>(
+        "ui://changed",
+        (e) => apply(e.payload),
+      );
+      if (disposed) {
+        unlisten?.();
+        return;
+      }
+      const ui = await uiGet();
+      if (ui) apply(ui);
+    })();
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
+
   if (!tab) return null;
   return (
     <div className={cn("flex", "flex-col", "h-screen")}>
-      <TabContent tab={tab} transport={transport} zoom={1} />
+      <TabContent tab={tab} transport={transport} zoom={zoom} />
     </div>
   );
 }

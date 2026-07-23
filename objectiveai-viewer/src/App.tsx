@@ -1,26 +1,41 @@
+/**
+ * The CHROME entry's root — one per OS window, in the `chrome-<label>`
+ * webview: the tab strip, the status bar, and the empty-window
+ * watermark. Tab CONTENT lives in sibling `tab-<id>` webviews (the
+ * `tab.html` entry) that the Rust shell places over the middle — the
+ * chrome renders nothing there.
+ *
+ * The chrome owns the per-window UI controls (zoom / orientation) and
+ * pushes them through `ui_set`; the Rust model fans them out to the
+ * window's content webviews.
+ */
 import { useEffect, useRef, useState } from "react";
 import cn from "classnames";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { viewerTransport } from "./lib/viewer-transport";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri, tauriListen } from "./lib/tauri";
 import {
   tabsSnapshot,
+  uiSet,
   type TabsSnapshot,
   type WindowTabs,
 } from "./lib/tabs";
+import type { Orientation } from "./hooks/useOrientation";
 import { useAgentsInstancesList } from "./hooks/useAgentsInstancesList";
 import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
 import { TabStrip } from "./components/TabStrip";
-import { TabContent } from "./components/TabContent";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 
-/** This window's label — the registry key for its slice of tabs. */
-const WINDOW_LABEL = isTauri() ? getCurrentWebviewWindow().label : "main";
+/** This chrome's WINDOW label — the model key for its slice of tabs
+ * (the chrome webview itself is labeled `chrome-<window>`). */
+const WINDOW_LABEL = isTauri()
+  ? getCurrentWebview().label.replace(/^chrome-/, "")
+  : "main";
 
 function App() {
-  // This window's slice of the tab registry, rebuilt from every
+  // This window's slice of the shell model, rebuilt from every
   // `tabs://changed` snapshot (generation-guarded: a stale snapshot
   // response can never clobber a newer event).
   const [windowTabs, setWindowTabs] = useState<WindowTabs>({
@@ -68,10 +83,9 @@ function App() {
     };
   }, []);
 
-  // The daemon transport (the Rust proxy's invoke + Channel), fetched
-  // once per window. There is no global listener singleton — App
-  // threads this down and components construct and own their own
-  // listeners.
+  // The daemon transport (the Rust proxy's invoke + Channel) — the
+  // chrome's OWN connection, for the footer's active-agents count
+  // (content webviews hold their own; Channels route per webview).
   const [transport, setTransport] = useState<ViewerTransport | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -82,12 +96,21 @@ function App() {
       cancelled = true;
     };
   }, []);
-  // This window's agents-list connection: {aih, active} items, live.
   const agents = useAgentsInstancesList(transport);
   const activeAgents = agents.filter((agent) => agent.active).length;
-  // Status-bar entries + canvas zoom (the footer slider drives it).
+  // Status-bar entries + the per-window UI controls. Zoom renders
+  // locally (the slider) and pushes through `ui_set` for the content
+  // webviews; orientation only pushes (the toggle's label reads the
+  // local module store).
   const entries = useEntries();
   const [zoom, setZoom] = useState(1);
+  const handleZoomChange = (next: number) => {
+    setZoom(next);
+    uiSet({ zoom: next });
+  };
+  const handleOrientationChange = (orientation: Orientation) => {
+    uiSet({ orientation });
+  };
 
   return (
     <div className={cn("flex", "flex-col", "h-screen")}>
@@ -96,6 +119,9 @@ function App() {
         activeId={windowTabs.active}
         dockPreview={dockPreview}
       />
+      {/* The middle band belongs to the content webviews, composited
+          above this document — the chrome paints only the empty
+          state beneath them. */}
       <div className={cn("relative", "flex", "flex-col", "flex-1", "min-h-0")}>
         {windowTabs.tabs.length === 0 && (
           // A tab-less window (only possible on main — shells
@@ -120,27 +146,13 @@ function App() {
             </div>
           </div>
         )}
-        {/* Every tab stays mounted; only the active one is shown —
-            background tabs keep their listeners and streams running. */}
-        {windowTabs.tabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={cn(
-              "flex-col",
-              "flex-1",
-              "min-h-0",
-              tab.id === windowTabs.active ? "flex" : "hidden",
-            )}
-          >
-            <TabContent tab={tab} transport={transport} zoom={zoom} />
-          </div>
-        ))}
       </div>
       <StatusBar
         entries={entries}
         activeAgents={activeAgents}
         zoom={zoom}
-        onZoomChange={setZoom}
+        onZoomChange={handleZoomChange}
+        onOrientationChange={handleOrientationChange}
       />
     </div>
   );

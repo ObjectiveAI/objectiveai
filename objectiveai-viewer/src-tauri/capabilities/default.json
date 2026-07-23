@@ -1,8 +1,9 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and detached tab shell windows",
+  "description": "Capability for every shell window's webviews: the chrome (tab strip + status bar) and the per-tab content webviews. A `windows` glob authorizes ALL webviews of a matching window; `webviews` lists the labels explicitly as documentation/hardening.",
   "windows": ["main", "shell-*"],
+  "webviews": ["chrome-*", "tab-*"],
   "permissions": [
     "core:default"
   ]

@@ -1,10 +1,12 @@
-// The TS mirror of the Rust tab registry types (src-tauri/src/tabs.rs)
-// and the invoke helpers the shell + strip drive it with. The
-// registry is the single source of truth: every mutation broadcasts a
-// full `tabs://changed` snapshot with a bumped generation; consumers
-// apply a payload (event OR snapshot response) only when its
-// generation advances, so a stale snapshot can never clobber a newer
-// event.
+// The TS mirror of the Rust shell model types
+// (src-tauri/src/shell/model.rs) and the invoke helpers the chrome
+// drives it with. The model is the single source of truth: every
+// mutation broadcasts a full `tabs://changed` snapshot with a bumped
+// generation; consumers apply a payload (event OR snapshot response)
+// only when its generation advances, so a stale snapshot can never
+// clobber a newer event. UI state (zoom/orientation) is per WINDOW,
+// rides targeted `ui://changed` events instead of the snapshot, and
+// is bridged chrome → content via `ui_set`/`ui_get`.
 
 import { tauriInvoke } from "./tauri";
 
@@ -60,4 +62,19 @@ export function tabsMove(tabId: number, index: number): void {
 
 export function tabsDetach(tabId: number): void {
   void tauriInvoke("tabs_detach", { tabId });
+}
+
+/** One window's chrome-driven UI state, adopted by whichever content
+ * webviews it currently hosts. */
+export interface UiState {
+  zoom: number;
+  orientation: "vertical" | "horizontal";
+}
+
+export function uiSet(ui: Partial<UiState>): void {
+  void tauriInvoke("ui_set", { ...ui });
+}
+
+export function uiGet(): Promise<UiState | undefined> {
+  return tauriInvoke<UiState>("ui_get");
 }

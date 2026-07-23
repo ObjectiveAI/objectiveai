@@ -23,7 +23,10 @@ objectiveai-sdk = { version = "2.2.13", path = "../../objectiveai-sdk-rs", defau
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
-tauri = { version = "2.10.3", features = [] }
+# `unstable` = the multi-webview APIs: raw WindowBuilder, child
+# WebviewBuilder/add_child, Webview::reparent past its webview-window
+# refusal — the per-tab content webviews ride all of them.
+tauri = { version = "2.10.3", features = ["unstable"] }
 tokio = { version = "1.50.0", features = ["full"] }
 tokio-util = "0.7"
 

@@ -1,6 +1,7 @@
-//! The reattach half of the tab system: dragging a shell window over
+//! The reattach half of the shell: dragging a shell window over
 //! another window's TAB STRIP docks it — every tab it carries merges
-//! into the target and the source window closes (Chrome semantics).
+//! into the target (their content webviews REPARENT across — nothing
+//! reloads) and the source window closes (Chrome semantics).
 //!
 //! There is no native drag-end event (tao does not surface
 //! `WM_EXITSIZEMOVE`), so the dock commits on a heuristic that is
@@ -28,7 +29,8 @@
 
 use tauri::{Emitter, Manager};
 
-use crate::tabs::{STRIP_HEIGHT_LOGICAL, TabRegistry};
+use super::model::ShellModel;
+use super::native::{self, STRIP_HEIGHT_LOGICAL};
 
 /// Quiet time after the last `Moved` before a dock is considered.
 const SETTLE: std::time::Duration = std::time::Duration::from_millis(200);
@@ -59,7 +61,7 @@ fn strip_hit(
     cursor: tauri::PhysicalPosition<f64>,
 ) -> Option<String> {
     let mut hit: Option<(String, bool)> = None;
-    for (label, window) in app.webview_windows() {
+    for (label, window) in app.windows() {
         if label == moving {
             continue;
         }
@@ -95,7 +97,7 @@ fn strip_hit(
 
 /// Spawn the docking task. `run_return`'s closure feeds it every
 /// `Moved` label through the paired sender.
-pub fn spawn(
+pub fn spawn_docking(
     app: tauri::AppHandle,
     mut rx: tokio::sync::mpsc::UnboundedReceiver<String>,
 ) {
@@ -132,14 +134,14 @@ pub fn spawn(
                             if target != previewed {
                                 if let Some(old) = &previewed {
                                     let _ = app.emit_to(
-                                        old.as_str(),
+                                        native::chrome_label(old).as_str(),
                                         "tabs://dock-preview",
                                         false,
                                     );
                                 }
                                 if let Some(new) = &target {
                                     let _ = app.emit_to(
-                                        new.as_str(),
+                                        native::chrome_label(new).as_str(),
                                         "tabs://dock-preview",
                                         true,
                                     );
@@ -162,7 +164,7 @@ pub fn spawn(
                                 if let Some(target) =
                                     strip_hit(&app, &label, cursor)
                                 {
-                                    dock(&app, &label, &target);
+                                    dock(&app, &label, &target).await;
                                 }
                             }
                         }
@@ -172,7 +174,11 @@ pub fn spawn(
             }
             // Gesture resolved — no highlight may outlive it.
             if let Some(old) = previewed.take() {
-                let _ = app.emit_to(old.as_str(), "tabs://dock-preview", false);
+                let _ = app.emit_to(
+                    native::chrome_label(&old).as_str(),
+                    "tabs://dock-preview",
+                    false,
+                );
             }
         }
     });
@@ -180,28 +186,21 @@ pub fn spawn(
 
 /// Merge `source`'s tabs into `target` and close `source`. All
 /// best-effort — a window that vanished mid-flight makes this a
-/// no-op.
-fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
-    let registry = app.state::<TabRegistry>();
-    if !registry.merge_windows(source, target) {
+/// no-op. Ordering matters: the reconciler REPARENTS the source's
+/// content webviews into the target BEFORE the source window closes
+/// (they must be out before the source HWND — and everything childed
+/// to it — dies).
+async fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
+    let model = app.state::<ShellModel>();
+    let Some(snapshot) = model.merge_windows(source, target).await else {
         return;
-    }
-    let snapshot = registry.snapshot();
-    let _ = app.emit("tabs://changed", &snapshot);
-    if let Some(window) = app.get_webview_window(target) {
-        let title = snapshot
-            .windows
-            .get(target)
-            .and_then(|wt| wt.tabs.iter().find(|t| t.id == wt.active))
-            .map(|t| t.title.clone());
-        if target != "main" {
-            if let Some(title) = title {
-                let _ = window.set_title(&title);
-            }
-        }
+    };
+    native::publish(app, &snapshot, &[target.to_string()]);
+    native::sync(app).await;
+    if let Some(window) = app.get_window(target) {
         let _ = window.set_focus();
     }
-    if let Some(window) = app.get_webview_window(source) {
+    if let Some(window) = app.get_window(source) {
         let _ = window.close();
     }
 }

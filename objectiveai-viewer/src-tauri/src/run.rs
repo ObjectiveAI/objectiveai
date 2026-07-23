@@ -176,25 +176,24 @@ pub fn serve(
     // for later.
     let ready = Arc::new(Notify::new());
 
-    // The tab registry — seeded BEFORE the shell boots so the main
-    // window's first snapshot already holds its tabs. Normal boot:
-    // the two home tabs. `--agent-instance-hierarchy`: one agent
-    // conversation tab (a scoped debug instance; closing it leaves
-    // the main empty state).
-    let registry = crate::tabs::TabRegistry::default();
-    match &agent_window {
-        Some(aih) => registry.seed(
+    // The shell model — seeded BEFORE the shell boots so the main
+    // window's chrome finds its tabs in the first snapshot. Normal
+    // boot: the two home tabs. `--agent-instance-hierarchy`: one
+    // agent conversation tab (a scoped debug instance; closing it
+    // leaves the main empty state).
+    let model = match &agent_window {
+        Some(aih) => crate::shell::ShellModel::seeded(
             "main",
-            vec![crate::tabs::TabKind::Agent { aih: aih.clone() }],
+            vec![crate::shell::TabKind::Agent { aih: aih.clone() }],
         ),
-        None => registry.seed(
+        None => crate::shell::ShellModel::seeded(
             "main",
             vec![
-                crate::tabs::TabKind::Agents,
-                crate::tabs::TabKind::Laboratories,
+                crate::shell::TabKind::Agents,
+                crate::shell::TabKind::Laboratories,
             ],
         ),
-    }
+    };
     let main_title = agent_window
         .clone()
         .unwrap_or_else(|| "ObjectiveAI Viewer".to_string());
@@ -204,17 +203,20 @@ pub fn serve(
         .manage(proxy)
         .manage(agents_dir)
         .manage(lab_env)
-        .manage(registry);
+        .manage(model)
+        .manage(crate::shell::WebviewSync::default());
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
         open_url,
-        crate::tabs::tabs_snapshot,
-        crate::tabs::tabs_open,
-        crate::tabs::tabs_select,
-        crate::tabs::tabs_close,
-        crate::tabs::tabs_move,
-        crate::tabs::tabs_detach,
+        crate::shell::tabs_snapshot,
+        crate::shell::tabs_open,
+        crate::shell::tabs_select,
+        crate::shell::tabs_close,
+        crate::shell::tabs_move,
+        crate::shell::tabs_detach,
+        crate::shell::ui_set,
+        crate::shell::ui_get,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,
@@ -238,21 +240,25 @@ pub fn serve(
                 let exit_handle = tauri_app.handle().clone();
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
             }
-            crate::docking::spawn(
+            crate::shell::spawn_docking(
                 tauri_app.handle().clone(),
                 dock_rx.take().expect("setup runs once"),
             );
             // Windows are created HERE, not in tauri.conf.json. Every
-            // window — main included — runs the SAME shell entry; the
-            // registry decides what it shows.
-            tauri::WebviewWindowBuilder::new(
-                tauri_app,
+            // window is a raw Window + a chrome webview (strip +
+            // status bar); the model decides which tab webviews it
+            // hosts — the spawned sync seeds the boot tabs' content
+            // webviews.
+            crate::shell::build_shell_window(
+                tauri_app.handle(),
                 "main",
-                tauri::WebviewUrl::App("index.html".into()),
-            )
-            .title(&main_title)
-            .inner_size(1024.0, 768.0)
-            .build()?;
+                &main_title,
+                None,
+            )?;
+            let handle = tauri_app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::shell::sync(&handle).await;
+            });
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -274,16 +280,30 @@ pub fn serve(
                     }
                 }
                 // A window died (user close, tabs_close auto-close,
-                // dock merge, teardown) — drop its registry slice.
-                // Idempotent, and every Result is ignored: this also
-                // runs during app teardown.
+                // dock merge, teardown) — drop its model slice, then
+                // reconcile (belt-and-braces: its content webviews
+                // normally die with the parent HWND). Spawned: this
+                // closure is synchronous on the runtime's thread and
+                // the model lock is a tokio mutex. Idempotent, every
+                // Result ignored — this also runs during teardown.
                 tauri::WindowEvent::Destroyed => {
-                    let registry = app_handle.state::<crate::tabs::TabRegistry>();
-                    if registry.remove_window(&label) {
-                        use tauri::Emitter;
-                        let snapshot = registry.snapshot();
-                        let _ = app_handle.emit("tabs://changed", &snapshot);
-                    }
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let model = handle.state::<crate::shell::ShellModel>();
+                        if let Some(snapshot) = model.remove_window(&label).await {
+                            crate::shell::publish(&handle, &snapshot, &[]);
+                            crate::shell::sync(&handle).await;
+                        }
+                    });
+                }
+                // Keep the content webviews' rect glued to the strip
+                // and status-bar bands. Inline (no model lock): a
+                // pure relayout of whatever is already placed.
+                tauri::WindowEvent::Resized(_) => {
+                    crate::shell::layout_window(app_handle, &label);
+                }
+                tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                    crate::shell::layout_window(app_handle, &label);
                 }
                 _ => {}
             }
