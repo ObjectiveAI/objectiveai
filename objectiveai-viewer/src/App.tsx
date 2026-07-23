@@ -54,6 +54,7 @@ function App() {
     void declareTabs();
   }, []);
 
+
   useEffect(() => {
     let disposed = false;
     let unlisten: (() => void) | undefined;

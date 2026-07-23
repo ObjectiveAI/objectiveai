@@ -79,12 +79,21 @@ export function TabStrip({
     };
   }, []);
 
-  // Keep the active tab visible whenever it changes.
+  // Keep the active tab visible whenever it changes. HORIZONTAL
+  // ONLY, by hand — scrollIntoView's block axis nudged the nav's
+  // hair of vertical scrollability and set off a jitter loop.
   useEffect(() => {
     const strip = stripRef.current;
     if (!strip) return;
-    const el = strip.querySelector(`[data-tab-id="${activeId}"]`);
-    el?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    const el = strip.querySelector<HTMLElement>(`[data-tab-id="${activeId}"]`);
+    if (!el) return;
+    const left = el.offsetLeft - strip.scrollLeft;
+    const right = left + el.offsetWidth;
+    if (left < 0) {
+      strip.scrollLeft += left;
+    } else if (right > strip.clientWidth) {
+      strip.scrollLeft += right - strip.clientWidth;
+    }
   }, [activeId]);
 
   const sensors = useSensors(
@@ -249,7 +258,11 @@ function TabItem({
         "items-center",
         "gap-1.5",
         "px-3",
-        "py-1",
+        // Total tab height must FIT the 40px band: 14px icon line +
+        // 2px gap + 14px name line + 6px padding + 2px border = 38.
+        // Anything taller makes the nav vertically scrollable by a
+        // hair — the source of the strip jitter.
+        "py-[3px]",
         "rounded-sm",
         "font-mono",
         "text-sm",
@@ -301,7 +314,7 @@ function TabItem({
             {tab.kind.identity}
           </span>
         </span>
-        <span className={cn("truncate", "min-w-0", "leading-tight")}>
+        <span className={cn("truncate", "min-w-0", "leading-none")}>
           {tab.title}
         </span>
       </span>
