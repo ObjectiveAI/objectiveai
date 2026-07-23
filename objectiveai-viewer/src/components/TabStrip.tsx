@@ -230,7 +230,7 @@ export function TabStrip({
                 data-tab-identity
                 className={cn(
                   "truncate",
-                  "text-[9px]",
+                  "text-xs",
                   "leading-none",
                   "text-info-dim",
                 )}
