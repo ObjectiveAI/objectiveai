@@ -66,31 +66,93 @@ export function builtinTabModule(stem: string): string {
   return import.meta.env.DEV ? `/src/tabs/${stem}.tsx` : `/tabs/${stem}.js`;
 }
 
-/** The home tabs the boot chrome seeds (in strip order), through the
- * same open API every identity uses. */
-export const HOME_TABS = [
-  "agents",
-  "laboratories",
-  "viewer-logs",
-  "command-logs",
-] as const;
-
-export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
-  return tauriInvoke<TabsSnapshot>("tabs_snapshot");
-}
-
 /** The root identity's icon — what a plugin's manifest icon is to
  * it; every objectiveai open call defaults to this. The white-glyph
  * variant of the mark (matching the bundled window icon) — the
  * favicon stays the copper original. */
 export const OBJECTIVEAI_ICON = "/icon.svg";
 
-/** Resolve a tab's identity-root-relative icon path to a URL the
- * CHROME can render. The root identity shares the chrome's origin,
- * so the path serves as-is; a plugin identity's root is its own
- * origin — prefixing lands here when plugin identities exist. */
-export function tabIconUrl(tab: TabDesc): string | undefined {
-  return tab.icon;
+/** One declared root tab — mirrors the shell's `DeclareEntry`. */
+export interface DeclareTabEntry {
+  name: string;
+  title: string;
+  module: string;
+  export?: string;
+  icon?: string;
+  closable: boolean;
+  permanent?: boolean;
+}
+
+/** The ROOT identity's tab inventory, in strip order — the chrome's
+ * manifest-equivalent (Rust hardcodes no names; this list is how it
+ * learns ours). The `tabs` tab is PERMANENT: always open, greyed in
+ * its own list, never toggleable. */
+const ROOT_TABS: DeclareTabEntry[] = [
+  ...(["agents", "laboratories", "viewer-logs", "command-logs"] as const).map(
+    (stem) => ({
+      name: stem,
+      title: stem,
+      module: builtinTabModule(stem),
+      icon: OBJECTIVEAI_ICON,
+      closable: false,
+    }),
+  ),
+  {
+    name: "tabs",
+    title: "tabs",
+    module: builtinTabModule("tabs"),
+    icon: OBJECTIVEAI_ICON,
+    closable: false,
+    permanent: true,
+  },
+];
+
+/** Declare the root inventory — every chrome calls this on mount;
+ * Rust applies the FIRST declaration per app run and no-ops the
+ * rest. The boot orchestrator opens the enabled slice. */
+export async function declareTabs(): Promise<void> {
+  await tauriInvoke("tabs_declare", { entries: ROOT_TABS });
+}
+
+/** One inventory row — mirrors the shell's `InventoryEntry`. */
+export interface TabInventoryEntry {
+  identity: string;
+  identityKey: string;
+  name: string;
+  title: string;
+  module: string;
+  export?: string;
+  icon?: string;
+  closable: boolean;
+  permanent: boolean;
+  enabled: boolean;
+}
+
+export function tabsInventory(): Promise<TabInventoryEntry[] | undefined> {
+  return tauriInvoke<TabInventoryEntry[]>("tabs_inventory");
+}
+
+export function tabsToggle(
+  identityKey: string,
+  name: string,
+  enabled: boolean,
+): void {
+  void tauriInvoke("tabs_toggle", { identityKey, name, enabled });
+}
+
+export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
+  return tauriInvoke<TabsSnapshot>("tabs_snapshot");
+}
+
+/** Resolve an identity-root-relative icon path to a URL the CHROME
+ * can render. The root identity shares the chrome's origin, so the
+ * path serves as-is; a plugin identity's root is its own origin —
+ * prefixing lands here when the plugin:// protocol exists. */
+export function tabIconUrl(
+  _identity: string,
+  icon: string | undefined,
+): string | undefined {
+  return icon;
 }
 
 /** Open (or focus) a tab — the SDK helper over the shell's
@@ -102,35 +164,6 @@ export async function tabsOpen(tab: ViewerOpenTab): Promise<void> {
   const transport = await viewerTransport();
   if (transport !== null) {
     await openViewerTab(transport, { icon: OBJECTIVEAI_ICON, ...tab });
-  }
-}
-
-/** Seed the home tabs into an EMPTY shell (the boot chrome calls
- * this once, when the whole model holds zero tabs), then hand focus
- * back to the first of them. */
-export async function seedHomeTabs(): Promise<void> {
-  // All four in PARALLEL — sequential awaits would gate each tab
-  // behind the previous open's round trip.
-  await Promise.all(
-    HOME_TABS.map((stem) =>
-      tabsOpen({
-        module: builtinTabModule(stem),
-        title: stem,
-        closable: false,
-      }),
-    ),
-  );
-  // Each open activated its own tab — re-activate the FIRST home
-  // tab (it lives in this chrome's window; select acts there).
-  const snapshot = await tabsSnapshot();
-  if (!snapshot) return;
-  const first = builtinTabModule(HOME_TABS[0]);
-  for (const windowTabs of Object.values(snapshot.windows)) {
-    const tab = windowTabs.tabs.find((t) => t.kind.module === first);
-    if (tab) {
-      tabsSelect(tab.id);
-      return;
-    }
   }
 }
 

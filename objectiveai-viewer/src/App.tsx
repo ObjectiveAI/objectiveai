@@ -16,7 +16,7 @@ import { viewerTransport } from "./lib/viewer-transport";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri, tauriListen } from "./lib/tauri";
 import {
-  seedHomeTabs,
+  declareTabs,
   tabsSnapshot,
   uiSet,
   type TabsSnapshot,
@@ -45,11 +45,14 @@ function App() {
   });
   const generation = useRef(0);
   const [dockPreview, setDockPreview] = useState(false);
-  // The one-shot home-tab seed: Rust boots an EMPTY window and knows
-  // no tab names — when the whole model holds zero tabs (only ever
-  // true for the boot chrome's first snapshot), THIS code opens the
-  // home tabs through the same `tabs_open` API every identity uses.
-  const seeded = useRef(false);
+
+  // Declare the root tab inventory — the chrome's manifest-
+  // equivalent. Every chrome declares on mount; Rust applies the
+  // FIRST declaration per app run (later ones no-op), and the boot
+  // orchestrator opens the enabled tabs.
+  useEffect(() => {
+    void declareTabs();
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -61,18 +64,6 @@ function App() {
       setWindowTabs(
         snapshot.windows[WINDOW_LABEL] ?? { tabs: [], active: 0 },
       );
-      // Seed when no OBJECTIVEAI tab exists anywhere — plugin tabs
-      // may already be present (the Rust loader races this boot), and
-      // must not suppress the home tabs.
-      if (
-        !seeded.current &&
-        Object.values(snapshot.windows).every((wt) =>
-          wt.tabs.every((t) => t.kind.identity !== "objectiveai"),
-        )
-      ) {
-        seeded.current = true;
-        void seedHomeTabs();
-      }
     };
     void (async () => {
       // Subscribe FIRST (events are not queued for future listeners),

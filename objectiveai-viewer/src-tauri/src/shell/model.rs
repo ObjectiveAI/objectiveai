@@ -209,6 +209,31 @@ pub struct ShellModel {
     inner: tokio::sync::Mutex<Inner>,
 }
 
+/// The shared removal tail: drop the tab at `(label, idx)`, activate
+/// the neighbor (previous index, else first), report an emptied
+/// window. Both `close` (closable-gated) and `remove_by_kind`
+/// (toggle-driven, ungated) land here.
+fn remove_at(inner: &mut Inner, label: String, idx: usize) -> Closed {
+    let ws = inner.windows.get_mut(&label).expect("caller located");
+    let tab_id = ws.tabs[idx].id;
+    ws.tabs.remove(idx);
+    if ws.active == tab_id {
+        ws.active = ws
+            .tabs
+            .get(idx.saturating_sub(1))
+            .or_else(|| ws.tabs.first())
+            .map(|t| t.id)
+            .unwrap_or(0);
+    }
+    let close_window = ws.tabs.is_empty();
+    inner.generation += 1;
+    Closed {
+        snapshot: inner.snapshot(),
+        close_window: close_window.then(|| label.clone()),
+        touched: vec![label],
+    }
+}
+
 impl ShellModel {
     /// A model holding one EMPTY boot window. Rust seeds no tabs —
     /// it knows none: the boot chrome opens the home tabs through
@@ -310,30 +335,36 @@ impl ShellModel {
     /// first) becomes active. Reports a window left empty — EVERY
     /// window closes when its last tab does (no window is special);
     /// its model entry stays until the window's Destroyed cleanup
-    /// (keeps the close idempotent).
+    /// (keeps the close idempotent). Refuses non-closable tabs — the
+    /// toggle path uses [`remove_by_kind`](Self::remove_by_kind)
+    /// instead.
     pub async fn close(&self, tab_id: u64) -> Option<Closed> {
         let mut inner = self.inner.lock().await;
         let (label, idx) = inner.locate(tab_id)?;
-        let ws = inner.windows.get_mut(&label).expect("located above");
-        if !ws.tabs[idx].closable {
+        if !inner.windows[&label].tabs[idx].closable {
             return None;
         }
-        ws.tabs.remove(idx);
-        if ws.active == tab_id {
-            ws.active = ws
-                .tabs
-                .get(idx.saturating_sub(1))
-                .or_else(|| ws.tabs.first())
-                .map(|t| t.id)
-                .unwrap_or(0);
-        }
-        let close_window = ws.tabs.is_empty();
-        inner.generation += 1;
-        Some(Closed {
-            snapshot: inner.snapshot(),
-            close_window: close_window.then(|| label.clone()),
-            touched: vec![label],
-        })
+        Some(remove_at(&mut inner, label, idx))
+    }
+
+    /// Remove the tab matching `kind`, wherever it lives, closable or
+    /// NOT — the tabs-tab toggle's close path (home tabs are
+    /// non-closable by strip rules, but a toggle may retire them).
+    /// Same neighbor-activation + empty-window semantics as `close`.
+    pub async fn remove_by_kind(&self, kind: &TabKind) -> Option<Closed> {
+        let mut inner = self.inner.lock().await;
+        let (label, tab_id) = inner.locate_kind(kind)?;
+        let idx = inner.windows[&label]
+            .tabs
+            .iter()
+            .position(|t| t.id == tab_id)?;
+        Some(remove_at(&mut inner, label, idx))
+    }
+
+    /// The live tab id for `kind`, if one exists.
+    pub async fn tab_id_of(&self, kind: &TabKind) -> Option<u64> {
+        let inner = self.inner.lock().await;
+        inner.locate_kind(kind).map(|(_, id)| id)
     }
 
     /// Reorder a tab WITHIN `caller` (cross-window moves ride the dock

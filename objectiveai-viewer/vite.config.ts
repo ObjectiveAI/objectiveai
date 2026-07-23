@@ -26,6 +26,7 @@ export default defineConfig(async () => ({
         "tabs/agent": "src/tabs/agent.tsx",
         "tabs/laboratory": "src/tabs/laboratory.tsx",
         "tabs/command-log": "src/tabs/command-log.tsx",
+        "tabs/tabs": "src/tabs/tabs.tsx",
       },
       output: {
         entryFileNames: (chunk: { name: string }) =>

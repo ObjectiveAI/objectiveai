@@ -163,6 +163,7 @@ pub fn serve(
     lab_env: crate::laboratories::LabEnv,
     log_sink: crate::shell::LogSink,
     command_log_sink: crate::shell::CommandLogSink,
+    tab_inventory: crate::shell::TabInventory,
     plugins_root: std::path::PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
@@ -187,7 +188,8 @@ pub fn serve(
         .manage(model)
         .manage(crate::shell::WebviewSync::default())
         .manage(log_sink)
-        .manage(command_log_sink);
+        .manage(command_log_sink)
+        .manage(tab_inventory);
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -195,6 +197,9 @@ pub fn serve(
         crate::shell::tabs_snapshot,
         crate::shell::tabs_open,
         crate::shell::tab_self,
+        crate::shell::tabs_declare,
+        crate::shell::tabs_inventory,
+        crate::shell::tabs_toggle,
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_move,
@@ -247,10 +252,10 @@ pub fn serve(
                 "ObjectiveAI Viewer",
                 None,
             )?;
-            // The plugin loader: scan bin/plugins for manifests and
-            // open every declared plugin tab into the boot window
-            // (nothing, with no plugins installed).
-            crate::shell::spawn_plugin_loader(
+            // The boot orchestrator: await the chrome's root-tab
+            // declaration + the bin/plugins scan, then open every
+            // ENABLED inventory tab into the boot window.
+            crate::shell::spawn_boot_orchestrator(
                 tauri_app.handle().clone(),
                 plugins_root,
                 boot_label.clone(),
@@ -363,6 +368,9 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     let log_sink = crate::shell::LogSink::new(viewer_dir.join("viewer-logs"));
     let command_log_sink =
         crate::shell::CommandLogSink::new(viewer_dir.join("command-logs"));
+    // Persisted tab toggles, beside the log sinks in the state
+    // folder.
+    let tab_inventory = crate::shell::TabInventory::new(viewer_dir.join("tabs.json"));
 
     // The installed-plugin tree (machine-wide, shared across states).
     let plugins_root = config.objectiveai_dir.join("bin").join("plugins");
@@ -373,6 +381,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         lab_env,
         log_sink,
         command_log_sink,
+        tab_inventory,
         plugins_root,
         None,
     ))

@@ -241,12 +241,12 @@ export function TabStrip({
                   "text-info-dim",
                 )}
               >
-                {tabIconUrl(tab) !== undefined && (
+                {tabIconUrl(tab.kind.identity, tab.icon) !== undefined && (
                   // Inlined when SVG: explicit fills render as
                   // authored; currentColor inherits this line's
                   // color — the icon chooses.
                   <IdentityIcon
-                    url={tabIconUrl(tab)!}
+                    url={tabIconUrl(tab.kind.identity, tab.icon)!}
                     className={cn("w-3.5", "h-3.5", "shrink-0")}
                   />
                 )}

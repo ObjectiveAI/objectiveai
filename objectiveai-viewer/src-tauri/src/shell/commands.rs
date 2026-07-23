@@ -197,21 +197,27 @@ pub async fn tab_self(
 pub async fn tabs_select(
     app: tauri::AppHandle,
     webview: tauri::Webview,
-    model: tauri::State<'_, ShellModel>,
     tab_id: u64,
 ) -> Result<(), String> {
     let caller = webview.window().label().to_string();
-    let Some(snapshot) = model.select(&caller, tab_id).await else {
-        return Ok(());
+    select_tab(&app, &caller, tab_id).await;
+    Ok(())
+}
+
+/// The internal select path — the command above and the boot
+/// orchestrator's select-first both land here. Focus follows an
+/// EXPLICIT selection (the reconciler itself never focuses — an
+/// unrelated mutation must not steal it).
+pub(crate) async fn select_tab(app: &tauri::AppHandle, window: &str, tab_id: u64) {
+    let model = app.state::<ShellModel>();
+    let Some(snapshot) = model.select(window, tab_id).await else {
+        return;
     };
-    native::publish(&app, &snapshot, &[caller]);
-    native::sync(&app).await;
-    // Focus follows an EXPLICIT selection (the reconciler itself
-    // never focuses — an unrelated mutation must not steal it).
+    native::publish(app, &snapshot, &[window.to_string()]);
+    native::sync(app).await;
     if let Some(webview) = app.get_webview(&native::tab_label(tab_id)) {
         let _ = webview.set_focus();
     }
-    Ok(())
 }
 
 /// Close a tab (idempotent). A window whose last tab closes is
@@ -325,6 +331,137 @@ pub async fn tabs_detach(
         ));
     }
     let _ = new_window.start_dragging();
+    Ok(())
+}
+
+/// One declared root tab — the chrome's manifest-equivalent, sent
+/// once per chrome boot via [`tabs_declare`].
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct DeclareEntry {
+    pub name: String,
+    pub title: String,
+    pub module: String,
+    #[serde(default)]
+    pub export: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    pub closable: bool,
+    #[serde(default)]
+    pub permanent: bool,
+}
+
+/// The chrome declares the ROOT identity's tab inventory — how Rust
+/// learns the built-in tabs without hardcoding a single name. Every
+/// chrome calls this on mount; only the FIRST declaration per app
+/// run applies (all chromes ship the same build, so later ones are
+/// identical no-ops). Chrome-only: content webviews may not declare.
+#[tauri::command]
+pub async fn tabs_declare(
+    webview: tauri::Webview,
+    inventory: tauri::State<'_, super::TabInventory>,
+    entries: Vec<DeclareEntry>,
+) -> Result<(), String> {
+    let label = webview.label();
+    if native::tab_id(label).is_some() || !label.starts_with("chrome-") {
+        return Err("tabs_declare: chrome webviews only".to_string());
+    }
+    if entries.is_empty() || entries.len() > 32 {
+        return Err(format!("tabs_declare: {} entries", entries.len()));
+    }
+    let mut seen = std::collections::HashSet::new();
+    let mut roots = Vec::with_capacity(entries.len());
+    for entry in entries {
+        if entry.name.is_empty() || !seen.insert(entry.name.clone()) {
+            return Err(format!("tabs_declare: bad/duplicate name {:?}", entry.name));
+        }
+        validate_module(&entry.module)?;
+        if let Some(icon) = &entry.icon {
+            validate_module(icon)?;
+        }
+        roots.push(super::TabEntry {
+            identity: ROOT_IDENTITY.to_string(),
+            identity_key: ROOT_IDENTITY.to_string(),
+            name: entry.name,
+            title: entry.title,
+            module: entry.module,
+            export: entry.export,
+            icon: entry.icon,
+            // A permanent tab is never strip-closable, whatever the
+            // declaration says.
+            closable: entry.closable && !entry.permanent,
+            permanent: entry.permanent,
+        });
+    }
+    inventory.declare(roots).await;
+    Ok(())
+}
+
+/// The full tab inventory with resolved toggles — the tabs tab's
+/// read. ROOT-identity callers only (a plugin tab's webview has IPC
+/// access but must not enumerate or toggle the shell).
+#[tauri::command]
+pub async fn tabs_inventory(
+    webview: tauri::Webview,
+    model: tauri::State<'_, ShellModel>,
+    inventory: tauri::State<'_, super::TabInventory>,
+) -> Result<Vec<super::InventoryEntry>, String> {
+    if sender_identity(&webview, &model).await != ROOT_IDENTITY {
+        return Err("tabs_inventory: root identity only".to_string());
+    }
+    Ok(inventory.inventory().await)
+}
+
+/// Toggle one inventory tab. Enabled = intent, persisted forever
+/// (missing = enabled): enabling opens the tab into the CALLING
+/// window, disabling closes the live tab wherever it is (bypassing
+/// strip closability — home tabs retire through here). Permanent
+/// entries refuse. Emits `inventory://changed` so every open tabs
+/// pane live-updates.
+#[tauri::command]
+pub async fn tabs_toggle(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    model: tauri::State<'_, ShellModel>,
+    inventory: tauri::State<'_, super::TabInventory>,
+    identity_key: String,
+    name: String,
+    enabled: bool,
+) -> Result<(), String> {
+    if sender_identity(&webview, &model).await != ROOT_IDENTITY {
+        return Err("tabs_toggle: root identity only".to_string());
+    }
+    let Some(entry) = inventory.entry(&identity_key, &name).await else {
+        return Err(format!("tabs_toggle: unknown tab {identity_key:?}/{name:?}"));
+    };
+    if entry.permanent {
+        return Err(format!("tabs_toggle: {identity_key:?}/{name:?} is permanent"));
+    }
+    if let Err(e) = inventory.set_override(&identity_key, &name, enabled).await {
+        super::report_shell(&app, "error", format!("tabs: persist toggle: {e}")).await;
+    }
+    if enabled {
+        let window = webview.window().label().to_string();
+        open_tab(
+            &app,
+            &window,
+            entry.kind(),
+            entry.title.clone(),
+            entry.closable,
+            entry.icon.clone(),
+        )
+        .await;
+    } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {
+        native::publish(&app, &closed.snapshot, &closed.touched);
+        native::sync(&app).await;
+        if let Some(label) = closed.close_window {
+            if let Some(window) = app.get_window(&label) {
+                let _ = window.close();
+            }
+        }
+    }
+    use tauri::Emitter;
+    let _ = app.emit("inventory://changed", &inventory.inventory().await);
     Ok(())
 }
 

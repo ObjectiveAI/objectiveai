@@ -26,8 +26,6 @@ pub struct InstalledPlugin {
     /// Lowercased `<name>` path segment.
     pub name: String,
     pub version: semver::Version,
-    /// The plugin's viewer root — every manifest path resolves here.
-    pub viewer_dir: PathBuf,
     pub manifest: Manifest,
 }
 
@@ -96,7 +94,6 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
                     owner: owner.clone(),
                     name: name.clone(),
                     version,
-                    viewer_dir: version_dir.join("viewer"),
                     manifest,
                 };
                 match selected.get(&key) {
@@ -130,58 +127,66 @@ fn normalize(path: &str) -> Option<String> {
     Some(format!("/{path}"))
 }
 
-/// Spawned at boot: scan, then open every declared plugin tab into
-/// the boot window, in manifest order. With no plugins installed
-/// this opens nothing.
-pub fn spawn_plugin_loader(app: tauri::AppHandle, plugins_root: PathBuf, window: String) {
-    tauri::async_runtime::spawn(async move {
-        for plugin in scan(&app, &plugins_root).await {
-            let Some(viewer) = &plugin.manifest.viewer else {
-                continue;
-            };
-            // Version INCLUDED — multiple versions can be installed,
-            // and the surface must say which one is actually running.
-            // Slash-joined, mirroring the install path itself
-            // (bin/plugins/<owner>/<name>/<version>).
-            let identity = format!("{}/{}/{}", plugin.owner, plugin.name, plugin.version);
-            let icon = match viewer.icon.as_deref().map(normalize) {
-                Some(None) => {
-                    super::report_shell(
-                        &app,
-                        "warn",
-                        format!("plugins: {identity}: invalid icon path {:?}", viewer.icon),
-                    )
-                    .await;
-                    None
-                }
-                Some(icon) => icon,
-                None => None,
-            };
-            let Some(tabs) = &viewer.tabs else {
-                continue;
-            };
-            for (tab_name, tab) in tabs {
-                let Some(module) = normalize(&tab.module) else {
-                    super::report_shell(
-                        &app,
-                        "warn",
-                        format!(
-                            "plugins: {identity}: tab {tab_name:?}: invalid module path {:?}",
-                            tab.module
-                        ),
-                    )
-                    .await;
-                    continue;
-                };
-                let kind = super::TabKind {
-                    identity: identity.clone(),
-                    module,
-                    export: tab.export.clone(),
-                    arguments: None,
-                };
-                let title = tab.title.clone().unwrap_or_else(|| tab_name.clone());
-                super::open_tab(&app, &window, kind, title, true, icon.clone()).await;
+/// Scan the tree and turn every declared plugin tab into a
+/// [`TabEntry`](super::TabEntry) for the inventory (which owns
+/// opening). With no plugins installed this collects nothing.
+pub(crate) async fn collect_plugin_entries(
+    app: &tauri::AppHandle,
+    plugins_root: &Path,
+) -> Vec<super::TabEntry> {
+    let mut out = Vec::new();
+    for plugin in scan(app, plugins_root).await {
+        let Some(viewer) = &plugin.manifest.viewer else {
+            continue;
+        };
+        // Display identity INCLUDES the version — multiple versions
+        // can be installed, and the surface must say which one is
+        // running. Slash-joined, mirroring the install path itself
+        // (bin/plugins/<owner>/<name>/<version>). The PERSISTENCE
+        // key is version-LESS so toggle state survives upgrades.
+        let identity = format!("{}/{}/{}", plugin.owner, plugin.name, plugin.version);
+        let identity_key = format!("{}/{}", plugin.owner, plugin.name);
+        let icon = match viewer.icon.as_deref().map(normalize) {
+            Some(None) => {
+                super::report_shell(
+                    app,
+                    "warn",
+                    format!("plugins: {identity}: invalid icon path {:?}", viewer.icon),
+                )
+                .await;
+                None
             }
+            Some(icon) => icon,
+            None => None,
+        };
+        let Some(tabs) = &viewer.tabs else {
+            continue;
+        };
+        for (tab_name, tab) in tabs {
+            let Some(module) = normalize(&tab.module) else {
+                super::report_shell(
+                    app,
+                    "warn",
+                    format!(
+                        "plugins: {identity}: tab {tab_name:?}: invalid module path {:?}",
+                        tab.module
+                    ),
+                )
+                .await;
+                continue;
+            };
+            out.push(super::TabEntry {
+                identity: identity.clone(),
+                identity_key: identity_key.clone(),
+                name: tab_name.clone(),
+                title: tab.title.clone().unwrap_or_else(|| tab_name.clone()),
+                module,
+                export: tab.export.clone(),
+                icon: icon.clone(),
+                closable: true,
+                permanent: false,
+            });
         }
-    });
+    }
+    out
 }
