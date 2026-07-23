@@ -80,8 +80,10 @@ export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
 }
 
 /** The root identity's icon — what a plugin's manifest icon is to
- * it. Every objectiveai open call defaults to this. */
-export const OBJECTIVEAI_ICON = "/favicon.svg";
+ * it; every objectiveai open call defaults to this. The white-glyph
+ * variant of the mark (matching the bundled window icon) — the
+ * favicon stays the copper original. */
+export const OBJECTIVEAI_ICON = "/icon.svg";
 
 /** Resolve a tab's identity-root-relative icon path to a URL the
  * CHROME can render. The root identity shares the chrome's origin,
