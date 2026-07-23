@@ -6,6 +6,20 @@ const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(async () => ({
   plugins: [tailwindcss(), react()],
+  // Pre-optimize deps that only DYNAMICALLY-imported tab modules pull
+  // in (the channel-request tab is spawned by Rust, so vite's crawl
+  // never sees it up front). Without this, the first such import
+  // mid-session re-optimizes the dep graph — the importing webview
+  // briefly holds TWO React copies (invalid-hook crash) until vite's
+  // full-reload signal heals it.
+  optimizeDeps: {
+    include: [
+      "@radix-ui/react-collapsible",
+      "react-markdown",
+      "remark-breaks",
+      "remark-gfm",
+    ],
+  },
   // Entries: `index.html` is the CHROME (tab strip + status bar, one
   // per OS window), `tab.html` is the generic CONTENT bootstrap (one
   // child webview per tab, importing whatever module Rust's
