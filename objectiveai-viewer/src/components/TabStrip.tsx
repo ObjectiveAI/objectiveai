@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import cn from "classnames";
 import {
+  tabIconUrl,
   tabsClose,
   tabsDetach,
   tabsMove,
@@ -224,12 +225,16 @@ export function TabStrip({
             )}
           >
             {/* Identity over name, stacked — whose surface this is,
-                then which one. */}
+                then which one; the identity's icon (optional) sits
+                to its left. */}
             <span className={cn("flex", "flex-col", "gap-0.5", "min-w-0")}>
               <span
                 data-tab-identity
                 className={cn(
-                  "truncate",
+                  "flex",
+                  "items-center",
+                  "gap-1",
+                  "min-w-0",
                   // One step below text-xs, derived from the theme
                   // variable by the same ×0.875 ratio tailwind's own
                   // scale steps use (base→sm) — 0.75rem → 0.65625rem.
@@ -238,7 +243,29 @@ export function TabStrip({
                   "text-info-dim",
                 )}
               >
-                {tab.kind.identity}
+                {tabIconUrl(tab) !== undefined && (
+                  <img
+                    data-tab-icon
+                    src={tabIconUrl(tab)}
+                    alt=""
+                    draggable={false}
+                    // A missing/broken icon hides instead of showing
+                    // the broken-image glyph.
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                    className={cn(
+                      "w-2.5",
+                      "h-2.5",
+                      "shrink-0",
+                      "select-none",
+                      "pointer-events-none",
+                    )}
+                  />
+                )}
+                <span className={cn("truncate", "min-w-0")}>
+                  {tab.kind.identity}
+                </span>
               </span>
               <span className={cn("truncate", "min-w-0", "leading-tight")}>
                 {tab.title}

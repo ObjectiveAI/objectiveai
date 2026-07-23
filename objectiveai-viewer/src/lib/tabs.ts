@@ -32,6 +32,9 @@ export interface TabDesc {
   kind: TabKind;
   title: string;
   closable: boolean;
+  /** Optional identity icon, identity-root-relative (resolve with
+   * [`tabIconUrl`]). */
+  icon?: string;
 }
 
 export interface WindowTabs {
@@ -76,13 +79,27 @@ export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
   return tauriInvoke<TabsSnapshot>("tabs_snapshot");
 }
 
+/** The root identity's icon — what a plugin's manifest icon is to
+ * it. Every objectiveai open call defaults to this. */
+export const OBJECTIVEAI_ICON = "/favicon.svg";
+
+/** Resolve a tab's identity-root-relative icon path to a URL the
+ * CHROME can render. The root identity shares the chrome's origin,
+ * so the path serves as-is; a plugin identity's root is its own
+ * origin — prefixing lands here when plugin identities exist. */
+export function tabIconUrl(tab: TabDesc): string | undefined {
+  return tab.icon;
+}
+
 /** Open (or focus) a tab — the SDK helper over the shell's
  * `tabs_open`; the sender's identity is derived Rust-side from THIS
- * webview. */
+ * webview. Every open from OUR code carries the objectiveai icon
+ * unless the caller says otherwise (a plugin passes its manifest
+ * icon — or nothing — through the SDK helper directly). */
 export async function tabsOpen(tab: ViewerOpenTab): Promise<void> {
   const transport = await viewerTransport();
   if (transport !== null) {
-    await openViewerTab(transport, tab);
+    await openViewerTab(transport, { icon: OBJECTIVEAI_ICON, ...tab });
   }
 }
 

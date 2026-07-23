@@ -52,11 +52,13 @@ pub const ROOT_IDENTITY: &str = "objectiveai";
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Tab {
     pub id: u64,
-    // Nested, NOT flattened: `TabKind::Laboratory` has its own `id`
-    // field, which flattening would collide with this struct's.
     pub kind: TabKind,
     pub title: String,
     pub closable: bool,
+    /// Optional identity icon, identity-root-relative — cosmetic,
+    /// like `title` (not part of the dedupe kind).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
 }
 
 /// One window's chrome-driven UI state. Owned by the window (a
@@ -155,12 +157,19 @@ impl Inner {
     /// Tab ids are monotonic and NEVER reused — content-webview
     /// labels (`tab-<id>`) can therefore never collide across a tab's
     /// whole close/reopen life.
-    fn mint_tab(&mut self, kind: TabKind, title: String, closable: bool) -> Tab {
+    fn mint_tab(
+        &mut self,
+        kind: TabKind,
+        title: String,
+        closable: bool,
+        icon: Option<String>,
+    ) -> Tab {
         self.next_tab += 1;
         Tab {
             id: self.next_tab,
             title,
             closable,
+            icon,
             kind,
         }
     }
@@ -243,6 +252,7 @@ impl ShellModel {
         kind: TabKind,
         title: String,
         closable: bool,
+        icon: Option<String>,
         window_alive: impl Fn(&str) -> bool,
     ) -> Opened {
         let mut inner = self.inner.lock().await;
@@ -263,7 +273,7 @@ impl ShellModel {
             // on the caller.
             inner.windows.remove(&label);
         }
-        let tab = inner.mint_tab(kind, title, closable);
+        let tab = inner.mint_tab(kind, title, closable, icon);
         let id = tab.id;
         let ws = inner.windows.entry(caller.to_string()).or_default();
         ws.tabs.push(tab);

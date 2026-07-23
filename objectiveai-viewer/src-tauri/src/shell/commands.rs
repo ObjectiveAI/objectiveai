@@ -35,6 +35,11 @@ pub struct OpenTab {
     /// The chrome seeds the permanent home tabs with `false`.
     #[serde(default)]
     pub closable: Option<bool>,
+    /// OPTIONAL identity icon path, identity-root-relative (same
+    /// validation as `module`). Cosmetic, like `title` — not part of
+    /// the dedupe kind.
+    #[serde(default)]
+    pub icon: Option<String>,
 }
 
 /// What a content webview learns about itself at boot — everything
@@ -104,6 +109,9 @@ pub async fn tabs_open(
     tab: OpenTab,
 ) -> Result<(), String> {
     validate_module(&tab.module)?;
+    if let Some(icon) = &tab.icon {
+        validate_module(icon)?;
+    }
     let identity = sender_identity(&webview, &model).await;
     let kind = TabKind {
         identity,
@@ -118,6 +126,7 @@ pub async fn tabs_open(
             kind,
             tab.title,
             tab.closable.unwrap_or(true),
+            tab.icon,
             |label| app.get_window(label).is_some(),
         )
         .await;

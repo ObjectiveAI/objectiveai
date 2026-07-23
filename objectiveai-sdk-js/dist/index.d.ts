@@ -47064,6 +47064,10 @@ interface ViewerOpenTab {
     arguments?: unknown;
     /** Whether the strip shows a close button (default `true`). */
     closable?: boolean;
+    /** OPTIONAL identity icon, shown beside the identity in the strip
+     * — a path relative to the sender identity's root, same rules as
+     * `module` (a plugin's manifest icon; omit for none). */
+    icon?: string;
 }
 /**
  * Open a viewer tab in the calling window — or focus it, wherever it
