@@ -61,25 +61,13 @@ export function ViewerLogsPane() {
     };
   }, []);
 
-  // DOM order is newest-first; the col-reverse container below flips
-  // it VISUALLY to oldest-at-top with the newest at the bottom.
-  const list = [...entries.values()].sort((a, b) => b.seq - a.seq);
+  // Oldest first, newest at the end — plain document flow (short
+  // content sits at the TOP, and the default scroll position is the
+  // top; no col-reverse trickery, no scroll JS).
+  const list = [...entries.values()].sort((a, b) => a.seq - b.seq);
 
   return (
-    <div
-      className={cn(
-        "flex-1",
-        "min-h-0",
-        "overflow-y-auto",
-        // column-reverse: the browser NATIVELY pins scrollTop=0 to
-        // the bottom — opens at the newest entries and stays pinned
-        // through growth with zero JS; a user scrolling up is off the
-        // pin until they return. (The ConversationView pattern.)
-        "flex",
-        "flex-col-reverse",
-        "[overflow-anchor:none]",
-      )}
-    >
+    <div className={cn("flex-1", "min-h-0", "overflow-y-auto")}>
       {list.length === 0 && (
         <div
           className={cn(
@@ -111,7 +99,6 @@ function LogRow({ entry }: { entry: LogEntry }) {
     <div
       data-log-row
       className={cn(
-        "shrink-0",
         "px-4",
         "py-1.5",
         "border-b",
