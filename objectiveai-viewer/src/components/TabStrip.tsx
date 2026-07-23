@@ -138,7 +138,16 @@ export function TabStrip({
     const g = gesture.current;
     g?.cleanup();
     gesture.current = null;
+    // Swallow the drag's own trailing click — which, when it fires
+    // at all, dispatches synchronously in the same pointerup burst.
+    // The timeout DISARMS the flag right after, because the trailing
+    // click is not guaranteed (dropping with the pointer over a
+    // DIFFERENT tab produces none) and a stuck flag would eat the
+    // user's next real click.
     suppressClick.current = true;
+    setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
     if (!g || g.detached) return;
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -197,6 +206,7 @@ export function TabStrip({
         onDragCancel={() => {
           gesture.current?.cleanup();
           gesture.current = null;
+          suppressClick.current = false;
         }}
       >
         <SortableContext
