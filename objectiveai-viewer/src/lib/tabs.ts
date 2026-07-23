@@ -109,13 +109,17 @@ export async function tabsOpen(tab: ViewerOpenTab): Promise<void> {
  * this once, when the whole model holds zero tabs), then hand focus
  * back to the first of them. */
 export async function seedHomeTabs(): Promise<void> {
-  for (const stem of HOME_TABS) {
-    await tabsOpen({
-      module: builtinTabModule(stem),
-      title: stem,
-      closable: false,
-    });
-  }
+  // All four in PARALLEL — sequential awaits would gate each tab
+  // behind the previous open's round trip.
+  await Promise.all(
+    HOME_TABS.map((stem) =>
+      tabsOpen({
+        module: builtinTabModule(stem),
+        title: stem,
+        closable: false,
+      }),
+    ),
+  );
   // Each open activated its own tab — re-activate the FIRST home
   // tab (it lives in this chrome's window; select acts there).
   const snapshot = await tabsSnapshot();
