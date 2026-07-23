@@ -230,7 +230,10 @@ export function TabStrip({
                 data-tab-identity
                 className={cn(
                   "truncate",
-                  "text-xs",
+                  // One step below text-xs, derived from the theme
+                  // variable by the same ×0.875 ratio tailwind's own
+                  // scale steps use (base→sm) — 0.75rem → 0.65625rem.
+                  "text-[length:calc(var(--text-xs)*0.875)]",
                   "leading-none",
                   "text-info-dim",
                 )}
