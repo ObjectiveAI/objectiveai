@@ -940,51 +940,72 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
     return <RemoteDefinition remote={agent} />;
   }
   return (
-    // A regular badge chip, just BIGGER: identical border, padding,
-    // and tint — the label meets the top-left exactly like every
-    // other badge, and the box simply extends to hold the JSON.
+    // The width-clamp sleeve: `w-0` makes the definition contribute
+    // NOTHING to the agent box's intrinsic width (the box sizes to
+    // its next-widest row instead), and `min-w-full` stretches the
+    // sleeve back to whatever width those rows resolved — so a long
+    // inline JSON wraps to the box, never widens it.
     <div
       className={cn(
+        "w-0",
+        "min-w-full",
         "flex",
         "flex-col",
         "items-start",
-        "self-start",
         "mt-1",
         "first:mt-0",
-        "rounded-sm",
-        "border",
-        "border-copper-mid/70",
-        // The label's tint clips to the border at the top-left.
-        "overflow-hidden",
-        "text-sm",
-        "text-copper-bright",
       )}
     >
-      <span
+      {/* A regular badge chip, just BIGGER: identical border,
+          padding, and tint — the label meets the top-left exactly
+          like every other badge, and the box extends to hold the
+          JSON, hugging it up to the sleeve's bound. */}
+      <div
         className={cn(
-          "px-1.5",
-          "py-px",
-          "text-xs",
-          "bg-copper-warm/10",
-          "rounded-br-sm",
+          "max-w-full",
+          "flex",
+          "flex-col",
+          "items-start",
+          "rounded-sm",
+          "border",
+          "border-copper-mid/70",
+          // The label's tint clips to the border at the top-left.
+          "overflow-hidden",
+          "text-sm",
+          "text-copper-bright",
         )}
       >
-        inline
-      </span>
-      <pre
-        data-agent-definition
-        className={cn(
-          "text-xs",
-          "text-[#c3bfbb]",
-          "text-left",
-          "whitespace-pre",
-          "leading-snug",
-          "px-1.5",
-          "py-1",
-        )}
-      >
-        {formatDefinition(agent)}
-      </pre>
+        <span
+          className={cn(
+            "px-1.5",
+            "py-px",
+            "text-xs",
+            "bg-copper-warm/10",
+            "rounded-br-sm",
+          )}
+        >
+          inline
+        </span>
+        <pre
+          data-agent-definition
+          className={cn(
+            "max-w-full",
+            "text-xs",
+            "text-[#c3bfbb]",
+            "text-left",
+            // Wrap (the node box sets nowrap): pretty-printed lines
+            // keep their newlines/indentation, long lines fold, and
+            // unbreakable tokens (ids, base64) break mid-word.
+            "whitespace-pre-wrap",
+            "break-words",
+            "leading-snug",
+            "px-1.5",
+            "py-1",
+          )}
+        >
+          {formatDefinition(agent)}
+        </pre>
+      </div>
     </div>
   );
 }
