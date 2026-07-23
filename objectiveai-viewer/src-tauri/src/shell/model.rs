@@ -471,6 +471,14 @@ impl ShellModel {
         Some(inner.windows[&label].tabs[idx].title.clone())
     }
 
+    /// `window`'s ACTIVE tab id (`None` = unknown window or none) —
+    /// the resize relayout's one cheap read.
+    pub async fn active_tab(&self, window: &str) -> Option<u64> {
+        let inner = self.inner.lock().await;
+        let ws = inner.windows.get(window)?;
+        (ws.active != 0).then_some(ws.active)
+    }
+
     /// `window`'s UI state (defaults for unknown windows).
     pub async fn ui_for_window(&self, window: &str) -> UiState {
         let inner = self.inner.lock().await;

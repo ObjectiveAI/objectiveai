@@ -299,13 +299,17 @@ pub fn serve(
                     });
                 }
                 // Keep the content webviews' rect glued to the strip
-                // and status-bar bands. Inline (no model lock): a
-                // pure relayout of whatever is already placed.
-                tauri::WindowEvent::Resized(_) => {
-                    crate::shell::layout_window(app_handle, &label);
-                }
-                tauri::WindowEvent::ScaleFactorChanged { .. } => {
-                    crate::shell::layout_window(app_handle, &label);
+                // and status-bar bands. Spawned: the relayout reads
+                // the MODEL (tokio mutex — this closure is
+                // synchronous on the runtime thread) for which tab
+                // is active vs parked, and recomputes the rect from
+                // the window's CURRENT size so late tasks converge.
+                tauri::WindowEvent::Resized(_)
+                | tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                    tauri::async_runtime::spawn(crate::shell::layout_window(
+                        app_handle.clone(),
+                        label,
+                    ));
                 }
                 _ => {}
             }

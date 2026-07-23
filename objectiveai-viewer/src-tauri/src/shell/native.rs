@@ -80,12 +80,11 @@ fn content_rect(window: &tauri::Window) -> Option<tauri::Rect> {
 /// bounds, so the first `show()` painted a stale tiny-viewport
 /// layout (the "small width flicker"). A parked webview stays live
 /// and correctly laid out at all times, and activation is a pure
-/// MOVE — which cannot reflow.
+/// MOVE — which cannot reflow. Parked-ness is always decided from
+/// the MODEL, never inferred from webview geometry (a position()
+/// heuristic mis-read child webviews and un-parked everything on
+/// resize).
 const PARK_Y_LOGICAL: f64 = 100_000.0;
-
-/// Detection threshold for "is currently parked", in PHYSICAL px —
-/// generously below the logical offset at any plausible scale.
-const PARK_Y_PHYSICAL_THRESHOLD: i32 = 50_000;
 
 /// `rect`, displaced to the parking position (same size).
 fn parked(rect: &tauri::Rect) -> tauri::Rect {
@@ -223,24 +222,28 @@ pub async fn sync(app: &tauri::AppHandle) {
 }
 
 /// Re-bound one window's content webviews (Resized /
-/// ScaleFactorChanged — high-frequency, so no model lock and no
-/// reconcile: purely a relayout of whatever is already placed).
-/// Parked webviews STAY parked (detected by their current position,
-/// so no model read is needed) but track the new size — their layout
-/// is always current, which is the whole point of parking.
-pub fn layout_window(app: &tauri::AppHandle, label: &str) {
-    let Some(window) = app.get_window(label) else {
+/// ScaleFactorChanged). Which tab is active — and therefore in the
+/// content rect vs parked — comes from the MODEL; the rect comes
+/// from the window's CURRENT size (not the event payload), so even
+/// out-of-order resize tasks converge on the truth. Serialized on
+/// the reconciler's mutex to order against concurrent syncs.
+pub async fn layout_window(app: tauri::AppHandle, label: String) {
+    let sync_state = app.state::<WebviewSync>();
+    let _guard = sync_state.0.lock().await;
+    let active = app.state::<ShellModel>().active_tab(&label).await;
+    let Some(window) = app.get_window(&label) else {
         return;
     };
     let Some(rect) = content_rect(&window) else {
         return;
     };
     for webview in window.webviews() {
-        if tab_id(webview.label()).is_some() {
-            let is_parked = webview
-                .position()
-                .is_ok_and(|p| p.y > PARK_Y_PHYSICAL_THRESHOLD);
-            let _ = webview.set_bounds(if is_parked { parked(&rect) } else { rect });
+        if let Some(id) = tab_id(webview.label()) {
+            let _ = webview.set_bounds(if Some(id) == active {
+                rect
+            } else {
+                parked(&rect)
+            });
         }
     }
 }
