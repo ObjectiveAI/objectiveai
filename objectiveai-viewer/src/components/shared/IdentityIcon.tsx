@@ -24,6 +24,19 @@ function sanitizeSvg(svg: string): string {
     .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "");
 }
 
+/** The CONTAINER is the sizing authority: strip the root svg's own
+ * width/height/style (an inline style would beat our utility
+ * classes), so every icon renders at exactly the box the caller
+ * sets — the viewBox only decides how the artwork letterboxes
+ * inside it (centered, aspect preserved). */
+function normalizeSvgRoot(svg: string): string {
+  return svg.replace(/<svg\b[^>]*>/i, (tag) =>
+    tag
+      .replace(/\s(?:width|height|style)\s*=\s*"[^"]*"/gi, "")
+      .replace(/\s(?:width|height|style)\s*=\s*'[^']*'/gi, ""),
+  );
+}
+
 /** The URL's sanitized SVG text, or `null` when it isn't SVG (or
  * isn't fetchable) — the `<img>` fallback path. */
 function fetchSvg(url: string): Promise<string | null> {
@@ -38,7 +51,7 @@ function fetchSvg(url: string): Promise<string | null> {
         if (!type.includes("svg") && !text.trimStart().startsWith("<svg")) {
           return null;
         }
-        return sanitizeSvg(text);
+        return normalizeSvgRoot(sanitizeSvg(text));
       } catch {
         return null;
       }
@@ -81,7 +94,15 @@ export function IdentityIcon({
         onError={(e) => {
           e.currentTarget.style.display = "none";
         }}
-        className={cn("select-none", "pointer-events-none", className)}
+        // object-contain: the raster fits INSIDE the fixed box,
+        // centered, never stretched — the img twin of the svg
+        // letterboxing.
+        className={cn(
+          "object-contain",
+          "select-none",
+          "pointer-events-none",
+          className,
+        )}
       />
     );
   }
