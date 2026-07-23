@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import cn from "classnames";
+import { IdentityIcon } from "./shared/IdentityIcon";
 import {
   tabIconUrl,
   tabsClose,
@@ -241,23 +242,12 @@ export function TabStrip({
                 )}
               >
                 {tabIconUrl(tab) !== undefined && (
-                  <img
-                    data-tab-icon
-                    src={tabIconUrl(tab)}
-                    alt=""
-                    draggable={false}
-                    // A missing/broken icon hides instead of showing
-                    // the broken-image glyph.
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                    className={cn(
-                      "w-2.5",
-                      "h-2.5",
-                      "shrink-0",
-                      "select-none",
-                      "pointer-events-none",
-                    )}
+                  // Inlined when SVG: explicit fills render as
+                  // authored; currentColor inherits this line's
+                  // color — the icon chooses.
+                  <IdentityIcon
+                    url={tabIconUrl(tab)!}
+                    className={cn("w-2.5", "h-2.5", "shrink-0")}
                   />
                 )}
                 <span className={cn("truncate", "min-w-0")}>
