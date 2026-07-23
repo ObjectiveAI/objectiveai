@@ -24,22 +24,24 @@ pub async fn insert_channel(
     owner_secret: &str,
     key: &str,
     details: &serde_json::Value,
+    message: &str,
     plugin: &PluginOrigin<'_>,
     agent_arguments: &AgentArguments,
 ) -> Result<(), Error> {
     let now = chrono::Utc::now().timestamp();
     sqlx::query(
         "INSERT INTO objectiveai.channels \
-         (id, pub_secret, owner_secret, state, key, details, \
+         (id, pub_secret, owner_secret, state, key, details, message, \
           plugin_owner, plugin_name, plugin_version, agent_arguments, \
           pub_read_index, owner_read_index, created_at) \
-         VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, 0, 0, $10)",
+         VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, $10, 0, 0, $11)",
     )
     .bind(id)
     .bind(pub_secret)
     .bind(owner_secret)
     .bind(key)
     .bind(sqlx::types::Json(details))
+    .bind(message)
     .bind(plugin.owner)
     .bind(plugin.name)
     .bind(plugin.version)

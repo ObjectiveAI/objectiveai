@@ -15,6 +15,10 @@ use objectiveai_sdk::cli::command::channels::publish::{Request, Response};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
+/// Maximum length of the offer message, in characters of the raw
+/// (unescaped) string.
+const MAX_MESSAGE_CHARS: usize = 512;
+
 /// Withdraws the offer on drop unless disarmed — armed across the whole
 /// accept wait.
 struct AbandonGuard {
@@ -49,10 +53,20 @@ pub async fn execute(
     // the trio is stored as the channel's origin and surfaces as the
     // required plugin identity on every `request` log entry.
     super::require_plugin(scoped, "publish")?;
+    // The message caps at 512 CHARACTERS of the raw (unescaped)
+    // string — enforced here so wire callers (who bypass the CLI's
+    // clap parse) are held to it too.
+    let message_len = request.message.chars().count();
+    if message_len > MAX_MESSAGE_CHARS {
+        return Err(Error::Channel(format!(
+            "message exceeds {MAX_MESSAGE_CHARS} characters (got {message_len})"
+        )));
+    }
     let identity = super::scope_identity(scoped);
     let (channel_id, secret, rx) = hubs.channels.create_offer(
         request.key,
         request.details,
+        request.message,
         scoped.plugin_owner().map(String::from),
         scoped.plugin_name().map(String::from),
         scoped.plugin_version().map(String::from),

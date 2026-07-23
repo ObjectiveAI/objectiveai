@@ -56,6 +56,7 @@ struct Offer {
     // accepted.
     key: String,
     details: serde_json::Value,
+    message: String,
     plugin_owner: Option<String>,
     plugin_name: Option<String>,
     plugin_version: Option<String>,
@@ -141,6 +142,7 @@ impl ChannelHub {
         &self,
         key: String,
         details: serde_json::Value,
+        message: String,
         plugin_owner: Option<String>,
         plugin_name: Option<String>,
         plugin_version: Option<String>,
@@ -157,6 +159,7 @@ impl ChannelHub {
                 agent_arguments: agent_arguments.clone(),
                 key: key.clone(),
                 details: details.clone(),
+                message: message.clone(),
             },
         });
         let (accept_tx, accept_rx) = oneshot::channel();
@@ -166,6 +169,7 @@ impl ChannelHub {
             offer_frame,
             key,
             details,
+            message,
             plugin_owner,
             plugin_name,
             plugin_version,
@@ -234,6 +238,7 @@ impl ChannelHub {
             &owner_secret,
             &offer.key,
             &offer.details,
+            &offer.message,
             &crate::db::channels::PluginOrigin {
                 owner: offer.plugin_owner.as_deref(),
                 name: offer.plugin_name.as_deref(),

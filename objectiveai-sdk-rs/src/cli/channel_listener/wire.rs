@@ -51,6 +51,8 @@ pub struct ChannelOffer {
     pub key: String,
     /// Arbitrary offer payload, opaque to the daemon.
     pub details: serde_json::Value,
+    /// Human-readable offer message, opaque to the daemon.
+    pub message: String,
 }
 
 /// One frame on the `GET /channels` SSE stream.

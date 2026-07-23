@@ -1379,6 +1379,8 @@ CREATE TABLE IF NOT EXISTS objectiveai.channels (
     -- The offer discriminator + payload the publisher broadcast.
     key               TEXT   NOT NULL,
     details           JSONB  NOT NULL,
+    -- Human-readable offer message the publisher broadcast.
+    message           TEXT   NOT NULL,
     -- The originating plugin (unspoofable; stamped by `plugins run`),
     -- absent when the caller wasn't a plugin.
     plugin_owner      TEXT,
