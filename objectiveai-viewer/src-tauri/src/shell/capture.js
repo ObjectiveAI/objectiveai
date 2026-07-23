@@ -30,36 +30,6 @@
     return false;
   }
 
-  // Belt-and-braces for feedback shapes the pattern list doesn't
-  // know: at most RATE_MAX entries per window; past it, drop (with
-  // ONE marker line) until the window rolls. A loop then decays
-  // instead of sustaining.
-  var RATE_WINDOW_MS = 10000;
-  var RATE_MAX = 200;
-  var rateStart = 0;
-  var rateCount = 0;
-  var rateMarked = false;
-  function rateAllow() {
-    var now = Date.now();
-    if (now - rateStart > RATE_WINDOW_MS) {
-      rateStart = now;
-      rateCount = 0;
-      rateMarked = false;
-    }
-    rateCount++;
-    if (rateCount <= RATE_MAX) return true;
-    if (!rateMarked) {
-      rateMarked = true;
-      enqueue({
-        level: "warn",
-        message:
-          "capture: rate limit — dropping further entries this window",
-        detail: null,
-      });
-    }
-    return false;
-  }
-
   function invoke(entry) {
     var internals = window.__TAURI_INTERNALS__;
     if (!internals || typeof internals.invoke !== "function") return false;
@@ -89,22 +59,18 @@
     }, 50);
   }
 
-  function enqueue(entry) {
+  function send(level, message, detail) {
+    if (isMachinery(message)) return;
+    var entry = {
+      level: level,
+      message: message,
+      detail: detail == null ? null : detail,
+    };
     if (pending.length > 0 || !invoke(entry)) {
       // Keep ORDER: once anything is queued, everything queues.
       if (pending.length < 500) pending.push(entry);
       drain();
     }
-  }
-
-  function send(level, message, detail) {
-    if (isMachinery(message)) return;
-    if (!rateAllow()) return;
-    enqueue({
-      level: level,
-      message: message,
-      detail: detail == null ? null : detail,
-    });
   }
 
   function fmt(value) {
