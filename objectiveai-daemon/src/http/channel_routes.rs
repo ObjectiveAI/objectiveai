@@ -1,48 +1,45 @@
-//! The daemon's `/channels` endpoint — DUPLEX CHANNELS: a publisher
-//! offers a channel, the first connected SSE client to ACCEPT owns it,
-//! and the two exchange messages over a durable per-channel log
-//! (`channels logs …`, backed by [`crate::db::channels`]).
+//! The daemon's `/channels` endpoints — DUPLEX CHANNELS: a publisher
+//! offers a channel, the first client to OPEN the channel's stream
+//! ACCEPTS and owns it, and the two exchange messages over a durable
+//! per-channel log (`channels logs …`, backed by
+//! [`crate::db::channels`]).
 //!
 //! [`ChannelHub`] holds only the LIVE, in-memory coordination — the
 //! durable channel record + message log live in Postgres. Its state:
 //!
-//! - **connections** — every `GET /channels` stream, keyed by a hub
-//!   id, each with its own mpsc sender and a per-connection secret
-//!   (`S_conn`) sent as the stream's FIRST frame. `conn_by_secret`
-//!   indexes `S_conn → id` for accept lookup.
+//! - **connections** — every `GET /channels` stream (the OFFER
+//!   lifecycle feed), keyed by a hub id. No secrets: the base stream
+//!   carries offers, withdrawals, and the `live` marker, nothing else.
 //! - **offers** — the PENDING (pre-accept) offers, keyed by channel
 //!   id. An offer carries everything needed to persist the channel on
 //!   accept, plus the arbitration oneshot the blocked `channels
 //!   publish` command awaits and the audience set for its withdrawal.
-//! - **owner_conns** — `conn_id → owned channel ids`, so dropping a
-//!   connection can CLOSE every channel it owns (terminal — the
-//!   publisher's next write/subscribe learns it).
 //!
-//! Secret flow: `S_conn` is minted per connection and sent over its
-//! SSE; `S_pub` is minted at offer time and returned to the publisher's
-//! command; `S_owner` is minted on accept and pushed ONLY down the
-//! accepting connection's SSE (never in the accept POST response) —
-//! binding the capability to the actual stream holder even if `S_conn`
-//! leaks.
+//! `GET /channels/{id}` is the PER-CHANNEL stream:
+//! - **Accept** (no `X-OBJECTIVEAI-CHANNEL-SECRET` header): opening a
+//!   PENDING offer's stream IS the accept (first-wins). The first
+//!   frame delivers `S_owner`; the stream is the channel's LIVENESS
+//!   ANCHOR — its drop closes the channel (terminal).
+//! - **Observer** (header = `S_pub` or `S_owner`): silent until the
+//!   channel closes, then one `closed` frame and the stream ends.
+//!   Observer drops close nothing.
+//!
+//! Secret flow: `S_pub` is minted at offer time and returned to the
+//! publisher's command; `S_owner` is minted on accept and delivered as
+//! the accepting stream's FIRST frame — capability and channel life
+//! ride the same connection by construction.
 
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::response::sse::{Event, Sse};
 use dashmap::DashMap;
-use objectiveai_sdk::cli::command::AgentArguments;
 use objectiveai_sdk::cli::channel_listener::{
-    ChannelAccept, ChannelAcceptOutcome, ChannelEvent, ChannelOffer,
+    ChannelEvent, ChannelOffer, ChannelStreamEvent,
 };
+use objectiveai_sdk::cli::command::AgentArguments;
 use tokio::sync::{mpsc, oneshot};
-
-/// One live `GET /channels` connection.
-struct Connection {
-    /// This connection's secret (`S_conn`).
-    secret: String,
-    sender: mpsc::UnboundedSender<String>,
-}
 
 /// One PENDING (pre-accept) channel offer.
 struct Offer {
@@ -75,40 +72,40 @@ impl Default for ChannelHub {
     }
 }
 
+/// Why an accept-open failed.
+pub enum AcceptOpenError {
+    /// No pending offer AND no channel row — unknown or withdrawn id.
+    NotFound,
+    /// The offer is gone but the channel exists (open or closed) —
+    /// someone else already accepted.
+    AlreadyAccepted,
+    /// Persisting the channel failed.
+    Db(crate::db::Error),
+}
+
 /// The channels hub — see the module docs. Clone-shared.
 #[derive(Clone)]
 pub struct ChannelHub {
-    connections: Arc<DashMap<u64, Connection>>,
-    conn_by_secret: Arc<DashMap<String, u64>>,
+    connections: Arc<DashMap<u64, mpsc::UnboundedSender<String>>>,
     next_connection_id: Arc<AtomicU64>,
     offers: Arc<DashMap<String, Arc<Offer>>>,
-    owner_conns: Arc<DashMap<u64, HashSet<String>>>,
 }
 
 impl ChannelHub {
     pub fn new() -> Self {
         Self {
             connections: Arc::new(DashMap::new()),
-            conn_by_secret: Arc::new(DashMap::new()),
             next_connection_id: Arc::new(AtomicU64::new(1)),
             offers: Arc::new(DashMap::new()),
-            owner_conns: Arc::new(DashMap::new()),
         }
     }
 
-    /// Register a `GET /channels` connection: allocate its id, mint its
-    /// `S_conn`, send that as the FIRST frame, replay every open offer,
-    /// then send [`ChannelEvent::Live`].
+    /// Register a `GET /channels` connection: allocate its id, replay
+    /// every open offer, then send [`ChannelEvent::Live`].
     fn register_connection(&self) -> (u64, mpsc::UnboundedReceiver<String>) {
         let id = self.next_connection_id.fetch_add(1, Ordering::Relaxed);
-        let secret = uuid::Uuid::new_v4().to_string();
         let (tx, rx) = mpsc::unbounded_channel();
-        // The connection secret is ALWAYS the first frame.
-        let _ = tx.send(frame(&ChannelEvent::Connection {
-            secret: secret.clone(),
-        }));
-        self.conn_by_secret.insert(secret.clone(), id);
-        self.connections.insert(id, Connection { secret, sender: tx.clone() });
+        self.connections.insert(id, tx.clone());
         // Replay every open offer to the fresh connection.
         for offer in self.offers.iter() {
             let mut offered_to = offer.offered_to.lock().expect("offered_to lock");
@@ -120,18 +117,10 @@ impl ChannelHub {
         (id, rx)
     }
 
-    /// Drop a closed connection: remove it + its secret index + its
-    /// ownership set, returning the channel ids it OWNED so the caller
-    /// can close them in the DB. Stale ids left in offers' `offered_to`
-    /// sets are harmless — their sends go nowhere.
-    fn unregister_connection(&self, id: u64) -> Vec<String> {
-        if let Some((_, connection)) = self.connections.remove(&id) {
-            self.conn_by_secret.remove(&connection.secret);
-        }
-        self.owner_conns
-            .remove(&id)
-            .map(|(_, set)| set.into_iter().collect())
-            .unwrap_or_default()
+    /// Drop a closed connection. Stale ids left in offers'
+    /// `offered_to` sets are harmless — their sends go nowhere.
+    fn unregister_connection(&self, id: u64) {
+        self.connections.remove(&id);
     }
 
     /// Create a pending offer and fan it out to every current
@@ -181,7 +170,7 @@ impl ChannelHub {
         for connection in self.connections.iter() {
             let mut offered_to = offer.offered_to.lock().expect("offered_to lock");
             if offered_to.insert(*connection.key()) {
-                let _ = connection.value().sender.send(offer.offer_frame.clone());
+                let _ = connection.value().send(offer.offer_frame.clone());
             }
         }
         (channel_id, pub_secret, accept_rx)
@@ -200,23 +189,25 @@ impl ChannelHub {
         });
     }
 
-    /// Accept an offer: validate `S_conn` → arbitrate → persist the
-    /// channel → push `S_owner` over the accepting connection's SSE →
-    /// unblock the publisher. `Ok` carries the wire outcome (never a
-    /// secret); `Err` is a DB failure (the handler 500s).
-    pub async fn accept(
+    /// The first-wins ACCEPT, driven by a `GET /channels/{id}` open:
+    /// arbitrate the offer's oneshot → mint `S_owner` → persist the
+    /// channel → unblock the publisher → withdraw the offer from every
+    /// connection that saw it. Returns `S_owner`; the caller's stream
+    /// delivers it as the first frame and anchors the channel's life.
+    pub async fn accept_open(
         &self,
         pool: &crate::db::Pool,
-        conn_secret: &str,
         channel_id: &str,
-    ) -> Result<ChannelAcceptOutcome, crate::db::Error> {
-        let Some(conn_id) = self.conn_by_secret.get(conn_secret).map(|e| *e.value())
-        else {
-            return Ok(ChannelAcceptOutcome::UnknownConnection);
-        };
+    ) -> Result<String, AcceptOpenError> {
         let Some(offer) = self.offers.get(channel_id).map(|e| Arc::clone(e.value()))
         else {
-            return Ok(ChannelAcceptOutcome::NotFound);
+            // No pending offer: an existing channel row means someone
+            // already accepted; nothing at all means unknown/withdrawn.
+            return match crate::db::channels::channel_state(pool, channel_id).await {
+                Ok(Some(_)) => Err(AcceptOpenError::AlreadyAccepted),
+                Ok(None) => Err(AcceptOpenError::NotFound),
+                Err(e) => Err(AcceptOpenError::Db(e)),
+            };
         };
         // Arbitrate: the first accept takes the oneshot. Take it out
         // under the sync lock, then do all async work lock-free.
@@ -224,14 +215,14 @@ impl ChannelHub {
             let mut slot = offer.accept.lock().expect("accept lock");
             match slot.take() {
                 Some(sender) => sender,
-                None => return Ok(ChannelAcceptOutcome::AlreadyAccepted),
+                None => return Err(AcceptOpenError::AlreadyAccepted),
             }
         };
         let owner_secret = uuid::Uuid::new_v4().to_string();
         // Persist the channel BEFORE unblocking publish — if this
         // fails, `winner` drops without firing, so publish sees the
         // offer as abandoned rather than succeeding against no row.
-        crate::db::channels::insert_channel(
+        if let Err(e) = crate::db::channels::insert_channel(
             pool,
             channel_id,
             &offer.pub_secret,
@@ -246,35 +237,22 @@ impl ChannelHub {
             },
             &offer.agent_arguments,
         )
-        .await?;
-        // Record ownership so a connection drop closes this channel.
-        self.owner_conns
-            .entry(conn_id)
-            .or_default()
-            .insert(channel_id.to_string());
+        .await
+        {
+            return Err(AcceptOpenError::Db(e));
+        }
         // The offer is consumed.
         self.offers.remove(channel_id);
-        // Push S_owner ONLY to the accepting connection's stream.
-        if let Some(connection) = self.connections.get(&conn_id) {
-            let _ = connection.sender.send(frame(&ChannelEvent::OwnerSecret {
-                channel_id: channel_id.to_string(),
-                secret: owner_secret,
-            }));
-        }
-        // Unblock the publisher's command.
+        // Unblock the publisher's command (the row exists — it may
+        // immediately write requests).
         let _ = winner.send(());
-        // Everyone else who saw the offer learns it's gone.
-        let mut offered_to = offer.offered_to.lock().expect("offered_to lock");
-        offered_to.remove(&conn_id);
-        let withdrawn = frame(&ChannelEvent::OfferWithdrawn {
+        // Every connection that saw the offer learns it's gone — the
+        // accepter's own base listener included (correct: the offer IS
+        // gone; the fold drops it from the pending map).
+        self.notify_offered(&offer, &ChannelEvent::OfferWithdrawn {
             channel_id: channel_id.to_string(),
         });
-        for other in offered_to.iter() {
-            if let Some(connection) = self.connections.get(other) {
-                let _ = connection.sender.send(withdrawn.clone());
-            }
-        }
-        Ok(ChannelAcceptOutcome::Accepted)
+        Ok(owner_secret)
     }
 
     /// Send one event to exactly the connections that saw `offer`.
@@ -283,44 +261,71 @@ impl ChannelHub {
         let offered_to = offer.offered_to.lock().expect("offered_to lock");
         for id in offered_to.iter() {
             if let Some(connection) = self.connections.get(id) {
-                let _ = connection.sender.send(payload.clone());
+                let _ = connection.send(payload.clone());
             }
         }
     }
 }
 
-/// Serialize one [`ChannelEvent`] to its SSE frame string.
-fn frame(event: &ChannelEvent) -> String {
-    serde_json::to_string(event).expect("ChannelEvent serializes")
+/// Serialize one wire event to its SSE frame string.
+fn frame<T: serde::Serialize>(event: &T) -> String {
+    serde_json::to_string(event).expect("wire event serializes")
 }
 
-/// RAII: dropping the SSE stream (client gone) closes every channel
-/// the connection owned. The DB close is async, so it runs in a
-/// spawned task — the trigger's NOTIFY wakes any blocked subscriber.
+/// RAII on the base `GET /channels` stream: dropping it unregisters
+/// the connection. Nothing else — the base stream owns no channels.
 struct ConnectionGuard {
     hub: ChannelHub,
     id: u64,
-    pool: crate::db::Pool,
 }
 
 impl Drop for ConnectionGuard {
     fn drop(&mut self) {
-        let owned = self.hub.unregister_connection(self.id);
-        if owned.is_empty() {
-            return;
-        }
+        self.hub.unregister_connection(self.id);
+    }
+}
+
+/// RAII on an ACCEPT-mode per-channel stream: dropping it closes the
+/// channel (terminal, idempotent). The DB close is async, so it runs
+/// in a spawned task — the trigger's NOTIFY wakes any blocked
+/// subscriber/observer.
+struct ChannelCloseGuard {
+    pool: crate::db::Pool,
+    channel_id: String,
+}
+
+impl Drop for ChannelCloseGuard {
+    fn drop(&mut self) {
         let pool = self.pool.clone();
+        let channel_id = std::mem::take(&mut self.channel_id);
         tokio::spawn(async move {
-            for channel_id in owned {
-                let _ = crate::db::channels::close_channel(&pool, &channel_id).await;
-            }
+            let _ = crate::db::channels::close_channel(&pool, &channel_id).await;
         });
     }
 }
 
+/// Resolve when the channel is (or becomes) closed/absent. The LISTEN
+/// is attached BEFORE the state check (the `channels logs subscribe`
+/// pattern), so a close landing between the check and the wait is
+/// never lost. Message NOTIFYs wake the loop harmlessly — it just
+/// re-checks state.
+async fn closed_wait(
+    pool: &crate::db::Pool,
+    channel_id: &str,
+) -> Result<(), crate::db::Error> {
+    let mut listener = crate::db::channels::channel_event_listener(pool).await?;
+    loop {
+        match crate::db::channels::channel_state(pool, channel_id).await? {
+            Some(crate::db::channels::ChannelState::Open) => {}
+            Some(crate::db::channels::ChannelState::Closed) | None => return Ok(()),
+        }
+        crate::db::channels::recv_channel_event(&mut listener, channel_id).await?;
+    }
+}
+
 /// `GET /channels`: header-auth, then an SSE stream of
-/// [`ChannelEvent`]s — the connection secret first, offer replay next,
-/// live traffic after.
+/// [`ChannelEvent`]s — offer replay, the `live` marker, then live
+/// offers and withdrawals. No DB involved.
 pub(crate) async fn channels_handler(
     axum::extract::State(state): axum::extract::State<
         crate::http::daemon_stream::DaemonHttpState,
@@ -334,22 +339,10 @@ pub(crate) async fn channels_handler(
     ) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
-    // Channels need the DB (accept persists, drop closes). Resolve the
-    // pool up front so the connection guard can close on drop.
-    let pool = match state.global.db_client().await {
-        Ok(pool) => pool,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::SERVICE_UNAVAILABLE,
-                format!("channels db: {e}"),
-            )
-                .into_response();
-        }
-    };
     let hub = state.channels.clone();
     let (id, mut rx) = hub.register_connection();
     let stream = async_stream::stream! {
-        let _guard = ConnectionGuard { hub, id, pool };
+        let _guard = ConnectionGuard { hub, id };
         while let Some(frame) = rx.recv().await {
             yield Ok::<_, std::convert::Infallible>(Event::default().data(frame));
         }
@@ -357,17 +350,26 @@ pub(crate) async fn channels_handler(
     Sse::new(stream).into_response()
 }
 
-/// `POST /channels/{id}/accept`: header-auth, [`ChannelAccept`] body
-/// (the caller's `S_conn`). Answers with a [`ChannelAcceptOutcome`]
-/// JSON body (NO secret); the status mirrors it (200 accepted /
-/// 409 already accepted / 404 unknown offer / 401 unknown connection).
-pub(crate) async fn channels_accept_handler(
+/// `GET /channels/{id}`: the per-channel stream. Header-auth first,
+/// then mode by the `X-OBJECTIVEAI-CHANNEL-SECRET` header:
+///
+/// - **absent = ACCEPT-OPEN**: first-wins accept of the pending offer
+///   ([`ChannelHub::accept_open`]). First frame =
+///   [`ChannelStreamEvent::Secret`] (`S_owner`); the stream anchors
+///   the channel — its drop closes it. Statuses: 404 unknown or
+///   withdrawn id; 409 already accepted (including "channel exists,
+///   no secret presented"); 500 DB.
+/// - **present = OBSERVER**: the secret must match a role
+///   (`role_of`, 401 otherwise; 404 unknown id). Silent until the
+///   channel closes → one [`ChannelStreamEvent::Closed`] → end
+///   (immediate on an already-closed channel). Observer drops close
+///   nothing.
+pub(crate) async fn channel_stream_handler(
     axum::extract::State(state): axum::extract::State<
         crate::http::daemon_stream::DaemonHttpState,
     >,
     axum::extract::Path(id): axum::extract::Path<String>,
     headers: axum::http::HeaderMap,
-    body: axum::body::Bytes,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
     if !crate::http::daemon_auth::authenticate_header(
@@ -376,16 +378,6 @@ pub(crate) async fn channels_accept_handler(
     ) {
         return axum::http::StatusCode::UNAUTHORIZED.into_response();
     }
-    let accept: ChannelAccept = match serde_json::from_slice(&body) {
-        Ok(accept) => accept,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::BAD_REQUEST,
-                format!("channel accept body: {e}"),
-            )
-                .into_response();
-        }
-    };
     let pool = match state.global.db_client().await {
         Ok(pool) => pool,
         Err(e) => {
@@ -396,9 +388,51 @@ pub(crate) async fn channels_accept_handler(
                 .into_response();
         }
     };
-    let outcome = match state.channels.accept(&pool, &accept.conn_secret, &id).await {
-        Ok(outcome) => outcome,
-        Err(e) => {
+    let secret = headers
+        .get("X-OBJECTIVEAI-CHANNEL-SECRET")
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
+
+    if let Some(secret) = secret {
+        // OBSERVER: authenticate the channel secret, then wait out the
+        // channel's life. The authoritative closed check happens
+        // INSIDE closed_wait, after its LISTEN attach — a close
+        // landing between channel_auth and the attach still yields an
+        // immediate `closed` frame.
+        let auth = match crate::db::channels::channel_auth(&pool, &id).await {
+            Ok(Some(auth)) => auth,
+            Ok(None) => return axum::http::StatusCode::NOT_FOUND.into_response(),
+            Err(e) => {
+                return (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("channel auth: {e}"),
+                )
+                    .into_response();
+            }
+        };
+        if auth.role_of(&secret).is_none() {
+            return axum::http::StatusCode::UNAUTHORIZED.into_response();
+        }
+        let stream = async_stream::stream! {
+            if closed_wait(&pool, &id).await.is_ok() {
+                yield Ok::<_, std::convert::Infallible>(
+                    Event::default().data(frame(&ChannelStreamEvent::Closed)),
+                );
+            }
+        };
+        return Sse::new(stream).into_response();
+    }
+
+    // ACCEPT-OPEN: the open IS the accept.
+    let owner_secret = match state.channels.accept_open(&pool, &id).await {
+        Ok(secret) => secret,
+        Err(AcceptOpenError::NotFound) => {
+            return axum::http::StatusCode::NOT_FOUND.into_response();
+        }
+        Err(AcceptOpenError::AlreadyAccepted) => {
+            return axum::http::StatusCode::CONFLICT.into_response();
+        }
+        Err(AcceptOpenError::Db(e)) => {
             return (
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 format!("channel accept: {e}"),
@@ -406,12 +440,32 @@ pub(crate) async fn channels_accept_handler(
                 .into_response();
         }
     };
-    let status = match &outcome {
-        ChannelAcceptOutcome::Accepted => axum::http::StatusCode::OK,
-        ChannelAcceptOutcome::AlreadyAccepted => axum::http::StatusCode::CONFLICT,
-        ChannelAcceptOutcome::NotFound => axum::http::StatusCode::NOT_FOUND,
-        ChannelAcceptOutcome::UnknownConnection => axum::http::StatusCode::UNAUTHORIZED,
+    // Arm the close guard OUTSIDE the stream body and MOVE it in: an
+    // async_stream body doesn't run until first poll, so a guard
+    // constructed inside would never exist if the response is dropped
+    // unpolled (client vanished mid-request) — the channel would leak
+    // open. A moved-in guard is captured at construction; dropping the
+    // unpolled stream still fires it.
+    let guard = ChannelCloseGuard {
+        pool: pool.clone(),
+        channel_id: id.clone(),
     };
-    let body = serde_json::to_string(&outcome).expect("ChannelAcceptOutcome serializes");
-    (status, body).into_response()
+    let stream = async_stream::stream! {
+        let _guard = guard;
+        yield Ok::<_, std::convert::Infallible>(
+            Event::default().data(frame(&ChannelStreamEvent::Secret {
+                secret: owner_secret,
+            })),
+        );
+        // Externally-driven closes (a future close/delete verb) end
+        // the stream uniformly; today only this stream's own drop
+        // closes the channel, so this wait normally outlives the
+        // client.
+        if closed_wait(&pool, &id).await.is_ok() {
+            yield Ok::<_, std::convert::Infallible>(
+                Event::default().data(frame(&ChannelStreamEvent::Closed)),
+            );
+        }
+    };
+    Sse::new(stream).into_response()
 }

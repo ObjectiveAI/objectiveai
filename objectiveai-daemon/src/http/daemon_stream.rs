@@ -188,15 +188,15 @@ pub fn serve_http(
                 crate::http::laboratories_routes::laboratory_filetree_handler,
             ),
         )
-        // The duplex-channels endpoint: the SSE every channel client
-        // holds open (connection secret + offers), and the accept POST.
+        // The duplex-channels endpoints: the offer-lifecycle SSE, and
+        // the per-channel stream whose bare open IS the accept.
         .route(
             "/channels",
             axum::routing::get(crate::http::channel_routes::channels_handler),
         )
         .route(
-            "/channels/{id}/accept",
-            axum::routing::post(crate::http::channel_routes::channels_accept_handler),
+            "/channels/{id}",
+            axum::routing::get(crate::http::channel_routes::channel_stream_handler),
         )
         .with_state(DaemonHttpState {
             tx,

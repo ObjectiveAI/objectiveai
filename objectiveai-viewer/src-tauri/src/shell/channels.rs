@@ -11,7 +11,7 @@
 //!   DECLINED offer (tab closed, still open server-side — there is no
 //!   decline wire op; ignoring IS declining) stays dismissed for this
 //!   viewer's life.
-//! - `offer_withdrawn` / `closed` → the mapped tab closes.
+//! - `offer_withdrawn` → the mapped tab closes.
 //! - Withdrawals during a disconnect are NEVER delivered (the daemon
 //!   notifies only connections that saw the offer), so each connect
 //!   RECONCILES at the `live` marker: mapped offers the replay did
@@ -41,13 +41,8 @@ struct Template {
 
 struct ChannelsInner {
     template: Option<Template>,
-    /// This connection's `S_conn`, replaced on every reconnect.
-    /// Unused today — the eventual accept POST must ride the SAME
-    /// live connection (`S_owner` comes back over its SSE), so accept
-    /// belongs here, not in a bare proxy command.
-    conn_secret: Option<String>,
     /// `channel_id` → tab id. Insert on spawn; remove ONLY on
-    /// withdraw/close/reconcile — see the module doc's dedup rules.
+    /// withdraw/reconcile — see the module doc's dedup rules.
     offers: HashMap<String, u64>,
 }
 
@@ -72,7 +67,6 @@ impl ChannelRequests {
         Self {
             inner: tokio::sync::Mutex::new(ChannelsInner {
                 template: None,
-                conn_secret: None,
                 offers: HashMap::new(),
             }),
             declared_tx: tokio::sync::Mutex::new(Some(tx)),
@@ -154,10 +148,6 @@ async fn listen_once(app: &tauri::AppHandle, plugins_root: &Path) {
             continue;
         };
         match frame {
-            ChannelEvent::Connection { secret } => {
-                let state = app.state::<ChannelRequests>();
-                state.inner.lock().await.conn_secret = Some(secret);
-            }
             ChannelEvent::Offer { offer } => {
                 if !live {
                     replayed.insert(offer.channel_id.clone());
@@ -171,8 +161,7 @@ async fn listen_once(app: &tauri::AppHandle, plugins_root: &Path) {
                     handle_offer(app, plugins_root, offer).await;
                 }
             }
-            ChannelEvent::OfferWithdrawn { channel_id }
-            | ChannelEvent::Closed { channel_id } => {
+            ChannelEvent::OfferWithdrawn { channel_id } => {
                 let tab_id = {
                     let state = app.state::<ChannelRequests>();
                     let mut inner = state.inner.lock().await;
@@ -203,7 +192,6 @@ async fn listen_once(app: &tauri::AppHandle, plugins_root: &Path) {
                     super::close_tab(app, tab_id).await;
                 }
             }
-            ChannelEvent::OwnerSecret { .. } => {}
         }
     }
 }
