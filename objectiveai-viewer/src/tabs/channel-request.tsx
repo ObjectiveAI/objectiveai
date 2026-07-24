@@ -1,9 +1,10 @@
 import cn from "classnames";
+import { useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { type TabComponentProps } from "../lib/tabHarness";
 import { Markdown } from "../components/Markdown";
 import { JsonBlock } from "../components/shared/JsonBlock";
-import { tabsCloseSelf } from "../lib/tabs";
+import { channelRequestAccept, tabsCloseSelf } from "../lib/tabs";
 
 /** The wire ChannelOffer, verbatim — this tab's `arguments`. The
  * caller identity is FLATTENED to top-level fields; its plugin trio
@@ -25,16 +26,18 @@ interface ChannelOffer {
   message: string;
 }
 
-/** One incoming channel offer, spawned into its own window by the
- * shell's resident /channels listener. A pure render of its
- * `arguments`: no transport, no listeners — Accept is a no-op until
- * the accept wire-up lands, Decline just closes the tab (there is no
- * decline wire op; ignoring IS declining, and this window is the
- * tab's sole occupant, so the window closes with it). */
+/** One incoming channel offer, opened as a tab by the shell's
+ * resident /channels listener. A pure render of its `arguments` plus
+ * two verbs: Accept hands off to Rust (POST the accept, spawn the
+ * plugin's handler component, kill this tab — success OR failure,
+ * this tab dies), Decline closes the tab (there is no decline wire
+ * op; ignoring IS declining). While accepting, both buttons lock and
+ * the tab just waits to die. */
 export default function ChannelRequestTab({
   arguments: args,
 }: TabComponentProps) {
   const offer = (args ?? {}) as ChannelOffer;
+  const [accepting, setAccepting] = useState(false);
   const plugin =
     offer.plugin_owner !== undefined
       ? `${offer.plugin_owner}/${offer.plugin_name}/${offer.plugin_version}`
@@ -168,9 +171,12 @@ export default function ChannelRequestTab({
         <div className={cn("flex", "gap-2", "pt-2")}>
           <button
             data-offer-accept
+            disabled={accepting}
             onClick={() => {
-              // TODO: POST /channels/{id}/accept through the resident
-              // listener (S_owner rides its SSE connection).
+              setAccepting(true);
+              // Rust POSTs the accept, spawns the handler tab, and
+              // kills THIS tab — on failure it kills this tab too.
+              void channelRequestAccept();
             }}
             className={cn(
               "px-4",
@@ -182,16 +188,21 @@ export default function ChannelRequestTab({
               "text-xs",
               "uppercase",
               "tracking-wider",
-              "cursor-pointer",
-              "hover:bg-ground-surface",
-              "hover:border-copper-bright",
+              accepting
+                ? cn("opacity-50", "cursor-wait")
+                : cn(
+                    "cursor-pointer",
+                    "hover:bg-ground-surface",
+                    "hover:border-copper-bright",
+                  ),
               "transition-colors",
             )}
           >
-            accept
+            {accepting ? "accepting…" : "accept"}
           </button>
           <button
             data-offer-decline
+            disabled={accepting}
             onClick={() => tabsCloseSelf()}
             className={cn(
               "px-4",
@@ -203,10 +214,14 @@ export default function ChannelRequestTab({
               "text-xs",
               "uppercase",
               "tracking-wider",
-              "cursor-pointer",
-              "hover:text-info-mid",
-              "hover:bg-ground-surface",
-              "hover:border-info-dim",
+              accepting
+                ? cn("opacity-50", "cursor-wait")
+                : cn(
+                    "cursor-pointer",
+                    "hover:text-info-mid",
+                    "hover:bg-ground-surface",
+                    "hover:border-info-dim",
+                  ),
               "transition-colors",
             )}
           >

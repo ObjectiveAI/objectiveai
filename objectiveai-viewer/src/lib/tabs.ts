@@ -132,6 +132,15 @@ export function tabsCloseSelf(): void {
   void tauriInvoke("tabs_close_self");
 }
 
+/** Accept the CALLING channel-request tab's offer (self-scoped).
+ * Rust runs the accept POST, spawns the publishing plugin's handler
+ * component focused, and closes this tab — on failure it closes this
+ * tab too, so the caller only shows a loading state and waits to
+ * die. */
+export function channelRequestAccept(): Promise<void> {
+  return tauriInvoke("channel_request_accept").then(() => undefined);
+}
+
 /** One inventory row — mirrors the shell's `InventoryEntry`. */
 export interface TabInventoryEntry {
   identity: string;

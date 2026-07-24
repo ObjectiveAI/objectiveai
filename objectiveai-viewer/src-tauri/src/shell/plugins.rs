@@ -127,21 +127,19 @@ pub(crate) fn normalize(path: &str) -> Option<String> {
     Some(format!("/{path}"))
 }
 
-/// The manifest icon of ONE exact installed version, normalized
-/// root-relative — the channel-offer tab's icon lookup (on-demand: a
-/// plugin may carry an icon while declaring no tabs, so the
-/// inventory's per-tab entries can't answer this). The trio arrives
-/// over the wire: segments are rejected outright if empty or
-/// path-meaningful (separators, `.`/`..`) rather than sanitized.
-/// Owner/name are lowercased to match the install path (the path IS
-/// the identity); the version is exact-case. `None` on any miss —
-/// best-effort, silent.
-pub(crate) async fn plugin_icon(
+/// Read ONE exact installed version's manifest — the on-demand lookup
+/// under the channel-offer flows. The trio arrives over the wire:
+/// segments are rejected outright if empty or path-meaningful
+/// (separators, `.`/`..`) rather than sanitized. Owner/name are
+/// lowercased to match the install path (the path IS the identity);
+/// the version is exact-case. `None` on any miss — best-effort,
+/// silent.
+async fn read_manifest(
     plugins_root: &Path,
     owner: &str,
     name: &str,
     version: &str,
-) -> Option<String> {
+) -> Option<Manifest> {
     let safe = |segment: &str| {
         !segment.is_empty()
             && !segment.contains('/')
@@ -158,8 +156,55 @@ pub(crate) async fn plugin_icon(
         .join(version)
         .join("objectiveai.json");
     let bytes = tokio::fs::read(&manifest_path).await.ok()?;
-    let manifest = serde_json::from_slice::<Manifest>(&bytes).ok()?;
+    serde_json::from_slice::<Manifest>(&bytes).ok()
+}
+
+/// The manifest icon of ONE exact installed version, normalized
+/// root-relative — the channel-offer tab's icon lookup (on-demand: a
+/// plugin may carry an icon while declaring no tabs, so the
+/// inventory's per-tab entries can't answer this).
+pub(crate) async fn plugin_icon(
+    plugins_root: &Path,
+    owner: &str,
+    name: &str,
+    version: &str,
+) -> Option<String> {
+    let manifest = read_manifest(plugins_root, owner, name, version).await?;
     normalize(manifest.viewer?.icon?.as_str())
+}
+
+/// One resolved channel handler, ready to open as a tab.
+pub(crate) struct PluginChannel {
+    /// Root-relative module path (root = the plugin's viewer dir).
+    pub module: String,
+    pub export: Option<String>,
+    pub title: Option<String>,
+    /// The plugin's manifest icon, normalized.
+    pub icon: Option<String>,
+}
+
+/// The plugin's channel handler for `key` — the FIRST
+/// `viewer.channels` entry whose `key` matches (manifest order).
+/// `None` when the plugin isn't installed, declares no channels, has
+/// no entry for the key, or the entry's module path is invalid.
+pub(crate) async fn plugin_channel(
+    plugins_root: &Path,
+    owner: &str,
+    name: &str,
+    version: &str,
+    key: &str,
+) -> Option<PluginChannel> {
+    let manifest = read_manifest(plugins_root, owner, name, version).await?;
+    let viewer = manifest.viewer?;
+    let icon = viewer.icon.as_deref().and_then(normalize);
+    let channels = viewer.channels?;
+    let entry = channels.values().find(|entry| entry.key == key)?;
+    Some(PluginChannel {
+        module: normalize(&entry.module)?,
+        export: entry.export.clone(),
+        title: entry.title.clone(),
+        icon,
+    })
 }
 
 /// Scan the tree and turn every declared plugin tab into a

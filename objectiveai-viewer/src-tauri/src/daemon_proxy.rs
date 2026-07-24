@@ -84,6 +84,35 @@ impl DaemonProxy {
         self.get(format!("{}/channels", self.address))
     }
 
+    /// Accept a channel offer: a bare `POST /channels/{id}/accept`
+    /// (first-wins). Returns the owner secret (`S_owner`) from the
+    /// 200 body; non-2xx maps to an error string carrying the status
+    /// (404 unknown/withdrawn, 409 already accepted).
+    pub(crate) async fn accept_channel(&self, channel_id: &str) -> Result<String, String> {
+        let mut req = self
+            .client
+            .post(format!("{}/channels/{}/accept", self.address, channel_id));
+        if let Some(signature) = &self.signature {
+            req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
+        }
+        let response = req
+            .send()
+            .await
+            .map_err(|e| format!("channel accept: {}", error_chain(&e)))?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(format!("channel accept: HTTP {status}"));
+        }
+        let body = response
+            .text()
+            .await
+            .map_err(|e| format!("channel accept body: {}", error_chain(&e)))?;
+        let accepted: objectiveai_sdk::cli::channel_listener::ChannelAccepted =
+            serde_json::from_str(&body)
+                .map_err(|e| format!("channel accept parse: {e}: {body}"))?;
+        Ok(accepted.secret)
+    }
+
     /// GET builder for an SSE route: accept header + auth signature.
     fn get(&self, url: String) -> reqwest::RequestBuilder {
         let mut req = self
@@ -221,10 +250,17 @@ pub(crate) async fn daemon_listen(
 #[tauri::command]
 pub(crate) async fn daemon_execute(
     proxy: tauri::State<'_, DaemonProxy>,
+    requests: tauri::State<'_, crate::shell::ChannelRequests>,
+    webview: tauri::Webview,
     stream_id: String,
     request: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
+    // A tab that owns a channel gets its secret STAMPED into channels
+    // command bodies — the capability never enters the webview (the
+    // same derive-from-sender rule as identity).
+    let request =
+        crate::shell::stamp_channel_secret(&requests, webview.label(), request).await;
     let mut req = proxy
         .client
         .post(format!("{}/execute", proxy.address))

@@ -190,7 +190,7 @@ pub fn serve(
         .manage(log_sink)
         .manage(command_log_sink)
         .manage(tab_inventory)
-        .manage(crate::shell::ChannelRequests::new());
+        .manage(crate::shell::ChannelRequests::new(plugins_root.clone()));
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -206,6 +206,7 @@ pub fn serve(
         crate::shell::tabs_close,
         crate::shell::tabs_close_self,
         crate::shell::channel_request_declare,
+        crate::shell::channel_request_accept,
         crate::shell::tabs_move,
         crate::shell::tabs_detach,
         crate::shell::ui_set,
