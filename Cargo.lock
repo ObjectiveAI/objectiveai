@@ -4311,7 +4311,6 @@ dependencies = [
  "dirs",
  "flate2",
  "futures",
- "git2",
  "indexmap 2.14.0",
  "notify",
  "objectiveai-sdk",

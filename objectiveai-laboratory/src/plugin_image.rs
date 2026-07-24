@@ -177,8 +177,13 @@ pub async fn ensure(
         {
             return from_labels(podman, &reference).await;
         }
-        let checkout = crate::gitrepo::fetch_at_tag(
-            bin_dir,
+        // `<objectiveai_dir>/plugins` — bin_dir is always
+        // `<objectiveai_dir>/bin` (main.rs derives it that way). The
+        // daemon-side temp subtree is `<bin>/temp/daemon`; the viewer
+        // installer owns `<bin>/temp/viewer`.
+        let checkout = objectiveai_sdk::gitrepo::fetch_at_tag(
+            &bin_dir.join("temp").join("daemon"),
+            bin_dir.parent().map(|dir| dir.join("plugins")).as_deref(),
             &coords.owner,
             &coords.name,
             coords.git_tag(),
@@ -208,7 +213,7 @@ pub async fn ensure(
         .await;
         // The checkout is transient scratch — gone the moment the
         // build concludes, success or failure.
-        crate::gitrepo::remove_checkout(&checkout.dir).await;
+        objectiveai_sdk::gitrepo::remove_checkout(&checkout.dir).await;
         built
     }
     .await;

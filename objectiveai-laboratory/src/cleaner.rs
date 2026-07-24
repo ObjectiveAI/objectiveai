@@ -35,7 +35,20 @@ use crate::podman;
 /// Errors are reported to stderr and never propagate — cleaning is
 /// best-effort by design.
 pub async fn sweep(bin_dir: PathBuf, state: String) {
-    crate::gitrepo::sweep_temp(&bin_dir).await;
+    let temp = bin_dir.join("temp");
+    objectiveai_sdk::gitrepo::sweep_temp(&temp.join("daemon")).await;
+    // Migration: pre-split builds put checkouts directly under
+    // `<bin>/temp` — clear those uuid leftovers, but never touch the
+    // sibling partitions (`daemon` is ours and already swept above;
+    // `viewer` belongs to the viewer's installer).
+    if let Ok(mut entries) = tokio::fs::read_dir(&temp).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name();
+            if name != "daemon" && name != "viewer" {
+                objectiveai_sdk::gitrepo::remove_checkout(&entry.path()).await;
+            }
+        }
+    }
     let podman = podman::Podman::new(bin_dir);
     let labs = match podman::laboratory::list(&podman, &state).await {
         Ok(labs) => labs,

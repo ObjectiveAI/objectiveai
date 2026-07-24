@@ -35,7 +35,6 @@ mod channel;
 mod cleaner;
 mod ephemeral;
 mod filetree;
-mod gitrepo;
 mod host;
 mod host_command;
 mod lab_tree;
