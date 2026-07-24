@@ -183,7 +183,9 @@ export default function ChannelRequestTab({
               "text-xs",
               "uppercase",
               "tracking-wider",
+              "cursor-pointer",
               "hover:bg-ground-surface",
+              "hover:border-copper-bright",
               "transition-colors",
             )}
           >
@@ -202,8 +204,10 @@ export default function ChannelRequestTab({
               "text-xs",
               "uppercase",
               "tracking-wider",
+              "cursor-pointer",
               "hover:text-info-mid",
               "hover:bg-ground-surface",
+              "hover:border-info-dim",
               "transition-colors",
             )}
           >
