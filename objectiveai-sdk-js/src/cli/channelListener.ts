@@ -16,10 +16,14 @@
  * `channels close` with either of its secrets (terminal — any blocked
  * `channels logs subscribe` unblocks with `channel_closed`).
  *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener
- * = one connection: when the socket closes the view freezes; reconnect
- * is the caller's loop. Fetch mode only for now (a viewer proxy is a
- * later migration). Unparseable events are skipped (forward compat).
+ * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header — in FETCH
+ * mode only. A viewer-proxy migration must NOT set it (nor take a
+ * signature at all): in viewer mode the Rust proxy stamps auth and
+ * identity headers natively, exactly as it does for agent arguments —
+ * secrets never enter the webview. One listener = one connection:
+ * when the socket closes the view freezes; reconnect is the caller's
+ * loop. Fetch mode only for now. Unparseable events are skipped
+ * (forward compat).
  */
 
 import { connectSse } from "./sse";
