@@ -25,7 +25,13 @@ pub struct InstalledPlugin {
     pub owner: String,
     /// Lowercased `<name>` path segment.
     pub name: String,
+    /// The parsed version (ordering only).
     pub version: semver::Version,
+    /// The exact `<version>` path segment — the v-prefixed git tag,
+    /// byte-for-byte (`v1.2.3`). THE identity segment: it matches the
+    /// wire's plugin `version` verbatim, so offer lookups and tab
+    /// identities line up with the install path.
+    pub version_tag: String,
     pub manifest: Manifest,
 }
 
@@ -58,12 +64,18 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
         for (name_raw, name_dir) in subdirs(&owner_dir).await {
             let name = name_raw.to_lowercase();
             for (version_raw, version_dir) in subdirs(&name_dir).await {
-                let Ok(version) = semver::Version::parse(&version_raw) else {
+                // Version dirs are the v-prefixed git tag verbatim
+                // (`v1.2.3` — the same rule agent plugin declarations
+                // enforce); the semver body after the `v` orders them.
+                let Some(version) = version_raw
+                    .strip_prefix('v')
+                    .and_then(|body| semver::Version::parse(body).ok())
+                else {
                     super::report_shell(
                         app,
                         "warn",
                         format!(
-                            "plugins: {owner}/{name}: skipping non-semver version dir {version_raw:?}"
+                            "plugins: {owner}/{name}: skipping version dir {version_raw:?} (expected a v-prefixed semver tag, e.g. v1.2.3)"
                         ),
                     )
                     .await;
@@ -78,7 +90,7 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
                                 app,
                                 "error",
                                 format!(
-                                    "plugins: {owner}/{name}@{version}: invalid objectiveai.json: {e}"
+                                    "plugins: {owner}/{name}@{version_raw}: invalid objectiveai.json: {e}"
                                 ),
                             )
                             .await;
@@ -94,6 +106,7 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
                     owner: owner.clone(),
                     name: name.clone(),
                     version,
+                    version_tag: version_raw,
                     manifest,
                 };
                 match selected.get(&key) {
@@ -120,7 +133,8 @@ pub struct PluginVersionInfo {
     pub owner: String,
     /// Lowercased `<name>` path segment.
     pub name: String,
-    /// The exact semver version dir name.
+    /// The exact `<version>` dir name — the v-prefixed git tag
+    /// (`v1.2.3`), byte-for-byte.
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
@@ -129,7 +143,7 @@ pub struct PluginVersionInfo {
 }
 
 /// Walk owner → name → version keeping EVERY version with a parseable
-/// manifest (same skip rules as [`scan`]: non-semver dirs warn,
+/// manifest (same skip rules as [`scan`]: non-v-tag dirs warn,
 /// manifest-less dirs are silently not ours). Sorted by (owner, name)
 /// then version DESCENDING — newest first within a plugin.
 pub(crate) async fn list_all_versions(
@@ -142,12 +156,15 @@ pub(crate) async fn list_all_versions(
         for (name_raw, name_dir) in subdirs(&owner_dir).await {
             let name = name_raw.to_lowercase();
             for (version_raw, version_dir) in subdirs(&name_dir).await {
-                let Ok(version) = semver::Version::parse(&version_raw) else {
+                let Some(version) = version_raw
+                    .strip_prefix('v')
+                    .and_then(|body| semver::Version::parse(body).ok())
+                else {
                     super::report_shell(
                         app,
                         "warn",
                         format!(
-                            "plugins: {owner}/{name}: skipping non-semver version dir {version_raw:?}"
+                            "plugins: {owner}/{name}: skipping version dir {version_raw:?} (expected a v-prefixed semver tag, e.g. v1.2.3)"
                         ),
                     )
                     .await;
@@ -162,7 +179,7 @@ pub(crate) async fn list_all_versions(
                                 app,
                                 "error",
                                 format!(
-                                    "plugins: {owner}/{name}@{version}: invalid objectiveai.json: {e}"
+                                    "plugins: {owner}/{name}@{version_raw}: invalid objectiveai.json: {e}"
                                 ),
                             )
                             .await;
@@ -315,9 +332,12 @@ pub(crate) async fn collect_plugin_entries(
         // Display identity INCLUDES the version — multiple versions
         // can be installed, and the surface must say which one is
         // running. Slash-joined, mirroring the install path itself
-        // (bin/plugins/<owner>/<name>/<version>). The PERSISTENCE
-        // key is version-LESS so toggle state survives upgrades.
-        let identity = format!("{}/{}/{}", plugin.owner, plugin.name, plugin.version);
+        // (bin/plugins/<owner>/<name>/<version>), version_tag
+        // verbatim so it equals the wire trio's slash-join (channel
+        // handler tabs share it). The PERSISTENCE key is version-LESS
+        // so toggle state survives upgrades.
+        let identity =
+            format!("{}/{}/{}", plugin.owner, plugin.name, plugin.version_tag);
         let identity_key = format!("{}/{}", plugin.owner, plugin.name);
         let icon = match plugin.manifest.icon.as_deref().map(normalize) {
             Some(None) => {
