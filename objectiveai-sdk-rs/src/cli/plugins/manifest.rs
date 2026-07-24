@@ -15,9 +15,10 @@ use serde::{Deserialize, Serialize};
 
 /// A plugin's `objectiveai.json`, whole — ONE schema for the ONE
 /// file. The container half (`containerfile`, `port`) is what the
-/// laboratory host builds and runs; the viewer half (`icon`, `tabs`)
-/// is what the viewer surfaces. Viewer paths are relative to the
-/// plugin's `viewer/` folder (authored as if the CWD were inside it).
+/// laboratory host builds and runs; the viewer half (`viewer`,
+/// `icon`, `tabs`) is what the viewer surfaces. `icon` and tab
+/// `module` paths are relative to the declared `viewer` root
+/// (authored as if the CWD were inside it).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "cli.plugins.Manifest")]
 pub struct Manifest {
@@ -32,6 +33,13 @@ pub struct Manifest {
     /// container — published to a random loopback host port at
     /// create. Never 0.
     pub port: u16,
+    /// Repo-relative path (forward slashes) to the viewer extension's
+    /// JS ROOT — the folder holding its `package.json`; `icon` and
+    /// tab `module` paths resolve against it. ABSENT = the plugin
+    /// has no viewer extension (`icon`/`tabs` are ignored).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub viewer: Option<String>,
     /// The identity icon, shown beside the identity in the tab strip.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

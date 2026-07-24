@@ -170,6 +170,8 @@ pub(crate) async fn plugin_icon(
     version: &str,
 ) -> Option<String> {
     let manifest = read_manifest(plugins_root, owner, name, version).await?;
+    // No declared viewer root = no viewer extension at all.
+    manifest.viewer.as_ref()?;
     normalize(manifest.icon?.as_str())
 }
 
@@ -198,6 +200,8 @@ pub(crate) async fn plugin_channel(
 ) -> Option<PluginChannel> {
     use objectiveai_sdk::cli::plugins::ViewerTab;
     let manifest = read_manifest(plugins_root, owner, name, version).await?;
+    // No declared viewer root = no viewer extension at all.
+    manifest.viewer.as_ref()?;
     let icon = manifest.icon.as_deref().and_then(normalize);
     let tabs = manifest.tabs?;
     let (module, export) = tabs.iter().find_map(|tab| match tab {
@@ -224,6 +228,10 @@ pub(crate) async fn collect_plugin_entries(
 ) -> Vec<super::TabEntry> {
     let mut out = Vec::new();
     for plugin in scan(app, plugins_root).await {
+        // No declared viewer root = no viewer extension at all.
+        if plugin.manifest.viewer.is_none() {
+            continue;
+        }
         // Display identity INCLUDES the version — multiple versions
         // can be installed, and the surface must say which one is
         // running. Slash-joined, mirroring the install path itself
