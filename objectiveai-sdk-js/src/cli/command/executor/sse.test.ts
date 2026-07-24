@@ -96,11 +96,11 @@ describe("SseCommandExecutor", () => {
     vi.unstubAllGlobals();
   });
 
-  it("POSTs the envelope with the signature header", async () => {
+  it("POSTs the raw request with signature + identity headers", async () => {
     stubFetch();
     const executor = new SseCommandExecutor("http://127.0.0.1:1/execute", {
       signature: "sha256=abc",
-      agentArguments: { agent_instance_hierarchy: "Viewer" },
+      agentInstanceHierarchy: "Viewer",
     });
     const request = asRequest({ path_type: "plugins/list" });
     const lines = collect(executor.execute(request));
@@ -112,9 +112,11 @@ describe("SseCommandExecutor", () => {
     expect(connection.method).toBe("POST");
     expect(connection.headers["X-OBJECTIVEAI-SIGNATURE"]).toBe("sha256=abc");
     expect(connection.headers["Accept"]).toBe("text/event-stream");
+    expect(connection.headers["X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"]).toBe(
+      "Viewer",
+    );
     expect(JSON.parse(connection.body ?? "")).toEqual({
-      agent_arguments: { agent_instance_hierarchy: "Viewer" },
-      request: { path_type: "plugins/list" },
+      path_type: "plugins/list",
     });
     connection.end();
     await lines;
