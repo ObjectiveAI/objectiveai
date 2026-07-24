@@ -71,6 +71,9 @@ pub mod mcp;
 #[cfg(feature = "lockfile")]
 pub mod lockfile;
 
+#[cfg(feature = "gitrepo")]
+pub mod gitrepo;
+
 #[cfg(windows)]
 pub(crate) mod win_handles;
 

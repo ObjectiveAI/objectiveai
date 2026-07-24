@@ -31,6 +31,10 @@ laboratory-daemon = ["mcp"]
 # accept loop and long-lived client dial in the workspace.
 net = ["dep:socket2"]
 lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys", "dep:dashmap", "dep:hostname"]
+# Single-tag git checkouts of plugin repos (local-override-first) —
+# shared by the laboratory host (container builds) and the viewer
+# (extension installs). Heavy: vendored libgit2.
+gitrepo = ["dep:git2", "dep:tokio"]
 machine = ["dep:hostname", "dep:windows-sys"]
 subprocess-reaper = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
@@ -77,6 +81,7 @@ clap = { version = "4.6.0", features = ["derive"], optional = true }
 humantime = { version = "2", optional = true }
 mime2ext = { version = "0.1.54" }
 tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "io-std", "macros", "process"], optional = true }
+git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"], optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }
