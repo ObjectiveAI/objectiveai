@@ -8,21 +8,17 @@
  * `offer_withdrawn` (remove), and the `live` caught-up marker. No
  * secrets ride this stream.
  *
- * Accepting is {@link ChannelListener.accept}: it OPENS the offer's
- * per-channel stream (`GET /channels/{id}`) — the open IS the accept
- * (first-wins). The stream's first frame delivers the owner secret
- * (`S_owner`), and the returned {@link ChannelStream} is the channel's
- * LIVENESS ANCHOR: closing it closes the channel (terminal). The
- * secret authorizes `channels logs reply|list|open|subscribe`.
- * {@link ChannelListener.observe} opens the same stream with an
- * existing channel secret (`S_pub` or `S_owner`) as a pure observer —
- * silent until the channel closes, then one `closed` frame; observer
- * closes close nothing.
+ * Accepting is {@link ChannelListener.accept}: a bare
+ * `POST /channels/{id}/accept` (first-wins) whose `200` body carries
+ * the owner secret (`S_owner`) — the per-channel capability for
+ * `channels logs reply|list|open|subscribe` and `channels close`. The
+ * daemon tracks no liveness; a channel stays open until someone runs
+ * `channels close` with either of its secrets (terminal — any blocked
+ * `channels logs subscribe` unblocks with `channel_closed`).
  *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header; the channel
- * secret rides `X-OBJECTIVEAI-CHANNEL-SECRET`. One listener = one
- * connection: when the socket closes the view freezes; reconnect is
- * the caller's loop. Fetch mode only for now (a viewer proxy is a
+ * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener
+ * = one connection: when the socket closes the view freezes; reconnect
+ * is the caller's loop. Fetch mode only for now (a viewer proxy is a
  * later migration). Unparseable events are skipped (forward compat).
  */
 
@@ -36,10 +32,6 @@ import type {
 type ChannelEvent = CliChannelListenerChannelEvent;
 type ChannelOffer = CliChannelListenerChannelOffer;
 
-// TODO: switch to the generated ChannelStreamEvent zod mirror once the
-// json-schema regen lands.
-type ChannelStreamEvent = { type: "secret"; secret: string } | { type: "closed" };
-
 export interface ChannelListenerOptions {
   /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as the
    * `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
@@ -52,124 +44,8 @@ export interface ChannelListenerOptions {
 }
 
 /**
- * A live per-channel stream (`GET /channels/{id}`). An accept-opened
- * stream is the channel's LIVENESS ANCHOR — {@link close} (or losing
- * the process) closes the channel; an observer stream closes nothing.
- */
-export class ChannelStream {
-  /** `S_owner` for an accept-opened stream; `null` for observers. */
-  readonly secret: string | null;
-  #abort: AbortController;
-  #closed = false;
-  #closedWaiters = new Set<() => void>();
-
-  private constructor(secret: string | null, abort: AbortController) {
-    this.secret = secret;
-    this.#abort = abort;
-  }
-
-  /** Whether the channel has closed (or the transport ended). */
-  get isClosed(): boolean {
-    return this.#closed;
-  }
-
-  /** Resolves when the channel closes (the `closed` frame) or the
-   * transport ends, whichever comes first. */
-  closed(): Promise<void> {
-    if (this.#closed) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      this.#closedWaiters.add(resolve);
-    });
-  }
-
-  /** Disconnect. For an accept-opened stream this CLOSES the channel
-   * (terminal); for an observer it just stops watching. */
-  close(): void {
-    this.#abort.abort();
-    this.#markClosed();
-  }
-
-  #markClosed(): void {
-    if (this.#closed) return;
-    this.#closed = true;
-    const waiters = [...this.#closedWaiters];
-    this.#closedWaiters.clear();
-    for (const wake of waiters) wake();
-  }
-
-  /** Open `GET {base}/channels/{id}`: accept mode when `channelSecret`
-   * is null/undefined (awaits the first `secret` frame), observer mode
-   * otherwise. Rejects with the transport error — an `SseHttpError`
-   * carries the HTTP status (404 unknown/withdrawn, 409 already
-   * accepted, 401 unauthorized). */
-  static async open(
-    baseUrl: string,
-    signature: string | null | undefined,
-    channelId: string,
-    channelSecret?: string | null,
-  ): Promise<ChannelStream> {
-    const abort = new AbortController();
-    const events = await connectSse(
-      `${baseUrl.replace(/\/+$/, "")}/channels/${encodeURIComponent(channelId)}`,
-      signature,
-      abort.signal,
-      channelSecret ? { channelSecret } : undefined,
-    );
-    const accepting = !channelSecret;
-    let secret: string | null = null;
-    if (accepting) {
-      // The FIRST frame must deliver the owner secret.
-      for await (const data of events) {
-        let frame: unknown;
-        try {
-          frame = JSON.parse(data);
-        } catch {
-          continue;
-        }
-        const event = frame as ChannelStreamEvent;
-        if (event.type === "secret") {
-          secret = event.secret;
-          break;
-        }
-        abort.abort();
-        throw new Error(
-          `channel stream: unexpected first frame ${String(event.type)}`,
-        );
-      }
-      if (secret === null) {
-        abort.abort();
-        throw new Error("channel stream ended before the owner secret");
-      }
-    }
-    const stream = new ChannelStream(secret, abort);
-    void stream.#pump(events);
-    return stream;
-  }
-
-  async #pump(events: AsyncGenerator<string>): Promise<void> {
-    try {
-      for await (const data of events) {
-        let frame: unknown;
-        try {
-          frame = JSON.parse(data);
-        } catch {
-          continue;
-        }
-        if ((frame as ChannelStreamEvent).type === "closed") {
-          break;
-        }
-      }
-    } catch {
-      // Aborted or transport error — the stream is over either way.
-    } finally {
-      this.#markClosed();
-    }
-  }
-}
-
-/**
- * The materialized `/channels` offer view + per-channel stream opener —
- * construct via {@link ChannelListener.connect}.
+ * The materialized `/channels` offer view + accept client — construct
+ * via {@link ChannelListener.connect}.
  *
  * ```ts
  * const surface = await ChannelListener.connect(
@@ -179,10 +55,9 @@ export class ChannelStream {
  * // ...a publisher runs `channels publish --key demo --details '{}'`...
  * await surface.subscribe();               // wakes on the offer
  * const [offer] = surface.pending();
- * const stream = await surface.accept(offer.channel_id);
- * stream.secret;                           // S_owner
- * // ...use it with `channels logs reply|list|open|subscribe`;
- * // keep `stream` open — closing it closes the channel.
+ * const sOwner = await surface.accept(offer.channel_id);
+ * // ...use S_owner with `channels logs reply|list|open|subscribe`,
+ * // and `channels close` when the conversation is over.
  * ```
  */
 export class ChannelListener {
@@ -211,9 +86,9 @@ export class ChannelListener {
   /**
    * Open the connection and resolve once the socket is established.
    * `baseUrl` is the daemon's published base address (e.g.
-   * `http://127.0.0.1:49152`) — `/channels` and `/channels/{id}` are
-   * appended. The returned listener immediately begins folding events
-   * (the open-offer replay, then the `live` marker).
+   * `http://127.0.0.1:49152`) — `/channels` and `/channels/{id}/accept`
+   * are appended. The returned listener immediately begins folding
+   * events (the open-offer replay, then the `live` marker).
    */
   static async connect(
     baseUrl: string,
@@ -265,8 +140,7 @@ export class ChannelListener {
   }
 
   /** Drop the connection: the view freezes and any pending
-   * {@link subscribe} resolves. Open {@link ChannelStream}s are
-   * independent and survive. */
+   * {@link subscribe} resolves. */
   close(): void {
     if (this.#closed) return;
     this.#abort.abort();
@@ -290,23 +164,42 @@ export class ChannelListener {
   }
 
   /**
-   * Accept an open offer by OPENING its per-channel stream — the open
-   * IS the accept (first-wins). Resolves once the first frame delivers
-   * `S_owner` ({@link ChannelStream.secret}). KEEP THE STREAM OPEN —
-   * closing it closes the channel. Rejects with an `SseHttpError`
-   * carrying the status on refusal (404/409/401).
+   * Accept an open offer: a bare `POST /channels/{id}/accept`
+   * (first-wins). Resolves with the owner secret (`S_owner`) from the
+   * response body. Rejects on refusal — the message carries the HTTP
+   * status (404 unknown/withdrawn, 409 already accepted, 401
+   * unauthorized).
    */
-  accept(channelId: string): Promise<ChannelStream> {
-    return ChannelStream.open(this.#baseUrl, this.#signature, channelId);
-  }
-
-  /**
-   * Observe an existing channel with a channel secret (`S_pub` or
-   * `S_owner`). The stream is silent until the channel closes; closing
-   * it closes nothing.
-   */
-  observe(channelId: string, secret: string): Promise<ChannelStream> {
-    return ChannelStream.open(this.#baseUrl, this.#signature, channelId, secret);
+  async accept(channelId: string): Promise<string> {
+    const headers: Record<string, string> = {};
+    if (this.#signature) {
+      headers["X-OBJECTIVEAI-SIGNATURE"] = this.#signature;
+    }
+    let response: Response;
+    try {
+      response = await fetch(
+        `${this.#baseUrl}/channels/${encodeURIComponent(channelId)}/accept`,
+        { method: "POST", headers },
+      );
+    } catch (e) {
+      throw new Error(`channel accept: fetch failed: ${String(e)}`);
+    }
+    if (!response.ok) {
+      throw new Error(`channel accept: HTTP ${response.status}`);
+    }
+    const body = await response.text();
+    // TODO: switch to the generated ChannelAccepted zod mirror once
+    // the json-schema regen lands.
+    let accepted: { secret?: unknown };
+    try {
+      accepted = JSON.parse(body) as { secret?: unknown };
+    } catch {
+      throw new Error(`channel accept: unparseable body: ${body}`);
+    }
+    if (typeof accepted.secret !== "string") {
+      throw new Error(`channel accept: body carried no secret: ${body}`);
+    }
+    return accepted.secret;
   }
 
   #onFrame(frame: unknown): void {
