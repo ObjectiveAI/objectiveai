@@ -578,15 +578,25 @@ where
         // `ConduitMcpHandler::select_response_ids`.
         let response_ids_group: String = response_ids.join("-");
 
+        // The inputs of one agent's proxy connect, kept so a later
+        // backoff round can RE-DIAL after a failed connect — a cold
+        // plugin's container may take minutes to build+start, and the
+        // first dial's failure must not poison the whole request.
+        struct ConnectSpec {
+            proxy_url: String,
+            headers: indexmap::IndexMap<String, String>,
+        }
+
         let connect_handles: Vec<
-            Option<
+            Option<(
+                ConnectSpec,
                 tokio::task::JoinHandle<
                     Result<
                         objectiveai_sdk::mcp::Connection,
                         std::sync::Arc<objectiveai_sdk::mcp::Error>,
                     >,
                 >,
-            >,
+            )>,
         > = filtered_agents
             .iter()
             .zip(agent_instance_hierarchies.iter())
@@ -874,22 +884,31 @@ where
                 //
                 // Error type is `Arc<mcp::Error>` to match the SDK's
                 // shared-ref error shape uniformly.
-                Some(tokio::spawn(async move {
+                let spec = ConnectSpec {
+                    proxy_url: proxy_url.clone(),
+                    headers: proxy_request_headers.clone(),
+                };
+                let handle = tokio::spawn(async move {
                     let conn = mcp_client
                         .connect(proxy_url, None, Some(proxy_request_headers))
                         .await
                         .map_err(std::sync::Arc::new)?;
                     Ok::<_, std::sync::Arc<objectiveai_sdk::mcp::Error>>(conn)
-                }))
+                });
+                Some((spec, handle))
             })
             .collect();
 
-        // 7. Build agent attempts. Each holds its own connect-handle
-        //    JoinHandle (or None when the agent has no MCP work);
-        //    the actual `await` happens inside the per-agent branch
-        //    in step 8 below.
+        // 7. Build agent attempts. Each holds its connect SPEC plus
+        //    the up-front spawned first-dial JoinHandle (both None when
+        //    the agent has no MCP work); the actual `await` — and any
+        //    retry re-dial — happens inside the per-agent branch in
+        //    step 8 below.
         struct AgentAttempt {
             agent: objectiveai_sdk::agent::InlineAgent,
+            /// The connect inputs, kept for retry rounds.
+            connect: Option<ConnectSpec>,
+            /// Round 1's parallel-spawned dial. Taken on first visit.
             connect_handle: Option<
                 tokio::task::JoinHandle<
                     Result<
@@ -917,23 +936,33 @@ where
             .zip(connect_handles)
             .zip(agent_instance_hierarchies)
             .zip(response_ids)
-            .map(|(((agent, connect_handle), agent_instance_hierarchy), id)| AgentAttempt {
-                agent,
-                connect_handle,
-                agent_instance_hierarchy,
-                id,
+            .map(|(((agent, connect_handle), agent_instance_hierarchy), id)| {
+                let (connect, connect_handle) = match connect_handle {
+                    Some((spec, handle)) => (Some(spec), Some(handle)),
+                    None => (None, None),
+                };
+                AgentAttempt {
+                    agent,
+                    connect,
+                    connect_handle,
+                    agent_instance_hierarchy,
+                    id,
+                }
             })
             .collect();
         // Every candidate's response id, captured before the loop borrows
         // `attempts` mutably — used to drop the non-winner options at
         // lock-in (`response_ids` itself was moved into `attempts` above).
         let all_response_ids: Vec<String> = attempts.iter().map(|a| a.id.clone()).collect();
-        // Slot of resolved-or-None per attempt — populated lazily on
-        // first awaited iteration of the retry loop, reused across
-        // backoff retries so we don't re-issue the connect.
+        // Slot of resolved-or-None per attempt. Round 1 awaits the
+        // up-front parallel dial; an empty slot on a LATER round
+        // re-dials from the attempt's stored spec — a cold plugin's
+        // container may need several backoff rounds to build+start,
+        // and the daemon-side ephemeral create converges (the image
+        // build proceeds under the host's bin lock; a retry waits on
+        // it and fast-paths once the image lands).
         let mut attempt_connections: Vec<Option<objectiveai_sdk::mcp::Connection>> =
             (0..attempts.len()).map(|_| None).collect();
-        let mut attempt_connect_done: Vec<bool> = (0..attempts.len()).map(|_| false).collect();
 
         // 8. Backoff retry loop — try each agent in order.
         let mut backoff = backoff::ExponentialBackoff {
@@ -951,20 +980,38 @@ where
             let mut errors: Vec<super::Error> = Vec::new();
 
             for (idx, attempt) in attempts.iter_mut().enumerate() {
-                // Resolve the per-agent proxy connect handle on first
-                // visit. All N connects were spawned up-front so the
-                // initialize round-trips overlap; awaiting individual
-                // handles here is cheap on later retry iterations.
+                // Resolve this attempt's proxy connection. Round 1
+                // awaits the up-front parallel dial (all N were spawned
+                // together so the initialize round-trips overlap); a
+                // later round whose slot is still empty RE-DIALS from
+                // the stored spec — a failed connect never poisons the
+                // request, it just costs this round its attempt.
                 // objectiveai-mcp already enforced the agent's declared
                 // tool/plugin set against its installed manifest at
                 // connect time, so there is nothing to re-validate.
-                if !attempt_connect_done[idx] {
-                    attempt_connect_done[idx] = true;
+                if attempt_connections[idx].is_none() {
                     if let Some(handle) = attempt.connect_handle.take() {
                         match handle.await.unwrap() {
                             Ok(conn) => attempt_connections[idx] = Some(conn),
                             Err(e) => {
                                 errors.push(super::Error::McpConnectionArc(e));
+                            }
+                        }
+                    } else if let Some(spec) = &attempt.connect {
+                        match self
+                            .mcp_client
+                            .connect(
+                                spec.proxy_url.clone(),
+                                None,
+                                Some(spec.headers.clone()),
+                            )
+                            .await
+                        {
+                            Ok(conn) => attempt_connections[idx] = Some(conn),
+                            Err(e) => {
+                                errors.push(super::Error::McpConnectionArc(
+                                    std::sync::Arc::new(e),
+                                ));
                             }
                         }
                     }
@@ -993,18 +1040,9 @@ where
                 if agent_needs_mcp && mcp_connection.is_none() {
                     if declares_client_mcp && ctx.reverse_attach().is_none() {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
-                    } else {
-                        // NEVER skip silently: the connect failed on an
-                        // earlier round (its real error was pushed then)
-                        // and connects are not re-attempted within a
-                        // request — a bare `continue` here would leave
-                        // this round with zero errors and surface the
-                        // misleading `NoAgentsResolved` instead of the
-                        // actual failure.
-                        errors.push(super::Error::McpConnectionGone(
-                            attempt.agent.id().to_string(),
-                        ));
                     }
+                    // Otherwise THIS round's re-dial just failed and
+                    // pushed its real error above — nothing to add.
                     continue;
                 }
 
