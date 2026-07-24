@@ -261,7 +261,6 @@ pub fn serve(
                 &boot_label,
                 "ObjectiveAI Viewer",
                 None,
-                true,
             )?;
             // The boot orchestrator: await the chrome's root-tab
             // declaration + the bin/plugins scan, then open every

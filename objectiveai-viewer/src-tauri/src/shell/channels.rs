@@ -1,8 +1,9 @@
 //! The resident `/channels` listener: every incoming channel OFFER
-//! spawns a NEW DETACHED WINDOW holding a channel-request tab under
-//! the PUBLISHING PLUGIN's identity. The viewer is the user surface
-//! for offers — `channels publish` blocks daemon-side until some
-//! client accepts, and this is where a human gets to look at one.
+//! opens a channel-request tab — into the FOCUSED window, activated
+//! (auto-swap) — under the PUBLISHING PLUGIN's identity. The viewer
+//! is the user surface for offers — `channels publish` blocks
+//! daemon-side until some client accepts, and this is where a human
+//! gets to look at one.
 //!
 //! Lifecycle rules:
 //! - Offers REPLAY on every (re)connect, so the listener dedups by
@@ -10,8 +11,7 @@
 //!   DECLINED offer (tab closed, still open server-side — there is no
 //!   decline wire op; ignoring IS declining) stays dismissed for this
 //!   viewer's life.
-//! - `offer_withdrawn` / `closed` → the mapped tab closes (its window
-//!   with it, being the sole tab).
+//! - `offer_withdrawn` / `closed` → the mapped tab closes.
 //! - Withdrawals during a disconnect are NEVER delivered (the daemon
 //!   notifies only connections that saw the offer), so each connect
 //!   RECONCILES at the `live` marker: mapped offers the replay did
@@ -208,10 +208,37 @@ async fn listen_once(app: &tauri::AppHandle, plugins_root: &Path) {
     }
 }
 
-/// One fresh offer → one fresh detached window. The tab lives under
-/// the PUBLISHING plugin's identity (versioned, matching the
-/// inventory's display identity) with the plugin's manifest icon when
-/// one is installed; a non-plugin publisher brands as the root.
+/// The window an incoming offer's tab opens into: the FOCUSED window
+/// when one of ours is, else the lowest-numbered model window (a
+/// deterministic somewhere). `None` = no windows at all (the app is
+/// exiting).
+async fn target_window(app: &tauri::AppHandle, model: &ShellModel) -> Option<String> {
+    let mut labels: Vec<String> = model.windows_full().await.into_keys().collect();
+    if labels.is_empty() {
+        return None;
+    }
+    for (label, window) in app.windows() {
+        if labels.contains(&label) && window.is_focused().unwrap_or(false) {
+            return Some(label);
+        }
+    }
+    labels.sort_by_key(|label| {
+        (
+            label
+                .strip_prefix("shell-")
+                .and_then(|n| n.parse::<u64>().ok())
+                .unwrap_or(u64::MAX),
+            label.clone(),
+        )
+    });
+    labels.into_iter().next()
+}
+
+/// One fresh offer → one regular tab, activated (auto-swap) in the
+/// target window. The tab lives under the PUBLISHING plugin's
+/// identity (versioned, matching the inventory's display identity)
+/// with the plugin's manifest icon when one is installed; a
+/// non-plugin publisher brands as the root.
 async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: ChannelOffer) {
     let template = {
         let state = app.state::<ChannelRequests>();
@@ -259,31 +286,13 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
         arguments: Some(arguments),
     };
     let model = app.state::<ShellModel>();
-    let spawned = model
-        .spawn_window_with_tab(kind, title, true, icon)
-        .await;
-    // Map BEFORE the (slow) window build — a withdrawal racing the
-    // build must find the entry.
-    {
-        let state = app.state::<ChannelRequests>();
-        let mut inner = state.inner.lock().await;
-        inner.offers.insert(channel_id, spawned.tab_id);
-    }
-    native::publish(app, &spawned.snapshot, &[]);
-    // An unsolicited spawn: never steal focus.
-    if let Err(e) =
-        native::build_shell_window(app, &spawned.label, &spawned.title, None, false)
-    {
-        let state = app.state::<ChannelRequests>();
-        let mut inner = state.inner.lock().await;
-        inner.offers.retain(|_, tab_id| *tab_id != spawned.tab_id);
-        drop(inner);
-        if let Some(snapshot) = model.remove_window(&spawned.label).await {
-            native::publish(app, &snapshot, &[]);
-        }
-        super::report_shell(app, "error", format!("channels: window build failed: {e}"))
-            .await;
+    let Some(window) = target_window(app, &model).await else {
         return;
-    }
-    native::sync(app).await;
+    };
+    // Activated: an incoming request swaps to its tab (the window's
+    // OS focus is left alone).
+    let opened = super::open_tab(app, &window, kind, title, true, icon, true).await;
+    let state = app.state::<ChannelRequests>();
+    let mut inner = state.inner.lock().await;
+    inner.offers.insert(channel_id, opened.tab_id);
 }

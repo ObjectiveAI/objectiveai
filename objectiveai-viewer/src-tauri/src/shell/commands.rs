@@ -338,7 +338,7 @@ pub async fn tabs_detach(
         tauri::LogicalPosition::new(cursor.x / scale - 60.0, cursor.y / scale - 20.0)
     });
     let new_window =
-        match native::build_shell_window(&app, &detached.label, &detached.title, position, true) {
+        match native::build_shell_window(&app, &detached.label, &detached.title, position) {
             Ok(window) => window,
             Err(e) => {
                 // Roll back: the tab returns to the source window, the
