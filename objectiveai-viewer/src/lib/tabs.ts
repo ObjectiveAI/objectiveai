@@ -88,7 +88,9 @@ export interface DeclareTabEntry {
  * learns ours). The `tabs` tab is PERMANENT: always open, greyed in
  * its own list, never toggleable. */
 const ROOT_TABS: DeclareTabEntry[] = [
-  ...(["agents", "laboratories", "viewer-logs", "command-logs"] as const).map(
+  ...(
+    ["agents", "laboratories", "viewer-logs", "command-logs", "plugins"] as const
+  ).map(
     (stem) => ({
       name: stem,
       title: stem,
