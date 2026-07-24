@@ -9,7 +9,6 @@
 //! (`exec`, `cli_zip`, `mcp_servers`, …) pass through unmodeled until
 //! the plugins-install work types them.
 
-use indexmap::IndexMap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -36,22 +35,22 @@ pub struct Viewer {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub icon: Option<String>,
-    /// The plugin's tabs, by NAME — manifest order is strip order.
-    /// Every declared tab opens at viewer boot.
+    /// The plugin's tabs, in declaration order (strip order). An
+    /// entry WITH `channel_key` is a CHANNEL HANDLER: it never opens
+    /// at boot — it opens when an offer with that key is accepted,
+    /// with the full offer as its arguments. An entry WITHOUT it is a
+    /// regular tab, opened at viewer boot. Duplicates (same `module`
+    /// among regular tabs, same `channel_key` among handlers) —
+    /// entries after the first are ignored.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub tabs: Option<IndexMap<String, ViewerTab>>,
-    /// The plugin's channel-handler components, by NAME. Each entry
-    /// declares the offer `key` it answers — accepting an offer with
-    /// that key opens the entry's component (first matching entry
-    /// wins).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub channels: Option<IndexMap<String, ViewerChannel>>,
+    pub tabs: Option<Vec<ViewerTab>>,
 }
 
 /// One declared viewer tab: the component coordinates the viewer's
-/// generic bootstrap dereferences (`import(module)[export]`).
+/// generic bootstrap dereferences (`import(module)[export]`), plus
+/// the optional `channel_key` that turns the tab into a channel
+/// handler.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "cli.plugins.ViewerTab")]
 pub struct ViewerTab {
@@ -61,28 +60,13 @@ pub struct ViewerTab {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub export: Option<String>,
-    /// Display title (`None` = the tab's name key).
+    /// Display title (`None` = derived from the module file name).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub title: Option<String>,
-}
-
-/// One declared channel handler: a tab-shaped component plus the
-/// offer `key` it answers. Accepting an offer whose key matches opens
-/// this component as a tab, with the full offer as its arguments.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "cli.plugins.ViewerChannel")]
-pub struct ViewerChannel {
-    /// The offer key this handler answers (e.g. `"browser.login"`).
-    pub key: String,
-    /// The component's module path, relative to `viewer/`.
-    pub module: String,
-    /// The export holding the component (`None` = `"default"`).
+    /// Present ⇒ this tab is the CHANNEL HANDLER for offers with this
+    /// key (e.g. `"browser.login"`); it never opens at boot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub export: Option<String>,
-    /// Display title (`None` = the offer key).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub title: Option<String>,
+    pub channel_key: Option<String>,
 }
