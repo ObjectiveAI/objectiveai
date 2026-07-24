@@ -1,11 +1,11 @@
 //! The viewer-plugin LOADER: at boot, walk the installed-plugin tree
 //! (`<OBJECTIVEAI_DIR>/bin/plugins/<owner>/<name>/<version>/`) with
 //! tokio fs, read each version root's `objectiveai.json`, keep the
-//! HIGHEST semver per (owner, name), and open every tab the winning
-//! manifest's `viewer` section declares — through the SAME internal
-//! open path `tabs_open` uses. Rust hardcodes no names here: identity
-//! comes from the PATH (owner and name LOWERCASED — the manifest
-//! never states its own identity), and tabs/modules/icons come from
+//! HIGHEST semver per (owner, name), and open every regular tab the
+//! winning manifest declares — through the SAME internal open path
+//! `tabs_open` uses. Rust hardcodes no names here: identity comes
+//! from the PATH (owner and name LOWERCASED — the manifest never
+//! states its own identity), and tabs/modules/icons come from
 //! manifest DATA.
 //!
 //! Everything is best-effort: a corrupt manifest or unreadable dir is
@@ -170,7 +170,7 @@ pub(crate) async fn plugin_icon(
     version: &str,
 ) -> Option<String> {
     let manifest = read_manifest(plugins_root, owner, name, version).await?;
-    normalize(manifest.viewer?.icon?.as_str())
+    normalize(manifest.icon?.as_str())
 }
 
 /// One resolved channel handler, ready to open as a tab (titled by
@@ -198,9 +198,8 @@ pub(crate) async fn plugin_channel(
 ) -> Option<PluginChannel> {
     use objectiveai_sdk::cli::plugins::ViewerTab;
     let manifest = read_manifest(plugins_root, owner, name, version).await?;
-    let viewer = manifest.viewer?;
-    let icon = viewer.icon.as_deref().and_then(normalize);
-    let tabs = viewer.tabs?;
+    let icon = manifest.icon.as_deref().and_then(normalize);
+    let tabs = manifest.tabs?;
     let (module, export) = tabs.iter().find_map(|tab| match tab {
         ViewerTab::Channel {
             channel_key,
@@ -225,9 +224,6 @@ pub(crate) async fn collect_plugin_entries(
 ) -> Vec<super::TabEntry> {
     let mut out = Vec::new();
     for plugin in scan(app, plugins_root).await {
-        let Some(viewer) = &plugin.manifest.viewer else {
-            continue;
-        };
         // Display identity INCLUDES the version — multiple versions
         // can be installed, and the surface must say which one is
         // running. Slash-joined, mirroring the install path itself
@@ -235,12 +231,15 @@ pub(crate) async fn collect_plugin_entries(
         // key is version-LESS so toggle state survives upgrades.
         let identity = format!("{}/{}/{}", plugin.owner, plugin.name, plugin.version);
         let identity_key = format!("{}/{}", plugin.owner, plugin.name);
-        let icon = match viewer.icon.as_deref().map(normalize) {
+        let icon = match plugin.manifest.icon.as_deref().map(normalize) {
             Some(None) => {
                 super::report_shell(
                     app,
                     "warn",
-                    format!("plugins: {identity}: invalid icon path {:?}", viewer.icon),
+                    format!(
+                        "plugins: {identity}: invalid icon path {:?}",
+                        plugin.manifest.icon
+                    ),
                 )
                 .await;
                 None
@@ -248,7 +247,7 @@ pub(crate) async fn collect_plugin_entries(
             Some(icon) => icon,
             None => None,
         };
-        let Some(tabs) = &viewer.tabs else {
+        let Some(tabs) = &plugin.manifest.tabs else {
             continue;
         };
         // Channel-handler entries never open at boot and never join
