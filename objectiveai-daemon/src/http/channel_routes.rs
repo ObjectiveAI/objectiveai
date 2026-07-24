@@ -48,13 +48,10 @@ struct Offer {
     /// current and future connection until the offer is taken.
     offer_frame: String,
     // The offer payload, persisted verbatim when the channel is
-    // accepted.
+    // accepted. The identity's plugin trio IS the publishing plugin.
     key: String,
     details: serde_json::Value,
     message: String,
-    plugin_owner: Option<String>,
-    plugin_name: Option<String>,
-    plugin_version: Option<String>,
     agent_arguments: AgentArguments,
     /// Accept arbitration AND the publish unblock: the first accept
     /// takes the sender; a taken (`None`) slot means already accepted.
@@ -124,15 +121,11 @@ impl ChannelHub {
     /// Create a pending offer and fan it out to every current
     /// connection. Returns `(channel_id, S_pub, accept_rx)` — the
     /// publisher's command holds `S_pub` and awaits `accept_rx`.
-    #[allow(clippy::too_many_arguments)]
     pub fn create_offer(
         &self,
         key: String,
         details: serde_json::Value,
         message: String,
-        plugin_owner: Option<String>,
-        plugin_name: Option<String>,
-        plugin_version: Option<String>,
         agent_arguments: AgentArguments,
     ) -> (String, String, oneshot::Receiver<()>) {
         let channel_id = uuid::Uuid::new_v4().to_string();
@@ -140,9 +133,6 @@ impl ChannelHub {
         let offer_frame = frame(&ChannelEvent::Offer {
             offer: ChannelOffer {
                 channel_id: channel_id.clone(),
-                plugin_owner: plugin_owner.clone(),
-                plugin_name: plugin_name.clone(),
-                plugin_version: plugin_version.clone(),
                 agent_arguments: agent_arguments.clone(),
                 key: key.clone(),
                 details: details.clone(),
@@ -157,9 +147,6 @@ impl ChannelHub {
             key,
             details,
             message,
-            plugin_owner,
-            plugin_name,
-            plugin_version,
             agent_arguments,
             accept: std::sync::Mutex::new(Some(accept_tx)),
             offered_to: std::sync::Mutex::new(HashSet::new()),
@@ -228,9 +215,9 @@ impl ChannelHub {
             &offer.details,
             &offer.message,
             &crate::db::channels::PluginOrigin {
-                owner: offer.plugin_owner.as_deref(),
-                name: offer.plugin_name.as_deref(),
-                version: offer.plugin_version.as_deref(),
+                owner: offer.agent_arguments.plugin_owner.as_deref(),
+                name: offer.agent_arguments.plugin_name.as_deref(),
+                version: offer.agent_arguments.plugin_version.as_deref(),
             },
             &offer.agent_arguments,
         )

@@ -5,21 +5,21 @@ import { Markdown } from "../components/Markdown";
 import { JsonBlock } from "../components/shared/JsonBlock";
 import { tabsCloseSelf } from "../lib/tabs";
 
-/** The wire ChannelOffer, verbatim — this tab's `arguments`. */
+/** The wire ChannelOffer, verbatim — this tab's `arguments`. The
+ * caller identity is FLATTENED to top-level fields; its plugin trio
+ * is the publishing plugin. */
 interface ChannelOffer {
   channel_id: string;
+  agent_instance_hierarchy?: string;
+  agent_id?: string;
+  agent_full_id?: string;
+  agent_remote?: string;
+  response_id?: string;
+  response_ids?: string;
   plugin_owner?: string;
   plugin_name?: string;
   plugin_version?: string;
-  agent_arguments?: {
-    agent_instance_hierarchy?: string;
-    agent_id?: string;
-    agent_full_id?: string;
-    agent_remote?: string;
-    response_id?: string;
-    response_ids?: string;
-    task?: boolean;
-  };
+  task?: boolean;
   key: string;
   details?: unknown;
   message: string;
@@ -39,23 +39,22 @@ export default function ChannelRequestTab({
     offer.plugin_owner !== undefined
       ? `${offer.plugin_owner}/${offer.plugin_name}/${offer.plugin_version}`
       : null;
-  const agent = offer.agent_arguments ?? {};
   const senderFields: [string, string][] = [
-    ["agent", agent.agent_instance_hierarchy ?? "anonymous"],
-    ...(agent.agent_id !== undefined
-      ? ([["agent id", agent.agent_id]] as [string, string][])
+    ["agent", offer.agent_instance_hierarchy ?? "anonymous"],
+    ...(offer.agent_id !== undefined
+      ? ([["agent id", offer.agent_id]] as [string, string][])
       : []),
-    ...(agent.agent_full_id !== undefined
-      ? ([["agent full id", agent.agent_full_id]] as [string, string][])
+    ...(offer.agent_full_id !== undefined
+      ? ([["agent full id", offer.agent_full_id]] as [string, string][])
       : []),
-    ...(agent.agent_remote !== undefined
-      ? ([["remote", agent.agent_remote]] as [string, string][])
+    ...(offer.agent_remote !== undefined
+      ? ([["remote", offer.agent_remote]] as [string, string][])
       : []),
-    ...(agent.response_id !== undefined
-      ? ([["response id", agent.response_id]] as [string, string][])
+    ...(offer.response_id !== undefined
+      ? ([["response id", offer.response_id]] as [string, string][])
       : []),
-    ...(agent.response_ids !== undefined
-      ? ([["response ids", agent.response_ids]] as [string, string][])
+    ...(offer.response_ids !== undefined
+      ? ([["response ids", offer.response_ids]] as [string, string][])
       : []),
   ];
 
@@ -78,7 +77,7 @@ export default function ChannelRequestTab({
           >
             {offer.key}
           </span>
-          {agent.task === true && (
+          {offer.task === true && (
             <span
               title="fired by the task scheduler"
               className={cn(

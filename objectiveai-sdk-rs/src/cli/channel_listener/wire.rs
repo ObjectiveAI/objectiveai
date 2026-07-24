@@ -30,26 +30,18 @@ use crate::cli::command::AgentArguments;
 
 /// One channel OFFER, as broadcast to every connected channel stream.
 /// Carries no secret — the publisher's `S_pub` is returned to the
-/// publisher's command, and the owner's `S_owner` is delivered only
-/// over the accepting per-channel stream.
+/// publisher's command, and the owner's `S_owner` is returned by the
+/// accept POST.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.channel_listener.ChannelOffer")]
 pub struct ChannelOffer {
     /// The daemon-minted channel id — the accept + log routing key.
     pub channel_id: String,
-    /// The PLUGIN that originated the offer — daemon-authored
-    /// (unspoofable; stamped by `plugins run`), absent when the
-    /// caller wasn't a plugin.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_owner: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_version: Option<String>,
-    /// The originating caller's agent identity, from its scope.
+    /// The originating caller's identity, FLATTENED to top-level
+    /// fields (the flat-identity wire convention). Its plugin trio is
+    /// the PUBLISHING plugin — daemon-authored (unspoofable; stamped
+    /// by `plugins run`), absent when the caller wasn't a plugin.
+    #[serde(flatten)]
     pub agent_arguments: AgentArguments,
     /// Caller-chosen discriminator (e.g. `"browser.login"`) — how a
     /// user surface decides whether/how to accept the offer.

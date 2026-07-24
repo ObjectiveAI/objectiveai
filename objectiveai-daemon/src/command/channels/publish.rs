@@ -67,9 +67,6 @@ pub async fn execute(
         request.key,
         request.details,
         request.message,
-        scoped.plugin_owner().map(String::from),
-        scoped.plugin_name().map(String::from),
-        scoped.plugin_version().map(String::from),
         identity,
     );
     let guard = AbandonGuard {
@@ -78,7 +75,7 @@ pub async fn execute(
         armed: true,
     };
     // Unblocks when a client accepts (the daemon persisted the channel
-    // and pushed the owner secret over that connection's SSE). A dropped
+    // and returned the owner secret in the accept response). A dropped
     // sender (accept's DB insert failed) surfaces as an error.
     rx.await.map_err(|_| {
         Error::Instance("channel offer ended without acceptance".to_string())

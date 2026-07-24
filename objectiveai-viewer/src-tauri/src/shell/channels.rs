@@ -238,7 +238,12 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
             None => return,
         }
     };
-    let trio = match (&offer.plugin_owner, &offer.plugin_name, &offer.plugin_version) {
+    let identity_args = &offer.agent_arguments;
+    let trio = match (
+        &identity_args.plugin_owner,
+        &identity_args.plugin_name,
+        &identity_args.plugin_version,
+    ) {
         (Some(owner), Some(name), Some(version)) => {
             Some((owner.clone(), name.clone(), version.clone()))
         }
