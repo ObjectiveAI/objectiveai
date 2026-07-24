@@ -67,8 +67,8 @@ pub async fn fetch_at_tag(
         let name = name.to_string();
         let tag = tag.to_string();
         tokio::task::spawn_blocking(move || {
-            let url = resolve_source(plugins_dir.as_deref(), &owner, &name, &tag);
-            fetch_at_tag_blocking(&dir, &url, &refspec, &reference, &owner, &name, &tag)
+            let source = resolve_source(plugins_dir.as_deref(), &owner, &name, &tag);
+            fetch_at_tag_blocking(&dir, &source, &refspec, &reference, &owner, &name, &tag)
         })
         .await
         .map_err(|e| format!("fetch task panicked: {e}"))?
@@ -82,12 +82,31 @@ pub async fn fetch_at_tag(
     }
 }
 
+/// A resolved fetch source. The distinction matters at fetch time:
+/// libgit2's LOCAL transport does not support shallow fetch (it
+/// errors `shallow fetch is not supported by the local transport`),
+/// so local fetches go full-depth — cheap, the repo is on-disk.
+enum Source {
+    /// The local `<plugins>/<owner>/<name>` override repo.
+    Local(String),
+    /// `https://github.com/{owner}/{name}.git`.
+    Remote(String),
+}
+
+impl Source {
+    fn url(&self) -> &str {
+        match self {
+            Source::Local(url) | Source::Remote(url) => url,
+        }
+    }
+}
+
 /// Pick the fetch source: the local `<plugins>/<owner>/<name>` repo
 /// when it exists (case-insensitive segments) AND contains the tag
 /// (exact-case); the GitHub URL otherwise. Once the local source is
 /// chosen a fetch failure is a hard error — a present tag is a
 /// deliberate local override, never silently skipped.
-fn resolve_source(plugins_dir: Option<&Path>, owner: &str, name: &str, tag: &str) -> String {
+fn resolve_source(plugins_dir: Option<&Path>, owner: &str, name: &str, tag: &str) -> Source {
     if let Some(plugins_dir) = plugins_dir
         && let Some(local) = local_plugin_dir(plugins_dir, owner, name)
         && local_has_tag(&local, tag)
@@ -97,13 +116,13 @@ fn resolve_source(plugins_dir: Option<&Path>, owner: &str, name: &str, tag: &str
         // Linux/macOS they are legal filename bytes and must pass
         // through untouched.
         let local = local.to_string_lossy();
-        return if cfg!(windows) {
+        return Source::Local(if cfg!(windows) {
             local.replace('\\', "/")
         } else {
             local.into_owned()
-        };
+        });
     }
-    format!("https://github.com/{owner}/{name}.git")
+    Source::Remote(format!("https://github.com/{owner}/{name}.git"))
 }
 
 /// `<plugins>/<owner>/<name>` with BOTH segments resolved
@@ -149,19 +168,26 @@ fn local_has_tag(dir: &Path, tag: &str) -> bool {
 
 fn fetch_at_tag_blocking(
     dir: &Path,
-    url: &str,
+    source: &Source,
     refspec: &str,
     reference: &str,
     owner: &str,
     name: &str,
     tag: &str,
 ) -> Result<String, String> {
+    let url = source.url();
     let repo = git2::Repository::init(dir).map_err(|e| format!("git init: {e}"))?;
     let mut remote = repo
         .remote_anonymous(url)
         .map_err(|e| format!("git remote: {e}"))?;
     let mut options = git2::FetchOptions::new();
-    options.depth(1);
+    // Shallow ONLY over the network: libgit2's local transport
+    // rejects depth ("shallow fetch is not supported by the local
+    // transport"), and a full-depth fetch from an on-disk repo is
+    // cheap anyway.
+    if matches!(source, Source::Remote(_)) {
+        options.depth(1);
+    }
     options.download_tags(git2::AutotagOption::None);
     remote
         .fetch(&[refspec], Some(&mut options), None)
