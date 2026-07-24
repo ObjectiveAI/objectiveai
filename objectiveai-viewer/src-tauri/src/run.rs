@@ -164,9 +164,11 @@ pub fn serve(
     log_sink: crate::shell::LogSink,
     command_log_sink: crate::shell::CommandLogSink,
     tab_inventory: crate::shell::TabInventory,
-    plugins_root: std::path::PathBuf,
+    plugins_dirs: crate::shell::PluginsDirs,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
+    let plugins_root = plugins_dirs.plugins_root();
+    let plugins_temp = plugins_dirs.temp_dir();
     // `viewer_ready`'s readiness marker. Nothing consumes the
     // notification today; the command is kept as a startup signal
     // for later.
@@ -190,6 +192,7 @@ pub fn serve(
         .manage(log_sink)
         .manage(command_log_sink)
         .manage(tab_inventory)
+        .manage(plugins_dirs)
         .manage(crate::shell::ChannelRequests::new(plugins_root.clone()));
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
@@ -202,6 +205,7 @@ pub fn serve(
         crate::shell::tabs_inventory,
         crate::shell::tabs_toggle,
         crate::shell::tabs_reorder,
+        crate::shell::plugins_list,
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_close_self,
@@ -246,6 +250,12 @@ pub fn serve(
             // stream for the viewer's whole life; the command-logs
             // tab is just a view over what it writes.
             crate::shell::spawn_command_listener(tauri_app.handle().clone());
+            // Sweep the viewer's OWN temp partition (a hard-killed
+            // predecessor's install scratch) — installs can't start
+            // before a chrome webview can invoke, so nothing races.
+            tauri::async_runtime::spawn(async move {
+                objectiveai_sdk::gitrepo::sweep_temp(&plugins_temp).await;
+            });
             // The resident /channels listener — every incoming offer
             // spawns a detached channel-request window.
             crate::shell::spawn_channel_listener(
@@ -383,8 +393,9 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     // folder.
     let tab_inventory = crate::shell::TabInventory::new(viewer_dir.join("tabs.json"));
 
-    // The installed-plugin tree (machine-wide, shared across states).
-    let plugins_root = config.objectiveai_dir.join("bin").join("plugins");
+    // The installer's directory layout (the installed-plugin tree
+    // lives inside it, machine-wide, shared across states).
+    let plugins_dirs = crate::shell::PluginsDirs::new(config.objectiveai_dir.clone());
 
     Ok(serve(
         proxy,
@@ -393,7 +404,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         log_sink,
         command_log_sink,
         tab_inventory,
-        plugins_root,
+        plugins_dirs,
         None,
     ))
 }

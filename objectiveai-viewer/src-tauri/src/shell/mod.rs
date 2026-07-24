@@ -6,6 +6,8 @@ mod commands;
 pub use commands::*;
 mod docking;
 pub use docking::*;
+mod install;
+pub use install::*;
 mod inventory;
 pub use inventory::*;
 mod jsonl;

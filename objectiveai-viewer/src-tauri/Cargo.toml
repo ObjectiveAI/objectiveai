@@ -19,7 +19,7 @@ eventsource-stream = "0.2.3"
 futures = "0.3.32"
 mime_guess = "2.0.5"
 open = "5.3.2"
-objectiveai-sdk = { version = "2.2.13", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "cli-listener", "mcp", "machine"] }
+objectiveai-sdk = { version = "2.2.13", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "cli-listener", "mcp", "machine", "lockfile", "gitrepo"] }
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "stream"] }
 semver = "1.0.28"
 serde = { version = "1.0.228", features = ["derive"] }

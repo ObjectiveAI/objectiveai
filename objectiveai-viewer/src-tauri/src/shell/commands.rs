@@ -59,7 +59,7 @@ pub struct TabDescriptor {
 /// Whose namespace does this webview speak? Chrome speaks the root
 /// identity; a content webview speaks whatever identity OWNS its tab
 /// — a fact read from the model, never from the caller.
-async fn sender_identity(webview: &tauri::Webview, model: &ShellModel) -> String {
+pub(crate) async fn sender_identity(webview: &tauri::Webview, model: &ShellModel) -> String {
     match native::tab_id(webview.label()) {
         None => ROOT_IDENTITY.to_string(),
         Some(id) => match model.tab(id).await {

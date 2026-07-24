@@ -110,6 +110,86 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
     plugins
 }
 
+/// One installed plugin VERSION — the plugins tab's list row. Unlike
+/// [`scan`], the list keeps EVERY version (uninstall targets exact
+/// versions, so the surface must show them all).
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginVersionInfo {
+    /// Lowercased `<owner>` path segment.
+    pub owner: String,
+    /// Lowercased `<name>` path segment.
+    pub name: String,
+    /// The exact semver version dir name.
+    pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Whether the manifest declares a viewer extension.
+    pub has_viewer: bool,
+}
+
+/// Walk owner → name → version keeping EVERY version with a parseable
+/// manifest (same skip rules as [`scan`]: non-semver dirs warn,
+/// manifest-less dirs are silently not ours). Sorted by (owner, name)
+/// then version DESCENDING — newest first within a plugin.
+pub(crate) async fn list_all_versions(
+    app: &tauri::AppHandle,
+    plugins_root: &Path,
+) -> Vec<PluginVersionInfo> {
+    let mut out: Vec<(semver::Version, PluginVersionInfo)> = Vec::new();
+    for (owner_raw, owner_dir) in subdirs(plugins_root).await {
+        let owner = owner_raw.to_lowercase();
+        for (name_raw, name_dir) in subdirs(&owner_dir).await {
+            let name = name_raw.to_lowercase();
+            for (version_raw, version_dir) in subdirs(&name_dir).await {
+                let Ok(version) = semver::Version::parse(&version_raw) else {
+                    super::report_shell(
+                        app,
+                        "warn",
+                        format!(
+                            "plugins: {owner}/{name}: skipping non-semver version dir {version_raw:?}"
+                        ),
+                    )
+                    .await;
+                    continue;
+                };
+                let manifest_path = version_dir.join("objectiveai.json");
+                let manifest = match tokio::fs::read(&manifest_path).await {
+                    Ok(bytes) => match serde_json::from_slice::<Manifest>(&bytes) {
+                        Ok(manifest) => manifest,
+                        Err(e) => {
+                            super::report_shell(
+                                app,
+                                "error",
+                                format!(
+                                    "plugins: {owner}/{name}@{version}: invalid objectiveai.json: {e}"
+                                ),
+                            )
+                            .await;
+                            continue;
+                        }
+                    },
+                    Err(_) => continue,
+                };
+                let info = PluginVersionInfo {
+                    owner: owner.clone(),
+                    name: name.clone(),
+                    version: version_raw,
+                    description: manifest.description.clone(),
+                    has_viewer: manifest.viewer.is_some(),
+                };
+                out.push((version, info));
+            }
+        }
+    }
+    out.sort_by(|(va, a), (vb, b)| {
+        (&a.owner, &a.name)
+            .cmp(&(&b.owner, &b.name))
+            .then_with(|| vb.cmp(va))
+    });
+    out.into_iter().map(|(_, info)| info).collect()
+}
+
 /// Canonicalize a manifest path (authored relative to `viewer/`,
 /// CWD-style) into the kind's uniform root-relative form: `./`
 /// stripped, stored with a leading `/` whose root IS the plugin's
