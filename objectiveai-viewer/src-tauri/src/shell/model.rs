@@ -376,6 +376,23 @@ impl ShellModel {
         Some(remove_at(&mut inner, label, idx))
     }
 
+    /// Remove ONE tab owned by `identity` (the versioned plugin
+    /// identity, `owner/name/v1.2.3`), wherever it lives, closable or
+    /// not — the uninstall flow's drain (`while let`). Kind matching
+    /// won't do here: channel-handler tabs carry per-offer
+    /// `arguments`, so only the identity is common ground. Same
+    /// neighbor-activation + empty-window semantics as `close`.
+    pub async fn remove_by_identity(&self, identity: &str) -> Option<Closed> {
+        let mut inner = self.inner.lock().await;
+        let (label, idx) = inner.windows.iter().find_map(|(label, ws)| {
+            ws.tabs
+                .iter()
+                .position(|t| t.kind.identity == identity)
+                .map(|idx| (label.clone(), idx))
+        })?;
+        Some(remove_at(&mut inner, label, idx))
+    }
+
     /// The live tab id for `kind`, if one exists.
     pub async fn tab_id_of(&self, kind: &TabKind) -> Option<u64> {
         let inner = self.inner.lock().await;

@@ -464,6 +464,78 @@ pub(crate) async fn install(
     result
 }
 
+/// Uninstall ONE exact installed version: unload every live tab
+/// carrying its versioned identity FIRST (boot tabs and channel
+/// handlers share it), then delete the version dir under the same
+/// machine-wide lock install takes, then prune the name and owner
+/// dirs bottom-up if emptied — only the path parts specific to this
+/// plugin ever go.
+pub(crate) async fn uninstall(
+    app: &tauri::AppHandle,
+    model: &super::ShellModel,
+    dirs: &PluginsDirs,
+    owner: &str,
+    name: &str,
+    version: &str,
+) -> Result<(), String> {
+    if !safe_segment(owner) || !safe_segment(name) || !safe_segment(version) {
+        return Err("invalid owner/name/version".to_string());
+    }
+    let owner = owner.to_lowercase();
+    let name = name.to_lowercase();
+    let identity = format!("{owner}/{name}@{version}");
+    let name_dir = dirs.plugins_root().join(&owner).join(&name);
+    let dest = name_dir.join(version);
+    if !tokio::fs::try_exists(&dest).await.unwrap_or(false) {
+        return Err(format!("{identity} is not installed"));
+    }
+    // Drain live tabs before anything is deleted. Identity match, not
+    // kind match — a dormant (non-active) version's identity is on no
+    // live tab, so uninstalling it closes nothing.
+    let tab_identity = format!("{owner}/{name}/{version}");
+    while let Some(closed) = model.remove_by_identity(&tab_identity).await {
+        super::native::publish(app, &closed.snapshot, &closed.touched);
+        super::native::sync(app).await;
+        if let Some(label) = closed.close_window {
+            use tauri::Manager;
+            if let Some(window) = app.get_window(&label) {
+                let _ = window.close();
+            }
+        }
+    }
+    // The SAME lock key as install — serializes a concurrent
+    // reinstall of the exact version being deleted.
+    let claim = objectiveai_sdk::lockfile::wait_acquire(
+        &dirs.locks_dir(),
+        &format!("plugin-viewer-{owner}-{name}-{version}"),
+        &format!("pid {}", std::process::id()),
+    )
+    .await
+    .map_err(|e| format!("bin lock: {e}"))?;
+    let result = async {
+        if !tokio::fs::try_exists(&dest).await.unwrap_or(false) {
+            return Err(format!("{identity} is not installed"));
+        }
+        tokio::fs::remove_dir_all(&dest)
+            .await
+            .map_err(|e| format!("remove {identity}: {e}"))?;
+        // Bottom-up prune: `remove_dir` refuses non-empty dirs, which
+        // IS the "no other names/versions" guard — best-effort by
+        // design.
+        if tokio::fs::remove_dir(&name_dir).await.is_ok() {
+            if let Some(owner_dir) = name_dir.parent() {
+                let _ = tokio::fs::remove_dir(owner_dir).await;
+            }
+        }
+        Ok(())
+    }
+    .await;
+    claim
+        .release()
+        .map_err(|e| format!("bin lock release: {e}"))?;
+    result
+}
+
 /// Install a plugin's viewer extension — the plugins tab's Install
 /// button. Runs the whole pipeline inline (the JS awaits), then
 /// rescans the inventory and quietly opens the new enabled tabs at
@@ -498,6 +570,47 @@ pub async fn plugins_install(
                 &app,
                 "error",
                 format!("plugins: install {owner}/{name}@{version}: {e}"),
+            )
+            .await;
+            Err(e)
+        }
+    }
+}
+
+/// Uninstall a plugin version — the plugins tab's per-row Uninstall
+/// button. Unloads its tabs, deletes it, then rescans: if an older
+/// installed version resurfaces as the active one, its enabled tabs
+/// open at their config-order slots (what the next boot would show).
+#[tauri::command]
+pub async fn plugins_uninstall(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    model: tauri::State<'_, super::ShellModel>,
+    dirs: tauri::State<'_, PluginsDirs>,
+    owner: String,
+    name: String,
+    version: String,
+) -> Result<(), String> {
+    if super::sender_identity(&webview, &model).await != super::ROOT_IDENTITY {
+        return Err("plugins_uninstall: root identity only".to_string());
+    }
+    let window = webview.window().label().to_string();
+    match uninstall(&app, &model, &dirs, &owner, &name, &version).await {
+        Ok(()) => {
+            super::report_shell(
+                &app,
+                "info",
+                format!("plugins: {owner}/{name}@{version}: uninstalled"),
+            )
+            .await;
+            super::rescan_and_apply(&app, &dirs.plugins_root(), &window, true).await;
+            Ok(())
+        }
+        Err(e) => {
+            super::report_shell(
+                &app,
+                "error",
+                format!("plugins: uninstall {owner}/{name}@{version}: {e}"),
             )
             .await;
             Err(e)
