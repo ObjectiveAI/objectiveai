@@ -29,6 +29,7 @@ serde_json = { version = "1.0.149", features = ["preserve_order"] }
 # refusal — the per-tab content webviews ride all of them.
 tauri = { version = "2.10.3", features = ["unstable"] }
 tokio = { version = "1.50.0", features = ["full"] }
+uuid = { version = "1.22", features = ["v4"] }
 tokio-util = "0.7"
 
 [target."cfg(windows)".dependencies]

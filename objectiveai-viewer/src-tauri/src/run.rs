@@ -206,6 +206,7 @@ pub fn serve(
         crate::shell::tabs_toggle,
         crate::shell::tabs_reorder,
         crate::shell::plugins_list,
+        crate::shell::plugins_install,
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_close_self,

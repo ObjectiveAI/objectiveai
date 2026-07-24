@@ -404,6 +404,61 @@ impl TabInventory {
     }
 }
 
+/// The runtime plugin rescan — install and uninstall both land here:
+/// refresh the inventory's plugin slice from disk, optionally open
+/// every enabled-but-not-live PLUGIN entry QUIETLY into `window`
+/// (the calling webview's window — `tabs_toggle`'s quiet append; the
+/// restriction to plugin entries keeps a root tab the user closed
+/// with its window from resurrecting), live-slot the strip to config
+/// order outside user-controlled mode, and emit `inventory://changed`
+/// so every open tabs pane refreshes.
+pub(crate) async fn rescan_and_apply(
+    app: &tauri::AppHandle,
+    plugins_root: &std::path::Path,
+    window: &str,
+    open_missing: bool,
+) {
+    let inventory = app.state::<TabInventory>();
+    let plugins = super::collect_plugin_entries(app, plugins_root).await;
+    let plugin_keys: std::collections::HashSet<(String, String)> = plugins
+        .iter()
+        .map(|entry| (entry.identity_key.clone(), entry.name.clone()))
+        .collect();
+    inventory.set_plugins(plugins).await;
+    let model = app.state::<super::ShellModel>();
+    if open_missing && app.get_window(window).is_some() {
+        for item in inventory.inventory().await {
+            if !item.enabled
+                || !plugin_keys.contains(&(
+                    item.entry.identity_key.clone(),
+                    item.entry.name.clone(),
+                ))
+            {
+                continue;
+            }
+            let kind = item.entry.kind();
+            if model.tab_id_of(&kind).await.is_some() {
+                continue;
+            }
+            super::open_tab(
+                app,
+                window,
+                kind,
+                item.entry.title.clone(),
+                item.entry.closable,
+                item.entry.icon.clone(),
+                false,
+            )
+            .await;
+        }
+    }
+    if !inventory.user_controlled() {
+        super::live_slot(app, &model, &inventory.display_kinds().await).await;
+    }
+    use tauri::Emitter;
+    let _ = app.emit("inventory://changed", &inventory.inventory().await);
+}
+
 /// The BOOT orchestrator: await the chrome's declaration and the
 /// plugin scan together, load the persisted order/toggles, then open
 /// every ENABLED entry — in DISPLAY ORDER — into the boot window,

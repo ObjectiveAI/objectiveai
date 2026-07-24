@@ -446,6 +446,21 @@ pub async fn tabs_inventory(
     Ok(inventory.inventory().await)
 }
 
+/// Config-order live-slot: reorder every window's inventory tabs to
+/// `kinds` and publish. Publish only — a permutation changes neither
+/// placement nor the active tab, so no reconcile (the tabs_move
+/// precedent). Shared by tabs_toggle, tabs_reorder, and the plugin
+/// installer's rescan.
+pub(crate) async fn live_slot(
+    app: &tauri::AppHandle,
+    model: &ShellModel,
+    kinds: &[TabKind],
+) {
+    if let Some(snapshot) = model.reorder_all(kinds).await {
+        native::publish(app, &snapshot, &[]);
+    }
+}
+
 /// Toggle one inventory tab. Enabled = intent, persisted forever
 /// (missing = enabled): enabling opens the tab into the CALLING
 /// window, disabling closes the live tab wherever it is (bypassing
@@ -501,9 +516,7 @@ pub async fn tabs_toggle(
             // config order — slot the reopened tab into place
             // instead of leaving it at the end.
             if let Some(kinds) = &live_apply_kinds {
-                if let Some(snapshot) = model.reorder_all(kinds).await {
-                    native::publish(&app, &snapshot, &[]);
-                }
+                live_slot(&app, &model, kinds).await;
             }
         } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {
             native::publish(&app, &closed.snapshot, &closed.touched);
@@ -561,13 +574,7 @@ pub async fn tabs_reorder(
         Ok(Ok(())) => {}
     }
     if !inventory.user_controlled() {
-        let kinds = inventory.display_kinds().await;
-        if let Some(snapshot) = model.reorder_all(&kinds).await {
-            // Publish only — a permutation changes neither placement
-            // nor the active tab, so no reconcile (the tabs_move
-            // precedent).
-            native::publish(&app, &snapshot, &[]);
-        }
+        live_slot(&app, &model, &inventory.display_kinds().await).await;
     }
     use tauri::Emitter;
     let _ = app.emit("inventory://changed", &inventory.inventory().await);
