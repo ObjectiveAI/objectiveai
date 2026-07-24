@@ -189,14 +189,14 @@ pub fn serve_http(
             ),
         )
         // The duplex-channels endpoints: the offer-lifecycle SSE, and
-        // the per-channel stream whose bare open IS the accept.
+        // the bare accept POST (returns the owner secret).
         .route(
             "/channels",
             axum::routing::get(crate::http::channel_routes::channels_handler),
         )
         .route(
-            "/channels/{id}",
-            axum::routing::get(crate::http::channel_routes::channel_stream_handler),
+            "/channels/{id}/accept",
+            axum::routing::post(crate::http::channel_routes::channels_accept_handler),
         )
         .with_state(DaemonHttpState {
             tx,

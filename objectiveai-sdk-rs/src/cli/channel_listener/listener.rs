@@ -15,12 +15,12 @@
 //! - [`subscribe`](ChannelListener::subscribe) — async, blocks until
 //!   the next applied event.
 //!
-//! Accepting is [`ChannelListener::accept`]: it OPENS the offer's
-//! per-channel stream (`GET /channels/{id}`) — the open IS the accept.
-//! The returned [`ChannelStream`](super::ChannelStream) carries the
-//! owner secret and is the channel's LIVENESS ANCHOR: drop it and the
-//! channel closes. [`ChannelListener::observe`] opens the same stream
-//! with an existing channel secret, as a pure observer.
+//! Accepting is [`ChannelListener::accept`]: a bare
+//! `POST /channels/{id}/accept` (first-wins) whose `200` body carries
+//! the owner secret (`S_owner`) — the per-channel capability for
+//! `channels logs reply|list|open|subscribe` and `channels close`.
+//! The daemon tracks no liveness; a channel stays open until someone
+//! runs `channels close` with either of its secrets.
 //!
 //! One listener = one connection: the internal pump runs until the
 //! daemon socket closes; after that the view is frozen. Dropping the
@@ -34,7 +34,7 @@ use futures::StreamExt;
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use tokio::sync::{Mutex, watch};
 
-use super::{ChannelEvent, ChannelOffer, ChannelStream};
+use super::{ChannelAccepted, ChannelEvent, ChannelOffer};
 
 /// The event callback: invoked with every parsed [`ChannelEvent`],
 /// after it is folded.
@@ -57,20 +57,16 @@ pub enum Error {
     /// The offer was already accepted by someone else (409).
     #[error("channel already accepted")]
     AlreadyAccepted,
-    /// The daemon refused the credentials (401): bad daemon signature,
-    /// or a channel secret that matches neither role.
-    #[error("channel stream unauthorized")]
+    /// The daemon refused the credentials (401).
+    #[error("channel accept unauthorized")]
     Unauthorized,
-    /// Any other non-success status on the stream open.
-    #[error("channel stream status: {0}")]
+    /// Any other non-success status on the accept.
+    #[error("channel accept status: {0}")]
     Status(reqwest::StatusCode),
-    /// An accept stream ended before delivering the secret frame.
-    #[error("channel stream ended before the owner secret")]
-    StreamEnded,
-    /// An accept stream's first frame wasn't
-    /// [`Secret`](super::ChannelStreamEvent::Secret).
-    #[error("channel stream: unexpected first frame")]
-    UnexpectedFrame,
+    /// The accept's `200` body wasn't a
+    /// [`ChannelAccepted`](super::ChannelAccepted).
+    #[error("channel accept body parse: {0}")]
+    AcceptedParse(#[from] serde_json::Error),
 }
 
 /// The shared inner state, held by both the listener handle and its
@@ -105,9 +101,8 @@ impl ChannelListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent as the
     /// `X-OBJECTIVEAI-SIGNATURE` request header on the stream AND on
-    /// every [`accept`](ChannelListener::accept) /
-    /// [`observe`](ChannelListener::observe). Without it the daemon
-    /// must be running without a secret.
+    /// every [`accept`](ChannelListener::accept). Without it the
+    /// daemon must be running without a secret.
     pub fn signature(mut self, signature: impl Into<String>) -> Self {
         self.signature = Some(signature.into());
         self
@@ -144,10 +139,9 @@ impl ChannelListenerBuilder {
     }
 }
 
-/// The materialized `/channels` offer view + per-channel stream opener
-/// — see the module docs. Construct via [`ChannelListener::new`].
-/// Dropping it aborts the background pump (open [`ChannelStream`]s are
-/// independent and survive).
+/// The materialized `/channels` offer view + accept client — see the
+/// module docs. Construct via [`ChannelListener::new`]. Dropping it
+/// aborts the background pump.
 pub struct ChannelListener {
     shared: Arc<Shared>,
     pump: tokio::task::JoinHandle<()>,
@@ -188,39 +182,34 @@ impl ChannelListener {
         self.shared.changes.subscribe()
     }
 
-    /// Accept an open offer by OPENING its per-channel stream
-    /// (`GET /channels/{id}`, no channel-secret header) — the open IS
-    /// the accept (first-wins). The returned stream's
-    /// [`secret`](ChannelStream::secret) is `Some(S_owner)`.
-    ///
-    /// KEEP THE STREAM ALIVE: it is the channel's liveness anchor —
-    /// dropping it closes the channel (terminal).
-    pub async fn accept(&self, channel_id: &str) -> Result<ChannelStream, Error> {
-        ChannelStream::open(
-            &self.base_url,
-            self.signature.as_deref(),
-            channel_id,
-            None,
-        )
-        .await
-    }
-
-    /// Observe an existing channel: open its stream with a channel
-    /// secret (`S_pub` or `S_owner`) in the
-    /// `X-OBJECTIVEAI-CHANNEL-SECRET` header. The stream is silent
-    /// until the channel closes; dropping it closes nothing.
-    pub async fn observe(
-        &self,
-        channel_id: &str,
-        secret: &str,
-    ) -> Result<ChannelStream, Error> {
-        ChannelStream::open(
-            &self.base_url,
-            self.signature.as_deref(),
-            channel_id,
-            Some(secret),
-        )
-        .await
+    /// Accept an open offer: a bare `POST /channels/{id}/accept`
+    /// (first-wins). Returns the owner secret (`S_owner`) from the
+    /// response body — the per-channel capability for
+    /// `channels logs reply|list|open|subscribe` and `channels close`.
+    pub async fn accept(&self, channel_id: &str) -> Result<String, Error> {
+        let url = format!(
+            "{}/channels/{}/accept",
+            self.base_url.trim_end_matches('/'),
+            channel_id
+        );
+        let client = reqwest::Client::builder().build()?;
+        let mut request = client.post(url);
+        if let Some(signature) = &self.signature {
+            request = request.header("X-OBJECTIVEAI-SIGNATURE", signature);
+        }
+        let response = request.send().await?;
+        let status = response.status();
+        if !status.is_success() {
+            return Err(match status {
+                reqwest::StatusCode::NOT_FOUND => Error::NotFound,
+                reqwest::StatusCode::CONFLICT => Error::AlreadyAccepted,
+                reqwest::StatusCode::UNAUTHORIZED => Error::Unauthorized,
+                _ => Error::Status(status),
+            });
+        }
+        let body = response.text().await?;
+        let accepted: ChannelAccepted = serde_json::from_str(&body)?;
+        Ok(accepted.secret)
     }
 }
 

@@ -3,10 +3,12 @@
 //! client). Leaves:
 //!
 //! - `publish` — offer a channel and block until accepted.
+//! - `close` — close a channel (either secret authorizes).
 //! - `logs …` — the per-channel append-only message log.
 
 use crate::cli::command::CommandRequest;
 
+pub mod close;
 pub mod logs;
 pub mod publish;
 
@@ -14,6 +16,8 @@ pub mod publish;
 pub enum Command {
     /// Offer a channel and block until the first client accepts.
     Publish(publish::Command),
+    /// Close a channel (terminal; either secret authorizes).
+    Close(close::Command),
     /// The per-channel message log.
     Logs {
         #[command(subcommand)]
@@ -31,6 +35,12 @@ pub enum Request {
     PublishRequestSchema(publish::request_schema::Request),
     #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Request),
+    #[schemars(title = "Close")]
+    Close(close::Request),
+    #[schemars(title = "CloseRequestSchema")]
+    CloseRequestSchema(close::request_schema::Request),
+    #[schemars(title = "CloseResponseSchema")]
+    CloseResponseSchema(close::response_schema::Request),
     #[schemars(title = "Logs")]
     Logs(logs::Request),
 }
@@ -48,6 +58,12 @@ pub enum ResponseItem {
     PublishRequestSchema(publish::request_schema::Response),
     #[schemars(title = "PublishResponseSchema")]
     PublishResponseSchema(publish::response_schema::Response),
+    #[schemars(title = "Close")]
+    Close(close::Response),
+    #[schemars(title = "CloseRequestSchema")]
+    CloseRequestSchema(close::request_schema::Response),
+    #[schemars(title = "CloseResponseSchema")]
+    CloseResponseSchema(close::response_schema::Response),
     #[schemars(title = "Logs")]
     Logs(logs::ResponseItem),
 }
@@ -59,6 +75,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Publish(v) => v.into_mcp(),
             ResponseItem::PublishRequestSchema(v) => v.into_mcp(),
             ResponseItem::PublishResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Close(v) => v.into_mcp(),
+            ResponseItem::CloseRequestSchema(v) => v.into_mcp(),
+            ResponseItem::CloseResponseSchema(v) => v.into_mcp(),
             ResponseItem::Logs(v) => v.into_mcp(),
         }
     }
@@ -77,6 +96,15 @@ impl TryFrom<Command> for Request {
                     Request::PublishResponseSchema(publish::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::Close(cmd) => match cmd.schema {
+                None => Ok(Request::Close(close::Request::try_from(cmd.args)?)),
+                Some(close::Schema::RequestSchema(args)) => Ok(
+                    Request::CloseRequestSchema(close::request_schema::Request::try_from(args)?),
+                ),
+                Some(close::Schema::ResponseSchema(args)) => Ok(
+                    Request::CloseResponseSchema(close::response_schema::Request::try_from(args)?),
+                ),
+            },
             Command::Logs { command } => Ok(Request::Logs(logs::Request::try_from(command)?)),
         }
     }
@@ -88,6 +116,9 @@ impl CommandRequest for Request {
             Request::Publish(inner) => inner.request_base(),
             Request::PublishRequestSchema(inner) => inner.request_base(),
             Request::PublishResponseSchema(inner) => inner.request_base(),
+            Request::Close(inner) => inner.request_base(),
+            Request::CloseRequestSchema(inner) => inner.request_base(),
+            Request::CloseResponseSchema(inner) => inner.request_base(),
             Request::Logs(inner) => inner.request_base(),
         }
     }
@@ -97,6 +128,9 @@ impl CommandRequest for Request {
             Request::Publish(inner) => inner.request_base_mut(),
             Request::PublishRequestSchema(inner) => inner.request_base_mut(),
             Request::PublishResponseSchema(inner) => inner.request_base_mut(),
+            Request::Close(inner) => inner.request_base_mut(),
+            Request::CloseRequestSchema(inner) => inner.request_base_mut(),
+            Request::CloseResponseSchema(inner) => inner.request_base_mut(),
             Request::Logs(inner) => inner.request_base_mut(),
         }
     }
@@ -126,6 +160,18 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         Request::PublishResponseSchema(req) => {
             let value = publish::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::PublishResponseSchema(value))))
+        }
+        Request::Close(req) => {
+            let value = close::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::Close(value))))
+        }
+        Request::CloseRequestSchema(req) => {
+            let value = close::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::CloseRequestSchema(value))))
+        }
+        Request::CloseResponseSchema(req) => {
+            let value = close::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(ResponseItem::CloseResponseSchema(value))))
         }
         Request::Logs(req) => {
             let inner = logs::execute(executor, req, agent_arguments).await?;
@@ -160,6 +206,18 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             let value = publish::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
+        Request::Close(req) => {
+            let value = close::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::CloseRequestSchema(req) => {
+            let value = close::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::CloseResponseSchema(req) => {
+            let value = close::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
         Request::Logs(req) => {
             let inner = logs::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(inner)
@@ -174,5 +232,8 @@ pub enum ListenerExecution {
     Publish(publish::ListenerExecution),
     PublishRequestSchema(publish::request_schema::ListenerExecution),
     PublishResponseSchema(publish::response_schema::ListenerExecution),
+    Close(close::ListenerExecution),
+    CloseRequestSchema(close::request_schema::ListenerExecution),
+    CloseResponseSchema(close::response_schema::ListenerExecution),
     Logs(logs::ListenerExecution),
 }

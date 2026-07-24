@@ -1895,6 +1895,24 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::channels::publish::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
             Some((crate::cli::command::ListenerExecution::Channels(crate::cli::command::channels::ListenerExecution::PublishResponseSchema(execution)), feed))
         }
+        "channels/close" => {
+            let parsed = serde_json::from_str::<crate::cli::command::channels::close::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::channels::close::Response>(path_type);
+            let execution = crate::cli::command::channels::close::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Channels(crate::cli::command::channels::ListenerExecution::Close(execution)), feed))
+        }
+        "channels/close/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::channels::close::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::channels::close::request_schema::Response>(path_type);
+            let execution = crate::cli::command::channels::close::request_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Channels(crate::cli::command::channels::ListenerExecution::CloseRequestSchema(execution)), feed))
+        }
+        "channels/close/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::channels::close::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::channels::close::response_schema::Response>(path_type);
+            let execution = crate::cli::command::channels::close::response_schema::ListenerExecution { request: parsed, agent_arguments, response };
+            Some((crate::cli::command::ListenerExecution::Channels(crate::cli::command::channels::ListenerExecution::CloseResponseSchema(execution)), feed))
+        }
         "channels/logs/request" => {
             let parsed = serde_json::from_str::<crate::cli::command::channels::logs::request::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::channels::logs::request::Response>(path_type);

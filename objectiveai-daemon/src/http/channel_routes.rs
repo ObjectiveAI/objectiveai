@@ -15,19 +15,17 @@
 //!   accept, plus the arbitration oneshot the blocked `channels
 //!   publish` command awaits and the audience set for its withdrawal.
 //!
-//! `GET /channels/{id}` is the PER-CHANNEL stream:
-//! - **Accept** (no `X-OBJECTIVEAI-CHANNEL-SECRET` header): opening a
-//!   PENDING offer's stream IS the accept (first-wins). The first
-//!   frame delivers `S_owner`; the stream is the channel's LIVENESS
-//!   ANCHOR — its drop closes the channel (terminal).
-//! - **Observer** (header = `S_pub` or `S_owner`): silent until the
-//!   channel closes, then one `closed` frame and the stream ends.
-//!   Observer drops close nothing.
+//! `POST /channels/{id}/accept` (no body) is the ACCEPT: first-wins
+//! over a pending offer, answering `200` with [`ChannelAccepted`]
+//! (the owner secret) or `404`/`409`. The daemon does NO liveness
+//! tracking — a channel stays open until someone runs
+//! `channels close` with either of its secrets (terminal; the
+//! `channel_closed` NOTIFY unblocks any parked `logs subscribe`).
 //!
 //! Secret flow: `S_pub` is minted at offer time and returned to the
-//! publisher's command; `S_owner` is minted on accept and delivered as
-//! the accepting stream's FIRST frame — capability and channel life
-//! ride the same connection by construction.
+//! publisher's command; `S_owner` is minted on accept and returned in
+//! the accept response. Both are bearer capabilities for the
+//! per-channel log commands and `channels close`.
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -36,7 +34,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use axum::response::sse::{Event, Sse};
 use dashmap::DashMap;
 use objectiveai_sdk::cli::channel_listener::{
-    ChannelEvent, ChannelOffer, ChannelStreamEvent,
+    ChannelAccepted, ChannelEvent, ChannelOffer,
 };
 use objectiveai_sdk::cli::command::AgentArguments;
 use tokio::sync::{mpsc, oneshot};
@@ -72,8 +70,8 @@ impl Default for ChannelHub {
     }
 }
 
-/// Why an accept-open failed.
-pub enum AcceptOpenError {
+/// Why an accept failed.
+pub enum AcceptError {
     /// No pending offer AND no channel row — unknown or withdrawn id.
     NotFound,
     /// The offer is gone but the channel exists (open or closed) —
@@ -189,24 +187,23 @@ impl ChannelHub {
         });
     }
 
-    /// The first-wins ACCEPT, driven by a `GET /channels/{id}` open:
-    /// arbitrate the offer's oneshot → mint `S_owner` → persist the
-    /// channel → unblock the publisher → withdraw the offer from every
-    /// connection that saw it. Returns `S_owner`; the caller's stream
-    /// delivers it as the first frame and anchors the channel's life.
-    pub async fn accept_open(
+    /// The first-wins ACCEPT: arbitrate the offer's oneshot → mint
+    /// `S_owner` → persist the channel → unblock the publisher →
+    /// withdraw the offer from every connection that saw it. Returns
+    /// `S_owner` — the accept response's body.
+    pub async fn accept(
         &self,
         pool: &crate::db::Pool,
         channel_id: &str,
-    ) -> Result<String, AcceptOpenError> {
+    ) -> Result<String, AcceptError> {
         let Some(offer) = self.offers.get(channel_id).map(|e| Arc::clone(e.value()))
         else {
             // No pending offer: an existing channel row means someone
             // already accepted; nothing at all means unknown/withdrawn.
             return match crate::db::channels::channel_state(pool, channel_id).await {
-                Ok(Some(_)) => Err(AcceptOpenError::AlreadyAccepted),
-                Ok(None) => Err(AcceptOpenError::NotFound),
-                Err(e) => Err(AcceptOpenError::Db(e)),
+                Ok(Some(_)) => Err(AcceptError::AlreadyAccepted),
+                Ok(None) => Err(AcceptError::NotFound),
+                Err(e) => Err(AcceptError::Db(e)),
             };
         };
         // Arbitrate: the first accept takes the oneshot. Take it out
@@ -215,7 +212,7 @@ impl ChannelHub {
             let mut slot = offer.accept.lock().expect("accept lock");
             match slot.take() {
                 Some(sender) => sender,
-                None => return Err(AcceptOpenError::AlreadyAccepted),
+                None => return Err(AcceptError::AlreadyAccepted),
             }
         };
         let owner_secret = uuid::Uuid::new_v4().to_string();
@@ -239,7 +236,7 @@ impl ChannelHub {
         )
         .await
         {
-            return Err(AcceptOpenError::Db(e));
+            return Err(AcceptError::Db(e));
         }
         // The offer is consumed.
         self.offers.remove(channel_id);
@@ -267,9 +264,9 @@ impl ChannelHub {
     }
 }
 
-/// Serialize one wire event to its SSE frame string.
-fn frame<T: serde::Serialize>(event: &T) -> String {
-    serde_json::to_string(event).expect("wire event serializes")
+/// Serialize one [`ChannelEvent`] to its SSE frame string.
+fn frame(event: &ChannelEvent) -> String {
+    serde_json::to_string(event).expect("ChannelEvent serializes")
 }
 
 /// RAII on the base `GET /channels` stream: dropping it unregisters
@@ -282,44 +279,6 @@ struct ConnectionGuard {
 impl Drop for ConnectionGuard {
     fn drop(&mut self) {
         self.hub.unregister_connection(self.id);
-    }
-}
-
-/// RAII on an ACCEPT-mode per-channel stream: dropping it closes the
-/// channel (terminal, idempotent). The DB close is async, so it runs
-/// in a spawned task — the trigger's NOTIFY wakes any blocked
-/// subscriber/observer.
-struct ChannelCloseGuard {
-    pool: crate::db::Pool,
-    channel_id: String,
-}
-
-impl Drop for ChannelCloseGuard {
-    fn drop(&mut self) {
-        let pool = self.pool.clone();
-        let channel_id = std::mem::take(&mut self.channel_id);
-        tokio::spawn(async move {
-            let _ = crate::db::channels::close_channel(&pool, &channel_id).await;
-        });
-    }
-}
-
-/// Resolve when the channel is (or becomes) closed/absent. The LISTEN
-/// is attached BEFORE the state check (the `channels logs subscribe`
-/// pattern), so a close landing between the check and the wait is
-/// never lost. Message NOTIFYs wake the loop harmlessly — it just
-/// re-checks state.
-async fn closed_wait(
-    pool: &crate::db::Pool,
-    channel_id: &str,
-) -> Result<(), crate::db::Error> {
-    let mut listener = crate::db::channels::channel_event_listener(pool).await?;
-    loop {
-        match crate::db::channels::channel_state(pool, channel_id).await? {
-            Some(crate::db::channels::ChannelState::Open) => {}
-            Some(crate::db::channels::ChannelState::Closed) | None => return Ok(()),
-        }
-        crate::db::channels::recv_channel_event(&mut listener, channel_id).await?;
     }
 }
 
@@ -350,21 +309,11 @@ pub(crate) async fn channels_handler(
     Sse::new(stream).into_response()
 }
 
-/// `GET /channels/{id}`: the per-channel stream. Header-auth first,
-/// then mode by the `X-OBJECTIVEAI-CHANNEL-SECRET` header:
-///
-/// - **absent = ACCEPT-OPEN**: first-wins accept of the pending offer
-///   ([`ChannelHub::accept_open`]). First frame =
-///   [`ChannelStreamEvent::Secret`] (`S_owner`); the stream anchors
-///   the channel — its drop closes it. Statuses: 404 unknown or
-///   withdrawn id; 409 already accepted (including "channel exists,
-///   no secret presented"); 500 DB.
-/// - **present = OBSERVER**: the secret must match a role
-///   (`role_of`, 401 otherwise; 404 unknown id). Silent until the
-///   channel closes → one [`ChannelStreamEvent::Closed`] → end
-///   (immediate on an already-closed channel). Observer drops close
-///   nothing.
-pub(crate) async fn channel_stream_handler(
+/// `POST /channels/{id}/accept`: header-auth, no body. First-wins
+/// accept of a pending offer ([`ChannelHub::accept`]). `200` answers
+/// with [`ChannelAccepted`] — the owner secret (`S_owner`); `404` =
+/// unknown or withdrawn id; `409` = already accepted; `500` = DB.
+pub(crate) async fn channels_accept_handler(
     axum::extract::State(state): axum::extract::State<
         crate::http::daemon_stream::DaemonHttpState,
     >,
@@ -388,84 +337,20 @@ pub(crate) async fn channel_stream_handler(
                 .into_response();
         }
     };
-    let secret = headers
-        .get("X-OBJECTIVEAI-CHANNEL-SECRET")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-
-    if let Some(secret) = secret {
-        // OBSERVER: authenticate the channel secret, then wait out the
-        // channel's life. The authoritative closed check happens
-        // INSIDE closed_wait, after its LISTEN attach — a close
-        // landing between channel_auth and the attach still yields an
-        // immediate `closed` frame.
-        let auth = match crate::db::channels::channel_auth(&pool, &id).await {
-            Ok(Some(auth)) => auth,
-            Ok(None) => return axum::http::StatusCode::NOT_FOUND.into_response(),
-            Err(e) => {
-                return (
-                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("channel auth: {e}"),
-                )
-                    .into_response();
-            }
-        };
-        if auth.role_of(&secret).is_none() {
-            return axum::http::StatusCode::UNAUTHORIZED.into_response();
+    match state.channels.accept(&pool, &id).await {
+        Ok(secret) => {
+            let body = serde_json::to_string(&ChannelAccepted { secret })
+                .expect("ChannelAccepted serializes");
+            (axum::http::StatusCode::OK, body).into_response()
         }
-        let stream = async_stream::stream! {
-            if closed_wait(&pool, &id).await.is_ok() {
-                yield Ok::<_, std::convert::Infallible>(
-                    Event::default().data(frame(&ChannelStreamEvent::Closed)),
-                );
-            }
-        };
-        return Sse::new(stream).into_response();
+        Err(AcceptError::NotFound) => axum::http::StatusCode::NOT_FOUND.into_response(),
+        Err(AcceptError::AlreadyAccepted) => {
+            axum::http::StatusCode::CONFLICT.into_response()
+        }
+        Err(AcceptError::Db(e)) => (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            format!("channel accept: {e}"),
+        )
+            .into_response(),
     }
-
-    // ACCEPT-OPEN: the open IS the accept.
-    let owner_secret = match state.channels.accept_open(&pool, &id).await {
-        Ok(secret) => secret,
-        Err(AcceptOpenError::NotFound) => {
-            return axum::http::StatusCode::NOT_FOUND.into_response();
-        }
-        Err(AcceptOpenError::AlreadyAccepted) => {
-            return axum::http::StatusCode::CONFLICT.into_response();
-        }
-        Err(AcceptOpenError::Db(e)) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                format!("channel accept: {e}"),
-            )
-                .into_response();
-        }
-    };
-    // Arm the close guard OUTSIDE the stream body and MOVE it in: an
-    // async_stream body doesn't run until first poll, so a guard
-    // constructed inside would never exist if the response is dropped
-    // unpolled (client vanished mid-request) — the channel would leak
-    // open. A moved-in guard is captured at construction; dropping the
-    // unpolled stream still fires it.
-    let guard = ChannelCloseGuard {
-        pool: pool.clone(),
-        channel_id: id.clone(),
-    };
-    let stream = async_stream::stream! {
-        let _guard = guard;
-        yield Ok::<_, std::convert::Infallible>(
-            Event::default().data(frame(&ChannelStreamEvent::Secret {
-                secret: owner_secret,
-            })),
-        );
-        // Externally-driven closes (a future close/delete verb) end
-        // the stream uniformly; today only this stream's own drop
-        // closes the channel, so this wait normally outlives the
-        // client.
-        if closed_wait(&pool, &id).await.is_ok() {
-            yield Ok::<_, std::convert::Infallible>(
-                Event::default().data(frame(&ChannelStreamEvent::Closed)),
-            );
-        }
-    };
-    Sse::new(stream).into_response()
 }

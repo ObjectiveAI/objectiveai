@@ -11,22 +11,18 @@
 //! up, then live offers and withdrawals follow. No secrets ride this
 //! stream.
 //!
-//! `GET /channels/{id}` is the PER-CHANNEL stream, an SSE of
-//! [`ChannelStreamEvent`]s, in one of two modes:
-//! - **Accept** — no `X-OBJECTIVEAI-CHANNEL-SECRET` header. Opening
-//!   the stream of a PENDING offer IS the accept (first-wins). The
-//!   first frame is [`ChannelStreamEvent::Secret`] carrying the owner
-//!   secret (`S_owner`), and the stream is the channel's LIVENESS
-//!   ANCHOR: when it drops, the channel closes (terminal).
-//! - **Observer** — the header carries a channel secret (`S_pub` or
-//!   `S_owner`). The stream is silent until the channel closes, then
-//!   delivers one [`ChannelStreamEvent::Closed`] and ends. Observer
-//!   drops close nothing.
+//! `POST /channels/{id}/accept` (no body) is the ACCEPT: first-wins
+//! over a pending offer, answering `200` with [`ChannelAccepted`] —
+//! the owner secret (`S_owner`) — or `404` (unknown/withdrawn) /
+//! `409` (already accepted). The daemon does NO liveness tracking:
+//! a channel stays open until someone runs `channels close` with
+//! either of its secrets (terminal; any blocked `channels logs
+//! subscribe` unblocks with `channel_closed`).
 //!
 //! Secret flow: `S_pub` is minted at offer time and returned to the
-//! publisher's command; `S_owner` is minted at accept and delivered as
-//! the accepting stream's first frame — the capability and the
-//! channel's life are bound to the same connection by construction.
+//! publisher's command; `S_owner` is minted at accept and returned in
+//! the accept response. Both are bearer capabilities for the
+//! per-channel log commands.
 
 use serde::{Deserialize, Serialize};
 
@@ -82,19 +78,11 @@ pub enum ChannelEvent {
     Live,
 }
 
-/// One frame on the per-channel `GET /channels/{id}` SSE stream.
+/// The `POST /channels/{id}/accept` success body: the owner secret
+/// (`S_owner`) — the per-channel capability for `channels logs
+/// reply|list|open|subscribe` and `channels close`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.channel_listener.ChannelStreamEvent")]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ChannelStreamEvent {
-    /// The owner secret (`S_owner`) — ALWAYS the first frame of an
-    /// accept-mode open, never sent on an observer stream. The
-    /// per-channel capability for `channels logs reply|list|open|
-    /// subscribe`.
-    #[schemars(title = "Secret")]
-    Secret { secret: String },
-    /// The channel closed (terminal): no further requests or replies
-    /// are accepted, though the log survives. The stream's last frame.
-    #[schemars(title = "Closed")]
-    Closed,
+#[schemars(rename = "cli.channel_listener.ChannelAccepted")]
+pub struct ChannelAccepted {
+    pub secret: String,
 }

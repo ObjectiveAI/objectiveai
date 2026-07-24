@@ -1,5 +1,6 @@
 //! `channels` tier — daemon-side dispatch for duplex channels.
-//! `publish` (offer + block until accepted) and the `logs` sub-tier.
+//! `publish` (offer + block until accepted), `close` (terminal, by
+//! either channel secret), and the `logs` sub-tier.
 
 use std::pin::Pin;
 
@@ -10,6 +11,7 @@ use objectiveai_sdk::cli::command::channels::{Request, ResponseItem};
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
 
+pub mod close;
 pub mod logs;
 pub mod publish;
 
@@ -76,6 +78,18 @@ pub async fn execute(
         Request::PublishResponseSchema(req) => {
             let value = publish::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::PublishResponseSchema(value)))
+        }
+        Request::Close(req) => {
+            let value = close::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::Close(value)))
+        }
+        Request::CloseRequestSchema(req) => {
+            let value = close::request_schema::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::CloseRequestSchema(value)))
+        }
+        Request::CloseResponseSchema(req) => {
+            let value = close::response_schema::execute(global, scoped, req).await?;
+            once(Ok(ResponseItem::CloseResponseSchema(value)))
         }
         Request::Logs(req) => {
             let inner = logs::execute(global, scoped, req).await?;
