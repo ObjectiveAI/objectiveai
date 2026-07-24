@@ -14,6 +14,18 @@
  * own parse + fold. Pass `{ method: "POST", body }` for `/execute`.
  */
 
+/** A non-2xx response to an SSE connect — carries the HTTP status so
+ * callers can map it (e.g. the per-channel stream's 404/409/401). */
+export class SseHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "SseHttpError";
+  }
+}
+
 /**
  * Open the daemon SSE stream at `url` and return an async generator of
  * each event's raw `data` string. `signature`, when present, is sent as
@@ -23,7 +35,8 @@
  * the per-run agent-identity header values — one `X-OBJECTIVEAI-*`
  * header per set field, the same names the api stamps on outbound
  * calls. Omit `init` for the plain `GET` watcher/broadcast routes.
- * Rejects on a connection failure or a non-2xx status.
+ * Rejects on a connection failure, or with {@link SseHttpError} on a
+ * non-2xx status.
  */
 export async function connectSse(
   url: string,
@@ -45,6 +58,10 @@ export async function connectSse(
     responseId?: string | null;
     /** Value for the `X-OBJECTIVEAI-RESPONSE-IDS` header. */
     responseIds?: string | null;
+    /** Value for the `X-OBJECTIVEAI-CHANNEL-SECRET` header — a channel
+     * secret (`S_pub` or `S_owner`) authorizing a per-channel observer
+     * stream. */
+    channelSecret?: string | null;
   },
 ): Promise<AsyncGenerator<string>> {
   const headers: Record<string, string> = { Accept: "text/event-stream" };
@@ -67,6 +84,9 @@ export async function connectSse(
   if (init?.responseIds) {
     headers["X-OBJECTIVEAI-RESPONSE-IDS"] = init.responseIds;
   }
+  if (init?.channelSecret) {
+    headers["X-OBJECTIVEAI-CHANNEL-SECRET"] = init.channelSecret;
+  }
   let response: Response;
   try {
     response = await fetch(url, {
@@ -81,7 +101,8 @@ export async function connectSse(
     );
   }
   if (!response.ok || !response.body) {
-    throw new Error(
+    throw new SseHttpError(
+      response.status,
       `connect daemon sse: HTTP ${response.status} from ${init?.method ?? "GET"} ${url}`,
     );
   }
