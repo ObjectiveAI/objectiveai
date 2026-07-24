@@ -260,9 +260,11 @@ pub(crate) async fn collect_plugin_entries(
         };
         // Channel-handler entries never open at boot and never join
         // the inventory — the accept flow resolves them on demand
-        // (`plugin_channel`). Duplicate modules: entries after the
-        // first are ignored.
-        let mut seen_modules = std::collections::HashSet::new();
+        // (`plugin_channel`). A tab's IDENTITY is (module, export) —
+        // one module may legitimately supply several tabs through
+        // different exports; duplicates of the pair are ignored after
+        // the first.
+        let mut seen = std::collections::HashSet::new();
         for tab in tabs {
             let objectiveai_sdk::cli::plugins::ViewerTab::Tab {
                 title,
@@ -281,16 +283,21 @@ pub(crate) async fn collect_plugin_entries(
                 .await;
                 continue;
             };
-            if !seen_modules.insert(module.clone()) {
+            if !seen.insert((module.clone(), export.clone())) {
                 continue;
             }
             // The tab's stable NAME (the version-less persistence key,
-            // with identity_key) is its normalized module path — the
+            // with identity_key) is its normalized module path plus,
+            // for a non-default export, a `#export` suffix — the
             // manifest carries no separate name.
+            let name = match export {
+                Some(export) => format!("{module}#{export}"),
+                None => module.clone(),
+            };
             out.push(super::TabEntry {
                 identity: identity.clone(),
                 identity_key: identity_key.clone(),
-                name: module.clone(),
+                name,
                 title: title.clone(),
                 module,
                 export: export.clone(),
