@@ -201,10 +201,9 @@ async fn accept_flow(
         name.to_lowercase(),
         version
     );
-    let title = handler
-        .title
-        .clone()
-        .unwrap_or_else(|| offer.key.clone());
+    // Handler tabs are titled by their offer key — the manifest's
+    // Channel entries deliberately carry no title.
+    let title = offer.key.clone();
     let arguments = serde_json::to_value(&offer)
         .map_err(|e| format!("offer serialize: {e}"))?;
     let kind = TabKind {

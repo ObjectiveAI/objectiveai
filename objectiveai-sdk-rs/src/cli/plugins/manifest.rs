@@ -35,13 +35,14 @@ pub struct Viewer {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub icon: Option<String>,
-    /// The plugin's tabs, in declaration order (strip order). An
-    /// entry WITH `channel_key` is a CHANNEL HANDLER: it never opens
-    /// at boot — it opens when an offer with that key is accepted,
-    /// with the full offer as its arguments. An entry WITHOUT it is a
-    /// regular tab, opened at viewer boot. Duplicates (same `module`
-    /// among regular tabs, same `channel_key` among handlers) —
-    /// entries after the first are ignored.
+    /// The plugin's tabs, in declaration order (strip order). A
+    /// [`ViewerTab::Channel`] entry (`channel_key`) is a CHANNEL
+    /// HANDLER: it never opens at boot — it opens when an offer with
+    /// that key is accepted, with the full offer as its arguments,
+    /// titled by the offer key. A [`ViewerTab::Tab`] entry (`title`)
+    /// is a regular tab, opened at viewer boot. Duplicates (same
+    /// `module` among regular tabs, same `channel_key` among
+    /// handlers) — entries after the first are ignored.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub tabs: Option<Vec<ViewerTab>>,
@@ -49,24 +50,37 @@ pub struct Viewer {
 
 /// One declared viewer tab: the component coordinates the viewer's
 /// generic bootstrap dereferences (`import(module)[export]`), plus
-/// the optional `channel_key` that turns the tab into a channel
-/// handler.
+/// EXACTLY ONE of `channel_key` (a channel handler, titled by its
+/// offer key) or `title` (a regular boot tab). Untagged: the present
+/// field decides the variant; an entry carrying both reads as a
+/// handler and its `title` is ignored.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "cli.plugins.ViewerTab")]
-pub struct ViewerTab {
-    /// The component's module path, relative to `viewer/`.
-    pub module: String,
-    /// The export holding the component (`None` = `"default"`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub export: Option<String>,
-    /// Display title (`None` = derived from the module file name).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub title: Option<String>,
-    /// Present ⇒ this tab is the CHANNEL HANDLER for offers with this
-    /// key (e.g. `"browser.login"`); it never opens at boot.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub channel_key: Option<String>,
+#[serde(untagged)]
+pub enum ViewerTab {
+    /// A channel handler — opened by the accept flow, never at boot.
+    #[schemars(title = "Channel")]
+    Channel {
+        /// The offer key this handler answers (e.g.
+        /// `"browser.login"`) — also the opened tab's title.
+        channel_key: String,
+        /// The component's module path, relative to `viewer/`.
+        module: String,
+        /// The export holding the component (`None` = `"default"`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        export: Option<String>,
+    },
+    /// A regular tab — opened at viewer boot.
+    #[schemars(title = "Tab")]
+    Tab {
+        /// The tab's display title.
+        title: String,
+        /// The component's module path, relative to `viewer/`.
+        module: String,
+        /// The export holding the component (`None` = `"default"`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        export: Option<String>,
+    },
 }

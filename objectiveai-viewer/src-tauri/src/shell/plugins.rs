@@ -173,17 +173,18 @@ pub(crate) async fn plugin_icon(
     normalize(manifest.viewer?.icon?.as_str())
 }
 
-/// One resolved channel handler, ready to open as a tab.
+/// One resolved channel handler, ready to open as a tab (titled by
+/// its offer key — handlers carry no title of their own).
 pub(crate) struct PluginChannel {
     /// Root-relative module path (root = the plugin's viewer dir).
     pub module: String,
     pub export: Option<String>,
-    pub title: Option<String>,
     /// The plugin's manifest icon, normalized.
     pub icon: Option<String>,
 }
 
 /// The plugin's channel handler for `key` — the FIRST `viewer.tabs`
+/// [`Channel`](objectiveai_sdk::cli::plugins::ViewerTab::Channel)
 /// entry whose `channel_key` matches (manifest order; later
 /// duplicates are ignored). `None` when the plugin isn't installed,
 /// declares no handler for the key, or the entry's module path is
@@ -195,31 +196,24 @@ pub(crate) async fn plugin_channel(
     version: &str,
     key: &str,
 ) -> Option<PluginChannel> {
+    use objectiveai_sdk::cli::plugins::ViewerTab;
     let manifest = read_manifest(plugins_root, owner, name, version).await?;
     let viewer = manifest.viewer?;
     let icon = viewer.icon.as_deref().and_then(normalize);
     let tabs = viewer.tabs?;
-    let entry = tabs
-        .iter()
-        .find(|tab| tab.channel_key.as_deref() == Some(key))?;
+    let (module, export) = tabs.iter().find_map(|tab| match tab {
+        ViewerTab::Channel {
+            channel_key,
+            module,
+            export,
+        } if channel_key == key => Some((module.clone(), export.clone())),
+        _ => None,
+    })?;
     Some(PluginChannel {
-        module: normalize(&entry.module)?,
-        export: entry.export.clone(),
-        title: entry.title.clone(),
+        module: normalize(&module)?,
+        export,
         icon,
     })
-}
-
-/// The display/persistence stem of a module path: the final segment
-/// minus its extension (`/panels/greet.js` → `greet`). The default
-/// title of an untitled tab.
-fn module_stem(module: &str) -> String {
-    let file = module.rsplit('/').next().unwrap_or(module);
-    file.rsplit_once('.')
-        .map(|(stem, _)| stem)
-        .filter(|stem| !stem.is_empty())
-        .unwrap_or(file)
-        .to_string()
 }
 
 /// Scan the tree and turn every declared plugin tab into a
@@ -257,20 +251,25 @@ pub(crate) async fn collect_plugin_entries(
         let Some(tabs) = &viewer.tabs else {
             continue;
         };
-        // Channel-handler entries (`channel_key` present) never open
-        // at boot and never join the inventory — the accept flow
-        // resolves them on demand (`plugin_channel`). Duplicate
-        // modules: entries after the first are ignored.
+        // Channel-handler entries never open at boot and never join
+        // the inventory — the accept flow resolves them on demand
+        // (`plugin_channel`). Duplicate modules: entries after the
+        // first are ignored.
         let mut seen_modules = std::collections::HashSet::new();
-        for tab in tabs.iter().filter(|tab| tab.channel_key.is_none()) {
-            let Some(module) = normalize(&tab.module) else {
+        for tab in tabs {
+            let objectiveai_sdk::cli::plugins::ViewerTab::Tab {
+                title,
+                module,
+                export,
+            } = tab
+            else {
+                continue;
+            };
+            let Some(module) = normalize(module) else {
                 super::report_shell(
                     app,
                     "warn",
-                    format!(
-                        "plugins: {identity}: invalid tab module path {:?}",
-                        tab.module
-                    ),
+                    format!("plugins: {identity}: invalid tab module path {module:?}"),
                 )
                 .await;
                 continue;
@@ -280,18 +279,14 @@ pub(crate) async fn collect_plugin_entries(
             }
             // The tab's stable NAME (the version-less persistence key,
             // with identity_key) is its normalized module path — the
-            // manifest carries no separate name. Title falls back to
-            // the module stem.
+            // manifest carries no separate name.
             out.push(super::TabEntry {
                 identity: identity.clone(),
                 identity_key: identity_key.clone(),
                 name: module.clone(),
-                title: tab
-                    .title
-                    .clone()
-                    .unwrap_or_else(|| module_stem(&module)),
+                title: title.clone(),
                 module,
-                export: tab.export.clone(),
+                export: export.clone(),
                 icon: icon.clone(),
                 closable: true,
                 permanent: false,
