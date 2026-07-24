@@ -578,10 +578,10 @@ where
         // `ConduitMcpHandler::select_response_ids`.
         let response_ids_group: String = response_ids.join("-");
 
-        // The inputs of one agent's proxy connect, kept so a later
-        // backoff round can RE-DIAL after a failed connect — a cold
-        // plugin's container may take minutes to build+start, and the
-        // first dial's failure must not poison the whole request.
+        // The inputs of one agent's proxy connect, kept so a failed
+        // dial can SPAWN its successor (harvested one round later) —
+        // a cold plugin's container may take minutes to build+start,
+        // and the first dial's failure must not poison the request.
         struct ConnectSpec {
             proxy_url: String,
             headers: indexmap::IndexMap<String, String>,
@@ -906,9 +906,11 @@ where
         //    step 8 below.
         struct AgentAttempt {
             agent: objectiveai_sdk::agent::InlineAgent,
-            /// The connect inputs, kept for retry rounds.
+            /// The connect inputs, kept to spawn replacement dials.
             connect: Option<ConnectSpec>,
-            /// Round 1's parallel-spawned dial. Taken on first visit.
+            /// The IN-FLIGHT dial: round 1's up-front parallel spawn,
+            /// then whichever replacement the last failed harvest
+            /// spawned. Taken at harvest, re-armed on failure.
             connect_handle: Option<
                 tokio::task::JoinHandle<
                     Result<
@@ -954,13 +956,14 @@ where
         // `attempts` mutably — used to drop the non-winner options at
         // lock-in (`response_ids` itself was moved into `attempts` above).
         let all_response_ids: Vec<String> = attempts.iter().map(|a| a.id.clone()).collect();
-        // Slot of resolved-or-None per attempt. Round 1 awaits the
-        // up-front parallel dial; an empty slot on a LATER round
-        // re-dials from the attempt's stored spec — a cold plugin's
+        // Slot of resolved-or-None per attempt. Each round HARVESTS
+        // the dial spawned on the previous visit (round 1 harvests
+        // the up-front parallel dial) and, on failure, spawns the
+        // next one — see the harvest site below. A cold plugin's
         // container may need several backoff rounds to build+start,
         // and the daemon-side ephemeral create converges (the image
-        // build proceeds under the host's bin lock; a retry waits on
-        // it and fast-paths once the image lands).
+        // build proceeds under the host's bin lock; a later dial
+        // waits on it and fast-paths once the image lands).
         let mut attempt_connections: Vec<Option<objectiveai_sdk::mcp::Connection>> =
             (0..attempts.len()).map(|_| None).collect();
 
@@ -980,12 +983,16 @@ where
             let mut errors: Vec<super::Error> = Vec::new();
 
             for (idx, attempt) in attempts.iter_mut().enumerate() {
-                // Resolve this attempt's proxy connection. Round 1
-                // awaits the up-front parallel dial (all N were spawned
-                // together so the initialize round-trips overlap); a
-                // later round whose slot is still empty RE-DIALS from
-                // the stored spec — a failed connect never poisons the
-                // request, it just costs this round its attempt.
+                // Resolve this attempt's proxy connection: harvest the
+                // dial spawned on a PREVIOUS visit (round 1 harvests
+                // the up-front parallel dial). On failure, record the
+                // real error and SPAWN the next dial — never awaited
+                // here: the fresh dial cooks concurrently with the
+                // rest of this round and the backoff sleep, and the
+                // NEXT round harvests it. A slow dial (a cold plugin's
+                // container building for minutes) therefore never
+                // stalls the walk — fallback agents still run — while
+                // this agent rejoins whenever a dial lands.
                 // objectiveai-mcp already enforced the agent's declared
                 // tool/plugin set against its installed manifest at
                 // connect time, so there is nothing to re-validate.
@@ -995,23 +1002,28 @@ where
                             Ok(conn) => attempt_connections[idx] = Some(conn),
                             Err(e) => {
                                 errors.push(super::Error::McpConnectionArc(e));
-                            }
-                        }
-                    } else if let Some(spec) = &attempt.connect {
-                        match self
-                            .mcp_client
-                            .connect(
-                                spec.proxy_url.clone(),
-                                None,
-                                Some(spec.headers.clone()),
-                            )
-                            .await
-                        {
-                            Ok(conn) => attempt_connections[idx] = Some(conn),
-                            Err(e) => {
-                                errors.push(super::Error::McpConnectionArc(
-                                    std::sync::Arc::new(e),
-                                ));
+                                if let Some(spec) = &attempt.connect {
+                                    let mcp_client = self.mcp_client.clone();
+                                    let proxy_url = spec.proxy_url.clone();
+                                    let headers = spec.headers.clone();
+                                    attempt.connect_handle =
+                                        Some(tokio::spawn(async move {
+                                            let conn = mcp_client
+                                                .connect(
+                                                    proxy_url,
+                                                    None,
+                                                    Some(headers),
+                                                )
+                                                .await
+                                                .map_err(std::sync::Arc::new)?;
+                                            Ok::<
+                                                _,
+                                                std::sync::Arc<
+                                                    objectiveai_sdk::mcp::Error,
+                                                >,
+                                            >(conn)
+                                        }));
+                                }
                             }
                         }
                     }
