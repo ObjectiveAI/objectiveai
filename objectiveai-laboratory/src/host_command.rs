@@ -26,7 +26,8 @@ use std::time::Duration;
 use dashmap::DashMap;
 use futures::{Stream, StreamExt};
 use indexmap::IndexMap;
-use objectiveai_sdk::cli::command::{AgentArguments, Request, ResponseItem};
+use objectiveai_sdk::identity::Identity;
+use objectiveai_sdk::cli::command::{Request, ResponseItem};
 use objectiveai_sdk::laboratories::daemon::{
     CommandFrame, HostCommandRequest, HostCommandResponse,
 };
@@ -160,7 +161,7 @@ impl CommandBridge {
     pub async fn command(
         &self,
         channel: u64,
-        agent_arguments: AgentArguments,
+        identity: Identity,
         plugin: objectiveai_sdk::mcp::server::Plugin,
         request: Request,
         ack_timeout: Option<Duration>,
@@ -173,7 +174,7 @@ impl CommandBridge {
         self.command_streams.insert(id.clone(), (channel, frame_tx));
         let frame = match serde_json::to_string(&HostCommandRequest {
             id: id.clone(),
-            agent_arguments,
+            identity,
             plugin,
             request,
         }) {
@@ -257,13 +258,13 @@ impl McpClientCommandExecutor for HostCommandExecutor {
                 "command execution is not supported on this laboratory",
             ));
         };
-        let agent_arguments =
-            AgentArguments::from_transient_headers(&*state.transient.read().await);
+        let identity =
+            Identity::from_transient_headers(&*state.transient.read().await);
         let frames = state
             .bridge
             .command(
                 state.channel,
-                agent_arguments,
+                identity,
                 state.plugin.clone(),
                 request,
                 Some(ACK_TIMEOUT),

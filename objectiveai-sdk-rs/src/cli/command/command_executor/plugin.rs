@@ -7,8 +7,9 @@ use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, mpsc};
 
+use crate::identity::Identity;
 use crate::cli::command::{
-    AgentArguments, CommandExecutor, CommandRequest,
+    CommandExecutor, CommandRequest,
     CommandResponse as CommandResponseTrait,
 };
 use crate::cli::plugins::{Command, CommandType, Output};
@@ -184,7 +185,7 @@ impl CommandExecutor for PluginExecutor {
         // Plugin runs in-process — no subprocess to stamp env on. The
         // bag is accepted for trait-signature symmetry with the
         // binary executor and intentionally ignored.
-        _agent_arguments: Option<&AgentArguments>,
+        _identity: Option<&Identity>,
     ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send + serde::Serialize,
@@ -269,13 +270,13 @@ impl CommandExecutor for PluginExecutor {
     async fn execute_one<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<T, Error>
     where
         R: CommandRequest + Send + serde::Serialize,
         T: CommandResponseTrait + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
+        let mut stream = self.execute::<R, T>(request, identity).await?;
         stream.next().await.ok_or(Error::Empty)?
     }
 }

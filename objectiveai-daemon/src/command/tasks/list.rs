@@ -39,7 +39,7 @@ pub async fn execute(
                 Some("error") => Some(LastResult::Error),
                 _ => None,
             };
-            let identity = row.agent_arguments;
+            let identity = row.identity;
             yield Ok(ResponseItem {
                 id: row.id,
                 command,

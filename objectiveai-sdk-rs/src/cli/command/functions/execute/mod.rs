@@ -319,7 +319,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
@@ -334,23 +334,23 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                     .and_then(|a| a.stream)
                     .unwrap_or(false);
                 if want_streaming {
-                    let inner = standard::execute_streaming(executor, req, agent_arguments).await?;
+                    let inner = standard::execute_streaming(executor, req, identity).await?;
                     Box::pin(inner.map(|r| r.map(ResponseItem::Standard)))
                 } else {
-                    let value = standard::execute(executor, req, agent_arguments).await?;
+                    let value = standard::execute(executor, req, identity).await?;
                     Box::pin(crate::cli::command::StreamOnce::new(Ok(
                         ResponseItem::Standard(standard::ResponseItem::Id(value)),
                     )))
                 }
             }
             Request::StandardRequestSchema(req) => {
-                let value = standard::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = standard::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::StandardRequestSchema(value),
                 )))
             }
             Request::StandardResponseSchema(req) => {
-                let value = standard::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = standard::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::StandardResponseSchema(value),
                 )))
@@ -362,23 +362,23 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                     .and_then(|a| a.stream)
                     .unwrap_or(false);
                 if want_streaming {
-                    let inner = swiss_system::execute_streaming(executor, req, agent_arguments).await?;
+                    let inner = swiss_system::execute_streaming(executor, req, identity).await?;
                     Box::pin(inner.map(|r| r.map(ResponseItem::SwissSystem)))
                 } else {
-                    let value = swiss_system::execute(executor, req, agent_arguments).await?;
+                    let value = swiss_system::execute(executor, req, identity).await?;
                     Box::pin(crate::cli::command::StreamOnce::new(Ok(
                         ResponseItem::SwissSystem(swiss_system::ResponseItem::Id(value)),
                     )))
                 }
             }
             Request::SwissSystemRequestSchema(req) => {
-                let value = swiss_system::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = swiss_system::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SwissSystemRequestSchema(value),
                 )))
             }
             Request::SwissSystemResponseSchema(req) => {
-                let value = swiss_system::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = swiss_system::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SwissSystemResponseSchema(value),
                 )))
@@ -393,7 +393,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -407,19 +407,19 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                     .and_then(|a| a.stream)
                     .unwrap_or(false);
                 if want_streaming {
-                    let inner = standard::execute_streaming_transform(executor, req, transform, agent_arguments).await?;
+                    let inner = standard::execute_streaming_transform(executor, req, transform, identity).await?;
                     Box::pin(inner)
                 } else {
-                    let value = standard::execute_transform(executor, req, transform, agent_arguments).await?;
+                    let value = standard::execute_transform(executor, req, transform, identity).await?;
                     Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
                 }
             }
             Request::StandardRequestSchema(req) => {
-                let value = standard::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = standard::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::StandardResponseSchema(req) => {
-                let value = standard::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = standard::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::SwissSystem(req) => {
@@ -429,19 +429,19 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                     .and_then(|a| a.stream)
                     .unwrap_or(false);
                 if want_streaming {
-                    let inner = swiss_system::execute_streaming_transform(executor, req, transform, agent_arguments).await?;
+                    let inner = swiss_system::execute_streaming_transform(executor, req, transform, identity).await?;
                     Box::pin(inner)
                 } else {
-                    let value = swiss_system::execute_transform(executor, req, transform, agent_arguments).await?;
+                    let value = swiss_system::execute_transform(executor, req, transform, identity).await?;
                     Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
                 }
             }
             Request::SwissSystemRequestSchema(req) => {
-                let value = swiss_system::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = swiss_system::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::SwissSystemResponseSchema(req) => {
-                let value = swiss_system::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = swiss_system::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
         };

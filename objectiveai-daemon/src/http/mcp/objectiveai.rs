@@ -4,7 +4,7 @@ use futures::StreamExt;
 use objectiveai_sdk::cli::Error as CliError;
 use objectiveai_sdk::cli::ErrorType as CliErrorType;
 use objectiveai_sdk::cli::Level as CliLevel;
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::CommandRequest;
 use objectiveai_sdk::cli::command::CommandResponse;
@@ -25,7 +25,7 @@ use rmcp::{
     schemars, tool, tool_router,
 };
 
-use super::agent_args_registry::AgentArgumentsRegistry;
+use super::agent_args_registry::IdentityRegistry;
 use super::format::format_items;
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
@@ -81,12 +81,12 @@ fn build_transform(jq: Option<String>, python: Option<String>) -> Option<Transfo
 pub struct ObjectiveAiMcpCli<E> {
     pub tool_router: ToolRouter<Self>,
     pub executor: Arc<E>,
-    /// Per-rmcp-session bag of [`AgentArguments`] captured from the
+    /// Per-rmcp-session bag of [`Identity`] captured from the
     /// six `X-OBJECTIVEAI-*` request headers at `initialize` time.
     /// Tool dispatchers look up the inbound `Mcp-Session-Id` against
     /// this registry to recover the caller's identity — request
     /// headers on non-initialize calls are intentionally ignored.
-    pub registry: Arc<AgentArgumentsRegistry>,
+    pub registry: Arc<IdentityRegistry>,
 }
 
 impl<E> Clone for ObjectiveAiMcpCli<E> {
@@ -108,7 +108,7 @@ where
     /// Build the handler: the single static `ObjectiveAI` catch-all
     /// tool over the given executor. (The per-plugin dynamic tool
     /// routes were removed with the "installed plugins" surface.)
-    pub fn new(executor: Arc<E>, registry: Arc<AgentArgumentsRegistry>) -> Self {
+    pub fn new(executor: Arc<E>, registry: Arc<IdentityRegistry>) -> Self {
         Self {
             tool_router: Self::tool_router(),
             executor,
@@ -187,7 +187,7 @@ async fn dispatch_root<E>(
     executor: &E,
     request: Request,
     transform: Option<Transform>,
-    agent_arguments: Option<&AgentArguments>,
+    identity: Option<&Identity>,
 ) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
@@ -196,7 +196,7 @@ where
     match transform {
         None => {
             let stream =
-                match objectiveai_sdk::cli::command::execute(executor, request, agent_arguments)
+                match objectiveai_sdk::cli::command::execute(executor, request, identity)
                     .await
                 {
                     Ok(s) => s,
@@ -211,7 +211,7 @@ where
                 executor,
                 request,
                 t,
-                agent_arguments,
+                identity,
             )
             .await
             {

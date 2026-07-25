@@ -544,9 +544,9 @@ impl Drop for FiletreeWatchGuard {
 /// pump never blocks on a command.
 ///
 /// Scope identity: identical to the conduit's `dispatch_command`. The
-/// REQUIRED `agent_arguments` are applied exactly like `/execute`
+/// REQUIRED `identity` are applied exactly like `/execute`
 /// (wire plugin claims inside them are nulled by
-/// `from_agent_arguments`), then the REQUIRED `plugin` coordinates are
+/// `from_identity`), then the REQUIRED `plugin` coordinates are
 /// stamped with [`ScopedContext::with_plugin`](crate::context::ScopedContext::with_plugin).
 /// This authenticated `/laboratory` channel is, like the conduit, a
 /// deliberate exception to "never trust wire plugin identity": the
@@ -680,7 +680,7 @@ fn dispatch_host_command(
 
     let HostCommandRequest {
         id,
-        agent_arguments,
+        identity,
         plugin,
         request,
     } = command;
@@ -691,9 +691,9 @@ fn dispatch_host_command(
     let base_scoped = state.scoped.clone();
     let host = Arc::clone(host);
     tokio::spawn(async move {
-        let scoped = crate::executor::apply_agent_arguments(
+        let scoped = crate::executor::apply_identity(
             &base_scoped,
-            Some(&agent_arguments),
+            Some(&identity),
         )
         .await
         .into_owned()

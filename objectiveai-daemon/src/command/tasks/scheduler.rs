@@ -12,7 +12,7 @@
 //! schedulers, so a task can never double-fire or overlap itself.
 //! Each claimed task runs on its own spawned task (the driver never
 //! blocks on runs): the stored identity is rebuilt
-//! ([`ScopeIdentity::from_agent_arguments`] + [`ScopedContext::with_plugin`]
+//! ([`ScopeIdentity::from_identity`] + [`ScopedContext::with_plugin`]
 //! when the stored trio is whole + [`ScopedContext::with_task`] —
 //! the ONE place the `task` identity flag is set), the stored command
 //! rides the `--request` front door exactly like
@@ -151,11 +151,11 @@ fn fire(
     task: crate::db::tasks::ClaimedTask,
 ) {
     tokio::spawn(async move {
-        let stored = &task.agent_arguments;
+        let stored = &task.identity;
         let mut run_scope = scoped
-            .for_request(crate::context::ScopeIdentity::from_agent_arguments(stored))
+            .for_request(crate::context::ScopeIdentity::from_identity(stored))
             .await;
-        // Restore the plugin trio — stamped as a set; from_agent_arguments
+        // Restore the plugin trio — stamped as a set; from_identity
         // deliberately zeroed it (wire-unspoofability), the scheduler is
         // an AUTHORITY like `plugins run`.
         if let (Some(owner), Some(repository), Some(version)) = (
@@ -203,9 +203,9 @@ fn fire(
         if let Ok(pool) = global.db_client().await {
             let now = chrono::Utc::now().timestamp();
             let plugin = (
-                task.agent_arguments.plugin_owner.as_deref(),
-                task.agent_arguments.plugin_name.as_deref(),
-                task.agent_arguments.plugin_version.as_deref(),
+                task.identity.plugin_owner.as_deref(),
+                task.identity.plugin_name.as_deref(),
+                task.identity.plugin_version.as_deref(),
             );
             let _ = crate::db::tasks::complete_run(
                 &pool, plugin, &task.id, errored, now,

@@ -302,7 +302,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
 
     #[cfg(feature = "cli")]
     schemas.extend([
-        schemars::schema_for!(crate::cli::command::AgentArguments),
+        schemars::schema_for!(crate::identity::Identity),
         schemars::schema_for!(crate::cli::command::agents::enqueue::Path),
         schemars::schema_for!(crate::cli::command::agents::enqueue::Request),
         schemars::schema_for!(crate::cli::command::agents::enqueue::request_schema::Path),

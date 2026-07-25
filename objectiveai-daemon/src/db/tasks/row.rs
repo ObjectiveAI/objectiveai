@@ -2,7 +2,7 @@
 //! `tasks` command types; the daemon handlers map these to the wire
 //! response types.
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use sqlx::Row as _;
 
 /// Reassemble the creator identity from its per-field columns (no
@@ -10,8 +10,8 @@ use sqlx::Row as _;
 /// it fresh on every fire ([`crate::context::ScopedContext::with_task`]).
 pub(super) fn identity_from_row(
     row: &sqlx::postgres::PgRow,
-) -> Result<AgentArguments, sqlx::Error> {
-    Ok(AgentArguments {
+) -> Result<Identity, sqlx::Error> {
+    Ok(Identity {
         agent_instance_hierarchy: row.try_get("agent_instance_hierarchy")?,
         agent_id: row.try_get("agent_id")?,
         agent_full_id: row.try_get("agent_full_id")?,
@@ -37,7 +37,7 @@ pub struct TaskRow {
     pub id: String,
     /// The stored command-request JSON, verbatim.
     pub command: serde_json::Value,
-    pub agent_arguments: AgentArguments,
+    pub identity: Identity,
     pub delay_secs: i64,
     pub repeat: bool,
     pub repeat_count: Option<i64>,
@@ -53,11 +53,11 @@ pub struct TaskRow {
 
 /// One task the scheduler just CLAIMED (`scheduled` → `running`) —
 /// everything a fire needs. The completion targets it by its sole
-/// identity: `id` within the namespace of `agent_arguments`'s plugin
+/// identity: `id` within the namespace of `identity`'s plugin
 /// trio.
 #[derive(Debug, Clone)]
 pub struct ClaimedTask {
     pub id: String,
     pub command: serde_json::Value,
-    pub agent_arguments: AgentArguments,
+    pub identity: Identity,
 }

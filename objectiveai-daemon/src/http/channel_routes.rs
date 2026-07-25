@@ -36,7 +36,7 @@ use dashmap::DashMap;
 use objectiveai_sdk::cli::channel_listener::{
     ChannelAccepted, ChannelEvent, ChannelOffer,
 };
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use tokio::sync::{mpsc, oneshot};
 
 /// One PENDING (pre-accept) channel offer.
@@ -52,7 +52,7 @@ struct Offer {
     key: String,
     details: serde_json::Value,
     message: String,
-    agent_arguments: AgentArguments,
+    identity: Identity,
     /// Accept arbitration AND the publish unblock: the first accept
     /// takes the sender; a taken (`None`) slot means already accepted.
     accept: std::sync::Mutex<Option<oneshot::Sender<()>>>,
@@ -126,14 +126,14 @@ impl ChannelHub {
         key: String,
         details: serde_json::Value,
         message: String,
-        agent_arguments: AgentArguments,
+        identity: Identity,
     ) -> (String, String, oneshot::Receiver<()>) {
         let channel_id = uuid::Uuid::new_v4().to_string();
         let pub_secret = uuid::Uuid::new_v4().to_string();
         let offer_frame = frame(&ChannelEvent::Offer {
             offer: ChannelOffer {
                 channel_id: channel_id.clone(),
-                agent_arguments: agent_arguments.clone(),
+                identity: identity.clone(),
                 key: key.clone(),
                 details: details.clone(),
                 message: message.clone(),
@@ -147,7 +147,7 @@ impl ChannelHub {
             key,
             details,
             message,
-            agent_arguments,
+            identity,
             accept: std::sync::Mutex::new(Some(accept_tx)),
             offered_to: std::sync::Mutex::new(HashSet::new()),
         });
@@ -215,11 +215,11 @@ impl ChannelHub {
             &offer.details,
             &offer.message,
             &crate::db::channels::PluginOrigin {
-                owner: offer.agent_arguments.plugin_owner.as_deref(),
-                name: offer.agent_arguments.plugin_name.as_deref(),
-                version: offer.agent_arguments.plugin_version.as_deref(),
+                owner: offer.identity.plugin_owner.as_deref(),
+                name: offer.identity.plugin_name.as_deref(),
+                version: offer.identity.plugin_version.as_deref(),
             },
-            &offer.agent_arguments,
+            &offer.identity,
         )
         .await
         {

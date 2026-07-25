@@ -10,7 +10,7 @@
 //!    for an id the inner `LocalSessionManager` doesn't currently
 //!    hold, we pull the six `X-OBJECTIVEAI-*` headers off the
 //!    current message's injected [`http::request::Parts`], register
-//!    the resulting [`AgentArguments`] in the registry, spawn the
+//!    the resulting [`Identity`] in the registry, spawn the
 //!    worker + service end, and drive the worker past its initial
 //!    `SessionEvent::InitializeRequest` wait state with a synthetic
 //!    stub. The original message then delegates to the inner
@@ -22,17 +22,18 @@
 //! process restart silently rebuilds the bag from the next
 //! request's headers; reconnect with a NEW header set FULL-REPLACES
 //! the prior bag (missing keys become `None` on the new
-//! `AgentArguments`).
+//! `Identity`).
 //!
 //! Direct adaptation of
 //! `psychological-operations-x-api-mcp::HeaderSessionManager`,
 //! with the header set swapped for our six `X-OBJECTIVEAI-*` keys
-//! and `SessionState` replaced by [`AgentArguments`].
+//! and `SessionState` replaced by [`Identity`].
 
 use std::sync::Arc;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor};
+use objectiveai_sdk::identity::Identity;
+use objectiveai_sdk::cli::command::{CommandExecutor};
 use rmcp::model::{
     ClientCapabilities, ClientJsonRpcMessage, ClientRequest, GetExtensions, Implementation,
     InitializeRequestParams, JsonRpcRequest, JsonRpcVersion2_0, NumberOrString, ProtocolVersion,
@@ -48,15 +49,15 @@ use rmcp::transport::streamable_http_server::session::local::{
 };
 use rmcp::transport::streamable_http_server::session::{ServerSseMessage, SessionId};
 
-use super::agent_args_registry::{AgentArgumentsRegistry, SessionState};
+use super::agent_args_registry::{IdentityRegistry, SessionState};
 use super::objectiveai::ObjectiveAiMcpCli;
 
 /// Lowercase HTTP header names the conduit stamps on every outbound
 /// MCP request (initialize + tool calls). Order matches the field
-/// layout in [`AgentArguments`]. Setter pulls each present value
+/// layout in [`Identity`]. Setter pulls each present value
 /// onto the matching slot; missing → field stays `None` (which is
 /// the FULL-REPLACE behavior on the registry's `Arc::new(args)`).
-const HEADER_TO_FIELD: [(&str, fn(&mut AgentArguments, String)); 6] = [
+const HEADER_TO_FIELD: [(&str, fn(&mut Identity, String)); 6] = [
     (
         "x-objectiveai-agent-instance-hierarchy",
         |a, v| a.agent_instance_hierarchy = Some(v),
@@ -71,7 +72,7 @@ const HEADER_TO_FIELD: [(&str, fn(&mut AgentArguments, String)); 6] = [
 #[derive(Debug, Clone)]
 pub struct HeaderSessionManager<E> {
     inner: Arc<LocalSessionManager>,
-    registry: Arc<AgentArgumentsRegistry>,
+    registry: Arc<IdentityRegistry>,
     /// Used by [`Self::ensure_session`] to spawn a service end onto
     /// each lazily-created worker.
     service: ObjectiveAiMcpCli<E>,
@@ -83,7 +84,7 @@ where
     E::Error: std::fmt::Display + Send + 'static,
 {
     pub fn new(
-        registry: Arc<AgentArgumentsRegistry>,
+        registry: Arc<IdentityRegistry>,
         service: ObjectiveAiMcpCli<E>,
     ) -> Self {
         Self {
@@ -298,11 +299,11 @@ fn is_initialize(m: &ClientJsonRpcMessage) -> bool {
 
 /// Pull the six `X-OBJECTIVEAI-*` header values off the message's
 /// injected [`http::request::Parts`] extension and build an
-/// [`AgentArguments`]. Missing or empty headers leave the matching
+/// [`Identity`]. Missing or empty headers leave the matching
 /// field as `None`. The caller `Arc`-wraps the result and inserts
 /// into the registry, which is a FULL-REPLACE — so `None`s clear
 /// any prior value.
-fn extract_agent_args(message: &ClientJsonRpcMessage) -> AgentArguments {
+fn extract_agent_args(message: &ClientJsonRpcMessage) -> Identity {
     let parts = match message {
         ClientJsonRpcMessage::Request(r) => {
             r.request.extensions().get::<http::request::Parts>()
@@ -312,7 +313,7 @@ fn extract_agent_args(message: &ClientJsonRpcMessage) -> AgentArguments {
         }
         _ => None,
     };
-    let mut args = AgentArguments::default();
+    let mut args = Identity::default();
     if let Some(p) = parts {
         for (name, setter) in HEADER_TO_FIELD {
             if let Some(v) = p.headers.get(name).and_then(|v| v.to_str().ok()) {

@@ -270,7 +270,7 @@ pub async fn execute<E: super::CommandExecutor>(
     executor: &E,
     request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
@@ -279,67 +279,67 @@ pub async fn execute<E: super::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = super::agents::execute(executor, req, agent_arguments).await?;
+                let inner = super::agents::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
             }
             Request::Api(req) => {
-                let inner = super::api::execute(executor, req, agent_arguments).await?;
+                let inner = super::api::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
             }
             Request::Daemon(req) => {
-                let inner = super::daemon::execute(executor, req, agent_arguments).await?;
+                let inner = super::daemon::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Daemon)))
             }
             Request::Db(req) => {
-                let inner = super::db::execute(executor, req, agent_arguments).await?;
+                let inner = super::db::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Db)))
             }
             Request::Functions(req) => {
-                let inner = super::functions::execute(executor, req, agent_arguments).await?;
+                let inner = super::functions::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
             }
             Request::Laboratories(req) => {
-                let inner = super::laboratories::execute(executor, req, agent_arguments).await?;
+                let inner = super::laboratories::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
             }
             Request::Python(req) => {
-                let value = super::python::execute(executor, req, agent_arguments).await?;
+                let value = super::python::execute(executor, req, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::Python(value))))
             }
             Request::PythonRequestSchema(req) => {
-                let value = super::python::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = super::python::request_schema::execute(executor, req, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::PythonRequestSchema(value))))
             }
             Request::PythonResponseSchema(req) => {
-                let value = super::python::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = super::python::response_schema::execute(executor, req, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::PythonResponseSchema(value))))
             }
             Request::Swarms(req) => {
-                let inner = super::swarms::execute(executor, req, agent_arguments).await?;
+                let inner = super::swarms::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
             }
             Request::Update(req) => {
-                let inner = super::update::execute(executor, req, agent_arguments).await?;
+                let inner = super::update::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Update)))
             }
             Request::UpdateRequestSchema(req) => {
-                let value = super::update::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = super::update::request_schema::execute(executor, req, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateRequestSchema(value))))
             }
             Request::UpdateResponseSchema(req) => {
-                let value = super::update::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = super::update::response_schema::execute(executor, req, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::UpdateResponseSchema(value))))
             }
             Request::Channels(req) => {
-                let inner = super::channels::execute(executor, req, agent_arguments).await?;
+                let inner = super::channels::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Channels)))
             }
             Request::Tasks(req) => {
-                let inner = super::tasks::execute(executor, req, agent_arguments).await?;
+                let inner = super::tasks::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
             }
             Request::Viewer(req) => {
-                let inner = super::viewer::execute(executor, req, agent_arguments).await?;
+                let inner = super::viewer::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
             }
         };
@@ -352,7 +352,7 @@ pub async fn execute_transform<E: super::CommandExecutor>(
     request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -360,67 +360,67 @@ pub async fn execute_transform<E: super::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = super::agents::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::agents::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Api(req) => {
-                let inner = super::api::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::api::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Daemon(req) => {
-                let inner = super::daemon::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::daemon::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Db(req) => {
-                let inner = super::db::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::db::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Functions(req) => {
-                let inner = super::functions::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::functions::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Laboratories(req) => {
-                let inner = super::laboratories::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::laboratories::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Python(req) => {
-                let value = super::python::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = super::python::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::PythonRequestSchema(req) => {
-                let value = super::python::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = super::python::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::PythonResponseSchema(req) => {
-                let value = super::python::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = super::python::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::Swarms(req) => {
-                let inner = super::swarms::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::swarms::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Update(req) => {
-                let inner = super::update::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::update::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::UpdateRequestSchema(req) => {
-                let value = super::update::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = super::update::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::UpdateResponseSchema(req) => {
-                let value = super::update::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = super::update::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::Channels(req) => {
-                let inner = super::channels::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::channels::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Tasks(req) => {
-                let inner = super::tasks::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::tasks::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Viewer(req) => {
-                let inner = super::viewer::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = super::viewer::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
         };

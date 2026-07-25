@@ -263,7 +263,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
     E::Error,
@@ -272,73 +272,73 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
             Request::Get(req) => {
-                let value = get::execute(executor, req, agent_arguments).await?;
+                let value = get::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = get::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = get::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::GetResponseSchema(value),
                 )))
             }
             Request::Address(req) => {
-                let inner = address::execute(executor, req, agent_arguments).await?;
+                let inner = address::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::Address)))
             }
             Request::ObjectiveaiAuthorization(req) => {
-                let inner = objectiveai_authorization::execute(executor, req, agent_arguments).await?;
+                let inner = objectiveai_authorization::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::ObjectiveaiAuthorization)))
             }
             Request::OpenrouterAuthorization(req) => {
-                let inner = openrouter_authorization::execute(executor, req, agent_arguments).await?;
+                let inner = openrouter_authorization::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::OpenrouterAuthorization)))
             }
             Request::GithubAuthorization(req) => {
-                let inner = github_authorization::execute(executor, req, agent_arguments).await?;
+                let inner = github_authorization::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::GithubAuthorization)))
             }
             Request::McpAuthorization(req) => {
-                let inner = mcp_authorization::execute(executor, req, agent_arguments).await?;
+                let inner = mcp_authorization::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::McpAuthorization)))
             }
             Request::McpCallTimeoutMs(req) => {
-                let inner = mcp_call_timeout_ms::execute(executor, req, agent_arguments).await?;
+                let inner = mcp_call_timeout_ms::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::McpCallTimeoutMs)))
             }
             Request::McpConnectTimeoutMs(req) => {
-                let inner = mcp_connect_timeout_ms::execute(executor, req, agent_arguments).await?;
+                let inner = mcp_connect_timeout_ms::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::McpConnectTimeoutMs)))
             }
             Request::BackoffMaxElapsedTimeMs(req) => {
-                let inner = backoff_max_elapsed_time_ms::execute(executor, req, agent_arguments).await?;
+                let inner = backoff_max_elapsed_time_ms::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::BackoffMaxElapsedTimeMs)))
             }
             Request::UserAgent(req) => {
-                let inner = user_agent::execute(executor, req, agent_arguments).await?;
+                let inner = user_agent::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::UserAgent)))
             }
             Request::HttpReferer(req) => {
-                let inner = http_referer::execute(executor, req, agent_arguments).await?;
+                let inner = http_referer::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::HttpReferer)))
             }
             Request::XTitle(req) => {
-                let inner = x_title::execute(executor, req, agent_arguments).await?;
+                let inner = x_title::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::XTitle)))
             }
             Request::CommitAuthorName(req) => {
-                let inner = commit_author_name::execute(executor, req, agent_arguments).await?;
+                let inner = commit_author_name::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::CommitAuthorName)))
             }
             Request::CommitAuthorEmail(req) => {
-                let inner = commit_author_email::execute(executor, req, agent_arguments).await?;
+                let inner = commit_author_email::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::CommitAuthorEmail)))
             }
         };
@@ -351,7 +351,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -359,67 +359,67 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Get(req) => {
-                let value = get::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = get::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = get::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = get::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Address(req) => {
-                let inner = address::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = address::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::ObjectiveaiAuthorization(req) => {
-                let inner = objectiveai_authorization::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = objectiveai_authorization::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::OpenrouterAuthorization(req) => {
-                let inner = openrouter_authorization::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = openrouter_authorization::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::GithubAuthorization(req) => {
-                let inner = github_authorization::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = github_authorization::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::McpAuthorization(req) => {
-                let inner = mcp_authorization::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = mcp_authorization::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::McpCallTimeoutMs(req) => {
-                let inner = mcp_call_timeout_ms::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = mcp_call_timeout_ms::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::McpConnectTimeoutMs(req) => {
-                let inner = mcp_connect_timeout_ms::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = mcp_connect_timeout_ms::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::BackoffMaxElapsedTimeMs(req) => {
-                let inner = backoff_max_elapsed_time_ms::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = backoff_max_elapsed_time_ms::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::UserAgent(req) => {
-                let inner = user_agent::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = user_agent::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::HttpReferer(req) => {
-                let inner = http_referer::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = http_referer::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::XTitle(req) => {
-                let inner = x_title::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = x_title::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::CommitAuthorName(req) => {
-                let inner = commit_author_name::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = commit_author_name::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::CommitAuthorEmail(req) => {
-                let inner = commit_author_email::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = commit_author_email::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
         };

@@ -679,9 +679,9 @@ async fn handle_tools_call(
             // consumed rows would never reach the agent. Reading
             // sequentially after success guarantees every consumed
             // row gets surfaced.
-            let agent_arguments = session.transient_headers.read().await.clone();
+            let identity = session.transient_headers.read().await.clone();
             if let Some(crate::QueueRead { token, blocks }) =
-                maybe_read_blocks(queue_delegate, &agent_arguments).await
+                maybe_read_blocks(queue_delegate, &identity).await
             {
                 // Splice the queued rows ahead of the upstream's
                 // tool-result content, wrapped in the SDK-owned
@@ -759,9 +759,9 @@ async fn handle_tools_call(
 /// installed, otherwise forwards to the trait method.
 async fn maybe_read_blocks(
     delegate: Option<&Arc<dyn crate::QueueDelegate>>,
-    agent_arguments: &indexmap::IndexMap<String, String>,
+    identity: &indexmap::IndexMap<String, String>,
 ) -> Option<crate::QueueRead> {
-    delegate?.read_pending_blocks(agent_arguments).await
+    delegate?.read_pending_blocks(identity).await
 }
 
 async fn handle_resources_list(

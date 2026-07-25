@@ -62,13 +62,13 @@ pub trait QueueDelegate: Send + Sync {
     /// `Some(QueueRead { token, blocks })` on success, `None` on
     /// error / empty / "nothing right now."
     ///
-    /// `agent_arguments` is the proxy's per-session transient
+    /// `identity` is the proxy's per-session transient
     /// header map (the agent-routing keys like
     /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` and
     /// `X-OBJECTIVEAI-RESPONSE-ID`); the delegate parses out whatever
     /// it needs to look up the right per-loop state.
     fn read_pending_blocks<'a>(
         &'a self,
-        agent_arguments: &'a IndexMap<String, String>,
+        identity: &'a IndexMap<String, String>,
     ) -> Pin<Box<dyn Future<Output = Option<QueueRead>> + Send + 'a>>;
 }

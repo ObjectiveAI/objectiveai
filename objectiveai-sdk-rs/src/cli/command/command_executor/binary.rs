@@ -5,7 +5,8 @@ use futures::{Stream, StreamExt};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, CommandResponse};
+use crate::identity::Identity;
+use crate::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
 
 /// Spawn the `objectiveai` cli binary on disk, feed it the argv from
 /// `request.into_command()`, and stream each stdout JSONL line back as
@@ -191,7 +192,7 @@ impl CommandExecutor for BinaryExecutor {
     async fn execute<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send + serde::Serialize,
@@ -234,7 +235,7 @@ impl CommandExecutor for BinaryExecutor {
         // env_remove so the parent's value can't leak through. When
         // the bag itself is `None`, parent env is inherited
         // untouched.
-        if let Some(args) = agent_arguments {
+        if let Some(args) = identity {
             args.apply_to_command(&mut command);
         }
         // Keep OUR OWN std handles out of the child (and thus out of
@@ -276,13 +277,13 @@ impl CommandExecutor for BinaryExecutor {
     async fn execute_one<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<T, Error>
     where
         R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
+        let mut stream = self.execute::<R, T>(request, identity).await?;
         stream.next().await.ok_or(Error::Empty)?
     }
 }

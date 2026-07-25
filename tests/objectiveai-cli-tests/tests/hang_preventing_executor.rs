@@ -36,8 +36,9 @@ use std::time::Duration;
 use futures::{Stream, StreamExt};
 use notify::{RecursiveMode, Watcher};
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, CommandRequest, CommandResponse,
+    CommandExecutor, CommandRequest, CommandResponse,
 };
 use tokio::sync::mpsc;
 use tokio::time::Instant;
@@ -124,7 +125,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
     async fn execute<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<Self::Stream<T>, Self::Error>
     where
         R: CommandRequest + Send + serde::Serialize,
@@ -139,7 +140,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
                         >,
                     > + Send,
             >,
-        > = self.inner.execute::<R, T>(request, agent_arguments).await?;
+        > = self.inner.execute::<R, T>(request, identity).await?;
 
         let watch_dir = self.watch_dir.clone();
         let (out_tx, out_rx) = mpsc::channel::<Result<T, Error>>(16);
@@ -176,13 +177,13 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
     async fn execute_one<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<T, Self::Error>
     where
         R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
+        let mut stream = self.execute::<R, T>(request, identity).await?;
         match stream.next().await {
             Some(item) => item,
             None => Err(Error::Inner(

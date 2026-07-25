@@ -10,7 +10,7 @@ use rmcp::transport::streamable_http_server::{
 };
 use tokio_util::sync::CancellationToken;
 
-use super::agent_args_registry::AgentArgumentsRegistry;
+use super::agent_args_registry::IdentityRegistry;
 use super::header_session_manager::HeaderSessionManager;
 use super::objectiveai::ObjectiveAiMcpCli;
 use crate::executor::DaemonCommandExecutor;
@@ -37,12 +37,12 @@ pub type McpService = StreamableHttpService<
 pub fn service(executor: DaemonCommandExecutor) -> (McpService, CancellationToken) {
     let executor = Arc::new(executor);
 
-    // Shared per-rmcp-session bag of SessionState (the AgentArguments
+    // Shared per-rmcp-session bag of SessionState (the Identity
     // identity bag plus the X-OBJECTIVEAI-MCP-ROOT gate). Populated by
     // the HeaderSessionManager on every initialize (fresh + lazy
     // reconnect); consumed by the tool dispatcher and the hand-written
     // `list_tools` handler.
-    let registry = Arc::new(AgentArgumentsRegistry::new());
+    let registry = Arc::new(IdentityRegistry::new());
 
     let server = ObjectiveAiMcpCli::new(executor, registry.clone());
     let session_manager =

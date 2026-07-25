@@ -74,6 +74,8 @@ pub mod lockfile;
 #[cfg(feature = "gitrepo")]
 pub mod gitrepo;
 
+pub mod identity;
+
 #[cfg(windows)]
 pub(crate) mod win_handles;
 

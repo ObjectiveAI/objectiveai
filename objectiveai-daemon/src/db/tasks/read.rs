@@ -20,12 +20,12 @@ pub async fn list_tasks(pool: &Pool) -> Result<Vec<TaskRow>, Error> {
     rows.into_iter()
         .map(|row| {
             let sqlx::types::Json(command) = row.try_get("command")?;
-            let agent_arguments = super::identity_from_row(&row)?;
+            let identity = super::identity_from_row(&row)?;
             let state: String = row.try_get("state")?;
             Ok(TaskRow {
                 id: row.try_get("id")?,
                 command,
-                agent_arguments,
+                identity,
                 delay_secs: row.try_get("delay_secs")?,
                 repeat: row.try_get("repeat")?,
                 repeat_count: row.try_get("repeat_count")?,

@@ -19,12 +19,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use rmcp::transport::common::server_side_http::SessionId;
 use tokio::sync::RwLock;
 
 /// Per-session state recorded by the header parser. Wraps the
-/// legacy [`AgentArguments`] identity bag alongside the three
+/// legacy [`Identity`] identity bag alongside the three
 /// optional `X-OBJECTIVEAI-MCP-*` filter values, so a single
 /// `(record, get, remove)` call cycle covers both. The wrapper
 /// shape keeps the registry's inner map single — one entry per
@@ -37,18 +37,18 @@ use tokio::sync::RwLock;
 /// stored is the final per-session decision.
 #[derive(Debug, Clone)]
 pub struct SessionState {
-    pub args: AgentArguments,
+    pub args: Identity,
     pub mcp_root: bool,
 }
 
 /// Shared registry of per-session [`SessionState`]. Cheap to clone
 /// (the inner state is `Arc`'d).
 #[derive(Default, Debug, Clone)]
-pub struct AgentArgumentsRegistry {
+pub struct IdentityRegistry {
     inner: Arc<RwLock<HashMap<SessionId, Arc<SessionState>>>>,
 }
 
-impl AgentArgumentsRegistry {
+impl IdentityRegistry {
     pub fn new() -> Self {
         Self::default()
     }

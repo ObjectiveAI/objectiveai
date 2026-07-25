@@ -178,13 +178,13 @@ pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<E::Stream<ResponseItem>, E::Error> {
     request.base.clear_transform();
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
-    executor.execute(request, agent_arguments).await
+    executor.execute(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -193,13 +193,13 @@ pub async fn execute_streaming_transform<E: crate::cli::command::CommandExecutor
     mut request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.base.set_transform(transform);
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
-    executor.execute(request, agent_arguments).await
+    executor.execute(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -207,13 +207,13 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<Response, E::Error> {
     request.base.clear_transform();
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
-    executor.execute_one(request, agent_arguments).await
+    executor.execute_one(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -222,13 +222,13 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<serde_json::Value, E::Error> {
     request.base.set_transform(transform);
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
-    executor.execute_one(request, agent_arguments).await
+    executor.execute_one(request, identity).await
 }
 
 #[cfg(feature = "mcp")]
@@ -245,12 +245,12 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `agents spawn` in its unary
 /// form (the plain `execute`): the actual [`Request`], the
 /// producer's
-/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// [`Identity`](crate::identity::Identity), and the
 /// unary response future. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
-    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub identity: crate::identity::Identity,
     pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
 }
 
@@ -258,12 +258,12 @@ pub struct ListenerExecution {
 /// streaming form (`execute_streaming` — the request set
 /// `dangerous_advanced.stream: true`): the actual [`Request`], the
 /// producer's
-/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// [`Identity`](crate::identity::Identity), and the
 /// response-item stream. See [`crate::cli::broadcast_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecutionStreaming {
     pub request: Request,
-    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub identity: crate::identity::Identity,
     pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
 }
 

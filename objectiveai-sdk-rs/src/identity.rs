@@ -1,12 +1,18 @@
+//! The caller IDENTITY: who originated a request — agent coordinates,
+//! response routing, the plugin caller trio, task provenance. Root-
+//! level and feature-free: every wire surface that names its caller
+//! (command-execution env/headers, `/listen` frames, channel offers)
+//! embeds this ONE struct.
+
 /// Agent identity + response routing args carried per call.
 ///
-/// When passed as `Some(&AgentArguments)` to a [`CommandExecutor`],
-/// subprocess-spawning executors (e.g. [`binary::BinaryExecutor`])
+/// When passed as `Some(&Identity)` to a `CommandExecutor`,
+/// subprocess-spawning executors (e.g. `BinaryExecutor`)
 /// apply ALL nine fields to the spawned child's env atomically —
 /// `Some(v)` → set, `None` → `env_remove` so the parent's value for
 /// that var can't leak through. `None` for the whole bag means
 /// "inherit parent env unmodified". In-process executors (e.g.
-/// [`plugin::PluginExecutor`]) ignore the bag.
+/// `PluginExecutor`) ignore the bag.
 ///
 /// Field ↔ env-var mapping (same as `EnvConfigBuilder` in
 /// `objectiveai-cli/src/run.rs`):
@@ -44,8 +50,8 @@
     serde::Deserialize,
     schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.command.AgentArguments")]
-pub struct AgentArguments {
+#[schemars(rename = "Identity")]
+pub struct Identity {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_instance_hierarchy: Option<String>,
@@ -80,7 +86,7 @@ pub struct AgentArguments {
     pub task: bool,
 }
 
-impl AgentArguments {
+impl Identity {
     /// Build the bag from a proxy-session transient-header map — the
     /// six `X-OBJECTIVEAI-*` keys the API stamps on every proxy
     /// connect. Key lookup is case-insensitive. The `plugin_*` trio
@@ -155,8 +161,8 @@ impl AgentArguments {
     /// Apply this bag to a child-process command: every `Some(v)`
     /// stamps the matching env var, every `None` env-removes it so
     /// the parent's value can't leak through. Called by
-    /// [`binary::BinaryExecutor`]; available for any executor that
-    /// spawns a subprocess.
+    /// `BinaryExecutor`; available for any executor that spawns a
+    /// subprocess.
     #[cfg(feature = "cli-executor")]
     pub fn apply_to_command(&self, command: &mut tokio::process::Command) {
         let pairs: [(&str, &Option<String>); 9] = [

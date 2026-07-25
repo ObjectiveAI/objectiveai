@@ -1,7 +1,7 @@
 //! Channel writes: create a channel on accept, append messages,
 //! close on owner-drop.
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 
 use super::super::{Error, Pool};
 use super::Direction;
@@ -26,13 +26,13 @@ pub async fn insert_channel(
     details: &serde_json::Value,
     message: &str,
     plugin: &PluginOrigin<'_>,
-    agent_arguments: &AgentArguments,
+    identity: &Identity,
 ) -> Result<(), Error> {
     let now = chrono::Utc::now().timestamp();
     sqlx::query(
         "INSERT INTO objectiveai.channels \
          (id, pub_secret, owner_secret, state, key, details, message, \
-          plugin_owner, plugin_name, plugin_version, agent_arguments, \
+          plugin_owner, plugin_name, plugin_version, identity, \
           pub_read_index, owner_read_index, created_at) \
          VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, $10, 0, 0, $11)",
     )
@@ -45,7 +45,7 @@ pub async fn insert_channel(
     .bind(plugin.owner)
     .bind(plugin.name)
     .bind(plugin.version)
-    .bind(sqlx::types::Json(agent_arguments))
+    .bind(sqlx::types::Json(identity))
     .bind(now)
     .execute(&**pool)
     .await?;
@@ -59,7 +59,7 @@ pub async fn insert_message(
     pool: &Pool,
     channel_id: &str,
     direction: Direction,
-    identity: &AgentArguments,
+    identity: &Identity,
     content: &serde_json::Value,
 ) -> Result<(i64, i64), Error> {
     let now = chrono::Utc::now().timestamp();

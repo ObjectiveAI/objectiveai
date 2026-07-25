@@ -1,7 +1,7 @@
 //! Channel reads: authenticate a secret, list the log (all / pending),
 //! and the existence probe subscribe uses.
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use sqlx::Row as _;
 
 use super::super::{Error, Pool};
@@ -46,7 +46,7 @@ fn envelope_of(row: &sqlx::postgres::PgRow) -> Result<MessageEnvelope, Error> {
     let direction_text: String = row.try_get("direction")?;
     let direction = Direction::parse(&direction_text)
         .ok_or_else(|| Error::InvalidData(format!("channel direction {direction_text:?}")))?;
-    let identity: sqlx::types::Json<AgentArguments> = row.try_get("identity")?;
+    let identity: sqlx::types::Json<Identity> = row.try_get("identity")?;
     Ok(MessageEnvelope {
         id: row.try_get("id")?,
         direction,

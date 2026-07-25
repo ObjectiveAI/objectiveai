@@ -330,7 +330,7 @@ pub enum McpListChangedKind {
 /// daemon mints).
 ///
 /// EVERY field is REQUIRED — no defaults, no header bags:
-/// - `agent_arguments`: the calling agent's identity.
+/// - `identity`: the calling agent's identity.
 /// - `plugin`: the coordinates of the plugin whose MCP server
 ///   originated the command. The daemon stamps this trio on the
 ///   command's scope (this authenticated channel is, like the
@@ -347,7 +347,7 @@ pub struct HostCommandRequest {
     /// Correlation id, minted by the HOST; echoed by every reply
     /// frame.
     pub id: String,
-    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub identity: crate::identity::Identity,
     pub plugin: crate::mcp::server::Plugin,
     pub request: crate::cli::command::Request,
 }
@@ -482,7 +482,7 @@ mod tests {
     fn host_command_request_is_not_a_channel_response() {
         let request = HostCommandRequest {
             id: "cmd-1".to_string(),
-            agent_arguments: Default::default(),
+            identity: Default::default(),
             plugin: crate::mcp::server::Plugin {
                 owner: "acme".to_string(),
                 name: "widgets".to_string(),

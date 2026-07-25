@@ -494,7 +494,7 @@ impl ReverseChannel {
     /// stream end as done).
     pub(crate) async fn command(
         &self,
-        agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
+        identity: objectiveai_sdk::identity::Identity,
         plugin: objectiveai_sdk::mcp::server::Plugin,
         request: objectiveai_sdk::cli::command::Request,
         ack_timeout: Option<Duration>,
@@ -507,7 +507,7 @@ impl ReverseChannel {
             id: id.clone(),
             headers: IndexMap::new(),
             payload: server_request::Payload::Command {
-                agent_arguments,
+                identity,
                 plugin,
                 request,
             },

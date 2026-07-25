@@ -403,9 +403,9 @@ impl ConduitMcpHandler {
     /// back over the WS AS ITEMS ARRIVE (never collected). Spawned so
     /// the conduit's dispatch never blocks on a run.
     ///
-    /// Scope identity: the REQUIRED `agent_arguments` are applied
+    /// Scope identity: the REQUIRED `identity` are applied
     /// exactly like `/execute` (wire plugin claims inside them are
-    /// nulled by `from_agent_arguments`), then the REQUIRED `plugin`
+    /// nulled by `from_identity`), then the REQUIRED `plugin`
     /// coordinates are stamped with the same [`ScopedContext::with_plugin`]
     /// `plugins run` uses. This authenticated conduit channel is the
     /// deliberate exception to "never trust wire plugin identity": the
@@ -420,7 +420,7 @@ impl ConduitMcpHandler {
     fn dispatch_command(
         &self,
         id: String,
-        agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
+        identity: objectiveai_sdk::identity::Identity,
         plugin: objectiveai_sdk::mcp::server::Plugin,
         request: objectiveai_sdk::cli::command::Request,
     ) {
@@ -457,9 +457,9 @@ impl ConduitMcpHandler {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             };
 
-            let scoped = crate::executor::apply_agent_arguments(
+            let scoped = crate::executor::apply_identity(
                 &inner.scoped,
-                Some(&agent_arguments),
+                Some(&identity),
             )
             .await
             .into_owned()
@@ -754,7 +754,7 @@ impl McpHandler for ConduitMcpHandler {
             }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
             server_request::Payload::Command {
-                agent_arguments,
+                identity,
                 plugin,
                 request,
             } => {
@@ -767,7 +767,7 @@ impl McpHandler for ConduitMcpHandler {
                 // exchange).
                 self.dispatch_command(
                     id.clone(),
-                    agent_arguments,
+                    identity,
                     plugin,
                     request,
                 );

@@ -16,7 +16,8 @@ use std::time::Duration;
 
 use futures::{Stream, StreamExt};
 use indexmap::IndexMap;
-use objectiveai_sdk::cli::command::{AgentArguments, Request, ResponseItem};
+use objectiveai_sdk::identity::Identity;
+use objectiveai_sdk::cli::command::{Request, ResponseItem};
 use objectiveai_sdk::client_objectiveai_mcp::server_response::CommandFrame;
 use objectiveai_sdk::mcp::server::Plugin;
 use objectiveai_sdk::mcp::{Error as McpError, McpClientCommandExecutor};
@@ -54,13 +55,13 @@ impl McpClientCommandExecutor for ReverseChannelCommandExecutor {
         &self,
         request: Request,
     ) -> Result<Self::Stream, Self::Error> {
-        let agent_arguments = AgentArguments::from_transient_headers(
+        let identity = Identity::from_transient_headers(
             &*self.transient.read().await,
         );
         let frames = self
             .channel
             .command(
-                agent_arguments,
+                identity,
                 self.plugin.clone(),
                 request,
                 self.ack_timeout,

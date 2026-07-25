@@ -3,14 +3,15 @@ use std::pin::Pin;
 use eventsource_stream::Eventsource;
 use futures::{Stream, StreamExt};
 
-use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, CommandResponse};
+use crate::identity::Identity;
+use crate::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
 
 /// Execute commands against a remote cli daemon over plain HTTP —
 /// one POST per command to the daemon's `/execute` route, with the
 /// result streamed back as Server-Sent Events.
 ///
 /// The daemon runs each request IN-PROCESS (no child binary) with the
-/// [`AgentArguments`] headers applied as a per-request config
+/// [`Identity`] headers applied as a per-request config
 /// override (the daemon's
 /// filesystem layout and secret are never overridable). This is what
 /// lets a consumer — notably the viewer — run on a different machine
@@ -20,7 +21,7 @@ use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, Comma
 /// Wire contract (one request per `execute`):
 /// - client POSTs the `cli::command::Request` serde JSON as the raw
 ///   body — nothing wraps it — with the auth signature in the
-///   `X-OBJECTIVEAI-SIGNATURE` header and the [`AgentArguments`]
+///   `X-OBJECTIVEAI-SIGNATURE` header and the [`Identity`]
 ///   identity in the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` /
 ///   `-AGENT-ID` / `-AGENT-FULL-ID` / `-AGENT-REMOTE` /
 ///   `-RESPONSE-ID` / `-RESPONSE-IDS` request headers — the same
@@ -152,7 +153,7 @@ impl CommandExecutor for SseCommandExecutor {
     async fn execute<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send + serde::Serialize,
@@ -165,7 +166,7 @@ impl CommandExecutor for SseCommandExecutor {
         if let Some(signature) = &self.signature {
             req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
         }
-        if let Some(args) = agent_arguments {
+        if let Some(args) = identity {
             if let Some(v) = &args.agent_instance_hierarchy {
                 req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
             }
@@ -222,13 +223,13 @@ impl CommandExecutor for SseCommandExecutor {
     async fn execute_one<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<T, Error>
     where
         R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
-        let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
+        let mut stream = self.execute::<R, T>(request, identity).await?;
         stream.next().await.ok_or(Error::Empty)?
     }
 }

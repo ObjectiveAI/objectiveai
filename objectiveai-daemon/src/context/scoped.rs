@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use tokio::sync::OnceCell;
 
 use crate::context::GlobalContext;
@@ -74,7 +74,7 @@ impl ScopeIdentity {
     /// inherits the base scope's value) — and
     /// `agent_instance_hierarchy` falls back to `"UNKNOWN"` when
     /// missing because it is non-nullable.
-    pub fn from_agent_arguments(args: &AgentArguments) -> Self {
+    pub fn from_identity(args: &Identity) -> Self {
         Self {
             agent_instance_hierarchy: args
                 .agent_instance_hierarchy

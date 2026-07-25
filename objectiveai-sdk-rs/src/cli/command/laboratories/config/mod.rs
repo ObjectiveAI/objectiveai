@@ -85,7 +85,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
     E::Error,
@@ -94,11 +94,11 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
             Request::Addresses(req) => {
-                let inner = addresses::execute(executor, req, agent_arguments).await?;
+                let inner = addresses::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::Addresses)))
             }
             Request::Local(req) => {
-                let inner = local::execute(executor, req, agent_arguments).await?;
+                let inner = local::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(Response::Local)))
             }
         };
@@ -111,7 +111,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -119,11 +119,11 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Addresses(req) => {
-                let inner = addresses::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = addresses::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Local(req) => {
-                let inner = local::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = local::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
         };

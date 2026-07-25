@@ -14,7 +14,7 @@
 //! [`BroadcastListener`] IS a `Stream`: it yields one [`ListenerExecution`] envelope
 //! per announced run, discriminated over the run's REQUEST — each
 //! variant carries the actual leaf request, the producer's
-//! [`AgentArguments`], and the response as either a
+//! [`Identity`], and the response as either a
 //! [`UnaryResponse`] future (unary leaves) or a
 //! [`ResponseItemStream`] (streaming leaves). The root stream never
 //! yields response items; the nested future/stream inside each
@@ -43,7 +43,7 @@ use futures::{Stream, StreamExt};
 use reqwest_eventsource::{Event, RequestBuilderExt};
 use serde_json::value::RawValue;
 
-use crate::cli::command::AgentArguments;
+use crate::identity::Identity;
 
 use crate::cli::command::ListenerExecution;
 use super::dispatch::{RunFeed, open_run};
@@ -165,8 +165,8 @@ impl Frame<'_> {
     /// — the plugin caller trio included: broadcast frames are
     /// DAEMON-authored, so the trio here is trustworthy (unlike
     /// inbound wire requests, where the daemon ignores any claim).
-    fn agent_arguments(&mut self) -> AgentArguments {
-        AgentArguments {
+    fn identity(&mut self) -> Identity {
+        Identity {
             agent_instance_hierarchy: self.agent_instance_hierarchy.take(),
             agent_id: self.agent_id.take(),
             agent_full_id: self.agent_full_id.take(),
@@ -232,8 +232,8 @@ async fn pump(
                     let Some(request) = frame.value else {
                         continue;
                     };
-                    let agent_arguments = frame.agent_arguments();
-                    let Some((run, feed)) = open_run(request, agent_arguments) else {
+                    let identity = frame.identity();
+                    let Some((run, feed)) = open_run(request, identity) else {
                         skipped.insert(id);
                         continue;
                     };

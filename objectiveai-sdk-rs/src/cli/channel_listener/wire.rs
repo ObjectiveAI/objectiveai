@@ -26,7 +26,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::cli::command::AgentArguments;
+use crate::identity::Identity;
 
 /// One channel OFFER, as broadcast to every connected channel stream.
 /// Carries no secret — the publisher's `S_pub` is returned to the
@@ -42,7 +42,7 @@ pub struct ChannelOffer {
     /// the PUBLISHING plugin — daemon-authored (unspoofable; stamped
     /// by `plugins run`), absent when the caller wasn't a plugin.
     #[serde(flatten)]
-    pub agent_arguments: AgentArguments,
+    pub identity: Identity,
     /// Caller-chosen discriminator (e.g. `"browser.login"`) — how a
     /// user surface decides whether/how to accept the offer.
     pub key: String,

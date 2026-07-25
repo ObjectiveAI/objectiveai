@@ -3,7 +3,7 @@
 //! the command tier is built) — the daemon handlers map these to the
 //! wire response types.
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 
 /// Which side of a channel a message came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -85,7 +85,7 @@ impl ChannelAuth {
 pub struct MessageEnvelope {
     pub id: i64,
     pub direction: Direction,
-    pub identity: AgentArguments,
+    pub identity: Identity,
     /// Unix-seconds.
     pub delivered_at: i64,
 }
@@ -94,7 +94,7 @@ pub struct MessageEnvelope {
 pub struct MessageContent {
     pub id: i64,
     pub direction: Direction,
-    pub identity: AgentArguments,
+    pub identity: Identity,
     /// Unix-seconds.
     pub delivered_at: i64,
     pub content: serde_json::Value,

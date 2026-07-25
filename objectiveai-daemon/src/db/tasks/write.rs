@@ -3,7 +3,7 @@
 //! single atomic UPDATE — the WHERE clauses are the whole concurrency
 //! story (see `schema.sql`).
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use sqlx::Row as _;
 
 use super::super::{Error, Pool};
@@ -11,7 +11,7 @@ use super::ClaimedTask;
 
 /// Insert a freshly-created task, armed at `now + delay_secs`. `id`
 /// is the user-chosen name whose NAMESPACE is the creator's plugin
-/// trio (taken from `agent_arguments` — plain identity, not
+/// trio (taken from `identity` — plain identity, not
 /// authentication); `(trio, id)` is the task's sole identity.
 /// `Ok(false)` = that pair is already taken (unique violation);
 /// `Ok(true)` = inserted.
@@ -19,7 +19,7 @@ pub async fn insert_task(
     pool: &Pool,
     id: &str,
     command: &serde_json::Value,
-    agent_arguments: &AgentArguments,
+    identity: &Identity,
     delay_secs: i64,
     repeat: bool,
     repeat_count: Option<i64>,
@@ -36,17 +36,17 @@ pub async fn insert_task(
                  'scheduled', $15, $16)",
     )
     .bind(id)
-    .bind(agent_arguments.plugin_owner.as_deref())
-    .bind(agent_arguments.plugin_name.as_deref())
-    .bind(agent_arguments.plugin_version.as_deref())
+    .bind(identity.plugin_owner.as_deref())
+    .bind(identity.plugin_name.as_deref())
+    .bind(identity.plugin_version.as_deref())
     // The AIH is non-null in the schema; scope_identity always sets
     // it, but default defensively rather than fail the insert.
-    .bind(agent_arguments.agent_instance_hierarchy.as_deref().unwrap_or("unknown"))
-    .bind(agent_arguments.agent_id.as_deref())
-    .bind(agent_arguments.agent_full_id.as_deref())
-    .bind(agent_arguments.agent_remote.as_deref())
-    .bind(agent_arguments.response_id.as_deref())
-    .bind(agent_arguments.response_ids.as_deref())
+    .bind(identity.agent_instance_hierarchy.as_deref().unwrap_or("unknown"))
+    .bind(identity.agent_id.as_deref())
+    .bind(identity.agent_full_id.as_deref())
+    .bind(identity.agent_remote.as_deref())
+    .bind(identity.response_id.as_deref())
+    .bind(identity.response_ids.as_deref())
     .bind(sqlx::types::Json(command))
     .bind(delay_secs)
     .bind(repeat)
@@ -106,11 +106,11 @@ pub async fn claim_due(pool: &Pool, now: i64) -> Result<Vec<ClaimedTask>, Error>
     rows.into_iter()
         .map(|row| {
             let sqlx::types::Json(command) = row.try_get("command")?;
-            let agent_arguments = super::identity_from_row(&row)?;
+            let identity = super::identity_from_row(&row)?;
             Ok(ClaimedTask {
                 id: row.try_get("id")?,
                 command,
-                agent_arguments,
+                identity,
             })
         })
         .collect()

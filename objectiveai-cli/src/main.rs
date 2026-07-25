@@ -33,8 +33,9 @@ use std::path::PathBuf;
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::command_executor::sse;
+use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, ParseError, Request, SseCommandExecutor, parse_request,
+    CommandExecutor, ParseError, Request, SseCommandExecutor, parse_request,
 };
 use tokio::io::AsyncWriteExt;
 
@@ -108,7 +109,7 @@ async fn run(args: Vec<String>) -> i32 {
     }
 
     // Ensure the daemon is up and build the HTTP executor + identity bag.
-    let (executor, agent_arguments) = match connect().await {
+    let (executor, identity) = match connect().await {
         Ok(pair) => pair,
         Err(message) => {
             write_error_line(&mut stdout, message, Some(true)).await;
@@ -121,7 +122,7 @@ async fn run(args: Vec<String>) -> i32 {
     // post-transform JSON alike), and the executor surfaces the daemon's
     // structured error lines as `Error::Cli`.
     match executor
-        .execute::<_, serde_json::Value>(request, Some(&agent_arguments))
+        .execute::<_, serde_json::Value>(request, Some(&identity))
         .await
     {
         Ok(mut stream) => {
@@ -250,7 +251,7 @@ fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
 /// [`SseCommandExecutor`] plus the per-request identity override to
 /// send with every command. The selection ladder is documented on the
 /// module.
-async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
+async fn connect() -> Result<(SseCommandExecutor, Identity), String> {
     // Rung 1 — env override: when `DAEMON_ADDRESS` is set, connect to
     // that daemon directly and NEVER spawn a local one; an explicit
     // per-invocation choice outranks the persisted config.
@@ -259,7 +260,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
     {
         return Ok((
             executor_for(&addr, daemon_signature_env()),
-            agent_arguments_from_env(),
+            identity_from_env(),
         ));
     }
 
@@ -273,7 +274,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
         && let Some(address) = section.address.as_deref().filter(|s| !s.is_empty())
     {
         let signature = section.signature.clone().filter(|s| !s.is_empty());
-        return Ok((executor_for(address, signature), agent_arguments_from_env()));
+        return Ok((executor_for(address, signature), identity_from_env()));
     }
 
     // Rung 3 — the local daemon. Idempotent: returns immediately if
@@ -350,7 +351,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
             .map(derive_signature),
         None => daemon_signature_env(),
     };
-    Ok((executor_for(&url, signature), agent_arguments_from_env()))
+    Ok((executor_for(&url, signature), identity_from_env()))
 }
 
 /// `daemon kill` — client-side. Signal the daemon-lock owner(s) directly
@@ -383,9 +384,9 @@ async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
 /// invocation. Every other unset field stays `None`, sent as no
 /// header, which the daemon DELETES on the run's config — never
 /// inherits.
-fn agent_arguments_from_env() -> AgentArguments {
+fn identity_from_env() -> Identity {
     let var = |key: &str| std::env::var(key).ok().filter(|s| !s.is_empty());
-    AgentArguments {
+    Identity {
         agent_instance_hierarchy: var("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY")
             .or_else(|| Some("cli".to_string())),
         agent_id: var("OBJECTIVEAI_AGENT_ID"),

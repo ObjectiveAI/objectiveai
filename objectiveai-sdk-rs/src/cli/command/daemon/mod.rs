@@ -124,7 +124,7 @@ impl crate::cli::command::CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
@@ -133,39 +133,39 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
             Request::Config(req) => {
-                let inner = config::execute(executor, req, agent_arguments).await?;
+                let inner = config::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
             }
             Request::Spawn(req) => {
-                let inner = spawn::execute(executor, req, agent_arguments).await?;
+                let inner = spawn::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Spawn)))
             }
             Request::SpawnRequestSchema(req) => {
-                let value = spawn::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = spawn::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SpawnRequestSchema(value),
                 )))
             }
             Request::SpawnResponseSchema(req) => {
-                let value = spawn::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = spawn::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::SpawnResponseSchema(value),
                 )))
             }
             Request::Kill(req) => {
-                let value = kill::execute(executor, req, agent_arguments).await?;
+                let value = kill::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::Kill(value),
                 )))
             }
             Request::KillRequestSchema(req) => {
-                let value = kill::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = kill::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::KillRequestSchema(value),
                 )))
             }
             Request::KillResponseSchema(req) => {
-                let value = kill::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = kill::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::KillResponseSchema(value),
                 )))
@@ -179,7 +179,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     transform: crate::cli::command::Transform,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -187,31 +187,31 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Config(req) => {
-                let inner = config::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = config::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::Spawn(req) => {
-                let inner = spawn::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = spawn::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
             Request::SpawnRequestSchema(req) => {
-                let value = spawn::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = spawn::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::SpawnResponseSchema(req) => {
-                let value = spawn::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = spawn::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Kill(req) => {
-                let value = kill::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = kill::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::KillRequestSchema(req) => {
-                let value = kill::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = kill::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::KillResponseSchema(req) => {
-                let value = kill::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = kill::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
         };

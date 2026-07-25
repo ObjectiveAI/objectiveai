@@ -15,8 +15,9 @@ use std::sync::Arc;
 use std::task::{Context as TaskContext, Poll};
 
 use futures::{Stream, StreamExt, TryStreamExt};
+use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, CommandRequest, CommandResponse, ResponseItem, Transform,
+    CommandExecutor, CommandRequest, CommandResponse, ResponseItem, Transform,
     parse_request,
 };
 use serde_json::Value;
@@ -27,7 +28,7 @@ use crate::error::Error;
 /// In-process executor. Owns a [`GlobalContext`] plus a BASE
 /// [`ScopedContext`] and dispatches each `CommandRequest` through the
 /// CLI's local root dispatcher — deriving a fresh scope per call when
-/// the caller sends `agent_arguments`.
+/// the caller sends `identity`.
 pub struct DaemonCommandExecutor {
     global: GlobalContext,
     scoped: ScopedContext,
@@ -71,25 +72,25 @@ fn extract_leaf<T: serde::de::DeserializeOwned>(value: Value) -> Result<T, serde
 }
 
 /// Build the per-call [`ScopedContext`] from `base`. When
-/// `agent_arguments` is `Some`, a NEW scope is constructed
+/// `identity` is `Some`, a NEW scope is constructed
 /// ([`ScopedContext::for_request`]) carrying exactly the envelope's
 /// seven identity fields — every field verbatim (a `None` DELETES the
 /// slot, never inherits), `agent_instance_hierarchy` falling back to
 /// `"UNKNOWN"` — with a fresh api cell born alongside, so there is no
 /// client to reset and no way to leak the base identity. When
-/// `agent_arguments` is `None`, `base` is borrowed unchanged.
+/// `identity` is `None`, `base` is borrowed unchanged.
 ///
 /// Shared by [`DaemonCommandExecutor`] and the daemon's `/execute`
 /// SSE route (`crate::http::daemon_execute`), which applies the same
 /// derivation to its own resident base scope per request.
-pub(crate) async fn apply_agent_arguments<'a>(
+pub(crate) async fn apply_identity<'a>(
     base: &'a ScopedContext,
-    agent_arguments: Option<&AgentArguments>,
+    identity: Option<&Identity>,
 ) -> std::borrow::Cow<'a, ScopedContext> {
-    match agent_arguments {
+    match identity {
         None => std::borrow::Cow::Borrowed(base),
         Some(args) => std::borrow::Cow::Owned(
-            base.for_request(crate::context::ScopeIdentity::from_agent_arguments(args))
+            base.for_request(crate::context::ScopeIdentity::from_identity(args))
                 .await,
         ),
     }
@@ -105,7 +106,7 @@ impl CommandExecutor for DaemonCommandExecutor {
     async fn execute<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<Self::Stream<T>, Self::Error>
     where
         R: CommandRequest + Send + serde::Serialize,
@@ -133,7 +134,7 @@ impl CommandExecutor for DaemonCommandExecutor {
         })?;
         // Own the pair so the deferred dispatch future can hold it —
         // the returned stream is `'static` and outlives this call.
-        let scoped = apply_agent_arguments(&self.scoped, agent_arguments)
+        let scoped = apply_identity(&self.scoped, identity)
             .await
             .into_owned();
         let global = self.global.clone();
@@ -218,14 +219,14 @@ impl CommandExecutor for DaemonCommandExecutor {
     async fn execute_one<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&AgentArguments>,
+        identity: Option<&Identity>,
     ) -> Result<T, Self::Error>
     where
         R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream: Self::Stream<T> =
-            self.execute::<R, T>(request, agent_arguments).await?;
+            self.execute::<R, T>(request, identity).await?;
         match stream.next().await {
             Some(item) => item,
             None => Err(Error::EmptyStream),

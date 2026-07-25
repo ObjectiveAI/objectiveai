@@ -1,7 +1,7 @@
 //! `channels logs open`: reveal one entry's content by id, scoped to
 //! its channel. Pure read — opening never advances a watermark.
 
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use sqlx::Row as _;
 
 use super::super::{Error, Pool};
@@ -29,7 +29,7 @@ pub async fn read_content_by_id(
     let direction_text: String = row.try_get("direction")?;
     let direction = Direction::parse(&direction_text)
         .ok_or_else(|| Error::InvalidData(format!("channel direction {direction_text:?}")))?;
-    let identity: sqlx::types::Json<AgentArguments> = row.try_get("identity")?;
+    let identity: sqlx::types::Json<Identity> = row.try_get("identity")?;
     let content: sqlx::types::Json<serde_json::Value> = row.try_get("content")?;
     Ok(Some(MessageContent {
         id: row.try_get("id")?,

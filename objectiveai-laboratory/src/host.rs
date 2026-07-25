@@ -1209,7 +1209,7 @@ impl HostServer {
         let cwd = req.laboratory.cwd.clone().unwrap_or_else(|| "/".to_string());
         let laboratory_binary = self.bin_dir.join("objectiveai-mcp-laboratory");
         let identity_env =
-            objectiveai_sdk::cli::command::AgentArguments::from_transient_headers(
+            objectiveai_sdk::identity::Identity::from_transient_headers(
                 headers,
             )
             .identity_env();
@@ -1324,7 +1324,7 @@ impl HostServer {
         // THIS host's tunnel listener).
         let identity_env = {
             let mut args =
-                objectiveai_sdk::cli::command::AgentArguments::from_transient_headers(
+                objectiveai_sdk::identity::Identity::from_transient_headers(
                     headers,
                 );
             args.plugin_owner = Some(coords.owner.clone());

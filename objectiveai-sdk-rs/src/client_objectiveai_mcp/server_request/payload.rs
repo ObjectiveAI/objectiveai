@@ -161,7 +161,7 @@ pub enum Payload {
     /// routing.
     ///
     /// EVERY field is REQUIRED — no defaults, no header bags:
-    /// - `agent_arguments`: the caller's agent identity, from the
+    /// - `identity`: the caller's agent identity, from the
     ///   proxy session's transient identity bag (the API stamps it on
     ///   every connect).
     /// - `plugin`: the four coordinates of the plugin whose MCP
@@ -178,7 +178,7 @@ pub enum Payload {
     /// arrive — grammar `Ack (Item|Error)* Done`.
     #[schemars(title = "Command")]
     Command {
-        agent_arguments: crate::cli::command::AgentArguments,
+        identity: crate::identity::Identity,
         plugin: crate::mcp::server::Plugin,
         request: crate::cli::command::Request,
     },
@@ -455,7 +455,7 @@ mod command_request_tests {
     #[test]
     fn command_round_trips_and_has_no_mcp_kind() {
         let payload = Payload::Command {
-            agent_arguments: crate::cli::command::AgentArguments {
+            identity: crate::identity::Identity {
                 response_id: Some("resp-1".to_string()),
                 ..Default::default()
             },
@@ -477,7 +477,7 @@ mod command_request_tests {
         let value: serde_json::Value = serde_json::from_str(&text).unwrap();
         assert_eq!(value["type"], "command");
         assert_eq!(value["plugin"]["owner"], "acme");
-        assert_eq!(value["agent_arguments"]["response_id"], "resp-1");
+        assert_eq!(value["identity"]["response_id"], "resp-1");
 
         let back: super::super::Request = serde_json::from_str(&text).unwrap();
         assert!(matches!(
@@ -490,11 +490,11 @@ mod command_request_tests {
     /// the others) does not parse.
     #[test]
     fn command_fields_are_required() {
-        for missing in ["agent_arguments", "plugin", "request"] {
+        for missing in ["identity", "plugin", "request"] {
             let mut frame = serde_json::json!({
                 "id": "cmd-2",
                 "type": "command",
-                "agent_arguments": {},
+                "identity": {},
                 "plugin": {
                     "owner": "a", "name": "b",
                     "version": "1.0.0", "mcp": "m",

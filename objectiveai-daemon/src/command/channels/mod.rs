@@ -5,7 +5,7 @@
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::channels::{Request, ResponseItem};
 
 use crate::context::{GlobalContext, ScopedContext};
@@ -46,8 +46,8 @@ pub(crate) fn require_plugin(
 /// The daemon-authored agent identity for a channel offer/write — from
 /// the caller's scope, plugin trio included (unspoofable; only
 /// `plugins run` stamps it).
-pub(crate) fn scope_identity(scoped: &ScopedContext) -> AgentArguments {
-    AgentArguments {
+pub(crate) fn scope_identity(scoped: &ScopedContext) -> Identity {
+    Identity {
         agent_instance_hierarchy: Some(scoped.agent_instance_hierarchy().to_string()),
         agent_id: scoped.agent_id().map(String::from),
         agent_full_id: scoped.agent_full_id().map(String::from),
