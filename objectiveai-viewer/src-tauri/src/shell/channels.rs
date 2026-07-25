@@ -27,7 +27,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::channel_listener::{ChannelEvent, ChannelOffer};
+use objectiveai_sdk::daemon::channel_listener::{ChannelEvent, ChannelOffer};
 use tauri::Manager;
 
 use super::model::{ROOT_IDENTITY, ShellModel, TabKind};
@@ -158,7 +158,7 @@ async fn accept_flow(
         .ok_or_else(|| "tab carries no offer".to_string())?;
     let offer: ChannelOffer = serde_json::from_value(arguments)
         .map_err(|e| format!("offer parse: {e}"))?;
-    let identity_args = &offer.agent_arguments;
+    let identity_args = &offer.identity;
     let (owner, name, version) = match (
         &identity_args.plugin_owner,
         &identity_args.plugin_name,
@@ -412,7 +412,7 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
             None => return,
         }
     };
-    let identity_args = &offer.agent_arguments;
+    let identity_args = &offer.identity;
     let trio = match (
         &identity_args.plugin_owner,
         &identity_args.plugin_name,

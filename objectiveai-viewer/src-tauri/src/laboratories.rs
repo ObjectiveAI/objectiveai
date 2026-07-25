@@ -1,6 +1,6 @@
 //! Laboratory Tauri commands: the machine-identity bridge —
 //! everything else about laboratories reaches JS through the daemon
-//! (the SseCommandExecutor and the `/laboratories/*` streams), and
+//! (the daemon::Client executor and the `/laboratories/*` streams), and
 //! the laboratory HOST is spawned exclusively by the daemon as one of
 //! its leashed resident children (the viewer's former direct
 //! host-spawn path is gone with the server lockfiles).

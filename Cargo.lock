@@ -4500,6 +4500,7 @@ dependencies = [
 name = "objectiveai-viewer"
 version = "2.2.13"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "dirs",
  "dotenv",
