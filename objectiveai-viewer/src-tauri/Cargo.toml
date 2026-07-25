@@ -19,9 +19,11 @@ eventsource-stream = "0.2.3"
 futures = "0.3.32"
 mime_guess = "2.0.5"
 open = "5.3.2"
-objectiveai-sdk = { version = "2.2.13", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "cli-listener", "mcp", "machine", "lockfile", "gitrepo"] }
+objectiveai-sdk = { version = "2.2.13", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "daemon", "mcp", "machine", "lockfile", "gitrepo"] }
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "stream"] }
 semver = "1.0.28"
+tar = "0.4.46"
+flate2 = "1.1.9"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 # `unstable` = the multi-webview APIs: raw WindowBuilder, child
@@ -30,7 +32,7 @@ serde_json = { version = "1.0.149", features = ["preserve_order"] }
 tauri = { version = "2.10.3", features = ["unstable"] }
 tokio = { version = "1.50.0", features = ["full"] }
 uuid = { version = "1.22", features = ["v4"] }
-tokio-util = "0.7"
+tokio-util = { version = "0.7", features = ["io", "io-util"] }
 
 [target."cfg(windows)".dependencies]
 # The docking task's mouse-button check (GetAsyncKeyState): a dock

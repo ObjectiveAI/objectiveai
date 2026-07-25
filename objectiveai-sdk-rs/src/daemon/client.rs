@@ -72,7 +72,11 @@ impl Client {
     /// Open `{address}{route}` as an SSE stream and WAIT for it to
     /// open — the `Open` frame (the 2xx response) must arrive before
     /// this returns. 401s and transport failures surface here.
-    pub(crate) async fn open_sse(
+    ///
+    /// PUBLIC as a low-level escape hatch: proxies (the viewer's Rust
+    /// shell) forward RAW SSE bodies to their own consumers — a shape
+    /// the materialized listeners deliberately don't serve.
+    pub async fn open_sse(
         &self,
         route: &str,
     ) -> Result<reqwest_eventsource::EventSource, Error> {
@@ -97,8 +101,10 @@ impl Client {
     }
 
     /// A plain request to `{address}{route}` with the signature
-    /// stamped.
-    pub(crate) fn request(
+    /// stamped. PUBLIC as a low-level escape hatch (see
+    /// [`open_sse`](Self::open_sse)); the typed surfaces are the
+    /// front door.
+    pub fn request(
         &self,
         method: reqwest::Method,
         route: &str,
