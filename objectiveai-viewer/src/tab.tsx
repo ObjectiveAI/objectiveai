@@ -20,7 +20,13 @@ import cn from "classnames";
 import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri } from "./lib/tauri";
 import { viewerTransport } from "./lib/viewer-transport";
-import { tabSelf, uiGet, type UiState } from "./lib/tabs";
+import {
+  ROOT_IDENTITY,
+  pluginAssetUrl,
+  tabSelf,
+  uiGet,
+  type UiState,
+} from "./lib/tabs";
 import { setOrientation } from "./hooks/useOrientation";
 import {
   TabHarnessProvider,
@@ -41,8 +47,15 @@ function TabRoot() {
     void (async () => {
       const descriptor = await tabSelf();
       if (!descriptor || disposed) return;
+      // A plugin module lives under its own origin (the plugin://
+      // protocol); root modules — and the root-template case flagged
+      // by rootModule — resolve against the app origin as-is.
+      const moduleUrl =
+        descriptor.identity === ROOT_IDENTITY || descriptor.rootModule
+          ? descriptor.module
+          : pluginAssetUrl(descriptor.identity, descriptor.module);
       const module = (await import(
-        /* @vite-ignore */ descriptor.module
+        /* @vite-ignore */ moduleUrl
       )) as Record<string, unknown>;
       const component = module[descriptor.export ?? "default"];
       if (disposed || typeof component !== "function") return;

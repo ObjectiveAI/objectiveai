@@ -231,7 +231,7 @@ pub(crate) fn normalize(path: &str) -> Option<String> {
 /// lowercased to match the install path (the path IS the identity);
 /// the version is exact-case. `None` on any miss — best-effort,
 /// silent.
-async fn read_manifest(
+pub(crate) async fn read_manifest(
     plugins_root: &Path,
     owner: &str,
     name: &str,

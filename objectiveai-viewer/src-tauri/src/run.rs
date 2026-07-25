@@ -236,6 +236,12 @@ pub fn serve(
         crate::daemon_proxy::daemon_stream_close,
         crate::laboratories::machine_identity,
     ]);
+    // The plugin:// asset protocol — content webviews import installed
+    // plugin modules through it (cross-origin from the app origin).
+    let builder = builder.register_asynchronous_uri_scheme_protocol(
+        "plugin",
+        crate::shell::handle_plugin_protocol,
+    );
     // The docking task's Moved feed — the run_return closure is the
     // producer; the task (spawned in setup, where an AppHandle
     // exists) is the consumer.

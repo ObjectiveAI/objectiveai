@@ -207,6 +207,7 @@ async fn accept_flow(
         identity,
         module: handler.module,
         export: handler.export,
+        root_module: false,
         arguments: Some(arguments),
     };
     let opened =
@@ -573,6 +574,10 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
         identity,
         module: template.0,
         export: template.1,
+        // The request TEMPLATE is root code even when the identity is
+        // the offering plugin's — the module must not be prefixed
+        // onto the plugin origin.
+        root_module: true,
         // The whole wire offer, verbatim — the tab is a pure render
         // of it, and the embedded channel_id keeps every kind unique.
         arguments: Some(arguments),

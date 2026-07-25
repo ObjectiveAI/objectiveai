@@ -20,3 +20,5 @@ mod native;
 pub use native::*;
 mod plugins;
 pub use plugins::*;
+mod protocol;
+pub use protocol::*;

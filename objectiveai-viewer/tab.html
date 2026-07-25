@@ -2,6 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Plugin bundles are built with react external; this map binds
+         their bare specifiers to the host-served shims (ONE React
+         instance). Vite hoists it above every injected module script
+         in dev and build alike. Host code never ships bare
+         specifiers, so the map only affects plugin modules. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/host/react.js",
+          "react-dom": "/host/react-dom.js",
+          "react-dom/client": "/host/react-dom-client.js",
+          "react/jsx-runtime": "/host/react-jsx-runtime.js",
+          "react/jsx-dev-runtime": "/host/react-jsx-dev-runtime.js"
+        }
+      }
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ObjectiveAI Viewer</title>

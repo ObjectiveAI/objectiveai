@@ -37,6 +37,17 @@ pub struct TabKind {
     /// The export holding the component (`None` = `"default"`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub export: Option<String>,
+    /// `true` = the module resolves against the APP origin even
+    /// though the identity is a plugin's — the channel-REQUEST
+    /// template (root code branded with the offering plugin's
+    /// identity) is the one case. Constant per flow, so its place in
+    /// kind equality never splits a dedupe.
+    #[serde(
+        default,
+        rename = "rootModule",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub root_module: bool,
     /// Opaque component props — stored verbatim, delivered verbatim
     /// at boot. Rust never looks inside.
     #[serde(default, skip_serializing_if = "Option::is_none")]

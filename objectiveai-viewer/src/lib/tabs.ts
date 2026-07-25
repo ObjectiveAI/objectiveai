@@ -14,9 +14,24 @@
 // identity uses, and content webviews learn who they are via
 // `tab_self`.
 
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { closeViewerTab, openViewerTab, type ViewerOpenTab } from "@objectiveai/sdk";
-import { tauriInvoke } from "./tauri";
+import { isTauri, tauriInvoke } from "./tauri";
 import { viewerTransport } from "./viewer-transport";
+
+/** Mirror of Rust's `model.rs` `ROOT_IDENTITY` — the identity whose
+ * module/icon paths resolve against the app origin as-is. */
+export const ROOT_IDENTITY = "objectiveai";
+
+/** A plugin asset's platform-correct URL. `convertFileSrc`
+ * percent-encodes a real path (slashes become `%2F`), but with an
+ * EMPTY path it yields exactly the plugin origin + `/` —
+ * `http://plugin.localhost/` on Windows/Android, `plugin://localhost/`
+ * elsewhere — so append `{identity}{path}` verbatim (identity has no
+ * leading slash; the normalized path has one). */
+export function pluginAssetUrl(identity: string, path: string): string {
+  return convertFileSrc("", "plugin") + identity + path;
+}
 
 /** What a tab IS — identity + component coordinates + opaque props.
  * Kind equality (all four fields) is the shell's dedupe key. */
@@ -54,6 +69,9 @@ export interface TabDescriptor {
   identity: string;
   module: string;
   export?: string;
+  /** `true` = the module is ROOT code despite a plugin identity (the
+   * channel-request template) — no plugin origin prefixing. */
+  rootModule?: boolean;
   arguments?: unknown;
   title: string;
 }
@@ -225,13 +243,17 @@ export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
 
 /** Resolve an identity-root-relative icon path to a URL the CHROME
  * can render. The root identity shares the chrome's origin, so the
- * path serves as-is; a plugin identity's root is its own origin —
- * prefixing lands here when the plugin:// protocol exists. */
+ * path serves as-is; a plugin identity's icon is always a plugin
+ * asset (no root-template case exists for icons), served through the
+ * plugin:// protocol. */
 export function tabIconUrl(
-  _identity: string,
+  identity: string,
   icon: string | undefined,
 ): string | undefined {
-  return icon;
+  if (icon === undefined || identity === ROOT_IDENTITY || !isTauri()) {
+    return icon;
+  }
+  return pluginAssetUrl(identity, icon);
 }
 
 /** Open (or focus) a tab — the SDK helper over the shell's

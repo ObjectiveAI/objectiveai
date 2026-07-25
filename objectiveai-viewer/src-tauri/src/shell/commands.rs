@@ -51,6 +51,10 @@ pub struct TabDescriptor {
     pub module: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub export: Option<String>,
+    /// See [`TabKind::root_module`] — the bootstrap skips plugin
+    /// origin prefixing when set.
+    #[serde(rename = "rootModule", skip_serializing_if = "std::ops::Not::not")]
+    pub root_module: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<serde_json::Value>,
     pub title: String,
@@ -117,6 +121,7 @@ pub async fn tabs_open(
         identity,
         module: tab.module,
         export: tab.export,
+        root_module: false,
         arguments: tab.arguments,
     };
     let caller = webview.window().label().to_string();
@@ -189,6 +194,7 @@ pub async fn tab_self(
         identity: tab.kind.identity,
         module: tab.kind.module,
         export: tab.kind.export,
+        root_module: tab.kind.root_module,
         arguments: tab.kind.arguments,
         title: tab.title,
     })
