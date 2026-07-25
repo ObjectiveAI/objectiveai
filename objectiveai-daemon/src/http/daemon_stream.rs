@@ -198,6 +198,14 @@ pub fn serve_http(
             "/channels/{id}/accept",
             axum::routing::post(crate::http::channel_routes::channels_accept_handler),
         )
+        // The viewer-extension build service: build on this machine,
+        // stream the artifact back as tar.gz.
+        .route(
+            "/plugins/{owner}/{name}/{version}/viewer",
+            axum::routing::get(
+                crate::http::plugin_routes::plugin_viewer_handler,
+            ),
+        )
         .with_state(DaemonHttpState {
             tx,
             global,

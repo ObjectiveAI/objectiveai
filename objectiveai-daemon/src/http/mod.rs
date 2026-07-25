@@ -42,6 +42,10 @@
 //!   `/laboratories/{id}` SSE routes: the live laboratories
 //!   merge (connected ∪ local scan) and per-laboratory records with
 //!   attachments.
+//! - [`plugin_routes`] — the daemon's
+//!   `GET /plugins/{owner}/{name}/{version}/viewer` route: build a
+//!   plugin's viewer extension on this machine
+//!   ([`crate::viewer_build`]) and stream it back as tar.gz.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
@@ -55,4 +59,5 @@ pub mod agent_instance_route;
 pub mod agents_routes;
 pub mod channel_routes;
 pub mod laboratories_routes;
+pub mod plugin_routes;
 pub mod websocket_laboratory;

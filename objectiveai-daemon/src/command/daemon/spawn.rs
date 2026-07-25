@@ -256,6 +256,16 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         tasks: tasks.clone(),
     });
     tasks.spawn_driver(global.clone(), scoped.clone());
+    // Sweep the daemon's viewer-extension build scratch
+    // (<bin>/temp/daemon-viewer) — a hard-killed predecessor's
+    // checkouts/staging. Off the boot path; new builds mint fresh
+    // uuid dirs, so nothing races it.
+    tokio::spawn({
+        let bin_dir = scoped.filesystem.bin_dir();
+        async move {
+            crate::http::plugin_routes::sweep_boot_temp(&bin_dir).await;
+        }
+    });
     crate::http::daemon_stream::serve_http(
         http_listener,
         tx.clone(),
