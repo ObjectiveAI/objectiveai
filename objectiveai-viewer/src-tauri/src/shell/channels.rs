@@ -5,17 +5,19 @@
 //! daemon-side until some client accepts, and this is where a human
 //! gets to look at one.
 //!
-//! Lifecycle rules:
-//! - Offers REPLAY on every (re)connect, so the listener dedups by
-//!   `channel_id` → tab id. A map entry outlives its tab: a locally
-//!   DECLINED offer (tab closed, still open server-side — there is no
-//!   decline wire op; ignoring IS declining) stays dismissed for this
-//!   viewer's life.
-//! - `offer_withdrawn` → the mapped tab closes.
+//! Lifecycle rules — the DAEMON owns the open set, the shell MODEL is
+//! the only registry (no channel state is held here):
+//! - Offers REPLAY on every (re)connect; an offer whose request tab
+//!   is already LIVE in the model (matched by `channel_id` in the
+//!   template tab's arguments) is skipped. A locally DECLINED offer
+//!   (tab closed — there is no decline wire op; ignoring IS
+//!   declining) stays dismissed only until the next reconnect: still
+//!   open server-side means shown again, the daemon's truth.
+//! - `offer_withdrawn` → the matching live tab closes.
 //! - Withdrawals during a disconnect are NEVER delivered (the daemon
 //!   notifies only connections that saw the offer), so each connect
-//!   RECONCILES at the `live` marker: mapped offers the replay did
-//!   not include are gone server-side — close them.
+//!   RECONCILES at the `live` marker: live request tabs the replay
+//!   did not name are gone server-side — close them.
 //!
 //! Rust hardcodes no tab modules (and cannot know dev vs prod), so
 //! the chrome DECLARES the channel-request component's coordinates
@@ -23,7 +25,7 @@
 //! listener does not connect until that declaration lands — offers
 //! must never arrive unopenable.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use futures::StreamExt;
@@ -41,9 +43,6 @@ struct Template {
 
 struct ChannelsInner {
     template: Option<Template>,
-    /// `channel_id` → tab id. Insert on spawn; remove ONLY on
-    /// withdraw/reconcile/accept — see the module doc's dedup rules.
-    offers: HashMap<String, u64>,
 }
 
 /// Managed state for the channel-request surface.
@@ -64,7 +63,6 @@ impl ChannelRequests {
         Self {
             inner: tokio::sync::Mutex::new(ChannelsInner {
                 template: None,
-                offers: HashMap::new(),
             }),
             plugins_root,
             declared_tx: tokio::sync::Mutex::new(Some(tx)),
@@ -179,13 +177,6 @@ async fn accept_flow(
     let proxy = app.state::<crate::daemon_proxy::DaemonProxy>();
     let secret = proxy.accept_channel(&offer.channel_id).await?;
 
-    // Accepted: the offer is gone server-side — drop our mapping so
-    // the daemon's own offer_withdrawn broadcast finds nothing.
-    {
-        let mut inner = state.inner.lock().await;
-        inner.offers.remove(&offer.channel_id);
-    }
-
     let identity = format!(
         "{}/{}/{}",
         owner.to_lowercase(),
@@ -267,48 +258,77 @@ async fn listen_once(app: &tauri::AppHandle, plugins_root: &Path) {
                 if !live {
                     replayed.insert(offer.channel_id.clone());
                 }
-                let known = {
-                    let state = app.state::<ChannelRequests>();
-                    let inner = state.inner.lock().await;
-                    inner.offers.contains_key(&offer.channel_id)
-                };
-                if !known {
+                let shown = request_tabs(app)
+                    .await
+                    .iter()
+                    .any(|(channel_id, _)| channel_id == &offer.channel_id);
+                if !shown {
                     handle_offer(app, plugins_root, offer).await;
                 }
             }
             ChannelEvent::OfferWithdrawn { channel_id } => {
-                let tab_id = {
-                    let state = app.state::<ChannelRequests>();
-                    let mut inner = state.inner.lock().await;
-                    inner.offers.remove(&channel_id)
-                };
-                if let Some(tab_id) = tab_id {
+                let tabs: Vec<u64> = request_tabs(app)
+                    .await
+                    .into_iter()
+                    .filter(|(id, _)| id == &channel_id)
+                    .map(|(_, tab_id)| tab_id)
+                    .collect();
+                for tab_id in tabs {
                     super::close_tab(app, tab_id).await;
                 }
             }
             ChannelEvent::Live => {
                 live = true;
-                // Reconcile: mapped offers the replay did not include
-                // vanished while we were disconnected.
-                let stale: Vec<u64> = {
-                    let state = app.state::<ChannelRequests>();
-                    let mut inner = state.inner.lock().await;
-                    let gone: Vec<String> = inner
-                        .offers
-                        .keys()
-                        .filter(|id| !replayed.contains(*id))
-                        .cloned()
-                        .collect();
-                    gone.iter()
-                        .filter_map(|id| inner.offers.remove(id))
-                        .collect()
-                };
+                // Reconcile: live request tabs the replay did not name
+                // vanished server-side while we were disconnected.
+                let stale: Vec<u64> = request_tabs(app)
+                    .await
+                    .into_iter()
+                    .filter(|(id, _)| !replayed.contains(id))
+                    .map(|(_, tab_id)| tab_id)
+                    .collect();
                 for tab_id in stale {
                     super::close_tab(app, tab_id).await;
                 }
             }
         }
     }
+}
+
+/// Every LIVE channel-request tab as `(channel_id, tab_id)`, derived
+/// from the model — the tabs ARE the shown-offer registry. A request
+/// tab is the declared template component; its arguments are the
+/// wire offer, whose top-level `channel_id` identifies it (handler
+/// tabs nest their offer under `request`, so they never match).
+async fn request_tabs(app: &tauri::AppHandle) -> Vec<(String, u64)> {
+    let template = {
+        let state = app.state::<ChannelRequests>();
+        let inner = state.inner.lock().await;
+        match &inner.template {
+            Some(t) => (t.module.clone(), t.export.clone()),
+            None => return Vec::new(),
+        }
+    };
+    let model = app.state::<ShellModel>();
+    model
+        .windows_full()
+        .await
+        .into_values()
+        .flat_map(|window| window.tabs)
+        .filter(|tab| {
+            tab.kind.module == template.0 && tab.kind.export == template.1
+        })
+        .filter_map(|tab| {
+            let channel_id = tab
+                .kind
+                .arguments
+                .as_ref()?
+                .get("channel_id")?
+                .as_str()?
+                .to_string();
+            Some((channel_id, tab.id))
+        })
+        .collect()
 }
 
 /// The window an incoming offer's tab opens into: the FOCUSED window
@@ -376,7 +396,6 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
         ),
         None => (ROOT_IDENTITY.to_string(), None),
     };
-    let channel_id = offer.channel_id.clone();
     let title = if offer.key.is_empty() {
         "channel request".to_string()
     } else {
@@ -398,9 +417,7 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
         return;
     };
     // Activated: an incoming request swaps to its tab (the window's
-    // OS focus is left alone).
-    let opened = super::open_tab(app, &window, kind, title, true, icon, true).await;
-    let state = app.state::<ChannelRequests>();
-    let mut inner = state.inner.lock().await;
-    inner.offers.insert(channel_id, opened.tab_id);
+    // OS focus is left alone). No bookkeeping: the tab itself IS the
+    // shown-offer record.
+    super::open_tab(app, &window, kind, title, true, icon, true).await;
 }
