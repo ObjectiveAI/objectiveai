@@ -282,38 +282,61 @@ pub(crate) struct PluginChannel {
     pub icon: Option<String>,
 }
 
-/// The plugin's channel handler for `key` — the FIRST `viewer.tabs`
+/// Where an offer's `(plugin, key)` pair stands against the installed
+/// tree — the request tab's whole vocabulary.
+pub(crate) enum ChannelStatus {
+    /// That EXACT version is not installed (or its manifest is
+    /// unreadable — indistinguishable and treated the same).
+    NotInstalled,
+    /// Installed, but the key maps to nothing: no viewer extension,
+    /// no `Channel` tab with that `channel_key`, or an invalid
+    /// handler module path.
+    UnsupportedKey,
+    /// Installed and handled — ready to accept.
+    Ready(PluginChannel),
+}
+
+/// Resolve `key` against one exact installed version: the FIRST
+/// `viewer.tabs`
 /// [`Channel`](objectiveai_sdk::cli::plugins::ViewerTab::Channel)
 /// entry whose `channel_key` matches (manifest order; later
-/// duplicates are ignored). `None` when the plugin isn't installed,
-/// declares no handler for the key, or the entry's module path is
-/// invalid.
-pub(crate) async fn plugin_channel(
+/// duplicates are ignored).
+pub(crate) async fn channel_status(
     plugins_root: &Path,
     owner: &str,
     name: &str,
     version: &str,
     key: &str,
-) -> Option<PluginChannel> {
+) -> ChannelStatus {
     use objectiveai_sdk::cli::plugins::ViewerTab;
-    let manifest = read_manifest(plugins_root, owner, name, version).await?;
+    let Some(manifest) = read_manifest(plugins_root, owner, name, version).await
+    else {
+        return ChannelStatus::NotInstalled;
+    };
     // No declared viewer root = no viewer extension at all.
-    manifest.viewer.as_ref()?;
+    if manifest.viewer.is_none() {
+        return ChannelStatus::UnsupportedKey;
+    }
     let icon = manifest.icon.as_deref().and_then(normalize);
-    let tabs = manifest.tabs?;
-    let (module, export) = tabs.iter().find_map(|tab| match tab {
+    let handler = manifest.tabs.iter().flatten().find_map(|tab| match tab {
         ViewerTab::Channel {
             channel_key,
             module,
             export,
         } if channel_key == key => Some((module.clone(), export.clone())),
         _ => None,
-    })?;
-    Some(PluginChannel {
-        module: normalize(&module)?,
-        export,
-        icon,
-    })
+    });
+    let Some((module, export)) = handler else {
+        return ChannelStatus::UnsupportedKey;
+    };
+    match normalize(&module) {
+        Some(module) => ChannelStatus::Ready(PluginChannel {
+            module,
+            export,
+            icon,
+        }),
+        None => ChannelStatus::UnsupportedKey,
+    }
 }
 
 /// Scan the tree and turn every declared plugin tab into a

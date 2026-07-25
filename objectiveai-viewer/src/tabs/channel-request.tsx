@@ -1,11 +1,17 @@
 import cn from "classnames";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { type TabComponentProps } from "../lib/tabHarness";
 import { Markdown } from "../components/Markdown";
 import { JsonBlock } from "../components/shared/JsonBlock";
 import { type DaemonChannelListenerChannelOffer } from "@objectiveai/sdk";
-import { channelRequestAccept, tabsCloseSelf } from "../lib/tabs";
+import {
+  channelRequestAccept,
+  channelRequestInstall,
+  channelRequestStatus,
+  tabsCloseSelf,
+  type OfferStatus,
+} from "../lib/tabs";
 
 /** The wire ChannelOffer, verbatim — this tab's `arguments` (the
  * generated SDK type: caller identity FLATTENED to top-level fields;
@@ -13,17 +19,55 @@ import { channelRequestAccept, tabsCloseSelf } from "../lib/tabs";
 type ChannelOffer = DaemonChannelListenerChannelOffer;
 
 /** One incoming channel offer, opened as a tab by the shell's
- * resident /channels listener. A pure render of its `arguments` plus
- * two verbs: Accept hands off to Rust (POST the accept, spawn the
- * plugin's handler component, kill this tab — success OR failure,
- * this tab dies), Decline closes the tab (there is no decline wire
- * op; ignoring IS declining). While accepting, both buttons lock and
- * the tab just waits to die. */
+ * resident /channels listener. A render of its `arguments` plus the
+ * STATUS-driven verb (queried from Rust on mount):
+ * - `ready` — Accept hands off to Rust (POST the accept, spawn the
+ *   plugin's handler component, kill this tab — success OR failure,
+ *   this tab dies);
+ * - `not_installed` — Install runs the daemon-build install with the
+ *   two-step progress label ("building plugin…" → "installing
+ *   plugin…"); success re-queries the status (→ Accept or
+ *   unsupported), failure = Rust logs and kills this tab;
+ * - `unsupported_key` / `no_plugin` — a dim explanation, Decline
+ *   only.
+ * Decline always closes the tab (there is no decline wire op;
+ * ignoring IS declining). While a verb runs, everything locks and
+ * the tab waits. */
 export default function ChannelRequestTab({
   arguments: args,
 }: TabComponentProps) {
   const offer = (args ?? {}) as ChannelOffer;
-  const [accepting, setAccepting] = useState(false);
+  const [status, setStatus] = useState<OfferStatus | "loading">("loading");
+  const [busy, setBusy] = useState<
+    null | "accepting" | "building" | "installing"
+  >(null);
+
+  useEffect(() => {
+    let disposed = false;
+    void channelRequestStatus().then((next) => {
+      if (!disposed && next !== undefined) setStatus(next);
+    });
+    return () => {
+      disposed = true;
+    };
+  }, []);
+
+  const install = () => {
+    setBusy("building");
+    channelRequestInstall((step) => {
+      setBusy(step.step === "installing" ? "installing" : "building");
+    })
+      .then(async () => {
+        // Installed: what the tab shows next is the status's call
+        // (accept, or unsupported key).
+        const next = await channelRequestStatus();
+        if (next !== undefined) setStatus(next);
+        setBusy(null);
+      })
+      .catch(() => {
+        // Rust logged and is closing this tab — just wait to die.
+      });
+  };
   const plugin =
     offer.plugin_owner !== undefined
       ? `${offer.plugin_owner}/${offer.plugin_name}/${offer.plugin_version}`
@@ -153,42 +197,93 @@ export default function ChannelRequestTab({
           </Collapsible.Content>
         </Collapsible.Root>
 
-        {/* Accept / Decline. */}
-        <div className={cn("flex", "gap-2", "pt-2")}>
-          <button
-            data-offer-accept
-            disabled={accepting}
-            onClick={() => {
-              setAccepting(true);
-              // Rust POSTs the accept, spawns the handler tab, and
-              // kills THIS tab — on failure it kills this tab too.
-              void channelRequestAccept();
-            }}
-            className={cn(
-              "px-4",
-              "py-1.5",
-              "rounded-md",
-              "border",
-              "border-copper-mid",
-              "text-copper-bright",
-              "text-xs",
-              "uppercase",
-              "tracking-wider",
-              accepting
-                ? cn("opacity-50", "cursor-wait")
-                : cn(
-                    "cursor-pointer",
-                    "hover:bg-ground-surface",
-                    "hover:border-copper-bright",
-                  ),
-              "transition-colors",
-            )}
+        {/* The status-driven verb row. */}
+        {status === "unsupported_key" && (
+          <div
+            data-offer-unsupported
+            className={cn("text-[11px]", "text-info-dim", "font-mono")}
           >
-            {accepting ? "accepting…" : "accept"}
-          </button>
+            unsupported offer key — {offer.key} is not declared by{" "}
+            {plugin ?? "the publishing plugin"}
+          </div>
+        )}
+        {status === "no_plugin" && (
+          <div
+            data-offer-no-plugin
+            className={cn("text-[11px]", "text-info-dim", "font-mono")}
+          >
+            no publishing plugin — nothing can handle this offer
+          </div>
+        )}
+        <div className={cn("flex", "gap-2", "pt-2")}>
+          {status === "ready" && (
+            <button
+              data-offer-accept
+              disabled={busy !== null}
+              onClick={() => {
+                setBusy("accepting");
+                // Rust POSTs the accept, spawns the handler tab, and
+                // kills THIS tab — on failure it kills this tab too.
+                void channelRequestAccept();
+              }}
+              className={cn(
+                "px-4",
+                "py-1.5",
+                "rounded-md",
+                "border",
+                "border-copper-mid",
+                "text-copper-bright",
+                "text-xs",
+                "uppercase",
+                "tracking-wider",
+                busy !== null
+                  ? cn("opacity-50", "cursor-wait")
+                  : cn(
+                      "cursor-pointer",
+                      "hover:bg-ground-surface",
+                      "hover:border-copper-bright",
+                    ),
+                "transition-colors",
+              )}
+            >
+              {busy === "accepting" ? "accepting…" : "accept"}
+            </button>
+          )}
+          {status === "not_installed" && (
+            <button
+              data-offer-install
+              disabled={busy !== null}
+              onClick={install}
+              className={cn(
+                "px-4",
+                "py-1.5",
+                "rounded-md",
+                "border",
+                "border-copper-mid",
+                "text-copper-bright",
+                "text-xs",
+                "uppercase",
+                "tracking-wider",
+                busy !== null
+                  ? cn("opacity-50", "cursor-wait")
+                  : cn(
+                      "cursor-pointer",
+                      "hover:bg-ground-surface",
+                      "hover:border-copper-bright",
+                    ),
+                "transition-colors",
+              )}
+            >
+              {busy === "building"
+                ? "building plugin…"
+                : busy === "installing"
+                  ? "installing plugin…"
+                  : "install"}
+            </button>
+          )}
           <button
             data-offer-decline
-            disabled={accepting}
+            disabled={busy !== null}
             onClick={() => tabsCloseSelf()}
             className={cn(
               "px-4",
@@ -200,7 +295,7 @@ export default function ChannelRequestTab({
               "text-xs",
               "uppercase",
               "tracking-wider",
-              accepting
+              busy !== null
                 ? cn("opacity-50", "cursor-wait")
                 : cn(
                     "cursor-pointer",

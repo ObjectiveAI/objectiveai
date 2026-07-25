@@ -53,6 +53,17 @@ impl PluginsDirs {
     }
 }
 
+/// One coarse install phase, streamed to a watching webview (the
+/// request tab's Install button): `Building` spans the daemon-side
+/// build (the download await — headers arrive only once the daemon
+/// finished pnpm+esbuild), `Installing` the transfer + un-tar + land.
+#[derive(Clone, serde::Serialize)]
+#[serde(tag = "step", rename_all = "snake_case")]
+pub enum InstallStep {
+    Building,
+    Installing,
+}
+
 /// Path-meaningful characters are rejected outright in wire-supplied
 /// identity segments — the same rules as the manifest readers'.
 fn safe_segment(segment: &str) -> bool {
@@ -77,11 +88,20 @@ async fn download_bundle(
     name: &str,
     version: &str,
     staging: &Path,
+    progress: Option<&tauri::ipc::Channel<InstallStep>>,
 ) -> Result<(), String> {
+    if let Some(progress) = progress {
+        let _ = progress.send(InstallStep::Building);
+    }
     let plugin = daemon
         .get_viewer_plugin(owner, name, version)
         .await
         .map_err(|e| format!("download bundle: {e}"))?;
+    // Headers arrived = the daemon-side build finished; everything
+    // from here is the install half.
+    if let Some(progress) = progress {
+        let _ = progress.send(InstallStep::Installing);
+    }
     if let Some(sha) = &plugin.commit_sha {
         super::report_shell(
             app,
@@ -134,6 +154,7 @@ pub(crate) async fn install(
     owner: &str,
     name: &str,
     version: &str,
+    progress: Option<&tauri::ipc::Channel<InstallStep>>,
 ) -> Result<(), String> {
     if !safe_segment(owner) || !safe_segment(name) || !safe_segment(version) {
         return Err("invalid owner/name/version".to_string());
@@ -176,8 +197,10 @@ pub(crate) async fn install(
         }
         let staging = dirs.temp_dir().join(uuid::Uuid::new_v4().to_string());
         let landed = async {
-            download_bundle(app, &identity, daemon, &owner, &name, version, &staging)
-                .await?;
+            download_bundle(
+                app, &identity, daemon, &owner, &name, version, &staging, progress,
+            )
+            .await?;
             if let Some(parent) = dest.parent() {
                 tokio::fs::create_dir_all(parent)
                     .await
@@ -294,7 +317,7 @@ pub async fn plugins_install(
         use tauri::Manager;
         app.state::<crate::daemon_proxy::DaemonProxy>()
     };
-    match install(&app, proxy.daemon(), &dirs, &owner, &name, &version).await {
+    match install(&app, proxy.daemon(), &dirs, &owner, &name, &version, None).await {
         Ok(()) => {
             super::report_shell(
                 &app,

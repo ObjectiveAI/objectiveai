@@ -157,9 +157,11 @@ async fn accept_flow(
         _ => return Err("offer has no publishing plugin".to_string()),
     };
 
-    // Resolve the handler FIRST: no handler, no accept.
+    // Resolve the handler FIRST: no handler, no accept. Accept only
+    // renders in the `ready` state, so the non-ready arms are
+    // stale-state races — still distinct in the log.
     let state = app.state::<ChannelRequests>();
-    let handler = super::plugins::plugin_channel(
+    let handler = match super::plugins::channel_status(
         &state.plugins_root,
         owner,
         name,
@@ -167,12 +169,18 @@ async fn accept_flow(
         &offer.key,
     )
     .await
-    .ok_or_else(|| {
-        format!(
-            "{owner}/{name}/{version} declares no channel handler for key {:?}",
-            offer.key
-        )
-    })?;
+    {
+        super::plugins::ChannelStatus::Ready(handler) => handler,
+        super::plugins::ChannelStatus::NotInstalled => {
+            return Err(format!("{owner}/{name}/{version} is not installed"));
+        }
+        super::plugins::ChannelStatus::UnsupportedKey => {
+            return Err(format!(
+                "{owner}/{name}/{version} declares no channel handler for key {:?}",
+                offer.key
+            ));
+        }
+    };
 
     let proxy = app.state::<crate::daemon_proxy::DaemonProxy>();
     let secret = proxy.accept_channel(&offer.channel_id).await?;
@@ -206,6 +214,163 @@ async fn accept_flow(
     // The request tab dies; the handler tab takes its place, focused.
     super::close_tab(app, request_tab).await;
     super::select_tab(app, window, opened.tab_id).await;
+    Ok(())
+}
+
+/// One offer's standing against the installed-plugin tree — what the
+/// request tab renders its verbs from.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OfferStatus {
+    /// Installed and the key maps to a handler — Accept works.
+    Ready,
+    /// The publishing plugin's exact version is not installed.
+    NotInstalled,
+    /// Installed, but the key is absent from the manifest's channel
+    /// tabs (or the plugin has no viewer extension).
+    UnsupportedKey,
+    /// The offer carries no publishing plugin — nothing to install,
+    /// nothing to accept.
+    NoPlugin,
+}
+
+/// The CALLING request tab's offer status — self-scoped like accept:
+/// the offer comes from the caller's own tab arguments.
+#[tauri::command]
+pub async fn channel_request_status(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+) -> Result<OfferStatus, String> {
+    let request_tab = native::tab_id(webview.label())
+        .ok_or_else(|| "channel status: not a content webview".to_string())?;
+    let model = app.state::<ShellModel>();
+    let tab = model
+        .tab(request_tab)
+        .await
+        .ok_or_else(|| "unknown tab".to_string())?;
+    let arguments = tab
+        .kind
+        .arguments
+        .ok_or_else(|| "tab carries no offer".to_string())?;
+    let offer: ChannelOffer = serde_json::from_value(arguments)
+        .map_err(|e| format!("offer parse: {e}"))?;
+    let identity_args = &offer.identity;
+    let (owner, name, version) = match (
+        &identity_args.plugin_owner,
+        &identity_args.plugin_name,
+        &identity_args.plugin_version,
+    ) {
+        (Some(owner), Some(name), Some(version)) => (owner, name, version),
+        _ => return Ok(OfferStatus::NoPlugin),
+    };
+    let state = app.state::<ChannelRequests>();
+    Ok(
+        match super::plugins::channel_status(
+            &state.plugins_root,
+            owner,
+            name,
+            version,
+            &offer.key,
+        )
+        .await
+        {
+            super::plugins::ChannelStatus::Ready(_) => OfferStatus::Ready,
+            super::plugins::ChannelStatus::NotInstalled => OfferStatus::NotInstalled,
+            super::plugins::ChannelStatus::UnsupportedKey => {
+                OfferStatus::UnsupportedKey
+            }
+        },
+    )
+}
+
+/// Install the CALLING request tab's publishing plugin — the offer
+/// tab's Install button. Runs the daemon-build download pipeline with
+/// the two-step progress feed, then rescans the inventory (the
+/// plugin's boot tabs appear quietly). ANY failure surfaces in
+/// viewer-logs and kills the request tab, exactly like a failed
+/// accept. Success leaves the tab alive — the caller re-queries
+/// [`channel_request_status`] to decide what it shows next.
+#[tauri::command]
+pub async fn channel_request_install(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    on_step: tauri::ipc::Channel<super::InstallStep>,
+) -> Result<(), String> {
+    let request_tab = native::tab_id(webview.label())
+        .ok_or_else(|| "channel install: not a content webview".to_string())?;
+    let window = webview.window().label().to_string();
+    let result = install_flow(&app, request_tab, &window, on_step).await;
+    if let Err(message) = &result {
+        super::report_shell(&app, "error", format!("channels: install: {message}"))
+            .await;
+        super::close_tab(&app, request_tab).await;
+    }
+    result
+}
+
+/// The fallible body of [`channel_request_install`] — see its doc.
+async fn install_flow(
+    app: &tauri::AppHandle,
+    request_tab: u64,
+    window: &str,
+    on_step: tauri::ipc::Channel<super::InstallStep>,
+) -> Result<(), String> {
+    let model = app.state::<ShellModel>();
+    let tab = model
+        .tab(request_tab)
+        .await
+        .ok_or_else(|| "unknown tab".to_string())?;
+    let arguments = tab
+        .kind
+        .arguments
+        .ok_or_else(|| "tab carries no offer".to_string())?;
+    let offer: ChannelOffer = serde_json::from_value(arguments)
+        .map_err(|e| format!("offer parse: {e}"))?;
+    let identity_args = &offer.identity;
+    let (owner, name, version) = match (
+        &identity_args.plugin_owner,
+        &identity_args.plugin_name,
+        &identity_args.plugin_version,
+    ) {
+        (Some(owner), Some(name), Some(version)) => (owner, name, version),
+        _ => return Err("offer has no publishing plugin".to_string()),
+    };
+    let state = app.state::<ChannelRequests>();
+    // Probe first: an already-installed plugin (raced by another
+    // install) is SUCCESS here — the status re-query decides what the
+    // tab shows.
+    if !matches!(
+        super::plugins::channel_status(
+            &state.plugins_root,
+            owner,
+            name,
+            version,
+            &offer.key,
+        )
+        .await,
+        super::plugins::ChannelStatus::NotInstalled
+    ) {
+        return Ok(());
+    }
+    let proxy = app.state::<crate::daemon_proxy::DaemonProxy>();
+    let dirs = app.state::<super::PluginsDirs>();
+    super::install(
+        app,
+        proxy.daemon(),
+        &dirs,
+        owner,
+        name,
+        version,
+        Some(&on_step),
+    )
+    .await?;
+    super::report_shell(
+        app,
+        "info",
+        format!("channels: installed {owner}/{name}@{version} from the offer tab"),
+    )
+    .await;
+    super::rescan_and_apply(app, &state.plugins_root, window, true).await;
     Ok(())
 }
 

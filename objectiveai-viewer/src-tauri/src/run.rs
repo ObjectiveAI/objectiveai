@@ -213,6 +213,8 @@ pub fn serve(
         crate::shell::tabs_close_self,
         crate::shell::channel_request_declare,
         crate::shell::channel_request_accept,
+        crate::shell::channel_request_status,
+        crate::shell::channel_request_install,
         crate::shell::tabs_move,
         crate::shell::tabs_detach,
         crate::shell::ui_set,

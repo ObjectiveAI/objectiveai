@@ -148,6 +148,37 @@ export function channelRequestAccept(): Promise<void> {
   return tauriInvoke("channel_request_accept").then(() => undefined);
 }
 
+/** The CALLING request tab's offer standing (self-scoped): what verb
+ * the tab renders. */
+export type OfferStatus =
+  | "ready"
+  | "not_installed"
+  | "unsupported_key"
+  | "no_plugin";
+
+export function channelRequestStatus(): Promise<OfferStatus | undefined> {
+  return tauriInvoke<OfferStatus>("channel_request_status");
+}
+
+/** One coarse install phase from the offer tab's Install run. */
+export type ChannelInstallStep = { step: "building" | "installing" };
+
+/** Install the CALLING request tab's publishing plugin (self-scoped)
+ * — the daemon builds, this side lands. `onStep` follows the two
+ * phases; resolve = installed (re-query the status), reject = Rust is
+ * closing this tab. */
+export async function channelRequestInstall(
+  onStep: (step: ChannelInstallStep) => void,
+): Promise<void> {
+  const transport = await viewerTransport();
+  if (transport === null) {
+    throw new Error("not running under Tauri");
+  }
+  const channel = transport.channel<ChannelInstallStep>();
+  channel.onmessage = onStep;
+  await transport.invoke("channel_request_install", { onStep: channel });
+}
+
 /** One inventory row — mirrors the shell's `InventoryEntry`. */
 export interface TabInventoryEntry {
   identity: string;
