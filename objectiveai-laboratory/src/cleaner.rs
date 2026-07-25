@@ -38,13 +38,17 @@ pub async fn sweep(bin_dir: PathBuf, state: String) {
     let temp = bin_dir.join("temp");
     objectiveai_sdk::gitrepo::sweep_temp(&temp.join("daemon")).await;
     // Migration: pre-split builds put checkouts directly under
-    // `<bin>/temp` — clear those uuid leftovers, but never touch the
-    // sibling partitions (`daemon` is ours and already swept above;
-    // `viewer` belongs to the viewer's installer).
+    // `<bin>/temp` — clear those, matched by their UUID dir names so
+    // the sibling partitions (`viewer`, `daemon-viewer`, whatever
+    // comes next — each swept by its own process at ITS boot) are
+    // never touched.
     if let Ok(mut entries) = tokio::fs::read_dir(&temp).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
             let name = entry.file_name();
-            if name != "daemon" && name != "viewer" {
+            let is_uuid = name
+                .to_str()
+                .is_some_and(|name| uuid::Uuid::parse_str(name).is_ok());
+            if is_uuid {
                 objectiveai_sdk::gitrepo::remove_checkout(&entry.path()).await;
             }
         }
