@@ -6,7 +6,6 @@ func init() {
 	RegisterOrderedMapTypes(variantValidator,
 		OrderedMap[string, *string]{},
 		OrderedMap[string, AgentCompletionsRequestResponseFormat]{},
-		OrderedMap[string, CliPluginsViewerTab]{},
 		OrderedMap[string, FunctionsExpressionInputSchema]{},
 		OrderedMap[string, FunctionsExpressionInputValue]{},
 		OrderedMap[string, FunctionsExpressionInputValueExpressionObjectValue]{},

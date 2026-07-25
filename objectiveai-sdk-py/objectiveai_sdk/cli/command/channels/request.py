@@ -3,6 +3,9 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.cli.command.channels.close.request import Request as CliCommandChannelsCloseRequest
+from objectiveai_sdk.cli.command.channels.close.request_schema.request import Request as CliCommandChannelsCloseRequestSchemaRequest
+from objectiveai_sdk.cli.command.channels.close.response_schema.request import Request as CliCommandChannelsCloseResponseSchemaRequest
 from objectiveai_sdk.cli.command.channels.logs.request_ import Request as CliCommandChannelsLogsRequest
 from objectiveai_sdk.cli.command.channels.publish.request import Request as CliCommandChannelsPublishRequest
 from objectiveai_sdk.cli.command.channels.publish.request_schema.request import Request as CliCommandChannelsPublishRequestSchemaRequest
@@ -27,6 +30,24 @@ class RequestPublishResponseSchema(RootModel):
     root: CliCommandChannelsPublishResponseSchemaRequest
 
 
+class RequestClose(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Close'})
+
+    root: CliCommandChannelsCloseRequest
+
+
+class RequestCloseRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'CloseRequestSchema'})
+
+    root: CliCommandChannelsCloseRequestSchemaRequest
+
+
+class RequestCloseResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'CloseResponseSchema'})
+
+    root: CliCommandChannelsCloseResponseSchemaRequest
+
+
 class RequestLogs(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Logs'})
 
@@ -36,5 +57,5 @@ class RequestLogs(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.channels.Request')
 
-    root: Union[RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestLogs]
+    root: Union[RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestClose, RequestCloseRequestSchema, RequestCloseResponseSchema, RequestLogs]
 

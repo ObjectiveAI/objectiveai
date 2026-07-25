@@ -9,11 +9,13 @@ import (
 
 // One channel OFFER, as broadcast to every connected channel stream.
 // Carries no secret — the publisher's `S_pub` is returned to the
-// publisher's command, and the owner's `S_owner` is delivered only
-// over the accepting connection's stream.
+// publisher's command, and the owner's `S_owner` is returned by the
+// accept POST.
 type CliChannelListenerChannelOffer struct {
-	// The originating caller's agent identity, from its scope.
-	AgentArguments CliCommandAgentArguments `json:"agent_arguments"`
+	AgentFullID *string `json:"agent_full_id,omitempty"`
+	AgentID *string `json:"agent_id,omitempty"`
+	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
+	AgentRemote *string `json:"agent_remote,omitempty"`
 	// The daemon-minted channel id — the accept + log routing key.
 	ChannelID string `json:"channel_id"`
 	// Arbitrary offer payload, opaque to the daemon.
@@ -24,11 +26,14 @@ type CliChannelListenerChannelOffer struct {
 	// Human-readable offer message, opaque to the daemon.
 	Message string `json:"message"`
 	PluginName *string `json:"plugin_name,omitempty"`
-	// The PLUGIN that originated the offer — daemon-authored
-	// (unspoofable; stamped by `plugins run`), absent when the
-	// caller wasn't a plugin.
 	PluginOwner *string `json:"plugin_owner,omitempty"`
 	PluginVersion *string `json:"plugin_version,omitempty"`
+	ResponseID *string `json:"response_id,omitempty"`
+	ResponseIds *string `json:"response_ids,omitempty"`
+	// Fired by the task scheduler (daemon-authored; see the struct
+	// docs). Always present on the wire; `default` only tolerates
+	// frames from older producers.
+	Task bool `json:"task" default:"false"`
 }
 
 func (CliChannelListenerChannelOffer) SchemaTitle() string { return "cli.channel_listener.ChannelOffer" }
@@ -41,7 +46,7 @@ func (v *CliChannelListenerChannelOffer) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_arguments", "channel_id", "details", "key", "message"} {
+	for _, key := range []string{"channel_id", "details", "key", "message", "task"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliChannelListenerChannelOffer: missing required field %q", key)
 		}

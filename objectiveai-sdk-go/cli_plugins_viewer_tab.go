@@ -7,37 +7,124 @@ import (
 	"fmt"
 )
 
-// One declared viewer tab: the component coordinates the viewer's
-// generic bootstrap dereferences (`import(module)[export]`).
-type CliPluginsViewerTab struct {
+// A channel handler — opened by the accept flow, never at boot.
+type CliPluginsViewerTabChannel struct {
+	// The offer key this handler answers (e.g.
+	// `"browser.login"`) — also the opened tab's title.
+	ChannelKey string `json:"channel_key"`
 	// The export holding the component (`None` = `"default"`).
 	Export *string `json:"export,omitempty"`
 	// The component's module path, relative to `viewer/`.
 	Module string `json:"module"`
-	// Display title (`None` = the tab's name key).
-	Title *string `json:"title,omitempty"`
 }
 
-func (CliPluginsViewerTab) SchemaTitle() string { return "cli.plugins.ViewerTab" }
-func (v CliPluginsViewerTab) Validate() error {
-	return variantValidator.Struct(v)
-}
-
-func (v *CliPluginsViewerTab) UnmarshalJSON(data []byte) error {
+func (v *CliPluginsViewerTabChannel) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"module"} {
+	for _, key := range []string{"channel_key", "module"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliPluginsViewerTab: missing required field %q", key)
+			return fmt.Errorf("CliPluginsViewerTabChannel: missing required field %q", key)
 		}
 	}
-	type Alias CliPluginsViewerTab
+	type Alias CliPluginsViewerTabChannel
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliPluginsViewerTab(alias)
+	*v = CliPluginsViewerTabChannel(alias)
 	return nil
 }
+func (CliPluginsViewerTabChannel) SchemaVariantTitle() string { return "Channel" }
+
+// A regular tab — opened at viewer boot.
+type CliPluginsViewerTabTab struct {
+	// The export holding the component (`None` = `"default"`).
+	Export *string `json:"export,omitempty"`
+	// The component's module path, relative to `viewer/`.
+	Module string `json:"module"`
+	// The tab's display title.
+	Title string `json:"title"`
+}
+
+func (v *CliPluginsViewerTabTab) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"module", "title"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliPluginsViewerTabTab: missing required field %q", key)
+		}
+	}
+	type Alias CliPluginsViewerTabTab
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliPluginsViewerTabTab(alias)
+	return nil
+}
+func (CliPluginsViewerTabTab) SchemaVariantTitle() string { return "Tab" }
+
+// One declared viewer tab: the component coordinates the viewer's
+// generic bootstrap dereferences (`import(module)[export]`), plus
+// EXACTLY ONE of `channel_key` (a channel handler, titled by its
+// offer key) or `title` (a regular boot tab). Untagged: the present
+// field decides the variant; an entry carrying both reads as a
+// handler and its `title` is ignored.
+type CliPluginsViewerTab struct {
+	// A channel handler — opened by the accept flow, never at boot.
+	Channel *CliPluginsViewerTabChannel `outerObject:"true"`
+	// A regular tab — opened at viewer boot.
+	Tab *CliPluginsViewerTabTab `outerObject:"true"`
+}
+
+func (v CliPluginsViewerTab) MarshalJSON() ([]byte, error) {
+	if v.Channel != nil {
+		return json.Marshal(v.Channel)
+	}
+	if v.Tab != nil {
+		return json.Marshal(v.Tab)
+	}
+	return []byte("null"), nil
+}
+
+func (v *CliPluginsViewerTab) UnmarshalJSON(data []byte) error {
+	{
+		var try CliPluginsViewerTabChannel
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliPluginsViewerTab{}
+			candidate.Channel = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliPluginsViewerTabTab
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliPluginsViewerTab{}
+			candidate.Tab = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of CliPluginsViewerTab")
+}
+
+func (v CliPluginsViewerTab) Validate() error {
+	count := 0
+	if v.Channel != nil { count++ }
+	if v.Tab != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("CliPluginsViewerTab: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (CliPluginsViewerTab) SchemaTitle() string { return "cli.plugins.ViewerTab" }
+

@@ -11,6 +11,9 @@ type CliCommandChannelsRequest struct {
 	Publish *CliCommandChannelsPublishRequest 
 	PublishRequestSchema *CliCommandChannelsPublishRequestSchemaRequest 
 	PublishResponseSchema *CliCommandChannelsPublishResponseSchemaRequest 
+	Close *CliCommandChannelsCloseRequest 
+	CloseRequestSchema *CliCommandChannelsCloseRequestSchemaRequest 
+	CloseResponseSchema *CliCommandChannelsCloseResponseSchemaRequest 
 	Logs *CliCommandChannelsLogsRequest 
 }
 
@@ -23,6 +26,15 @@ func (v CliCommandChannelsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.PublishResponseSchema != nil {
 		return json.Marshal(v.PublishResponseSchema)
+	}
+	if v.Close != nil {
+		return json.Marshal(v.Close)
+	}
+	if v.CloseRequestSchema != nil {
+		return json.Marshal(v.CloseRequestSchema)
+	}
+	if v.CloseResponseSchema != nil {
+		return json.Marshal(v.CloseResponseSchema)
 	}
 	if v.Logs != nil {
 		return json.Marshal(v.Logs)
@@ -65,6 +77,39 @@ func (v *CliCommandChannelsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandChannelsCloseRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsRequest{}
+			candidate.Close = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandChannelsCloseRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsRequest{}
+			candidate.CloseRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandChannelsCloseResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsRequest{}
+			candidate.CloseResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandChannelsLogsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandChannelsRequest{}
@@ -83,6 +128,9 @@ func (v CliCommandChannelsRequest) Validate() error {
 	if v.Publish != nil { count++ }
 	if v.PublishRequestSchema != nil { count++ }
 	if v.PublishResponseSchema != nil { count++ }
+	if v.Close != nil { count++ }
+	if v.CloseRequestSchema != nil { count++ }
+	if v.CloseResponseSchema != nil { count++ }
 	if v.Logs != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandChannelsRequest: exactly one variant must be set, got %d", count)

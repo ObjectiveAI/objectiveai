@@ -5,3 +5,4 @@ from .request import Request  # noqa: F401
 from .response import Response  # noqa: F401
 from .response_item import ResponseItem, ResponseItemChecking, ResponseItemFound, ResponseItemInstalled, ResponseItemSkipped, ResponseItemUpToDate  # noqa: F401
 from .response_skip_reason import ResponseSkipReason  # noqa: F401
+from ._execute import execute, execute_transform  # noqa: F401

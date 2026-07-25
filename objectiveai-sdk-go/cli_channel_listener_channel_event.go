@@ -7,33 +7,6 @@ import (
 	"fmt"
 )
 
-// This connection's secret (`S_conn`) — ALWAYS the first frame.
-// Present it to accept an offer.
-type CliChannelListenerChannelEventConnection struct {
-	Secret string `json:"secret"`
-	Type string `json:"type" validate:"oneof=connection"`
-}
-
-func (v *CliChannelListenerChannelEventConnection) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"secret", "type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliChannelListenerChannelEventConnection: missing required field %q", key)
-		}
-	}
-	type Alias CliChannelListenerChannelEventConnection
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliChannelListenerChannelEventConnection(alias)
-	return nil
-}
-func (CliChannelListenerChannelEventConnection) SchemaVariantTitle() string { return "Connection" }
-
 // A channel offer — live broadcast or connect-time replay.
 type CliChannelListenerChannelEventOffer struct {
 	Offer CliChannelListenerChannelOffer `json:"offer"`
@@ -87,62 +60,6 @@ func (v *CliChannelListenerChannelEventOfferWithdrawn) UnmarshalJSON(data []byte
 }
 func (CliChannelListenerChannelEventOfferWithdrawn) SchemaVariantTitle() string { return "OfferWithdrawn" }
 
-// The owner secret (`S_owner`) for a channel THIS connection just
-// accepted — sent ONLY to the accepting connection, NEVER in the
-// accept POST response.
-type CliChannelListenerChannelEventOwnerSecret struct {
-	ChannelID string `json:"channel_id"`
-	Secret string `json:"secret"`
-	Type string `json:"type" validate:"oneof=owner_secret"`
-}
-
-func (v *CliChannelListenerChannelEventOwnerSecret) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"channel_id", "secret", "type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliChannelListenerChannelEventOwnerSecret: missing required field %q", key)
-		}
-	}
-	type Alias CliChannelListenerChannelEventOwnerSecret
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliChannelListenerChannelEventOwnerSecret(alias)
-	return nil
-}
-func (CliChannelListenerChannelEventOwnerSecret) SchemaVariantTitle() string { return "OwnerSecret" }
-
-// An open channel closed (owner dropped / ended): no further
-// requests or replies are accepted, though the log survives.
-type CliChannelListenerChannelEventClosed struct {
-	ChannelID string `json:"channel_id"`
-	Type string `json:"type" validate:"oneof=closed"`
-}
-
-func (v *CliChannelListenerChannelEventClosed) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"channel_id", "type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliChannelListenerChannelEventClosed: missing required field %q", key)
-		}
-	}
-	type Alias CliChannelListenerChannelEventClosed
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliChannelListenerChannelEventClosed(alias)
-	return nil
-}
-func (CliChannelListenerChannelEventClosed) SchemaVariantTitle() string { return "Closed" }
-
 // The connect-time replay is complete — this connection is caught
 // up. Sent exactly once per connection, right after the replay.
 type CliChannelListenerChannelEventLive struct {
@@ -169,43 +86,24 @@ func (v *CliChannelListenerChannelEventLive) UnmarshalJSON(data []byte) error {
 }
 func (CliChannelListenerChannelEventLive) SchemaVariantTitle() string { return "Live" }
 
-// One frame on the `GET /channels` SSE stream.
+// One frame on the `GET /channels` SSE stream — the offer lifecycle.
 type CliChannelListenerChannelEvent struct {
-	// This connection's secret (`S_conn`) — ALWAYS the first frame.
-	// Present it to accept an offer.
-	Connection *CliChannelListenerChannelEventConnection `outerObject:"true"`
 	// A channel offer — live broadcast or connect-time replay.
 	Offer *CliChannelListenerChannelEventOffer `outerObject:"true"`
 	// The offer is no longer available (accepted elsewhere, or the
 	// publisher abandoned it). Sent only to connections that saw it.
 	OfferWithdrawn *CliChannelListenerChannelEventOfferWithdrawn `outerObject:"true"`
-	// The owner secret (`S_owner`) for a channel THIS connection just
-	// accepted — sent ONLY to the accepting connection, NEVER in the
-	// accept POST response.
-	OwnerSecret *CliChannelListenerChannelEventOwnerSecret `outerObject:"true"`
-	// An open channel closed (owner dropped / ended): no further
-	// requests or replies are accepted, though the log survives.
-	Closed *CliChannelListenerChannelEventClosed `outerObject:"true"`
 	// The connect-time replay is complete — this connection is caught
 	// up. Sent exactly once per connection, right after the replay.
 	Live *CliChannelListenerChannelEventLive `outerObject:"true"`
 }
 
 func (v CliChannelListenerChannelEvent) MarshalJSON() ([]byte, error) {
-	if v.Connection != nil {
-		return json.Marshal(v.Connection)
-	}
 	if v.Offer != nil {
 		return json.Marshal(v.Offer)
 	}
 	if v.OfferWithdrawn != nil {
 		return json.Marshal(v.OfferWithdrawn)
-	}
-	if v.OwnerSecret != nil {
-		return json.Marshal(v.OwnerSecret)
-	}
-	if v.Closed != nil {
-		return json.Marshal(v.Closed)
 	}
 	if v.Live != nil {
 		return json.Marshal(v.Live)
@@ -214,17 +112,6 @@ func (v CliChannelListenerChannelEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliChannelListenerChannelEvent) UnmarshalJSON(data []byte) error {
-	{
-		var try CliChannelListenerChannelEventConnection
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliChannelListenerChannelEvent{}
-			candidate.Connection = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try CliChannelListenerChannelEventOffer
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -248,28 +135,6 @@ func (v *CliChannelListenerChannelEvent) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliChannelListenerChannelEventOwnerSecret
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliChannelListenerChannelEvent{}
-			candidate.OwnerSecret = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliChannelListenerChannelEventClosed
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliChannelListenerChannelEvent{}
-			candidate.Closed = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliChannelListenerChannelEventLive
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliChannelListenerChannelEvent{}
@@ -285,11 +150,8 @@ func (v *CliChannelListenerChannelEvent) UnmarshalJSON(data []byte) error {
 
 func (v CliChannelListenerChannelEvent) Validate() error {
 	count := 0
-	if v.Connection != nil { count++ }
 	if v.Offer != nil { count++ }
 	if v.OfferWithdrawn != nil { count++ }
-	if v.OwnerSecret != nil { count++ }
-	if v.Closed != nil { count++ }
 	if v.Live != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliChannelListenerChannelEvent: exactly one variant must be set, got %d", count)

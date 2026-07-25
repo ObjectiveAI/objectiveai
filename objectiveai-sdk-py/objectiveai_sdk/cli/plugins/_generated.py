@@ -4,5 +4,4 @@ from .command import Command  # noqa: F401
 from .command_type import CommandType  # noqa: F401
 from .manifest import Manifest  # noqa: F401
 from .output import Output, OutputCommand, OutputError, OutputNotification  # noqa: F401
-from .viewer import Viewer  # noqa: F401
-from .viewer_tab import ViewerTab  # noqa: F401
+from .viewer_tab import ViewerTab, ViewerTabChannel, ViewerTabTab  # noqa: F401

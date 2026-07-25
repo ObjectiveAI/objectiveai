@@ -4,5 +4,4 @@ export * from "./command";
 export * from "./commandType";
 export * from "./manifest";
 export * from "./output";
-export * from "./viewer";
 export * from "./viewerTab";

@@ -3,13 +3,22 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.cli.plugins.viewer import Viewer
+from objectiveai_sdk.cli.plugins.viewer_tab import ViewerTab
 
 
 class Manifest(BaseModel):
-    """An installed plugin's `objectiveai.json` — the typed slice of it."""
+    """A plugin's `objectiveai.json`, whole — ONE schema for the ONE
+file. The container half (`containerfile`, `port`) is what the
+laboratory host builds and runs; the viewer half (`viewer`,
+`icon`, `tabs`) is what the viewer surfaces. `icon` and tab
+`module` paths are relative to the declared `viewer` root
+(authored as if the CWD were inside it)."""
     model_config = ConfigDict(title='cli.plugins.Manifest')
 
+    containerfile: str = Field(..., description="Repo-relative path (forward slashes) to the Containerfile /\nDockerfile the plugin's image builds from — the repo checkout\nis the build context.")
     description: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    viewer: Optional[Viewer] = Field(None, description="The plugin's viewer surface — ABSENT for plugins with no UI.", json_schema_extra={'omitempty': True})
+    icon: Optional[str] = Field(None, description='The identity icon, shown beside the identity in the tab strip.', json_schema_extra={'omitempty': True})
+    port: int = Field(..., description="The port the plugin's MCP server listens on inside the\ncontainer — published to a random loopback host port at\ncreate. Never 0.", ge=0, le=65535)
+    tabs: Optional[list[ViewerTab]] = Field(None, description="The plugin's tabs, in declaration order (strip order). A\n[`ViewerTab::Channel`] entry (`channel_key`) is a CHANNEL\nHANDLER: it never opens at boot — it opens when an offer with\nthat key is accepted, with the full offer as its arguments,\ntitled by the offer key. A [`ViewerTab::Tab`] entry (`title`)\nis a regular tab, opened at viewer boot. Duplicates (same\n`module` among regular tabs, same `channel_key` among\nhandlers) — entries after the first are ignored.", json_schema_extra={'omitempty': True})
+    viewer: Optional[str] = Field(None, description="Repo-relative path (forward slashes) to the viewer extension's\nJS ROOT — the folder holding its `package.json`; `icon` and\ntab `module` paths resolve against it. ABSENT = the plugin\nhas no viewer extension (`icon`/`tabs` are ignored).", json_schema_extra={'omitempty': True})
 

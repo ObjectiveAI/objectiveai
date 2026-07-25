@@ -4,22 +4,12 @@ import { z } from "zod";
 import { CliChannelListenerChannelOfferSchema } from "./channelOffer";
 
 export const CliChannelListenerChannelEventSchema = z.union([z.object({
-  secret: z.string(),
-  type: z.literal("connection"),
-}).describe("This connection's secret (`S_conn`) — ALWAYS the first frame.\nPresent it to accept an offer.").meta({"variantTitle":"Connection"}), z.object({
   offer: CliChannelListenerChannelOfferSchema,
   type: z.literal("offer"),
 }).describe("A channel offer — live broadcast or connect-time replay.").meta({"variantTitle":"Offer"}), z.object({
   channel_id: z.string(),
   type: z.literal("offer_withdrawn"),
 }).describe("The offer is no longer available (accepted elsewhere, or the\npublisher abandoned it). Sent only to connections that saw it.").meta({"variantTitle":"OfferWithdrawn"}), z.object({
-  channel_id: z.string(),
-  secret: z.string(),
-  type: z.literal("owner_secret"),
-}).describe("The owner secret (`S_owner`) for a channel THIS connection just\naccepted — sent ONLY to the accepting connection, NEVER in the\naccept POST response.").meta({"variantTitle":"OwnerSecret"}), z.object({
-  channel_id: z.string(),
-  type: z.literal("closed"),
-}).describe("An open channel closed (owner dropped / ended): no further\nrequests or replies are accepted, though the log survives.").meta({"variantTitle":"Closed"}), z.object({
   type: z.literal("live"),
-}).describe("The connect-time replay is complete — this connection is caught\nup. Sent exactly once per connection, right after the replay.").meta({"variantTitle":"Live"})]).describe("One frame on the `GET /channels` SSE stream.").meta({ title: "cli.channel_listener.ChannelEvent" });
+}).describe("The connect-time replay is complete — this connection is caught\nup. Sent exactly once per connection, right after the replay.").meta({"variantTitle":"Live"})]).describe("One frame on the `GET /channels` SSE stream — the offer lifecycle.").meta({ title: "cli.channel_listener.ChannelEvent" });
 export type CliChannelListenerChannelEvent = z.infer<typeof CliChannelListenerChannelEventSchema>;

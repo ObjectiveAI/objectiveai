@@ -6,15 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 from objectiveai_sdk.cli.channel_listener.channel_offer import ChannelOffer
 
 
-class ChannelEventConnection(BaseModel):
-    """This connection's secret (`S_conn`) — ALWAYS the first frame.
-Present it to accept an offer."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Connection'})
-
-    secret: str
-    type_: Literal['connection'] = Field(..., alias='type')
-
-
 class ChannelEventOffer(BaseModel):
     """A channel offer — live broadcast or connect-time replay."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Offer'})
@@ -32,26 +23,6 @@ publisher abandoned it). Sent only to connections that saw it."""
     type_: Literal['offer_withdrawn'] = Field(..., alias='type')
 
 
-class ChannelEventOwnerSecret(BaseModel):
-    """The owner secret (`S_owner`) for a channel THIS connection just
-accepted — sent ONLY to the accepting connection, NEVER in the
-accept POST response."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'OwnerSecret'})
-
-    channel_id: str
-    secret: str
-    type_: Literal['owner_secret'] = Field(..., alias='type')
-
-
-class ChannelEventClosed(BaseModel):
-    """An open channel closed (owner dropped / ended): no further
-requests or replies are accepted, though the log survives."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Closed'})
-
-    channel_id: str
-    type_: Literal['closed'] = Field(..., alias='type')
-
-
 class ChannelEventLive(BaseModel):
     """The connect-time replay is complete — this connection is caught
 up. Sent exactly once per connection, right after the replay."""
@@ -61,8 +32,8 @@ up. Sent exactly once per connection, right after the replay."""
 
 
 class ChannelEvent(RootModel):
-    """One frame on the `GET /channels` SSE stream."""
+    """One frame on the `GET /channels` SSE stream — the offer lifecycle."""
     model_config = ConfigDict(title='cli.channel_listener.ChannelEvent')
 
-    root: Union[ChannelEventConnection, ChannelEventOffer, ChannelEventOfferWithdrawn, ChannelEventOwnerSecret, ChannelEventClosed, ChannelEventLive]
+    root: Union[ChannelEventOffer, ChannelEventOfferWithdrawn, ChannelEventLive]
 
