@@ -4,27 +4,13 @@ import * as Collapsible from "@radix-ui/react-collapsible";
 import { type TabComponentProps } from "../lib/tabHarness";
 import { Markdown } from "../components/Markdown";
 import { JsonBlock } from "../components/shared/JsonBlock";
+import { type DaemonChannelListenerChannelOffer } from "@objectiveai/sdk";
 import { channelRequestAccept, tabsCloseSelf } from "../lib/tabs";
 
-/** The wire ChannelOffer, verbatim — this tab's `arguments`. The
- * caller identity is FLATTENED to top-level fields; its plugin trio
- * is the publishing plugin. */
-interface ChannelOffer {
-  channel_id: string;
-  agent_instance_hierarchy?: string;
-  agent_id?: string;
-  agent_full_id?: string;
-  agent_remote?: string;
-  response_id?: string;
-  response_ids?: string;
-  plugin_owner?: string;
-  plugin_name?: string;
-  plugin_version?: string;
-  task?: boolean;
-  key: string;
-  details?: unknown;
-  message: string;
-}
+/** The wire ChannelOffer, verbatim — this tab's `arguments` (the
+ * generated SDK type: caller identity FLATTENED to top-level fields;
+ * its plugin trio is the publishing plugin). */
+type ChannelOffer = DaemonChannelListenerChannelOffer;
 
 /** One incoming channel offer, opened as a tab by the shell's
  * resident /channels listener. A pure render of its `arguments` plus

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import {
+  Client,
   LaboratoriesListListener,
-  type ViewerTransport,
-  type CliLaboratoriesListListenerLaboratoryStatus,
+  type DaemonLaboratoriesListListenerLaboratoryStatus,
   type LaboratoriesInlineLaboratoryImage,
   type LaboratoriesLaboratoryImage,
+  type ViewerTransport,
 } from "@objectiveai/sdk";
 import { reportError } from "../lib/errors";
 
@@ -23,7 +24,7 @@ export function isInlineImage(
 /** One laboratory on the daemon's live list — the SDK wire type,
  * re-exported under the viewer's short name. */
 export type LaboratoryStatus =
-  CliLaboratoriesListListenerLaboratoryStatus;
+  DaemonLaboratoriesListListenerLaboratoryStatus;
 
 /**
  * The daemon's live laboratories list (`/laboratories/list`) as a
@@ -52,14 +53,9 @@ export function useLaboratoriesList(
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await LaboratoriesListListener.connectViewer(
+          const listener = await Client.viewer(
             transport,
-            {
-              onChange: (next) => {
-                if (!cancelled) setLaboratories(next);
-              },
-            },
-          );
+          ).laboratoriesListListener();
           if (cancelled) {
             listener.close();
             return;
@@ -68,6 +64,8 @@ export function useLaboratoriesList(
           setLaboratories(listener.laboratories());
           while (!listener.closed) {
             await listener.subscribe();
+            if (cancelled) return;
+            setLaboratories(listener.laboratories());
           }
         } catch (error) {
           reportError("laboratories list", error);

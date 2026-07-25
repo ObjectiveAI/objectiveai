@@ -14,7 +14,7 @@
 // identity uses, and content webviews learn who they are via
 // `tab_self`.
 
-import { openViewerTab, type ViewerOpenTab } from "@objectiveai/sdk";
+import { closeViewerTab, openViewerTab, type ViewerOpenTab } from "@objectiveai/sdk";
 import { tauriInvoke } from "./tauri";
 import { viewerTransport } from "./viewer-transport";
 
@@ -128,10 +128,15 @@ export async function declareChannelRequestTab(): Promise<void> {
 }
 
 /** Close this content webview's OWN tab (the channel-request tab's
- * Decline). The sole tab of a spawned window closes the window with
- * it. */
+ * Decline) — the SDK helper over the shell's `tabs_close_self`. The
+ * sole tab of a spawned window closes the window with it. */
 export function tabsCloseSelf(): void {
-  void tauriInvoke("tabs_close_self");
+  void (async () => {
+    const transport = await viewerTransport();
+    if (transport !== null) {
+      await closeViewerTab(transport);
+    }
+  })();
 }
 
 /** Accept the CALLING channel-request tab's offer (self-scoped).
@@ -220,7 +225,12 @@ export function tabsSelect(tabId: number): void {
 }
 
 export function tabsClose(tabId: number): void {
-  void tauriInvoke("tabs_close", { tabId });
+  void (async () => {
+    const transport = await viewerTransport();
+    if (transport !== null) {
+      await closeViewerTab(transport, tabId);
+    }
+  })();
 }
 
 export function tabsMove(tabId: number, index: number): void {
