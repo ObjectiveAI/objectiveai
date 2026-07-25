@@ -1387,7 +1387,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.channels (
     plugin_name       TEXT,
     plugin_version    TEXT,
     -- The publisher's agent identity, from its scope.
-    agent_arguments   JSONB  NOT NULL,
+    identity          JSONB  NOT NULL,
     -- Per-role read watermarks over `channel_messages.id`. Publisher
     -- reads REPLIES past `pub_read_index`; owner reads REQUESTS past
     -- `owner_read_index`. Bumped monotonically by `--pending`/subscribe.
