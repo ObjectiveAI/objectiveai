@@ -21,7 +21,7 @@
 //
 // Each function:
 //   - takes (ctx, executor CommandExecutor, request <LeafRequest>, [jq | transform]),
-//     dropping the Rust `agent_arguments`,
+//     dropping the Rust `identity`,
 //   - applies the same pre-call request mutations (jq set/clear, transform
 //     set/clear, the dangerous_advanced.stream flag) parsed from the Rust body
 //     via a bounded statement grammar that HARD-ERRORS on anything it doesn't
@@ -458,7 +458,7 @@ func findExecuteFns(src string) []executeFn {
 	return fns
 }
 
-// parseParams keeps request (+ jq / transform), drops executor / agent_arguments.
+// parseParams keeps request (+ jq / transform), drops executor / identity.
 // Hard-errors on anything else. Returns the kept extra params ("jq"/"transform").
 func parseParams(params, context string) []string {
 	var out []string
@@ -475,7 +475,7 @@ func parseParams(params, context string) []string {
 		typ := strings.TrimSpace(p[colon+1:])
 		bare := strings.TrimLeft(name, "_")
 		switch {
-		case bare == "executor" || bare == "agent_arguments":
+		case bare == "executor" || bare == "identity":
 			continue
 		case bare == "request" && typ == "Request":
 			// request is always present; not added to extras
@@ -505,8 +505,8 @@ var bodyFragments = []struct {
 }
 
 var (
-	reBodyTail      = regexp.MustCompile(`^executor\.(execute|execute_one)\(request, agent_arguments\)\.await$`)
-	reBodyTailWrap  = regexp.MustCompile(`^let resp\s*:\s*[\w:]+\s*=\s*executor\.(execute_one)\(request, agent_arguments\)\.await\?;\s*Ok\(serde_json::to_value\(resp\)\.expect\("[^"]*"\)\)$`)
+	reBodyTail      = regexp.MustCompile(`^executor\.(execute|execute_one)\(request, identity\)\.await$`)
+	reBodyTailWrap  = regexp.MustCompile(`^let resp\s*:\s*[\w:]+\s*=\s*executor\.(execute_one)\(request, identity\)\.await\?;\s*Ok\(serde_json::to_value\(resp\)\.expect\("[^"]*"\)\)$`)
 )
 
 // parseBody is the bounded body grammar — returns the mutation set + which

@@ -3,9 +3,9 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.cli.command.laboratories.create.env_var import EnvVar
-from objectiveai_sdk.cli.command.laboratories.create.mount import Mount
+from objectiveai_sdk.laboratories.env_var import EnvVar
 from objectiveai_sdk.laboratories.laboratory_image import LaboratoryImage
+from objectiveai_sdk.laboratories.mount import Mount
 from objectiveai_sdk.machine.machine_identity import MachineIdentity
 
 

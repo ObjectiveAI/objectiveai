@@ -10,7 +10,7 @@
 // `execute.ts`):
 //
 //   - unary leaves: `CliCommand<Scope>ListenerExecution =
-//     { request, agentArguments, response: Promise<CliError | Response> }`;
+//     { request, identity, response: Promise<CliError | Response> }`;
 //   - streaming leaves: the same with
 //     `response: ResponseItemStream<CliError | ResponseItem>`;
 //   - multi-variant leaves (a unary `execute` plus an
@@ -456,10 +456,10 @@ function main() {
     }
 
     addImport(errorModule.srcRelative, `type ${errorModule.pascal}`);
-    addImport("cli/command/agentArguments", "type CliCommandAgentArguments");
+    addImport("identity", "type Identity");
     addImport(requestModule.srcRelative, `type ${requestModule.pascal}`);
     if (primaryPayload.streaming || twinPayload) {
-      addImport("cli/broadcastListener", "type ResponseItemStream");
+      addImport("daemon/commandListener", "type ResponseItemStream");
     }
 
     const docPath = scopeSegments.join(" ");
@@ -478,13 +478,13 @@ function main() {
         `/** One \`/listen\` broadcast run of \`${docPath}\` in its unary form (the plain \`execute\`). */\n` +
           `export type ${name} = {\n` +
           `  request: ${requestModule.pascal};\n` +
-          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  identity: Identity;\n` +
           `  response: Promise<${primaryPayload.tsType}>;\n` +
           `};\n`,
         `/** One \`/listen\` broadcast run of \`${docPath}\` in its streaming form (\`execute_streaming\` — the request set \`dangerous_advanced.stream: true\`). */\n` +
           `export type ${streamingName} = {\n` +
           `  request: ${requestModule.pascal};\n` +
-          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  identity: Identity;\n` +
           `  response: ResponseItemStream<${twinPayload.tsType}>;\n` +
           `};\n`,
         `/** This leaf's multiple listener executions — discriminated per request off \`dangerous_advanced.stream\`; the parent branch union references this. */\n` +
@@ -495,20 +495,20 @@ function main() {
       modeEntries.push(`  ${JSON.stringify(pathValue)}: "both",`);
     } else if (primaryPayload.streaming) {
       body.push(
-        `/** One \`/listen\` broadcast run of \`${docPath}\`: the actual request, the producer's agent arguments, and the response-item stream. */\n` +
+        `/** One \`/listen\` broadcast run of \`${docPath}\`: the actual request, the producer's identity, and the response-item stream. */\n` +
           `export type ${name} = {\n` +
           `  request: ${requestModule.pascal};\n` +
-          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  identity: Identity;\n` +
           `  response: ResponseItemStream<${primaryPayload.tsType}>;\n` +
           `};\n`,
       );
       modeEntries.push(`  ${JSON.stringify(pathValue)}: "stream",`);
     } else {
       body.push(
-        `/** One \`/listen\` broadcast run of \`${docPath}\`: the actual request, the producer's agent arguments, and the unary response future. */\n` +
+        `/** One \`/listen\` broadcast run of \`${docPath}\`: the actual request, the producer's identity, and the unary response future. */\n` +
           `export type ${name} = {\n` +
           `  request: ${requestModule.pascal};\n` +
-          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  identity: Identity;\n` +
           `  response: Promise<${primaryPayload.tsType}>;\n` +
           `};\n`,
       );

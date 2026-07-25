@@ -10,7 +10,7 @@ import (
 type CliCommandLaboratoriesCreateRequest struct {
 	// Default working directory new agents start in; defaults to `/`.
 	Cwd string `json:"cwd" default:"/"`
-	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
+	Env []LaboratoriesEnvVar `json:"env"`
 	ID string `json:"id"`
 	// The base image, split (`registry` + `name` + tag XOR digest) —
 	// a joined reference string is never accepted, so unqualified
@@ -32,7 +32,7 @@ type CliCommandLaboratoriesCreateRequest struct {
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.
 	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
-	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
+	Mounts []LaboratoriesMount `json:"mounts"`
 	PathType CliCommandLaboratoriesCreatePath `json:"path_type"`
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.

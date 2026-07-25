@@ -3,7 +3,6 @@
 export * from "./agents/index";
 export * from "./api/index";
 export * from "./channels/index";
-export * from "./command_executor/index";
 export * from "./daemon/index";
 export * from "./db/index";
 export * from "./executor/index";
@@ -14,7 +13,6 @@ export * from "./swarms/index";
 export * from "./tasks/index";
 export * from "./update/index";
 export * from "./viewer/index";
-export * from "./agentArguments";
 export * from "./ok";
 export * from "./request";
 export * from "./requestBase";

@@ -3,6 +3,7 @@
 export * from "./agent/index";
 export * from "./auth/index";
 export * from "./cli/index";
+export * from "./daemon/index";
 export * from "./error/index";
 export * from "./functions/index";
 export * from "./laboratories/index";
@@ -10,6 +11,7 @@ export * from "./machine/index";
 export * from "./mcp/index";
 export * from "./swarm/index";
 export * from "./vector/index";
+export * from "./identity";
 export * from "./prefixedUuid";
 export * from "./remote";
 export * from "./remotePath";

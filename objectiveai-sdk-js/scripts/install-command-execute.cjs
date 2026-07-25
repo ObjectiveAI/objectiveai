@@ -11,8 +11,8 @@
 // src/cli/command/agents/get/request_schema/execute.ts):
 //
 //   - first argument is an `executor: CommandExecutor` (one of the
-//     binary / plugin / viewer executors), then the leaf's own
-//     arguments minus `agent_arguments` (so: `request`, and
+//     binary / plugin executors or the daemon Client), then the leaf's own
+//     arguments minus `identity` (so: `request`, and
 //     sometimes `jq`),
 //   - same pre-call request mutations (jq set/clear, the
 //     dangerous_advanced.stream flag) — parsed from the Rust body via
@@ -235,7 +235,7 @@ function findExecuteFns(scopeSource) {
 
 /**
  * Parse the fn's params into the JS-facing list: drops `executor` and
- * `agent_arguments`, keeps `request` (+ `jq`). Hard-errors on
+ * `identity`, keeps `request` (+ `jq`). Hard-errors on
  * anything unrecognized.
  */
 function parseParams(params, context) {
@@ -250,7 +250,7 @@ function parseParams(params, context) {
     // `_jq` on leaves that accept-and-ignore the filter) — the JS
     // mirror keeps the same outward signature.
     const bare = name.replace(/^_/, "");
-    if (bare === "executor" || bare === "agent_arguments") continue;
+    if (bare === "executor" || bare === "identity") continue;
     if (bare === "request" && type === "Request") {
       out.push({ name: "request" });
     } else if (bare === "jq" && type === "String") {
@@ -311,7 +311,7 @@ function parseBody(body, context) {
   }
   const trimmed = rest.trim();
   // Plain tail: the executor call is the fn's return expression.
-  let tail = /^executor\.(execute|execute_one)\(request, agent_arguments\)\.await$/.exec(
+  let tail = /^executor\.(execute|execute_one)\(request, identity\)\.await$/.exec(
     trimmed,
   );
   if (!tail) {
@@ -320,7 +320,7 @@ function parseBody(body, context) {
     // Ok(serde_json::to_value(resp).expect(…))`). Wire-wise identical
     // to a plain unary call; the declared return type (Value) already
     // carries the payload kind.
-    tail = /^let resp\s*:\s*[\w:]+\s*=\s*executor\.(execute_one)\(request, agent_arguments\)\.await\?;\s*Ok\(serde_json::to_value\(resp\)\.expect\("[^"]*"\)\)$/.exec(
+    tail = /^let resp\s*:\s*[\w:]+\s*=\s*executor\.(execute_one)\(request, identity\)\.await\?;\s*Ok\(serde_json::to_value\(resp\)\.expect\("[^"]*"\)\)$/.exec(
       trimmed,
     );
   }

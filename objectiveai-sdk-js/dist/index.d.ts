@@ -26972,950 +26972,6 @@ declare function authListApiKeys(client: ObjectiveAI, options?: RequestOptions):
 declare function authGetOpenrouterByokApiKey(client: ObjectiveAI, options?: RequestOptions): Promise<AuthGetOpenRouterByokApiKeyResponse>;
 declare function authGetCredits(client: ObjectiveAI, options?: RequestOptions): Promise<AuthGetCreditsResponse>;
 
-declare const CliAgentsInstancesListListenerAgentEventSchema: z.ZodUnion<readonly [z.ZodObject<{
-    agents: z.ZodArray<z.ZodObject<{
-        active: z.ZodBoolean;
-        agent_instance_hierarchy: z.ZodString;
-    }, z.core.$strip>>;
-    type: z.ZodLiteral<"snapshot">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    type: z.ZodLiteral<"activated">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    type: z.ZodLiteral<"deactivated">;
-}, z.core.$strip>]>;
-type CliAgentsInstancesListListenerAgentEvent = z.infer<typeof CliAgentsInstancesListListenerAgentEventSchema>;
-
-declare const CliAgentsInstancesListListenerAgentStatusSchema: z.ZodObject<{
-    active: z.ZodBoolean;
-    agent_instance_hierarchy: z.ZodString;
-}, z.core.$strip>;
-type CliAgentsInstancesListListenerAgentStatus = z.infer<typeof CliAgentsInstancesListListenerAgentStatusSchema>;
-
-declare const CliAgentsInstancesListenerAgentInstanceEventSchema: z.ZodUnion<readonly [z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    part: z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>;
-    response_id: z.ZodString;
-    row_index: z.ZodNumber;
-    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    type: z.ZodLiteral<"request_message_user_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    part: z.ZodUnion<readonly [z.ZodObject<{
-        arguments: z.ZodString;
-        delivered_at: z.ZodString;
-        function_name: z.ZodString;
-        tool_call_id: z.ZodString;
-        tool_call_index: z.ZodNumber;
-        type: z.ZodLiteral<"tool_call">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"refusal">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"reasoning">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        image: z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>, z.ZodObject<{
-        audio: z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>;
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"video">;
-        video: z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        file: z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>]>;
-    response_id: z.ZodString;
-    row_index: z.ZodNumber;
-    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    type: z.ZodLiteral<"request_message_assistant_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    part: z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>;
-    response_id: z.ZodString;
-    row_index: z.ZodNumber;
-    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    tool_call_id: z.ZodString;
-    type: z.ZodLiteral<"request_message_tool_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    choice_index: z.ZodNumber;
-    key: z.ZodString;
-    part: z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>;
-    part_index: z.ZodNumber;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"vector_request_choice_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"vector_response_vote">;
-    vote: z.ZodArray<z.ZodNumber>;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    message_queue_id: z.ZodNumber;
-    part: z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>;
-    queued_at: z.ZodString;
-    response_id: z.ZodString;
-    row_index: z.ZodNumber;
-    sender_agent_instance_hierarchy: z.ZodString;
-    type: z.ZodLiteral<"client_notification_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    part: z.ZodUnion<readonly [z.ZodObject<{
-        arguments: z.ZodString;
-        delivered_at: z.ZodString;
-        function_name: z.ZodString;
-        tool_call_id: z.ZodString;
-        tool_call_index: z.ZodNumber;
-        type: z.ZodLiteral<"tool_call">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"refusal">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"reasoning">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        image: z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>, z.ZodObject<{
-        audio: z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>;
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"video">;
-        video: z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        file: z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>]>;
-    response_id: z.ZodString;
-    row_index: z.ZodNumber;
-    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    type: z.ZodLiteral<"assistant_response_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    part: z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>;
-    response_id: z.ZodString;
-    row_index: z.ZodNumber;
-    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    tool_call_id: z.ZodString;
-    type: z.ZodLiteral<"tool_response_part">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    delivered_at: z.ZodString;
-    error: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
-    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodLiteral<"error">;
-}, z.core.$strip>, z.ZodObject<{
-    type: z.ZodLiteral<"live">;
-}, z.core.$strip>, z.ZodObject<{
-    agent: z.ZodObject<{
-        active: z.ZodBoolean;
-        active_laboratories: z.ZodDefault<z.ZodArray<z.ZodString>>;
-        agent_instance_hierarchy: z.ZodString;
-        attached_laboratories: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            attached_at: z.ZodString;
-            attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            id: z.ZodString;
-            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>>>;
-        last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        logged: z.ZodNumber;
-        queued: z.ZodNumber;
-        spawned_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        tags: z.ZodArray<z.ZodString>;
-    }, z.core.$strip>;
-    type: z.ZodLiteral<"agent">;
-}, z.core.$strip>]>;
-type CliAgentsInstancesListenerAgentInstanceEvent = z.infer<typeof CliAgentsInstancesListenerAgentInstanceEventSchema>;
-
-declare const CliAgentsInstancesListenerAgentRecordSchema: z.ZodObject<{
-    active: z.ZodBoolean;
-    active_laboratories: z.ZodDefault<z.ZodArray<z.ZodString>>;
-    agent_instance_hierarchy: z.ZodString;
-    attached_laboratories: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        attached_at: z.ZodString;
-        attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        id: z.ZodString;
-        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, z.core.$strip>>>;
-    last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    logged: z.ZodNumber;
-    queued: z.ZodNumber;
-    spawned_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    tags: z.ZodArray<z.ZodString>;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerAgentRecord = z.infer<typeof CliAgentsInstancesListenerAgentRecordSchema>;
-
-declare const CliAgentsInstancesListenerAssistantResponsePartSchema: z.ZodUnion<readonly [z.ZodObject<{
-    arguments: z.ZodString;
-    delivered_at: z.ZodString;
-    function_name: z.ZodString;
-    tool_call_id: z.ZodString;
-    tool_call_index: z.ZodNumber;
-    type: z.ZodLiteral<"tool_call">;
-}, z.core.$strip>, z.ZodObject<{
-    delivered_at: z.ZodString;
-    text: z.ZodString;
-    type: z.ZodLiteral<"refusal">;
-}, z.core.$strip>, z.ZodObject<{
-    delivered_at: z.ZodString;
-    text: z.ZodString;
-    type: z.ZodLiteral<"reasoning">;
-}, z.core.$strip>, z.ZodObject<{
-    delivered_at: z.ZodString;
-    text: z.ZodString;
-    type: z.ZodLiteral<"text">;
-}, z.core.$strip>, z.ZodObject<{
-    delivered_at: z.ZodString;
-    image: z.ZodObject<{
-        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-        url: z.ZodString;
-    }, z.core.$strip>;
-    type: z.ZodLiteral<"image">;
-}, z.core.$strip>, z.ZodObject<{
-    audio: z.ZodObject<{
-        data: z.ZodString;
-        format: z.ZodString;
-    }, z.core.$strip>;
-    delivered_at: z.ZodString;
-    type: z.ZodLiteral<"audio">;
-}, z.core.$strip>, z.ZodObject<{
-    delivered_at: z.ZodString;
-    type: z.ZodLiteral<"video">;
-    video: z.ZodObject<{
-        url: z.ZodString;
-    }, z.core.$strip>;
-}, z.core.$strip>, z.ZodObject<{
-    delivered_at: z.ZodString;
-    file: z.ZodObject<{
-        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, z.core.$strip>;
-    type: z.ZodLiteral<"file">;
-}, z.core.$strip>]>;
-type CliAgentsInstancesListenerAssistantResponsePart = z.infer<typeof CliAgentsInstancesListenerAssistantResponsePartSchema>;
-
-declare const CliAgentsInstancesListenerAttachedLaboratorySchema: z.ZodObject<{
-    attached_at: z.ZodString;
-    attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    id: z.ZodString;
-    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerAttachedLaboratory = z.infer<typeof CliAgentsInstancesListenerAttachedLaboratorySchema>;
-
-declare const CliAgentsInstancesListenerClientNotificationPartSchema: z.ZodObject<{
-    content: z.ZodUnion<readonly [z.ZodObject<{
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        data: z.ZodString;
-        format: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"video">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>>]>;
-    delivered_at: z.ZodString;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerClientNotificationPart = z.infer<typeof CliAgentsInstancesListenerClientNotificationPartSchema>;
-
-declare const CliAgentsInstancesListenerConversationBlockSchema: z.ZodUnion<readonly [z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>>;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"request_message_user">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
-        arguments: z.ZodString;
-        delivered_at: z.ZodString;
-        function_name: z.ZodString;
-        tool_call_id: z.ZodString;
-        tool_call_index: z.ZodNumber;
-        type: z.ZodLiteral<"tool_call">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"refusal">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"reasoning">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        image: z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>, z.ZodObject<{
-        audio: z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>;
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"video">;
-        video: z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        file: z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>]>>;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"request_message_assistant">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>>;
-    response_id: z.ZodString;
-    tool_call_id: z.ZodString;
-    type: z.ZodLiteral<"request_message_tool">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    choices: z.ZodArray<z.ZodObject<{
-        key: z.ZodString;
-        parts: z.ZodArray<z.ZodObject<{
-            content: z.ZodUnion<readonly [z.ZodObject<{
-                text: z.ZodString;
-                type: z.ZodLiteral<"text">;
-            }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-                url: z.ZodString;
-            }, z.core.$strip>, z.ZodObject<{
-                type: z.ZodLiteral<"image">;
-            }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-                data: z.ZodString;
-                format: z.ZodString;
-            }, z.core.$strip>, z.ZodObject<{
-                type: z.ZodLiteral<"audio">;
-            }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-                url: z.ZodString;
-            }, z.core.$strip>, z.ZodObject<{
-                type: z.ZodLiteral<"video">;
-            }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            }, z.core.$strip>, z.ZodObject<{
-                type: z.ZodLiteral<"file">;
-            }, z.core.$strip>>]>;
-            delivered_at: z.ZodString;
-        }, z.core.$strip>>;
-    }, z.core.$strip>>;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"vector_request_choices">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"vector_response_vote">;
-    vote: z.ZodArray<z.ZodNumber>;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    parts: z.ZodArray<z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>>;
-    queued_at: z.ZodString;
-    response_id: z.ZodString;
-    sender_agent_instance_hierarchy: z.ZodString;
-    type: z.ZodLiteral<"client_notification">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
-        arguments: z.ZodString;
-        delivered_at: z.ZodString;
-        function_name: z.ZodString;
-        tool_call_id: z.ZodString;
-        tool_call_index: z.ZodNumber;
-        type: z.ZodLiteral<"tool_call">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"refusal">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"reasoning">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        image: z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>, z.ZodObject<{
-        audio: z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>;
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        type: z.ZodLiteral<"video">;
-        video: z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>;
-    }, z.core.$strip>, z.ZodObject<{
-        delivered_at: z.ZodString;
-        file: z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>;
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>]>>;
-    response_id: z.ZodString;
-    type: z.ZodLiteral<"assistant_response">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>>;
-    response_id: z.ZodString;
-    tool_call_id: z.ZodString;
-    type: z.ZodLiteral<"tool_response">;
-}, z.core.$strip>, z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    delivered_at: z.ZodString;
-    error: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
-    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodLiteral<"error">;
-}, z.core.$strip>]>;
-type CliAgentsInstancesListenerConversationBlock = z.infer<typeof CliAgentsInstancesListenerConversationBlockSchema>;
-
-declare const CliAgentsInstancesListenerPartContentSchema: z.ZodUnion<readonly [z.ZodObject<{
-    text: z.ZodString;
-    type: z.ZodLiteral<"text">;
-}, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-    url: z.ZodString;
-}, z.core.$strip>, z.ZodObject<{
-    type: z.ZodLiteral<"image">;
-}, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-    data: z.ZodString;
-    format: z.ZodString;
-}, z.core.$strip>, z.ZodObject<{
-    type: z.ZodLiteral<"audio">;
-}, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-    url: z.ZodString;
-}, z.core.$strip>, z.ZodObject<{
-    type: z.ZodLiteral<"video">;
-}, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.core.$strip>, z.ZodObject<{
-    type: z.ZodLiteral<"file">;
-}, z.core.$strip>>]>;
-type CliAgentsInstancesListenerPartContent = z.infer<typeof CliAgentsInstancesListenerPartContentSchema>;
-
-declare const CliAgentsInstancesListenerRequestMessageUserPartSchema: z.ZodObject<{
-    content: z.ZodUnion<readonly [z.ZodObject<{
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        data: z.ZodString;
-        format: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"video">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>>]>;
-    delivered_at: z.ZodString;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerRequestMessageUserPart = z.infer<typeof CliAgentsInstancesListenerRequestMessageUserPartSchema>;
-
-declare const CliAgentsInstancesListenerToolResponsePartSchema: z.ZodObject<{
-    content: z.ZodUnion<readonly [z.ZodObject<{
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        data: z.ZodString;
-        format: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"video">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>>]>;
-    delivered_at: z.ZodString;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerToolResponsePart = z.infer<typeof CliAgentsInstancesListenerToolResponsePartSchema>;
-
-declare const CliAgentsInstancesListenerVectorRequestChoiceSchema: z.ZodObject<{
-    key: z.ZodString;
-    parts: z.ZodArray<z.ZodObject<{
-        content: z.ZodUnion<readonly [z.ZodObject<{
-            text: z.ZodString;
-            type: z.ZodLiteral<"text">;
-        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"image">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            data: z.ZodString;
-            format: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"audio">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            url: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"video">;
-        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        }, z.core.$strip>, z.ZodObject<{
-            type: z.ZodLiteral<"file">;
-        }, z.core.$strip>>]>;
-        delivered_at: z.ZodString;
-    }, z.core.$strip>>;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerVectorRequestChoice = z.infer<typeof CliAgentsInstancesListenerVectorRequestChoiceSchema>;
-
-declare const CliAgentsInstancesListenerVectorRequestChoicePartSchema: z.ZodObject<{
-    content: z.ZodUnion<readonly [z.ZodObject<{
-        text: z.ZodString;
-        type: z.ZodLiteral<"text">;
-    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
-        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"image">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        data: z.ZodString;
-        format: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"audio">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        url: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"video">;
-    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
-        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    }, z.core.$strip>, z.ZodObject<{
-        type: z.ZodLiteral<"file">;
-    }, z.core.$strip>>]>;
-    delivered_at: z.ZodString;
-}, z.core.$strip>;
-type CliAgentsInstancesListenerVectorRequestChoicePart = z.infer<typeof CliAgentsInstancesListenerVectorRequestChoicePartSchema>;
-
-declare const CliBroadcastListenerListenerEndSchema: z.ZodObject<{
-    end: z.ZodBoolean;
-    id: z.ZodString;
-}, z.core.$strip>;
-type CliBroadcastListenerListenerEnd = z.infer<typeof CliBroadcastListenerListenerEndSchema>;
-
-declare const CliChannelListenerChannelAcceptedSchema: z.ZodObject<{
-    secret: z.ZodString;
-}, z.core.$strip>;
-type CliChannelListenerChannelAccepted = z.infer<typeof CliChannelListenerChannelAcceptedSchema>;
-
-declare const CliChannelListenerChannelEventSchema: z.ZodUnion<readonly [z.ZodObject<{
-    offer: z.ZodObject<{
-        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        channel_id: z.ZodString;
-        details: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
-        key: z.ZodString;
-        message: z.ZodString;
-        plugin_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        task: z.ZodDefault<z.ZodBoolean>;
-    }, z.core.$strip>;
-    type: z.ZodLiteral<"offer">;
-}, z.core.$strip>, z.ZodObject<{
-    channel_id: z.ZodString;
-    type: z.ZodLiteral<"offer_withdrawn">;
-}, z.core.$strip>, z.ZodObject<{
-    type: z.ZodLiteral<"live">;
-}, z.core.$strip>]>;
-type CliChannelListenerChannelEvent = z.infer<typeof CliChannelListenerChannelEventSchema>;
-
-declare const CliChannelListenerChannelOfferSchema: z.ZodObject<{
-    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    channel_id: z.ZodString;
-    details: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
-    key: z.ZodString;
-    message: z.ZodString;
-    plugin_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    task: z.ZodDefault<z.ZodBoolean>;
-}, z.core.$strip>;
-type CliChannelListenerChannelOffer = z.infer<typeof CliChannelListenerChannelOfferSchema>;
-
 declare const CliCommandAgentsEnqueueRequestSchemaPathSchema: z.ZodLiteral<"agents/enqueue/request_schema">;
 type CliCommandAgentsEnqueueRequestSchemaPath = z.infer<typeof CliCommandAgentsEnqueueRequestSchemaPathSchema>;
 
@@ -47014,58 +46070,40 @@ declare class PluginCommandExecutor {
     private onLine;
 }
 
-interface SseCommandExecutorOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as the
-     * `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Value for the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header. */
-    agentInstanceHierarchy?: string | null;
-    /** Value for the `X-OBJECTIVEAI-AGENT-ID` header. */
-    agentId?: string | null;
-    /** Value for the `X-OBJECTIVEAI-AGENT-FULL-ID` header. */
-    agentFullId?: string | null;
-    /** Value for the `X-OBJECTIVEAI-AGENT-REMOTE` header (the
-     * JSON-encoded `RemotePath`). */
-    agentRemote?: string | null;
-    /** Value for the `X-OBJECTIVEAI-RESPONSE-ID` header. */
-    responseId?: string | null;
-    /** Value for the `X-OBJECTIVEAI-RESPONSE-IDS` header. */
-    responseIds?: string | null;
-}
-/**
- * Execute commands against a cli daemon over plain HTTP — one POST per
- * command to the daemon's `/execute` route, the result streamed back as
- * Server-Sent Events. The JS mirror of the Rust SDK's
- * `SseCommandExecutor`, usable anywhere `fetch` can reach the daemon
- * (the main viewer window, Node 22+, any browser context with network
- * access).
- *
- * Wire contract (one request per `execute`):
- * - client POSTs the request's JSON as the raw body — nothing wraps
- *   it — with the auth signature in the `X-OBJECTIVEAI-SIGNATURE`
- *   header and the identity override in the `X-OBJECTIVEAI-*` agent
- *   headers, one header per set option ({@link
- *   SseCommandExecutorOptions}). A missing header DELETES that
- *   config field on the daemon for the run — never inherits;
- * - the daemon replies `text/event-stream`, one SSE `data:` event per
- *   stream item — exactly the cli's stdout JSONL line shapes (a
- *   response JSON or a `{"type":"error",…}` line); the response body
- *   ending IS the end-of-stream marker, so iteration simply ends (no
- *   synthetic `{"type":"end"}` — binary-executor parity);
- * - a connection failure / non-2xx status (e.g. `401` on a bad
- *   signature) surfaces as one in-band `{"type":"error",…}` line, then
- *   the iterator ends;
- * - `return()`/`break` aborts the request, which cancels the
- *   daemon-side run.
- */
-declare class SseCommandExecutor {
-    #private;
-    /** `url` is the full URL of the daemon's execute route, e.g.
-     * `http://127.0.0.1:49152/execute`. */
-    constructor(url: string, options?: SseCommandExecutorOptions);
-    execute(request: CliCommandRequest): AsyncIterable<unknown>;
-}
+declare const IdentitySchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    task: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$strip>;
+type Identity = z.infer<typeof IdentitySchema>;
+
+declare const DaemonAgentsInstancesListListenerAgentEventSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agents: z.ZodArray<z.ZodObject<{
+        active: z.ZodBoolean;
+        agent_instance_hierarchy: z.ZodString;
+    }, z.core.$strip>>;
+    type: z.ZodLiteral<"snapshot">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    type: z.ZodLiteral<"activated">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    type: z.ZodLiteral<"deactivated">;
+}, z.core.$strip>]>;
+type DaemonAgentsInstancesListListenerAgentEvent = z.infer<typeof DaemonAgentsInstancesListListenerAgentEventSchema>;
+
+declare const DaemonAgentsInstancesListListenerAgentStatusSchema: z.ZodObject<{
+    active: z.ZodBoolean;
+    agent_instance_hierarchy: z.ZodString;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListListenerAgentStatus = z.infer<typeof DaemonAgentsInstancesListListenerAgentStatusSchema>;
 
 /**
  * Viewer-mode transport for the daemon streams: instead of a direct
@@ -47106,41 +46144,8 @@ type ViewerStreamEvent = {
     type: "error";
     message: string;
 };
-/**
- * One tab open request — the argument to the viewer shell's
- * `tabs_open` command. The SENDER's identity is deliberately NOT
- * part of it: the Rust shell derives identity from the calling
- * webview (the root chrome and built-in tabs are `objectiveai`; a
- * plugin's webviews are that plugin) and resolves `module` against
- * that identity's root — a caller can only ever open tabs whose code
- * lives under its own root.
- */
-interface ViewerOpenTab {
-    /** Component module path, relative to the sender identity's root
-     * (e.g. `/tabs/agents.js`). Absolute-from-root, no scheme, no
-     * traversal — the shell rejects anything else. */
-    module: string;
-    /** The export holding the component (default `"default"`). */
-    export?: string;
-    /** The tab's display title. */
-    title: string;
-    /** Opaque props delivered verbatim to the component at boot. */
-    arguments?: unknown;
-    /** Whether the strip shows a close button (default `true`). */
-    closable?: boolean;
-    /** OPTIONAL identity icon, shown beside the identity in the strip
-     * — a path relative to the sender identity's root, same rules as
-     * `module` (a plugin's manifest icon; omit for none). */
-    icon?: string;
-}
-/**
- * Open a viewer tab in the calling window — or focus it, wherever it
- * lives, if one with the same identity + module + export + arguments
- * already exists (the shell's open-or-focus dedupe; `title` and
- * `closable` are cosmetic, not identity). Resolves once the shell
- * has applied the open.
- */
-declare function openViewerTab(transport: ViewerTransport, tab: ViewerOpenTab): Promise<void>;
+/** A fresh per-stream id for `daemon_stream_close` correlation. */
+declare function newStreamId(): string;
 /**
  * Viewer-mode mirror of {@link connectSse}: invoke the proxy
  * `command` with a fresh stream id + channel, resolve on connect
@@ -47156,70 +46161,1085 @@ declare function openViewerTab(transport: ViewerTransport, tab: ViewerOpenTab): 
  * with it the daemon-side run). Abandoning the generator without
  * aborting leaks the stream, exactly like fetch mode. Reconnection
  * remains the caller's loop.
- *
- * `/laboratories/{id}/filetree` has no listener class — call this
- * directly with `"daemon_laboratory_filetree"`.
  */
 declare function connectViewerStream(transport: ViewerTransport, command: string, args: Record<string, unknown>, signal: AbortSignal): Promise<AsyncGenerator<string>>;
 
 /**
- * Execute commands against the cli daemon through the viewer's Tauri
- * IPC proxy — the viewer-mode sibling of {@link SseCommandExecutor}.
- * One `daemon_execute` invoke per command; the Rust side POSTs the
- * request to the daemon's `/execute` and streams the raw result lines
- * back over the channel. No url, no signature, no identity: the Rust
- * proxy owns the address and stamps the auth signature + the viewer
- * agent identity server-side.
+ * The Client's two transports behind one seam. Every daemon surface
+ * branches ONCE on this union:
  *
- * Stream contract (identical to `SseCommandExecutor.execute`):
- * - one item per daemon stream line — a response JSON or a
- *   `{"type":"error",…}` line; the stream ending IS the end-of-stream
- *   marker (no synthetic `{"type":"end"}`);
- * - a connect failure surfaces as one in-band `{"type":"error",…}`
- *   line, then the iterator ends;
- * - `return()`/`break` cancels the Rust-side connection, which
- *   cancels the daemon-side run.
+ * - `regular` — fetch+SSE straight at the daemon's published
+ *   `http://` address; this side stamps the auth signature and (where
+ *   a surface carries one) the caller identity headers.
+ * - `viewer` — everything rides the injected Tauri transport; the
+ *   viewer's Rust proxy owns address, signature, AND identity — this
+ *   mode stamps NOTHING (the standing viewer rule: secrets and
+ *   identity never enter the webview).
  */
-declare class ViewerCommandExecutor {
-    #private;
-    constructor(transport: ViewerTransport);
-    execute(request: CliCommandRequest): AsyncIterable<unknown>;
-}
+
+/** The Client's resolved construction — see the module docs. */
+type ClientMode = {
+    mode: "regular";
+    /** Base address, trailing-slash-trimmed; routes are appended. */
+    address: string;
+    signature?: string | null;
+    identity?: Identity;
+} | {
+    mode: "viewer";
+    transport: ViewerTransport;
+};
+/**
+ * Open one daemon SSE stream in whichever mode: `route` (+ optional
+ * `query`) against the regular address, or the `viewerCommand` proxy
+ * with `viewerArgs`. Resolves — like both underlying transports —
+ * only once the stream has actually opened (2xx headers / proxy
+ * connect success); the generator yields raw `data` payloads.
+ */
+declare function openStream(mode: ClientMode, signal: AbortSignal, spec: {
+    route: string;
+    query?: Record<string, string | undefined>;
+    viewerCommand: string;
+    viewerArgs?: Record<string, unknown>;
+}): Promise<AsyncGenerator<string>>;
 
 /**
- * Any of the CLI command executors. The generated per-command execute
- * functions accept one of these and call `.execute(request)` on it.
+ * Materialized consumer of the cli daemon's `/agents/instances/list`
+ * endpoint — the JS mirror of the Rust SDK's
+ * `daemon::agents_instances_list_listener::AgentsInstancesListListener`,
+ * identical in semantics.
+ *
+ * Deliberately minimal wire: each item is an AIH plus its live
+ * `active` flag — nothing else. Per-agent detail (tags, spawn /
+ * last-active timestamps, counters) lives on the per-agent
+ * `/agents/instances/{*aih}` endpoint. The listener folds events into
+ * a self-updating `AIH → active` map: a `snapshot` replaces the whole
+ * set, `activated` upserts an AIH to active (introducing it if
+ * unseen), `deactivated` flips it to inactive in place (kept — the
+ * endpoint lists all known agents). Activity itself is lock-driven on
+ * the daemon (kernel-released on holder death), so a spawn killed
+ * mid-stream flips to inactive exactly.
+ *
+ * One listener = one connection: when the socket closes the view
+ * freezes at its last state; reconnect is the caller's loop — mint a
+ * new listener from the client. Unparseable events are skipped
+ * (forward compat). No runtime validation, like
+ * {@link BroadcastListener}.
  */
-type CommandExecutor = BinaryCommandExecutor | PluginCommandExecutor | SseCommandExecutor | ViewerCommandExecutor;
 
-declare const CliErrorSchema: z.ZodObject<{
-    fatal: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
-    level: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
-        error: "error";
-        trace: "trace";
-        debug: "debug";
-        info: "info";
-        warn: "warn";
-    }>>>;
-    message: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+type AgentStatus = DaemonAgentsInstancesListListenerAgentStatus;
+/**
+ * The materialized `/agents/instances/list` view — minted by
+ * {@link Client.agentsInstancesListListener}; resolves only once the
+ * stream has OPENED.
+ *
+ * ```ts
+ * const listener = await client.agentsInstancesListListener();
+ * listener.agents(); // [{ agent_instance_hierarchy, active }, ...]
+ * await listener.subscribe(); // resolves on the next change
+ * ```
+ */
+declare class AgentsInstancesListListener {
+    #private;
+    private constructor();
+    /** @internal — minted by `Client.agentsInstancesListListener`. */
+    static _connect(mode: ClientMode): Promise<AgentsInstancesListListener>;
+    /** Whether the connection has closed (the view is frozen). */
+    get closed(): boolean;
+    /** Drop the connection: the view freezes and any pending
+     * {@link subscribe} resolves. */
+    close(): void;
+    /** Snapshot the current agent set, sorted by `agent_instance_hierarchy`. */
+    agents(): AgentStatus[];
+    /** Resolves on the next change applied to the state. A fresh call
+     * waits for the FIRST change after it is made — loop with the
+     * {@link agents} read. Resolves immediately if already closed. */
+    subscribe(): Promise<void>;
+}
+
+declare const DaemonAgentsInstancesListenerAgentInstanceEventSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    part: z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>;
+    response_id: z.ZodString;
+    row_index: z.ZodNumber;
+    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    type: z.ZodLiteral<"request_message_user_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    part: z.ZodUnion<readonly [z.ZodObject<{
+        arguments: z.ZodString;
+        delivered_at: z.ZodString;
+        function_name: z.ZodString;
+        tool_call_id: z.ZodString;
+        tool_call_index: z.ZodNumber;
+        type: z.ZodLiteral<"tool_call">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"refusal">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"reasoning">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        image: z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>, z.ZodObject<{
+        audio: z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>;
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"video">;
+        video: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        file: z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>;
+    response_id: z.ZodString;
+    row_index: z.ZodNumber;
+    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    type: z.ZodLiteral<"request_message_assistant_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    part: z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>;
+    response_id: z.ZodString;
+    row_index: z.ZodNumber;
+    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    tool_call_id: z.ZodString;
+    type: z.ZodLiteral<"request_message_tool_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    choice_index: z.ZodNumber;
+    key: z.ZodString;
+    part: z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>;
+    part_index: z.ZodNumber;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"vector_request_choice_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"vector_response_vote">;
+    vote: z.ZodArray<z.ZodNumber>;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    message_queue_id: z.ZodNumber;
+    part: z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>;
+    queued_at: z.ZodString;
+    response_id: z.ZodString;
+    row_index: z.ZodNumber;
+    sender_agent_instance_hierarchy: z.ZodString;
+    type: z.ZodLiteral<"client_notification_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    part: z.ZodUnion<readonly [z.ZodObject<{
+        arguments: z.ZodString;
+        delivered_at: z.ZodString;
+        function_name: z.ZodString;
+        tool_call_id: z.ZodString;
+        tool_call_index: z.ZodNumber;
+        type: z.ZodLiteral<"tool_call">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"refusal">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"reasoning">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        image: z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>, z.ZodObject<{
+        audio: z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>;
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"video">;
+        video: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        file: z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>;
+    response_id: z.ZodString;
+    row_index: z.ZodNumber;
+    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    type: z.ZodLiteral<"assistant_response_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    part: z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>;
+    response_id: z.ZodString;
+    row_index: z.ZodNumber;
+    row_sub_index: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    tool_call_id: z.ZodString;
+    type: z.ZodLiteral<"tool_response_part">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
+    error: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     type: z.ZodLiteral<"error">;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"live">;
+}, z.core.$strip>, z.ZodObject<{
+    agent: z.ZodObject<{
+        active: z.ZodBoolean;
+        active_laboratories: z.ZodDefault<z.ZodArray<z.ZodString>>;
+        agent_instance_hierarchy: z.ZodString;
+        attached_laboratories: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            attached_at: z.ZodString;
+            attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>>>;
+        last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        logged: z.ZodNumber;
+        queued: z.ZodNumber;
+        spawned_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        tags: z.ZodArray<z.ZodString>;
+    }, z.core.$strip>;
+    type: z.ZodLiteral<"agent">;
+}, z.core.$strip>]>;
+type DaemonAgentsInstancesListenerAgentInstanceEvent = z.infer<typeof DaemonAgentsInstancesListenerAgentInstanceEventSchema>;
+
+declare const DaemonAgentsInstancesListenerAgentRecordSchema: z.ZodObject<{
+    active: z.ZodBoolean;
+    active_laboratories: z.ZodDefault<z.ZodArray<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodString;
+    attached_laboratories: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        attached_at: z.ZodString;
+        attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, z.core.$strip>>>;
+    last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    logged: z.ZodNumber;
+    queued: z.ZodNumber;
+    spawned_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tags: z.ZodArray<z.ZodString>;
 }, z.core.$strip>;
-type CliError = z.infer<typeof CliErrorSchema>;
+type DaemonAgentsInstancesListenerAgentRecord = z.infer<typeof DaemonAgentsInstancesListenerAgentRecordSchema>;
 
-/** `agents enqueue request_schema execute` — unary; first stream item, rest discarded. */
-declare function agentsEnqueueRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `agents enqueue request_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsEnqueueRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequestSchemaRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
+declare const DaemonAgentsInstancesListenerAssistantResponsePartSchema: z.ZodUnion<readonly [z.ZodObject<{
+    arguments: z.ZodString;
+    delivered_at: z.ZodString;
+    function_name: z.ZodString;
+    tool_call_id: z.ZodString;
+    tool_call_index: z.ZodNumber;
+    type: z.ZodLiteral<"tool_call">;
+}, z.core.$strip>, z.ZodObject<{
+    delivered_at: z.ZodString;
+    text: z.ZodString;
+    type: z.ZodLiteral<"refusal">;
+}, z.core.$strip>, z.ZodObject<{
+    delivered_at: z.ZodString;
+    text: z.ZodString;
+    type: z.ZodLiteral<"reasoning">;
+}, z.core.$strip>, z.ZodObject<{
+    delivered_at: z.ZodString;
+    text: z.ZodString;
+    type: z.ZodLiteral<"text">;
+}, z.core.$strip>, z.ZodObject<{
+    delivered_at: z.ZodString;
+    image: z.ZodObject<{
+        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+        url: z.ZodString;
+    }, z.core.$strip>;
+    type: z.ZodLiteral<"image">;
+}, z.core.$strip>, z.ZodObject<{
+    audio: z.ZodObject<{
+        data: z.ZodString;
+        format: z.ZodString;
+    }, z.core.$strip>;
+    delivered_at: z.ZodString;
+    type: z.ZodLiteral<"audio">;
+}, z.core.$strip>, z.ZodObject<{
+    delivered_at: z.ZodString;
+    type: z.ZodLiteral<"video">;
+    video: z.ZodObject<{
+        url: z.ZodString;
+    }, z.core.$strip>;
+}, z.core.$strip>, z.ZodObject<{
+    delivered_at: z.ZodString;
+    file: z.ZodObject<{
+        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, z.core.$strip>;
+    type: z.ZodLiteral<"file">;
+}, z.core.$strip>]>;
+type DaemonAgentsInstancesListenerAssistantResponsePart = z.infer<typeof DaemonAgentsInstancesListenerAssistantResponsePartSchema>;
 
-declare const CliCommandAgentArgumentsSchema: z.ZodObject<{
+declare const DaemonAgentsInstancesListenerAttachedLaboratorySchema: z.ZodObject<{
+    attached_at: z.ZodString;
+    attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListenerAttachedLaboratory = z.infer<typeof DaemonAgentsInstancesListenerAttachedLaboratorySchema>;
+
+declare const DaemonAgentsInstancesListenerClientNotificationPartSchema: z.ZodObject<{
+    content: z.ZodUnion<readonly [z.ZodObject<{
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        data: z.ZodString;
+        format: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"video">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>>]>;
+    delivered_at: z.ZodString;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListenerClientNotificationPart = z.infer<typeof DaemonAgentsInstancesListenerClientNotificationPartSchema>;
+
+declare const DaemonAgentsInstancesListenerConversationBlockSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    parts: z.ZodArray<z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>>;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"request_message_user">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        arguments: z.ZodString;
+        delivered_at: z.ZodString;
+        function_name: z.ZodString;
+        tool_call_id: z.ZodString;
+        tool_call_index: z.ZodNumber;
+        type: z.ZodLiteral<"tool_call">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"refusal">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"reasoning">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        image: z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>, z.ZodObject<{
+        audio: z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>;
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"video">;
+        video: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        file: z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>>;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"request_message_assistant">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    parts: z.ZodArray<z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>>;
+    response_id: z.ZodString;
+    tool_call_id: z.ZodString;
+    type: z.ZodLiteral<"request_message_tool">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    choices: z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        parts: z.ZodArray<z.ZodObject<{
+            content: z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"image">;
+            }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"audio">;
+            }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video">;
+            }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>>]>;
+            delivered_at: z.ZodString;
+        }, z.core.$strip>>;
+    }, z.core.$strip>>;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"vector_request_choices">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"vector_response_vote">;
+    vote: z.ZodArray<z.ZodNumber>;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    parts: z.ZodArray<z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>>;
+    queued_at: z.ZodString;
+    response_id: z.ZodString;
+    sender_agent_instance_hierarchy: z.ZodString;
+    type: z.ZodLiteral<"client_notification">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        arguments: z.ZodString;
+        delivered_at: z.ZodString;
+        function_name: z.ZodString;
+        tool_call_id: z.ZodString;
+        tool_call_index: z.ZodNumber;
+        type: z.ZodLiteral<"tool_call">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"refusal">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"reasoning">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        image: z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>, z.ZodObject<{
+        audio: z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>;
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        type: z.ZodLiteral<"video">;
+        video: z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>;
+    }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
+        file: z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>>;
+    response_id: z.ZodString;
+    type: z.ZodLiteral<"assistant_response">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    parts: z.ZodArray<z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>>;
+    response_id: z.ZodString;
+    tool_call_id: z.ZodString;
+    type: z.ZodLiteral<"tool_response">;
+}, z.core.$strip>, z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
+    error: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    type: z.ZodLiteral<"error">;
+}, z.core.$strip>]>;
+type DaemonAgentsInstancesListenerConversationBlock = z.infer<typeof DaemonAgentsInstancesListenerConversationBlockSchema>;
+
+declare const DaemonAgentsInstancesListenerPartContentSchema: z.ZodUnion<readonly [z.ZodObject<{
+    text: z.ZodString;
+    type: z.ZodLiteral<"text">;
+}, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+    url: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"image">;
+}, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+    data: z.ZodString;
+    format: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"audio">;
+}, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+    url: z.ZodString;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"video">;
+}, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"file">;
+}, z.core.$strip>>]>;
+type DaemonAgentsInstancesListenerPartContent = z.infer<typeof DaemonAgentsInstancesListenerPartContentSchema>;
+
+declare const DaemonAgentsInstancesListenerRequestMessageUserPartSchema: z.ZodObject<{
+    content: z.ZodUnion<readonly [z.ZodObject<{
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        data: z.ZodString;
+        format: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"video">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>>]>;
+    delivered_at: z.ZodString;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListenerRequestMessageUserPart = z.infer<typeof DaemonAgentsInstancesListenerRequestMessageUserPartSchema>;
+
+declare const DaemonAgentsInstancesListenerToolResponsePartSchema: z.ZodObject<{
+    content: z.ZodUnion<readonly [z.ZodObject<{
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        data: z.ZodString;
+        format: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"video">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>>]>;
+    delivered_at: z.ZodString;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListenerToolResponsePart = z.infer<typeof DaemonAgentsInstancesListenerToolResponsePartSchema>;
+
+declare const DaemonAgentsInstancesListenerVectorRequestChoiceSchema: z.ZodObject<{
+    key: z.ZodString;
+    parts: z.ZodArray<z.ZodObject<{
+        content: z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"image">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            data: z.ZodString;
+            format: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"audio">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            url: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video">;
+        }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>>]>;
+        delivered_at: z.ZodString;
+    }, z.core.$strip>>;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListenerVectorRequestChoice = z.infer<typeof DaemonAgentsInstancesListenerVectorRequestChoiceSchema>;
+
+declare const DaemonAgentsInstancesListenerVectorRequestChoicePartSchema: z.ZodObject<{
+    content: z.ZodUnion<readonly [z.ZodObject<{
+        text: z.ZodString;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
+        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        data: z.ZodString;
+        format: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        url: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"video">;
+    }, z.core.$strip>>, z.ZodIntersection<z.ZodObject<{
+        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    }, z.core.$strip>, z.ZodObject<{
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>>]>;
+    delivered_at: z.ZodString;
+}, z.core.$strip>;
+type DaemonAgentsInstancesListenerVectorRequestChoicePart = z.infer<typeof DaemonAgentsInstancesListenerVectorRequestChoicePartSchema>;
+
+/**
+ * Materialized consumer of the cli daemon's `/agents/instances/{*aih}`
+ * endpoint — the JS mirror of the Rust SDK's
+ * `daemon::agents_instances_listener::AgentsInstancesListener`,
+ * identical in semantics.
+ *
+ * One connection carries TWO structurally independent concerns:
+ *
+ * - **The conversation** — typed part events (one per conversation
+ *   row, each naming its block class and carrying its class's boundary
+ *   fields + ONE mirrored part + the DB row identity as an opaque
+ *   replace-at key), replayed from the DB snapshot first, one `live`
+ *   marker, then live as the agent produces them. Events fold into an
+ *   ordered list of {@link ConversationBlock}s — the exact mirror of
+ *   `agents logs list`'s `ResponseItem` family with content INLINED.
+ *   A re-sent identity REPLACES the prior part (later = more
+ *   complete), which also converges the snapshot/live seam.
+ * - **The agent's status** — `agent` events carry this agent's list
+ *   record (lock-driven active flag, bound tags, counters), once at
+ *   connect and on every change. Held separately from the
+ *   conversation.
+ *
+ * One listener = one connection: the daemon DISCONNECTS lagging
+ * clients rather than dropping frames, so a closed socket means
+ * "reconnect for a fresh snapshot" — mint a new listener from the
+ * client; the view freezes at its last state. Unparseable events are
+ * SKIPPED — the forward-compat contract for future event variants. No
+ * runtime validation, like {@link BroadcastListener}.
+ */
+
+type AgentRecord = DaemonAgentsInstancesListenerAgentRecord;
+type ConversationBlock = DaemonAgentsInstancesListenerConversationBlock;
+/**
+ * The materialized `/agents/instances/{*aih}` view — minted by
+ * {@link Client.agentsInstancesListener}; resolves only once the
+ * stream has OPENED.
+ *
+ * ```ts
+ * const listener = await client.agentsInstancesListener(aih);
+ * listener.conversation(); // ConversationBlock[] — the logs-list mirror
+ * listener.agent();        // AgentRecord | null — active, tags, counters
+ * listener.live;           // snapshot replay complete?
+ * await listener.subscribe(); // resolves on the next change (either concern)
+ * ```
+ */
+declare class AgentsInstancesListener {
+    #private;
+    private constructor();
+    /** @internal — minted by `Client.agentsInstancesListener`.
+     * `agentInstanceHierarchy` is the agent's full hierarchy (raw
+     * slashes are fine — the daemon route is a wildcard). */
+    static _connect(mode: ClientMode, agentInstanceHierarchy: string): Promise<AgentsInstancesListener>;
+    /** Whether the connection has closed (the view is frozen; the daemon
+     * disconnects lagging clients — reconnect for a fresh snapshot). */
+    get closed(): boolean;
+    /** Whether the snapshot replay has completed — every conversation
+     * event after the `live` marker is the conversation as it occurs. */
+    get live(): boolean;
+    /** Drop the connection: the view freezes and any pending
+     * {@link subscribe} resolves. */
+    close(): void;
+    /** The current conversation, blocks in conversation order — the
+     * `agents logs list` `ResponseItem` mirror, content inlined. */
+    conversation(): ConversationBlock[];
+    /** The agent's current list record (active flag, bound tags,
+     * counters) — the same shape `/agents/instances/list` tracks, scoped
+     * to this agent. `null` until the connection's first agent-status
+     * event lands (the daemon ships one right after connect).
+     * Structurally independent of {@link conversation}. */
+    agent(): AgentRecord | null;
+    /** Resolves on the next applied event — conversation OR agent
+     * status. A fresh call waits for the FIRST event after it is made;
+     * loop with the getters. Resolves immediately if already closed. */
+    subscribe(): Promise<void>;
+}
+
+declare const DaemonChannelListenerChannelAcceptedSchema: z.ZodObject<{
+    secret: z.ZodString;
+}, z.core.$strip>;
+type DaemonChannelListenerChannelAccepted = z.infer<typeof DaemonChannelListenerChannelAcceptedSchema>;
+
+declare const DaemonChannelListenerChannelEventSchema: z.ZodUnion<readonly [z.ZodObject<{
+    offer: z.ZodObject<{
+        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        channel_id: z.ZodString;
+        details: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+        key: z.ZodString;
+        message: z.ZodString;
+        plugin_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        task: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$strip>;
+    type: z.ZodLiteral<"offer">;
+}, z.core.$strip>, z.ZodObject<{
+    channel_id: z.ZodString;
+    type: z.ZodLiteral<"offer_withdrawn">;
+}, z.core.$strip>, z.ZodObject<{
+    type: z.ZodLiteral<"live">;
+}, z.core.$strip>]>;
+type DaemonChannelListenerChannelEvent = z.infer<typeof DaemonChannelListenerChannelEventSchema>;
+
+declare const DaemonChannelListenerChannelOfferSchema: z.ZodObject<{
     agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    channel_id: z.ZodString;
+    details: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    key: z.ZodString;
+    message: z.ZodString;
     plugin_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -47227,45 +47247,61 @@ declare const CliCommandAgentArgumentsSchema: z.ZodObject<{
     response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     task: z.ZodDefault<z.ZodBoolean>;
 }, z.core.$strip>;
-type CliCommandAgentArguments = z.infer<typeof CliCommandAgentArgumentsSchema>;
+type DaemonChannelListenerChannelOffer = z.infer<typeof DaemonChannelListenerChannelOfferSchema>;
 
-/** One `/listen` broadcast run of `agents enqueue request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandAgentsEnqueueRequestSchemaListenerExecution = {
-    request: CliCommandAgentsEnqueueRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
-    response: Promise<CliError | JsonValue>;
-};
+/**
+ * Materialized consumer of the cli daemon's `/channels` endpoint — the
+ * OFFER lifecycle side of duplex channels: the JS mirror of the Rust
+ * SDK's `daemon::channel_listener::ChannelListener`.
+ *
+ * `GET /channels` (the `daemon_channels` proxy command in viewer
+ * mode) is the offer lifecycle stream and nothing else: the listener
+ * folds `offer` (insert into the pending map), `offer_withdrawn`
+ * (remove), and the `live` caught-up marker. No secrets ride this
+ * stream.
+ *
+ * Accepting is {@link Client.acceptChannel} — the client-level
+ * `POST /channels/{id}/accept` (first-wins) whose `200` body carries
+ * the owner secret (`S_owner`). The daemon tracks no liveness; a
+ * channel stays open until someone runs `channels close` with either
+ * of its secrets.
+ *
+ * One listener = one connection: when the socket closes the view
+ * freezes; reconnect is the caller's loop — mint a new listener from
+ * the client. Unparseable events are skipped (forward compat).
+ */
 
-declare const CliCommandAgentsEnqueueResponseSchemaPathSchema: z.ZodLiteral<"agents/enqueue/response_schema">;
-type CliCommandAgentsEnqueueResponseSchemaPath = z.infer<typeof CliCommandAgentsEnqueueResponseSchemaPathSchema>;
-
-declare const CliCommandAgentsEnqueueResponseSchemaRequestSchema: z.ZodObject<{
-    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"agents/enqueue/response_schema">;
-    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-}, z.core.$strip>;
-type CliCommandAgentsEnqueueResponseSchemaRequest = z.infer<typeof CliCommandAgentsEnqueueResponseSchemaRequestSchema>;
-
-/** `agents enqueue response_schema execute` — unary; first stream item, rest discarded. */
-declare function agentsEnqueueResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `agents enqueue response_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsEnqueueResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueResponseSchemaRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
-
-/** One `/listen` broadcast run of `agents enqueue response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandAgentsEnqueueResponseSchemaListenerExecution = {
-    request: CliCommandAgentsEnqueueResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
-    response: Promise<CliError | JsonValue>;
-};
-
-declare const CliCommandAgentsEnqueuePathSchema: z.ZodLiteral<"agents/enqueue">;
-type CliCommandAgentsEnqueuePath = z.infer<typeof CliCommandAgentsEnqueuePathSchema>;
+type ChannelOffer = DaemonChannelListenerChannelOffer;
+/**
+ * The materialized `/channels` offer view — minted by
+ * {@link Client.channelListener}; resolves only once the stream has
+ * OPENED.
+ *
+ * ```ts
+ * const client = new Client("http://127.0.0.1:49152", { signature });
+ * const surface = await client.channelListener();
+ * // ...a publisher runs `channels publish --key demo --details '{}'`...
+ * await surface.subscribe();               // wakes on the offer
+ * const [offer] = surface.pending();
+ * const sOwner = await client.acceptChannel(offer.channel_id);
+ * ```
+ */
+declare class ChannelListener {
+    #private;
+    private constructor();
+    /** @internal — minted by `Client.channelListener`. */
+    static _connect(mode: ClientMode): Promise<ChannelListener>;
+    /** Whether the connection has closed (the view is frozen). */
+    get closed(): boolean;
+    /** Drop the connection: the view freezes and any pending
+     * {@link subscribe} resolves. */
+    close(): void;
+    /** Snapshot the currently open offers, sorted by `channel_id`. */
+    pending(): ChannelOffer[];
+    /** Resolves on the next applied event. Resolves immediately if
+     * already closed. */
+    subscribe(): Promise<void>;
+}
 
 declare const CliCommandAgentsEnqueueRequestSchema: z.ZodObject<{
     agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -48534,80 +48570,49 @@ declare const CliCommandAgentsEnqueueResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsEnqueueResponse = z.infer<typeof CliCommandAgentsEnqueueResponseSchema>;
 
-/** `agents enqueue execute` — unary; first stream item, rest discarded. */
-declare function agentsEnqueueExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequest, "path_type">): Promise<CliError | CliCommandAgentsEnqueueResponse>;
-/** `agents enqueue execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsEnqueueExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
+declare const CliErrorSchema: z.ZodObject<{
+    fatal: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    level: z.ZodOptional<z.ZodNullable<z.ZodEnum<{
+        error: "error";
+        trace: "trace";
+        debug: "debug";
+        info: "info";
+        warn: "warn";
+    }>>>;
+    message: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
+    type: z.ZodLiteral<"error">;
+}, z.core.$strip>;
+type CliError = z.infer<typeof CliErrorSchema>;
 
-/** One `/listen` broadcast run of `agents enqueue`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents enqueue`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsEnqueueListenerExecution = {
     request: CliCommandAgentsEnqueueRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsEnqueueResponse>;
 };
 
-declare const CliCommandAgentsGetRequestSchemaPathSchema: z.ZodLiteral<"agents/get/request_schema">;
-type CliCommandAgentsGetRequestSchemaPath = z.infer<typeof CliCommandAgentsGetRequestSchemaPathSchema>;
-
-declare const CliCommandAgentsGetRequestSchemaRequestSchema: z.ZodObject<{
-    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"agents/get/request_schema">;
-    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-}, z.core.$strip>;
-type CliCommandAgentsGetRequestSchemaRequest = z.infer<typeof CliCommandAgentsGetRequestSchemaRequestSchema>;
-
-/** `agents get request_schema execute` — unary; first stream item, rest discarded. */
-declare function agentsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `agents get request_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequestSchemaRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
-
-/** One `/listen` broadcast run of `agents get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandAgentsGetRequestSchemaListenerExecution = {
-    request: CliCommandAgentsGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+/** One `/listen` broadcast run of `agents enqueue request_schema`: the actual request, the producer's identity, and the unary response future. */
+type CliCommandAgentsEnqueueRequestSchemaListenerExecution = {
+    request: CliCommandAgentsEnqueueRequestSchemaRequest;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandAgentsGetResponseSchemaPathSchema: z.ZodLiteral<"agents/get/response_schema">;
-type CliCommandAgentsGetResponseSchemaPath = z.infer<typeof CliCommandAgentsGetResponseSchemaPathSchema>;
-
-declare const CliCommandAgentsGetResponseSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandAgentsEnqueueResponseSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"agents/get/response_schema">;
+    path_type: z.ZodLiteral<"agents/enqueue/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandAgentsGetResponseSchemaRequest = z.infer<typeof CliCommandAgentsGetResponseSchemaRequestSchema>;
+type CliCommandAgentsEnqueueResponseSchemaRequest = z.infer<typeof CliCommandAgentsEnqueueResponseSchemaRequestSchema>;
 
-/** `agents get response_schema execute` — unary; first stream item, rest discarded. */
-declare function agentsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `agents get response_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsGetResponseSchemaRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
-
-/** One `/listen` broadcast run of `agents get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandAgentsGetResponseSchemaListenerExecution = {
-    request: CliCommandAgentsGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+/** One `/listen` broadcast run of `agents enqueue response_schema`: the actual request, the producer's identity, and the unary response future. */
+type CliCommandAgentsEnqueueResponseSchemaListenerExecution = {
+    request: CliCommandAgentsEnqueueResponseSchemaRequest;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
-
-declare const CliCommandAgentsGetPathSchema: z.ZodLiteral<"agents/get">;
-type CliCommandAgentsGetPath = z.infer<typeof CliCommandAgentsGetPathSchema>;
 
 declare const CliCommandAgentsGetRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -48648,80 +48653,44 @@ declare const CliCommandAgentsGetResponseSchema: z.ZodIntersection<z.ZodUnion<re
 }, z.core.$strip>]>, z.ZodObject<{}, z.core.$strip>>;
 type CliCommandAgentsGetResponse = z.infer<typeof CliCommandAgentsGetResponseSchema>;
 
-/** `agents get execute` — unary; first stream item, rest discarded. */
-declare function agentsGetExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequest, "path_type">): Promise<CliError | CliCommandAgentsGetResponse>;
-/** `agents get execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
-
-/** One `/listen` broadcast run of `agents get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsGetListenerExecution = {
     request: CliCommandAgentsGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsGetResponse>;
 };
 
-declare const CliCommandAgentsInstancesGetRequestSchemaPathSchema: z.ZodLiteral<"agents/instances/get/request_schema">;
-type CliCommandAgentsInstancesGetRequestSchemaPath = z.infer<typeof CliCommandAgentsInstancesGetRequestSchemaPathSchema>;
-
-declare const CliCommandAgentsInstancesGetRequestSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandAgentsGetRequestSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"agents/instances/get/request_schema">;
+    path_type: z.ZodLiteral<"agents/get/request_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandAgentsInstancesGetRequestSchemaRequest = z.infer<typeof CliCommandAgentsInstancesGetRequestSchemaRequestSchema>;
+type CliCommandAgentsGetRequestSchemaRequest = z.infer<typeof CliCommandAgentsGetRequestSchemaRequestSchema>;
 
-/** `agents instances get request_schema execute` — unary; first stream item, rest discarded. */
-declare function agentsInstancesGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `agents instances get request_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsInstancesGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequestSchemaRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
-
-/** One `/listen` broadcast run of `agents instances get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandAgentsInstancesGetRequestSchemaListenerExecution = {
-    request: CliCommandAgentsInstancesGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+/** One `/listen` broadcast run of `agents get request_schema`: the actual request, the producer's identity, and the unary response future. */
+type CliCommandAgentsGetRequestSchemaListenerExecution = {
+    request: CliCommandAgentsGetRequestSchemaRequest;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
-declare const CliCommandAgentsInstancesGetResponseSchemaPathSchema: z.ZodLiteral<"agents/instances/get/response_schema">;
-type CliCommandAgentsInstancesGetResponseSchemaPath = z.infer<typeof CliCommandAgentsInstancesGetResponseSchemaPathSchema>;
-
-declare const CliCommandAgentsInstancesGetResponseSchemaRequestSchema: z.ZodObject<{
+declare const CliCommandAgentsGetResponseSchemaRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    path_type: z.ZodLiteral<"agents/instances/get/response_schema">;
+    path_type: z.ZodLiteral<"agents/get/response_schema">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
-type CliCommandAgentsInstancesGetResponseSchemaRequest = z.infer<typeof CliCommandAgentsInstancesGetResponseSchemaRequestSchema>;
+type CliCommandAgentsGetResponseSchemaRequest = z.infer<typeof CliCommandAgentsGetResponseSchemaRequestSchema>;
 
-/** `agents instances get response_schema execute` — unary; first stream item, rest discarded. */
-declare function agentsInstancesGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
-/** `agents instances get response_schema execute_transform` — unary; first stream item, rest discarded. */
-declare function agentsInstancesGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetResponseSchemaRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): Promise<CliError | JsonValue>;
-
-/** One `/listen` broadcast run of `agents instances get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
-type CliCommandAgentsInstancesGetResponseSchemaListenerExecution = {
-    request: CliCommandAgentsInstancesGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+/** One `/listen` broadcast run of `agents get response_schema`: the actual request, the producer's identity, and the unary response future. */
+type CliCommandAgentsGetResponseSchemaListenerExecution = {
+    request: CliCommandAgentsGetResponseSchemaRequest;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
-
-declare const CliCommandAgentsInstancesGetPathSchema: z.ZodLiteral<"agents/instances/get">;
-type CliCommandAgentsInstancesGetPath = z.infer<typeof CliCommandAgentsInstancesGetPathSchema>;
 
 declare const CliCommandAgentsInstancesGetRequestSchema: z.ZodObject<{
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -49947,50 +49916,44 @@ declare const CliCommandAgentsInstancesListResponseItemSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsInstancesListResponseItem = z.infer<typeof CliCommandAgentsInstancesListResponseItemSchema>;
 
-/**
- * Async-iterable wrapper over the JSONL line stream produced by a
- * command executor (binary / plugin / viewer). Used by the generated
- * command execute functions; plugin authors normally receive one rather
- * than constructing one.
- *
- * Each raw line is zod-parsed with `schema` — typically
- * `z.union([CliOutputErrorSchema, <ResponseSchema>])`, so error
- * envelopes and response values surface as plain union members
- * rather than thrown exceptions.
- *
- * Before parsing, externally-tagged aggregate layers are unwrapped:
- * the cli prints the aggregate `ResponseItem` wire shape (e.g.
- * `{"Config":{"Viewer":{"Get":{}}}}`), so single-key object wrappers
- * are peeled until the schema parses — the JS mirror of
- * `extract_leaf` in `objectiveai-cli/src/executor.rs`.
- *
- * The host's synthetic `{"type":"end"}` terminator line is consumed
- * (it ends iteration) and never yielded.
- */
-declare class CliStream<T> implements AsyncIterable<T> {
-    private readonly source;
-    private readonly schema;
-    constructor(source: AsyncIterable<unknown>, schema: z.ZodType<T>);
-    [Symbol.asyncIterator](): AsyncIterator<T>;
-    /** Collect every remaining item. */
-    toArray(): Promise<T[]>;
-    /**
-     * Resolve the first item and discard the rest of the stream
-     * (releasing the underlying message listener). `undefined` when the
-     * stream ends without yielding — a unary command that printed
-     * nothing before the end marker.
-     */
-    first(): Promise<T | undefined>;
-}
+/** One `/listen` broadcast run of `agents instances get`: the actual request, the producer's identity, and the response-item stream. */
+type CliCommandAgentsInstancesGetListenerExecution = {
+    request: CliCommandAgentsInstancesGetRequest;
+    identity: Identity;
+    response: ResponseItemStream<CliError | CliCommandAgentsInstancesListResponseItem>;
+};
 
-/** `agents instances get execute` — streaming; mirror of the Rust fn of the same path. */
-declare function agentsInstancesGetExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequest, "path_type">): CliStream<CliError | CliCommandAgentsInstancesListResponseItem>;
-/** `agents instances get execute_transform` — streaming; mirror of the Rust fn of the same path. */
-declare function agentsInstancesGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequest, "path_type">, transform: {
-    jq: string;
-} | {
-    python: string;
-}): CliStream<CliError | JsonValue>;
+declare const CliCommandAgentsInstancesGetRequestSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"agents/instances/get/request_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandAgentsInstancesGetRequestSchemaRequest = z.infer<typeof CliCommandAgentsInstancesGetRequestSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `agents instances get request_schema`: the actual request, the producer's identity, and the unary response future. */
+type CliCommandAgentsInstancesGetRequestSchemaListenerExecution = {
+    request: CliCommandAgentsInstancesGetRequestSchemaRequest;
+    identity: Identity;
+    response: Promise<CliError | JsonValue>;
+};
+
+declare const CliCommandAgentsInstancesGetResponseSchemaRequestSchema: z.ZodObject<{
+    jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    path_type: z.ZodLiteral<"agents/instances/get/response_schema">;
+    python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+}, z.core.$strip>;
+type CliCommandAgentsInstancesGetResponseSchemaRequest = z.infer<typeof CliCommandAgentsInstancesGetResponseSchemaRequestSchema>;
+
+/** One `/listen` broadcast run of `agents instances get response_schema`: the actual request, the producer's identity, and the unary response future. */
+type CliCommandAgentsInstancesGetResponseSchemaListenerExecution = {
+    request: CliCommandAgentsInstancesGetResponseSchemaRequest;
+    identity: Identity;
+    response: Promise<CliError | JsonValue>;
+};
 
 declare const CliCommandAgentsInstancesListRequestSchema: z.ZodObject<{
     all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -50012,10 +49975,10 @@ declare const CliCommandAgentsInstancesListRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsInstancesListRequest = z.infer<typeof CliCommandAgentsInstancesListRequestSchema>;
 
-/** One `/listen` broadcast run of `agents instances list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents instances list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsInstancesListListenerExecution = {
     request: CliCommandAgentsInstancesListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsInstancesListResponseItem>;
 };
 
@@ -50028,10 +49991,10 @@ declare const CliCommandAgentsInstancesListRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandAgentsInstancesListRequestSchemaRequest = z.infer<typeof CliCommandAgentsInstancesListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents instances list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents instances list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsInstancesListRequestSchemaListenerExecution = {
     request: CliCommandAgentsInstancesListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -50044,10 +50007,10 @@ declare const CliCommandAgentsInstancesListResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandAgentsInstancesListResponseSchemaRequest = z.infer<typeof CliCommandAgentsInstancesListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents instances list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents instances list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsInstancesListResponseSchemaListenerExecution = {
     request: CliCommandAgentsInstancesListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -50079,10 +50042,10 @@ declare const RemotePathSchema: z.ZodUnion<readonly [z.ZodObject<{
 }, z.core.$strip>]>;
 type RemotePath = z.infer<typeof RemotePathSchema>;
 
-/** One `/listen` broadcast run of `agents list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsListListenerExecution = {
     request: CliCommandAgentsListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | RemotePath>;
 };
 
@@ -50095,10 +50058,10 @@ declare const CliCommandAgentsListRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsListRequestSchemaRequest = z.infer<typeof CliCommandAgentsListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsListRequestSchemaListenerExecution = {
     request: CliCommandAgentsListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -50111,10 +50074,10 @@ declare const CliCommandAgentsListResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsListResponseSchemaRequest = z.infer<typeof CliCommandAgentsListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsListResponseSchemaListenerExecution = {
     request: CliCommandAgentsListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -50318,10 +50281,10 @@ declare const CliCommandAgentsLogsListResponseItemSchema: z.ZodUnion<readonly [z
 }, z.core.$strip>]>;
 type CliCommandAgentsLogsListResponseItem = z.infer<typeof CliCommandAgentsLogsListResponseItemSchema>;
 
-/** One `/listen` broadcast run of `agents logs list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents logs list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsLogsListListenerExecution = {
     request: CliCommandAgentsLogsListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsLogsListResponseItem>;
 };
 
@@ -50334,10 +50297,10 @@ declare const CliCommandAgentsLogsListRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsLogsListRequestSchemaRequest = z.infer<typeof CliCommandAgentsLogsListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsListRequestSchemaListenerExecution = {
     request: CliCommandAgentsLogsListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -50350,10 +50313,10 @@ declare const CliCommandAgentsLogsListResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsLogsListResponseSchemaRequest = z.infer<typeof CliCommandAgentsLogsListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsListResponseSchemaListenerExecution = {
     request: CliCommandAgentsLogsListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -55956,10 +55919,10 @@ declare const CliCommandAgentsLogsOpenResponseSchema: z.ZodUnion<readonly [z.Zod
 }, z.core.$strip>]>;
 type CliCommandAgentsLogsOpenResponse = z.infer<typeof CliCommandAgentsLogsOpenResponseSchema>;
 
-/** One `/listen` broadcast run of `agents logs open`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs open`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsOpenListenerExecution = {
     request: CliCommandAgentsLogsOpenRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsLogsOpenResponse>;
 };
 
@@ -55972,10 +55935,10 @@ declare const CliCommandAgentsLogsOpenRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsLogsOpenRequestSchemaRequest = z.infer<typeof CliCommandAgentsLogsOpenRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs open request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs open request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsOpenRequestSchemaListenerExecution = {
     request: CliCommandAgentsLogsOpenRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -55988,10 +55951,10 @@ declare const CliCommandAgentsLogsOpenResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsLogsOpenResponseSchemaRequest = z.infer<typeof CliCommandAgentsLogsOpenResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs open response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs open response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsOpenResponseSchemaListenerExecution = {
     request: CliCommandAgentsLogsOpenResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56199,10 +56162,10 @@ declare const CliCommandAgentsLogsSubscribeResponseItemSchema: z.ZodUnion<readon
 }, z.core.$strip>]>, z.ZodLiteral<"agents_inactive">]>;
 type CliCommandAgentsLogsSubscribeResponseItem = z.infer<typeof CliCommandAgentsLogsSubscribeResponseItemSchema>;
 
-/** One `/listen` broadcast run of `agents logs subscribe`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents logs subscribe`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsLogsSubscribeListenerExecution = {
     request: CliCommandAgentsLogsSubscribeRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsLogsSubscribeResponseItem>;
 };
 
@@ -56215,10 +56178,10 @@ declare const CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandAgentsLogsSubscribeRequestSchemaRequest = z.infer<typeof CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs subscribe request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs subscribe request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsSubscribeRequestSchemaListenerExecution = {
     request: CliCommandAgentsLogsSubscribeRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56231,10 +56194,10 @@ declare const CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandAgentsLogsSubscribeResponseSchemaRequest = z.infer<typeof CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs subscribe response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs subscribe response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsSubscribeResponseSchemaListenerExecution = {
     request: CliCommandAgentsLogsSubscribeResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56254,10 +56217,10 @@ declare const CliCommandAgentsLogsTokenUsageGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsLogsTokenUsageGetResponse = z.infer<typeof CliCommandAgentsLogsTokenUsageGetResponseSchema>;
 
-/** One `/listen` broadcast run of `agents logs token_usage get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs token_usage get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsTokenUsageGetListenerExecution = {
     request: CliCommandAgentsLogsTokenUsageGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsLogsTokenUsageGetResponse>;
 };
 
@@ -56270,10 +56233,10 @@ declare const CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest = z.infer<typeof CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs token_usage get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs token_usage get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsTokenUsageGetRequestSchemaListenerExecution = {
     request: CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56286,10 +56249,10 @@ declare const CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest = z.infer<typeof CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs token_usage get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs token_usage get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsTokenUsageGetResponseSchemaListenerExecution = {
     request: CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56310,10 +56273,10 @@ declare const CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema: z.ZodUn
 }, z.core.$strip>, z.ZodLiteral<"agents_inactive">]>;
 type CliCommandAgentsLogsTokenUsageSubscribeResponseItem = z.infer<typeof CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema>;
 
-/** One `/listen` broadcast run of `agents logs token_usage subscribe`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents logs token_usage subscribe`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsLogsTokenUsageSubscribeListenerExecution = {
     request: CliCommandAgentsLogsTokenUsageSubscribeRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsLogsTokenUsageSubscribeResponseItem>;
 };
 
@@ -56326,10 +56289,10 @@ declare const CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest = z.infer<typeof CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs token_usage subscribe request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs token_usage subscribe request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaListenerExecution = {
     request: CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56342,10 +56305,10 @@ declare const CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema
 }, z.core.$strip>;
 type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest = z.infer<typeof CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents logs token_usage subscribe response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents logs token_usage subscribe response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaListenerExecution = {
     request: CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56394,10 +56357,10 @@ declare const McpResourceListResourcesResultSchema: z.ZodObject<{
 }, z.core.$strip>;
 type McpResourceListResourcesResult = z.infer<typeof McpResourceListResourcesResultSchema>;
 
-/** One `/listen` broadcast run of `agents mcp resources list`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp resources list`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpResourcesListListenerExecution = {
     request: CliCommandAgentsMcpResourcesListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | McpResourceListResourcesResult>;
 };
 
@@ -56410,10 +56373,10 @@ declare const CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandAgentsMcpResourcesListRequestSchemaRequest = z.infer<typeof CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp resources list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp resources list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpResourcesListRequestSchemaListenerExecution = {
     request: CliCommandAgentsMcpResourcesListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56426,10 +56389,10 @@ declare const CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandAgentsMcpResourcesListResponseSchemaRequest = z.infer<typeof CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp resources list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp resources list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpResourcesListResponseSchemaListenerExecution = {
     request: CliCommandAgentsMcpResourcesListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56462,10 +56425,10 @@ declare const McpResourceReadResourceResultSchema: z.ZodObject<{
 }, z.core.$strip>;
 type McpResourceReadResourceResult = z.infer<typeof McpResourceReadResourceResultSchema>;
 
-/** One `/listen` broadcast run of `agents mcp resources read`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp resources read`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpResourcesReadListenerExecution = {
     request: CliCommandAgentsMcpResourcesReadRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | McpResourceReadResourceResult>;
 };
 
@@ -56478,10 +56441,10 @@ declare const CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandAgentsMcpResourcesReadRequestSchemaRequest = z.infer<typeof CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp resources read request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp resources read request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpResourcesReadRequestSchemaListenerExecution = {
     request: CliCommandAgentsMcpResourcesReadRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56494,10 +56457,10 @@ declare const CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandAgentsMcpResourcesReadResponseSchemaRequest = z.infer<typeof CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp resources read response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp resources read response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpResourcesReadResponseSchemaListenerExecution = {
     request: CliCommandAgentsMcpResourcesReadResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56595,10 +56558,10 @@ declare const McpListServersResultSchema: z.ZodObject<{
 }, z.core.$strip>;
 type McpListServersResult = z.infer<typeof McpListServersResultSchema>;
 
-/** One `/listen` broadcast run of `agents mcp servers list`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp servers list`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpServersListListenerExecution = {
     request: CliCommandAgentsMcpServersListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | McpListServersResult>;
 };
 
@@ -56611,10 +56574,10 @@ declare const CliCommandAgentsMcpServersListRequestSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandAgentsMcpServersListRequestSchemaRequest = z.infer<typeof CliCommandAgentsMcpServersListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp servers list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp servers list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpServersListRequestSchemaListenerExecution = {
     request: CliCommandAgentsMcpServersListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56627,10 +56590,10 @@ declare const CliCommandAgentsMcpServersListResponseSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandAgentsMcpServersListResponseSchemaRequest = z.infer<typeof CliCommandAgentsMcpServersListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp servers list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp servers list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpServersListResponseSchemaListenerExecution = {
     request: CliCommandAgentsMcpServersListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56735,10 +56698,10 @@ declare const McpToolCallToolResultSchema: z.ZodObject<{
 }, z.core.$strip>;
 type McpToolCallToolResult = z.infer<typeof McpToolCallToolResultSchema>;
 
-/** One `/listen` broadcast run of `agents mcp tools call`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp tools call`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpToolsCallListenerExecution = {
     request: CliCommandAgentsMcpToolsCallRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | McpToolCallToolResult>;
 };
 
@@ -56751,10 +56714,10 @@ declare const CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandAgentsMcpToolsCallRequestSchemaRequest = z.infer<typeof CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp tools call request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp tools call request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpToolsCallRequestSchemaListenerExecution = {
     request: CliCommandAgentsMcpToolsCallRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56767,10 +56730,10 @@ declare const CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandAgentsMcpToolsCallResponseSchemaRequest = z.infer<typeof CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp tools call response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp tools call response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpToolsCallResponseSchemaListenerExecution = {
     request: CliCommandAgentsMcpToolsCallResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56826,10 +56789,10 @@ declare const McpToolListToolsResultSchema: z.ZodObject<{
 }, z.core.$strip>;
 type McpToolListToolsResult = z.infer<typeof McpToolListToolsResultSchema>;
 
-/** One `/listen` broadcast run of `agents mcp tools list`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp tools list`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpToolsListListenerExecution = {
     request: CliCommandAgentsMcpToolsListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | McpToolListToolsResult>;
 };
 
@@ -56842,10 +56805,10 @@ declare const CliCommandAgentsMcpToolsListRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandAgentsMcpToolsListRequestSchemaRequest = z.infer<typeof CliCommandAgentsMcpToolsListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp tools list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp tools list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpToolsListRequestSchemaListenerExecution = {
     request: CliCommandAgentsMcpToolsListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -56858,10 +56821,10 @@ declare const CliCommandAgentsMcpToolsListResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandAgentsMcpToolsListResponseSchemaRequest = z.infer<typeof CliCommandAgentsMcpToolsListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents mcp tools list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents mcp tools list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMcpToolsListResponseSchemaListenerExecution = {
     request: CliCommandAgentsMcpToolsListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -58141,10 +58104,10 @@ declare const CliCommandAgentsMessageResponseSchema: z.ZodUnion<readonly [z.ZodO
 }, z.core.$strip>]>;
 type CliCommandAgentsMessageResponse = z.infer<typeof CliCommandAgentsMessageResponseSchema>;
 
-/** One `/listen` broadcast run of `agents message`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents message`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMessageListenerExecution = {
     request: CliCommandAgentsMessageRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsMessageResponse>;
 };
 
@@ -58157,10 +58120,10 @@ declare const CliCommandAgentsMessageRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsMessageRequestSchemaRequest = z.infer<typeof CliCommandAgentsMessageRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents message request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents message request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMessageRequestSchemaListenerExecution = {
     request: CliCommandAgentsMessageRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -58173,10 +58136,10 @@ declare const CliCommandAgentsMessageResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsMessageResponseSchemaRequest = z.infer<typeof CliCommandAgentsMessageResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents message response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents message response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsMessageResponseSchemaListenerExecution = {
     request: CliCommandAgentsMessageResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59386,10 +59349,10 @@ declare const CliCommandAgentsPublishResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsPublishResponse = z.infer<typeof CliCommandAgentsPublishResponseSchema>;
 
-/** One `/listen` broadcast run of `agents publish`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents publish`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsPublishListenerExecution = {
     request: CliCommandAgentsPublishRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsPublishResponse>;
 };
 
@@ -59402,10 +59365,10 @@ declare const CliCommandAgentsPublishRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsPublishRequestSchemaRequest = z.infer<typeof CliCommandAgentsPublishRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents publish request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents publish request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsPublishRequestSchemaListenerExecution = {
     request: CliCommandAgentsPublishRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59418,10 +59381,10 @@ declare const CliCommandAgentsPublishResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsPublishResponseSchemaRequest = z.infer<typeof CliCommandAgentsPublishResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents publish response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents publish response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsPublishResponseSchemaListenerExecution = {
     request: CliCommandAgentsPublishResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59478,10 +59441,10 @@ declare const CliCommandAgentsQueueDeleteResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsQueueDeleteResponse = z.infer<typeof CliCommandAgentsQueueDeleteResponseSchema>;
 
-/** One `/listen` broadcast run of `agents queue delete`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue delete`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueDeleteListenerExecution = {
     request: CliCommandAgentsQueueDeleteRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsQueueDeleteResponse>;
 };
 
@@ -59494,10 +59457,10 @@ declare const CliCommandAgentsQueueDeleteRequestSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandAgentsQueueDeleteRequestSchemaRequest = z.infer<typeof CliCommandAgentsQueueDeleteRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue delete request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue delete request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueDeleteRequestSchemaListenerExecution = {
     request: CliCommandAgentsQueueDeleteRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59510,10 +59473,10 @@ declare const CliCommandAgentsQueueDeleteResponseSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandAgentsQueueDeleteResponseSchemaRequest = z.infer<typeof CliCommandAgentsQueueDeleteResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue delete response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue delete response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueDeleteResponseSchemaListenerExecution = {
     request: CliCommandAgentsQueueDeleteResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59548,10 +59511,10 @@ declare const CliCommandAgentsQueueDeliverResponseItemSchema: z.ZodUnion<readonl
 }, z.core.$strip>, z.ZodLiteral<"AllAgentsActive">]>;
 type CliCommandAgentsQueueDeliverResponseItem = z.infer<typeof CliCommandAgentsQueueDeliverResponseItemSchema>;
 
-/** One `/listen` broadcast run of `agents queue deliver`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents queue deliver`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsQueueDeliverListenerExecution = {
     request: CliCommandAgentsQueueDeliverRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsQueueDeliverResponseItem>;
 };
 
@@ -59564,10 +59527,10 @@ declare const CliCommandAgentsQueueDeliverRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandAgentsQueueDeliverRequestSchemaRequest = z.infer<typeof CliCommandAgentsQueueDeliverRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue deliver request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue deliver request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueDeliverRequestSchemaListenerExecution = {
     request: CliCommandAgentsQueueDeliverRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59580,10 +59543,10 @@ declare const CliCommandAgentsQueueDeliverResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandAgentsQueueDeliverResponseSchemaRequest = z.infer<typeof CliCommandAgentsQueueDeliverResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue deliver response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue deliver response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueDeliverResponseSchemaListenerExecution = {
     request: CliCommandAgentsQueueDeliverResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59645,10 +59608,10 @@ declare const CliCommandAgentsQueueListResponseItemSchema: z.ZodUnion<readonly [
 }, z.core.$strip>]>;
 type CliCommandAgentsQueueListResponseItem = z.infer<typeof CliCommandAgentsQueueListResponseItemSchema>;
 
-/** One `/listen` broadcast run of `agents queue list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `agents queue list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandAgentsQueueListListenerExecution = {
     request: CliCommandAgentsQueueListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsQueueListResponseItem>;
 };
 
@@ -59661,10 +59624,10 @@ declare const CliCommandAgentsQueueListRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsQueueListRequestSchemaRequest = z.infer<typeof CliCommandAgentsQueueListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueListRequestSchemaListenerExecution = {
     request: CliCommandAgentsQueueListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59677,10 +59640,10 @@ declare const CliCommandAgentsQueueListResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandAgentsQueueListResponseSchemaRequest = z.infer<typeof CliCommandAgentsQueueListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueListResponseSchemaListenerExecution = {
     request: CliCommandAgentsQueueListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59694,10 +59657,10 @@ declare const CliCommandAgentsQueueOpenRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsQueueOpenRequest = z.infer<typeof CliCommandAgentsQueueOpenRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue open`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue open`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueOpenListenerExecution = {
     request: CliCommandAgentsQueueOpenRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | AgentCompletionsMessageRichContentPart>;
 };
 
@@ -59710,10 +59673,10 @@ declare const CliCommandAgentsQueueOpenRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsQueueOpenRequestSchemaRequest = z.infer<typeof CliCommandAgentsQueueOpenRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue open request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue open request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueOpenRequestSchemaListenerExecution = {
     request: CliCommandAgentsQueueOpenRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -59726,10 +59689,10 @@ declare const CliCommandAgentsQueueOpenResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandAgentsQueueOpenResponseSchemaRequest = z.infer<typeof CliCommandAgentsQueueOpenResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents queue open response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents queue open response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsQueueOpenResponseSchemaListenerExecution = {
     request: CliCommandAgentsQueueOpenResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -61214,13 +61177,13 @@ type CliCommandAgentsSpawnResponseItem = z.infer<typeof CliCommandAgentsSpawnRes
 /** One `/listen` broadcast run of `agents spawn` in its unary form (the plain `execute`). */
 type CliCommandAgentsSpawnListenerExecution = {
     request: CliCommandAgentsSpawnRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | string>;
 };
 /** One `/listen` broadcast run of `agents spawn` in its streaming form (`execute_streaming` — the request set `dangerous_advanced.stream: true`). */
 type CliCommandAgentsSpawnListenerExecutionStreaming = {
     request: CliCommandAgentsSpawnRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandAgentsSpawnResponseItem>;
 };
 /** This leaf's multiple listener executions — discriminated per request off `dangerous_advanced.stream`; the parent branch union references this. */
@@ -61235,10 +61198,10 @@ declare const CliCommandAgentsSpawnRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsSpawnRequestSchemaRequest = z.infer<typeof CliCommandAgentsSpawnRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents spawn request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents spawn request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsSpawnRequestSchemaListenerExecution = {
     request: CliCommandAgentsSpawnRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -61251,10 +61214,10 @@ declare const CliCommandAgentsSpawnResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsSpawnResponseSchemaRequest = z.infer<typeof CliCommandAgentsSpawnResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents spawn response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents spawn response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsSpawnResponseSchemaListenerExecution = {
     request: CliCommandAgentsSpawnResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -64870,10 +64833,10 @@ declare const CliCommandAgentsTagsApplyResponseSchema: z.ZodUnion<readonly [z.Zo
 }, z.core.$strip>]>]>;
 type CliCommandAgentsTagsApplyResponse = z.infer<typeof CliCommandAgentsTagsApplyResponseSchema>;
 
-/** One `/listen` broadcast run of `agents tags apply`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags apply`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsApplyListenerExecution = {
     request: CliCommandAgentsTagsApplyRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsTagsApplyResponse>;
 };
 
@@ -64886,10 +64849,10 @@ declare const CliCommandAgentsTagsApplyRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsTagsApplyRequestSchemaRequest = z.infer<typeof CliCommandAgentsTagsApplyRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents tags apply request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags apply request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsApplyRequestSchemaListenerExecution = {
     request: CliCommandAgentsTagsApplyRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -64902,10 +64865,10 @@ declare const CliCommandAgentsTagsApplyResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandAgentsTagsApplyResponseSchemaRequest = z.infer<typeof CliCommandAgentsTagsApplyResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents tags apply response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags apply response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsApplyResponseSchemaListenerExecution = {
     request: CliCommandAgentsTagsApplyResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -66134,10 +66097,10 @@ declare const CliCommandAgentsTagsLookupResponseSchema: z.ZodUnion<readonly [z.Z
 }, z.core.$strip>]>;
 type CliCommandAgentsTagsLookupResponse = z.infer<typeof CliCommandAgentsTagsLookupResponseSchema>;
 
-/** One `/listen` broadcast run of `agents tags lookup`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags lookup`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsLookupListenerExecution = {
     request: CliCommandAgentsTagsLookupRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsTagsLookupResponse>;
 };
 
@@ -66150,10 +66113,10 @@ declare const CliCommandAgentsTagsLookupRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandAgentsTagsLookupRequestSchemaRequest = z.infer<typeof CliCommandAgentsTagsLookupRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents tags lookup request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags lookup request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsLookupRequestSchemaListenerExecution = {
     request: CliCommandAgentsTagsLookupRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -66166,10 +66129,10 @@ declare const CliCommandAgentsTagsLookupResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandAgentsTagsLookupResponseSchemaRequest = z.infer<typeof CliCommandAgentsTagsLookupResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents tags lookup response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags lookup response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsLookupResponseSchemaListenerExecution = {
     request: CliCommandAgentsTagsLookupResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -66196,10 +66159,10 @@ declare const CliCommandAgentsTagsRemoveResponseSchema: z.ZodUnion<readonly [z.Z
 }, z.core.$strip>]>;
 type CliCommandAgentsTagsRemoveResponse = z.infer<typeof CliCommandAgentsTagsRemoveResponseSchema>;
 
-/** One `/listen` broadcast run of `agents tags remove`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags remove`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsRemoveListenerExecution = {
     request: CliCommandAgentsTagsRemoveRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandAgentsTagsRemoveResponse>;
 };
 
@@ -66212,10 +66175,10 @@ declare const CliCommandAgentsTagsRemoveRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandAgentsTagsRemoveRequestSchemaRequest = z.infer<typeof CliCommandAgentsTagsRemoveRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents tags remove request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags remove request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsRemoveRequestSchemaListenerExecution = {
     request: CliCommandAgentsTagsRemoveRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -66228,10 +66191,10 @@ declare const CliCommandAgentsTagsRemoveResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandAgentsTagsRemoveResponseSchemaRequest = z.infer<typeof CliCommandAgentsTagsRemoveResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents tags remove response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents tags remove response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsTagsRemoveResponseSchemaListenerExecution = {
     request: CliCommandAgentsTagsRemoveResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67457,10 +67420,10 @@ type CliCommandAgentsWaitRequest = z.infer<typeof CliCommandAgentsWaitRequestSch
 declare const CliCommandOkSchema: z.ZodLiteral<"Ok">;
 type CliCommandOk = z.infer<typeof CliCommandOkSchema>;
 
-/** One `/listen` broadcast run of `agents wait`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents wait`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsWaitListenerExecution = {
     request: CliCommandAgentsWaitRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -67473,10 +67436,10 @@ declare const CliCommandAgentsWaitRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsWaitRequestSchemaRequest = z.infer<typeof CliCommandAgentsWaitRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents wait request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents wait request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsWaitRequestSchemaListenerExecution = {
     request: CliCommandAgentsWaitRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67489,10 +67452,10 @@ declare const CliCommandAgentsWaitResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandAgentsWaitResponseSchemaRequest = z.infer<typeof CliCommandAgentsWaitResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `agents wait response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `agents wait response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandAgentsWaitResponseSchemaListenerExecution = {
     request: CliCommandAgentsWaitResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67513,10 +67476,10 @@ declare const CliCommandApiConfigAddressGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigAddressGetResponse = z.infer<typeof CliCommandApiConfigAddressGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config address get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config address get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigAddressGetListenerExecution = {
     request: CliCommandApiConfigAddressGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigAddressGetResponse>;
 };
 
@@ -67529,10 +67492,10 @@ declare const CliCommandApiConfigAddressGetRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandApiConfigAddressGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigAddressGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config address get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config address get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigAddressGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigAddressGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67545,10 +67508,10 @@ declare const CliCommandApiConfigAddressGetResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandApiConfigAddressGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigAddressGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config address get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config address get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigAddressGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigAddressGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67562,10 +67525,10 @@ declare const CliCommandApiConfigAddressSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigAddressSetRequest = z.infer<typeof CliCommandApiConfigAddressSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config address set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config address set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigAddressSetListenerExecution = {
     request: CliCommandApiConfigAddressSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -67578,10 +67541,10 @@ declare const CliCommandApiConfigAddressSetRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandApiConfigAddressSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigAddressSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config address set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config address set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigAddressSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigAddressSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67594,10 +67557,10 @@ declare const CliCommandApiConfigAddressSetResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandApiConfigAddressSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigAddressSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config address set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config address set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigAddressSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigAddressSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67618,10 +67581,10 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetListenerExecution = {
     request: CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse>;
 };
 
@@ -67634,10 +67597,10 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestS
 }, z.core.$strip>;
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67650,10 +67613,10 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest
 }, z.core.$strip>;
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67667,10 +67630,10 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetListenerExecution = {
     request: CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -67683,10 +67646,10 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestS
 }, z.core.$strip>;
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67699,10 +67662,10 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest
 }, z.core.$strip>;
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67723,10 +67686,10 @@ declare const CliCommandApiConfigCommitAuthorEmailGetResponseSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorEmailGetResponse = z.infer<typeof CliCommandApiConfigCommitAuthorEmailGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_email get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_email get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorEmailGetListenerExecution = {
     request: CliCommandApiConfigCommitAuthorEmailGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigCommitAuthorEmailGetResponse>;
 };
 
@@ -67739,10 +67702,10 @@ declare const CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_email get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_email get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67755,10 +67718,10 @@ declare const CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_email get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_email get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67772,10 +67735,10 @@ declare const CliCommandApiConfigCommitAuthorEmailSetRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorEmailSetRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_email set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_email set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorEmailSetListenerExecution = {
     request: CliCommandApiConfigCommitAuthorEmailSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -67788,10 +67751,10 @@ declare const CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_email set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_email set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67804,10 +67767,10 @@ declare const CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_email set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_email set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67828,10 +67791,10 @@ declare const CliCommandApiConfigCommitAuthorNameGetResponseSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorNameGetResponse = z.infer<typeof CliCommandApiConfigCommitAuthorNameGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_name get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_name get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorNameGetListenerExecution = {
     request: CliCommandApiConfigCommitAuthorNameGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigCommitAuthorNameGetResponse>;
 };
 
@@ -67844,10 +67807,10 @@ declare const CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_name get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_name get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorNameGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67860,10 +67823,10 @@ declare const CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_name get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_name get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorNameGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67877,10 +67840,10 @@ declare const CliCommandApiConfigCommitAuthorNameSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorNameSetRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_name set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_name set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorNameSetListenerExecution = {
     request: CliCommandApiConfigCommitAuthorNameSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -67893,10 +67856,10 @@ declare const CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_name set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_name set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorNameSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67909,10 +67872,10 @@ declare const CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config commit_author_name set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config commit_author_name set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigCommitAuthorNameSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67942,10 +67905,10 @@ declare const CliCommandApiConfigGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigGetResponse = z.infer<typeof CliCommandApiConfigGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGetListenerExecution = {
     request: CliCommandApiConfigGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigGetResponse>;
 };
 
@@ -67958,10 +67921,10 @@ declare const CliCommandApiConfigGetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67974,10 +67937,10 @@ declare const CliCommandApiConfigGetResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -67995,10 +67958,10 @@ declare const CliCommandApiConfigGithubAuthorizationGetResponseSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandApiConfigGithubAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigGithubAuthorizationGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config github_authorization get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config github_authorization get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGithubAuthorizationGetListenerExecution = {
     request: CliCommandApiConfigGithubAuthorizationGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigGithubAuthorizationGetResponse>;
 };
 
@@ -68011,10 +67974,10 @@ declare const CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config github_authorization get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config github_authorization get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGithubAuthorizationGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68027,10 +67990,10 @@ declare const CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSche
 }, z.core.$strip>;
 type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config github_authorization get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config github_authorization get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGithubAuthorizationGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68044,10 +68007,10 @@ declare const CliCommandApiConfigGithubAuthorizationSetRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandApiConfigGithubAuthorizationSetRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config github_authorization set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config github_authorization set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGithubAuthorizationSetListenerExecution = {
     request: CliCommandApiConfigGithubAuthorizationSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68060,10 +68023,10 @@ declare const CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config github_authorization set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config github_authorization set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGithubAuthorizationSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68076,10 +68039,10 @@ declare const CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSche
 }, z.core.$strip>;
 type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config github_authorization set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config github_authorization set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigGithubAuthorizationSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68100,10 +68063,10 @@ declare const CliCommandApiConfigHttpRefererGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigHttpRefererGetResponse = z.infer<typeof CliCommandApiConfigHttpRefererGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config http_referer get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config http_referer get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigHttpRefererGetListenerExecution = {
     request: CliCommandApiConfigHttpRefererGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigHttpRefererGetResponse>;
 };
 
@@ -68116,10 +68079,10 @@ declare const CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandApiConfigHttpRefererGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config http_referer get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config http_referer get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigHttpRefererGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigHttpRefererGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68132,10 +68095,10 @@ declare const CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandApiConfigHttpRefererGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config http_referer get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config http_referer get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigHttpRefererGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigHttpRefererGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68149,10 +68112,10 @@ declare const CliCommandApiConfigHttpRefererSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigHttpRefererSetRequest = z.infer<typeof CliCommandApiConfigHttpRefererSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config http_referer set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config http_referer set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigHttpRefererSetListenerExecution = {
     request: CliCommandApiConfigHttpRefererSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68165,10 +68128,10 @@ declare const CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandApiConfigHttpRefererSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config http_referer set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config http_referer set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigHttpRefererSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigHttpRefererSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68181,10 +68144,10 @@ declare const CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandApiConfigHttpRefererSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config http_referer set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config http_referer set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigHttpRefererSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigHttpRefererSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68202,10 +68165,10 @@ declare const CliCommandApiConfigMcpAuthorizationAddRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationAddRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationAddRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization add`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization add`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationAddListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationAddRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68218,10 +68181,10 @@ declare const CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization add request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization add request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationAddRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68234,10 +68197,10 @@ declare const CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization add response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization add response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationAddResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68251,10 +68214,10 @@ declare const CliCommandApiConfigMcpAuthorizationDelRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationDelRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationDelRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization del`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization del`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationDelListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationDelRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68267,10 +68230,10 @@ declare const CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization del request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization del request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationDelRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68283,10 +68246,10 @@ declare const CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization del response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization del response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationDelResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68304,10 +68267,10 @@ declare const CliCommandApiConfigMcpAuthorizationGetResponseSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigMcpAuthorizationGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationGetListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigMcpAuthorizationGetResponse>;
 };
 
@@ -68320,10 +68283,10 @@ declare const CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68336,10 +68299,10 @@ declare const CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_authorization get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_authorization get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68360,10 +68323,10 @@ declare const CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandApiConfigMcpCallTimeoutMsGetResponse = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpCallTimeoutMsGetListenerExecution = {
     request: CliCommandApiConfigMcpCallTimeoutMsGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigMcpCallTimeoutMsGetResponse>;
 };
 
@@ -68376,10 +68339,10 @@ declare const CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68392,10 +68355,10 @@ declare const CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68409,10 +68372,10 @@ declare const CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigMcpCallTimeoutMsSetRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpCallTimeoutMsSetListenerExecution = {
     request: CliCommandApiConfigMcpCallTimeoutMsSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68425,10 +68388,10 @@ declare const CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68441,10 +68404,10 @@ declare const CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema:
 }, z.core.$strip>;
 type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_call_timeout_ms set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68465,10 +68428,10 @@ declare const CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandApiConfigMcpConnectTimeoutMsGetResponse = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpConnectTimeoutMsGetListenerExecution = {
     request: CliCommandApiConfigMcpConnectTimeoutMsGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigMcpConnectTimeoutMsGetResponse>;
 };
 
@@ -68481,10 +68444,10 @@ declare const CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68497,10 +68460,10 @@ declare const CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSche
 }, z.core.$strip>;
 type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68514,10 +68477,10 @@ declare const CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandApiConfigMcpConnectTimeoutMsSetRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpConnectTimeoutMsSetListenerExecution = {
     request: CliCommandApiConfigMcpConnectTimeoutMsSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68530,10 +68493,10 @@ declare const CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68546,10 +68509,10 @@ declare const CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSche
 }, z.core.$strip>;
 type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config mcp_connect_timeout_ms set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68570,10 +68533,10 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandApiConfigObjectiveaiAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config objectiveai_authorization get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config objectiveai_authorization get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigObjectiveaiAuthorizationGetListenerExecution = {
     request: CliCommandApiConfigObjectiveaiAuthorizationGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigObjectiveaiAuthorizationGetResponse>;
 };
 
@@ -68586,10 +68549,10 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest
 }, z.core.$strip>;
 type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config objectiveai_authorization get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config objectiveai_authorization get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68602,10 +68565,10 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaReques
 }, z.core.$strip>;
 type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config objectiveai_authorization get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config objectiveai_authorization get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68619,10 +68582,10 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandApiConfigObjectiveaiAuthorizationSetRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config objectiveai_authorization set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config objectiveai_authorization set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigObjectiveaiAuthorizationSetListenerExecution = {
     request: CliCommandApiConfigObjectiveaiAuthorizationSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68635,10 +68598,10 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest
 }, z.core.$strip>;
 type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config objectiveai_authorization set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config objectiveai_authorization set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68651,10 +68614,10 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaReques
 }, z.core.$strip>;
 type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config objectiveai_authorization set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config objectiveai_authorization set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68675,10 +68638,10 @@ declare const CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandApiConfigOpenrouterAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config openrouter_authorization get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config openrouter_authorization get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigOpenrouterAuthorizationGetListenerExecution = {
     request: CliCommandApiConfigOpenrouterAuthorizationGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigOpenrouterAuthorizationGetResponse>;
 };
 
@@ -68691,10 +68654,10 @@ declare const CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestS
 }, z.core.$strip>;
 type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config openrouter_authorization get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config openrouter_authorization get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68707,10 +68670,10 @@ declare const CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest
 }, z.core.$strip>;
 type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config openrouter_authorization get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config openrouter_authorization get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68724,10 +68687,10 @@ declare const CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandApiConfigOpenrouterAuthorizationSetRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config openrouter_authorization set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config openrouter_authorization set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigOpenrouterAuthorizationSetListenerExecution = {
     request: CliCommandApiConfigOpenrouterAuthorizationSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68740,10 +68703,10 @@ declare const CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestS
 }, z.core.$strip>;
 type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config openrouter_authorization set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config openrouter_authorization set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68756,10 +68719,10 @@ declare const CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest
 }, z.core.$strip>;
 type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config openrouter_authorization set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config openrouter_authorization set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68780,10 +68743,10 @@ declare const CliCommandApiConfigUserAgentGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigUserAgentGetResponse = z.infer<typeof CliCommandApiConfigUserAgentGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config user_agent get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config user_agent get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigUserAgentGetListenerExecution = {
     request: CliCommandApiConfigUserAgentGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigUserAgentGetResponse>;
 };
 
@@ -68796,10 +68759,10 @@ declare const CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandApiConfigUserAgentGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config user_agent get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config user_agent get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigUserAgentGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigUserAgentGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68812,10 +68775,10 @@ declare const CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandApiConfigUserAgentGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config user_agent get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config user_agent get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigUserAgentGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigUserAgentGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68829,10 +68792,10 @@ declare const CliCommandApiConfigUserAgentSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigUserAgentSetRequest = z.infer<typeof CliCommandApiConfigUserAgentSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config user_agent set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config user_agent set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigUserAgentSetListenerExecution = {
     request: CliCommandApiConfigUserAgentSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68845,10 +68808,10 @@ declare const CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandApiConfigUserAgentSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config user_agent set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config user_agent set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigUserAgentSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigUserAgentSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68861,10 +68824,10 @@ declare const CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandApiConfigUserAgentSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config user_agent set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config user_agent set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigUserAgentSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigUserAgentSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68885,10 +68848,10 @@ declare const CliCommandApiConfigXTitleGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigXTitleGetResponse = z.infer<typeof CliCommandApiConfigXTitleGetResponseSchema>;
 
-/** One `/listen` broadcast run of `api config x_title get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config x_title get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigXTitleGetListenerExecution = {
     request: CliCommandApiConfigXTitleGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandApiConfigXTitleGetResponse>;
 };
 
@@ -68901,10 +68864,10 @@ declare const CliCommandApiConfigXTitleGetRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandApiConfigXTitleGetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigXTitleGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config x_title get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config x_title get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigXTitleGetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigXTitleGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68917,10 +68880,10 @@ declare const CliCommandApiConfigXTitleGetResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandApiConfigXTitleGetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigXTitleGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config x_title get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config x_title get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigXTitleGetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigXTitleGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68934,10 +68897,10 @@ declare const CliCommandApiConfigXTitleSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandApiConfigXTitleSetRequest = z.infer<typeof CliCommandApiConfigXTitleSetRequestSchema>;
 
-/** One `/listen` broadcast run of `api config x_title set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config x_title set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigXTitleSetListenerExecution = {
     request: CliCommandApiConfigXTitleSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -68950,10 +68913,10 @@ declare const CliCommandApiConfigXTitleSetRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandApiConfigXTitleSetRequestSchemaRequest = z.infer<typeof CliCommandApiConfigXTitleSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config x_title set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config x_title set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigXTitleSetRequestSchemaListenerExecution = {
     request: CliCommandApiConfigXTitleSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68966,10 +68929,10 @@ declare const CliCommandApiConfigXTitleSetResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandApiConfigXTitleSetResponseSchemaRequest = z.infer<typeof CliCommandApiConfigXTitleSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `api config x_title set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `api config x_title set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandApiConfigXTitleSetResponseSchemaListenerExecution = {
     request: CliCommandApiConfigXTitleSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -68998,10 +68961,10 @@ declare const CliCommandChannelsCloseResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandChannelsCloseResponse = z.infer<typeof CliCommandChannelsCloseResponseSchema>;
 
-/** One `/listen` broadcast run of `channels close`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels close`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsCloseListenerExecution = {
     request: CliCommandChannelsCloseRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandChannelsCloseResponse>;
 };
 
@@ -69014,10 +68977,10 @@ declare const CliCommandChannelsCloseRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandChannelsCloseRequestSchemaRequest = z.infer<typeof CliCommandChannelsCloseRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels close request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels close request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsCloseRequestSchemaListenerExecution = {
     request: CliCommandChannelsCloseRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69030,10 +68993,10 @@ declare const CliCommandChannelsCloseResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandChannelsCloseResponseSchemaRequest = z.infer<typeof CliCommandChannelsCloseResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels close response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels close response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsCloseResponseSchemaListenerExecution = {
     request: CliCommandChannelsCloseResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69072,10 +69035,10 @@ declare const CliCommandChannelsLogsListResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandChannelsLogsListResponse = z.infer<typeof CliCommandChannelsLogsListResponseSchema>;
 
-/** One `/listen` broadcast run of `channels logs list`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs list`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsListListenerExecution = {
     request: CliCommandChannelsLogsListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandChannelsLogsListResponse>;
 };
 
@@ -69088,10 +69051,10 @@ declare const CliCommandChannelsLogsListRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandChannelsLogsListRequestSchemaRequest = z.infer<typeof CliCommandChannelsLogsListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsListRequestSchemaListenerExecution = {
     request: CliCommandChannelsLogsListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69104,10 +69067,10 @@ declare const CliCommandChannelsLogsListResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandChannelsLogsListResponseSchemaRequest = z.infer<typeof CliCommandChannelsLogsListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsListResponseSchemaListenerExecution = {
     request: CliCommandChannelsLogsListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69141,10 +69104,10 @@ declare const CliCommandChannelsLogsOpenResponseSchema: z.ZodUnion<readonly [z.Z
 }, z.core.$strip>]>;
 type CliCommandChannelsLogsOpenResponse = z.infer<typeof CliCommandChannelsLogsOpenResponseSchema>;
 
-/** One `/listen` broadcast run of `channels logs open`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs open`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsOpenListenerExecution = {
     request: CliCommandChannelsLogsOpenRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandChannelsLogsOpenResponse>;
 };
 
@@ -69157,10 +69120,10 @@ declare const CliCommandChannelsLogsOpenRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandChannelsLogsOpenRequestSchemaRequest = z.infer<typeof CliCommandChannelsLogsOpenRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs open request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs open request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsOpenRequestSchemaListenerExecution = {
     request: CliCommandChannelsLogsOpenRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69173,10 +69136,10 @@ declare const CliCommandChannelsLogsOpenResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandChannelsLogsOpenResponseSchemaRequest = z.infer<typeof CliCommandChannelsLogsOpenResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs open response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs open response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsOpenResponseSchemaListenerExecution = {
     request: CliCommandChannelsLogsOpenResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69201,10 +69164,10 @@ declare const CliCommandChannelsLogsReplyResponseSchema: z.ZodUnion<readonly [z.
 }, z.core.$strip>]>;
 type CliCommandChannelsLogsReplyResponse = z.infer<typeof CliCommandChannelsLogsReplyResponseSchema>;
 
-/** One `/listen` broadcast run of `channels logs reply`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs reply`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsReplyListenerExecution = {
     request: CliCommandChannelsLogsReplyRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandChannelsLogsReplyResponse>;
 };
 
@@ -69217,10 +69180,10 @@ declare const CliCommandChannelsLogsReplyRequestSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandChannelsLogsReplyRequestSchemaRequest = z.infer<typeof CliCommandChannelsLogsReplyRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs reply request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs reply request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsReplyRequestSchemaListenerExecution = {
     request: CliCommandChannelsLogsReplyRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69233,10 +69196,10 @@ declare const CliCommandChannelsLogsReplyResponseSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandChannelsLogsReplyResponseSchemaRequest = z.infer<typeof CliCommandChannelsLogsReplyResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs reply response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs reply response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsReplyResponseSchemaListenerExecution = {
     request: CliCommandChannelsLogsReplyResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69261,10 +69224,10 @@ declare const CliCommandChannelsLogsRequestResponseSchema: z.ZodUnion<readonly [
 }, z.core.$strip>]>;
 type CliCommandChannelsLogsRequestResponse = z.infer<typeof CliCommandChannelsLogsRequestResponseSchema>;
 
-/** One `/listen` broadcast run of `channels logs request`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs request`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsRequestListenerExecution = {
     request: CliCommandChannelsLogsRequestRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandChannelsLogsRequestResponse>;
 };
 
@@ -69277,10 +69240,10 @@ declare const CliCommandChannelsLogsRequestRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandChannelsLogsRequestRequestSchemaRequest = z.infer<typeof CliCommandChannelsLogsRequestRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs request request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs request request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsRequestRequestSchemaListenerExecution = {
     request: CliCommandChannelsLogsRequestRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69293,10 +69256,10 @@ declare const CliCommandChannelsLogsRequestResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandChannelsLogsRequestResponseSchemaRequest = z.infer<typeof CliCommandChannelsLogsRequestResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs request response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs request response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsRequestResponseSchemaListenerExecution = {
     request: CliCommandChannelsLogsRequestResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69332,10 +69295,10 @@ declare const CliCommandChannelsLogsSubscribeResponseItemSchema: z.ZodUnion<read
 }, z.core.$strip>]>, z.ZodLiteral<"channel_closed">]>;
 type CliCommandChannelsLogsSubscribeResponseItem = z.infer<typeof CliCommandChannelsLogsSubscribeResponseItemSchema>;
 
-/** One `/listen` broadcast run of `channels logs subscribe`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `channels logs subscribe`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandChannelsLogsSubscribeListenerExecution = {
     request: CliCommandChannelsLogsSubscribeRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandChannelsLogsSubscribeResponseItem>;
 };
 
@@ -69348,10 +69311,10 @@ declare const CliCommandChannelsLogsSubscribeRequestSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandChannelsLogsSubscribeRequestSchemaRequest = z.infer<typeof CliCommandChannelsLogsSubscribeRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs subscribe request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs subscribe request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsSubscribeRequestSchemaListenerExecution = {
     request: CliCommandChannelsLogsSubscribeRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69364,10 +69327,10 @@ declare const CliCommandChannelsLogsSubscribeResponseSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandChannelsLogsSubscribeResponseSchemaRequest = z.infer<typeof CliCommandChannelsLogsSubscribeResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels logs subscribe response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels logs subscribe response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsLogsSubscribeResponseSchemaListenerExecution = {
     request: CliCommandChannelsLogsSubscribeResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69392,10 +69355,10 @@ declare const CliCommandChannelsPublishResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandChannelsPublishResponse = z.infer<typeof CliCommandChannelsPublishResponseSchema>;
 
-/** One `/listen` broadcast run of `channels publish`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels publish`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsPublishListenerExecution = {
     request: CliCommandChannelsPublishRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandChannelsPublishResponse>;
 };
 
@@ -69408,10 +69371,10 @@ declare const CliCommandChannelsPublishRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandChannelsPublishRequestSchemaRequest = z.infer<typeof CliCommandChannelsPublishRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels publish request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels publish request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsPublishRequestSchemaListenerExecution = {
     request: CliCommandChannelsPublishRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69424,10 +69387,10 @@ declare const CliCommandChannelsPublishResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandChannelsPublishResponseSchemaRequest = z.infer<typeof CliCommandChannelsPublishResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `channels publish response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `channels publish response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandChannelsPublishResponseSchemaListenerExecution = {
     request: CliCommandChannelsPublishResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69448,10 +69411,10 @@ declare const CliCommandDaemonConfigAddressGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigAddressGetResponse = z.infer<typeof CliCommandDaemonConfigAddressGetResponseSchema>;
 
-/** One `/listen` broadcast run of `daemon config address get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config address get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigAddressGetListenerExecution = {
     request: CliCommandDaemonConfigAddressGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDaemonConfigAddressGetResponse>;
 };
 
@@ -69464,10 +69427,10 @@ declare const CliCommandDaemonConfigAddressGetRequestSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandDaemonConfigAddressGetRequestSchemaRequest = z.infer<typeof CliCommandDaemonConfigAddressGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config address get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config address get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigAddressGetRequestSchemaListenerExecution = {
     request: CliCommandDaemonConfigAddressGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69480,10 +69443,10 @@ declare const CliCommandDaemonConfigAddressGetResponseSchemaRequestSchema: z.Zod
 }, z.core.$strip>;
 type CliCommandDaemonConfigAddressGetResponseSchemaRequest = z.infer<typeof CliCommandDaemonConfigAddressGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config address get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config address get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigAddressGetResponseSchemaListenerExecution = {
     request: CliCommandDaemonConfigAddressGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69506,10 +69469,10 @@ declare const CliCommandDaemonConfigGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigGetResponse = z.infer<typeof CliCommandDaemonConfigGetResponseSchema>;
 
-/** One `/listen` broadcast run of `daemon config get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigGetListenerExecution = {
     request: CliCommandDaemonConfigGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDaemonConfigGetResponse>;
 };
 
@@ -69522,10 +69485,10 @@ declare const CliCommandDaemonConfigGetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigGetRequestSchemaRequest = z.infer<typeof CliCommandDaemonConfigGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigGetRequestSchemaListenerExecution = {
     request: CliCommandDaemonConfigGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69538,10 +69501,10 @@ declare const CliCommandDaemonConfigGetResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandDaemonConfigGetResponseSchemaRequest = z.infer<typeof CliCommandDaemonConfigGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigGetResponseSchemaListenerExecution = {
     request: CliCommandDaemonConfigGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69560,10 +69523,10 @@ declare const CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchema: z.
 }, z.core.$strip>;
 type CliCommandDaemonConfigRefreshSecretSignaturePairResponse = z.infer<typeof CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchema>;
 
-/** One `/listen` broadcast run of `daemon config refresh_secret_signature_pair`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config refresh_secret_signature_pair`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigRefreshSecretSignaturePairListenerExecution = {
     request: CliCommandDaemonConfigRefreshSecretSignaturePairRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDaemonConfigRefreshSecretSignaturePairResponse>;
 };
 
@@ -69576,10 +69539,10 @@ declare const CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaReque
 }, z.core.$strip>;
 type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequest = z.infer<typeof CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config refresh_secret_signature_pair request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config refresh_secret_signature_pair request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaListenerExecution = {
     request: CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69592,10 +69555,10 @@ declare const CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequ
 }, z.core.$strip>;
 type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequest = z.infer<typeof CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config refresh_secret_signature_pair response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config refresh_secret_signature_pair response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaListenerExecution = {
     request: CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69613,10 +69576,10 @@ declare const CliCommandDaemonConfigSecretGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigSecretGetResponse = z.infer<typeof CliCommandDaemonConfigSecretGetResponseSchema>;
 
-/** One `/listen` broadcast run of `daemon config secret get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config secret get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSecretGetListenerExecution = {
     request: CliCommandDaemonConfigSecretGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDaemonConfigSecretGetResponse>;
 };
 
@@ -69629,10 +69592,10 @@ declare const CliCommandDaemonConfigSecretGetRequestSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandDaemonConfigSecretGetRequestSchemaRequest = z.infer<typeof CliCommandDaemonConfigSecretGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config secret get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config secret get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSecretGetRequestSchemaListenerExecution = {
     request: CliCommandDaemonConfigSecretGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69645,10 +69608,10 @@ declare const CliCommandDaemonConfigSecretGetResponseSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandDaemonConfigSecretGetResponseSchemaRequest = z.infer<typeof CliCommandDaemonConfigSecretGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config secret get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config secret get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSecretGetResponseSchemaListenerExecution = {
     request: CliCommandDaemonConfigSecretGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69669,10 +69632,10 @@ declare const CliCommandDaemonConfigSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigSetRequest = z.infer<typeof CliCommandDaemonConfigSetRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSetListenerExecution = {
     request: CliCommandDaemonConfigSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -69685,10 +69648,10 @@ declare const CliCommandDaemonConfigSetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigSetRequestSchemaRequest = z.infer<typeof CliCommandDaemonConfigSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSetRequestSchemaListenerExecution = {
     request: CliCommandDaemonConfigSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69701,10 +69664,10 @@ declare const CliCommandDaemonConfigSetResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandDaemonConfigSetResponseSchemaRequest = z.infer<typeof CliCommandDaemonConfigSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSetResponseSchemaListenerExecution = {
     request: CliCommandDaemonConfigSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69722,10 +69685,10 @@ declare const CliCommandDaemonConfigSignatureGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonConfigSignatureGetResponse = z.infer<typeof CliCommandDaemonConfigSignatureGetResponseSchema>;
 
-/** One `/listen` broadcast run of `daemon config signature get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config signature get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSignatureGetListenerExecution = {
     request: CliCommandDaemonConfigSignatureGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDaemonConfigSignatureGetResponse>;
 };
 
@@ -69738,10 +69701,10 @@ declare const CliCommandDaemonConfigSignatureGetRequestSchemaRequestSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandDaemonConfigSignatureGetRequestSchemaRequest = z.infer<typeof CliCommandDaemonConfigSignatureGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config signature get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config signature get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSignatureGetRequestSchemaListenerExecution = {
     request: CliCommandDaemonConfigSignatureGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69754,10 +69717,10 @@ declare const CliCommandDaemonConfigSignatureGetResponseSchemaRequestSchema: z.Z
 }, z.core.$strip>;
 type CliCommandDaemonConfigSignatureGetResponseSchemaRequest = z.infer<typeof CliCommandDaemonConfigSignatureGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon config signature get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon config signature get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonConfigSignatureGetResponseSchemaListenerExecution = {
     request: CliCommandDaemonConfigSignatureGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69781,10 +69744,10 @@ declare const CliCommandDaemonKillResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonKillResponse = z.infer<typeof CliCommandDaemonKillResponseSchema>;
 
-/** One `/listen` broadcast run of `daemon kill`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon kill`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonKillListenerExecution = {
     request: CliCommandDaemonKillRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDaemonKillResponse>;
 };
 
@@ -69797,10 +69760,10 @@ declare const CliCommandDaemonKillRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonKillRequestSchemaRequest = z.infer<typeof CliCommandDaemonKillRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon kill request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon kill request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonKillRequestSchemaListenerExecution = {
     request: CliCommandDaemonKillRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69813,10 +69776,10 @@ declare const CliCommandDaemonKillResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonKillResponseSchemaRequest = z.infer<typeof CliCommandDaemonKillResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon kill response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon kill response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonKillResponseSchemaListenerExecution = {
     request: CliCommandDaemonKillResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69837,10 +69800,10 @@ declare const CliCommandDaemonSpawnResponseItemSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonSpawnResponseItem = z.infer<typeof CliCommandDaemonSpawnResponseItemSchema>;
 
-/** One `/listen` broadcast run of `daemon spawn`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `daemon spawn`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandDaemonSpawnListenerExecution = {
     request: CliCommandDaemonSpawnRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandDaemonSpawnResponseItem>;
 };
 
@@ -69853,10 +69816,10 @@ declare const CliCommandDaemonSpawnRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonSpawnRequestSchemaRequest = z.infer<typeof CliCommandDaemonSpawnRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon spawn request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon spawn request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonSpawnRequestSchemaListenerExecution = {
     request: CliCommandDaemonSpawnRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69869,10 +69832,10 @@ declare const CliCommandDaemonSpawnResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDaemonSpawnResponseSchemaRequest = z.infer<typeof CliCommandDaemonSpawnResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `daemon spawn response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `daemon spawn response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDaemonSpawnResponseSchemaListenerExecution = {
     request: CliCommandDaemonSpawnResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69893,10 +69856,10 @@ declare const CliCommandDbConfigAddressGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigAddressGetResponse = z.infer<typeof CliCommandDbConfigAddressGetResponseSchema>;
 
-/** One `/listen` broadcast run of `db config address get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config address get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigAddressGetListenerExecution = {
     request: CliCommandDbConfigAddressGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDbConfigAddressGetResponse>;
 };
 
@@ -69909,10 +69872,10 @@ declare const CliCommandDbConfigAddressGetRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandDbConfigAddressGetRequestSchemaRequest = z.infer<typeof CliCommandDbConfigAddressGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config address get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config address get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigAddressGetRequestSchemaListenerExecution = {
     request: CliCommandDbConfigAddressGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69925,10 +69888,10 @@ declare const CliCommandDbConfigAddressGetResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandDbConfigAddressGetResponseSchemaRequest = z.infer<typeof CliCommandDbConfigAddressGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config address get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config address get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigAddressGetResponseSchemaListenerExecution = {
     request: CliCommandDbConfigAddressGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69949,10 +69912,10 @@ declare const CliCommandDbConfigDatabaseGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigDatabaseGetResponse = z.infer<typeof CliCommandDbConfigDatabaseGetResponseSchema>;
 
-/** One `/listen` broadcast run of `db config database get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config database get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigDatabaseGetListenerExecution = {
     request: CliCommandDbConfigDatabaseGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDbConfigDatabaseGetResponse>;
 };
 
@@ -69965,10 +69928,10 @@ declare const CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandDbConfigDatabaseGetRequestSchemaRequest = z.infer<typeof CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config database get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config database get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigDatabaseGetRequestSchemaListenerExecution = {
     request: CliCommandDbConfigDatabaseGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -69981,10 +69944,10 @@ declare const CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandDbConfigDatabaseGetResponseSchemaRequest = z.infer<typeof CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config database get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config database get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigDatabaseGetResponseSchemaListenerExecution = {
     request: CliCommandDbConfigDatabaseGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70008,10 +69971,10 @@ declare const CliCommandDbConfigGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigGetResponse = z.infer<typeof CliCommandDbConfigGetResponseSchema>;
 
-/** One `/listen` broadcast run of `db config get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigGetListenerExecution = {
     request: CliCommandDbConfigGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDbConfigGetResponse>;
 };
 
@@ -70024,10 +69987,10 @@ declare const CliCommandDbConfigGetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigGetRequestSchemaRequest = z.infer<typeof CliCommandDbConfigGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigGetRequestSchemaListenerExecution = {
     request: CliCommandDbConfigGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70040,10 +70003,10 @@ declare const CliCommandDbConfigGetResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigGetResponseSchemaRequest = z.infer<typeof CliCommandDbConfigGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigGetResponseSchemaListenerExecution = {
     request: CliCommandDbConfigGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70061,10 +70024,10 @@ declare const CliCommandDbConfigPasswordGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigPasswordGetResponse = z.infer<typeof CliCommandDbConfigPasswordGetResponseSchema>;
 
-/** One `/listen` broadcast run of `db config password get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config password get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigPasswordGetListenerExecution = {
     request: CliCommandDbConfigPasswordGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDbConfigPasswordGetResponse>;
 };
 
@@ -70077,10 +70040,10 @@ declare const CliCommandDbConfigPasswordGetRequestSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandDbConfigPasswordGetRequestSchemaRequest = z.infer<typeof CliCommandDbConfigPasswordGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config password get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config password get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigPasswordGetRequestSchemaListenerExecution = {
     request: CliCommandDbConfigPasswordGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70093,10 +70056,10 @@ declare const CliCommandDbConfigPasswordGetResponseSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandDbConfigPasswordGetResponseSchemaRequest = z.infer<typeof CliCommandDbConfigPasswordGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config password get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config password get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigPasswordGetResponseSchemaListenerExecution = {
     request: CliCommandDbConfigPasswordGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70118,10 +70081,10 @@ declare const CliCommandDbConfigSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigSetRequest = z.infer<typeof CliCommandDbConfigSetRequestSchema>;
 
-/** One `/listen` broadcast run of `db config set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigSetListenerExecution = {
     request: CliCommandDbConfigSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -70134,10 +70097,10 @@ declare const CliCommandDbConfigSetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigSetRequestSchemaRequest = z.infer<typeof CliCommandDbConfigSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigSetRequestSchemaListenerExecution = {
     request: CliCommandDbConfigSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70150,10 +70113,10 @@ declare const CliCommandDbConfigSetResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigSetResponseSchemaRequest = z.infer<typeof CliCommandDbConfigSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigSetResponseSchemaListenerExecution = {
     request: CliCommandDbConfigSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70171,10 +70134,10 @@ declare const CliCommandDbConfigUserGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigUserGetResponse = z.infer<typeof CliCommandDbConfigUserGetResponseSchema>;
 
-/** One `/listen` broadcast run of `db config user get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config user get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigUserGetListenerExecution = {
     request: CliCommandDbConfigUserGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDbConfigUserGetResponse>;
 };
 
@@ -70187,10 +70150,10 @@ declare const CliCommandDbConfigUserGetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbConfigUserGetRequestSchemaRequest = z.infer<typeof CliCommandDbConfigUserGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config user get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config user get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigUserGetRequestSchemaListenerExecution = {
     request: CliCommandDbConfigUserGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70203,10 +70166,10 @@ declare const CliCommandDbConfigUserGetResponseSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandDbConfigUserGetResponseSchemaRequest = z.infer<typeof CliCommandDbConfigUserGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db config user get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db config user get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbConfigUserGetResponseSchemaListenerExecution = {
     request: CliCommandDbConfigUserGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70237,10 +70200,10 @@ declare const CliCommandDbQueryResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbQueryResponse = z.infer<typeof CliCommandDbQueryResponseSchema>;
 
-/** One `/listen` broadcast run of `db query`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db query`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbQueryListenerExecution = {
     request: CliCommandDbQueryRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandDbQueryResponse>;
 };
 
@@ -70253,10 +70216,10 @@ declare const CliCommandDbQueryRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbQueryRequestSchemaRequest = z.infer<typeof CliCommandDbQueryRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db query request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db query request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbQueryRequestSchemaListenerExecution = {
     request: CliCommandDbQueryRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -70269,10 +70232,10 @@ declare const CliCommandDbQueryResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandDbQueryResponseSchemaRequest = z.infer<typeof CliCommandDbQueryResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `db query response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `db query response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandDbQueryResponseSchemaListenerExecution = {
     request: CliCommandDbQueryResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -72134,13 +72097,13 @@ type CliCommandFunctionsExecuteStandardResponseItem = z.infer<typeof CliCommandF
 /** One `/listen` broadcast run of `functions execute standard` in its unary form (the plain `execute`). */
 type CliCommandFunctionsExecuteStandardListenerExecution = {
     request: CliCommandFunctionsExecuteStandardRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | string>;
 };
 /** One `/listen` broadcast run of `functions execute standard` in its streaming form (`execute_streaming` — the request set `dangerous_advanced.stream: true`). */
 type CliCommandFunctionsExecuteStandardListenerExecutionStreaming = {
     request: CliCommandFunctionsExecuteStandardRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandFunctionsExecuteStandardResponseItem>;
 };
 /** This leaf's multiple listener executions — discriminated per request off `dangerous_advanced.stream`; the parent branch union references this. */
@@ -72155,10 +72118,10 @@ declare const CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandFunctionsExecuteStandardRequestSchemaRequest = z.infer<typeof CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions execute standard request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions execute standard request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsExecuteStandardRequestSchemaListenerExecution = {
     request: CliCommandFunctionsExecuteStandardRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -72171,10 +72134,10 @@ declare const CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema: z.Z
 }, z.core.$strip>;
 type CliCommandFunctionsExecuteStandardResponseSchemaRequest = z.infer<typeof CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions execute standard response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions execute standard response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsExecuteStandardResponseSchemaListenerExecution = {
     request: CliCommandFunctionsExecuteStandardResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74035,13 +73998,13 @@ type CliCommandFunctionsExecuteSwissSystemResponseItem = z.infer<typeof CliComma
 /** One `/listen` broadcast run of `functions execute swiss_system` in its unary form (the plain `execute`). */
 type CliCommandFunctionsExecuteSwissSystemListenerExecution = {
     request: CliCommandFunctionsExecuteSwissSystemRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | string>;
 };
 /** One `/listen` broadcast run of `functions execute swiss_system` in its streaming form (`execute_streaming` — the request set `dangerous_advanced.stream: true`). */
 type CliCommandFunctionsExecuteSwissSystemListenerExecutionStreaming = {
     request: CliCommandFunctionsExecuteSwissSystemRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandFunctionsExecuteSwissSystemResponseItem>;
 };
 /** This leaf's multiple listener executions — discriminated per request off `dangerous_advanced.stream`; the parent branch union references this. */
@@ -74056,10 +74019,10 @@ declare const CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema: z
 }, z.core.$strip>;
 type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest = z.infer<typeof CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions execute swiss_system request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions execute swiss_system request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsExecuteSwissSystemRequestSchemaListenerExecution = {
     request: CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74072,10 +74035,10 @@ declare const CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema: 
 }, z.core.$strip>;
 type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest = z.infer<typeof CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions execute swiss_system response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions execute swiss_system response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsExecuteSwissSystemResponseSchemaListenerExecution = {
     request: CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74121,10 +74084,10 @@ declare const CliCommandFunctionsGetResponseSchema: z.ZodIntersection<z.ZodUnion
 }, z.core.$strip>]>, z.ZodObject<{}, z.core.$strip>>;
 type CliCommandFunctionsGetResponse = z.infer<typeof CliCommandFunctionsGetResponseSchema>;
 
-/** One `/listen` broadcast run of `functions get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsGetListenerExecution = {
     request: CliCommandFunctionsGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandFunctionsGetResponse>;
 };
 
@@ -74137,10 +74100,10 @@ declare const CliCommandFunctionsGetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsGetRequestSchemaRequest = z.infer<typeof CliCommandFunctionsGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsGetRequestSchemaListenerExecution = {
     request: CliCommandFunctionsGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74153,10 +74116,10 @@ declare const CliCommandFunctionsGetResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsGetResponseSchemaRequest = z.infer<typeof CliCommandFunctionsGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsGetResponseSchemaListenerExecution = {
     request: CliCommandFunctionsGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74169,10 +74132,10 @@ declare const CliCommandFunctionsListRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsListRequest = z.infer<typeof CliCommandFunctionsListRequestSchema>;
 
-/** One `/listen` broadcast run of `functions list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `functions list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandFunctionsListListenerExecution = {
     request: CliCommandFunctionsListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | RemotePath>;
 };
 
@@ -74185,10 +74148,10 @@ declare const CliCommandFunctionsListRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsListRequestSchemaRequest = z.infer<typeof CliCommandFunctionsListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsListRequestSchemaListenerExecution = {
     request: CliCommandFunctionsListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74201,10 +74164,10 @@ declare const CliCommandFunctionsListResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsListResponseSchemaRequest = z.infer<typeof CliCommandFunctionsListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsListResponseSchemaListenerExecution = {
     request: CliCommandFunctionsListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74247,10 +74210,10 @@ declare const CliCommandFunctionsProfilesGetResponseSchema: z.ZodIntersection<z.
 }, z.core.$strip>]>, z.ZodObject<{}, z.core.$strip>>;
 type CliCommandFunctionsProfilesGetResponse = z.infer<typeof CliCommandFunctionsProfilesGetResponseSchema>;
 
-/** One `/listen` broadcast run of `functions profiles get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesGetListenerExecution = {
     request: CliCommandFunctionsProfilesGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandFunctionsProfilesGetResponse>;
 };
 
@@ -74263,10 +74226,10 @@ declare const CliCommandFunctionsProfilesGetRequestSchemaRequestSchema: z.ZodObj
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesGetRequestSchemaRequest = z.infer<typeof CliCommandFunctionsProfilesGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesGetRequestSchemaListenerExecution = {
     request: CliCommandFunctionsProfilesGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74279,10 +74242,10 @@ declare const CliCommandFunctionsProfilesGetResponseSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesGetResponseSchemaRequest = z.infer<typeof CliCommandFunctionsProfilesGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesGetResponseSchemaListenerExecution = {
     request: CliCommandFunctionsProfilesGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74295,10 +74258,10 @@ declare const CliCommandFunctionsProfilesListRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesListRequest = z.infer<typeof CliCommandFunctionsProfilesListRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `functions profiles list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandFunctionsProfilesListListenerExecution = {
     request: CliCommandFunctionsProfilesListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | RemotePath>;
 };
 
@@ -74311,10 +74274,10 @@ declare const CliCommandFunctionsProfilesListRequestSchemaRequestSchema: z.ZodOb
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesListRequestSchemaRequest = z.infer<typeof CliCommandFunctionsProfilesListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesListRequestSchemaListenerExecution = {
     request: CliCommandFunctionsProfilesListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -74327,10 +74290,10 @@ declare const CliCommandFunctionsProfilesListResponseSchemaRequestSchema: z.ZodO
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesListResponseSchemaRequest = z.infer<typeof CliCommandFunctionsProfilesListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesListResponseSchemaListenerExecution = {
     request: CliCommandFunctionsProfilesListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -75563,10 +75526,10 @@ declare const CliCommandFunctionsProfilesPublishResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesPublishResponse = z.infer<typeof CliCommandFunctionsProfilesPublishResponseSchema>;
 
-/** One `/listen` broadcast run of `functions profiles publish`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles publish`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesPublishListenerExecution = {
     request: CliCommandFunctionsProfilesPublishRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandFunctionsProfilesPublishResponse>;
 };
 
@@ -75579,10 +75542,10 @@ declare const CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema: z.Zo
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesPublishRequestSchemaRequest = z.infer<typeof CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles publish request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles publish request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesPublishRequestSchemaListenerExecution = {
     request: CliCommandFunctionsProfilesPublishRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -75595,10 +75558,10 @@ declare const CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema: z.Z
 }, z.core.$strip>;
 type CliCommandFunctionsProfilesPublishResponseSchemaRequest = z.infer<typeof CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions profiles publish response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions profiles publish response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsProfilesPublishResponseSchemaListenerExecution = {
     request: CliCommandFunctionsProfilesPublishResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -77168,10 +77131,10 @@ declare const CliCommandFunctionsPublishResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandFunctionsPublishResponse = z.infer<typeof CliCommandFunctionsPublishResponseSchema>;
 
-/** One `/listen` broadcast run of `functions publish`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions publish`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsPublishListenerExecution = {
     request: CliCommandFunctionsPublishRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandFunctionsPublishResponse>;
 };
 
@@ -77184,10 +77147,10 @@ declare const CliCommandFunctionsPublishRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandFunctionsPublishRequestSchemaRequest = z.infer<typeof CliCommandFunctionsPublishRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions publish request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions publish request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsPublishRequestSchemaListenerExecution = {
     request: CliCommandFunctionsPublishRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -77200,10 +77163,10 @@ declare const CliCommandFunctionsPublishResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandFunctionsPublishResponseSchemaRequest = z.infer<typeof CliCommandFunctionsPublishResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `functions publish response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `functions publish response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandFunctionsPublishResponseSchemaListenerExecution = {
     request: CliCommandFunctionsPublishResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78435,10 +78398,10 @@ declare const CliCommandLaboratoriesAttachResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesAttachResponse = z.infer<typeof CliCommandLaboratoriesAttachResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories attach`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories attach`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesAttachListenerExecution = {
     request: CliCommandLaboratoriesAttachRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesAttachResponse>;
 };
 
@@ -78451,10 +78414,10 @@ declare const CliCommandLaboratoriesAttachRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandLaboratoriesAttachRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesAttachRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories attach request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories attach request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesAttachRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesAttachRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78467,10 +78430,10 @@ declare const CliCommandLaboratoriesAttachResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandLaboratoriesAttachResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesAttachResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories attach response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories attach response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesAttachResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesAttachResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78485,10 +78448,10 @@ declare const CliCommandLaboratoriesConfigAddressesAddRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesAddRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses add`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses add`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesAddListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesAddRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -78501,10 +78464,10 @@ declare const CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses add request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses add request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesAddRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78517,10 +78480,10 @@ declare const CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses add response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses add response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesAddResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78534,10 +78497,10 @@ declare const CliCommandLaboratoriesConfigAddressesDelRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesDelRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses del`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses del`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesDelListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesDelRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -78550,10 +78513,10 @@ declare const CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses del request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses del request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesDelRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78566,10 +78529,10 @@ declare const CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses del response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses del response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesDelResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78587,10 +78550,10 @@ declare const CliCommandLaboratoriesConfigAddressesGetResponseSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesGetResponse = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesGetListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesConfigAddressesGetResponse>;
 };
 
@@ -78603,10 +78566,10 @@ declare const CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesGetRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78619,10 +78582,10 @@ declare const CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchem
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config addresses get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config addresses get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigAddressesGetResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78643,10 +78606,10 @@ declare const CliCommandLaboratoriesConfigLocalGetResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigLocalGetResponse = z.infer<typeof CliCommandLaboratoriesConfigLocalGetResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories config local get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config local get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigLocalGetListenerExecution = {
     request: CliCommandLaboratoriesConfigLocalGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesConfigLocalGetResponse>;
 };
 
@@ -78659,10 +78622,10 @@ declare const CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema: z.
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config local get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config local get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigLocalGetRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78675,10 +78638,10 @@ declare const CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema: z
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config local get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config local get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigLocalGetResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78692,10 +78655,10 @@ declare const CliCommandLaboratoriesConfigLocalSetRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigLocalSetRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalSetRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config local set`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config local set`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigLocalSetListenerExecution = {
     request: CliCommandLaboratoriesConfigLocalSetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandOk>;
 };
 
@@ -78708,10 +78671,10 @@ declare const CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema: z.
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config local set request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config local set request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigLocalSetRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78724,10 +78687,10 @@ declare const CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema: z
 }, z.core.$strip>;
 type CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories config local set response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories config local set response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesConfigLocalSetResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78804,10 +78767,10 @@ declare const CliCommandLaboratoriesCreateResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesCreateResponse = z.infer<typeof CliCommandLaboratoriesCreateResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories create`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories create`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesCreateListenerExecution = {
     request: CliCommandLaboratoriesCreateRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesCreateResponse>;
 };
 
@@ -78820,10 +78783,10 @@ declare const CliCommandLaboratoriesCreateRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandLaboratoriesCreateRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesCreateRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories create request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories create request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesCreateRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesCreateRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78836,10 +78799,10 @@ declare const CliCommandLaboratoriesCreateResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandLaboratoriesCreateResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesCreateResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories create response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories create response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesCreateResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesCreateResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78863,10 +78826,10 @@ declare const CliCommandLaboratoriesDeleteResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesDeleteResponse = z.infer<typeof CliCommandLaboratoriesDeleteResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories delete`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories delete`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesDeleteListenerExecution = {
     request: CliCommandLaboratoriesDeleteRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesDeleteResponse>;
 };
 
@@ -78879,10 +78842,10 @@ declare const CliCommandLaboratoriesDeleteRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandLaboratoriesDeleteRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesDeleteRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories delete request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories delete request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesDeleteRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesDeleteRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -78895,10 +78858,10 @@ declare const CliCommandLaboratoriesDeleteResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandLaboratoriesDeleteResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesDeleteResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories delete response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories delete response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesDeleteResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesDeleteResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80127,10 +80090,10 @@ declare const CliCommandLaboratoriesDetachResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesDetachResponse = z.infer<typeof CliCommandLaboratoriesDetachResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories detach`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories detach`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesDetachListenerExecution = {
     request: CliCommandLaboratoriesDetachRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesDetachResponse>;
 };
 
@@ -80143,10 +80106,10 @@ declare const CliCommandLaboratoriesDetachRequestSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandLaboratoriesDetachRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesDetachRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories detach request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories detach request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesDetachRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesDetachRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80159,10 +80122,10 @@ declare const CliCommandLaboratoriesDetachResponseSchemaRequestSchema: z.ZodObje
 }, z.core.$strip>;
 type CliCommandLaboratoriesDetachResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesDetachResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories detach response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories detach response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesDetachResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesDetachResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80180,10 +80143,10 @@ declare const CliCommandLaboratoriesKillResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesKillResponse = z.infer<typeof CliCommandLaboratoriesKillResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories kill`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories kill`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesKillListenerExecution = {
     request: CliCommandLaboratoriesKillRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesKillResponse>;
 };
 
@@ -80196,10 +80159,10 @@ declare const CliCommandLaboratoriesKillRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandLaboratoriesKillRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesKillRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories kill request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories kill request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesKillRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesKillRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80212,10 +80175,10 @@ declare const CliCommandLaboratoriesKillResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandLaboratoriesKillResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesKillResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories kill response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories kill response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesKillResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesKillResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80271,10 +80234,10 @@ declare const CliCommandLaboratoriesListResponseItemSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;
 
-/** One `/listen` broadcast run of `laboratories list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `laboratories list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandLaboratoriesListListenerExecution = {
     request: CliCommandLaboratoriesListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandLaboratoriesListResponseItem>;
 };
 
@@ -80287,10 +80250,10 @@ declare const CliCommandLaboratoriesListRequestSchemaRequestSchema: z.ZodObject<
 }, z.core.$strip>;
 type CliCommandLaboratoriesListRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesListRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80303,10 +80266,10 @@ declare const CliCommandLaboratoriesListResponseSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandLaboratoriesListResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesListResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80324,10 +80287,10 @@ declare const CliCommandLaboratoriesSpawnResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandLaboratoriesSpawnResponse = z.infer<typeof CliCommandLaboratoriesSpawnResponseSchema>;
 
-/** One `/listen` broadcast run of `laboratories spawn`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories spawn`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesSpawnListenerExecution = {
     request: CliCommandLaboratoriesSpawnRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandLaboratoriesSpawnResponse>;
 };
 
@@ -80340,10 +80303,10 @@ declare const CliCommandLaboratoriesSpawnRequestSchemaRequestSchema: z.ZodObject
 }, z.core.$strip>;
 type CliCommandLaboratoriesSpawnRequestSchemaRequest = z.infer<typeof CliCommandLaboratoriesSpawnRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories spawn request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories spawn request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesSpawnRequestSchemaListenerExecution = {
     request: CliCommandLaboratoriesSpawnRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80356,10 +80319,10 @@ declare const CliCommandLaboratoriesSpawnResponseSchemaRequestSchema: z.ZodObjec
 }, z.core.$strip>;
 type CliCommandLaboratoriesSpawnResponseSchemaRequest = z.infer<typeof CliCommandLaboratoriesSpawnResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `laboratories spawn response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `laboratories spawn response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandLaboratoriesSpawnResponseSchemaListenerExecution = {
     request: CliCommandLaboratoriesSpawnResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80378,10 +80341,10 @@ declare const CliCommandPythonRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandPythonRequest = z.infer<typeof CliCommandPythonRequestSchema>;
 
-/** One `/listen` broadcast run of `python`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `python`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandPythonListenerExecution = {
     request: CliCommandPythonRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80394,10 +80357,10 @@ declare const CliCommandPythonRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandPythonRequestSchemaRequest = z.infer<typeof CliCommandPythonRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `python request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `python request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandPythonRequestSchemaListenerExecution = {
     request: CliCommandPythonRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80410,10 +80373,10 @@ declare const CliCommandPythonResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandPythonResponseSchemaRequest = z.infer<typeof CliCommandPythonResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `python response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `python response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandPythonResponseSchemaListenerExecution = {
     request: CliCommandPythonResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80456,10 +80419,10 @@ declare const CliCommandSwarmsGetResponseSchema: z.ZodIntersection<z.ZodUnion<re
 }, z.core.$strip>]>, z.ZodObject<{}, z.core.$strip>>;
 type CliCommandSwarmsGetResponse = z.infer<typeof CliCommandSwarmsGetResponseSchema>;
 
-/** One `/listen` broadcast run of `swarms get`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms get`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsGetListenerExecution = {
     request: CliCommandSwarmsGetRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandSwarmsGetResponse>;
 };
 
@@ -80472,10 +80435,10 @@ declare const CliCommandSwarmsGetRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsGetRequestSchemaRequest = z.infer<typeof CliCommandSwarmsGetRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms get request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms get request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsGetRequestSchemaListenerExecution = {
     request: CliCommandSwarmsGetRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80488,10 +80451,10 @@ declare const CliCommandSwarmsGetResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsGetResponseSchemaRequest = z.infer<typeof CliCommandSwarmsGetResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms get response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms get response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsGetResponseSchemaListenerExecution = {
     request: CliCommandSwarmsGetResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80504,10 +80467,10 @@ declare const CliCommandSwarmsListRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsListRequest = z.infer<typeof CliCommandSwarmsListRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `swarms list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandSwarmsListListenerExecution = {
     request: CliCommandSwarmsListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | RemotePath>;
 };
 
@@ -80520,10 +80483,10 @@ declare const CliCommandSwarmsListRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsListRequestSchemaRequest = z.infer<typeof CliCommandSwarmsListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsListRequestSchemaListenerExecution = {
     request: CliCommandSwarmsListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -80536,10 +80499,10 @@ declare const CliCommandSwarmsListResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsListResponseSchemaRequest = z.infer<typeof CliCommandSwarmsListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsListResponseSchemaListenerExecution = {
     request: CliCommandSwarmsListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81770,10 +81733,10 @@ declare const CliCommandSwarmsPublishResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsPublishResponse = z.infer<typeof CliCommandSwarmsPublishResponseSchema>;
 
-/** One `/listen` broadcast run of `swarms publish`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms publish`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsPublishListenerExecution = {
     request: CliCommandSwarmsPublishRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandSwarmsPublishResponse>;
 };
 
@@ -81786,10 +81749,10 @@ declare const CliCommandSwarmsPublishRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsPublishRequestSchemaRequest = z.infer<typeof CliCommandSwarmsPublishRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms publish request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms publish request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsPublishRequestSchemaListenerExecution = {
     request: CliCommandSwarmsPublishRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81802,10 +81765,10 @@ declare const CliCommandSwarmsPublishResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandSwarmsPublishResponseSchemaRequest = z.infer<typeof CliCommandSwarmsPublishResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `swarms publish response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `swarms publish response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandSwarmsPublishResponseSchemaListenerExecution = {
     request: CliCommandSwarmsPublishResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81831,10 +81794,10 @@ declare const CliCommandTasksCreateResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksCreateResponse = z.infer<typeof CliCommandTasksCreateResponseSchema>;
 
-/** One `/listen` broadcast run of `tasks create`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks create`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksCreateListenerExecution = {
     request: CliCommandTasksCreateRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandTasksCreateResponse>;
 };
 
@@ -81847,10 +81810,10 @@ declare const CliCommandTasksCreateRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksCreateRequestSchemaRequest = z.infer<typeof CliCommandTasksCreateRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `tasks create request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks create request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksCreateRequestSchemaListenerExecution = {
     request: CliCommandTasksCreateRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81863,10 +81826,10 @@ declare const CliCommandTasksCreateResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksCreateResponseSchemaRequest = z.infer<typeof CliCommandTasksCreateResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `tasks create response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks create response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksCreateResponseSchemaListenerExecution = {
     request: CliCommandTasksCreateResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81895,10 +81858,10 @@ declare const CliCommandTasksDeleteResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksDeleteResponse = z.infer<typeof CliCommandTasksDeleteResponseSchema>;
 
-/** One `/listen` broadcast run of `tasks delete`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks delete`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksDeleteListenerExecution = {
     request: CliCommandTasksDeleteRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandTasksDeleteResponse>;
 };
 
@@ -81911,10 +81874,10 @@ declare const CliCommandTasksDeleteRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksDeleteRequestSchemaRequest = z.infer<typeof CliCommandTasksDeleteRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `tasks delete request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks delete request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksDeleteRequestSchemaListenerExecution = {
     request: CliCommandTasksDeleteRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81927,10 +81890,10 @@ declare const CliCommandTasksDeleteResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksDeleteResponseSchemaRequest = z.infer<typeof CliCommandTasksDeleteResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `tasks delete response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks delete response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksDeleteResponseSchemaListenerExecution = {
     request: CliCommandTasksDeleteResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81965,10 +81928,10 @@ declare const CliCommandTasksListResponseItemSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksListResponseItem = z.infer<typeof CliCommandTasksListResponseItemSchema>;
 
-/** One `/listen` broadcast run of `tasks list`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `tasks list`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandTasksListListenerExecution = {
     request: CliCommandTasksListRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandTasksListResponseItem>;
 };
 
@@ -81981,10 +81944,10 @@ declare const CliCommandTasksListRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksListRequestSchemaRequest = z.infer<typeof CliCommandTasksListRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `tasks list request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks list request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksListRequestSchemaListenerExecution = {
     request: CliCommandTasksListRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -81997,10 +81960,10 @@ declare const CliCommandTasksListResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandTasksListResponseSchemaRequest = z.infer<typeof CliCommandTasksListResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `tasks list response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `tasks list response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandTasksListResponseSchemaListenerExecution = {
     request: CliCommandTasksListResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82044,10 +82007,10 @@ declare const CliCommandUpdateResponseItemSchema: z.ZodUnion<readonly [z.ZodObje
 }, z.core.$strip>]>;
 type CliCommandUpdateResponseItem = z.infer<typeof CliCommandUpdateResponseItemSchema>;
 
-/** One `/listen` broadcast run of `update`: the actual request, the producer's agent arguments, and the response-item stream. */
+/** One `/listen` broadcast run of `update`: the actual request, the producer's identity, and the response-item stream. */
 type CliCommandUpdateListenerExecution = {
     request: CliCommandUpdateRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: ResponseItemStream<CliError | CliCommandUpdateResponseItem>;
 };
 
@@ -82060,10 +82023,10 @@ declare const CliCommandUpdateRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandUpdateRequestSchemaRequest = z.infer<typeof CliCommandUpdateRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `update request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `update request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandUpdateRequestSchemaListenerExecution = {
     request: CliCommandUpdateRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82076,10 +82039,10 @@ declare const CliCommandUpdateResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandUpdateResponseSchemaRequest = z.infer<typeof CliCommandUpdateResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `update response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `update response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandUpdateResponseSchemaListenerExecution = {
     request: CliCommandUpdateResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82097,10 +82060,10 @@ declare const CliCommandViewerKillResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerKillResponse = z.infer<typeof CliCommandViewerKillResponseSchema>;
 
-/** One `/listen` broadcast run of `viewer kill`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `viewer kill`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandViewerKillListenerExecution = {
     request: CliCommandViewerKillRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandViewerKillResponse>;
 };
 
@@ -82113,10 +82076,10 @@ declare const CliCommandViewerKillRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerKillRequestSchemaRequest = z.infer<typeof CliCommandViewerKillRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `viewer kill request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `viewer kill request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandViewerKillRequestSchemaListenerExecution = {
     request: CliCommandViewerKillRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82129,10 +82092,10 @@ declare const CliCommandViewerKillResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerKillResponseSchemaRequest = z.infer<typeof CliCommandViewerKillResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `viewer kill response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `viewer kill response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandViewerKillResponseSchemaListenerExecution = {
     request: CliCommandViewerKillResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82150,10 +82113,10 @@ declare const CliCommandViewerSpawnResponseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerSpawnResponse = z.infer<typeof CliCommandViewerSpawnResponseSchema>;
 
-/** One `/listen` broadcast run of `viewer spawn`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `viewer spawn`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandViewerSpawnListenerExecution = {
     request: CliCommandViewerSpawnRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | CliCommandViewerSpawnResponse>;
 };
 
@@ -82166,10 +82129,10 @@ declare const CliCommandViewerSpawnRequestSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerSpawnRequestSchemaRequest = z.infer<typeof CliCommandViewerSpawnRequestSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `viewer spawn request_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `viewer spawn request_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandViewerSpawnRequestSchemaListenerExecution = {
     request: CliCommandViewerSpawnRequestSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82182,10 +82145,10 @@ declare const CliCommandViewerSpawnResponseSchemaRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerSpawnResponseSchemaRequest = z.infer<typeof CliCommandViewerSpawnResponseSchemaRequestSchema>;
 
-/** One `/listen` broadcast run of `viewer spawn response_schema`: the actual request, the producer's agent arguments, and the unary response future. */
+/** One `/listen` broadcast run of `viewer spawn response_schema`: the actual request, the producer's identity, and the unary response future. */
 type CliCommandViewerSpawnResponseSchemaListenerExecution = {
     request: CliCommandViewerSpawnResponseSchemaRequest;
-    agentArguments: CliCommandAgentArguments;
+    identity: Identity;
     response: Promise<CliError | JsonValue>;
 };
 
@@ -82200,30 +82163,25 @@ declare const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "una
 /**
  * Typed consumer of the cli daemon's `/listen` broadcast SSE — the JS
  * mirror of the Rust SDK's
- * `cli::broadcast_listener::BroadcastListener`, identical in
- * construction and semantics: connect to the daemon's published
- * `/listen` URL (optional signature auth), receive one envelope per
- * announced run, reconnection is the caller's loop. Usable anywhere
- * `fetch` can reach the daemon — the main viewer window, Node 22+,
- * any browser context with network access.
+ * `daemon::command_listener::CommandListener`, identical in
+ * semantics: one envelope per announced run, reconnection is the
+ * caller's loop — mint a new listener from the client. Minted by
+ * {@link Client.commandListener} in either mode (regular fetch+SSE
+ * or the viewer's `daemon_listen` proxy).
  *
  * The daemon broadcasts every CLI run as one request frame
  * (`{…context, id, value: <Request>}`), then bare `{id, value: <item>}`
  * response frames (no type tag — the id is the whole routing story),
  * then exactly one terminator (`{id, end: true}`).
- * [`BroadcastListener`] turns those frames into the generated
+ * [`CommandListener`] turns those frames into the generated
  * [`CliCommandListenerExecution`] tree — the mirror of the Rust
  * `cli::command::ListenerExecution` — and IS a stream of that root
- * union: `{request, agentArguments, response}` per run, discriminated
+ * union: `{request, identity, response}` per run, discriminated
  * purely off the request's path. Unary leaves pair the request with a
  * `Promise`, streaming leaves with a [`ResponseItemStream`];
  * multi-variant leaves narrow further via the request's
  * `dangerous_advanced.stream` flag, matching their
  * `…ListenerExecutionVariant` union.
- *
- * Auth is the `X-OBJECTIVEAI-SIGNATURE` request header (the same
- * header every daemon HTTP route uses): a secret-bearing daemon
- * answers `401 Unauthorized` on a missing/invalid signature.
  *
  * Delivery is LIVE-ONLY — the listener multiplexes but never retains.
  * A subscriber (root iterator or response-stream iterator) receives
@@ -82233,7 +82191,7 @@ declare const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "una
  * runs, so retention here would be a memory leak.
  *
  * Rust-parity lifecycle: one listener = one connection. When the
- * stream closes (daemon exit, network drop, [`BroadcastListener.close`]),
+ * stream closes (daemon exit, network drop, [`CommandListener.close`]),
  * every open run's feed closes (unary responses settle with the
  * synthesized "run ended" error, streams end) and every root iterator
  * ENDS.
@@ -82273,22 +82231,14 @@ declare class ResponseItemStream<T> implements AsyncIterable<T> {
     /** Every item from subscription (now) until the run's terminator. */
     toArray(): Promise<T[]>;
 }
-interface BroadcastListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as
-     * the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must
-     * be running without a secret. */
-    signature?: string | null;
-}
 /**
- * The connected `/listen` consumer — construct via
- * [`BroadcastListener.connect`]. IS a stream of the root
+ * The connected `/listen` consumer — minted by
+ * {@link Client.commandListener}. IS a stream of the root
  * [`CliCommandListenerExecution`] union:
  *
  * ```ts
- * const listener = await BroadcastListener.connect(
- *   "http://127.0.0.1:49152/listen",
- *   { signature },
- * );
+ * const client = new Client("http://127.0.0.1:49152", { signature });
+ * const listener = await client.commandListener();
  * for await (const run of listener) {
  *   if (run.request.path_type === "plugins/run") {
  *     for await (const item of run.response) { … }
@@ -82304,24 +82254,13 @@ interface BroadcastListenerOptions {
  * or its early frames are dropped. Every iterator ends when the
  * connection does; reconnection is the caller's loop.
  */
-declare class BroadcastListener {
+declare class CommandListener {
     #private;
     private constructor();
-    /**
-     * Open the SSE stream and resolve once the response headers arrive
-     * (rejects when the daemon is unreachable or answers non-2xx — e.g.
-     * `401` on a refused signature). `url` is the daemon's full
-     * `/listen` URL.
-     */
-    static connect(url: string, options?: BroadcastListenerOptions): Promise<BroadcastListener>;
-    /**
-     * Viewer-mode connect: the stream rides the Tauri IPC proxy
-     * ({@link connectViewerStream}) instead of fetch — no address, no
-     * signature (the Rust side owns both). Same resolve/reject and
-     * lifecycle semantics as {@link connect}; reconnection remains the
-     * caller's loop.
-     */
-    static connectViewer(transport: ViewerTransport): Promise<BroadcastListener>;
+    /** @internal — minted by `Client.commandListener`; resolves once
+     * the stream has opened (rejects when the daemon is unreachable or
+     * answers non-2xx — e.g. `401` on a refused signature). */
+    static _connect(mode: ClientMode): Promise<CommandListener>;
     /** Drop the connection: every open run's feed closes and every root
      * iterator ends. */
     close(): void;
@@ -82334,12 +82273,749 @@ declare class BroadcastListener {
     [Symbol.asyncIterator](): AsyncIterableIterator<CliCommandListenerExecution>;
 }
 
-/** One `/listen` broadcast run of `agents instances get`: the actual request, the producer's agent arguments, and the response-item stream. */
-type CliCommandAgentsInstancesGetListenerExecution = {
-    request: CliCommandAgentsInstancesGetRequest;
-    agentArguments: CliCommandAgentArguments;
-    response: ResponseItemStream<CliError | CliCommandAgentsInstancesListResponseItem>;
+type LaboratoriesFiletreeFileTreeNode = {
+    created_at?: (number) | null;
+    created_by?: (string) | null;
+    modified_at?: (number) | null;
+    modified_by?: (string) | null;
+    name: string;
+    size?: (number) | null;
+    type: "file";
+} | {
+    children: LaboratoriesFiletreeFileTreeNode[];
+    created_at?: (number) | null;
+    created_by?: (string) | null;
+    modified_at?: (number) | null;
+    modified_by?: (string) | null;
+    name: string;
+    type: "directory";
+} | {
+    created_at?: (number) | null;
+    created_by?: (string) | null;
+    modified_at?: (number) | null;
+    modified_by?: (string) | null;
+    name: string;
+    target?: (string) | null;
+    type: "symlink";
 };
+declare const LaboratoriesFiletreeFileTreeNodeSchema: z.ZodType<LaboratoriesFiletreeFileTreeNode>;
+
+declare const LaboratoriesFiletreeFileTreeEventSchema: z.ZodUnion<readonly [z.ZodObject<{
+    children: z.ZodArray<z.ZodType<LaboratoriesFiletreeFileTreeNode, unknown, z.core.$ZodTypeInternals<LaboratoriesFiletreeFileTreeNode, unknown>>>;
+    type: z.ZodLiteral<"snapshot">;
+}, z.core.$strip>, z.ZodObject<{
+    node: z.ZodType<LaboratoriesFiletreeFileTreeNode, unknown, z.core.$ZodTypeInternals<LaboratoriesFiletreeFileTreeNode, unknown>>;
+    path: z.ZodArray<z.ZodString>;
+    type: z.ZodLiteral<"upserted">;
+}, z.core.$strip>, z.ZodObject<{
+    path: z.ZodArray<z.ZodString>;
+    type: z.ZodLiteral<"removed">;
+}, z.core.$strip>]>;
+type LaboratoriesFiletreeFileTreeEvent = z.infer<typeof LaboratoriesFiletreeFileTreeEventSchema>;
+
+/**
+ * Materialized consumer of the cli daemon's
+ * `/laboratories/{id}/filetree` endpoint — the JS mirror of the Rust
+ * SDK's `daemon::file_tree::FileTree`, folded with the same event
+ * semantics (`FileTreeEvent::apply` in `wire.rs`).
+ *
+ * The fold here is deliberately PATH-COPYING IMMUTABLE (the repo's
+ * merge-system identity convention, unlike the Rust in-place fold):
+ * every applied event produces a NEW root array, shallow-copying only
+ * the spine from the root to the changed node — every untouched
+ * sibling subtree keeps its object identity. React consumers can
+ * therefore `memo` per-node components and re-render exactly the
+ * changed region.
+ *
+ * One listener = one connection: when the stream closes the view
+ * freezes at its last state; reconnect is the caller's loop — mint a
+ * new listener from the client. Unparseable events are skipped
+ * (forward compat).
+ */
+
+type FileTreeNode = LaboratoriesFiletreeFileTreeNode;
+type FileTreeEvent = LaboratoriesFiletreeFileTreeEvent;
+/**
+ * THE fold — the TS port of the Rust SDK's `FileTreeEvent::apply`,
+ * path-copying instead of mutating: `snapshot` replaces the whole
+ * child set; `upserted` rebuilds the spine down `path` and
+ * replaces-or-appends the leaf by name (missing middle segments are
+ * synthesized as empty directories, non-directories in the way are
+ * replaced); `removed` rebuilds the spine and drops the leaf (a
+ * missing path is a no-op returning the SAME root — no spurious
+ * identity change). Idempotent, so at-least-once delivery is safe.
+ */
+declare function applyFileTreeEvent(root: FileTreeNode[], event: FileTreeEvent): FileTreeNode[];
+/**
+ * The materialized `/laboratories/{id}/filetree` view — minted by
+ * {@link Client.fileTree}; resolves only once the stream has OPENED.
+ *
+ * ```ts
+ * const tree = await client.fileTree("my-lab");
+ * tree.children(); // FileTreeNode[] | null (null until the first frame)
+ * await tree.subscribe(); // resolves on the next change
+ * ```
+ */
+declare class FileTree {
+    #private;
+    private constructor();
+    /** @internal — minted by `Client.fileTree`. `laboratoryId` is the
+     * raw laboratory id; the optional `(machine, machineState)` pair
+     * pins the exact owning host (both or neither). */
+    static _connect(mode: ClientMode, laboratoryId: string, options?: {
+        machine?: string;
+        machineState?: string;
+    }): Promise<FileTree>;
+    /** Whether the connection has closed (the view is frozen). */
+    get closed(): boolean;
+    /** Drop the connection: the view freezes and any pending
+     * {@link subscribe} resolves. */
+    close(): void;
+    /** The folded root child set — `null` until the first frame. The
+     * array (and every unchanged subtree in it) is identity-stable
+     * across events; only changed spines get new objects. */
+    children(): FileTreeNode[] | null;
+    /** Resolves on the next change applied to the state. A fresh call
+     * waits for the FIRST change after it is made — loop with the
+     * {@link children} read. Resolves immediately if already closed. */
+    subscribe(): Promise<void>;
+}
+
+declare const DaemonLaboratoriesListListenerLaboratoryEventSchema: z.ZodUnion<readonly [z.ZodObject<{
+    laboratories: z.ZodArray<z.ZodObject<{
+        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        connected: z.ZodBoolean;
+        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        cwd: z.ZodString;
+        env: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            value: z.ZodString;
+        }, z.core.$strip>>;
+        id: z.ZodString;
+        image: z.ZodUnion<readonly [z.ZodObject<{
+            containerfile: z.ZodString;
+        }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+            name: z.ZodString;
+            registry: z.ZodString;
+            tag: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            digest: z.ZodString;
+            name: z.ZodString;
+            registry: z.ZodString;
+        }, z.core.$strip>]>]>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            os: z.ZodString;
+        }, z.core.$strip>>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        mounts: z.ZodArray<z.ZodObject<{
+            container: z.ZodString;
+            host: z.ZodString;
+        }, z.core.$strip>>;
+        running: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$strip>>;
+    type: z.ZodLiteral<"snapshot">;
+}, z.core.$strip>, z.ZodObject<{
+    laboratory: z.ZodObject<{
+        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        connected: z.ZodBoolean;
+        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        cwd: z.ZodString;
+        env: z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            value: z.ZodString;
+        }, z.core.$strip>>;
+        id: z.ZodString;
+        image: z.ZodUnion<readonly [z.ZodObject<{
+            containerfile: z.ZodString;
+        }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+            name: z.ZodString;
+            registry: z.ZodString;
+            tag: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            digest: z.ZodString;
+            name: z.ZodString;
+            registry: z.ZodString;
+        }, z.core.$strip>]>]>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            os: z.ZodString;
+        }, z.core.$strip>>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        mounts: z.ZodArray<z.ZodObject<{
+            container: z.ZodString;
+            host: z.ZodString;
+        }, z.core.$strip>>;
+        running: z.ZodDefault<z.ZodBoolean>;
+    }, z.core.$strip>;
+    type: z.ZodLiteral<"upserted">;
+}, z.core.$strip>, z.ZodObject<{
+    id: z.ZodString;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    type: z.ZodLiteral<"removed">;
+}, z.core.$strip>]>;
+type DaemonLaboratoriesListListenerLaboratoryEvent = z.infer<typeof DaemonLaboratoriesListListenerLaboratoryEventSchema>;
+
+declare const DaemonLaboratoriesListListenerLaboratoryStatusSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    connected: z.ZodBoolean;
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    cwd: z.ZodString;
+    env: z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodString;
+    }, z.core.$strip>>;
+    id: z.ZodString;
+    image: z.ZodUnion<readonly [z.ZodObject<{
+        containerfile: z.ZodString;
+    }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+        name: z.ZodString;
+        registry: z.ZodString;
+        tag: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        digest: z.ZodString;
+        name: z.ZodString;
+        registry: z.ZodString;
+    }, z.core.$strip>]>]>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        os: z.ZodString;
+    }, z.core.$strip>>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    mounts: z.ZodArray<z.ZodObject<{
+        container: z.ZodString;
+        host: z.ZodString;
+    }, z.core.$strip>>;
+    running: z.ZodDefault<z.ZodBoolean>;
+}, z.core.$strip>;
+type DaemonLaboratoriesListListenerLaboratoryStatus = z.infer<typeof DaemonLaboratoriesListListenerLaboratoryStatusSchema>;
+
+/**
+ * Materialized consumer of the cli daemon's `/laboratories/list`
+ * endpoint — the JS mirror of the Rust SDK's
+ * `daemon::laboratories_list_listener::LaboratoriesListListener`,
+ * identical in semantics.
+ *
+ * Each item is one laboratory's spec plus the `machine` whose host
+ * serves it (there is no local-vs-remote split — machine identity is
+ * the only provenance) and a live `connected` flag from the daemon's
+ * `/laboratory` registry. The
+ * listener folds events into a self-updating `id → status` map: a
+ * `snapshot` replaces the whole set, `upserted` replaces one
+ * laboratory by id (introducing it if unseen), `removed` drops one.
+ * Per-lab attachment detail lives on the `/laboratories/{id}`
+ * endpoint ({@link LaboratoriesListener}).
+ *
+ * One listener = one connection: when the socket closes the view
+ * freezes at its last state; reconnect is the caller's loop — mint a
+ * new listener from the client. Unparseable events are skipped
+ * (forward compat). No runtime validation, like
+ * {@link BroadcastListener}.
+ */
+
+type LaboratoryStatus = DaemonLaboratoriesListListenerLaboratoryStatus;
+/**
+ * The materialized `/laboratories/list` view — minted by
+ * {@link Client.laboratoriesListListener}; resolves only once the
+ * stream has OPENED.
+ *
+ * ```ts
+ * const listener = await client.laboratoriesListListener();
+ * listener.laboratories(); // [{ id, image, ..., machine, connected }, ...]
+ * await listener.subscribe(); // resolves on the next change
+ * ```
+ */
+declare class LaboratoriesListListener {
+    #private;
+    private constructor();
+    /** @internal — minted by `Client.laboratoriesListListener`. */
+    static _connect(mode: ClientMode): Promise<LaboratoriesListListener>;
+    /** Whether the connection has closed (the view is frozen). */
+    get closed(): boolean;
+    /** Drop the connection: the view freezes and any pending
+     * {@link subscribe} resolves. */
+    close(): void;
+    /** Snapshot the current laboratory set, sorted by `id`. */
+    laboratories(): LaboratoryStatus[];
+    /** Resolves on the next change applied to the state. A fresh call
+     * waits for the FIRST change after it is made — loop with the
+     * {@link laboratories} read. Resolves immediately if already
+     * closed. */
+    subscribe(): Promise<void>;
+}
+
+declare const DaemonLaboratoriesListenerLaboratoryAttachmentSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_instance_hierarchy: z.ZodString;
+    attached_at: z.ZodNumber;
+    attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    type: z.ZodLiteral<"aih">;
+}, z.core.$strip>, z.ZodObject<{
+    attached_at: z.ZodNumber;
+    attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    tag: z.ZodString;
+    type: z.ZodLiteral<"tag">;
+}, z.core.$strip>]>;
+type DaemonLaboratoriesListenerLaboratoryAttachment = z.infer<typeof DaemonLaboratoriesListenerLaboratoryAttachmentSchema>;
+
+declare const DaemonLaboratoriesListenerLaboratoryInstanceEventSchema: z.ZodObject<{
+    laboratory: z.ZodObject<{
+        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        attachments: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            agent_instance_hierarchy: z.ZodString;
+            attached_at: z.ZodNumber;
+            attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            type: z.ZodLiteral<"aih">;
+        }, z.core.$strip>, z.ZodObject<{
+            attached_at: z.ZodNumber;
+            attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            tag: z.ZodString;
+            type: z.ZodLiteral<"tag">;
+        }, z.core.$strip>]>>>;
+        connected: z.ZodBoolean;
+        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        cwd: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        env: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            key: z.ZodString;
+            value: z.ZodString;
+        }, z.core.$strip>>>;
+        id: z.ZodString;
+        image: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodObject<{
+            containerfile: z.ZodString;
+        }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+            name: z.ZodString;
+            registry: z.ZodString;
+            tag: z.ZodString;
+        }, z.core.$strip>, z.ZodObject<{
+            digest: z.ZodString;
+            name: z.ZodString;
+            registry: z.ZodString;
+        }, z.core.$strip>]>]>>>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            id: z.ZodString;
+            os: z.ZodString;
+        }, z.core.$strip>>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        mounts: z.ZodDefault<z.ZodArray<z.ZodObject<{
+            container: z.ZodString;
+            host: z.ZodString;
+        }, z.core.$strip>>>;
+    }, z.core.$strip>;
+    type: z.ZodLiteral<"laboratory">;
+}, z.core.$strip>;
+type DaemonLaboratoriesListenerLaboratoryInstanceEvent = z.infer<typeof DaemonLaboratoriesListenerLaboratoryInstanceEventSchema>;
+
+declare const DaemonLaboratoriesListenerLaboratoryRecordSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    attachments: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        agent_instance_hierarchy: z.ZodString;
+        attached_at: z.ZodNumber;
+        attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        type: z.ZodLiteral<"aih">;
+    }, z.core.$strip>, z.ZodObject<{
+        attached_at: z.ZodNumber;
+        attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        tag: z.ZodString;
+        type: z.ZodLiteral<"tag">;
+    }, z.core.$strip>]>>>;
+    connected: z.ZodBoolean;
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    cwd: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    env: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        key: z.ZodString;
+        value: z.ZodString;
+    }, z.core.$strip>>>;
+    id: z.ZodString;
+    image: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodObject<{
+        containerfile: z.ZodString;
+    }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+        name: z.ZodString;
+        registry: z.ZodString;
+        tag: z.ZodString;
+    }, z.core.$strip>, z.ZodObject<{
+        digest: z.ZodString;
+        name: z.ZodString;
+        registry: z.ZodString;
+    }, z.core.$strip>]>]>>>;
+    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        id: z.ZodString;
+        os: z.ZodString;
+    }, z.core.$strip>>>;
+    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    mounts: z.ZodDefault<z.ZodArray<z.ZodObject<{
+        container: z.ZodString;
+        host: z.ZodString;
+    }, z.core.$strip>>>;
+}, z.core.$strip>;
+type DaemonLaboratoriesListenerLaboratoryRecord = z.infer<typeof DaemonLaboratoriesListenerLaboratoryRecordSchema>;
+
+/**
+ * Materialized consumer of the cli daemon's `/laboratories/{id}`
+ * endpoint — the JS mirror of the Rust SDK's
+ * `daemon::laboratories_listener::LaboratoriesListener`,
+ * identical in semantics.
+ *
+ * One laboratory's full record: its spec (when a connected host
+ * serves it; zero-filled otherwise), `machine`/`connected`
+ * state, and EVERY attachment row targeting it (the AIHs and tags it
+ * is attached to). Frames are always full-value record replaces —
+ * the first is the connect-time snapshot; each later one supersedes
+ * it wholesale.
+ *
+ * One listener = one connection: when the socket closes the view
+ * freezes at its last state; reconnect is the caller's loop — mint a
+ * new listener from the client. Unparseable events are skipped
+ * (forward compat). No runtime validation, like
+ * {@link BroadcastListener}.
+ */
+
+type LaboratoryRecord = DaemonLaboratoriesListenerLaboratoryRecord;
+/**
+ * The materialized `/laboratories/{id}` view — minted by
+ * {@link Client.laboratoriesListener}; resolves only once the stream
+ * has OPENED.
+ *
+ * ```ts
+ * const listener = await client.laboratoriesListener(id);
+ * listener.laboratory(); // { id, ..., connected, attachments } | null
+ * await listener.subscribe(); // resolves on the next change
+ * ```
+ */
+declare class LaboratoriesListener {
+    #private;
+    private constructor();
+    /** @internal — minted by `Client.laboratoriesListener`.
+     * `laboratoryId` is the raw laboratory id; the optional
+     * `(machine, machineState)` pair pins the exact owning host (both
+     * or neither). */
+    static _connect(mode: ClientMode, laboratoryId: string, options?: {
+        machine?: string;
+        machineState?: string;
+    }): Promise<LaboratoriesListener>;
+    /** Whether the connection has closed (the view is frozen). */
+    get closed(): boolean;
+    /** Drop the connection: the view freezes and any pending
+     * {@link subscribe} resolves. */
+    close(): void;
+    /** The current record — `null` before the first frame. */
+    laboratory(): LaboratoryRecord | null;
+    /** Resolves on the next frame applied to the state. A fresh call
+     * waits for the FIRST change after it is made — loop with the
+     * {@link laboratory} read. Resolves immediately if already closed. */
+    subscribe(): Promise<void>;
+}
+
+/**
+ * The viewer-plugin bundle download —
+ * {@link Client.getViewerPlugin}'s result. LOW-LEVEL by design: raw
+ * tar.gz bytes, caller-paced, no filesystem — the consumer (the
+ * viewer's installer) un-tars into its own staging its own way.
+ *
+ * Regular mode wraps the fetch response body directly. Viewer mode
+ * rides the `daemon_viewer_plugin` proxy command, which streams
+ * base64 `chunk` events (the text-SSE proxy shape can't carry binary)
+ * — decoded here back into the same byte-stream surface.
+ */
+/** One in-flight viewer-extension bundle: the tag's commit SHA (from
+ * the `X-OBJECTIVEAI-SHA` response header) plus the tar.gz byte
+ * stream. A TRUNCATED body is indistinguishable here from a complete
+ * one — the caller's un-gzip/un-tar is what validates completeness (a
+ * daemon-side failure mid-build never streams: the tar starts only
+ * after the build succeeded). */
+declare class ViewerPlugin {
+    #private;
+    /** The plugin tag's commit SHA, when the daemon stamped it. */
+    readonly commitSha: string | null;
+    /** @internal — minted by {@link Client.getViewerPlugin}. */
+    constructor(commitSha: string | null, chunks: AsyncGenerator<Uint8Array>);
+    /** The tar.gz bytes, chunk by chunk. `return()`/`break` aborts the
+     * transfer. */
+    chunks(): AsyncGenerator<Uint8Array>;
+    [Symbol.asyncIterator](): AsyncGenerator<Uint8Array>;
+}
+/** Decode one base64 payload into bytes — the viewer-proxy chunk
+ * encoding. `atob` is universal (browser + Node 16+). */
+declare function decodeBase64Chunk(data: string): Uint8Array;
+
+/**
+ * THE daemon client — the JS mirror of the Rust SDK's
+ * `objectiveai_sdk::daemon::Client`: one handle minting every
+ * per-endpoint structure (the materialized SSE listeners, the
+ * laboratory file tree, the viewer-plugin bundle download, channel
+ * accept) and acting as the `/execute` command executor itself — no
+ * separate executor class.
+ *
+ * Two construction modes, every surface working in BOTH:
+ *
+ * - REGULAR (`new Client(address, options?)`) — fetch+SSE straight at
+ *   the daemon's published `http://` address; the client stamps the
+ *   auth signature and, on `/execute`, the caller identity headers.
+ * - VIEWER (`Client.viewer(transport)`) — every surface rides the
+ *   injected Tauri transport's `daemon_*` proxy commands; the
+ *   viewer's Rust process owns address, signature, and identity —
+ *   this mode stamps NOTHING.
+ *
+ * Listener methods are async and resolve only once the stream has
+ * actually OPENED (2xx headers / proxy connect success) — a bad
+ * address or a 401 is a rejection here, never a silently-frozen
+ * view. One listener = one connection; reconnection is the caller's
+ * loop.
+ */
+
+interface ClientOptions {
+    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as
+     * the `X-OBJECTIVEAI-SIGNATURE` header on every request. Without it
+     * the daemon must be running without a secret. */
+    signature?: string | null;
+    /** The client's own caller identity — the DEFAULT for `/execute`'s
+     * `X-OBJECTIVEAI-*` headers; a per-call identity wins over it. The
+     * unspoofable `plugin_*` trio and `task` are NEVER stamped —
+     * wire requests cannot assert them. */
+    identity?: Identity;
+}
+/** Options for one {@link Client.execute} call. */
+interface ExecuteOptions {
+    /** Per-call identity override — beats the client's own. */
+    identity?: Identity;
+}
+declare class Client {
+    #private;
+    /** REGULAR mode: fetch+SSE straight at `address` (the daemon's
+     * published base address, e.g. `http://127.0.0.1:49152`). */
+    constructor(address: string, options?: ClientOptions);
+    /** VIEWER mode: every surface rides the injected Tauri transport;
+     * the Rust proxy owns address, signature, and identity. */
+    static viewer(transport: ViewerTransport): Client;
+    /** The resolved mode — @internal, consumed by the listener mints. */
+    get _mode(): ClientMode;
+    /**
+     * Execute one CLI command — the client IS the executor (a drop-in
+     * anywhere a `CommandExecutor` goes; the generated per-command
+     * execute functions call this). One `POST /execute` (regular) or
+     * one `daemon_execute` invoke (viewer) per call; the result is an
+     * async iterable of the daemon's stream lines — a response JSON or
+     * a `{"type":"error",…}` line; connect failures surface as one
+     * in-band error line; `return()`/`break` cancels the daemon-side
+     * run.
+     */
+    execute(request: CliCommandRequest, options?: ExecuteOptions): AsyncIterable<unknown>;
+    /** The `/listen` broadcast as a typed stream: every CLI execution
+     * the daemon runs, request + response items, dispatched onto the
+     * command tree's leaf types. */
+    commandListener(): Promise<CommandListener>;
+    /** The `/agents/instances/list` view: every agent's active/inactive
+     * status, live. */
+    agentsInstancesListListener(): Promise<AgentsInstancesListListener>;
+    /** The `/agents/instances/{aih}` view: ONE agent's full
+     * conversation, DB history + live rows. */
+    agentsInstancesListener(agentInstanceHierarchy: string): Promise<AgentsInstancesListener>;
+    /** The `/laboratories/list` view: the live laboratories merge
+     * (connected ∪ local scan). */
+    laboratoriesListListener(): Promise<LaboratoriesListListener>;
+    /** The `/laboratories/{id}` view: ONE laboratory's record with
+     * attachments. `machine`/`machineState` pin the exact owning host
+     * (both or neither). */
+    laboratoriesListener(laboratoryId: string, options?: {
+        machine?: string;
+        machineState?: string;
+    }): Promise<LaboratoriesListener>;
+    /** The `/laboratories/{id}/filetree` view: one laboratory's live
+     * file tree. */
+    fileTree(laboratoryId: string, options?: {
+        machine?: string;
+        machineState?: string;
+    }): Promise<FileTree>;
+    /** The `/channels` offer-lifecycle view — answer its offers with
+     * {@link acceptChannel}. */
+    channelListener(): Promise<ChannelListener>;
+    /**
+     * Accept an open channel offer: a bare `POST /channels/{id}/accept`
+     * (first-wins; `daemon_channel_accept` in viewer mode). Resolves
+     * with the owner secret (`S_owner`) — the per-channel capability
+     * for `channels logs reply|list|open|subscribe` and
+     * `channels close`. Rejects on refusal — 404 unknown/withdrawn,
+     * 409 already accepted, 401 unauthorized.
+     */
+    acceptChannel(channelId: string): Promise<string>;
+    /**
+     * Download a plugin's viewer-extension bundle:
+     * `GET /plugins/{owner}/{name}/{version}/viewer` — the daemon
+     * builds it on demand and streams tar.gz back
+     * (`daemon_viewer_plugin` in viewer mode, base64 chunk events).
+     * LOW-LEVEL by design — raw bytes, no filesystem; the caller
+     * un-tars its own way. `version` is the plugin repo's v-prefixed
+     * git tag (`v1.2.3`), byte-for-byte.
+     */
+    getViewerPlugin(owner: string, name: string, version: string): Promise<ViewerPlugin>;
+}
+
+/**
+ * Any of the CLI command executors. The generated per-command execute
+ * functions accept one of these and call `.execute(request)` on it.
+ * The daemon [`Client`] IS the daemon-HTTP executor (regular fetch
+ * mode or the viewer's Tauri proxy — one class, both modes); the
+ * binary and plugin executors cover the local-subprocess and
+ * in-plugin surfaces.
+ */
+type CommandExecutor = BinaryCommandExecutor | PluginCommandExecutor | Client;
+
+/** `agents enqueue request_schema execute` — unary; first stream item, rest discarded. */
+declare function agentsEnqueueRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `agents enqueue request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsEnqueueRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsEnqueueResponseSchemaPathSchema: z.ZodLiteral<"agents/enqueue/response_schema">;
+type CliCommandAgentsEnqueueResponseSchemaPath = z.infer<typeof CliCommandAgentsEnqueueResponseSchemaPathSchema>;
+
+/** `agents enqueue response_schema execute` — unary; first stream item, rest discarded. */
+declare function agentsEnqueueResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `agents enqueue response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsEnqueueResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsEnqueuePathSchema: z.ZodLiteral<"agents/enqueue">;
+type CliCommandAgentsEnqueuePath = z.infer<typeof CliCommandAgentsEnqueuePathSchema>;
+
+/** `agents enqueue execute` — unary; first stream item, rest discarded. */
+declare function agentsEnqueueExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequest, "path_type">): Promise<CliError | CliCommandAgentsEnqueueResponse>;
+/** `agents enqueue execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsEnqueueExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsEnqueueRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsGetRequestSchemaPathSchema: z.ZodLiteral<"agents/get/request_schema">;
+type CliCommandAgentsGetRequestSchemaPath = z.infer<typeof CliCommandAgentsGetRequestSchemaPathSchema>;
+
+/** `agents get request_schema execute` — unary; first stream item, rest discarded. */
+declare function agentsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `agents get request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsGetResponseSchemaPathSchema: z.ZodLiteral<"agents/get/response_schema">;
+type CliCommandAgentsGetResponseSchemaPath = z.infer<typeof CliCommandAgentsGetResponseSchemaPathSchema>;
+
+/** `agents get response_schema execute` — unary; first stream item, rest discarded. */
+declare function agentsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `agents get response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsGetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsGetPathSchema: z.ZodLiteral<"agents/get">;
+type CliCommandAgentsGetPath = z.infer<typeof CliCommandAgentsGetPathSchema>;
+
+/** `agents get execute` — unary; first stream item, rest discarded. */
+declare function agentsGetExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequest, "path_type">): Promise<CliError | CliCommandAgentsGetResponse>;
+/** `agents get execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsGetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsInstancesGetRequestSchemaPathSchema: z.ZodLiteral<"agents/instances/get/request_schema">;
+type CliCommandAgentsInstancesGetRequestSchemaPath = z.infer<typeof CliCommandAgentsInstancesGetRequestSchemaPathSchema>;
+
+/** `agents instances get request_schema execute` — unary; first stream item, rest discarded. */
+declare function agentsInstancesGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `agents instances get request_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsInstancesGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequestSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsInstancesGetResponseSchemaPathSchema: z.ZodLiteral<"agents/instances/get/response_schema">;
+type CliCommandAgentsInstancesGetResponseSchemaPath = z.infer<typeof CliCommandAgentsInstancesGetResponseSchemaPathSchema>;
+
+/** `agents instances get response_schema execute` — unary; first stream item, rest discarded. */
+declare function agentsInstancesGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue>;
+/** `agents instances get response_schema execute_transform` — unary; first stream item, rest discarded. */
+declare function agentsInstancesGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetResponseSchemaRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): Promise<CliError | JsonValue>;
+
+declare const CliCommandAgentsInstancesGetPathSchema: z.ZodLiteral<"agents/instances/get">;
+type CliCommandAgentsInstancesGetPath = z.infer<typeof CliCommandAgentsInstancesGetPathSchema>;
+
+/**
+ * Async-iterable wrapper over the JSONL line stream produced by a
+ * command executor (binary / plugin / viewer). Used by the generated
+ * command execute functions; plugin authors normally receive one rather
+ * than constructing one.
+ *
+ * Each raw line is zod-parsed with `schema` — typically
+ * `z.union([CliOutputErrorSchema, <ResponseSchema>])`, so error
+ * envelopes and response values surface as plain union members
+ * rather than thrown exceptions.
+ *
+ * Before parsing, externally-tagged aggregate layers are unwrapped:
+ * the cli prints the aggregate `ResponseItem` wire shape (e.g.
+ * `{"Config":{"Viewer":{"Get":{}}}}`), so single-key object wrappers
+ * are peeled until the schema parses — the JS mirror of
+ * `extract_leaf` in `objectiveai-cli/src/executor.rs`.
+ *
+ * The host's synthetic `{"type":"end"}` terminator line is consumed
+ * (it ends iteration) and never yielded.
+ */
+declare class CliStream<T> implements AsyncIterable<T> {
+    private readonly source;
+    private readonly schema;
+    constructor(source: AsyncIterable<unknown>, schema: z.ZodType<T>);
+    [Symbol.asyncIterator](): AsyncIterator<T>;
+    /** Collect every remaining item. */
+    toArray(): Promise<T[]>;
+    /**
+     * Resolve the first item and discard the rest of the stream
+     * (releasing the underlying message listener). `undefined` when the
+     * stream ends without yielding — a unary command that printed
+     * nothing before the end marker.
+     */
+    first(): Promise<T | undefined>;
+}
+
+/** `agents instances get execute` — streaming; mirror of the Rust fn of the same path. */
+declare function agentsInstancesGetExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequest, "path_type">): CliStream<CliError | CliCommandAgentsInstancesListResponseItem>;
+/** `agents instances get execute_transform` — streaming; mirror of the Rust fn of the same path. */
+declare function agentsInstancesGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsInstancesGetRequest, "path_type">, transform: {
+    jq: string;
+} | {
+    python: string;
+}): CliStream<CliError | JsonValue>;
 
 declare const CliCommandAgentsInstancesListRequestSchemaPathSchema: z.ZodLiteral<"agents/instances/list/request_schema">;
 type CliCommandAgentsInstancesListRequestSchemaPath = z.infer<typeof CliCommandAgentsInstancesListRequestSchemaPathSchema>;
@@ -103592,11 +104268,6 @@ declare const CliCommandChannelsRequestSchema: z.ZodUnion<readonly [z.ZodObject<
 }, z.core.$strip>]>]>;
 type CliCommandChannelsRequest = z.infer<typeof CliCommandChannelsRequestSchema>;
 
-declare const CliCommandCommandExecutorAuthEnvelopeSchema: z.ZodObject<{
-    signature: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-}, z.core.$strip>;
-type CliCommandCommandExecutorAuthEnvelope = z.infer<typeof CliCommandCommandExecutorAuthEnvelopeSchema>;
-
 declare const CliCommandDaemonConfigAddressGetRequestSchemaPathSchema: z.ZodLiteral<"daemon/config/address/get/request_schema">;
 type CliCommandDaemonConfigAddressGetRequestSchemaPath = z.infer<typeof CliCommandDaemonConfigAddressGetRequestSchemaPathSchema>;
 
@@ -120453,22 +121124,10 @@ declare function laboratoriesCreateResponseSchemaExecuteTransform(executor: Comm
     python: string;
 }): Promise<CliError | JsonValue>;
 
-declare const CliCommandLaboratoriesCreateEnvVarSchema: z.ZodObject<{
-    key: z.ZodString;
-    value: z.ZodString;
-}, z.core.$strip>;
-type CliCommandLaboratoriesCreateEnvVar = z.infer<typeof CliCommandLaboratoriesCreateEnvVarSchema>;
-
 declare const CliCommandLaboratoriesCreateKindSchema: z.ZodObject<{
     by: z.ZodLiteral<"client">;
 }, z.core.$strip>;
 type CliCommandLaboratoriesCreateKind = z.infer<typeof CliCommandLaboratoriesCreateKindSchema>;
-
-declare const CliCommandLaboratoriesCreateMountSchema: z.ZodObject<{
-    container: z.ZodString;
-    host: z.ZodString;
-}, z.core.$strip>;
-type CliCommandLaboratoriesCreateMount = z.infer<typeof CliCommandLaboratoriesCreateMountSchema>;
 
 declare const CliCommandLaboratoriesCreatePathSchema: z.ZodLiteral<"laboratories/create">;
 type CliCommandLaboratoriesCreatePath = z.infer<typeof CliCommandLaboratoriesCreatePathSchema>;
@@ -126402,237 +127061,6 @@ declare const CliCommandRequestBaseSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandRequestBase = z.infer<typeof CliCommandRequestBaseSchema>;
 
-declare const CliLaboratoriesListListenerLaboratoryEventSchema: z.ZodUnion<readonly [z.ZodObject<{
-    laboratories: z.ZodArray<z.ZodObject<{
-        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        connected: z.ZodBoolean;
-        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-        cwd: z.ZodString;
-        env: z.ZodArray<z.ZodObject<{
-            key: z.ZodString;
-            value: z.ZodString;
-        }, z.core.$strip>>;
-        id: z.ZodString;
-        image: z.ZodUnion<readonly [z.ZodObject<{
-            containerfile: z.ZodString;
-        }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
-            name: z.ZodString;
-            registry: z.ZodString;
-            tag: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            digest: z.ZodString;
-            name: z.ZodString;
-            registry: z.ZodString;
-        }, z.core.$strip>]>]>;
-        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            id: z.ZodString;
-            os: z.ZodString;
-        }, z.core.$strip>>>;
-        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        mounts: z.ZodArray<z.ZodObject<{
-            container: z.ZodString;
-            host: z.ZodString;
-        }, z.core.$strip>>;
-        running: z.ZodDefault<z.ZodBoolean>;
-    }, z.core.$strip>>;
-    type: z.ZodLiteral<"snapshot">;
-}, z.core.$strip>, z.ZodObject<{
-    laboratory: z.ZodObject<{
-        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        connected: z.ZodBoolean;
-        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-        cwd: z.ZodString;
-        env: z.ZodArray<z.ZodObject<{
-            key: z.ZodString;
-            value: z.ZodString;
-        }, z.core.$strip>>;
-        id: z.ZodString;
-        image: z.ZodUnion<readonly [z.ZodObject<{
-            containerfile: z.ZodString;
-        }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
-            name: z.ZodString;
-            registry: z.ZodString;
-            tag: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            digest: z.ZodString;
-            name: z.ZodString;
-            registry: z.ZodString;
-        }, z.core.$strip>]>]>;
-        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            id: z.ZodString;
-            os: z.ZodString;
-        }, z.core.$strip>>>;
-        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        mounts: z.ZodArray<z.ZodObject<{
-            container: z.ZodString;
-            host: z.ZodString;
-        }, z.core.$strip>>;
-        running: z.ZodDefault<z.ZodBoolean>;
-    }, z.core.$strip>;
-    type: z.ZodLiteral<"upserted">;
-}, z.core.$strip>, z.ZodObject<{
-    id: z.ZodString;
-    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodLiteral<"removed">;
-}, z.core.$strip>]>;
-type CliLaboratoriesListListenerLaboratoryEvent = z.infer<typeof CliLaboratoriesListListenerLaboratoryEventSchema>;
-
-declare const CliLaboratoriesListListenerLaboratoryStatusSchema: z.ZodObject<{
-    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    connected: z.ZodBoolean;
-    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    cwd: z.ZodString;
-    env: z.ZodArray<z.ZodObject<{
-        key: z.ZodString;
-        value: z.ZodString;
-    }, z.core.$strip>>;
-    id: z.ZodString;
-    image: z.ZodUnion<readonly [z.ZodObject<{
-        containerfile: z.ZodString;
-    }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
-        name: z.ZodString;
-        registry: z.ZodString;
-        tag: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        digest: z.ZodString;
-        name: z.ZodString;
-        registry: z.ZodString;
-    }, z.core.$strip>]>]>;
-    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        id: z.ZodString;
-        os: z.ZodString;
-    }, z.core.$strip>>>;
-    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    mounts: z.ZodArray<z.ZodObject<{
-        container: z.ZodString;
-        host: z.ZodString;
-    }, z.core.$strip>>;
-    running: z.ZodDefault<z.ZodBoolean>;
-}, z.core.$strip>;
-type CliLaboratoriesListListenerLaboratoryStatus = z.infer<typeof CliLaboratoriesListListenerLaboratoryStatusSchema>;
-
-declare const CliLaboratoriesListenerLaboratoryAttachmentSchema: z.ZodUnion<readonly [z.ZodObject<{
-    agent_instance_hierarchy: z.ZodString;
-    attached_at: z.ZodNumber;
-    attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    type: z.ZodLiteral<"aih">;
-}, z.core.$strip>, z.ZodObject<{
-    attached_at: z.ZodNumber;
-    attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    tag: z.ZodString;
-    type: z.ZodLiteral<"tag">;
-}, z.core.$strip>]>;
-type CliLaboratoriesListenerLaboratoryAttachment = z.infer<typeof CliLaboratoriesListenerLaboratoryAttachmentSchema>;
-
-declare const CliLaboratoriesListenerLaboratoryInstanceEventSchema: z.ZodObject<{
-    laboratory: z.ZodObject<{
-        agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        attachments: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
-            agent_instance_hierarchy: z.ZodString;
-            attached_at: z.ZodNumber;
-            attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            type: z.ZodLiteral<"aih">;
-        }, z.core.$strip>, z.ZodObject<{
-            attached_at: z.ZodNumber;
-            attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            tag: z.ZodString;
-            type: z.ZodLiteral<"tag">;
-        }, z.core.$strip>]>>>;
-        connected: z.ZodBoolean;
-        created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-        cwd: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        env: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            key: z.ZodString;
-            value: z.ZodString;
-        }, z.core.$strip>>>;
-        id: z.ZodString;
-        image: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodObject<{
-            containerfile: z.ZodString;
-        }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
-            name: z.ZodString;
-            registry: z.ZodString;
-            tag: z.ZodString;
-        }, z.core.$strip>, z.ZodObject<{
-            digest: z.ZodString;
-            name: z.ZodString;
-            registry: z.ZodString;
-        }, z.core.$strip>]>]>>>;
-        machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-            hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-            id: z.ZodString;
-            os: z.ZodString;
-        }, z.core.$strip>>>;
-        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        mounts: z.ZodDefault<z.ZodArray<z.ZodObject<{
-            container: z.ZodString;
-            host: z.ZodString;
-        }, z.core.$strip>>>;
-    }, z.core.$strip>;
-    type: z.ZodLiteral<"laboratory">;
-}, z.core.$strip>;
-type CliLaboratoriesListenerLaboratoryInstanceEvent = z.infer<typeof CliLaboratoriesListenerLaboratoryInstanceEventSchema>;
-
-declare const CliLaboratoriesListenerLaboratoryRecordSchema: z.ZodObject<{
-    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    attachments: z.ZodDefault<z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
-        agent_instance_hierarchy: z.ZodString;
-        attached_at: z.ZodNumber;
-        attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        type: z.ZodLiteral<"aih">;
-    }, z.core.$strip>, z.ZodObject<{
-        attached_at: z.ZodNumber;
-        attached_by: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        machine: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        tag: z.ZodString;
-        type: z.ZodLiteral<"tag">;
-    }, z.core.$strip>]>>>;
-    connected: z.ZodBoolean;
-    created_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    cwd: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    env: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        key: z.ZodString;
-        value: z.ZodString;
-    }, z.core.$strip>>>;
-    id: z.ZodString;
-    image: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodObject<{
-        containerfile: z.ZodString;
-    }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
-        name: z.ZodString;
-        registry: z.ZodString;
-        tag: z.ZodString;
-    }, z.core.$strip>, z.ZodObject<{
-        digest: z.ZodString;
-        name: z.ZodString;
-        registry: z.ZodString;
-    }, z.core.$strip>]>]>>>;
-    machine: z.ZodOptional<z.ZodNullable<z.ZodObject<{
-        hostname: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-        id: z.ZodString;
-        os: z.ZodString;
-    }, z.core.$strip>>>;
-    machine_state: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    mounts: z.ZodDefault<z.ZodArray<z.ZodObject<{
-        container: z.ZodString;
-        host: z.ZodString;
-    }, z.core.$strip>>>;
-}, z.core.$strip>;
-type CliLaboratoriesListenerLaboratoryRecord = z.infer<typeof CliLaboratoriesListenerLaboratoryRecordSchema>;
-
 declare const CliPluginsCommandSchema: z.ZodObject<{
     command: z.ZodArray<z.ZodString>;
     id: z.ZodString;
@@ -126702,6 +127130,17 @@ declare const CliLevelSchema: z.ZodEnum<{
 }>;
 type CliLevel = z.infer<typeof CliLevelSchema>;
 
+declare const DaemonCommandListenerListenerEndSchema: z.ZodObject<{
+    end: z.ZodBoolean;
+    id: z.ZodString;
+}, z.core.$strip>;
+type DaemonCommandListenerListenerEnd = z.infer<typeof DaemonCommandListenerListenerEndSchema>;
+
+declare const DaemonAuthEnvelopeSchema: z.ZodObject<{
+    signature: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+}, z.core.$strip>;
+type DaemonAuthEnvelope = z.infer<typeof DaemonAuthEnvelopeSchema>;
+
 /**
  * Shared SSE transport for the daemon's HTTP routes: the command
  * channel (`POST /execute`), the broadcast (`GET /listen`), and the
@@ -126745,603 +127184,6 @@ declare function connectSse(url: string, signature: string | null | undefined, s
     /** Value for the `X-OBJECTIVEAI-RESPONSE-IDS` header. */
     responseIds?: string | null;
 }): Promise<AsyncGenerator<string>>;
-
-/**
- * Materialized consumer of the cli daemon's `/agents/instances/list`
- * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::agents_instances_list_listener::AgentsInstancesListListener`,
- * identical in construction and semantics.
- *
- * Deliberately minimal wire: each item is an AIH plus its live
- * `active` flag — nothing else. Per-agent detail (tags, spawn /
- * last-active timestamps, counters) lives on the per-agent
- * `/agents/instances/{*aih}` endpoint. The listener folds events into
- * a self-updating `AIH → active` map: a `snapshot` replaces the whole
- * set, `activated` upserts an AIH to active (introducing it if
- * unseen), `deactivated` flips it to inactive in place (kept — the
- * endpoint lists all known agents). Activity itself is lock-driven on
- * the daemon (kernel-released on holder death), so a spawn killed
- * mid-stream flips to inactive exactly.
- *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: when the socket closes the
- * view freezes at its last state; reconnection is the caller's loop.
- * Unparseable events are skipped (forward compat). No runtime
- * validation, like {@link BroadcastListener}.
- */
-
-type AgentStatus = CliAgentsInstancesListListenerAgentStatus;
-interface AgentsInstancesListListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-     * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Invoked with the full current agent set (sorted by AIH) after
-     * every applied change. Runs synchronously on frame receipt, so keep
-     * it cheap; for the full state on demand use
-     * {@link AgentsInstancesListListener.agents}. */
-    onChange?: (agents: AgentStatus[]) => void;
-}
-/** {@link AgentsInstancesListListener.connectViewer} options — the
- * regular options sans `signature` (the Rust proxy stamps auth). */
-type AgentsInstancesListListenerViewerOptions = Omit<AgentsInstancesListListenerOptions, "signature">;
-/**
- * The materialized `/agents/instances/list` view — construct via
- * {@link AgentsInstancesListListener.connect}.
- *
- * ```ts
- * const listener = await AgentsInstancesListListener.connect(
- *   "http://127.0.0.1:49152/agents/instances/list",
- *   { signature, onChange: (agents) => render(agents) },
- * );
- * listener.agents(); // [{ agent_instance_hierarchy, active }, ...]
- * await listener.subscribe(); // resolves on the next change
- * ```
- */
-declare class AgentsInstancesListListener {
-    #private;
-    private constructor();
-    /**
-     * Open the connection, send the auth preamble, and resolve once the
-     * socket is established (rejects when the daemon is unreachable or
-     * closes during the handshake — e.g. it refused the auth). `url` is
-     * the daemon's full `/agents/instances/list` URL. The returned
-     * listener immediately begins folding events (the first is the
-     * connect-time snapshot).
-     */
-    static connect(url: string, options?: AgentsInstancesListListenerOptions): Promise<AgentsInstancesListListener>;
-    /**
-     * Viewer-mode connect: the stream rides the Tauri IPC proxy
-     * ({@link connectViewerStream}) instead of fetch — no address, no
-     * signature, no identity (the Rust side owns all three). Same
-     * resolve/reject and lifecycle semantics as {@link connect};
-     * reconnection remains the caller's loop.
-     */
-    static connectViewer(transport: ViewerTransport, options?: AgentsInstancesListListenerViewerOptions): Promise<AgentsInstancesListListener>;
-    /** Whether the connection has closed (the view is frozen). */
-    get closed(): boolean;
-    /** Drop the connection: the view freezes and any pending
-     * {@link subscribe} resolves. */
-    close(): void;
-    /** Snapshot the current agent set, sorted by `agent_instance_hierarchy`. */
-    agents(): AgentStatus[];
-    /** Resolves on the next change applied to the state. A fresh call
-     * waits for the FIRST change after it is made — loop with the
-     * {@link agents} read, or use
-     * {@link AgentsInstancesListListenerOptions.onChange} for
-     * guaranteed push. Resolves immediately if already closed. */
-    subscribe(): Promise<void>;
-}
-
-/**
- * Materialized consumer of the cli daemon's `/agents/instances/{*aih}`
- * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::agents_instances_listener::AgentsInstancesListener`,
- * identical in construction and semantics.
- *
- * One connection carries TWO structurally independent concerns:
- *
- * - **The conversation** — typed part events (one per conversation
- *   row, each naming its block class and carrying its class's boundary
- *   fields + ONE mirrored part + the DB row identity as an opaque
- *   replace-at key), replayed from the DB snapshot first, one `live`
- *   marker, then live as the agent produces them. Events fold into an
- *   ordered list of {@link ConversationBlock}s — the exact mirror of
- *   `agents logs list`'s `ResponseItem` family with content INLINED.
- *   A re-sent identity REPLACES the prior part (later = more
- *   complete), which also converges the snapshot/live seam.
- * - **The agent's status** — `agent` events carry this agent's list
- *   record (lock-driven active flag, bound tags, counters), once at
- *   connect and on every change. Held separately; the conversation
- *   callback never fires for it and vice versa.
- *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: the daemon DISCONNECTS lagging
- * clients rather than dropping frames, so a closed socket means
- * "reconnect for a fresh snapshot"; the view freezes at its last
- * state. Unparseable events are SKIPPED — the forward-compat contract
- * for future event variants. No runtime validation, like
- * {@link BroadcastListener}.
- */
-
-type AgentRecord = CliAgentsInstancesListenerAgentRecord;
-type ConversationBlock = CliAgentsInstancesListenerConversationBlock;
-interface AgentsInstancesListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-     * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Invoked with the full current conversation (blocks in
-     * conversation order) after every applied CONVERSATION event —
-     * never for agent-status events. Runs synchronously on frame
-     * receipt; for state on demand use
-     * {@link AgentsInstancesListener.conversation}. */
-    onChange?: (blocks: ConversationBlock[]) => void;
-    /** Invoked with the agent's refreshed list record after every
-     * applied AGENT-STATUS event (activation / deactivation / tag
-     * change) — never for conversation events. */
-    onAgentChange?: (agent: AgentRecord) => void;
-}
-/** {@link AgentsInstancesListener.connectViewer} options — the
- * regular options sans `signature` (the Rust proxy stamps auth). */
-type AgentsInstancesListenerViewerOptions = Omit<AgentsInstancesListenerOptions, "signature">;
-/**
- * The materialized `/agents/instances/{*aih}` view — construct via
- * {@link AgentsInstancesListener.connect}.
- *
- * ```ts
- * const listener = await AgentsInstancesListener.connect(
- *   `http://127.0.0.1:49152/agents/instances/${aih}`,
- *   { signature, onChange: render, onAgentChange: renderStatus },
- * );
- * listener.conversation(); // ConversationBlock[] — the logs-list mirror
- * listener.agent();        // AgentRecord | null — active, tags, counters
- * listener.live;           // snapshot replay complete?
- * await listener.subscribe(); // resolves on the next change (either concern)
- * ```
- */
-declare class AgentsInstancesListener {
-    #private;
-    private constructor();
-    /**
-     * Open the connection, send the auth preamble, and resolve once the
-     * socket is established (rejects when the daemon is unreachable or
-     * closes during the handshake). `url` is the daemon's base address +
-     * `/agents/instances/` + the agent's hierarchy (raw slashes are
-     * fine). The returned listener immediately begins folding the
-     * agent-status frame and the snapshot replay.
-     */
-    static connect(url: string, options?: AgentsInstancesListenerOptions): Promise<AgentsInstancesListener>;
-    /**
-     * Viewer-mode connect: the stream rides the Tauri IPC proxy
-     * ({@link connectViewerStream}) instead of fetch — no address, no
-     * signature, no identity (the Rust side owns all three).
-     * `agentInstanceHierarchy` is the agent's full hierarchy (raw
-     * slashes are fine — it is the subscription target, not transport).
-     * Same resolve/reject and lifecycle semantics as {@link connect};
-     * reconnection remains the caller's loop.
-     */
-    static connectViewer(transport: ViewerTransport, agentInstanceHierarchy: string, options?: AgentsInstancesListenerViewerOptions): Promise<AgentsInstancesListener>;
-    /** Whether the connection has closed (the view is frozen; the daemon
-     * disconnects lagging clients — reconnect for a fresh snapshot). */
-    get closed(): boolean;
-    /** Whether the snapshot replay has completed — every conversation
-     * event after the `live` marker is the conversation as it occurs. */
-    get live(): boolean;
-    /** Drop the connection: the view freezes and any pending
-     * {@link subscribe} resolves. */
-    close(): void;
-    /** The current conversation, blocks in conversation order — the
-     * `agents logs list` `ResponseItem` mirror, content inlined. */
-    conversation(): ConversationBlock[];
-    /** The agent's current list record (active flag, bound tags,
-     * counters) — the same shape `/agents/instances/list` tracks, scoped
-     * to this agent. `null` until the connection's first agent-status
-     * event lands (the daemon ships one right after auth). Structurally
-     * independent of {@link conversation}. */
-    agent(): AgentRecord | null;
-    /** Resolves on the next applied event — conversation OR agent
-     * status. A fresh call waits for the FIRST event after it is made;
-     * loop with the getters, or use the callbacks for guaranteed push.
-     * Resolves immediately if already closed. */
-    subscribe(): Promise<void>;
-}
-
-type LaboratoriesFiletreeFileTreeNode = {
-    created_at?: (number) | null;
-    created_by?: (string) | null;
-    modified_at?: (number) | null;
-    modified_by?: (string) | null;
-    name: string;
-    size?: (number) | null;
-    type: "file";
-} | {
-    children: LaboratoriesFiletreeFileTreeNode[];
-    created_at?: (number) | null;
-    created_by?: (string) | null;
-    modified_at?: (number) | null;
-    modified_by?: (string) | null;
-    name: string;
-    type: "directory";
-} | {
-    created_at?: (number) | null;
-    created_by?: (string) | null;
-    modified_at?: (number) | null;
-    modified_by?: (string) | null;
-    name: string;
-    target?: (string) | null;
-    type: "symlink";
-};
-declare const LaboratoriesFiletreeFileTreeNodeSchema: z.ZodType<LaboratoriesFiletreeFileTreeNode>;
-
-declare const LaboratoriesFiletreeFileTreeEventSchema: z.ZodUnion<readonly [z.ZodObject<{
-    children: z.ZodArray<z.ZodType<LaboratoriesFiletreeFileTreeNode, unknown, z.core.$ZodTypeInternals<LaboratoriesFiletreeFileTreeNode, unknown>>>;
-    type: z.ZodLiteral<"snapshot">;
-}, z.core.$strip>, z.ZodObject<{
-    node: z.ZodType<LaboratoriesFiletreeFileTreeNode, unknown, z.core.$ZodTypeInternals<LaboratoriesFiletreeFileTreeNode, unknown>>;
-    path: z.ZodArray<z.ZodString>;
-    type: z.ZodLiteral<"upserted">;
-}, z.core.$strip>, z.ZodObject<{
-    path: z.ZodArray<z.ZodString>;
-    type: z.ZodLiteral<"removed">;
-}, z.core.$strip>]>;
-type LaboratoriesFiletreeFileTreeEvent = z.infer<typeof LaboratoriesFiletreeFileTreeEventSchema>;
-
-/**
- * Materialized consumer of the cli daemon's
- * `/laboratories/{id}/filetree` endpoint over Server-Sent Events —
- * the JS sibling of the Rust SDK's `laboratories::filetree::FileTree`
- * client, folded with the same event semantics
- * (`FileTreeEvent::apply` in `wire.rs`).
- *
- * The fold here is deliberately PATH-COPYING IMMUTABLE (the repo's
- * merge-system identity convention, unlike the Rust in-place fold):
- * every applied event produces a NEW root array, shallow-copying only
- * the spine from the root to the changed node — every untouched
- * sibling subtree keeps its object identity. React consumers can
- * therefore `memo` per-node components and re-render exactly the
- * changed region.
- *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One
- * listener = one connection: when the stream closes the view freezes
- * at its last state; reconnection is the caller's loop. Unparseable
- * events are skipped (forward compat).
- */
-
-type FileTreeNode = LaboratoriesFiletreeFileTreeNode;
-type FileTreeEvent = LaboratoriesFiletreeFileTreeEvent;
-/**
- * THE fold — the TS port of the Rust SDK's `FileTreeEvent::apply`,
- * path-copying instead of mutating: `snapshot` replaces the whole
- * child set; `upserted` rebuilds the spine down `path` and
- * replaces-or-appends the leaf by name (missing middle segments are
- * synthesized as empty directories, non-directories in the way are
- * replaced); `removed` rebuilds the spine and drops the leaf (a
- * missing path is a no-op returning the SAME root — no spurious
- * identity change). Idempotent, so at-least-once delivery is safe.
- */
-declare function applyFileTreeEvent(root: FileTreeNode[], event: FileTreeEvent): FileTreeNode[];
-interface LaboratoriesFiletreeListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-     * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Invoked with the fresh root child set after every applied
-     * event. Runs synchronously on frame receipt, so keep it cheap;
-     * for the state on demand use
-     * {@link LaboratoriesFiletreeListener.children}. */
-    onChange?: (children: FileTreeNode[]) => void;
-}
-/** {@link LaboratoriesFiletreeListener.connectViewer} options — the
- * regular options sans `signature` (the Rust proxy stamps auth), plus
- * the optional `(machine, machineState)` host pin the URL query
- * carried in fetch mode. */
-type LaboratoriesFiletreeListenerViewerOptions = Omit<LaboratoriesFiletreeListenerOptions, "signature"> & {
-    /** Pin the filetree to one host's laboratory (with `machineState`). */
-    machine?: string;
-    /** The pinned host's state name (with `machine`). */
-    machineState?: string;
-};
-/**
- * The materialized `/laboratories/{id}/filetree` view — construct via
- * {@link LaboratoriesFiletreeListener.connect} (fetch) or
- * {@link LaboratoriesFiletreeListener.connectViewer} (Tauri IPC
- * proxy).
- *
- * ```ts
- * const listener = await LaboratoriesFiletreeListener.connectViewer(
- *   transport,
- *   "my-lab",
- *   { onChange: (children) => render(children) },
- * );
- * listener.children(); // FileTreeNode[] | null (null until the first frame)
- * await listener.subscribe(); // resolves on the next change
- * ```
- */
-declare class LaboratoriesFiletreeListener {
-    #private;
-    private constructor();
-    /**
-     * Open the connection and resolve once the stream is established
-     * (rejects when the daemon is unreachable or refused the auth).
-     * `url` is the daemon's full `/laboratories/{id}/filetree` URL; the
-     * optional `(machine, machine_state)` host pin rides the URL query,
-     * built by the caller. The returned listener immediately begins
-     * folding events (the first is the connect-time snapshot).
-     */
-    static connect(url: string, options?: LaboratoriesFiletreeListenerOptions): Promise<LaboratoriesFiletreeListener>;
-    /**
-     * Viewer-mode connect: the stream rides the Tauri IPC proxy
-     * ({@link connectViewerStream}) instead of fetch — no address, no
-     * signature (the Rust side owns both). `id` is the raw laboratory
-     * id. Same resolve/reject and lifecycle semantics as
-     * {@link connect}; reconnection remains the caller's loop.
-     */
-    static connectViewer(transport: ViewerTransport, id: string, options?: LaboratoriesFiletreeListenerViewerOptions): Promise<LaboratoriesFiletreeListener>;
-    /** Whether the connection has closed (the view is frozen). */
-    get closed(): boolean;
-    /** Drop the connection: the view freezes and any pending
-     * {@link subscribe} resolves. */
-    close(): void;
-    /** The folded root child set — `null` until the first frame. The
-     * array (and every unchanged subtree in it) is identity-stable
-     * across events; only changed spines get new objects. */
-    children(): FileTreeNode[] | null;
-    /** Resolves on the next change applied to the state. A fresh call
-     * waits for the FIRST change after it is made — loop with the
-     * {@link children} read, or use
-     * {@link LaboratoriesFiletreeListenerOptions.onChange} for
-     * guaranteed push. Resolves immediately if already closed. */
-    subscribe(): Promise<void>;
-}
-
-/**
- * Materialized consumer of the cli daemon's `/laboratories/list`
- * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::laboratories_list_listener::LaboratoriesListListener`,
- * identical in construction and semantics.
- *
- * Each item is one laboratory's spec plus the `machine` whose host
- * serves it (there is no local-vs-remote split — machine identity is
- * the only provenance) and a live `connected` flag from the daemon's
- * `/laboratory` registry. The
- * listener folds events into a self-updating `id → status` map: a
- * `snapshot` replaces the whole set, `upserted` replaces one
- * laboratory by id (introducing it if unseen), `removed` drops one.
- * Per-lab attachment detail lives on the `/laboratories/{id}`
- * endpoint ({@link LaboratoriesListener}).
- *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: when the socket closes the
- * view freezes at its last state; reconnection is the caller's loop.
- * Unparseable events are skipped (forward compat). No runtime
- * validation, like {@link BroadcastListener}.
- */
-
-type LaboratoryStatus = CliLaboratoriesListListenerLaboratoryStatus;
-interface LaboratoriesListListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-     * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Invoked with the full current laboratory set (sorted by id)
-     * after every applied change. Runs synchronously on frame receipt,
-     * so keep it cheap; for the full state on demand use
-     * {@link LaboratoriesListListener.laboratories}. */
-    onChange?: (laboratories: LaboratoryStatus[]) => void;
-}
-/** {@link LaboratoriesListListener.connectViewer} options — the
- * regular options sans `signature` (the Rust proxy stamps auth). */
-type LaboratoriesListListenerViewerOptions = Omit<LaboratoriesListListenerOptions, "signature">;
-declare class LaboratoriesListListener {
-    #private;
-    private constructor();
-    /**
-     * Open the connection, send the auth preamble, and resolve once the
-     * socket is established (rejects when the daemon is unreachable or
-     * closes during the handshake — e.g. it refused the auth). `url` is
-     * the daemon's full `/laboratories/list` URL. The returned listener
-     * immediately begins folding events (the first is the connect-time
-     * snapshot).
-     */
-    static connect(url: string, options?: LaboratoriesListListenerOptions): Promise<LaboratoriesListListener>;
-    /**
-     * Viewer-mode connect: the stream rides the Tauri IPC proxy
-     * ({@link connectViewerStream}) instead of fetch — no address, no
-     * signature, no identity (the Rust side owns all three). Same
-     * resolve/reject and lifecycle semantics as {@link connect};
-     * reconnection remains the caller's loop.
-     */
-    static connectViewer(transport: ViewerTransport, options?: LaboratoriesListListenerViewerOptions): Promise<LaboratoriesListListener>;
-    /** Whether the connection has closed (the view is frozen). */
-    get closed(): boolean;
-    /** Drop the connection: the view freezes and any pending
-     * {@link subscribe} resolves. */
-    close(): void;
-    /** Snapshot the current laboratory set, sorted by `id`. */
-    laboratories(): LaboratoryStatus[];
-    /** Resolves on the next change applied to the state. A fresh call
-     * waits for the FIRST change after it is made — loop with the
-     * {@link laboratories} read, or use
-     * {@link LaboratoriesListListenerOptions.onChange} for
-     * guaranteed push. Resolves immediately if already closed. */
-    subscribe(): Promise<void>;
-}
-
-/**
- * Materialized consumer of the cli daemon's `/laboratories/{id}`
- * endpoint over Server-Sent Events (SSE) — the JS mirror of the Rust SDK's
- * `cli::laboratories_listener::LaboratoriesListener`,
- * identical in construction and semantics.
- *
- * One laboratory's full record: its spec (when a connected host
- * serves it; zero-filled otherwise), `machine`/`connected`
- * state, and EVERY attachment row targeting it (the AIHs and tags it
- * is attached to). Frames are always full-value record replaces —
- * the first is the connect-time snapshot; each later one supersedes
- * it wholesale.
- *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header. One listener = one connection: when the socket closes the
- * view freezes at its last state; reconnection is the caller's loop.
- * Unparseable events are skipped (forward compat). No runtime
- * validation, like {@link BroadcastListener}.
- */
-
-type LaboratoryRecord = CliLaboratoriesListenerLaboratoryRecord;
-interface LaboratoriesListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
-     * as the `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Invoked with the fresh full record after every applied frame.
-     * Runs synchronously on frame receipt, so keep it cheap; for the
-     * state on demand use
-     * {@link LaboratoriesListener.laboratory}. */
-    onChange?: (laboratory: LaboratoryRecord) => void;
-}
-/** {@link LaboratoriesListener.connectViewer} options — the regular
- * options sans `signature` (the Rust proxy stamps auth), plus the
- * optional `(machine, machineState)` host pin the URL query carried
- * in fetch mode. */
-type LaboratoriesListenerViewerOptions = Omit<LaboratoriesListenerOptions, "signature"> & {
-    /** Pin the record to one host's laboratory (with `machineState`). */
-    machine?: string;
-    /** The pinned host's state name (with `machine`). */
-    machineState?: string;
-};
-/**
- * The materialized `/laboratories/{id}` view — construct via
- * {@link LaboratoriesListener.connect}.
- *
- * ```ts
- * const listener = await LaboratoriesListener.connect(
- *   `http://127.0.0.1:49152/laboratories/${id}`,
- *   { signature, onChange: (laboratory) => render(laboratory) },
- * );
- * listener.laboratory(); // { id, ..., connected, attachments } | null
- * await listener.subscribe(); // resolves on the next change
- * ```
- */
-declare class LaboratoriesListener {
-    #private;
-    private constructor();
-    /**
-     * Open the connection, send the auth preamble, and resolve once the
-     * socket is established (rejects when the daemon is unreachable or
-     * closes during the handshake — e.g. it refused the auth). `url` is
-     * the daemon's full per-laboratory URL (`/laboratories/` + the raw
-     * laboratory id). The returned listener immediately begins folding
-     * frames (the first is the connect-time record).
-     */
-    static connect(url: string, options?: LaboratoriesListenerOptions): Promise<LaboratoriesListener>;
-    /**
-     * Viewer-mode connect: the stream rides the Tauri IPC proxy
-     * ({@link connectViewerStream}) instead of fetch — no address, no
-     * signature, no identity (the Rust side owns all three). `id` is
-     * the raw laboratory id. Same resolve/reject and lifecycle
-     * semantics as {@link connect}; reconnection remains the caller's
-     * loop.
-     */
-    static connectViewer(transport: ViewerTransport, id: string, options?: LaboratoriesListenerViewerOptions): Promise<LaboratoriesListener>;
-    /** Whether the connection has closed (the view is frozen). */
-    get closed(): boolean;
-    /** Drop the connection: the view freezes and any pending
-     * {@link subscribe} resolves. */
-    close(): void;
-    /** The current record — `null` before the first frame. */
-    laboratory(): LaboratoryRecord | null;
-    /** Resolves on the next frame applied to the state. A fresh call
-     * waits for the FIRST change after it is made — loop with the
-     * {@link laboratory} read, or use
-     * {@link LaboratoriesListenerOptions.onChange} for
-     * guaranteed push. Resolves immediately if already closed. */
-    subscribe(): Promise<void>;
-}
-
-/**
- * Materialized consumer of the cli daemon's `/channels` endpoints — the
- * DUPLEX CHANNELS surface — over Server-Sent Events (SSE): the JS
- * mirror of the Rust SDK's `cli::channel_listener::ChannelListener`.
- *
- * `GET /channels` is the OFFER lifecycle stream and nothing else: the
- * listener folds `offer` (insert into the pending map),
- * `offer_withdrawn` (remove), and the `live` caught-up marker. No
- * secrets ride this stream.
- *
- * Accepting is {@link ChannelListener.accept}: a bare
- * `POST /channels/{id}/accept` (first-wins) whose `200` body carries
- * the owner secret (`S_owner`) — the per-channel capability for
- * `channels logs reply|list|open|subscribe` and `channels close`. The
- * daemon tracks no liveness; a channel stays open until someone runs
- * `channels close` with either of its secrets (terminal — any blocked
- * `channels logs subscribe` unblocks with `channel_closed`).
- *
- * Auth rides the `X-OBJECTIVEAI-SIGNATURE` request header — in FETCH
- * mode only. A viewer-proxy migration must NOT set it (nor take a
- * signature at all): in viewer mode the Rust proxy stamps auth and
- * identity headers natively, exactly as it does for agent arguments —
- * secrets never enter the webview. One listener = one connection:
- * when the socket closes the view freezes; reconnect is the caller's
- * loop. Fetch mode only for now. Unparseable events are skipped
- * (forward compat).
- */
-
-type ChannelEvent = CliChannelListenerChannelEvent;
-type ChannelOffer = CliChannelListenerChannelOffer;
-interface ChannelListenerOptions {
-    /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent as the
-     * `X-OBJECTIVEAI-SIGNATURE` header. Without it the daemon must be
-     * running without a secret. */
-    signature?: string | null;
-    /** Invoked with every parsed event after it is folded — offers,
-     * withdrawals, and the `live` caught-up marker. Runs synchronously
-     * on frame receipt; keep it cheap. */
-    onEvent?: (event: ChannelEvent) => void;
-}
-/**
- * The materialized `/channels` offer view + accept client — construct
- * via {@link ChannelListener.connect}.
- *
- * ```ts
- * const surface = await ChannelListener.connect(
- *   "http://127.0.0.1:49152",
- *   { signature },
- * );
- * // ...a publisher runs `channels publish --key demo --details '{}'`...
- * await surface.subscribe();               // wakes on the offer
- * const [offer] = surface.pending();
- * const sOwner = await surface.accept(offer.channel_id);
- * // ...use S_owner with `channels logs reply|list|open|subscribe`,
- * // and `channels close` when the conversation is over.
- * ```
- */
-declare class ChannelListener {
-    #private;
-    private constructor();
-    /**
-     * Open the connection and resolve once the socket is established.
-     * `baseUrl` is the daemon's published base address (e.g.
-     * `http://127.0.0.1:49152`) — `/channels` and `/channels/{id}/accept`
-     * are appended. The returned listener immediately begins folding
-     * events (the open-offer replay, then the `live` marker).
-     */
-    static connect(baseUrl: string, options?: ChannelListenerOptions): Promise<ChannelListener>;
-    /** Whether the connection has closed (the view is frozen). */
-    get closed(): boolean;
-    /** Drop the connection: the view freezes and any pending
-     * {@link subscribe} resolves. */
-    close(): void;
-    /** Snapshot the currently open offers, sorted by `channel_id`. */
-    pending(): ChannelOffer[];
-    /** Resolves on the next applied event. Resolves immediately if
-     * already closed. */
-    subscribe(): Promise<void>;
-    /**
-     * Accept an open offer: a bare `POST /channels/{id}/accept`
-     * (first-wins). Resolves with the owner secret (`S_owner`) from the
-     * response body. Rejects on refusal — the message carries the HTTP
-     * status (404 unknown/withdrawn, 409 already accepted, 401
-     * unauthorized).
-     */
-    accept(channelId: string): Promise<string>;
-}
 
 declare const ErrorErrorCreateParamsSchema: z.ZodObject<{
     seed: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -160203,6 +160045,12 @@ type LaboratoriesClientLaboratory = z.infer<typeof LaboratoriesClientLaboratoryS
 declare const LaboratoriesClientLaboratoryTypeSchema: z.ZodLiteral<"client">;
 type LaboratoriesClientLaboratoryType = z.infer<typeof LaboratoriesClientLaboratoryTypeSchema>;
 
+declare const LaboratoriesEnvVarSchema: z.ZodObject<{
+    key: z.ZodString;
+    value: z.ZodString;
+}, z.core.$strip>;
+type LaboratoriesEnvVar = z.infer<typeof LaboratoriesEnvVarSchema>;
+
 declare const LaboratoriesInlineLaboratoryImageSchema: z.ZodObject<{
     containerfile: z.ZodString;
 }, z.core.$strip>;
@@ -160254,6 +160102,12 @@ declare const LaboratoriesLaboratoryImagePinSchema: z.ZodUnion<readonly [z.ZodOb
     digest: z.ZodString;
 }, z.core.$strict>]>;
 type LaboratoriesLaboratoryImagePin = z.infer<typeof LaboratoriesLaboratoryImagePinSchema>;
+
+declare const LaboratoriesMountSchema: z.ZodObject<{
+    container: z.ZodString;
+    host: z.ZodString;
+}, z.core.$strip>;
+type LaboratoriesMount = z.infer<typeof LaboratoriesMountSchema>;
 
 declare const LaboratoriesRegistryLaboratoryImageSchema: z.ZodUnion<readonly [z.ZodObject<{
     name: z.ZodString;
@@ -186342,6 +186196,57 @@ declare const WeightsEntrySchema: z.ZodObject<{
 type WeightsEntry = z.infer<typeof WeightsEntrySchema>;
 
 /**
+ * The viewer-UI surface: opening tabs in the viewer shell. Distinct
+ * from the daemon transports — this is the shell's own command, not a
+ * daemon endpoint (the daemon-side viewer plumbing lives in
+ * `daemon/viewerStream.ts`, sharing the same injected
+ * {@link ViewerTransport}).
+ */
+
+/**
+ * One tab open request — the argument to the viewer shell's
+ * `tabs_open` command. The SENDER's identity is deliberately NOT
+ * part of it: the Rust shell derives identity from the calling
+ * webview (the root chrome and built-in tabs are `objectiveai`; a
+ * plugin's webviews are that plugin) and resolves `module` against
+ * that identity's root — a caller can only ever open tabs whose code
+ * lives under its own root.
+ */
+interface ViewerOpenTab {
+    /** Component module path, relative to the sender identity's root
+     * (e.g. `/tabs/agents.js`). Absolute-from-root, no scheme, no
+     * traversal — the shell rejects anything else. */
+    module: string;
+    /** The export holding the component (default `"default"`). */
+    export?: string;
+    /** The tab's display title. */
+    title: string;
+    /** Opaque props delivered verbatim to the component at boot. */
+    arguments?: unknown;
+    /** Whether the strip shows a close button (default `true`). */
+    closable?: boolean;
+    /** OPTIONAL identity icon, shown beside the identity in the strip
+     * — a path relative to the sender identity's root, same rules as
+     * `module` (a plugin's manifest icon; omit for none). */
+    icon?: string;
+}
+/**
+ * Open a viewer tab in the calling window — or focus it, wherever it
+ * lives, if one with the same identity + module + export + arguments
+ * already exists (the shell's open-or-focus dedupe; `title` and
+ * `closable` are cosmetic, not identity). Resolves once the shell
+ * has applied the open.
+ */
+declare function openViewerTab(transport: ViewerTransport, tab: ViewerOpenTab): Promise<void>;
+/**
+ * Close a viewer tab: the CALLING tab when `tab` is omitted (the
+ * self-close every component may use — a spawned window's sole tab
+ * closes the window with it), or the tab with that id. Either way
+ * the shell's closability rules apply.
+ */
+declare function closeViewerTab(transport: ViewerTransport, tab?: number): Promise<void>;
+
+/**
  * Error thrown when an API request fails.
  *
  * - `body`: The complete ErrorResponseError (contains code and message)
@@ -186384,4 +186289,4 @@ declare function merge<T extends {}>(a: T | null | undefined, b: T | null | unde
 declare function mergedString(a: string, b: string): [string, boolean];
 declare function mergedNumberArray(a: number[], b: number[]): [number[], boolean];
 
-export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessagePipeAck, AgentCompletionsMessagePipeAckSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageToolResponseMetadata, AgentCompletionsMessageToolResponseMetadataSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamDurationMs, AgentCompletionsResponseUpstreamDurationMsSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentLaboratory, AgentLaboratorySchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockCall, AgentMockCallSchema, type AgentMockCallToolCall, AgentMockCallToolCallSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContextCompression, AgentOpenrouterContextCompressionSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterSystemPrompt, type AgentOpenrouterSystemPromptRole, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentPlugin, AgentPluginSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentScriptAgent, type AgentScriptAgentBase, AgentScriptAgentBaseSchema, AgentScriptAgentSchema, type AgentScriptContinuation, AgentScriptContinuationSchema, type AgentScriptOutputMessage, AgentScriptOutputMessageSchema, type AgentScriptOutputMode, AgentScriptOutputModeSchema, type AgentScriptScript, AgentScriptScriptSchema, type AgentScriptUpstream, AgentScriptUpstreamSchema, type AgentUpstream, AgentUpstreamSchema, AgentsInstancesListListener, type AgentsInstancesListListenerOptions, type AgentsInstancesListListenerViewerOptions, AgentsInstancesListener, type AgentsInstancesListenerOptions, type AgentsInstancesListenerViewerOptions, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, BinaryCommandExecutor, type BinaryCommandExecutorOptions, BroadcastListener, type BroadcastListenerOptions, CLI_COMMAND_LISTENER_EXECUTION_MODES, ChannelListener, type ChannelListenerOptions, type CliAgentsInstancesListListenerAgentEvent, CliAgentsInstancesListListenerAgentEventSchema, type CliAgentsInstancesListListenerAgentStatus, CliAgentsInstancesListListenerAgentStatusSchema, type CliAgentsInstancesListenerAgentInstanceEvent, CliAgentsInstancesListenerAgentInstanceEventSchema, type CliAgentsInstancesListenerAgentRecord, CliAgentsInstancesListenerAgentRecordSchema, type CliAgentsInstancesListenerAssistantResponsePart, CliAgentsInstancesListenerAssistantResponsePartSchema, type CliAgentsInstancesListenerAttachedLaboratory, CliAgentsInstancesListenerAttachedLaboratorySchema, type CliAgentsInstancesListenerClientNotificationPart, CliAgentsInstancesListenerClientNotificationPartSchema, type CliAgentsInstancesListenerConversationBlock, CliAgentsInstancesListenerConversationBlockSchema, type CliAgentsInstancesListenerPartContent, CliAgentsInstancesListenerPartContentSchema, type CliAgentsInstancesListenerRequestMessageUserPart, CliAgentsInstancesListenerRequestMessageUserPartSchema, type CliAgentsInstancesListenerToolResponsePart, CliAgentsInstancesListenerToolResponsePartSchema, type CliAgentsInstancesListenerVectorRequestChoice, type CliAgentsInstancesListenerVectorRequestChoicePart, CliAgentsInstancesListenerVectorRequestChoicePartSchema, CliAgentsInstancesListenerVectorRequestChoiceSchema, type CliBroadcastListenerListenerEnd, CliBroadcastListenerListenerEndSchema, type CliChannelListenerChannelAccepted, CliChannelListenerChannelAcceptedSchema, type CliChannelListenerChannelEvent, CliChannelListenerChannelEventSchema, type CliChannelListenerChannelOffer, CliChannelListenerChannelOfferSchema, type CliCommandAgentArguments, CliCommandAgentArgumentsSchema, type CliCommandAgentsAgentRef, CliCommandAgentsAgentRefSchema, type CliCommandAgentsAgentSelector, CliCommandAgentsAgentSelectorSchema, type CliCommandAgentsEnqueueListenerExecution, type CliCommandAgentsEnqueuePath, CliCommandAgentsEnqueuePathSchema, type CliCommandAgentsEnqueueRequest, CliCommandAgentsEnqueueRequestSchema, type CliCommandAgentsEnqueueRequestSchemaListenerExecution, type CliCommandAgentsEnqueueRequestSchemaPath, CliCommandAgentsEnqueueRequestSchemaPathSchema, type CliCommandAgentsEnqueueRequestSchemaRequest, CliCommandAgentsEnqueueRequestSchemaRequestSchema, type CliCommandAgentsEnqueueResponse, CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponseSchemaListenerExecution, type CliCommandAgentsEnqueueResponseSchemaPath, CliCommandAgentsEnqueueResponseSchemaPathSchema, type CliCommandAgentsEnqueueResponseSchemaRequest, CliCommandAgentsEnqueueResponseSchemaRequestSchema, type CliCommandAgentsGetListenerExecution, type CliCommandAgentsGetPath, CliCommandAgentsGetPathSchema, type CliCommandAgentsGetRequest, CliCommandAgentsGetRequestSchema, type CliCommandAgentsGetRequestSchemaListenerExecution, type CliCommandAgentsGetRequestSchemaPath, CliCommandAgentsGetRequestSchemaPathSchema, type CliCommandAgentsGetRequestSchemaRequest, CliCommandAgentsGetRequestSchemaRequestSchema, type CliCommandAgentsGetResponse, CliCommandAgentsGetResponseSchema, type CliCommandAgentsGetResponseSchemaListenerExecution, type CliCommandAgentsGetResponseSchemaPath, CliCommandAgentsGetResponseSchemaPathSchema, type CliCommandAgentsGetResponseSchemaRequest, CliCommandAgentsGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesGetListenerExecution, type CliCommandAgentsInstancesGetPath, CliCommandAgentsInstancesGetPathSchema, type CliCommandAgentsInstancesGetRequest, CliCommandAgentsInstancesGetRequestSchema, type CliCommandAgentsInstancesGetRequestSchemaListenerExecution, type CliCommandAgentsInstancesGetRequestSchemaPath, CliCommandAgentsInstancesGetRequestSchemaPathSchema, type CliCommandAgentsInstancesGetRequestSchemaRequest, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, type CliCommandAgentsInstancesGetResponseSchemaListenerExecution, type CliCommandAgentsInstancesGetResponseSchemaPath, CliCommandAgentsInstancesGetResponseSchemaPathSchema, type CliCommandAgentsInstancesGetResponseSchemaRequest, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesListLaboratoryAttachment, CliCommandAgentsInstancesListLaboratoryAttachmentSchema, type CliCommandAgentsInstancesListListenerExecution, type CliCommandAgentsInstancesListPath, CliCommandAgentsInstancesListPathSchema, type CliCommandAgentsInstancesListRequest, CliCommandAgentsInstancesListRequestSchema, type CliCommandAgentsInstancesListRequestSchemaListenerExecution, type CliCommandAgentsInstancesListRequestSchemaPath, CliCommandAgentsInstancesListRequestSchemaPathSchema, type CliCommandAgentsInstancesListRequestSchemaRequest, CliCommandAgentsInstancesListRequestSchemaRequestSchema, type CliCommandAgentsInstancesListResponseItem, CliCommandAgentsInstancesListResponseItemSchema, type CliCommandAgentsInstancesListResponseSchemaListenerExecution, type CliCommandAgentsInstancesListResponseSchemaPath, CliCommandAgentsInstancesListResponseSchemaPathSchema, type CliCommandAgentsInstancesListResponseSchemaRequest, CliCommandAgentsInstancesListResponseSchemaRequestSchema, type CliCommandAgentsInstancesListenerExecution, type CliCommandAgentsInstancesRequest, CliCommandAgentsInstancesRequestSchema, type CliCommandAgentsListListenerExecution, type CliCommandAgentsListPath, CliCommandAgentsListPathSchema, type CliCommandAgentsListRequest, CliCommandAgentsListRequestSchema, type CliCommandAgentsListRequestSchemaListenerExecution, type CliCommandAgentsListRequestSchemaPath, CliCommandAgentsListRequestSchemaPathSchema, type CliCommandAgentsListRequestSchemaRequest, CliCommandAgentsListRequestSchemaRequestSchema, type CliCommandAgentsListResponseSchemaListenerExecution, type CliCommandAgentsListResponseSchemaPath, CliCommandAgentsListResponseSchemaPathSchema, type CliCommandAgentsListResponseSchemaRequest, CliCommandAgentsListResponseSchemaRequestSchema, type CliCommandAgentsListenerExecution, type CliCommandAgentsLogsListAssistantResponsePart, CliCommandAgentsLogsListAssistantResponsePartSchema, type CliCommandAgentsLogsListClientNotificationPart, CliCommandAgentsLogsListClientNotificationPartSchema, type CliCommandAgentsLogsListClientNotificationPartType, CliCommandAgentsLogsListClientNotificationPartTypeSchema, type CliCommandAgentsLogsListListenerExecution, type CliCommandAgentsLogsListPath, CliCommandAgentsLogsListPathSchema, type CliCommandAgentsLogsListRequest, type CliCommandAgentsLogsListRequestMessageUserPart, CliCommandAgentsLogsListRequestMessageUserPartSchema, type CliCommandAgentsLogsListRequestMessageUserPartType, CliCommandAgentsLogsListRequestMessageUserPartTypeSchema, CliCommandAgentsLogsListRequestSchema, type CliCommandAgentsLogsListRequestSchemaListenerExecution, type CliCommandAgentsLogsListRequestSchemaPath, CliCommandAgentsLogsListRequestSchemaPathSchema, type CliCommandAgentsLogsListRequestSchemaRequest, CliCommandAgentsLogsListRequestSchemaRequestSchema, type CliCommandAgentsLogsListResponseItem, CliCommandAgentsLogsListResponseItemSchema, type CliCommandAgentsLogsListResponseSchemaListenerExecution, type CliCommandAgentsLogsListResponseSchemaPath, CliCommandAgentsLogsListResponseSchemaPathSchema, type CliCommandAgentsLogsListResponseSchemaRequest, CliCommandAgentsLogsListResponseSchemaRequestSchema, type CliCommandAgentsLogsListTarget, CliCommandAgentsLogsListTargetSchema, type CliCommandAgentsLogsListToolResponsePart, CliCommandAgentsLogsListToolResponsePartSchema, type CliCommandAgentsLogsListToolResponsePartType, CliCommandAgentsLogsListToolResponsePartTypeSchema, type CliCommandAgentsLogsListVectorRequestChoice, type CliCommandAgentsLogsListVectorRequestChoicePart, CliCommandAgentsLogsListVectorRequestChoicePartSchema, type CliCommandAgentsLogsListVectorRequestChoicePartType, CliCommandAgentsLogsListVectorRequestChoicePartTypeSchema, CliCommandAgentsLogsListVectorRequestChoiceSchema, type CliCommandAgentsLogsListenerExecution, type CliCommandAgentsLogsOpenListenerExecution, type CliCommandAgentsLogsOpenPath, CliCommandAgentsLogsOpenPathSchema, type CliCommandAgentsLogsOpenRequest, CliCommandAgentsLogsOpenRequestSchema, type CliCommandAgentsLogsOpenRequestSchemaListenerExecution, type CliCommandAgentsLogsOpenRequestSchemaPath, CliCommandAgentsLogsOpenRequestSchemaPathSchema, type CliCommandAgentsLogsOpenRequestSchemaRequest, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, type CliCommandAgentsLogsOpenResponse, CliCommandAgentsLogsOpenResponseSchema, type CliCommandAgentsLogsOpenResponseSchemaListenerExecution, type CliCommandAgentsLogsOpenResponseSchemaPath, CliCommandAgentsLogsOpenResponseSchemaPathSchema, type CliCommandAgentsLogsOpenResponseSchemaRequest, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, type CliCommandAgentsLogsRequest, CliCommandAgentsLogsRequestSchema, type CliCommandAgentsLogsSubscribeAgentsInactiveTag, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsSubscribeKindFilter, CliCommandAgentsLogsSubscribeKindFilterSchema, type CliCommandAgentsLogsSubscribeListenerExecution, type CliCommandAgentsLogsSubscribePath, CliCommandAgentsLogsSubscribePathSchema, type CliCommandAgentsLogsSubscribeRequest, CliCommandAgentsLogsSubscribeRequestSchema, type CliCommandAgentsLogsSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsSubscribeRequestSchemaPath, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsSubscribeRequestSchemaRequest, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsSubscribeResponseItem, CliCommandAgentsLogsSubscribeResponseItemSchema, type CliCommandAgentsLogsSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsSubscribeResponseSchemaPath, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsSubscribeResponseSchemaRequest, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetListenerExecution, type CliCommandAgentsLogsTokenUsageGetPath, CliCommandAgentsLogsTokenUsageGetPathSchema, type CliCommandAgentsLogsTokenUsageGetRequest, CliCommandAgentsLogsTokenUsageGetRequestSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetRequestSchemaPath, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetResponse, CliCommandAgentsLogsTokenUsageGetResponseSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetResponseSchemaPath, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageListenerExecution, type CliCommandAgentsLogsTokenUsageRequest, CliCommandAgentsLogsTokenUsageRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTag, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsTokenUsageSubscribeListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribePath, CliCommandAgentsLogsTokenUsageSubscribePathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseItem, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, type CliCommandAgentsMcpListenerExecution, type CliCommandAgentsMcpRequest, CliCommandAgentsMcpRequestSchema, type CliCommandAgentsMcpResourcesListListenerExecution, type CliCommandAgentsMcpResourcesListPath, CliCommandAgentsMcpResourcesListPathSchema, type CliCommandAgentsMcpResourcesListRequest, CliCommandAgentsMcpResourcesListRequestSchema, type CliCommandAgentsMcpResourcesListRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesListRequestSchemaPath, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesListRequestSchemaRequest, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesListResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesListResponseSchemaPath, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesListResponseSchemaRequest, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesListenerExecution, type CliCommandAgentsMcpResourcesReadListenerExecution, type CliCommandAgentsMcpResourcesReadPath, CliCommandAgentsMcpResourcesReadPathSchema, type CliCommandAgentsMcpResourcesReadRequest, CliCommandAgentsMcpResourcesReadRequestSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadRequestSchemaPath, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaRequest, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadResponseSchemaPath, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaRequest, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesRequest, CliCommandAgentsMcpResourcesRequestSchema, type CliCommandAgentsMcpServersListListenerExecution, type CliCommandAgentsMcpServersListPath, CliCommandAgentsMcpServersListPathSchema, type CliCommandAgentsMcpServersListRequest, CliCommandAgentsMcpServersListRequestSchema, type CliCommandAgentsMcpServersListRequestSchemaListenerExecution, type CliCommandAgentsMcpServersListRequestSchemaPath, CliCommandAgentsMcpServersListRequestSchemaPathSchema, type CliCommandAgentsMcpServersListRequestSchemaRequest, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, type CliCommandAgentsMcpServersListResponseSchemaListenerExecution, type CliCommandAgentsMcpServersListResponseSchemaPath, CliCommandAgentsMcpServersListResponseSchemaPathSchema, type CliCommandAgentsMcpServersListResponseSchemaRequest, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, type CliCommandAgentsMcpServersListenerExecution, type CliCommandAgentsMcpServersRequest, CliCommandAgentsMcpServersRequestSchema, type CliCommandAgentsMcpToolsCallListenerExecution, type CliCommandAgentsMcpToolsCallPath, CliCommandAgentsMcpToolsCallPathSchema, type CliCommandAgentsMcpToolsCallRequest, CliCommandAgentsMcpToolsCallRequestSchema, type CliCommandAgentsMcpToolsCallRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsCallRequestSchemaPath, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, type CliCommandAgentsMcpToolsCallRequestSchemaRequest, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsCallResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsCallResponseSchemaPath, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, type CliCommandAgentsMcpToolsCallResponseSchemaRequest, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListListenerExecution, type CliCommandAgentsMcpToolsListPath, CliCommandAgentsMcpToolsListPathSchema, type CliCommandAgentsMcpToolsListRequest, CliCommandAgentsMcpToolsListRequestSchema, type CliCommandAgentsMcpToolsListRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsListRequestSchemaPath, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, type CliCommandAgentsMcpToolsListRequestSchemaRequest, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsListResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsListResponseSchemaPath, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, type CliCommandAgentsMcpToolsListResponseSchemaRequest, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListenerExecution, type CliCommandAgentsMcpToolsRequest, CliCommandAgentsMcpToolsRequestSchema, type CliCommandAgentsMessageListenerExecution, type CliCommandAgentsMessagePath, CliCommandAgentsMessagePathSchema, type CliCommandAgentsMessageRequest, type CliCommandAgentsMessageRequestDangerousAdvanced, CliCommandAgentsMessageRequestDangerousAdvancedSchema, type CliCommandAgentsMessageRequestMessage, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, type CliCommandAgentsMessageRequestSchemaListenerExecution, type CliCommandAgentsMessageRequestSchemaPath, CliCommandAgentsMessageRequestSchemaPathSchema, type CliCommandAgentsMessageRequestSchemaRequest, CliCommandAgentsMessageRequestSchemaRequestSchema, type CliCommandAgentsMessageResponse, CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponseSchemaListenerExecution, type CliCommandAgentsMessageResponseSchemaPath, CliCommandAgentsMessageResponseSchemaPathSchema, type CliCommandAgentsMessageResponseSchemaRequest, CliCommandAgentsMessageResponseSchemaRequestSchema, type CliCommandAgentsPublishListenerExecution, type CliCommandAgentsPublishPath, CliCommandAgentsPublishPathSchema, type CliCommandAgentsPublishRequest, type CliCommandAgentsPublishRequestBody, CliCommandAgentsPublishRequestBodySchema, type CliCommandAgentsPublishRequestPublishMessage, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, type CliCommandAgentsPublishRequestSchemaListenerExecution, type CliCommandAgentsPublishRequestSchemaPath, CliCommandAgentsPublishRequestSchemaPathSchema, type CliCommandAgentsPublishRequestSchemaRequest, CliCommandAgentsPublishRequestSchemaRequestSchema, type CliCommandAgentsPublishResponse, CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponseSchemaListenerExecution, type CliCommandAgentsPublishResponseSchemaPath, CliCommandAgentsPublishResponseSchemaPathSchema, type CliCommandAgentsPublishResponseSchemaRequest, CliCommandAgentsPublishResponseSchemaRequestSchema, type CliCommandAgentsQueueDeleteListenerExecution, type CliCommandAgentsQueueDeletePath, CliCommandAgentsQueueDeletePathSchema, type CliCommandAgentsQueueDeleteRequest, CliCommandAgentsQueueDeleteRequestSchema, type CliCommandAgentsQueueDeleteRequestSchemaListenerExecution, type CliCommandAgentsQueueDeleteRequestSchemaPath, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, type CliCommandAgentsQueueDeleteRequestSchemaRequest, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, type CliCommandAgentsQueueDeleteResponse, CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponseSchemaListenerExecution, type CliCommandAgentsQueueDeleteResponseSchemaPath, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, type CliCommandAgentsQueueDeleteResponseSchemaRequest, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverAgentActiveResponseItem, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, type CliCommandAgentsQueueDeliverAgentActiveType, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, type CliCommandAgentsQueueDeliverAgentSpawnedResponseItem, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverAgentSpawnedType, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, type CliCommandAgentsQueueDeliverAllAgentsActive, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, type CliCommandAgentsQueueDeliverListenerExecution, type CliCommandAgentsQueueDeliverPath, CliCommandAgentsQueueDeliverPathSchema, type CliCommandAgentsQueueDeliverRequest, type CliCommandAgentsQueueDeliverRequestDangerousAdvanced, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, type CliCommandAgentsQueueDeliverRequestSchemaListenerExecution, type CliCommandAgentsQueueDeliverRequestSchemaPath, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, type CliCommandAgentsQueueDeliverRequestSchemaRequest, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, type CliCommandAgentsQueueDeliverResponseItem, CliCommandAgentsQueueDeliverResponseItemSchema, type CliCommandAgentsQueueDeliverResponseSchemaListenerExecution, type CliCommandAgentsQueueDeliverResponseSchemaPath, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, type CliCommandAgentsQueueDeliverResponseSchemaRequest, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverTagActiveResponseItem, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, type CliCommandAgentsQueueDeliverTagActiveType, CliCommandAgentsQueueDeliverTagActiveTypeSchema, type CliCommandAgentsQueueDeliverTagSpawnedResponseItem, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverTagSpawnedType, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, type CliCommandAgentsQueueDeliverValueResponseItem, CliCommandAgentsQueueDeliverValueResponseItemSchema, type CliCommandAgentsQueueListListenerExecution, type CliCommandAgentsQueueListPath, CliCommandAgentsQueueListPathSchema, type CliCommandAgentsQueueListQueuePart, CliCommandAgentsQueueListQueuePartSchema, type CliCommandAgentsQueueListRequest, CliCommandAgentsQueueListRequestSchema, type CliCommandAgentsQueueListRequestSchemaListenerExecution, type CliCommandAgentsQueueListRequestSchemaPath, CliCommandAgentsQueueListRequestSchemaPathSchema, type CliCommandAgentsQueueListRequestSchemaRequest, CliCommandAgentsQueueListRequestSchemaRequestSchema, type CliCommandAgentsQueueListResponseItem, CliCommandAgentsQueueListResponseItemSchema, type CliCommandAgentsQueueListResponseSchemaListenerExecution, type CliCommandAgentsQueueListResponseSchemaPath, CliCommandAgentsQueueListResponseSchemaPathSchema, type CliCommandAgentsQueueListResponseSchemaRequest, CliCommandAgentsQueueListResponseSchemaRequestSchema, type CliCommandAgentsQueueListenerExecution, type CliCommandAgentsQueueOpenListenerExecution, type CliCommandAgentsQueueOpenPath, CliCommandAgentsQueueOpenPathSchema, type CliCommandAgentsQueueOpenRequest, CliCommandAgentsQueueOpenRequestSchema, type CliCommandAgentsQueueOpenRequestSchemaListenerExecution, type CliCommandAgentsQueueOpenRequestSchemaPath, CliCommandAgentsQueueOpenRequestSchemaPathSchema, type CliCommandAgentsQueueOpenRequestSchemaRequest, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, type CliCommandAgentsQueueOpenResponseSchemaListenerExecution, type CliCommandAgentsQueueOpenResponseSchemaPath, CliCommandAgentsQueueOpenResponseSchemaPathSchema, type CliCommandAgentsQueueOpenResponseSchemaRequest, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, type CliCommandAgentsQueueRequest, CliCommandAgentsQueueRequestSchema, type CliCommandAgentsRequest, CliCommandAgentsRequestSchema, type CliCommandAgentsSpawnListenerExecution, type CliCommandAgentsSpawnListenerExecutionStreaming, type CliCommandAgentsSpawnListenerExecutionVariant, type CliCommandAgentsSpawnPath, CliCommandAgentsSpawnPathSchema, type CliCommandAgentsSpawnRequest, type CliCommandAgentsSpawnRequestDangerousAdvanced, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, type CliCommandAgentsSpawnRequestSchemaListenerExecution, type CliCommandAgentsSpawnRequestSchemaPath, CliCommandAgentsSpawnRequestSchemaPathSchema, type CliCommandAgentsSpawnRequestSchemaRequest, CliCommandAgentsSpawnRequestSchemaRequestSchema, type CliCommandAgentsSpawnResponseItem, CliCommandAgentsSpawnResponseItemSchema, type CliCommandAgentsSpawnResponseSchemaListenerExecution, type CliCommandAgentsSpawnResponseSchemaPath, CliCommandAgentsSpawnResponseSchemaPathSchema, type CliCommandAgentsSpawnResponseSchemaRequest, CliCommandAgentsSpawnResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyAgentTagResolution, CliCommandAgentsTagsApplyAgentTagResolutionSchema, type CliCommandAgentsTagsApplyListenerExecution, type CliCommandAgentsTagsApplyPath, CliCommandAgentsTagsApplyPathSchema, type CliCommandAgentsTagsApplyRequest, CliCommandAgentsTagsApplyRequestSchema, type CliCommandAgentsTagsApplyRequestSchemaListenerExecution, type CliCommandAgentsTagsApplyRequestSchemaPath, CliCommandAgentsTagsApplyRequestSchemaPathSchema, type CliCommandAgentsTagsApplyRequestSchemaRequest, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, type CliCommandAgentsTagsApplyResponse, CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponseSchemaListenerExecution, type CliCommandAgentsTagsApplyResponseSchemaPath, CliCommandAgentsTagsApplyResponseSchemaPathSchema, type CliCommandAgentsTagsApplyResponseSchemaRequest, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyTarget, CliCommandAgentsTagsApplyTargetSchema, type CliCommandAgentsTagsListenerExecution, type CliCommandAgentsTagsLookupListenerExecution, type CliCommandAgentsTagsLookupLookupState, CliCommandAgentsTagsLookupLookupStateSchema, type CliCommandAgentsTagsLookupPath, CliCommandAgentsTagsLookupPathSchema, type CliCommandAgentsTagsLookupRequest, CliCommandAgentsTagsLookupRequestSchema, type CliCommandAgentsTagsLookupRequestSchemaListenerExecution, type CliCommandAgentsTagsLookupRequestSchemaPath, CliCommandAgentsTagsLookupRequestSchemaPathSchema, type CliCommandAgentsTagsLookupRequestSchemaRequest, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, type CliCommandAgentsTagsLookupResponse, CliCommandAgentsTagsLookupResponseSchema, type CliCommandAgentsTagsLookupResponseSchemaListenerExecution, type CliCommandAgentsTagsLookupResponseSchemaPath, CliCommandAgentsTagsLookupResponseSchemaPathSchema, type CliCommandAgentsTagsLookupResponseSchemaRequest, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, type CliCommandAgentsTagsRemoveListenerExecution, type CliCommandAgentsTagsRemovePath, CliCommandAgentsTagsRemovePathSchema, type CliCommandAgentsTagsRemoveRemoved, CliCommandAgentsTagsRemoveRemovedSchema, type CliCommandAgentsTagsRemoveRequest, CliCommandAgentsTagsRemoveRequestSchema, type CliCommandAgentsTagsRemoveRequestSchemaListenerExecution, type CliCommandAgentsTagsRemoveRequestSchemaPath, CliCommandAgentsTagsRemoveRequestSchemaPathSchema, type CliCommandAgentsTagsRemoveRequestSchemaRequest, CliCommandAgentsTagsRemoveRequestSchemaRequestSchema, type CliCommandAgentsTagsRemoveResponse, CliCommandAgentsTagsRemoveResponseSchema, type CliCommandAgentsTagsRemoveResponseSchemaListenerExecution, type CliCommandAgentsTagsRemoveResponseSchemaPath, CliCommandAgentsTagsRemoveResponseSchemaPathSchema, type CliCommandAgentsTagsRemoveResponseSchemaRequest, CliCommandAgentsTagsRemoveResponseSchemaRequestSchema, type CliCommandAgentsTagsRequest, CliCommandAgentsTagsRequestSchema, type CliCommandAgentsWaitListenerExecution, type CliCommandAgentsWaitPath, CliCommandAgentsWaitPathSchema, type CliCommandAgentsWaitRequest, CliCommandAgentsWaitRequestSchema, type CliCommandAgentsWaitRequestSchemaListenerExecution, type CliCommandAgentsWaitRequestSchemaPath, CliCommandAgentsWaitRequestSchemaPathSchema, type CliCommandAgentsWaitRequestSchemaRequest, CliCommandAgentsWaitRequestSchemaRequestSchema, type CliCommandAgentsWaitResponseSchemaListenerExecution, type CliCommandAgentsWaitResponseSchemaPath, CliCommandAgentsWaitResponseSchemaPathSchema, type CliCommandAgentsWaitResponseSchemaRequest, CliCommandAgentsWaitResponseSchemaRequestSchema, type CliCommandApiConfigAddressGetListenerExecution, type CliCommandApiConfigAddressGetPath, CliCommandApiConfigAddressGetPathSchema, type CliCommandApiConfigAddressGetRequest, CliCommandApiConfigAddressGetRequestSchema, type CliCommandApiConfigAddressGetRequestSchemaListenerExecution, type CliCommandApiConfigAddressGetRequestSchemaPath, CliCommandApiConfigAddressGetRequestSchemaPathSchema, type CliCommandApiConfigAddressGetRequestSchemaRequest, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, type CliCommandApiConfigAddressGetResponse, CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponseSchemaListenerExecution, type CliCommandApiConfigAddressGetResponseSchemaPath, CliCommandApiConfigAddressGetResponseSchemaPathSchema, type CliCommandApiConfigAddressGetResponseSchemaRequest, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, type CliCommandApiConfigAddressListenerExecution, type CliCommandApiConfigAddressRequest, CliCommandApiConfigAddressRequestSchema, type CliCommandApiConfigAddressSetListenerExecution, type CliCommandApiConfigAddressSetPath, CliCommandApiConfigAddressSetPathSchema, type CliCommandApiConfigAddressSetRequest, CliCommandApiConfigAddressSetRequestSchema, type CliCommandApiConfigAddressSetRequestSchemaListenerExecution, type CliCommandApiConfigAddressSetRequestSchemaPath, CliCommandApiConfigAddressSetRequestSchemaPathSchema, type CliCommandApiConfigAddressSetRequestSchemaRequest, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, type CliCommandApiConfigAddressSetResponseSchemaListenerExecution, type CliCommandApiConfigAddressSetResponseSchemaPath, CliCommandApiConfigAddressSetResponseSchemaPathSchema, type CliCommandApiConfigAddressSetResponseSchemaRequest, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetPath, CliCommandApiConfigCommitAuthorEmailGetPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailListenerExecution, type CliCommandApiConfigCommitAuthorEmailRequest, CliCommandApiConfigCommitAuthorEmailRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetPath, CliCommandApiConfigCommitAuthorEmailSetPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetListenerExecution, type CliCommandApiConfigCommitAuthorNameGetPath, CliCommandApiConfigCommitAuthorNameGetPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetResponse, CliCommandApiConfigCommitAuthorNameGetResponseSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameListenerExecution, type CliCommandApiConfigCommitAuthorNameRequest, CliCommandApiConfigCommitAuthorNameRequestSchema, type CliCommandApiConfigCommitAuthorNameSetListenerExecution, type CliCommandApiConfigCommitAuthorNameSetPath, CliCommandApiConfigCommitAuthorNameSetPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, type CliCommandApiConfigGetListenerExecution, type CliCommandApiConfigGetPath, CliCommandApiConfigGetPathSchema, type CliCommandApiConfigGetRequest, CliCommandApiConfigGetRequestSchema, type CliCommandApiConfigGetRequestSchemaListenerExecution, type CliCommandApiConfigGetRequestSchemaPath, CliCommandApiConfigGetRequestSchemaPathSchema, type CliCommandApiConfigGetRequestSchemaRequest, CliCommandApiConfigGetRequestSchemaRequestSchema, type CliCommandApiConfigGetResponse, CliCommandApiConfigGetResponseSchema, type CliCommandApiConfigGetResponseSchemaListenerExecution, type CliCommandApiConfigGetResponseSchemaPath, CliCommandApiConfigGetResponseSchemaPathSchema, type CliCommandApiConfigGetResponseSchemaRequest, CliCommandApiConfigGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetListenerExecution, type CliCommandApiConfigGithubAuthorizationGetPath, CliCommandApiConfigGithubAuthorizationGetPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetResponse, CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationListenerExecution, type CliCommandApiConfigGithubAuthorizationRequest, CliCommandApiConfigGithubAuthorizationRequestSchema, type CliCommandApiConfigGithubAuthorizationSetListenerExecution, type CliCommandApiConfigGithubAuthorizationSetPath, CliCommandApiConfigGithubAuthorizationSetPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetListenerExecution, type CliCommandApiConfigHttpRefererGetPath, CliCommandApiConfigHttpRefererGetPathSchema, type CliCommandApiConfigHttpRefererGetRequest, CliCommandApiConfigHttpRefererGetRequestSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetRequestSchemaPath, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaRequest, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetResponse, CliCommandApiConfigHttpRefererGetResponseSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetResponseSchemaPath, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaRequest, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererListenerExecution, type CliCommandApiConfigHttpRefererRequest, CliCommandApiConfigHttpRefererRequestSchema, type CliCommandApiConfigHttpRefererSetListenerExecution, type CliCommandApiConfigHttpRefererSetPath, CliCommandApiConfigHttpRefererSetPathSchema, type CliCommandApiConfigHttpRefererSetRequest, CliCommandApiConfigHttpRefererSetRequestSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetRequestSchemaPath, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaRequest, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetResponseSchemaPath, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaRequest, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, type CliCommandApiConfigListenerExecution, type CliCommandApiConfigMcpAuthorizationAddListenerExecution, type CliCommandApiConfigMcpAuthorizationAddPath, CliCommandApiConfigMcpAuthorizationAddPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaPath, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaPath, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelListenerExecution, type CliCommandApiConfigMcpAuthorizationDelPath, CliCommandApiConfigMcpAuthorizationDelPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaPath, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaPath, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetListenerExecution, type CliCommandApiConfigMcpAuthorizationGetPath, CliCommandApiConfigMcpAuthorizationGetPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaPath, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetResponse, CliCommandApiConfigMcpAuthorizationGetResponseSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaPath, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationListenerExecution, type CliCommandApiConfigMcpAuthorizationRequest, CliCommandApiConfigMcpAuthorizationRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetPath, CliCommandApiConfigMcpCallTimeoutMsGetPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequest, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponse, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsRequest, CliCommandApiConfigMcpCallTimeoutMsRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetPath, CliCommandApiConfigMcpCallTimeoutMsSetPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequest, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetPath, CliCommandApiConfigMcpConnectTimeoutMsGetPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequest, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponse, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsRequest, CliCommandApiConfigMcpConnectTimeoutMsRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetPath, CliCommandApiConfigMcpConnectTimeoutMsSetPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequest, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetPath, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationRequest, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetPath, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetPath, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationRequest, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetPath, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigRequest, CliCommandApiConfigRequestSchema, type CliCommandApiConfigUserAgentGetListenerExecution, type CliCommandApiConfigUserAgentGetPath, CliCommandApiConfigUserAgentGetPathSchema, type CliCommandApiConfigUserAgentGetRequest, CliCommandApiConfigUserAgentGetRequestSchema, type CliCommandApiConfigUserAgentGetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentGetRequestSchemaPath, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentGetRequestSchemaRequest, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentGetResponse, CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentGetResponseSchemaPath, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentGetResponseSchemaRequest, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentListenerExecution, type CliCommandApiConfigUserAgentRequest, CliCommandApiConfigUserAgentRequestSchema, type CliCommandApiConfigUserAgentSetListenerExecution, type CliCommandApiConfigUserAgentSetPath, CliCommandApiConfigUserAgentSetPathSchema, type CliCommandApiConfigUserAgentSetRequest, CliCommandApiConfigUserAgentSetRequestSchema, type CliCommandApiConfigUserAgentSetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentSetRequestSchemaPath, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentSetRequestSchemaRequest, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentSetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentSetResponseSchemaPath, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentSetResponseSchemaRequest, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleGetListenerExecution, type CliCommandApiConfigXTitleGetPath, CliCommandApiConfigXTitleGetPathSchema, type CliCommandApiConfigXTitleGetRequest, CliCommandApiConfigXTitleGetRequestSchema, type CliCommandApiConfigXTitleGetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleGetRequestSchemaPath, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, type CliCommandApiConfigXTitleGetRequestSchemaRequest, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleGetResponse, CliCommandApiConfigXTitleGetResponseSchema, type CliCommandApiConfigXTitleGetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleGetResponseSchemaPath, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, type CliCommandApiConfigXTitleGetResponseSchemaRequest, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleListenerExecution, type CliCommandApiConfigXTitleRequest, CliCommandApiConfigXTitleRequestSchema, type CliCommandApiConfigXTitleSetListenerExecution, type CliCommandApiConfigXTitleSetPath, CliCommandApiConfigXTitleSetPathSchema, type CliCommandApiConfigXTitleSetRequest, CliCommandApiConfigXTitleSetRequestSchema, type CliCommandApiConfigXTitleSetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleSetRequestSchemaPath, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, type CliCommandApiConfigXTitleSetRequestSchemaRequest, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleSetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleSetResponseSchemaPath, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, type CliCommandApiConfigXTitleSetResponseSchemaRequest, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, type CliCommandApiListenerExecution, type CliCommandApiRequest, CliCommandApiRequestSchema, type CliCommandChannelsCloseListenerExecution, type CliCommandChannelsClosePath, CliCommandChannelsClosePathSchema, type CliCommandChannelsCloseRequest, CliCommandChannelsCloseRequestSchema, type CliCommandChannelsCloseRequestSchemaListenerExecution, type CliCommandChannelsCloseRequestSchemaPath, CliCommandChannelsCloseRequestSchemaPathSchema, type CliCommandChannelsCloseRequestSchemaRequest, CliCommandChannelsCloseRequestSchemaRequestSchema, type CliCommandChannelsCloseResponse, CliCommandChannelsCloseResponseSchema, type CliCommandChannelsCloseResponseSchemaListenerExecution, type CliCommandChannelsCloseResponseSchemaPath, CliCommandChannelsCloseResponseSchemaPathSchema, type CliCommandChannelsCloseResponseSchemaRequest, CliCommandChannelsCloseResponseSchemaRequestSchema, type CliCommandChannelsListenerExecution, type CliCommandChannelsLogsListChannelLogEntry, CliCommandChannelsLogsListChannelLogEntrySchema, type CliCommandChannelsLogsListListenerExecution, type CliCommandChannelsLogsListMessageKind, CliCommandChannelsLogsListMessageKindSchema, type CliCommandChannelsLogsListPath, CliCommandChannelsLogsListPathSchema, type CliCommandChannelsLogsListRequest, CliCommandChannelsLogsListRequestSchema, type CliCommandChannelsLogsListRequestSchemaListenerExecution, type CliCommandChannelsLogsListRequestSchemaPath, CliCommandChannelsLogsListRequestSchemaPathSchema, type CliCommandChannelsLogsListRequestSchemaRequest, CliCommandChannelsLogsListRequestSchemaRequestSchema, type CliCommandChannelsLogsListResponse, CliCommandChannelsLogsListResponseSchema, type CliCommandChannelsLogsListResponseSchemaListenerExecution, type CliCommandChannelsLogsListResponseSchemaPath, CliCommandChannelsLogsListResponseSchemaPathSchema, type CliCommandChannelsLogsListResponseSchemaRequest, CliCommandChannelsLogsListResponseSchemaRequestSchema, type CliCommandChannelsLogsListenerExecution, type CliCommandChannelsLogsOpenListenerExecution, type CliCommandChannelsLogsOpenPath, CliCommandChannelsLogsOpenPathSchema, type CliCommandChannelsLogsOpenRequest, CliCommandChannelsLogsOpenRequestSchema, type CliCommandChannelsLogsOpenRequestSchemaListenerExecution, type CliCommandChannelsLogsOpenRequestSchemaPath, CliCommandChannelsLogsOpenRequestSchemaPathSchema, type CliCommandChannelsLogsOpenRequestSchemaRequest, CliCommandChannelsLogsOpenRequestSchemaRequestSchema, type CliCommandChannelsLogsOpenResponse, CliCommandChannelsLogsOpenResponseSchema, type CliCommandChannelsLogsOpenResponseSchemaListenerExecution, type CliCommandChannelsLogsOpenResponseSchemaPath, CliCommandChannelsLogsOpenResponseSchemaPathSchema, type CliCommandChannelsLogsOpenResponseSchemaRequest, CliCommandChannelsLogsOpenResponseSchemaRequestSchema, type CliCommandChannelsLogsReplyListenerExecution, type CliCommandChannelsLogsReplyPath, CliCommandChannelsLogsReplyPathSchema, type CliCommandChannelsLogsReplyRequest, CliCommandChannelsLogsReplyRequestSchema, type CliCommandChannelsLogsReplyRequestSchemaListenerExecution, type CliCommandChannelsLogsReplyRequestSchemaPath, CliCommandChannelsLogsReplyRequestSchemaPathSchema, type CliCommandChannelsLogsReplyRequestSchemaRequest, CliCommandChannelsLogsReplyRequestSchemaRequestSchema, type CliCommandChannelsLogsReplyResponse, CliCommandChannelsLogsReplyResponseSchema, type CliCommandChannelsLogsReplyResponseSchemaListenerExecution, type CliCommandChannelsLogsReplyResponseSchemaPath, CliCommandChannelsLogsReplyResponseSchemaPathSchema, type CliCommandChannelsLogsReplyResponseSchemaRequest, CliCommandChannelsLogsReplyResponseSchemaRequestSchema, type CliCommandChannelsLogsRequest, type CliCommandChannelsLogsRequestListenerExecution, type CliCommandChannelsLogsRequestPath, CliCommandChannelsLogsRequestPathSchema, type CliCommandChannelsLogsRequestRequest, CliCommandChannelsLogsRequestRequestSchema, type CliCommandChannelsLogsRequestRequestSchemaListenerExecution, type CliCommandChannelsLogsRequestRequestSchemaPath, CliCommandChannelsLogsRequestRequestSchemaPathSchema, type CliCommandChannelsLogsRequestRequestSchemaRequest, CliCommandChannelsLogsRequestRequestSchemaRequestSchema, type CliCommandChannelsLogsRequestResponse, CliCommandChannelsLogsRequestResponseSchema, type CliCommandChannelsLogsRequestResponseSchemaListenerExecution, type CliCommandChannelsLogsRequestResponseSchemaPath, CliCommandChannelsLogsRequestResponseSchemaPathSchema, type CliCommandChannelsLogsRequestResponseSchemaRequest, CliCommandChannelsLogsRequestResponseSchemaRequestSchema, CliCommandChannelsLogsRequestSchema, type CliCommandChannelsLogsSubscribeChannelClosedTag, CliCommandChannelsLogsSubscribeChannelClosedTagSchema, type CliCommandChannelsLogsSubscribeListenerExecution, type CliCommandChannelsLogsSubscribePath, CliCommandChannelsLogsSubscribePathSchema, type CliCommandChannelsLogsSubscribeRequest, CliCommandChannelsLogsSubscribeRequestSchema, type CliCommandChannelsLogsSubscribeRequestSchemaListenerExecution, type CliCommandChannelsLogsSubscribeRequestSchemaPath, CliCommandChannelsLogsSubscribeRequestSchemaPathSchema, type CliCommandChannelsLogsSubscribeRequestSchemaRequest, CliCommandChannelsLogsSubscribeRequestSchemaRequestSchema, type CliCommandChannelsLogsSubscribeResponseItem, CliCommandChannelsLogsSubscribeResponseItemSchema, type CliCommandChannelsLogsSubscribeResponseSchemaListenerExecution, type CliCommandChannelsLogsSubscribeResponseSchemaPath, CliCommandChannelsLogsSubscribeResponseSchemaPathSchema, type CliCommandChannelsLogsSubscribeResponseSchemaRequest, CliCommandChannelsLogsSubscribeResponseSchemaRequestSchema, type CliCommandChannelsPublishListenerExecution, type CliCommandChannelsPublishPath, CliCommandChannelsPublishPathSchema, type CliCommandChannelsPublishRequest, CliCommandChannelsPublishRequestSchema, type CliCommandChannelsPublishRequestSchemaListenerExecution, type CliCommandChannelsPublishRequestSchemaPath, CliCommandChannelsPublishRequestSchemaPathSchema, type CliCommandChannelsPublishRequestSchemaRequest, CliCommandChannelsPublishRequestSchemaRequestSchema, type CliCommandChannelsPublishResponse, CliCommandChannelsPublishResponseSchema, type CliCommandChannelsPublishResponseSchemaListenerExecution, type CliCommandChannelsPublishResponseSchemaPath, CliCommandChannelsPublishResponseSchemaPathSchema, type CliCommandChannelsPublishResponseSchemaRequest, CliCommandChannelsPublishResponseSchemaRequestSchema, type CliCommandChannelsRequest, CliCommandChannelsRequestSchema, type CliCommandCommandExecutorAuthEnvelope, CliCommandCommandExecutorAuthEnvelopeSchema, type CliCommandDaemonConfigAddressGetListenerExecution, type CliCommandDaemonConfigAddressGetPath, CliCommandDaemonConfigAddressGetPathSchema, type CliCommandDaemonConfigAddressGetRequest, CliCommandDaemonConfigAddressGetRequestSchema, type CliCommandDaemonConfigAddressGetRequestSchemaListenerExecution, type CliCommandDaemonConfigAddressGetRequestSchemaPath, CliCommandDaemonConfigAddressGetRequestSchemaPathSchema, type CliCommandDaemonConfigAddressGetRequestSchemaRequest, CliCommandDaemonConfigAddressGetRequestSchemaRequestSchema, type CliCommandDaemonConfigAddressGetResponse, CliCommandDaemonConfigAddressGetResponseSchema, type CliCommandDaemonConfigAddressGetResponseSchemaListenerExecution, type CliCommandDaemonConfigAddressGetResponseSchemaPath, CliCommandDaemonConfigAddressGetResponseSchemaPathSchema, type CliCommandDaemonConfigAddressGetResponseSchemaRequest, CliCommandDaemonConfigAddressGetResponseSchemaRequestSchema, type CliCommandDaemonConfigAddressListenerExecution, type CliCommandDaemonConfigAddressRequest, CliCommandDaemonConfigAddressRequestSchema, type CliCommandDaemonConfigGetListenerExecution, type CliCommandDaemonConfigGetPath, CliCommandDaemonConfigGetPathSchema, type CliCommandDaemonConfigGetRequest, CliCommandDaemonConfigGetRequestSchema, type CliCommandDaemonConfigGetRequestSchemaListenerExecution, type CliCommandDaemonConfigGetRequestSchemaPath, CliCommandDaemonConfigGetRequestSchemaPathSchema, type CliCommandDaemonConfigGetRequestSchemaRequest, CliCommandDaemonConfigGetRequestSchemaRequestSchema, type CliCommandDaemonConfigGetResponse, CliCommandDaemonConfigGetResponseSchema, type CliCommandDaemonConfigGetResponseSchemaListenerExecution, type CliCommandDaemonConfigGetResponseSchemaPath, CliCommandDaemonConfigGetResponseSchemaPathSchema, type CliCommandDaemonConfigGetResponseSchemaRequest, CliCommandDaemonConfigGetResponseSchemaRequestSchema, type CliCommandDaemonConfigListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairPath, CliCommandDaemonConfigRefreshSecretSignaturePairPathSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairRequest, CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaPath, CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaPathSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequest, CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequestSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairResponse, CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaPath, CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaPathSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequest, CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequestSchema, type CliCommandDaemonConfigRequest, CliCommandDaemonConfigRequestSchema, type CliCommandDaemonConfigSecretGetListenerExecution, type CliCommandDaemonConfigSecretGetPath, CliCommandDaemonConfigSecretGetPathSchema, type CliCommandDaemonConfigSecretGetRequest, CliCommandDaemonConfigSecretGetRequestSchema, type CliCommandDaemonConfigSecretGetRequestSchemaListenerExecution, type CliCommandDaemonConfigSecretGetRequestSchemaPath, CliCommandDaemonConfigSecretGetRequestSchemaPathSchema, type CliCommandDaemonConfigSecretGetRequestSchemaRequest, CliCommandDaemonConfigSecretGetRequestSchemaRequestSchema, type CliCommandDaemonConfigSecretGetResponse, CliCommandDaemonConfigSecretGetResponseSchema, type CliCommandDaemonConfigSecretGetResponseSchemaListenerExecution, type CliCommandDaemonConfigSecretGetResponseSchemaPath, CliCommandDaemonConfigSecretGetResponseSchemaPathSchema, type CliCommandDaemonConfigSecretGetResponseSchemaRequest, CliCommandDaemonConfigSecretGetResponseSchemaRequestSchema, type CliCommandDaemonConfigSecretListenerExecution, type CliCommandDaemonConfigSecretRequest, CliCommandDaemonConfigSecretRequestSchema, type CliCommandDaemonConfigSetListenerExecution, type CliCommandDaemonConfigSetPath, CliCommandDaemonConfigSetPathSchema, type CliCommandDaemonConfigSetRequest, CliCommandDaemonConfigSetRequestSchema, type CliCommandDaemonConfigSetRequestSchemaListenerExecution, type CliCommandDaemonConfigSetRequestSchemaPath, CliCommandDaemonConfigSetRequestSchemaPathSchema, type CliCommandDaemonConfigSetRequestSchemaRequest, CliCommandDaemonConfigSetRequestSchemaRequestSchema, type CliCommandDaemonConfigSetResponseSchemaListenerExecution, type CliCommandDaemonConfigSetResponseSchemaPath, CliCommandDaemonConfigSetResponseSchemaPathSchema, type CliCommandDaemonConfigSetResponseSchemaRequest, CliCommandDaemonConfigSetResponseSchemaRequestSchema, type CliCommandDaemonConfigSetValue, CliCommandDaemonConfigSetValueSchema, type CliCommandDaemonConfigSignatureGetListenerExecution, type CliCommandDaemonConfigSignatureGetPath, CliCommandDaemonConfigSignatureGetPathSchema, type CliCommandDaemonConfigSignatureGetRequest, CliCommandDaemonConfigSignatureGetRequestSchema, type CliCommandDaemonConfigSignatureGetRequestSchemaListenerExecution, type CliCommandDaemonConfigSignatureGetRequestSchemaPath, CliCommandDaemonConfigSignatureGetRequestSchemaPathSchema, type CliCommandDaemonConfigSignatureGetRequestSchemaRequest, CliCommandDaemonConfigSignatureGetRequestSchemaRequestSchema, type CliCommandDaemonConfigSignatureGetResponse, CliCommandDaemonConfigSignatureGetResponseSchema, type CliCommandDaemonConfigSignatureGetResponseSchemaListenerExecution, type CliCommandDaemonConfigSignatureGetResponseSchemaPath, CliCommandDaemonConfigSignatureGetResponseSchemaPathSchema, type CliCommandDaemonConfigSignatureGetResponseSchemaRequest, CliCommandDaemonConfigSignatureGetResponseSchemaRequestSchema, type CliCommandDaemonConfigSignatureListenerExecution, type CliCommandDaemonConfigSignatureRequest, CliCommandDaemonConfigSignatureRequestSchema, type CliCommandDaemonKillListenerExecution, type CliCommandDaemonKillPath, CliCommandDaemonKillPathSchema, type CliCommandDaemonKillRequest, CliCommandDaemonKillRequestSchema, type CliCommandDaemonKillRequestSchemaListenerExecution, type CliCommandDaemonKillRequestSchemaPath, CliCommandDaemonKillRequestSchemaPathSchema, type CliCommandDaemonKillRequestSchemaRequest, CliCommandDaemonKillRequestSchemaRequestSchema, type CliCommandDaemonKillResponse, CliCommandDaemonKillResponseSchema, type CliCommandDaemonKillResponseSchemaListenerExecution, type CliCommandDaemonKillResponseSchemaPath, CliCommandDaemonKillResponseSchemaPathSchema, type CliCommandDaemonKillResponseSchemaRequest, CliCommandDaemonKillResponseSchemaRequestSchema, type CliCommandDaemonListenerExecution, type CliCommandDaemonRequest, CliCommandDaemonRequestSchema, type CliCommandDaemonSpawnListenerExecution, type CliCommandDaemonSpawnPath, CliCommandDaemonSpawnPathSchema, type CliCommandDaemonSpawnRequest, type CliCommandDaemonSpawnRequestDangerousAdvanced, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, type CliCommandDaemonSpawnRequestSchemaListenerExecution, type CliCommandDaemonSpawnRequestSchemaPath, CliCommandDaemonSpawnRequestSchemaPathSchema, type CliCommandDaemonSpawnRequestSchemaRequest, CliCommandDaemonSpawnRequestSchemaRequestSchema, type CliCommandDaemonSpawnResponseItem, CliCommandDaemonSpawnResponseItemSchema, type CliCommandDaemonSpawnResponseSchemaListenerExecution, type CliCommandDaemonSpawnResponseSchemaPath, CliCommandDaemonSpawnResponseSchemaPathSchema, type CliCommandDaemonSpawnResponseSchemaRequest, CliCommandDaemonSpawnResponseSchemaRequestSchema, type CliCommandDbConfigAddressGetListenerExecution, type CliCommandDbConfigAddressGetPath, CliCommandDbConfigAddressGetPathSchema, type CliCommandDbConfigAddressGetRequest, CliCommandDbConfigAddressGetRequestSchema, type CliCommandDbConfigAddressGetRequestSchemaListenerExecution, type CliCommandDbConfigAddressGetRequestSchemaPath, CliCommandDbConfigAddressGetRequestSchemaPathSchema, type CliCommandDbConfigAddressGetRequestSchemaRequest, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, type CliCommandDbConfigAddressGetResponse, CliCommandDbConfigAddressGetResponseSchema, type CliCommandDbConfigAddressGetResponseSchemaListenerExecution, type CliCommandDbConfigAddressGetResponseSchemaPath, CliCommandDbConfigAddressGetResponseSchemaPathSchema, type CliCommandDbConfigAddressGetResponseSchemaRequest, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, type CliCommandDbConfigAddressListenerExecution, type CliCommandDbConfigAddressRequest, CliCommandDbConfigAddressRequestSchema, type CliCommandDbConfigDatabaseGetListenerExecution, type CliCommandDbConfigDatabaseGetPath, CliCommandDbConfigDatabaseGetPathSchema, type CliCommandDbConfigDatabaseGetRequest, CliCommandDbConfigDatabaseGetRequestSchema, type CliCommandDbConfigDatabaseGetRequestSchemaListenerExecution, type CliCommandDbConfigDatabaseGetRequestSchemaPath, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseGetRequestSchemaRequest, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseGetResponse, CliCommandDbConfigDatabaseGetResponseSchema, type CliCommandDbConfigDatabaseGetResponseSchemaListenerExecution, type CliCommandDbConfigDatabaseGetResponseSchemaPath, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseGetResponseSchemaRequest, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseListenerExecution, type CliCommandDbConfigDatabaseRequest, CliCommandDbConfigDatabaseRequestSchema, type CliCommandDbConfigGetListenerExecution, type CliCommandDbConfigGetPath, CliCommandDbConfigGetPathSchema, type CliCommandDbConfigGetRequest, CliCommandDbConfigGetRequestSchema, type CliCommandDbConfigGetRequestSchemaListenerExecution, type CliCommandDbConfigGetRequestSchemaPath, CliCommandDbConfigGetRequestSchemaPathSchema, type CliCommandDbConfigGetRequestSchemaRequest, CliCommandDbConfigGetRequestSchemaRequestSchema, type CliCommandDbConfigGetResponse, CliCommandDbConfigGetResponseSchema, type CliCommandDbConfigGetResponseSchemaListenerExecution, type CliCommandDbConfigGetResponseSchemaPath, CliCommandDbConfigGetResponseSchemaPathSchema, type CliCommandDbConfigGetResponseSchemaRequest, CliCommandDbConfigGetResponseSchemaRequestSchema, type CliCommandDbConfigListenerExecution, type CliCommandDbConfigPasswordGetListenerExecution, type CliCommandDbConfigPasswordGetPath, CliCommandDbConfigPasswordGetPathSchema, type CliCommandDbConfigPasswordGetRequest, CliCommandDbConfigPasswordGetRequestSchema, type CliCommandDbConfigPasswordGetRequestSchemaListenerExecution, type CliCommandDbConfigPasswordGetRequestSchemaPath, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, type CliCommandDbConfigPasswordGetRequestSchemaRequest, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordGetResponse, CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponseSchemaListenerExecution, type CliCommandDbConfigPasswordGetResponseSchemaPath, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, type CliCommandDbConfigPasswordGetResponseSchemaRequest, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordListenerExecution, type CliCommandDbConfigPasswordRequest, CliCommandDbConfigPasswordRequestSchema, type CliCommandDbConfigRequest, CliCommandDbConfigRequestSchema, type CliCommandDbConfigSetListenerExecution, type CliCommandDbConfigSetPath, CliCommandDbConfigSetPathSchema, type CliCommandDbConfigSetRequest, CliCommandDbConfigSetRequestSchema, type CliCommandDbConfigSetRequestSchemaListenerExecution, type CliCommandDbConfigSetRequestSchemaPath, CliCommandDbConfigSetRequestSchemaPathSchema, type CliCommandDbConfigSetRequestSchemaRequest, CliCommandDbConfigSetRequestSchemaRequestSchema, type CliCommandDbConfigSetResponseSchemaListenerExecution, type CliCommandDbConfigSetResponseSchemaPath, CliCommandDbConfigSetResponseSchemaPathSchema, type CliCommandDbConfigSetResponseSchemaRequest, CliCommandDbConfigSetResponseSchemaRequestSchema, type CliCommandDbConfigSetValue, CliCommandDbConfigSetValueSchema, type CliCommandDbConfigUserGetListenerExecution, type CliCommandDbConfigUserGetPath, CliCommandDbConfigUserGetPathSchema, type CliCommandDbConfigUserGetRequest, CliCommandDbConfigUserGetRequestSchema, type CliCommandDbConfigUserGetRequestSchemaListenerExecution, type CliCommandDbConfigUserGetRequestSchemaPath, CliCommandDbConfigUserGetRequestSchemaPathSchema, type CliCommandDbConfigUserGetRequestSchemaRequest, CliCommandDbConfigUserGetRequestSchemaRequestSchema, type CliCommandDbConfigUserGetResponse, CliCommandDbConfigUserGetResponseSchema, type CliCommandDbConfigUserGetResponseSchemaListenerExecution, type CliCommandDbConfigUserGetResponseSchemaPath, CliCommandDbConfigUserGetResponseSchemaPathSchema, type CliCommandDbConfigUserGetResponseSchemaRequest, CliCommandDbConfigUserGetResponseSchemaRequestSchema, type CliCommandDbConfigUserListenerExecution, type CliCommandDbConfigUserRequest, CliCommandDbConfigUserRequestSchema, type CliCommandDbListenerExecution, type CliCommandDbQueryColumn, CliCommandDbQueryColumnSchema, type CliCommandDbQueryListenerExecution, type CliCommandDbQueryPath, CliCommandDbQueryPathSchema, type CliCommandDbQueryRequest, CliCommandDbQueryRequestSchema, type CliCommandDbQueryRequestSchemaListenerExecution, type CliCommandDbQueryRequestSchemaPath, CliCommandDbQueryRequestSchemaPathSchema, type CliCommandDbQueryRequestSchemaRequest, CliCommandDbQueryRequestSchemaRequestSchema, type CliCommandDbQueryResponse, CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponseSchemaListenerExecution, type CliCommandDbQueryResponseSchemaPath, CliCommandDbQueryResponseSchemaPathSchema, type CliCommandDbQueryResponseSchemaRequest, CliCommandDbQueryResponseSchemaRequestSchema, type CliCommandDbRequest, CliCommandDbRequestSchema, type CliCommandFunctionsExecuteFunctionSpec, CliCommandFunctionsExecuteFunctionSpecSchema, type CliCommandFunctionsExecuteListenerExecution, type CliCommandFunctionsExecuteProfileSpec, CliCommandFunctionsExecuteProfileSpecSchema, type CliCommandFunctionsExecuteRequest, CliCommandFunctionsExecuteRequestSchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchy, CliCommandFunctionsExecuteStandardAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchyType, CliCommandFunctionsExecuteStandardAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteStandardListenerExecution, type CliCommandFunctionsExecuteStandardListenerExecutionStreaming, type CliCommandFunctionsExecuteStandardListenerExecutionVariant, type CliCommandFunctionsExecuteStandardPath, CliCommandFunctionsExecuteStandardPathSchema, type CliCommandFunctionsExecuteStandardRequest, type CliCommandFunctionsExecuteStandardRequestDangerousAdvanced, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteStandardRequestInput, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, type CliCommandFunctionsExecuteStandardRequestSchemaListenerExecution, type CliCommandFunctionsExecuteStandardRequestSchemaPath, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, type CliCommandFunctionsExecuteStandardRequestSchemaRequest, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, type CliCommandFunctionsExecuteStandardResponseItem, CliCommandFunctionsExecuteStandardResponseItemSchema, type CliCommandFunctionsExecuteStandardResponseSchemaListenerExecution, type CliCommandFunctionsExecuteStandardResponseSchemaPath, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, type CliCommandFunctionsExecuteStandardResponseSchemaRequest, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchy, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyType, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteSwissSystemListenerExecution, type CliCommandFunctionsExecuteSwissSystemListenerExecutionStreaming, type CliCommandFunctionsExecuteSwissSystemListenerExecutionVariant, type CliCommandFunctionsExecuteSwissSystemPath, CliCommandFunctionsExecuteSwissSystemPathSchema, type CliCommandFunctionsExecuteSwissSystemRequest, type CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvanced, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteSwissSystemRequestInput, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemRequestSchemaPath, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemResponseItem, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemResponseSchemaPath, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, type CliCommandFunctionsGetListenerExecution, type CliCommandFunctionsGetPath, CliCommandFunctionsGetPathSchema, type CliCommandFunctionsGetRequest, CliCommandFunctionsGetRequestSchema, type CliCommandFunctionsGetRequestSchemaListenerExecution, type CliCommandFunctionsGetRequestSchemaPath, CliCommandFunctionsGetRequestSchemaPathSchema, type CliCommandFunctionsGetRequestSchemaRequest, CliCommandFunctionsGetRequestSchemaRequestSchema, type CliCommandFunctionsGetResponse, CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponseSchemaListenerExecution, type CliCommandFunctionsGetResponseSchemaPath, CliCommandFunctionsGetResponseSchemaPathSchema, type CliCommandFunctionsGetResponseSchemaRequest, CliCommandFunctionsGetResponseSchemaRequestSchema, type CliCommandFunctionsListListenerExecution, type CliCommandFunctionsListPath, CliCommandFunctionsListPathSchema, type CliCommandFunctionsListRequest, CliCommandFunctionsListRequestSchema, type CliCommandFunctionsListRequestSchemaListenerExecution, type CliCommandFunctionsListRequestSchemaPath, CliCommandFunctionsListRequestSchemaPathSchema, type CliCommandFunctionsListRequestSchemaRequest, CliCommandFunctionsListRequestSchemaRequestSchema, type CliCommandFunctionsListResponse, CliCommandFunctionsListResponseSchema, type CliCommandFunctionsListResponseSchemaListenerExecution, type CliCommandFunctionsListResponseSchemaPath, CliCommandFunctionsListResponseSchemaPathSchema, type CliCommandFunctionsListResponseSchemaRequest, CliCommandFunctionsListResponseSchemaRequestSchema, type CliCommandFunctionsListenerExecution, type CliCommandFunctionsProfilesGetListenerExecution, type CliCommandFunctionsProfilesGetPath, CliCommandFunctionsProfilesGetPathSchema, type CliCommandFunctionsProfilesGetRequest, CliCommandFunctionsProfilesGetRequestSchema, type CliCommandFunctionsProfilesGetRequestSchemaListenerExecution, type CliCommandFunctionsProfilesGetRequestSchemaPath, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, type CliCommandFunctionsProfilesGetRequestSchemaRequest, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, type CliCommandFunctionsProfilesGetResponse, CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponseSchemaListenerExecution, type CliCommandFunctionsProfilesGetResponseSchemaPath, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, type CliCommandFunctionsProfilesGetResponseSchemaRequest, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListListenerExecution, type CliCommandFunctionsProfilesListPath, CliCommandFunctionsProfilesListPathSchema, type CliCommandFunctionsProfilesListRequest, CliCommandFunctionsProfilesListRequestSchema, type CliCommandFunctionsProfilesListRequestSchemaListenerExecution, type CliCommandFunctionsProfilesListRequestSchemaPath, CliCommandFunctionsProfilesListRequestSchemaPathSchema, type CliCommandFunctionsProfilesListRequestSchemaRequest, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, type CliCommandFunctionsProfilesListResponse, CliCommandFunctionsProfilesListResponseSchema, type CliCommandFunctionsProfilesListResponseSchemaListenerExecution, type CliCommandFunctionsProfilesListResponseSchemaPath, CliCommandFunctionsProfilesListResponseSchemaPathSchema, type CliCommandFunctionsProfilesListResponseSchemaRequest, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListenerExecution, type CliCommandFunctionsProfilesPublishListenerExecution, type CliCommandFunctionsProfilesPublishPath, CliCommandFunctionsProfilesPublishPathSchema, type CliCommandFunctionsProfilesPublishRequest, type CliCommandFunctionsProfilesPublishRequestBody, CliCommandFunctionsProfilesPublishRequestBodySchema, type CliCommandFunctionsProfilesPublishRequestPublishMessage, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, type CliCommandFunctionsProfilesPublishRequestSchemaListenerExecution, type CliCommandFunctionsProfilesPublishRequestSchemaPath, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, type CliCommandFunctionsProfilesPublishRequestSchemaRequest, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, type CliCommandFunctionsProfilesPublishResponse, CliCommandFunctionsProfilesPublishResponseSchema, type CliCommandFunctionsProfilesPublishResponseSchemaListenerExecution, type CliCommandFunctionsProfilesPublishResponseSchemaPath, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, type CliCommandFunctionsProfilesPublishResponseSchemaRequest, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, type CliCommandFunctionsProfilesRequest, CliCommandFunctionsProfilesRequestSchema, type CliCommandFunctionsPublishListenerExecution, type CliCommandFunctionsPublishPath, CliCommandFunctionsPublishPathSchema, type CliCommandFunctionsPublishRequest, type CliCommandFunctionsPublishRequestBody, CliCommandFunctionsPublishRequestBodySchema, type CliCommandFunctionsPublishRequestPublishMessage, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, type CliCommandFunctionsPublishRequestSchemaListenerExecution, type CliCommandFunctionsPublishRequestSchemaPath, CliCommandFunctionsPublishRequestSchemaPathSchema, type CliCommandFunctionsPublishRequestSchemaRequest, CliCommandFunctionsPublishRequestSchemaRequestSchema, type CliCommandFunctionsPublishResponse, CliCommandFunctionsPublishResponseSchema, type CliCommandFunctionsPublishResponseSchemaListenerExecution, type CliCommandFunctionsPublishResponseSchemaPath, CliCommandFunctionsPublishResponseSchemaPathSchema, type CliCommandFunctionsPublishResponseSchemaRequest, CliCommandFunctionsPublishResponseSchemaRequestSchema, type CliCommandFunctionsRequest, CliCommandFunctionsRequestSchema, type CliCommandLaboratoriesAttachListenerExecution, type CliCommandLaboratoriesAttachPath, CliCommandLaboratoriesAttachPathSchema, type CliCommandLaboratoriesAttachRequest, CliCommandLaboratoriesAttachRequestSchema, type CliCommandLaboratoriesAttachRequestSchemaListenerExecution, type CliCommandLaboratoriesAttachRequestSchemaPath, CliCommandLaboratoriesAttachRequestSchemaPathSchema, type CliCommandLaboratoriesAttachRequestSchemaRequest, CliCommandLaboratoriesAttachRequestSchemaRequestSchema, type CliCommandLaboratoriesAttachResponse, CliCommandLaboratoriesAttachResponseSchema, type CliCommandLaboratoriesAttachResponseSchemaListenerExecution, type CliCommandLaboratoriesAttachResponseSchemaPath, CliCommandLaboratoriesAttachResponseSchemaPathSchema, type CliCommandLaboratoriesAttachResponseSchemaRequest, CliCommandLaboratoriesAttachResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesAddListenerExecution, type CliCommandLaboratoriesConfigAddressesAddPath, CliCommandLaboratoriesConfigAddressesAddPathSchema, type CliCommandLaboratoriesConfigAddressesAddRequest, CliCommandLaboratoriesConfigAddressesAddRequestSchema, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaPath, CliCommandLaboratoriesConfigAddressesAddRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaPath, CliCommandLaboratoriesConfigAddressesAddResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesDelListenerExecution, type CliCommandLaboratoriesConfigAddressesDelPath, CliCommandLaboratoriesConfigAddressesDelPathSchema, type CliCommandLaboratoriesConfigAddressesDelRequest, CliCommandLaboratoriesConfigAddressesDelRequestSchema, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaPath, CliCommandLaboratoriesConfigAddressesDelRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaPath, CliCommandLaboratoriesConfigAddressesDelResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesGetListenerExecution, type CliCommandLaboratoriesConfigAddressesGetPath, CliCommandLaboratoriesConfigAddressesGetPathSchema, type CliCommandLaboratoriesConfigAddressesGetRequest, CliCommandLaboratoriesConfigAddressesGetRequestSchema, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaPath, CliCommandLaboratoriesConfigAddressesGetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesGetResponse, CliCommandLaboratoriesConfigAddressesGetResponseSchema, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaPath, CliCommandLaboratoriesConfigAddressesGetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesListenerExecution, type CliCommandLaboratoriesConfigAddressesRequest, CliCommandLaboratoriesConfigAddressesRequestSchema, type CliCommandLaboratoriesConfigListenerExecution, type CliCommandLaboratoriesConfigLocalGetListenerExecution, type CliCommandLaboratoriesConfigLocalGetPath, CliCommandLaboratoriesConfigLocalGetPathSchema, type CliCommandLaboratoriesConfigLocalGetRequest, CliCommandLaboratoriesConfigLocalGetRequestSchema, type CliCommandLaboratoriesConfigLocalGetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalGetRequestSchemaPath, CliCommandLaboratoriesConfigLocalGetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest, CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalGetResponse, CliCommandLaboratoriesConfigLocalGetResponseSchema, type CliCommandLaboratoriesConfigLocalGetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalGetResponseSchemaPath, CliCommandLaboratoriesConfigLocalGetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest, CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalListenerExecution, type CliCommandLaboratoriesConfigLocalRequest, CliCommandLaboratoriesConfigLocalRequestSchema, type CliCommandLaboratoriesConfigLocalSetListenerExecution, type CliCommandLaboratoriesConfigLocalSetPath, CliCommandLaboratoriesConfigLocalSetPathSchema, type CliCommandLaboratoriesConfigLocalSetRequest, CliCommandLaboratoriesConfigLocalSetRequestSchema, type CliCommandLaboratoriesConfigLocalSetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalSetRequestSchemaPath, CliCommandLaboratoriesConfigLocalSetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest, CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalSetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalSetResponseSchemaPath, CliCommandLaboratoriesConfigLocalSetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest, CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigRequest, CliCommandLaboratoriesConfigRequestSchema, type CliCommandLaboratoriesCreateEnvVar, CliCommandLaboratoriesCreateEnvVarSchema, type CliCommandLaboratoriesCreateKind, CliCommandLaboratoriesCreateKindSchema, type CliCommandLaboratoriesCreateListenerExecution, type CliCommandLaboratoriesCreateMount, CliCommandLaboratoriesCreateMountSchema, type CliCommandLaboratoriesCreatePath, CliCommandLaboratoriesCreatePathSchema, type CliCommandLaboratoriesCreateRequest, CliCommandLaboratoriesCreateRequestSchema, type CliCommandLaboratoriesCreateRequestSchemaListenerExecution, type CliCommandLaboratoriesCreateRequestSchemaPath, CliCommandLaboratoriesCreateRequestSchemaPathSchema, type CliCommandLaboratoriesCreateRequestSchemaRequest, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, type CliCommandLaboratoriesCreateResponse, CliCommandLaboratoriesCreateResponseSchema, type CliCommandLaboratoriesCreateResponseSchemaListenerExecution, type CliCommandLaboratoriesCreateResponseSchemaPath, CliCommandLaboratoriesCreateResponseSchemaPathSchema, type CliCommandLaboratoriesCreateResponseSchemaRequest, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, type CliCommandLaboratoriesDeleteKind, CliCommandLaboratoriesDeleteKindSchema, type CliCommandLaboratoriesDeleteListenerExecution, type CliCommandLaboratoriesDeletePath, CliCommandLaboratoriesDeletePathSchema, type CliCommandLaboratoriesDeleteRequest, CliCommandLaboratoriesDeleteRequestSchema, type CliCommandLaboratoriesDeleteRequestSchemaListenerExecution, type CliCommandLaboratoriesDeleteRequestSchemaPath, CliCommandLaboratoriesDeleteRequestSchemaPathSchema, type CliCommandLaboratoriesDeleteRequestSchemaRequest, CliCommandLaboratoriesDeleteRequestSchemaRequestSchema, type CliCommandLaboratoriesDeleteResponse, CliCommandLaboratoriesDeleteResponseSchema, type CliCommandLaboratoriesDeleteResponseSchemaListenerExecution, type CliCommandLaboratoriesDeleteResponseSchemaPath, CliCommandLaboratoriesDeleteResponseSchemaPathSchema, type CliCommandLaboratoriesDeleteResponseSchemaRequest, CliCommandLaboratoriesDeleteResponseSchemaRequestSchema, type CliCommandLaboratoriesDetachListenerExecution, type CliCommandLaboratoriesDetachPath, CliCommandLaboratoriesDetachPathSchema, type CliCommandLaboratoriesDetachRequest, CliCommandLaboratoriesDetachRequestSchema, type CliCommandLaboratoriesDetachRequestSchemaListenerExecution, type CliCommandLaboratoriesDetachRequestSchemaPath, CliCommandLaboratoriesDetachRequestSchemaPathSchema, type CliCommandLaboratoriesDetachRequestSchemaRequest, CliCommandLaboratoriesDetachRequestSchemaRequestSchema, type CliCommandLaboratoriesDetachResponse, CliCommandLaboratoriesDetachResponseSchema, type CliCommandLaboratoriesDetachResponseSchemaListenerExecution, type CliCommandLaboratoriesDetachResponseSchemaPath, CliCommandLaboratoriesDetachResponseSchemaPathSchema, type CliCommandLaboratoriesDetachResponseSchemaRequest, CliCommandLaboratoriesDetachResponseSchemaRequestSchema, type CliCommandLaboratoriesKillListenerExecution, type CliCommandLaboratoriesKillPath, CliCommandLaboratoriesKillPathSchema, type CliCommandLaboratoriesKillRequest, CliCommandLaboratoriesKillRequestSchema, type CliCommandLaboratoriesKillRequestSchemaListenerExecution, type CliCommandLaboratoriesKillRequestSchemaPath, CliCommandLaboratoriesKillRequestSchemaPathSchema, type CliCommandLaboratoriesKillRequestSchemaRequest, CliCommandLaboratoriesKillRequestSchemaRequestSchema, type CliCommandLaboratoriesKillResponse, CliCommandLaboratoriesKillResponseSchema, type CliCommandLaboratoriesKillResponseSchemaListenerExecution, type CliCommandLaboratoriesKillResponseSchemaPath, CliCommandLaboratoriesKillResponseSchemaPathSchema, type CliCommandLaboratoriesKillResponseSchemaRequest, CliCommandLaboratoriesKillResponseSchemaRequestSchema, type CliCommandLaboratoriesListListenerExecution, type CliCommandLaboratoriesListPath, CliCommandLaboratoriesListPathSchema, type CliCommandLaboratoriesListPlugin, CliCommandLaboratoriesListPluginSchema, type CliCommandLaboratoriesListRequest, CliCommandLaboratoriesListRequestSchema, type CliCommandLaboratoriesListRequestSchemaListenerExecution, type CliCommandLaboratoriesListRequestSchemaPath, CliCommandLaboratoriesListRequestSchemaPathSchema, type CliCommandLaboratoriesListRequestSchemaRequest, CliCommandLaboratoriesListRequestSchemaRequestSchema, type CliCommandLaboratoriesListResponseItem, CliCommandLaboratoriesListResponseItemSchema, type CliCommandLaboratoriesListResponseSchemaListenerExecution, type CliCommandLaboratoriesListResponseSchemaPath, CliCommandLaboratoriesListResponseSchemaPathSchema, type CliCommandLaboratoriesListResponseSchemaRequest, CliCommandLaboratoriesListResponseSchemaRequestSchema, type CliCommandLaboratoriesListenerExecution, type CliCommandLaboratoriesRequest, CliCommandLaboratoriesRequestSchema, type CliCommandLaboratoriesSpawnListenerExecution, type CliCommandLaboratoriesSpawnPath, CliCommandLaboratoriesSpawnPathSchema, type CliCommandLaboratoriesSpawnRequest, CliCommandLaboratoriesSpawnRequestSchema, type CliCommandLaboratoriesSpawnRequestSchemaListenerExecution, type CliCommandLaboratoriesSpawnRequestSchemaPath, CliCommandLaboratoriesSpawnRequestSchemaPathSchema, type CliCommandLaboratoriesSpawnRequestSchemaRequest, CliCommandLaboratoriesSpawnRequestSchemaRequestSchema, type CliCommandLaboratoriesSpawnResponse, CliCommandLaboratoriesSpawnResponseSchema, type CliCommandLaboratoriesSpawnResponseSchemaListenerExecution, type CliCommandLaboratoriesSpawnResponseSchemaPath, CliCommandLaboratoriesSpawnResponseSchemaPathSchema, type CliCommandLaboratoriesSpawnResponseSchemaRequest, CliCommandLaboratoriesSpawnResponseSchemaRequestSchema, type CliCommandListenerExecution, type CliCommandOk, CliCommandOkSchema, type CliCommandPythonListenerExecution, type CliCommandPythonPath, CliCommandPythonPathSchema, type CliCommandPythonRequest, CliCommandPythonRequestSchema, type CliCommandPythonRequestSchemaListenerExecution, type CliCommandPythonRequestSchemaPath, CliCommandPythonRequestSchemaPathSchema, type CliCommandPythonRequestSchemaRequest, CliCommandPythonRequestSchemaRequestSchema, type CliCommandPythonResponseSchemaListenerExecution, type CliCommandPythonResponseSchemaPath, CliCommandPythonResponseSchemaPathSchema, type CliCommandPythonResponseSchemaRequest, CliCommandPythonResponseSchemaRequestSchema, type CliCommandRequest, type CliCommandRequestBase, CliCommandRequestBaseSchema, CliCommandRequestSchema, type CliCommandSwarmsGetListenerExecution, type CliCommandSwarmsGetPath, CliCommandSwarmsGetPathSchema, type CliCommandSwarmsGetRequest, CliCommandSwarmsGetRequestSchema, type CliCommandSwarmsGetRequestSchemaListenerExecution, type CliCommandSwarmsGetRequestSchemaPath, CliCommandSwarmsGetRequestSchemaPathSchema, type CliCommandSwarmsGetRequestSchemaRequest, CliCommandSwarmsGetRequestSchemaRequestSchema, type CliCommandSwarmsGetResponse, CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponseSchemaListenerExecution, type CliCommandSwarmsGetResponseSchemaPath, CliCommandSwarmsGetResponseSchemaPathSchema, type CliCommandSwarmsGetResponseSchemaRequest, CliCommandSwarmsGetResponseSchemaRequestSchema, type CliCommandSwarmsListListenerExecution, type CliCommandSwarmsListPath, CliCommandSwarmsListPathSchema, type CliCommandSwarmsListRequest, CliCommandSwarmsListRequestSchema, type CliCommandSwarmsListRequestSchemaListenerExecution, type CliCommandSwarmsListRequestSchemaPath, CliCommandSwarmsListRequestSchemaPathSchema, type CliCommandSwarmsListRequestSchemaRequest, CliCommandSwarmsListRequestSchemaRequestSchema, type CliCommandSwarmsListResponse, CliCommandSwarmsListResponseSchema, type CliCommandSwarmsListResponseSchemaListenerExecution, type CliCommandSwarmsListResponseSchemaPath, CliCommandSwarmsListResponseSchemaPathSchema, type CliCommandSwarmsListResponseSchemaRequest, CliCommandSwarmsListResponseSchemaRequestSchema, type CliCommandSwarmsListenerExecution, type CliCommandSwarmsPublishListenerExecution, type CliCommandSwarmsPublishPath, CliCommandSwarmsPublishPathSchema, type CliCommandSwarmsPublishRequest, type CliCommandSwarmsPublishRequestBody, CliCommandSwarmsPublishRequestBodySchema, type CliCommandSwarmsPublishRequestPublishMessage, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, type CliCommandSwarmsPublishRequestSchemaListenerExecution, type CliCommandSwarmsPublishRequestSchemaPath, CliCommandSwarmsPublishRequestSchemaPathSchema, type CliCommandSwarmsPublishRequestSchemaRequest, CliCommandSwarmsPublishRequestSchemaRequestSchema, type CliCommandSwarmsPublishResponse, CliCommandSwarmsPublishResponseSchema, type CliCommandSwarmsPublishResponseSchemaListenerExecution, type CliCommandSwarmsPublishResponseSchemaPath, CliCommandSwarmsPublishResponseSchemaPathSchema, type CliCommandSwarmsPublishResponseSchemaRequest, CliCommandSwarmsPublishResponseSchemaRequestSchema, type CliCommandSwarmsRequest, CliCommandSwarmsRequestSchema, type CliCommandTasksCreateListenerExecution, type CliCommandTasksCreatePath, CliCommandTasksCreatePathSchema, type CliCommandTasksCreateRequest, CliCommandTasksCreateRequestSchema, type CliCommandTasksCreateRequestSchemaListenerExecution, type CliCommandTasksCreateRequestSchemaPath, CliCommandTasksCreateRequestSchemaPathSchema, type CliCommandTasksCreateRequestSchemaRequest, CliCommandTasksCreateRequestSchemaRequestSchema, type CliCommandTasksCreateResponse, CliCommandTasksCreateResponseSchema, type CliCommandTasksCreateResponseSchemaListenerExecution, type CliCommandTasksCreateResponseSchemaPath, CliCommandTasksCreateResponseSchemaPathSchema, type CliCommandTasksCreateResponseSchemaRequest, CliCommandTasksCreateResponseSchemaRequestSchema, type CliCommandTasksDeleteDeleteNamespace, CliCommandTasksDeleteDeleteNamespaceSchema, type CliCommandTasksDeleteListenerExecution, type CliCommandTasksDeletePath, CliCommandTasksDeletePathSchema, type CliCommandTasksDeleteRequest, CliCommandTasksDeleteRequestSchema, type CliCommandTasksDeleteRequestSchemaListenerExecution, type CliCommandTasksDeleteRequestSchemaPath, CliCommandTasksDeleteRequestSchemaPathSchema, type CliCommandTasksDeleteRequestSchemaRequest, CliCommandTasksDeleteRequestSchemaRequestSchema, type CliCommandTasksDeleteResponse, CliCommandTasksDeleteResponseSchema, type CliCommandTasksDeleteResponseSchemaListenerExecution, type CliCommandTasksDeleteResponseSchemaPath, CliCommandTasksDeleteResponseSchemaPathSchema, type CliCommandTasksDeleteResponseSchemaRequest, CliCommandTasksDeleteResponseSchemaRequestSchema, type CliCommandTasksListLastResult, CliCommandTasksListLastResultSchema, type CliCommandTasksListListenerExecution, type CliCommandTasksListPath, CliCommandTasksListPathSchema, type CliCommandTasksListRequest, CliCommandTasksListRequestSchema, type CliCommandTasksListRequestSchemaListenerExecution, type CliCommandTasksListRequestSchemaPath, CliCommandTasksListRequestSchemaPathSchema, type CliCommandTasksListRequestSchemaRequest, CliCommandTasksListRequestSchemaRequestSchema, type CliCommandTasksListResponseItem, CliCommandTasksListResponseItemSchema, type CliCommandTasksListResponseSchemaListenerExecution, type CliCommandTasksListResponseSchemaPath, CliCommandTasksListResponseSchemaPathSchema, type CliCommandTasksListResponseSchemaRequest, CliCommandTasksListResponseSchemaRequestSchema, type CliCommandTasksListenerExecution, type CliCommandTasksRequest, CliCommandTasksRequestSchema, type CliCommandUpdateListenerExecution, type CliCommandUpdatePath, CliCommandUpdatePathSchema, type CliCommandUpdateRequest, CliCommandUpdateRequestSchema, type CliCommandUpdateRequestSchemaListenerExecution, type CliCommandUpdateRequestSchemaPath, CliCommandUpdateRequestSchemaPathSchema, type CliCommandUpdateRequestSchemaRequest, CliCommandUpdateRequestSchemaRequestSchema, type CliCommandUpdateResponse, type CliCommandUpdateResponseItem, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, type CliCommandUpdateResponseSchemaListenerExecution, type CliCommandUpdateResponseSchemaPath, CliCommandUpdateResponseSchemaPathSchema, type CliCommandUpdateResponseSchemaRequest, CliCommandUpdateResponseSchemaRequestSchema, type CliCommandUpdateResponseSkipReason, CliCommandUpdateResponseSkipReasonSchema, type CliCommandViewerKillListenerExecution, type CliCommandViewerKillPath, CliCommandViewerKillPathSchema, type CliCommandViewerKillRequest, CliCommandViewerKillRequestSchema, type CliCommandViewerKillRequestSchemaListenerExecution, type CliCommandViewerKillRequestSchemaPath, CliCommandViewerKillRequestSchemaPathSchema, type CliCommandViewerKillRequestSchemaRequest, CliCommandViewerKillRequestSchemaRequestSchema, type CliCommandViewerKillResponse, CliCommandViewerKillResponseSchema, type CliCommandViewerKillResponseSchemaListenerExecution, type CliCommandViewerKillResponseSchemaPath, CliCommandViewerKillResponseSchemaPathSchema, type CliCommandViewerKillResponseSchemaRequest, CliCommandViewerKillResponseSchemaRequestSchema, type CliCommandViewerListenerExecution, type CliCommandViewerRequest, CliCommandViewerRequestSchema, type CliCommandViewerSpawnListenerExecution, type CliCommandViewerSpawnPath, CliCommandViewerSpawnPathSchema, type CliCommandViewerSpawnRequest, CliCommandViewerSpawnRequestSchema, type CliCommandViewerSpawnRequestSchemaListenerExecution, type CliCommandViewerSpawnRequestSchemaPath, CliCommandViewerSpawnRequestSchemaPathSchema, type CliCommandViewerSpawnRequestSchemaRequest, CliCommandViewerSpawnRequestSchemaRequestSchema, type CliCommandViewerSpawnResponse, CliCommandViewerSpawnResponseSchema, type CliCommandViewerSpawnResponseSchemaListenerExecution, type CliCommandViewerSpawnResponseSchemaPath, CliCommandViewerSpawnResponseSchemaPathSchema, type CliCommandViewerSpawnResponseSchemaRequest, CliCommandViewerSpawnResponseSchemaRequestSchema, type CliError, CliErrorSchema, type CliErrorType, CliErrorTypeSchema, type CliLaboratoriesListListenerLaboratoryEvent, CliLaboratoriesListListenerLaboratoryEventSchema, type CliLaboratoriesListListenerLaboratoryStatus, CliLaboratoriesListListenerLaboratoryStatusSchema, type CliLaboratoriesListenerLaboratoryAttachment, CliLaboratoriesListenerLaboratoryAttachmentSchema, type CliLaboratoriesListenerLaboratoryInstanceEvent, CliLaboratoriesListenerLaboratoryInstanceEventSchema, type CliLaboratoriesListenerLaboratoryRecord, CliLaboratoriesListenerLaboratoryRecordSchema, type CliLevel, CliLevelSchema, type CliPluginsCommand, CliPluginsCommandSchema, type CliPluginsCommandType, CliPluginsCommandTypeSchema, type CliPluginsManifest, CliPluginsManifestSchema, type CliPluginsOutput, CliPluginsOutputSchema, type CliPluginsViewerTab, CliPluginsViewerTabSchema, CliStream, type CommandExecutor, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type LaboratoriesAgentLaboratory, LaboratoriesAgentLaboratorySchema, type LaboratoriesAgentLaboratoryType, LaboratoriesAgentLaboratoryTypeSchema, type LaboratoriesClientLaboratory, LaboratoriesClientLaboratorySchema, type LaboratoriesClientLaboratoryType, LaboratoriesClientLaboratoryTypeSchema, type LaboratoriesFiletreeFileTreeEvent, LaboratoriesFiletreeFileTreeEventSchema, type LaboratoriesFiletreeFileTreeNode, LaboratoriesFiletreeFileTreeNodeSchema, LaboratoriesFiletreeListener, type LaboratoriesFiletreeListenerOptions, type LaboratoriesFiletreeListenerViewerOptions, type LaboratoriesInlineLaboratoryImage, LaboratoriesInlineLaboratoryImageSchema, type LaboratoriesLaboratory, type LaboratoriesLaboratoryImage, type LaboratoriesLaboratoryImagePin, LaboratoriesLaboratoryImagePinSchema, LaboratoriesLaboratoryImageSchema, LaboratoriesLaboratorySchema, LaboratoriesListListener, type LaboratoriesListListenerOptions, type LaboratoriesListListenerViewerOptions, LaboratoriesListener, type LaboratoriesListenerOptions, type LaboratoriesListenerViewerOptions, type LaboratoriesRegistryLaboratoryImage, LaboratoriesRegistryLaboratoryImageSchema, type MachineMachineIdentity, MachineMachineIdentitySchema, type McpCompletionsCapability, McpCompletionsCapabilitySchema, type McpImplementation, McpImplementationSchema, type McpInitializeResult, McpInitializeResultSchema, type McpListServersResult, McpListServersResultSchema, type McpLoggingCapability, McpLoggingCapabilitySchema, type McpPlugin, McpPluginSchema, type McpPromptsCapability, McpPromptsCapabilitySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceListResourcesResult, McpResourceListResourcesResultSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpResourceReadResourceResult, McpResourceReadResourceResultSchema, type McpResourceResource, McpResourceResourceSchema, type McpResourcesCapability, McpResourcesCapabilitySchema, type McpServer, type McpServerCapabilities, McpServerCapabilitiesSchema, McpServerSchema, type McpSharedAnnotations, McpSharedAnnotationsSchema, type McpSharedBlobResourceContents, McpSharedBlobResourceContentsSchema, type McpSharedIcon, McpSharedIconSchema, type McpSharedIconTheme, McpSharedIconThemeSchema, type McpSharedResourceContents, McpSharedResourceContentsSchema, type McpSharedResourceContentsUnion, McpSharedResourceContentsUnionSchema, type McpSharedRole, McpSharedRoleSchema, type McpSharedTextResourceContents, McpSharedTextResourceContentsSchema, type McpTasksCancelCapability, McpTasksCancelCapabilitySchema, type McpTasksCapability, McpTasksCapabilitySchema, type McpTasksListCapability, McpTasksListCapabilitySchema, type McpTasksRequestsCapability, McpTasksRequestsCapabilitySchema, type McpTasksToolsCallCapability, McpTasksToolsCallCapabilitySchema, type McpTasksToolsCapability, McpTasksToolsCapabilitySchema, type McpToolAudioContent, McpToolAudioContentSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolCallToolResult, McpToolCallToolResultSchema, type McpToolContentBlock, McpToolContentBlockSchema, type McpToolEmbeddedResource, McpToolEmbeddedResourceSchema, type McpToolImageContent, McpToolImageContentSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolListToolsResult, McpToolListToolsResultSchema, type McpToolResourceLink, McpToolResourceLinkSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, type McpToolTaskSupport, McpToolTaskSupportSchema, type McpToolTextContent, McpToolTextContentSchema, type McpToolTool, type McpToolToolAnnotations, McpToolToolAnnotationsSchema, type McpToolToolExecution, McpToolToolExecutionSchema, McpToolToolSchema, type McpToolToolSchemaObject, McpToolToolSchemaObjectSchema, type McpToolToolSchemaType, McpToolToolSchemaTypeSchema, type McpToolsCapability, McpToolsCapabilitySchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, PluginCommandExecutor, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, ResponseItemStream, SseCommandExecutor, type SseCommandExecutorOptions, Stream, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, ViewerCommandExecutor, type ViewerOpenTab, type ViewerStreamEvent, type ViewerTransport, type ViewerTransportChannel, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamDurationMsMerged, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecute, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecute, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecute, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecute, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecute, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsTagsRemoveExecute, agentsTagsRemoveExecuteTransform, agentsTagsRemoveRequestSchemaExecute, agentsTagsRemoveRequestSchemaExecuteTransform, agentsTagsRemoveResponseSchemaExecute, agentsTagsRemoveResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpCallTimeoutMsGetExecute, apiConfigMcpCallTimeoutMsGetExecuteTransform, apiConfigMcpCallTimeoutMsGetRequestSchemaExecute, apiConfigMcpCallTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpCallTimeoutMsGetResponseSchemaExecute, apiConfigMcpCallTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpCallTimeoutMsSetExecute, apiConfigMcpCallTimeoutMsSetExecuteTransform, apiConfigMcpCallTimeoutMsSetRequestSchemaExecute, apiConfigMcpCallTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpCallTimeoutMsSetResponseSchemaExecute, apiConfigMcpCallTimeoutMsSetResponseSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsGetExecute, apiConfigMcpConnectTimeoutMsGetExecuteTransform, apiConfigMcpConnectTimeoutMsGetRequestSchemaExecute, apiConfigMcpConnectTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsGetResponseSchemaExecute, apiConfigMcpConnectTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsSetExecute, apiConfigMcpConnectTimeoutMsSetExecuteTransform, apiConfigMcpConnectTimeoutMsSetRequestSchemaExecute, apiConfigMcpConnectTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsSetResponseSchemaExecute, apiConfigMcpConnectTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, applyFileTreeEvent, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, channelsCloseExecute, channelsCloseExecuteTransform, channelsCloseRequestSchemaExecute, channelsCloseRequestSchemaExecuteTransform, channelsCloseResponseSchemaExecute, channelsCloseResponseSchemaExecuteTransform, channelsLogsListExecute, channelsLogsListExecuteTransform, channelsLogsListRequestSchemaExecute, channelsLogsListRequestSchemaExecuteTransform, channelsLogsListResponseSchemaExecute, channelsLogsListResponseSchemaExecuteTransform, channelsLogsOpenExecute, channelsLogsOpenExecuteTransform, channelsLogsOpenRequestSchemaExecute, channelsLogsOpenRequestSchemaExecuteTransform, channelsLogsOpenResponseSchemaExecute, channelsLogsOpenResponseSchemaExecuteTransform, channelsLogsReplyExecute, channelsLogsReplyExecuteTransform, channelsLogsReplyRequestSchemaExecute, channelsLogsReplyRequestSchemaExecuteTransform, channelsLogsReplyResponseSchemaExecute, channelsLogsReplyResponseSchemaExecuteTransform, channelsLogsRequestExecute, channelsLogsRequestExecuteTransform, channelsLogsRequestRequestSchemaExecute, channelsLogsRequestRequestSchemaExecuteTransform, channelsLogsRequestResponseSchemaExecute, channelsLogsRequestResponseSchemaExecuteTransform, channelsLogsSubscribeExecute, channelsLogsSubscribeExecuteTransform, channelsLogsSubscribeRequestSchemaExecute, channelsLogsSubscribeRequestSchemaExecuteTransform, channelsLogsSubscribeResponseSchemaExecute, channelsLogsSubscribeResponseSchemaExecuteTransform, channelsPublishExecute, channelsPublishExecuteTransform, channelsPublishRequestSchemaExecute, channelsPublishRequestSchemaExecuteTransform, channelsPublishResponseSchemaExecute, channelsPublishResponseSchemaExecuteTransform, connectSse, connectViewerStream, daemonConfigAddressGetExecute, daemonConfigAddressGetExecuteTransform, daemonConfigAddressGetRequestSchemaExecute, daemonConfigAddressGetRequestSchemaExecuteTransform, daemonConfigAddressGetResponseSchemaExecute, daemonConfigAddressGetResponseSchemaExecuteTransform, daemonConfigGetExecute, daemonConfigGetExecuteTransform, daemonConfigGetRequestSchemaExecute, daemonConfigGetRequestSchemaExecuteTransform, daemonConfigGetResponseSchemaExecute, daemonConfigGetResponseSchemaExecuteTransform, daemonConfigRefreshSecretSignaturePairExecute, daemonConfigRefreshSecretSignaturePairExecuteTransform, daemonConfigRefreshSecretSignaturePairRequestSchemaExecute, daemonConfigRefreshSecretSignaturePairRequestSchemaExecuteTransform, daemonConfigRefreshSecretSignaturePairResponseSchemaExecute, daemonConfigRefreshSecretSignaturePairResponseSchemaExecuteTransform, daemonConfigSecretGetExecute, daemonConfigSecretGetExecuteTransform, daemonConfigSecretGetRequestSchemaExecute, daemonConfigSecretGetRequestSchemaExecuteTransform, daemonConfigSecretGetResponseSchemaExecute, daemonConfigSecretGetResponseSchemaExecuteTransform, daemonConfigSetExecute, daemonConfigSetExecuteTransform, daemonConfigSetRequestSchemaExecute, daemonConfigSetRequestSchemaExecuteTransform, daemonConfigSetResponseSchemaExecute, daemonConfigSetResponseSchemaExecuteTransform, daemonConfigSignatureGetExecute, daemonConfigSignatureGetExecuteTransform, daemonConfigSignatureGetRequestSchemaExecute, daemonConfigSignatureGetRequestSchemaExecuteTransform, daemonConfigSignatureGetResponseSchemaExecute, daemonConfigSignatureGetResponseSchemaExecuteTransform, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigSetExecute, dbConfigSetExecuteTransform, dbConfigSetRequestSchemaExecute, dbConfigSetRequestSchemaExecuteTransform, dbConfigSetResponseSchemaExecute, dbConfigSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, laboratoriesAttachExecute, laboratoriesAttachExecuteTransform, laboratoriesAttachRequestSchemaExecute, laboratoriesAttachRequestSchemaExecuteTransform, laboratoriesAttachResponseSchemaExecute, laboratoriesAttachResponseSchemaExecuteTransform, laboratoriesConfigAddressesAddExecute, laboratoriesConfigAddressesAddExecuteTransform, laboratoriesConfigAddressesAddRequestSchemaExecute, laboratoriesConfigAddressesAddRequestSchemaExecuteTransform, laboratoriesConfigAddressesAddResponseSchemaExecute, laboratoriesConfigAddressesAddResponseSchemaExecuteTransform, laboratoriesConfigAddressesDelExecute, laboratoriesConfigAddressesDelExecuteTransform, laboratoriesConfigAddressesDelRequestSchemaExecute, laboratoriesConfigAddressesDelRequestSchemaExecuteTransform, laboratoriesConfigAddressesDelResponseSchemaExecute, laboratoriesConfigAddressesDelResponseSchemaExecuteTransform, laboratoriesConfigAddressesGetExecute, laboratoriesConfigAddressesGetExecuteTransform, laboratoriesConfigAddressesGetRequestSchemaExecute, laboratoriesConfigAddressesGetRequestSchemaExecuteTransform, laboratoriesConfigAddressesGetResponseSchemaExecute, laboratoriesConfigAddressesGetResponseSchemaExecuteTransform, laboratoriesConfigLocalGetExecute, laboratoriesConfigLocalGetExecuteTransform, laboratoriesConfigLocalGetRequestSchemaExecute, laboratoriesConfigLocalGetRequestSchemaExecuteTransform, laboratoriesConfigLocalGetResponseSchemaExecute, laboratoriesConfigLocalGetResponseSchemaExecuteTransform, laboratoriesConfigLocalSetExecute, laboratoriesConfigLocalSetExecuteTransform, laboratoriesConfigLocalSetRequestSchemaExecute, laboratoriesConfigLocalSetRequestSchemaExecuteTransform, laboratoriesConfigLocalSetResponseSchemaExecute, laboratoriesConfigLocalSetResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesDeleteExecute, laboratoriesDeleteExecuteTransform, laboratoriesDeleteRequestSchemaExecute, laboratoriesDeleteRequestSchemaExecuteTransform, laboratoriesDeleteResponseSchemaExecute, laboratoriesDeleteResponseSchemaExecuteTransform, laboratoriesDetachExecute, laboratoriesDetachExecuteTransform, laboratoriesDetachRequestSchemaExecute, laboratoriesDetachRequestSchemaExecuteTransform, laboratoriesDetachResponseSchemaExecute, laboratoriesDetachResponseSchemaExecuteTransform, laboratoriesKillExecute, laboratoriesKillExecuteTransform, laboratoriesKillRequestSchemaExecute, laboratoriesKillRequestSchemaExecuteTransform, laboratoriesKillResponseSchemaExecute, laboratoriesKillResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, laboratoriesSpawnExecute, laboratoriesSpawnExecuteTransform, laboratoriesSpawnRequestSchemaExecute, laboratoriesSpawnRequestSchemaExecuteTransform, laboratoriesSpawnResponseSchemaExecute, laboratoriesSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, openViewerTab, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, tasksCreateExecute, tasksCreateExecuteTransform, tasksCreateRequestSchemaExecute, tasksCreateRequestSchemaExecuteTransform, tasksCreateResponseSchemaExecute, tasksCreateResponseSchemaExecuteTransform, tasksDeleteExecute, tasksDeleteExecuteTransform, tasksDeleteRequestSchemaExecute, tasksDeleteRequestSchemaExecuteTransform, tasksDeleteResponseSchemaExecute, tasksDeleteResponseSchemaExecuteTransform, tasksListExecute, tasksListExecuteTransform, tasksListRequestSchemaExecute, tasksListRequestSchemaExecuteTransform, tasksListResponseSchemaExecute, tasksListResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };
+export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessagePipeAck, AgentCompletionsMessagePipeAckSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageToolResponseMetadata, AgentCompletionsMessageToolResponseMetadataSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamDurationMs, AgentCompletionsResponseUpstreamDurationMsSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentLaboratory, AgentLaboratorySchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockCall, AgentMockCallSchema, type AgentMockCallToolCall, AgentMockCallToolCallSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContextCompression, AgentOpenrouterContextCompressionSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterSystemPrompt, type AgentOpenrouterSystemPromptRole, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentPlugin, AgentPluginSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentScriptAgent, type AgentScriptAgentBase, AgentScriptAgentBaseSchema, AgentScriptAgentSchema, type AgentScriptContinuation, AgentScriptContinuationSchema, type AgentScriptOutputMessage, AgentScriptOutputMessageSchema, type AgentScriptOutputMode, AgentScriptOutputModeSchema, type AgentScriptScript, AgentScriptScriptSchema, type AgentScriptUpstream, AgentScriptUpstreamSchema, type AgentUpstream, AgentUpstreamSchema, AgentsInstancesListListener, AgentsInstancesListener, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, BinaryCommandExecutor, type BinaryCommandExecutorOptions, CLI_COMMAND_LISTENER_EXECUTION_MODES, ChannelListener, type CliCommandAgentsAgentRef, CliCommandAgentsAgentRefSchema, type CliCommandAgentsAgentSelector, CliCommandAgentsAgentSelectorSchema, type CliCommandAgentsEnqueueListenerExecution, type CliCommandAgentsEnqueuePath, CliCommandAgentsEnqueuePathSchema, type CliCommandAgentsEnqueueRequest, CliCommandAgentsEnqueueRequestSchema, type CliCommandAgentsEnqueueRequestSchemaListenerExecution, type CliCommandAgentsEnqueueRequestSchemaPath, CliCommandAgentsEnqueueRequestSchemaPathSchema, type CliCommandAgentsEnqueueRequestSchemaRequest, CliCommandAgentsEnqueueRequestSchemaRequestSchema, type CliCommandAgentsEnqueueResponse, CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponseSchemaListenerExecution, type CliCommandAgentsEnqueueResponseSchemaPath, CliCommandAgentsEnqueueResponseSchemaPathSchema, type CliCommandAgentsEnqueueResponseSchemaRequest, CliCommandAgentsEnqueueResponseSchemaRequestSchema, type CliCommandAgentsGetListenerExecution, type CliCommandAgentsGetPath, CliCommandAgentsGetPathSchema, type CliCommandAgentsGetRequest, CliCommandAgentsGetRequestSchema, type CliCommandAgentsGetRequestSchemaListenerExecution, type CliCommandAgentsGetRequestSchemaPath, CliCommandAgentsGetRequestSchemaPathSchema, type CliCommandAgentsGetRequestSchemaRequest, CliCommandAgentsGetRequestSchemaRequestSchema, type CliCommandAgentsGetResponse, CliCommandAgentsGetResponseSchema, type CliCommandAgentsGetResponseSchemaListenerExecution, type CliCommandAgentsGetResponseSchemaPath, CliCommandAgentsGetResponseSchemaPathSchema, type CliCommandAgentsGetResponseSchemaRequest, CliCommandAgentsGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesGetListenerExecution, type CliCommandAgentsInstancesGetPath, CliCommandAgentsInstancesGetPathSchema, type CliCommandAgentsInstancesGetRequest, CliCommandAgentsInstancesGetRequestSchema, type CliCommandAgentsInstancesGetRequestSchemaListenerExecution, type CliCommandAgentsInstancesGetRequestSchemaPath, CliCommandAgentsInstancesGetRequestSchemaPathSchema, type CliCommandAgentsInstancesGetRequestSchemaRequest, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, type CliCommandAgentsInstancesGetResponseSchemaListenerExecution, type CliCommandAgentsInstancesGetResponseSchemaPath, CliCommandAgentsInstancesGetResponseSchemaPathSchema, type CliCommandAgentsInstancesGetResponseSchemaRequest, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesListLaboratoryAttachment, CliCommandAgentsInstancesListLaboratoryAttachmentSchema, type CliCommandAgentsInstancesListListenerExecution, type CliCommandAgentsInstancesListPath, CliCommandAgentsInstancesListPathSchema, type CliCommandAgentsInstancesListRequest, CliCommandAgentsInstancesListRequestSchema, type CliCommandAgentsInstancesListRequestSchemaListenerExecution, type CliCommandAgentsInstancesListRequestSchemaPath, CliCommandAgentsInstancesListRequestSchemaPathSchema, type CliCommandAgentsInstancesListRequestSchemaRequest, CliCommandAgentsInstancesListRequestSchemaRequestSchema, type CliCommandAgentsInstancesListResponseItem, CliCommandAgentsInstancesListResponseItemSchema, type CliCommandAgentsInstancesListResponseSchemaListenerExecution, type CliCommandAgentsInstancesListResponseSchemaPath, CliCommandAgentsInstancesListResponseSchemaPathSchema, type CliCommandAgentsInstancesListResponseSchemaRequest, CliCommandAgentsInstancesListResponseSchemaRequestSchema, type CliCommandAgentsInstancesListenerExecution, type CliCommandAgentsInstancesRequest, CliCommandAgentsInstancesRequestSchema, type CliCommandAgentsListListenerExecution, type CliCommandAgentsListPath, CliCommandAgentsListPathSchema, type CliCommandAgentsListRequest, CliCommandAgentsListRequestSchema, type CliCommandAgentsListRequestSchemaListenerExecution, type CliCommandAgentsListRequestSchemaPath, CliCommandAgentsListRequestSchemaPathSchema, type CliCommandAgentsListRequestSchemaRequest, CliCommandAgentsListRequestSchemaRequestSchema, type CliCommandAgentsListResponseSchemaListenerExecution, type CliCommandAgentsListResponseSchemaPath, CliCommandAgentsListResponseSchemaPathSchema, type CliCommandAgentsListResponseSchemaRequest, CliCommandAgentsListResponseSchemaRequestSchema, type CliCommandAgentsListenerExecution, type CliCommandAgentsLogsListAssistantResponsePart, CliCommandAgentsLogsListAssistantResponsePartSchema, type CliCommandAgentsLogsListClientNotificationPart, CliCommandAgentsLogsListClientNotificationPartSchema, type CliCommandAgentsLogsListClientNotificationPartType, CliCommandAgentsLogsListClientNotificationPartTypeSchema, type CliCommandAgentsLogsListListenerExecution, type CliCommandAgentsLogsListPath, CliCommandAgentsLogsListPathSchema, type CliCommandAgentsLogsListRequest, type CliCommandAgentsLogsListRequestMessageUserPart, CliCommandAgentsLogsListRequestMessageUserPartSchema, type CliCommandAgentsLogsListRequestMessageUserPartType, CliCommandAgentsLogsListRequestMessageUserPartTypeSchema, CliCommandAgentsLogsListRequestSchema, type CliCommandAgentsLogsListRequestSchemaListenerExecution, type CliCommandAgentsLogsListRequestSchemaPath, CliCommandAgentsLogsListRequestSchemaPathSchema, type CliCommandAgentsLogsListRequestSchemaRequest, CliCommandAgentsLogsListRequestSchemaRequestSchema, type CliCommandAgentsLogsListResponseItem, CliCommandAgentsLogsListResponseItemSchema, type CliCommandAgentsLogsListResponseSchemaListenerExecution, type CliCommandAgentsLogsListResponseSchemaPath, CliCommandAgentsLogsListResponseSchemaPathSchema, type CliCommandAgentsLogsListResponseSchemaRequest, CliCommandAgentsLogsListResponseSchemaRequestSchema, type CliCommandAgentsLogsListTarget, CliCommandAgentsLogsListTargetSchema, type CliCommandAgentsLogsListToolResponsePart, CliCommandAgentsLogsListToolResponsePartSchema, type CliCommandAgentsLogsListToolResponsePartType, CliCommandAgentsLogsListToolResponsePartTypeSchema, type CliCommandAgentsLogsListVectorRequestChoice, type CliCommandAgentsLogsListVectorRequestChoicePart, CliCommandAgentsLogsListVectorRequestChoicePartSchema, type CliCommandAgentsLogsListVectorRequestChoicePartType, CliCommandAgentsLogsListVectorRequestChoicePartTypeSchema, CliCommandAgentsLogsListVectorRequestChoiceSchema, type CliCommandAgentsLogsListenerExecution, type CliCommandAgentsLogsOpenListenerExecution, type CliCommandAgentsLogsOpenPath, CliCommandAgentsLogsOpenPathSchema, type CliCommandAgentsLogsOpenRequest, CliCommandAgentsLogsOpenRequestSchema, type CliCommandAgentsLogsOpenRequestSchemaListenerExecution, type CliCommandAgentsLogsOpenRequestSchemaPath, CliCommandAgentsLogsOpenRequestSchemaPathSchema, type CliCommandAgentsLogsOpenRequestSchemaRequest, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, type CliCommandAgentsLogsOpenResponse, CliCommandAgentsLogsOpenResponseSchema, type CliCommandAgentsLogsOpenResponseSchemaListenerExecution, type CliCommandAgentsLogsOpenResponseSchemaPath, CliCommandAgentsLogsOpenResponseSchemaPathSchema, type CliCommandAgentsLogsOpenResponseSchemaRequest, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, type CliCommandAgentsLogsRequest, CliCommandAgentsLogsRequestSchema, type CliCommandAgentsLogsSubscribeAgentsInactiveTag, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsSubscribeKindFilter, CliCommandAgentsLogsSubscribeKindFilterSchema, type CliCommandAgentsLogsSubscribeListenerExecution, type CliCommandAgentsLogsSubscribePath, CliCommandAgentsLogsSubscribePathSchema, type CliCommandAgentsLogsSubscribeRequest, CliCommandAgentsLogsSubscribeRequestSchema, type CliCommandAgentsLogsSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsSubscribeRequestSchemaPath, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsSubscribeRequestSchemaRequest, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsSubscribeResponseItem, CliCommandAgentsLogsSubscribeResponseItemSchema, type CliCommandAgentsLogsSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsSubscribeResponseSchemaPath, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsSubscribeResponseSchemaRequest, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetListenerExecution, type CliCommandAgentsLogsTokenUsageGetPath, CliCommandAgentsLogsTokenUsageGetPathSchema, type CliCommandAgentsLogsTokenUsageGetRequest, CliCommandAgentsLogsTokenUsageGetRequestSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetRequestSchemaPath, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetResponse, CliCommandAgentsLogsTokenUsageGetResponseSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageGetResponseSchemaPath, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageListenerExecution, type CliCommandAgentsLogsTokenUsageRequest, CliCommandAgentsLogsTokenUsageRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTag, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsTokenUsageSubscribeListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribePath, CliCommandAgentsLogsTokenUsageSubscribePathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseItem, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaListenerExecution, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, type CliCommandAgentsMcpListenerExecution, type CliCommandAgentsMcpRequest, CliCommandAgentsMcpRequestSchema, type CliCommandAgentsMcpResourcesListListenerExecution, type CliCommandAgentsMcpResourcesListPath, CliCommandAgentsMcpResourcesListPathSchema, type CliCommandAgentsMcpResourcesListRequest, CliCommandAgentsMcpResourcesListRequestSchema, type CliCommandAgentsMcpResourcesListRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesListRequestSchemaPath, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesListRequestSchemaRequest, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesListResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesListResponseSchemaPath, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesListResponseSchemaRequest, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesListenerExecution, type CliCommandAgentsMcpResourcesReadListenerExecution, type CliCommandAgentsMcpResourcesReadPath, CliCommandAgentsMcpResourcesReadPathSchema, type CliCommandAgentsMcpResourcesReadRequest, CliCommandAgentsMcpResourcesReadRequestSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadRequestSchemaPath, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaRequest, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaListenerExecution, type CliCommandAgentsMcpResourcesReadResponseSchemaPath, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaRequest, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesRequest, CliCommandAgentsMcpResourcesRequestSchema, type CliCommandAgentsMcpServersListListenerExecution, type CliCommandAgentsMcpServersListPath, CliCommandAgentsMcpServersListPathSchema, type CliCommandAgentsMcpServersListRequest, CliCommandAgentsMcpServersListRequestSchema, type CliCommandAgentsMcpServersListRequestSchemaListenerExecution, type CliCommandAgentsMcpServersListRequestSchemaPath, CliCommandAgentsMcpServersListRequestSchemaPathSchema, type CliCommandAgentsMcpServersListRequestSchemaRequest, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, type CliCommandAgentsMcpServersListResponseSchemaListenerExecution, type CliCommandAgentsMcpServersListResponseSchemaPath, CliCommandAgentsMcpServersListResponseSchemaPathSchema, type CliCommandAgentsMcpServersListResponseSchemaRequest, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, type CliCommandAgentsMcpServersListenerExecution, type CliCommandAgentsMcpServersRequest, CliCommandAgentsMcpServersRequestSchema, type CliCommandAgentsMcpToolsCallListenerExecution, type CliCommandAgentsMcpToolsCallPath, CliCommandAgentsMcpToolsCallPathSchema, type CliCommandAgentsMcpToolsCallRequest, CliCommandAgentsMcpToolsCallRequestSchema, type CliCommandAgentsMcpToolsCallRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsCallRequestSchemaPath, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, type CliCommandAgentsMcpToolsCallRequestSchemaRequest, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsCallResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsCallResponseSchemaPath, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, type CliCommandAgentsMcpToolsCallResponseSchemaRequest, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListListenerExecution, type CliCommandAgentsMcpToolsListPath, CliCommandAgentsMcpToolsListPathSchema, type CliCommandAgentsMcpToolsListRequest, CliCommandAgentsMcpToolsListRequestSchema, type CliCommandAgentsMcpToolsListRequestSchemaListenerExecution, type CliCommandAgentsMcpToolsListRequestSchemaPath, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, type CliCommandAgentsMcpToolsListRequestSchemaRequest, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsListResponseSchemaListenerExecution, type CliCommandAgentsMcpToolsListResponseSchemaPath, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, type CliCommandAgentsMcpToolsListResponseSchemaRequest, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListenerExecution, type CliCommandAgentsMcpToolsRequest, CliCommandAgentsMcpToolsRequestSchema, type CliCommandAgentsMessageListenerExecution, type CliCommandAgentsMessagePath, CliCommandAgentsMessagePathSchema, type CliCommandAgentsMessageRequest, type CliCommandAgentsMessageRequestDangerousAdvanced, CliCommandAgentsMessageRequestDangerousAdvancedSchema, type CliCommandAgentsMessageRequestMessage, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, type CliCommandAgentsMessageRequestSchemaListenerExecution, type CliCommandAgentsMessageRequestSchemaPath, CliCommandAgentsMessageRequestSchemaPathSchema, type CliCommandAgentsMessageRequestSchemaRequest, CliCommandAgentsMessageRequestSchemaRequestSchema, type CliCommandAgentsMessageResponse, CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponseSchemaListenerExecution, type CliCommandAgentsMessageResponseSchemaPath, CliCommandAgentsMessageResponseSchemaPathSchema, type CliCommandAgentsMessageResponseSchemaRequest, CliCommandAgentsMessageResponseSchemaRequestSchema, type CliCommandAgentsPublishListenerExecution, type CliCommandAgentsPublishPath, CliCommandAgentsPublishPathSchema, type CliCommandAgentsPublishRequest, type CliCommandAgentsPublishRequestBody, CliCommandAgentsPublishRequestBodySchema, type CliCommandAgentsPublishRequestPublishMessage, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, type CliCommandAgentsPublishRequestSchemaListenerExecution, type CliCommandAgentsPublishRequestSchemaPath, CliCommandAgentsPublishRequestSchemaPathSchema, type CliCommandAgentsPublishRequestSchemaRequest, CliCommandAgentsPublishRequestSchemaRequestSchema, type CliCommandAgentsPublishResponse, CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponseSchemaListenerExecution, type CliCommandAgentsPublishResponseSchemaPath, CliCommandAgentsPublishResponseSchemaPathSchema, type CliCommandAgentsPublishResponseSchemaRequest, CliCommandAgentsPublishResponseSchemaRequestSchema, type CliCommandAgentsQueueDeleteListenerExecution, type CliCommandAgentsQueueDeletePath, CliCommandAgentsQueueDeletePathSchema, type CliCommandAgentsQueueDeleteRequest, CliCommandAgentsQueueDeleteRequestSchema, type CliCommandAgentsQueueDeleteRequestSchemaListenerExecution, type CliCommandAgentsQueueDeleteRequestSchemaPath, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, type CliCommandAgentsQueueDeleteRequestSchemaRequest, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, type CliCommandAgentsQueueDeleteResponse, CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponseSchemaListenerExecution, type CliCommandAgentsQueueDeleteResponseSchemaPath, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, type CliCommandAgentsQueueDeleteResponseSchemaRequest, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverAgentActiveResponseItem, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, type CliCommandAgentsQueueDeliverAgentActiveType, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, type CliCommandAgentsQueueDeliverAgentSpawnedResponseItem, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverAgentSpawnedType, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, type CliCommandAgentsQueueDeliverAllAgentsActive, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, type CliCommandAgentsQueueDeliverListenerExecution, type CliCommandAgentsQueueDeliverPath, CliCommandAgentsQueueDeliverPathSchema, type CliCommandAgentsQueueDeliverRequest, type CliCommandAgentsQueueDeliverRequestDangerousAdvanced, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, type CliCommandAgentsQueueDeliverRequestSchemaListenerExecution, type CliCommandAgentsQueueDeliverRequestSchemaPath, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, type CliCommandAgentsQueueDeliverRequestSchemaRequest, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, type CliCommandAgentsQueueDeliverResponseItem, CliCommandAgentsQueueDeliverResponseItemSchema, type CliCommandAgentsQueueDeliverResponseSchemaListenerExecution, type CliCommandAgentsQueueDeliverResponseSchemaPath, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, type CliCommandAgentsQueueDeliverResponseSchemaRequest, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverTagActiveResponseItem, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, type CliCommandAgentsQueueDeliverTagActiveType, CliCommandAgentsQueueDeliverTagActiveTypeSchema, type CliCommandAgentsQueueDeliverTagSpawnedResponseItem, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverTagSpawnedType, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, type CliCommandAgentsQueueDeliverValueResponseItem, CliCommandAgentsQueueDeliverValueResponseItemSchema, type CliCommandAgentsQueueListListenerExecution, type CliCommandAgentsQueueListPath, CliCommandAgentsQueueListPathSchema, type CliCommandAgentsQueueListQueuePart, CliCommandAgentsQueueListQueuePartSchema, type CliCommandAgentsQueueListRequest, CliCommandAgentsQueueListRequestSchema, type CliCommandAgentsQueueListRequestSchemaListenerExecution, type CliCommandAgentsQueueListRequestSchemaPath, CliCommandAgentsQueueListRequestSchemaPathSchema, type CliCommandAgentsQueueListRequestSchemaRequest, CliCommandAgentsQueueListRequestSchemaRequestSchema, type CliCommandAgentsQueueListResponseItem, CliCommandAgentsQueueListResponseItemSchema, type CliCommandAgentsQueueListResponseSchemaListenerExecution, type CliCommandAgentsQueueListResponseSchemaPath, CliCommandAgentsQueueListResponseSchemaPathSchema, type CliCommandAgentsQueueListResponseSchemaRequest, CliCommandAgentsQueueListResponseSchemaRequestSchema, type CliCommandAgentsQueueListenerExecution, type CliCommandAgentsQueueOpenListenerExecution, type CliCommandAgentsQueueOpenPath, CliCommandAgentsQueueOpenPathSchema, type CliCommandAgentsQueueOpenRequest, CliCommandAgentsQueueOpenRequestSchema, type CliCommandAgentsQueueOpenRequestSchemaListenerExecution, type CliCommandAgentsQueueOpenRequestSchemaPath, CliCommandAgentsQueueOpenRequestSchemaPathSchema, type CliCommandAgentsQueueOpenRequestSchemaRequest, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, type CliCommandAgentsQueueOpenResponseSchemaListenerExecution, type CliCommandAgentsQueueOpenResponseSchemaPath, CliCommandAgentsQueueOpenResponseSchemaPathSchema, type CliCommandAgentsQueueOpenResponseSchemaRequest, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, type CliCommandAgentsQueueRequest, CliCommandAgentsQueueRequestSchema, type CliCommandAgentsRequest, CliCommandAgentsRequestSchema, type CliCommandAgentsSpawnListenerExecution, type CliCommandAgentsSpawnListenerExecutionStreaming, type CliCommandAgentsSpawnListenerExecutionVariant, type CliCommandAgentsSpawnPath, CliCommandAgentsSpawnPathSchema, type CliCommandAgentsSpawnRequest, type CliCommandAgentsSpawnRequestDangerousAdvanced, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, type CliCommandAgentsSpawnRequestSchemaListenerExecution, type CliCommandAgentsSpawnRequestSchemaPath, CliCommandAgentsSpawnRequestSchemaPathSchema, type CliCommandAgentsSpawnRequestSchemaRequest, CliCommandAgentsSpawnRequestSchemaRequestSchema, type CliCommandAgentsSpawnResponseItem, CliCommandAgentsSpawnResponseItemSchema, type CliCommandAgentsSpawnResponseSchemaListenerExecution, type CliCommandAgentsSpawnResponseSchemaPath, CliCommandAgentsSpawnResponseSchemaPathSchema, type CliCommandAgentsSpawnResponseSchemaRequest, CliCommandAgentsSpawnResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyAgentTagResolution, CliCommandAgentsTagsApplyAgentTagResolutionSchema, type CliCommandAgentsTagsApplyListenerExecution, type CliCommandAgentsTagsApplyPath, CliCommandAgentsTagsApplyPathSchema, type CliCommandAgentsTagsApplyRequest, CliCommandAgentsTagsApplyRequestSchema, type CliCommandAgentsTagsApplyRequestSchemaListenerExecution, type CliCommandAgentsTagsApplyRequestSchemaPath, CliCommandAgentsTagsApplyRequestSchemaPathSchema, type CliCommandAgentsTagsApplyRequestSchemaRequest, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, type CliCommandAgentsTagsApplyResponse, CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponseSchemaListenerExecution, type CliCommandAgentsTagsApplyResponseSchemaPath, CliCommandAgentsTagsApplyResponseSchemaPathSchema, type CliCommandAgentsTagsApplyResponseSchemaRequest, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyTarget, CliCommandAgentsTagsApplyTargetSchema, type CliCommandAgentsTagsListenerExecution, type CliCommandAgentsTagsLookupListenerExecution, type CliCommandAgentsTagsLookupLookupState, CliCommandAgentsTagsLookupLookupStateSchema, type CliCommandAgentsTagsLookupPath, CliCommandAgentsTagsLookupPathSchema, type CliCommandAgentsTagsLookupRequest, CliCommandAgentsTagsLookupRequestSchema, type CliCommandAgentsTagsLookupRequestSchemaListenerExecution, type CliCommandAgentsTagsLookupRequestSchemaPath, CliCommandAgentsTagsLookupRequestSchemaPathSchema, type CliCommandAgentsTagsLookupRequestSchemaRequest, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, type CliCommandAgentsTagsLookupResponse, CliCommandAgentsTagsLookupResponseSchema, type CliCommandAgentsTagsLookupResponseSchemaListenerExecution, type CliCommandAgentsTagsLookupResponseSchemaPath, CliCommandAgentsTagsLookupResponseSchemaPathSchema, type CliCommandAgentsTagsLookupResponseSchemaRequest, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, type CliCommandAgentsTagsRemoveListenerExecution, type CliCommandAgentsTagsRemovePath, CliCommandAgentsTagsRemovePathSchema, type CliCommandAgentsTagsRemoveRemoved, CliCommandAgentsTagsRemoveRemovedSchema, type CliCommandAgentsTagsRemoveRequest, CliCommandAgentsTagsRemoveRequestSchema, type CliCommandAgentsTagsRemoveRequestSchemaListenerExecution, type CliCommandAgentsTagsRemoveRequestSchemaPath, CliCommandAgentsTagsRemoveRequestSchemaPathSchema, type CliCommandAgentsTagsRemoveRequestSchemaRequest, CliCommandAgentsTagsRemoveRequestSchemaRequestSchema, type CliCommandAgentsTagsRemoveResponse, CliCommandAgentsTagsRemoveResponseSchema, type CliCommandAgentsTagsRemoveResponseSchemaListenerExecution, type CliCommandAgentsTagsRemoveResponseSchemaPath, CliCommandAgentsTagsRemoveResponseSchemaPathSchema, type CliCommandAgentsTagsRemoveResponseSchemaRequest, CliCommandAgentsTagsRemoveResponseSchemaRequestSchema, type CliCommandAgentsTagsRequest, CliCommandAgentsTagsRequestSchema, type CliCommandAgentsWaitListenerExecution, type CliCommandAgentsWaitPath, CliCommandAgentsWaitPathSchema, type CliCommandAgentsWaitRequest, CliCommandAgentsWaitRequestSchema, type CliCommandAgentsWaitRequestSchemaListenerExecution, type CliCommandAgentsWaitRequestSchemaPath, CliCommandAgentsWaitRequestSchemaPathSchema, type CliCommandAgentsWaitRequestSchemaRequest, CliCommandAgentsWaitRequestSchemaRequestSchema, type CliCommandAgentsWaitResponseSchemaListenerExecution, type CliCommandAgentsWaitResponseSchemaPath, CliCommandAgentsWaitResponseSchemaPathSchema, type CliCommandAgentsWaitResponseSchemaRequest, CliCommandAgentsWaitResponseSchemaRequestSchema, type CliCommandApiConfigAddressGetListenerExecution, type CliCommandApiConfigAddressGetPath, CliCommandApiConfigAddressGetPathSchema, type CliCommandApiConfigAddressGetRequest, CliCommandApiConfigAddressGetRequestSchema, type CliCommandApiConfigAddressGetRequestSchemaListenerExecution, type CliCommandApiConfigAddressGetRequestSchemaPath, CliCommandApiConfigAddressGetRequestSchemaPathSchema, type CliCommandApiConfigAddressGetRequestSchemaRequest, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, type CliCommandApiConfigAddressGetResponse, CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponseSchemaListenerExecution, type CliCommandApiConfigAddressGetResponseSchemaPath, CliCommandApiConfigAddressGetResponseSchemaPathSchema, type CliCommandApiConfigAddressGetResponseSchemaRequest, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, type CliCommandApiConfigAddressListenerExecution, type CliCommandApiConfigAddressRequest, CliCommandApiConfigAddressRequestSchema, type CliCommandApiConfigAddressSetListenerExecution, type CliCommandApiConfigAddressSetPath, CliCommandApiConfigAddressSetPathSchema, type CliCommandApiConfigAddressSetRequest, CliCommandApiConfigAddressSetRequestSchema, type CliCommandApiConfigAddressSetRequestSchemaListenerExecution, type CliCommandApiConfigAddressSetRequestSchemaPath, CliCommandApiConfigAddressSetRequestSchemaPathSchema, type CliCommandApiConfigAddressSetRequestSchemaRequest, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, type CliCommandApiConfigAddressSetResponseSchemaListenerExecution, type CliCommandApiConfigAddressSetResponseSchemaPath, CliCommandApiConfigAddressSetResponseSchemaPathSchema, type CliCommandApiConfigAddressSetResponseSchemaRequest, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaListenerExecution, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetPath, CliCommandApiConfigCommitAuthorEmailGetPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailListenerExecution, type CliCommandApiConfigCommitAuthorEmailRequest, CliCommandApiConfigCommitAuthorEmailRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetPath, CliCommandApiConfigCommitAuthorEmailSetPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetListenerExecution, type CliCommandApiConfigCommitAuthorNameGetPath, CliCommandApiConfigCommitAuthorNameGetPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetResponse, CliCommandApiConfigCommitAuthorNameGetResponseSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameListenerExecution, type CliCommandApiConfigCommitAuthorNameRequest, CliCommandApiConfigCommitAuthorNameRequestSchema, type CliCommandApiConfigCommitAuthorNameSetListenerExecution, type CliCommandApiConfigCommitAuthorNameSetPath, CliCommandApiConfigCommitAuthorNameSetPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaListenerExecution, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, type CliCommandApiConfigGetListenerExecution, type CliCommandApiConfigGetPath, CliCommandApiConfigGetPathSchema, type CliCommandApiConfigGetRequest, CliCommandApiConfigGetRequestSchema, type CliCommandApiConfigGetRequestSchemaListenerExecution, type CliCommandApiConfigGetRequestSchemaPath, CliCommandApiConfigGetRequestSchemaPathSchema, type CliCommandApiConfigGetRequestSchemaRequest, CliCommandApiConfigGetRequestSchemaRequestSchema, type CliCommandApiConfigGetResponse, CliCommandApiConfigGetResponseSchema, type CliCommandApiConfigGetResponseSchemaListenerExecution, type CliCommandApiConfigGetResponseSchemaPath, CliCommandApiConfigGetResponseSchemaPathSchema, type CliCommandApiConfigGetResponseSchemaRequest, CliCommandApiConfigGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetListenerExecution, type CliCommandApiConfigGithubAuthorizationGetPath, CliCommandApiConfigGithubAuthorizationGetPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetResponse, CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationListenerExecution, type CliCommandApiConfigGithubAuthorizationRequest, CliCommandApiConfigGithubAuthorizationRequestSchema, type CliCommandApiConfigGithubAuthorizationSetListenerExecution, type CliCommandApiConfigGithubAuthorizationSetPath, CliCommandApiConfigGithubAuthorizationSetPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetListenerExecution, type CliCommandApiConfigHttpRefererGetPath, CliCommandApiConfigHttpRefererGetPathSchema, type CliCommandApiConfigHttpRefererGetRequest, CliCommandApiConfigHttpRefererGetRequestSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetRequestSchemaPath, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaRequest, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetResponse, CliCommandApiConfigHttpRefererGetResponseSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererGetResponseSchemaPath, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaRequest, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererListenerExecution, type CliCommandApiConfigHttpRefererRequest, CliCommandApiConfigHttpRefererRequestSchema, type CliCommandApiConfigHttpRefererSetListenerExecution, type CliCommandApiConfigHttpRefererSetPath, CliCommandApiConfigHttpRefererSetPathSchema, type CliCommandApiConfigHttpRefererSetRequest, CliCommandApiConfigHttpRefererSetRequestSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetRequestSchemaPath, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaRequest, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaListenerExecution, type CliCommandApiConfigHttpRefererSetResponseSchemaPath, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaRequest, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, type CliCommandApiConfigListenerExecution, type CliCommandApiConfigMcpAuthorizationAddListenerExecution, type CliCommandApiConfigMcpAuthorizationAddPath, CliCommandApiConfigMcpAuthorizationAddPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaPath, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaPath, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelListenerExecution, type CliCommandApiConfigMcpAuthorizationDelPath, CliCommandApiConfigMcpAuthorizationDelPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaPath, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaPath, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetListenerExecution, type CliCommandApiConfigMcpAuthorizationGetPath, CliCommandApiConfigMcpAuthorizationGetPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaPath, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetResponse, CliCommandApiConfigMcpAuthorizationGetResponseSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaPath, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationListenerExecution, type CliCommandApiConfigMcpAuthorizationRequest, CliCommandApiConfigMcpAuthorizationRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetPath, CliCommandApiConfigMcpCallTimeoutMsGetPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequest, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponse, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsRequest, CliCommandApiConfigMcpCallTimeoutMsRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetPath, CliCommandApiConfigMcpCallTimeoutMsSetPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequest, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpCallTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetPath, CliCommandApiConfigMcpConnectTimeoutMsGetPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequest, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponse, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsRequest, CliCommandApiConfigMcpConnectTimeoutMsRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetPath, CliCommandApiConfigMcpConnectTimeoutMsSetPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequest, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaListenerExecution, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpConnectTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetPath, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationRequest, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetPath, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetPath, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationRequest, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetPath, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaListenerExecution, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigRequest, CliCommandApiConfigRequestSchema, type CliCommandApiConfigUserAgentGetListenerExecution, type CliCommandApiConfigUserAgentGetPath, CliCommandApiConfigUserAgentGetPathSchema, type CliCommandApiConfigUserAgentGetRequest, CliCommandApiConfigUserAgentGetRequestSchema, type CliCommandApiConfigUserAgentGetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentGetRequestSchemaPath, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentGetRequestSchemaRequest, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentGetResponse, CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentGetResponseSchemaPath, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentGetResponseSchemaRequest, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentListenerExecution, type CliCommandApiConfigUserAgentRequest, CliCommandApiConfigUserAgentRequestSchema, type CliCommandApiConfigUserAgentSetListenerExecution, type CliCommandApiConfigUserAgentSetPath, CliCommandApiConfigUserAgentSetPathSchema, type CliCommandApiConfigUserAgentSetRequest, CliCommandApiConfigUserAgentSetRequestSchema, type CliCommandApiConfigUserAgentSetRequestSchemaListenerExecution, type CliCommandApiConfigUserAgentSetRequestSchemaPath, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentSetRequestSchemaRequest, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentSetResponseSchemaListenerExecution, type CliCommandApiConfigUserAgentSetResponseSchemaPath, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentSetResponseSchemaRequest, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleGetListenerExecution, type CliCommandApiConfigXTitleGetPath, CliCommandApiConfigXTitleGetPathSchema, type CliCommandApiConfigXTitleGetRequest, CliCommandApiConfigXTitleGetRequestSchema, type CliCommandApiConfigXTitleGetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleGetRequestSchemaPath, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, type CliCommandApiConfigXTitleGetRequestSchemaRequest, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleGetResponse, CliCommandApiConfigXTitleGetResponseSchema, type CliCommandApiConfigXTitleGetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleGetResponseSchemaPath, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, type CliCommandApiConfigXTitleGetResponseSchemaRequest, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleListenerExecution, type CliCommandApiConfigXTitleRequest, CliCommandApiConfigXTitleRequestSchema, type CliCommandApiConfigXTitleSetListenerExecution, type CliCommandApiConfigXTitleSetPath, CliCommandApiConfigXTitleSetPathSchema, type CliCommandApiConfigXTitleSetRequest, CliCommandApiConfigXTitleSetRequestSchema, type CliCommandApiConfigXTitleSetRequestSchemaListenerExecution, type CliCommandApiConfigXTitleSetRequestSchemaPath, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, type CliCommandApiConfigXTitleSetRequestSchemaRequest, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleSetResponseSchemaListenerExecution, type CliCommandApiConfigXTitleSetResponseSchemaPath, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, type CliCommandApiConfigXTitleSetResponseSchemaRequest, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, type CliCommandApiListenerExecution, type CliCommandApiRequest, CliCommandApiRequestSchema, type CliCommandChannelsCloseListenerExecution, type CliCommandChannelsClosePath, CliCommandChannelsClosePathSchema, type CliCommandChannelsCloseRequest, CliCommandChannelsCloseRequestSchema, type CliCommandChannelsCloseRequestSchemaListenerExecution, type CliCommandChannelsCloseRequestSchemaPath, CliCommandChannelsCloseRequestSchemaPathSchema, type CliCommandChannelsCloseRequestSchemaRequest, CliCommandChannelsCloseRequestSchemaRequestSchema, type CliCommandChannelsCloseResponse, CliCommandChannelsCloseResponseSchema, type CliCommandChannelsCloseResponseSchemaListenerExecution, type CliCommandChannelsCloseResponseSchemaPath, CliCommandChannelsCloseResponseSchemaPathSchema, type CliCommandChannelsCloseResponseSchemaRequest, CliCommandChannelsCloseResponseSchemaRequestSchema, type CliCommandChannelsListenerExecution, type CliCommandChannelsLogsListChannelLogEntry, CliCommandChannelsLogsListChannelLogEntrySchema, type CliCommandChannelsLogsListListenerExecution, type CliCommandChannelsLogsListMessageKind, CliCommandChannelsLogsListMessageKindSchema, type CliCommandChannelsLogsListPath, CliCommandChannelsLogsListPathSchema, type CliCommandChannelsLogsListRequest, CliCommandChannelsLogsListRequestSchema, type CliCommandChannelsLogsListRequestSchemaListenerExecution, type CliCommandChannelsLogsListRequestSchemaPath, CliCommandChannelsLogsListRequestSchemaPathSchema, type CliCommandChannelsLogsListRequestSchemaRequest, CliCommandChannelsLogsListRequestSchemaRequestSchema, type CliCommandChannelsLogsListResponse, CliCommandChannelsLogsListResponseSchema, type CliCommandChannelsLogsListResponseSchemaListenerExecution, type CliCommandChannelsLogsListResponseSchemaPath, CliCommandChannelsLogsListResponseSchemaPathSchema, type CliCommandChannelsLogsListResponseSchemaRequest, CliCommandChannelsLogsListResponseSchemaRequestSchema, type CliCommandChannelsLogsListenerExecution, type CliCommandChannelsLogsOpenListenerExecution, type CliCommandChannelsLogsOpenPath, CliCommandChannelsLogsOpenPathSchema, type CliCommandChannelsLogsOpenRequest, CliCommandChannelsLogsOpenRequestSchema, type CliCommandChannelsLogsOpenRequestSchemaListenerExecution, type CliCommandChannelsLogsOpenRequestSchemaPath, CliCommandChannelsLogsOpenRequestSchemaPathSchema, type CliCommandChannelsLogsOpenRequestSchemaRequest, CliCommandChannelsLogsOpenRequestSchemaRequestSchema, type CliCommandChannelsLogsOpenResponse, CliCommandChannelsLogsOpenResponseSchema, type CliCommandChannelsLogsOpenResponseSchemaListenerExecution, type CliCommandChannelsLogsOpenResponseSchemaPath, CliCommandChannelsLogsOpenResponseSchemaPathSchema, type CliCommandChannelsLogsOpenResponseSchemaRequest, CliCommandChannelsLogsOpenResponseSchemaRequestSchema, type CliCommandChannelsLogsReplyListenerExecution, type CliCommandChannelsLogsReplyPath, CliCommandChannelsLogsReplyPathSchema, type CliCommandChannelsLogsReplyRequest, CliCommandChannelsLogsReplyRequestSchema, type CliCommandChannelsLogsReplyRequestSchemaListenerExecution, type CliCommandChannelsLogsReplyRequestSchemaPath, CliCommandChannelsLogsReplyRequestSchemaPathSchema, type CliCommandChannelsLogsReplyRequestSchemaRequest, CliCommandChannelsLogsReplyRequestSchemaRequestSchema, type CliCommandChannelsLogsReplyResponse, CliCommandChannelsLogsReplyResponseSchema, type CliCommandChannelsLogsReplyResponseSchemaListenerExecution, type CliCommandChannelsLogsReplyResponseSchemaPath, CliCommandChannelsLogsReplyResponseSchemaPathSchema, type CliCommandChannelsLogsReplyResponseSchemaRequest, CliCommandChannelsLogsReplyResponseSchemaRequestSchema, type CliCommandChannelsLogsRequest, type CliCommandChannelsLogsRequestListenerExecution, type CliCommandChannelsLogsRequestPath, CliCommandChannelsLogsRequestPathSchema, type CliCommandChannelsLogsRequestRequest, CliCommandChannelsLogsRequestRequestSchema, type CliCommandChannelsLogsRequestRequestSchemaListenerExecution, type CliCommandChannelsLogsRequestRequestSchemaPath, CliCommandChannelsLogsRequestRequestSchemaPathSchema, type CliCommandChannelsLogsRequestRequestSchemaRequest, CliCommandChannelsLogsRequestRequestSchemaRequestSchema, type CliCommandChannelsLogsRequestResponse, CliCommandChannelsLogsRequestResponseSchema, type CliCommandChannelsLogsRequestResponseSchemaListenerExecution, type CliCommandChannelsLogsRequestResponseSchemaPath, CliCommandChannelsLogsRequestResponseSchemaPathSchema, type CliCommandChannelsLogsRequestResponseSchemaRequest, CliCommandChannelsLogsRequestResponseSchemaRequestSchema, CliCommandChannelsLogsRequestSchema, type CliCommandChannelsLogsSubscribeChannelClosedTag, CliCommandChannelsLogsSubscribeChannelClosedTagSchema, type CliCommandChannelsLogsSubscribeListenerExecution, type CliCommandChannelsLogsSubscribePath, CliCommandChannelsLogsSubscribePathSchema, type CliCommandChannelsLogsSubscribeRequest, CliCommandChannelsLogsSubscribeRequestSchema, type CliCommandChannelsLogsSubscribeRequestSchemaListenerExecution, type CliCommandChannelsLogsSubscribeRequestSchemaPath, CliCommandChannelsLogsSubscribeRequestSchemaPathSchema, type CliCommandChannelsLogsSubscribeRequestSchemaRequest, CliCommandChannelsLogsSubscribeRequestSchemaRequestSchema, type CliCommandChannelsLogsSubscribeResponseItem, CliCommandChannelsLogsSubscribeResponseItemSchema, type CliCommandChannelsLogsSubscribeResponseSchemaListenerExecution, type CliCommandChannelsLogsSubscribeResponseSchemaPath, CliCommandChannelsLogsSubscribeResponseSchemaPathSchema, type CliCommandChannelsLogsSubscribeResponseSchemaRequest, CliCommandChannelsLogsSubscribeResponseSchemaRequestSchema, type CliCommandChannelsPublishListenerExecution, type CliCommandChannelsPublishPath, CliCommandChannelsPublishPathSchema, type CliCommandChannelsPublishRequest, CliCommandChannelsPublishRequestSchema, type CliCommandChannelsPublishRequestSchemaListenerExecution, type CliCommandChannelsPublishRequestSchemaPath, CliCommandChannelsPublishRequestSchemaPathSchema, type CliCommandChannelsPublishRequestSchemaRequest, CliCommandChannelsPublishRequestSchemaRequestSchema, type CliCommandChannelsPublishResponse, CliCommandChannelsPublishResponseSchema, type CliCommandChannelsPublishResponseSchemaListenerExecution, type CliCommandChannelsPublishResponseSchemaPath, CliCommandChannelsPublishResponseSchemaPathSchema, type CliCommandChannelsPublishResponseSchemaRequest, CliCommandChannelsPublishResponseSchemaRequestSchema, type CliCommandChannelsRequest, CliCommandChannelsRequestSchema, type CliCommandDaemonConfigAddressGetListenerExecution, type CliCommandDaemonConfigAddressGetPath, CliCommandDaemonConfigAddressGetPathSchema, type CliCommandDaemonConfigAddressGetRequest, CliCommandDaemonConfigAddressGetRequestSchema, type CliCommandDaemonConfigAddressGetRequestSchemaListenerExecution, type CliCommandDaemonConfigAddressGetRequestSchemaPath, CliCommandDaemonConfigAddressGetRequestSchemaPathSchema, type CliCommandDaemonConfigAddressGetRequestSchemaRequest, CliCommandDaemonConfigAddressGetRequestSchemaRequestSchema, type CliCommandDaemonConfigAddressGetResponse, CliCommandDaemonConfigAddressGetResponseSchema, type CliCommandDaemonConfigAddressGetResponseSchemaListenerExecution, type CliCommandDaemonConfigAddressGetResponseSchemaPath, CliCommandDaemonConfigAddressGetResponseSchemaPathSchema, type CliCommandDaemonConfigAddressGetResponseSchemaRequest, CliCommandDaemonConfigAddressGetResponseSchemaRequestSchema, type CliCommandDaemonConfigAddressListenerExecution, type CliCommandDaemonConfigAddressRequest, CliCommandDaemonConfigAddressRequestSchema, type CliCommandDaemonConfigGetListenerExecution, type CliCommandDaemonConfigGetPath, CliCommandDaemonConfigGetPathSchema, type CliCommandDaemonConfigGetRequest, CliCommandDaemonConfigGetRequestSchema, type CliCommandDaemonConfigGetRequestSchemaListenerExecution, type CliCommandDaemonConfigGetRequestSchemaPath, CliCommandDaemonConfigGetRequestSchemaPathSchema, type CliCommandDaemonConfigGetRequestSchemaRequest, CliCommandDaemonConfigGetRequestSchemaRequestSchema, type CliCommandDaemonConfigGetResponse, CliCommandDaemonConfigGetResponseSchema, type CliCommandDaemonConfigGetResponseSchemaListenerExecution, type CliCommandDaemonConfigGetResponseSchemaPath, CliCommandDaemonConfigGetResponseSchemaPathSchema, type CliCommandDaemonConfigGetResponseSchemaRequest, CliCommandDaemonConfigGetResponseSchemaRequestSchema, type CliCommandDaemonConfigListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairPath, CliCommandDaemonConfigRefreshSecretSignaturePairPathSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairRequest, CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaPath, CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaPathSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequest, CliCommandDaemonConfigRefreshSecretSignaturePairRequestSchemaRequestSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairResponse, CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaListenerExecution, type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaPath, CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaPathSchema, type CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequest, CliCommandDaemonConfigRefreshSecretSignaturePairResponseSchemaRequestSchema, type CliCommandDaemonConfigRequest, CliCommandDaemonConfigRequestSchema, type CliCommandDaemonConfigSecretGetListenerExecution, type CliCommandDaemonConfigSecretGetPath, CliCommandDaemonConfigSecretGetPathSchema, type CliCommandDaemonConfigSecretGetRequest, CliCommandDaemonConfigSecretGetRequestSchema, type CliCommandDaemonConfigSecretGetRequestSchemaListenerExecution, type CliCommandDaemonConfigSecretGetRequestSchemaPath, CliCommandDaemonConfigSecretGetRequestSchemaPathSchema, type CliCommandDaemonConfigSecretGetRequestSchemaRequest, CliCommandDaemonConfigSecretGetRequestSchemaRequestSchema, type CliCommandDaemonConfigSecretGetResponse, CliCommandDaemonConfigSecretGetResponseSchema, type CliCommandDaemonConfigSecretGetResponseSchemaListenerExecution, type CliCommandDaemonConfigSecretGetResponseSchemaPath, CliCommandDaemonConfigSecretGetResponseSchemaPathSchema, type CliCommandDaemonConfigSecretGetResponseSchemaRequest, CliCommandDaemonConfigSecretGetResponseSchemaRequestSchema, type CliCommandDaemonConfigSecretListenerExecution, type CliCommandDaemonConfigSecretRequest, CliCommandDaemonConfigSecretRequestSchema, type CliCommandDaemonConfigSetListenerExecution, type CliCommandDaemonConfigSetPath, CliCommandDaemonConfigSetPathSchema, type CliCommandDaemonConfigSetRequest, CliCommandDaemonConfigSetRequestSchema, type CliCommandDaemonConfigSetRequestSchemaListenerExecution, type CliCommandDaemonConfigSetRequestSchemaPath, CliCommandDaemonConfigSetRequestSchemaPathSchema, type CliCommandDaemonConfigSetRequestSchemaRequest, CliCommandDaemonConfigSetRequestSchemaRequestSchema, type CliCommandDaemonConfigSetResponseSchemaListenerExecution, type CliCommandDaemonConfigSetResponseSchemaPath, CliCommandDaemonConfigSetResponseSchemaPathSchema, type CliCommandDaemonConfigSetResponseSchemaRequest, CliCommandDaemonConfigSetResponseSchemaRequestSchema, type CliCommandDaemonConfigSetValue, CliCommandDaemonConfigSetValueSchema, type CliCommandDaemonConfigSignatureGetListenerExecution, type CliCommandDaemonConfigSignatureGetPath, CliCommandDaemonConfigSignatureGetPathSchema, type CliCommandDaemonConfigSignatureGetRequest, CliCommandDaemonConfigSignatureGetRequestSchema, type CliCommandDaemonConfigSignatureGetRequestSchemaListenerExecution, type CliCommandDaemonConfigSignatureGetRequestSchemaPath, CliCommandDaemonConfigSignatureGetRequestSchemaPathSchema, type CliCommandDaemonConfigSignatureGetRequestSchemaRequest, CliCommandDaemonConfigSignatureGetRequestSchemaRequestSchema, type CliCommandDaemonConfigSignatureGetResponse, CliCommandDaemonConfigSignatureGetResponseSchema, type CliCommandDaemonConfigSignatureGetResponseSchemaListenerExecution, type CliCommandDaemonConfigSignatureGetResponseSchemaPath, CliCommandDaemonConfigSignatureGetResponseSchemaPathSchema, type CliCommandDaemonConfigSignatureGetResponseSchemaRequest, CliCommandDaemonConfigSignatureGetResponseSchemaRequestSchema, type CliCommandDaemonConfigSignatureListenerExecution, type CliCommandDaemonConfigSignatureRequest, CliCommandDaemonConfigSignatureRequestSchema, type CliCommandDaemonKillListenerExecution, type CliCommandDaemonKillPath, CliCommandDaemonKillPathSchema, type CliCommandDaemonKillRequest, CliCommandDaemonKillRequestSchema, type CliCommandDaemonKillRequestSchemaListenerExecution, type CliCommandDaemonKillRequestSchemaPath, CliCommandDaemonKillRequestSchemaPathSchema, type CliCommandDaemonKillRequestSchemaRequest, CliCommandDaemonKillRequestSchemaRequestSchema, type CliCommandDaemonKillResponse, CliCommandDaemonKillResponseSchema, type CliCommandDaemonKillResponseSchemaListenerExecution, type CliCommandDaemonKillResponseSchemaPath, CliCommandDaemonKillResponseSchemaPathSchema, type CliCommandDaemonKillResponseSchemaRequest, CliCommandDaemonKillResponseSchemaRequestSchema, type CliCommandDaemonListenerExecution, type CliCommandDaemonRequest, CliCommandDaemonRequestSchema, type CliCommandDaemonSpawnListenerExecution, type CliCommandDaemonSpawnPath, CliCommandDaemonSpawnPathSchema, type CliCommandDaemonSpawnRequest, type CliCommandDaemonSpawnRequestDangerousAdvanced, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, type CliCommandDaemonSpawnRequestSchemaListenerExecution, type CliCommandDaemonSpawnRequestSchemaPath, CliCommandDaemonSpawnRequestSchemaPathSchema, type CliCommandDaemonSpawnRequestSchemaRequest, CliCommandDaemonSpawnRequestSchemaRequestSchema, type CliCommandDaemonSpawnResponseItem, CliCommandDaemonSpawnResponseItemSchema, type CliCommandDaemonSpawnResponseSchemaListenerExecution, type CliCommandDaemonSpawnResponseSchemaPath, CliCommandDaemonSpawnResponseSchemaPathSchema, type CliCommandDaemonSpawnResponseSchemaRequest, CliCommandDaemonSpawnResponseSchemaRequestSchema, type CliCommandDbConfigAddressGetListenerExecution, type CliCommandDbConfigAddressGetPath, CliCommandDbConfigAddressGetPathSchema, type CliCommandDbConfigAddressGetRequest, CliCommandDbConfigAddressGetRequestSchema, type CliCommandDbConfigAddressGetRequestSchemaListenerExecution, type CliCommandDbConfigAddressGetRequestSchemaPath, CliCommandDbConfigAddressGetRequestSchemaPathSchema, type CliCommandDbConfigAddressGetRequestSchemaRequest, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, type CliCommandDbConfigAddressGetResponse, CliCommandDbConfigAddressGetResponseSchema, type CliCommandDbConfigAddressGetResponseSchemaListenerExecution, type CliCommandDbConfigAddressGetResponseSchemaPath, CliCommandDbConfigAddressGetResponseSchemaPathSchema, type CliCommandDbConfigAddressGetResponseSchemaRequest, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, type CliCommandDbConfigAddressListenerExecution, type CliCommandDbConfigAddressRequest, CliCommandDbConfigAddressRequestSchema, type CliCommandDbConfigDatabaseGetListenerExecution, type CliCommandDbConfigDatabaseGetPath, CliCommandDbConfigDatabaseGetPathSchema, type CliCommandDbConfigDatabaseGetRequest, CliCommandDbConfigDatabaseGetRequestSchema, type CliCommandDbConfigDatabaseGetRequestSchemaListenerExecution, type CliCommandDbConfigDatabaseGetRequestSchemaPath, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseGetRequestSchemaRequest, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseGetResponse, CliCommandDbConfigDatabaseGetResponseSchema, type CliCommandDbConfigDatabaseGetResponseSchemaListenerExecution, type CliCommandDbConfigDatabaseGetResponseSchemaPath, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseGetResponseSchemaRequest, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseListenerExecution, type CliCommandDbConfigDatabaseRequest, CliCommandDbConfigDatabaseRequestSchema, type CliCommandDbConfigGetListenerExecution, type CliCommandDbConfigGetPath, CliCommandDbConfigGetPathSchema, type CliCommandDbConfigGetRequest, CliCommandDbConfigGetRequestSchema, type CliCommandDbConfigGetRequestSchemaListenerExecution, type CliCommandDbConfigGetRequestSchemaPath, CliCommandDbConfigGetRequestSchemaPathSchema, type CliCommandDbConfigGetRequestSchemaRequest, CliCommandDbConfigGetRequestSchemaRequestSchema, type CliCommandDbConfigGetResponse, CliCommandDbConfigGetResponseSchema, type CliCommandDbConfigGetResponseSchemaListenerExecution, type CliCommandDbConfigGetResponseSchemaPath, CliCommandDbConfigGetResponseSchemaPathSchema, type CliCommandDbConfigGetResponseSchemaRequest, CliCommandDbConfigGetResponseSchemaRequestSchema, type CliCommandDbConfigListenerExecution, type CliCommandDbConfigPasswordGetListenerExecution, type CliCommandDbConfigPasswordGetPath, CliCommandDbConfigPasswordGetPathSchema, type CliCommandDbConfigPasswordGetRequest, CliCommandDbConfigPasswordGetRequestSchema, type CliCommandDbConfigPasswordGetRequestSchemaListenerExecution, type CliCommandDbConfigPasswordGetRequestSchemaPath, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, type CliCommandDbConfigPasswordGetRequestSchemaRequest, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordGetResponse, CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponseSchemaListenerExecution, type CliCommandDbConfigPasswordGetResponseSchemaPath, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, type CliCommandDbConfigPasswordGetResponseSchemaRequest, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordListenerExecution, type CliCommandDbConfigPasswordRequest, CliCommandDbConfigPasswordRequestSchema, type CliCommandDbConfigRequest, CliCommandDbConfigRequestSchema, type CliCommandDbConfigSetListenerExecution, type CliCommandDbConfigSetPath, CliCommandDbConfigSetPathSchema, type CliCommandDbConfigSetRequest, CliCommandDbConfigSetRequestSchema, type CliCommandDbConfigSetRequestSchemaListenerExecution, type CliCommandDbConfigSetRequestSchemaPath, CliCommandDbConfigSetRequestSchemaPathSchema, type CliCommandDbConfigSetRequestSchemaRequest, CliCommandDbConfigSetRequestSchemaRequestSchema, type CliCommandDbConfigSetResponseSchemaListenerExecution, type CliCommandDbConfigSetResponseSchemaPath, CliCommandDbConfigSetResponseSchemaPathSchema, type CliCommandDbConfigSetResponseSchemaRequest, CliCommandDbConfigSetResponseSchemaRequestSchema, type CliCommandDbConfigSetValue, CliCommandDbConfigSetValueSchema, type CliCommandDbConfigUserGetListenerExecution, type CliCommandDbConfigUserGetPath, CliCommandDbConfigUserGetPathSchema, type CliCommandDbConfigUserGetRequest, CliCommandDbConfigUserGetRequestSchema, type CliCommandDbConfigUserGetRequestSchemaListenerExecution, type CliCommandDbConfigUserGetRequestSchemaPath, CliCommandDbConfigUserGetRequestSchemaPathSchema, type CliCommandDbConfigUserGetRequestSchemaRequest, CliCommandDbConfigUserGetRequestSchemaRequestSchema, type CliCommandDbConfigUserGetResponse, CliCommandDbConfigUserGetResponseSchema, type CliCommandDbConfigUserGetResponseSchemaListenerExecution, type CliCommandDbConfigUserGetResponseSchemaPath, CliCommandDbConfigUserGetResponseSchemaPathSchema, type CliCommandDbConfigUserGetResponseSchemaRequest, CliCommandDbConfigUserGetResponseSchemaRequestSchema, type CliCommandDbConfigUserListenerExecution, type CliCommandDbConfigUserRequest, CliCommandDbConfigUserRequestSchema, type CliCommandDbListenerExecution, type CliCommandDbQueryColumn, CliCommandDbQueryColumnSchema, type CliCommandDbQueryListenerExecution, type CliCommandDbQueryPath, CliCommandDbQueryPathSchema, type CliCommandDbQueryRequest, CliCommandDbQueryRequestSchema, type CliCommandDbQueryRequestSchemaListenerExecution, type CliCommandDbQueryRequestSchemaPath, CliCommandDbQueryRequestSchemaPathSchema, type CliCommandDbQueryRequestSchemaRequest, CliCommandDbQueryRequestSchemaRequestSchema, type CliCommandDbQueryResponse, CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponseSchemaListenerExecution, type CliCommandDbQueryResponseSchemaPath, CliCommandDbQueryResponseSchemaPathSchema, type CliCommandDbQueryResponseSchemaRequest, CliCommandDbQueryResponseSchemaRequestSchema, type CliCommandDbRequest, CliCommandDbRequestSchema, type CliCommandFunctionsExecuteFunctionSpec, CliCommandFunctionsExecuteFunctionSpecSchema, type CliCommandFunctionsExecuteListenerExecution, type CliCommandFunctionsExecuteProfileSpec, CliCommandFunctionsExecuteProfileSpecSchema, type CliCommandFunctionsExecuteRequest, CliCommandFunctionsExecuteRequestSchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchy, CliCommandFunctionsExecuteStandardAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteStandardAgentInstanceHierarchyType, CliCommandFunctionsExecuteStandardAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteStandardListenerExecution, type CliCommandFunctionsExecuteStandardListenerExecutionStreaming, type CliCommandFunctionsExecuteStandardListenerExecutionVariant, type CliCommandFunctionsExecuteStandardPath, CliCommandFunctionsExecuteStandardPathSchema, type CliCommandFunctionsExecuteStandardRequest, type CliCommandFunctionsExecuteStandardRequestDangerousAdvanced, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteStandardRequestInput, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, type CliCommandFunctionsExecuteStandardRequestSchemaListenerExecution, type CliCommandFunctionsExecuteStandardRequestSchemaPath, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, type CliCommandFunctionsExecuteStandardRequestSchemaRequest, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, type CliCommandFunctionsExecuteStandardResponseItem, CliCommandFunctionsExecuteStandardResponseItemSchema, type CliCommandFunctionsExecuteStandardResponseSchemaListenerExecution, type CliCommandFunctionsExecuteStandardResponseSchemaPath, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, type CliCommandFunctionsExecuteStandardResponseSchemaRequest, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchy, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchySchema, type CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyType, CliCommandFunctionsExecuteSwissSystemAgentInstanceHierarchyTypeSchema, type CliCommandFunctionsExecuteSwissSystemListenerExecution, type CliCommandFunctionsExecuteSwissSystemListenerExecutionStreaming, type CliCommandFunctionsExecuteSwissSystemListenerExecutionVariant, type CliCommandFunctionsExecuteSwissSystemPath, CliCommandFunctionsExecuteSwissSystemPathSchema, type CliCommandFunctionsExecuteSwissSystemRequest, type CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvanced, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteSwissSystemRequestInput, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemRequestSchemaPath, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemResponseItem, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaListenerExecution, type CliCommandFunctionsExecuteSwissSystemResponseSchemaPath, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, type CliCommandFunctionsGetListenerExecution, type CliCommandFunctionsGetPath, CliCommandFunctionsGetPathSchema, type CliCommandFunctionsGetRequest, CliCommandFunctionsGetRequestSchema, type CliCommandFunctionsGetRequestSchemaListenerExecution, type CliCommandFunctionsGetRequestSchemaPath, CliCommandFunctionsGetRequestSchemaPathSchema, type CliCommandFunctionsGetRequestSchemaRequest, CliCommandFunctionsGetRequestSchemaRequestSchema, type CliCommandFunctionsGetResponse, CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponseSchemaListenerExecution, type CliCommandFunctionsGetResponseSchemaPath, CliCommandFunctionsGetResponseSchemaPathSchema, type CliCommandFunctionsGetResponseSchemaRequest, CliCommandFunctionsGetResponseSchemaRequestSchema, type CliCommandFunctionsListListenerExecution, type CliCommandFunctionsListPath, CliCommandFunctionsListPathSchema, type CliCommandFunctionsListRequest, CliCommandFunctionsListRequestSchema, type CliCommandFunctionsListRequestSchemaListenerExecution, type CliCommandFunctionsListRequestSchemaPath, CliCommandFunctionsListRequestSchemaPathSchema, type CliCommandFunctionsListRequestSchemaRequest, CliCommandFunctionsListRequestSchemaRequestSchema, type CliCommandFunctionsListResponse, CliCommandFunctionsListResponseSchema, type CliCommandFunctionsListResponseSchemaListenerExecution, type CliCommandFunctionsListResponseSchemaPath, CliCommandFunctionsListResponseSchemaPathSchema, type CliCommandFunctionsListResponseSchemaRequest, CliCommandFunctionsListResponseSchemaRequestSchema, type CliCommandFunctionsListenerExecution, type CliCommandFunctionsProfilesGetListenerExecution, type CliCommandFunctionsProfilesGetPath, CliCommandFunctionsProfilesGetPathSchema, type CliCommandFunctionsProfilesGetRequest, CliCommandFunctionsProfilesGetRequestSchema, type CliCommandFunctionsProfilesGetRequestSchemaListenerExecution, type CliCommandFunctionsProfilesGetRequestSchemaPath, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, type CliCommandFunctionsProfilesGetRequestSchemaRequest, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, type CliCommandFunctionsProfilesGetResponse, CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponseSchemaListenerExecution, type CliCommandFunctionsProfilesGetResponseSchemaPath, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, type CliCommandFunctionsProfilesGetResponseSchemaRequest, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListListenerExecution, type CliCommandFunctionsProfilesListPath, CliCommandFunctionsProfilesListPathSchema, type CliCommandFunctionsProfilesListRequest, CliCommandFunctionsProfilesListRequestSchema, type CliCommandFunctionsProfilesListRequestSchemaListenerExecution, type CliCommandFunctionsProfilesListRequestSchemaPath, CliCommandFunctionsProfilesListRequestSchemaPathSchema, type CliCommandFunctionsProfilesListRequestSchemaRequest, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, type CliCommandFunctionsProfilesListResponse, CliCommandFunctionsProfilesListResponseSchema, type CliCommandFunctionsProfilesListResponseSchemaListenerExecution, type CliCommandFunctionsProfilesListResponseSchemaPath, CliCommandFunctionsProfilesListResponseSchemaPathSchema, type CliCommandFunctionsProfilesListResponseSchemaRequest, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListenerExecution, type CliCommandFunctionsProfilesPublishListenerExecution, type CliCommandFunctionsProfilesPublishPath, CliCommandFunctionsProfilesPublishPathSchema, type CliCommandFunctionsProfilesPublishRequest, type CliCommandFunctionsProfilesPublishRequestBody, CliCommandFunctionsProfilesPublishRequestBodySchema, type CliCommandFunctionsProfilesPublishRequestPublishMessage, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, type CliCommandFunctionsProfilesPublishRequestSchemaListenerExecution, type CliCommandFunctionsProfilesPublishRequestSchemaPath, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, type CliCommandFunctionsProfilesPublishRequestSchemaRequest, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, type CliCommandFunctionsProfilesPublishResponse, CliCommandFunctionsProfilesPublishResponseSchema, type CliCommandFunctionsProfilesPublishResponseSchemaListenerExecution, type CliCommandFunctionsProfilesPublishResponseSchemaPath, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, type CliCommandFunctionsProfilesPublishResponseSchemaRequest, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, type CliCommandFunctionsProfilesRequest, CliCommandFunctionsProfilesRequestSchema, type CliCommandFunctionsPublishListenerExecution, type CliCommandFunctionsPublishPath, CliCommandFunctionsPublishPathSchema, type CliCommandFunctionsPublishRequest, type CliCommandFunctionsPublishRequestBody, CliCommandFunctionsPublishRequestBodySchema, type CliCommandFunctionsPublishRequestPublishMessage, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, type CliCommandFunctionsPublishRequestSchemaListenerExecution, type CliCommandFunctionsPublishRequestSchemaPath, CliCommandFunctionsPublishRequestSchemaPathSchema, type CliCommandFunctionsPublishRequestSchemaRequest, CliCommandFunctionsPublishRequestSchemaRequestSchema, type CliCommandFunctionsPublishResponse, CliCommandFunctionsPublishResponseSchema, type CliCommandFunctionsPublishResponseSchemaListenerExecution, type CliCommandFunctionsPublishResponseSchemaPath, CliCommandFunctionsPublishResponseSchemaPathSchema, type CliCommandFunctionsPublishResponseSchemaRequest, CliCommandFunctionsPublishResponseSchemaRequestSchema, type CliCommandFunctionsRequest, CliCommandFunctionsRequestSchema, type CliCommandLaboratoriesAttachListenerExecution, type CliCommandLaboratoriesAttachPath, CliCommandLaboratoriesAttachPathSchema, type CliCommandLaboratoriesAttachRequest, CliCommandLaboratoriesAttachRequestSchema, type CliCommandLaboratoriesAttachRequestSchemaListenerExecution, type CliCommandLaboratoriesAttachRequestSchemaPath, CliCommandLaboratoriesAttachRequestSchemaPathSchema, type CliCommandLaboratoriesAttachRequestSchemaRequest, CliCommandLaboratoriesAttachRequestSchemaRequestSchema, type CliCommandLaboratoriesAttachResponse, CliCommandLaboratoriesAttachResponseSchema, type CliCommandLaboratoriesAttachResponseSchemaListenerExecution, type CliCommandLaboratoriesAttachResponseSchemaPath, CliCommandLaboratoriesAttachResponseSchemaPathSchema, type CliCommandLaboratoriesAttachResponseSchemaRequest, CliCommandLaboratoriesAttachResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesAddListenerExecution, type CliCommandLaboratoriesConfigAddressesAddPath, CliCommandLaboratoriesConfigAddressesAddPathSchema, type CliCommandLaboratoriesConfigAddressesAddRequest, CliCommandLaboratoriesConfigAddressesAddRequestSchema, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaPath, CliCommandLaboratoriesConfigAddressesAddRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesAddRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaPath, CliCommandLaboratoriesConfigAddressesAddResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesAddResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesDelListenerExecution, type CliCommandLaboratoriesConfigAddressesDelPath, CliCommandLaboratoriesConfigAddressesDelPathSchema, type CliCommandLaboratoriesConfigAddressesDelRequest, CliCommandLaboratoriesConfigAddressesDelRequestSchema, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaPath, CliCommandLaboratoriesConfigAddressesDelRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesDelRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaPath, CliCommandLaboratoriesConfigAddressesDelResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesDelResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesGetListenerExecution, type CliCommandLaboratoriesConfigAddressesGetPath, CliCommandLaboratoriesConfigAddressesGetPathSchema, type CliCommandLaboratoriesConfigAddressesGetRequest, CliCommandLaboratoriesConfigAddressesGetRequestSchema, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaPath, CliCommandLaboratoriesConfigAddressesGetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequest, CliCommandLaboratoriesConfigAddressesGetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesGetResponse, CliCommandLaboratoriesConfigAddressesGetResponseSchema, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaPath, CliCommandLaboratoriesConfigAddressesGetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequest, CliCommandLaboratoriesConfigAddressesGetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigAddressesListenerExecution, type CliCommandLaboratoriesConfigAddressesRequest, CliCommandLaboratoriesConfigAddressesRequestSchema, type CliCommandLaboratoriesConfigListenerExecution, type CliCommandLaboratoriesConfigLocalGetListenerExecution, type CliCommandLaboratoriesConfigLocalGetPath, CliCommandLaboratoriesConfigLocalGetPathSchema, type CliCommandLaboratoriesConfigLocalGetRequest, CliCommandLaboratoriesConfigLocalGetRequestSchema, type CliCommandLaboratoriesConfigLocalGetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalGetRequestSchemaPath, CliCommandLaboratoriesConfigLocalGetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigLocalGetRequestSchemaRequest, CliCommandLaboratoriesConfigLocalGetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalGetResponse, CliCommandLaboratoriesConfigLocalGetResponseSchema, type CliCommandLaboratoriesConfigLocalGetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalGetResponseSchemaPath, CliCommandLaboratoriesConfigLocalGetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigLocalGetResponseSchemaRequest, CliCommandLaboratoriesConfigLocalGetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalListenerExecution, type CliCommandLaboratoriesConfigLocalRequest, CliCommandLaboratoriesConfigLocalRequestSchema, type CliCommandLaboratoriesConfigLocalSetListenerExecution, type CliCommandLaboratoriesConfigLocalSetPath, CliCommandLaboratoriesConfigLocalSetPathSchema, type CliCommandLaboratoriesConfigLocalSetRequest, CliCommandLaboratoriesConfigLocalSetRequestSchema, type CliCommandLaboratoriesConfigLocalSetRequestSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalSetRequestSchemaPath, CliCommandLaboratoriesConfigLocalSetRequestSchemaPathSchema, type CliCommandLaboratoriesConfigLocalSetRequestSchemaRequest, CliCommandLaboratoriesConfigLocalSetRequestSchemaRequestSchema, type CliCommandLaboratoriesConfigLocalSetResponseSchemaListenerExecution, type CliCommandLaboratoriesConfigLocalSetResponseSchemaPath, CliCommandLaboratoriesConfigLocalSetResponseSchemaPathSchema, type CliCommandLaboratoriesConfigLocalSetResponseSchemaRequest, CliCommandLaboratoriesConfigLocalSetResponseSchemaRequestSchema, type CliCommandLaboratoriesConfigRequest, CliCommandLaboratoriesConfigRequestSchema, type CliCommandLaboratoriesCreateKind, CliCommandLaboratoriesCreateKindSchema, type CliCommandLaboratoriesCreateListenerExecution, type CliCommandLaboratoriesCreatePath, CliCommandLaboratoriesCreatePathSchema, type CliCommandLaboratoriesCreateRequest, CliCommandLaboratoriesCreateRequestSchema, type CliCommandLaboratoriesCreateRequestSchemaListenerExecution, type CliCommandLaboratoriesCreateRequestSchemaPath, CliCommandLaboratoriesCreateRequestSchemaPathSchema, type CliCommandLaboratoriesCreateRequestSchemaRequest, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, type CliCommandLaboratoriesCreateResponse, CliCommandLaboratoriesCreateResponseSchema, type CliCommandLaboratoriesCreateResponseSchemaListenerExecution, type CliCommandLaboratoriesCreateResponseSchemaPath, CliCommandLaboratoriesCreateResponseSchemaPathSchema, type CliCommandLaboratoriesCreateResponseSchemaRequest, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, type CliCommandLaboratoriesDeleteKind, CliCommandLaboratoriesDeleteKindSchema, type CliCommandLaboratoriesDeleteListenerExecution, type CliCommandLaboratoriesDeletePath, CliCommandLaboratoriesDeletePathSchema, type CliCommandLaboratoriesDeleteRequest, CliCommandLaboratoriesDeleteRequestSchema, type CliCommandLaboratoriesDeleteRequestSchemaListenerExecution, type CliCommandLaboratoriesDeleteRequestSchemaPath, CliCommandLaboratoriesDeleteRequestSchemaPathSchema, type CliCommandLaboratoriesDeleteRequestSchemaRequest, CliCommandLaboratoriesDeleteRequestSchemaRequestSchema, type CliCommandLaboratoriesDeleteResponse, CliCommandLaboratoriesDeleteResponseSchema, type CliCommandLaboratoriesDeleteResponseSchemaListenerExecution, type CliCommandLaboratoriesDeleteResponseSchemaPath, CliCommandLaboratoriesDeleteResponseSchemaPathSchema, type CliCommandLaboratoriesDeleteResponseSchemaRequest, CliCommandLaboratoriesDeleteResponseSchemaRequestSchema, type CliCommandLaboratoriesDetachListenerExecution, type CliCommandLaboratoriesDetachPath, CliCommandLaboratoriesDetachPathSchema, type CliCommandLaboratoriesDetachRequest, CliCommandLaboratoriesDetachRequestSchema, type CliCommandLaboratoriesDetachRequestSchemaListenerExecution, type CliCommandLaboratoriesDetachRequestSchemaPath, CliCommandLaboratoriesDetachRequestSchemaPathSchema, type CliCommandLaboratoriesDetachRequestSchemaRequest, CliCommandLaboratoriesDetachRequestSchemaRequestSchema, type CliCommandLaboratoriesDetachResponse, CliCommandLaboratoriesDetachResponseSchema, type CliCommandLaboratoriesDetachResponseSchemaListenerExecution, type CliCommandLaboratoriesDetachResponseSchemaPath, CliCommandLaboratoriesDetachResponseSchemaPathSchema, type CliCommandLaboratoriesDetachResponseSchemaRequest, CliCommandLaboratoriesDetachResponseSchemaRequestSchema, type CliCommandLaboratoriesKillListenerExecution, type CliCommandLaboratoriesKillPath, CliCommandLaboratoriesKillPathSchema, type CliCommandLaboratoriesKillRequest, CliCommandLaboratoriesKillRequestSchema, type CliCommandLaboratoriesKillRequestSchemaListenerExecution, type CliCommandLaboratoriesKillRequestSchemaPath, CliCommandLaboratoriesKillRequestSchemaPathSchema, type CliCommandLaboratoriesKillRequestSchemaRequest, CliCommandLaboratoriesKillRequestSchemaRequestSchema, type CliCommandLaboratoriesKillResponse, CliCommandLaboratoriesKillResponseSchema, type CliCommandLaboratoriesKillResponseSchemaListenerExecution, type CliCommandLaboratoriesKillResponseSchemaPath, CliCommandLaboratoriesKillResponseSchemaPathSchema, type CliCommandLaboratoriesKillResponseSchemaRequest, CliCommandLaboratoriesKillResponseSchemaRequestSchema, type CliCommandLaboratoriesListListenerExecution, type CliCommandLaboratoriesListPath, CliCommandLaboratoriesListPathSchema, type CliCommandLaboratoriesListPlugin, CliCommandLaboratoriesListPluginSchema, type CliCommandLaboratoriesListRequest, CliCommandLaboratoriesListRequestSchema, type CliCommandLaboratoriesListRequestSchemaListenerExecution, type CliCommandLaboratoriesListRequestSchemaPath, CliCommandLaboratoriesListRequestSchemaPathSchema, type CliCommandLaboratoriesListRequestSchemaRequest, CliCommandLaboratoriesListRequestSchemaRequestSchema, type CliCommandLaboratoriesListResponseItem, CliCommandLaboratoriesListResponseItemSchema, type CliCommandLaboratoriesListResponseSchemaListenerExecution, type CliCommandLaboratoriesListResponseSchemaPath, CliCommandLaboratoriesListResponseSchemaPathSchema, type CliCommandLaboratoriesListResponseSchemaRequest, CliCommandLaboratoriesListResponseSchemaRequestSchema, type CliCommandLaboratoriesListenerExecution, type CliCommandLaboratoriesRequest, CliCommandLaboratoriesRequestSchema, type CliCommandLaboratoriesSpawnListenerExecution, type CliCommandLaboratoriesSpawnPath, CliCommandLaboratoriesSpawnPathSchema, type CliCommandLaboratoriesSpawnRequest, CliCommandLaboratoriesSpawnRequestSchema, type CliCommandLaboratoriesSpawnRequestSchemaListenerExecution, type CliCommandLaboratoriesSpawnRequestSchemaPath, CliCommandLaboratoriesSpawnRequestSchemaPathSchema, type CliCommandLaboratoriesSpawnRequestSchemaRequest, CliCommandLaboratoriesSpawnRequestSchemaRequestSchema, type CliCommandLaboratoriesSpawnResponse, CliCommandLaboratoriesSpawnResponseSchema, type CliCommandLaboratoriesSpawnResponseSchemaListenerExecution, type CliCommandLaboratoriesSpawnResponseSchemaPath, CliCommandLaboratoriesSpawnResponseSchemaPathSchema, type CliCommandLaboratoriesSpawnResponseSchemaRequest, CliCommandLaboratoriesSpawnResponseSchemaRequestSchema, type CliCommandListenerExecution, type CliCommandOk, CliCommandOkSchema, type CliCommandPythonListenerExecution, type CliCommandPythonPath, CliCommandPythonPathSchema, type CliCommandPythonRequest, CliCommandPythonRequestSchema, type CliCommandPythonRequestSchemaListenerExecution, type CliCommandPythonRequestSchemaPath, CliCommandPythonRequestSchemaPathSchema, type CliCommandPythonRequestSchemaRequest, CliCommandPythonRequestSchemaRequestSchema, type CliCommandPythonResponseSchemaListenerExecution, type CliCommandPythonResponseSchemaPath, CliCommandPythonResponseSchemaPathSchema, type CliCommandPythonResponseSchemaRequest, CliCommandPythonResponseSchemaRequestSchema, type CliCommandRequest, type CliCommandRequestBase, CliCommandRequestBaseSchema, CliCommandRequestSchema, type CliCommandSwarmsGetListenerExecution, type CliCommandSwarmsGetPath, CliCommandSwarmsGetPathSchema, type CliCommandSwarmsGetRequest, CliCommandSwarmsGetRequestSchema, type CliCommandSwarmsGetRequestSchemaListenerExecution, type CliCommandSwarmsGetRequestSchemaPath, CliCommandSwarmsGetRequestSchemaPathSchema, type CliCommandSwarmsGetRequestSchemaRequest, CliCommandSwarmsGetRequestSchemaRequestSchema, type CliCommandSwarmsGetResponse, CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponseSchemaListenerExecution, type CliCommandSwarmsGetResponseSchemaPath, CliCommandSwarmsGetResponseSchemaPathSchema, type CliCommandSwarmsGetResponseSchemaRequest, CliCommandSwarmsGetResponseSchemaRequestSchema, type CliCommandSwarmsListListenerExecution, type CliCommandSwarmsListPath, CliCommandSwarmsListPathSchema, type CliCommandSwarmsListRequest, CliCommandSwarmsListRequestSchema, type CliCommandSwarmsListRequestSchemaListenerExecution, type CliCommandSwarmsListRequestSchemaPath, CliCommandSwarmsListRequestSchemaPathSchema, type CliCommandSwarmsListRequestSchemaRequest, CliCommandSwarmsListRequestSchemaRequestSchema, type CliCommandSwarmsListResponse, CliCommandSwarmsListResponseSchema, type CliCommandSwarmsListResponseSchemaListenerExecution, type CliCommandSwarmsListResponseSchemaPath, CliCommandSwarmsListResponseSchemaPathSchema, type CliCommandSwarmsListResponseSchemaRequest, CliCommandSwarmsListResponseSchemaRequestSchema, type CliCommandSwarmsListenerExecution, type CliCommandSwarmsPublishListenerExecution, type CliCommandSwarmsPublishPath, CliCommandSwarmsPublishPathSchema, type CliCommandSwarmsPublishRequest, type CliCommandSwarmsPublishRequestBody, CliCommandSwarmsPublishRequestBodySchema, type CliCommandSwarmsPublishRequestPublishMessage, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, type CliCommandSwarmsPublishRequestSchemaListenerExecution, type CliCommandSwarmsPublishRequestSchemaPath, CliCommandSwarmsPublishRequestSchemaPathSchema, type CliCommandSwarmsPublishRequestSchemaRequest, CliCommandSwarmsPublishRequestSchemaRequestSchema, type CliCommandSwarmsPublishResponse, CliCommandSwarmsPublishResponseSchema, type CliCommandSwarmsPublishResponseSchemaListenerExecution, type CliCommandSwarmsPublishResponseSchemaPath, CliCommandSwarmsPublishResponseSchemaPathSchema, type CliCommandSwarmsPublishResponseSchemaRequest, CliCommandSwarmsPublishResponseSchemaRequestSchema, type CliCommandSwarmsRequest, CliCommandSwarmsRequestSchema, type CliCommandTasksCreateListenerExecution, type CliCommandTasksCreatePath, CliCommandTasksCreatePathSchema, type CliCommandTasksCreateRequest, CliCommandTasksCreateRequestSchema, type CliCommandTasksCreateRequestSchemaListenerExecution, type CliCommandTasksCreateRequestSchemaPath, CliCommandTasksCreateRequestSchemaPathSchema, type CliCommandTasksCreateRequestSchemaRequest, CliCommandTasksCreateRequestSchemaRequestSchema, type CliCommandTasksCreateResponse, CliCommandTasksCreateResponseSchema, type CliCommandTasksCreateResponseSchemaListenerExecution, type CliCommandTasksCreateResponseSchemaPath, CliCommandTasksCreateResponseSchemaPathSchema, type CliCommandTasksCreateResponseSchemaRequest, CliCommandTasksCreateResponseSchemaRequestSchema, type CliCommandTasksDeleteDeleteNamespace, CliCommandTasksDeleteDeleteNamespaceSchema, type CliCommandTasksDeleteListenerExecution, type CliCommandTasksDeletePath, CliCommandTasksDeletePathSchema, type CliCommandTasksDeleteRequest, CliCommandTasksDeleteRequestSchema, type CliCommandTasksDeleteRequestSchemaListenerExecution, type CliCommandTasksDeleteRequestSchemaPath, CliCommandTasksDeleteRequestSchemaPathSchema, type CliCommandTasksDeleteRequestSchemaRequest, CliCommandTasksDeleteRequestSchemaRequestSchema, type CliCommandTasksDeleteResponse, CliCommandTasksDeleteResponseSchema, type CliCommandTasksDeleteResponseSchemaListenerExecution, type CliCommandTasksDeleteResponseSchemaPath, CliCommandTasksDeleteResponseSchemaPathSchema, type CliCommandTasksDeleteResponseSchemaRequest, CliCommandTasksDeleteResponseSchemaRequestSchema, type CliCommandTasksListLastResult, CliCommandTasksListLastResultSchema, type CliCommandTasksListListenerExecution, type CliCommandTasksListPath, CliCommandTasksListPathSchema, type CliCommandTasksListRequest, CliCommandTasksListRequestSchema, type CliCommandTasksListRequestSchemaListenerExecution, type CliCommandTasksListRequestSchemaPath, CliCommandTasksListRequestSchemaPathSchema, type CliCommandTasksListRequestSchemaRequest, CliCommandTasksListRequestSchemaRequestSchema, type CliCommandTasksListResponseItem, CliCommandTasksListResponseItemSchema, type CliCommandTasksListResponseSchemaListenerExecution, type CliCommandTasksListResponseSchemaPath, CliCommandTasksListResponseSchemaPathSchema, type CliCommandTasksListResponseSchemaRequest, CliCommandTasksListResponseSchemaRequestSchema, type CliCommandTasksListenerExecution, type CliCommandTasksRequest, CliCommandTasksRequestSchema, type CliCommandUpdateListenerExecution, type CliCommandUpdatePath, CliCommandUpdatePathSchema, type CliCommandUpdateRequest, CliCommandUpdateRequestSchema, type CliCommandUpdateRequestSchemaListenerExecution, type CliCommandUpdateRequestSchemaPath, CliCommandUpdateRequestSchemaPathSchema, type CliCommandUpdateRequestSchemaRequest, CliCommandUpdateRequestSchemaRequestSchema, type CliCommandUpdateResponse, type CliCommandUpdateResponseItem, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, type CliCommandUpdateResponseSchemaListenerExecution, type CliCommandUpdateResponseSchemaPath, CliCommandUpdateResponseSchemaPathSchema, type CliCommandUpdateResponseSchemaRequest, CliCommandUpdateResponseSchemaRequestSchema, type CliCommandUpdateResponseSkipReason, CliCommandUpdateResponseSkipReasonSchema, type CliCommandViewerKillListenerExecution, type CliCommandViewerKillPath, CliCommandViewerKillPathSchema, type CliCommandViewerKillRequest, CliCommandViewerKillRequestSchema, type CliCommandViewerKillRequestSchemaListenerExecution, type CliCommandViewerKillRequestSchemaPath, CliCommandViewerKillRequestSchemaPathSchema, type CliCommandViewerKillRequestSchemaRequest, CliCommandViewerKillRequestSchemaRequestSchema, type CliCommandViewerKillResponse, CliCommandViewerKillResponseSchema, type CliCommandViewerKillResponseSchemaListenerExecution, type CliCommandViewerKillResponseSchemaPath, CliCommandViewerKillResponseSchemaPathSchema, type CliCommandViewerKillResponseSchemaRequest, CliCommandViewerKillResponseSchemaRequestSchema, type CliCommandViewerListenerExecution, type CliCommandViewerRequest, CliCommandViewerRequestSchema, type CliCommandViewerSpawnListenerExecution, type CliCommandViewerSpawnPath, CliCommandViewerSpawnPathSchema, type CliCommandViewerSpawnRequest, CliCommandViewerSpawnRequestSchema, type CliCommandViewerSpawnRequestSchemaListenerExecution, type CliCommandViewerSpawnRequestSchemaPath, CliCommandViewerSpawnRequestSchemaPathSchema, type CliCommandViewerSpawnRequestSchemaRequest, CliCommandViewerSpawnRequestSchemaRequestSchema, type CliCommandViewerSpawnResponse, CliCommandViewerSpawnResponseSchema, type CliCommandViewerSpawnResponseSchemaListenerExecution, type CliCommandViewerSpawnResponseSchemaPath, CliCommandViewerSpawnResponseSchemaPathSchema, type CliCommandViewerSpawnResponseSchemaRequest, CliCommandViewerSpawnResponseSchemaRequestSchema, type CliError, CliErrorSchema, type CliErrorType, CliErrorTypeSchema, type CliLevel, CliLevelSchema, type CliPluginsCommand, CliPluginsCommandSchema, type CliPluginsCommandType, CliPluginsCommandTypeSchema, type CliPluginsManifest, CliPluginsManifestSchema, type CliPluginsOutput, CliPluginsOutputSchema, type CliPluginsViewerTab, CliPluginsViewerTabSchema, CliStream, Client, type ClientMode, type ClientOptions, type CommandExecutor, CommandListener, type DaemonAgentsInstancesListListenerAgentEvent, DaemonAgentsInstancesListListenerAgentEventSchema, type DaemonAgentsInstancesListListenerAgentStatus, DaemonAgentsInstancesListListenerAgentStatusSchema, type DaemonAgentsInstancesListenerAgentInstanceEvent, DaemonAgentsInstancesListenerAgentInstanceEventSchema, type DaemonAgentsInstancesListenerAgentRecord, DaemonAgentsInstancesListenerAgentRecordSchema, type DaemonAgentsInstancesListenerAssistantResponsePart, DaemonAgentsInstancesListenerAssistantResponsePartSchema, type DaemonAgentsInstancesListenerAttachedLaboratory, DaemonAgentsInstancesListenerAttachedLaboratorySchema, type DaemonAgentsInstancesListenerClientNotificationPart, DaemonAgentsInstancesListenerClientNotificationPartSchema, type DaemonAgentsInstancesListenerConversationBlock, DaemonAgentsInstancesListenerConversationBlockSchema, type DaemonAgentsInstancesListenerPartContent, DaemonAgentsInstancesListenerPartContentSchema, type DaemonAgentsInstancesListenerRequestMessageUserPart, DaemonAgentsInstancesListenerRequestMessageUserPartSchema, type DaemonAgentsInstancesListenerToolResponsePart, DaemonAgentsInstancesListenerToolResponsePartSchema, type DaemonAgentsInstancesListenerVectorRequestChoice, type DaemonAgentsInstancesListenerVectorRequestChoicePart, DaemonAgentsInstancesListenerVectorRequestChoicePartSchema, DaemonAgentsInstancesListenerVectorRequestChoiceSchema, type DaemonAuthEnvelope, DaemonAuthEnvelopeSchema, type DaemonChannelListenerChannelAccepted, DaemonChannelListenerChannelAcceptedSchema, type DaemonChannelListenerChannelEvent, DaemonChannelListenerChannelEventSchema, type DaemonChannelListenerChannelOffer, DaemonChannelListenerChannelOfferSchema, type DaemonCommandListenerListenerEnd, DaemonCommandListenerListenerEndSchema, type DaemonLaboratoriesListListenerLaboratoryEvent, DaemonLaboratoriesListListenerLaboratoryEventSchema, type DaemonLaboratoriesListListenerLaboratoryStatus, DaemonLaboratoriesListListenerLaboratoryStatusSchema, type DaemonLaboratoriesListenerLaboratoryAttachment, DaemonLaboratoriesListenerLaboratoryAttachmentSchema, type DaemonLaboratoriesListenerLaboratoryInstanceEvent, DaemonLaboratoriesListenerLaboratoryInstanceEventSchema, type DaemonLaboratoriesListenerLaboratoryRecord, DaemonLaboratoriesListenerLaboratoryRecordSchema, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type ExecuteOptions, FileTree, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type Identity, IdentitySchema, type LaboratoriesAgentLaboratory, LaboratoriesAgentLaboratorySchema, type LaboratoriesAgentLaboratoryType, LaboratoriesAgentLaboratoryTypeSchema, type LaboratoriesClientLaboratory, LaboratoriesClientLaboratorySchema, type LaboratoriesClientLaboratoryType, LaboratoriesClientLaboratoryTypeSchema, type LaboratoriesEnvVar, LaboratoriesEnvVarSchema, type LaboratoriesFiletreeFileTreeEvent, LaboratoriesFiletreeFileTreeEventSchema, type LaboratoriesFiletreeFileTreeNode, LaboratoriesFiletreeFileTreeNodeSchema, type LaboratoriesInlineLaboratoryImage, LaboratoriesInlineLaboratoryImageSchema, type LaboratoriesLaboratory, type LaboratoriesLaboratoryImage, type LaboratoriesLaboratoryImagePin, LaboratoriesLaboratoryImagePinSchema, LaboratoriesLaboratoryImageSchema, LaboratoriesLaboratorySchema, LaboratoriesListListener, LaboratoriesListener, type LaboratoriesMount, LaboratoriesMountSchema, type LaboratoriesRegistryLaboratoryImage, LaboratoriesRegistryLaboratoryImageSchema, type MachineMachineIdentity, MachineMachineIdentitySchema, type McpCompletionsCapability, McpCompletionsCapabilitySchema, type McpImplementation, McpImplementationSchema, type McpInitializeResult, McpInitializeResultSchema, type McpListServersResult, McpListServersResultSchema, type McpLoggingCapability, McpLoggingCapabilitySchema, type McpPlugin, McpPluginSchema, type McpPromptsCapability, McpPromptsCapabilitySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceListResourcesResult, McpResourceListResourcesResultSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpResourceReadResourceResult, McpResourceReadResourceResultSchema, type McpResourceResource, McpResourceResourceSchema, type McpResourcesCapability, McpResourcesCapabilitySchema, type McpServer, type McpServerCapabilities, McpServerCapabilitiesSchema, McpServerSchema, type McpSharedAnnotations, McpSharedAnnotationsSchema, type McpSharedBlobResourceContents, McpSharedBlobResourceContentsSchema, type McpSharedIcon, McpSharedIconSchema, type McpSharedIconTheme, McpSharedIconThemeSchema, type McpSharedResourceContents, McpSharedResourceContentsSchema, type McpSharedResourceContentsUnion, McpSharedResourceContentsUnionSchema, type McpSharedRole, McpSharedRoleSchema, type McpSharedTextResourceContents, McpSharedTextResourceContentsSchema, type McpTasksCancelCapability, McpTasksCancelCapabilitySchema, type McpTasksCapability, McpTasksCapabilitySchema, type McpTasksListCapability, McpTasksListCapabilitySchema, type McpTasksRequestsCapability, McpTasksRequestsCapabilitySchema, type McpTasksToolsCallCapability, McpTasksToolsCallCapabilitySchema, type McpTasksToolsCapability, McpTasksToolsCapabilitySchema, type McpToolAudioContent, McpToolAudioContentSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolCallToolResult, McpToolCallToolResultSchema, type McpToolContentBlock, McpToolContentBlockSchema, type McpToolEmbeddedResource, McpToolEmbeddedResourceSchema, type McpToolImageContent, McpToolImageContentSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolListToolsResult, McpToolListToolsResultSchema, type McpToolResourceLink, McpToolResourceLinkSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, type McpToolTaskSupport, McpToolTaskSupportSchema, type McpToolTextContent, McpToolTextContentSchema, type McpToolTool, type McpToolToolAnnotations, McpToolToolAnnotationsSchema, type McpToolToolExecution, McpToolToolExecutionSchema, McpToolToolSchema, type McpToolToolSchemaObject, McpToolToolSchemaObjectSchema, type McpToolToolSchemaType, McpToolToolSchemaTypeSchema, type McpToolsCapability, McpToolsCapabilitySchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, PluginCommandExecutor, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, ResponseItemStream, Stream, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, type ViewerOpenTab, ViewerPlugin, type ViewerStreamEvent, type ViewerTransport, type ViewerTransportChannel, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamDurationMsMerged, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecute, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecute, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecute, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecute, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecute, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsTagsRemoveExecute, agentsTagsRemoveExecuteTransform, agentsTagsRemoveRequestSchemaExecute, agentsTagsRemoveRequestSchemaExecuteTransform, agentsTagsRemoveResponseSchemaExecute, agentsTagsRemoveResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpCallTimeoutMsGetExecute, apiConfigMcpCallTimeoutMsGetExecuteTransform, apiConfigMcpCallTimeoutMsGetRequestSchemaExecute, apiConfigMcpCallTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpCallTimeoutMsGetResponseSchemaExecute, apiConfigMcpCallTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpCallTimeoutMsSetExecute, apiConfigMcpCallTimeoutMsSetExecuteTransform, apiConfigMcpCallTimeoutMsSetRequestSchemaExecute, apiConfigMcpCallTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpCallTimeoutMsSetResponseSchemaExecute, apiConfigMcpCallTimeoutMsSetResponseSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsGetExecute, apiConfigMcpConnectTimeoutMsGetExecuteTransform, apiConfigMcpConnectTimeoutMsGetRequestSchemaExecute, apiConfigMcpConnectTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsGetResponseSchemaExecute, apiConfigMcpConnectTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsSetExecute, apiConfigMcpConnectTimeoutMsSetExecuteTransform, apiConfigMcpConnectTimeoutMsSetRequestSchemaExecute, apiConfigMcpConnectTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpConnectTimeoutMsSetResponseSchemaExecute, apiConfigMcpConnectTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, applyFileTreeEvent, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, channelsCloseExecute, channelsCloseExecuteTransform, channelsCloseRequestSchemaExecute, channelsCloseRequestSchemaExecuteTransform, channelsCloseResponseSchemaExecute, channelsCloseResponseSchemaExecuteTransform, channelsLogsListExecute, channelsLogsListExecuteTransform, channelsLogsListRequestSchemaExecute, channelsLogsListRequestSchemaExecuteTransform, channelsLogsListResponseSchemaExecute, channelsLogsListResponseSchemaExecuteTransform, channelsLogsOpenExecute, channelsLogsOpenExecuteTransform, channelsLogsOpenRequestSchemaExecute, channelsLogsOpenRequestSchemaExecuteTransform, channelsLogsOpenResponseSchemaExecute, channelsLogsOpenResponseSchemaExecuteTransform, channelsLogsReplyExecute, channelsLogsReplyExecuteTransform, channelsLogsReplyRequestSchemaExecute, channelsLogsReplyRequestSchemaExecuteTransform, channelsLogsReplyResponseSchemaExecute, channelsLogsReplyResponseSchemaExecuteTransform, channelsLogsRequestExecute, channelsLogsRequestExecuteTransform, channelsLogsRequestRequestSchemaExecute, channelsLogsRequestRequestSchemaExecuteTransform, channelsLogsRequestResponseSchemaExecute, channelsLogsRequestResponseSchemaExecuteTransform, channelsLogsSubscribeExecute, channelsLogsSubscribeExecuteTransform, channelsLogsSubscribeRequestSchemaExecute, channelsLogsSubscribeRequestSchemaExecuteTransform, channelsLogsSubscribeResponseSchemaExecute, channelsLogsSubscribeResponseSchemaExecuteTransform, channelsPublishExecute, channelsPublishExecuteTransform, channelsPublishRequestSchemaExecute, channelsPublishRequestSchemaExecuteTransform, channelsPublishResponseSchemaExecute, channelsPublishResponseSchemaExecuteTransform, closeViewerTab, connectSse, connectViewerStream, daemonConfigAddressGetExecute, daemonConfigAddressGetExecuteTransform, daemonConfigAddressGetRequestSchemaExecute, daemonConfigAddressGetRequestSchemaExecuteTransform, daemonConfigAddressGetResponseSchemaExecute, daemonConfigAddressGetResponseSchemaExecuteTransform, daemonConfigGetExecute, daemonConfigGetExecuteTransform, daemonConfigGetRequestSchemaExecute, daemonConfigGetRequestSchemaExecuteTransform, daemonConfigGetResponseSchemaExecute, daemonConfigGetResponseSchemaExecuteTransform, daemonConfigRefreshSecretSignaturePairExecute, daemonConfigRefreshSecretSignaturePairExecuteTransform, daemonConfigRefreshSecretSignaturePairRequestSchemaExecute, daemonConfigRefreshSecretSignaturePairRequestSchemaExecuteTransform, daemonConfigRefreshSecretSignaturePairResponseSchemaExecute, daemonConfigRefreshSecretSignaturePairResponseSchemaExecuteTransform, daemonConfigSecretGetExecute, daemonConfigSecretGetExecuteTransform, daemonConfigSecretGetRequestSchemaExecute, daemonConfigSecretGetRequestSchemaExecuteTransform, daemonConfigSecretGetResponseSchemaExecute, daemonConfigSecretGetResponseSchemaExecuteTransform, daemonConfigSetExecute, daemonConfigSetExecuteTransform, daemonConfigSetRequestSchemaExecute, daemonConfigSetRequestSchemaExecuteTransform, daemonConfigSetResponseSchemaExecute, daemonConfigSetResponseSchemaExecuteTransform, daemonConfigSignatureGetExecute, daemonConfigSignatureGetExecuteTransform, daemonConfigSignatureGetRequestSchemaExecute, daemonConfigSignatureGetRequestSchemaExecuteTransform, daemonConfigSignatureGetResponseSchemaExecute, daemonConfigSignatureGetResponseSchemaExecuteTransform, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigSetExecute, dbConfigSetExecuteTransform, dbConfigSetRequestSchemaExecute, dbConfigSetRequestSchemaExecuteTransform, dbConfigSetResponseSchemaExecute, dbConfigSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, decodeBase64Chunk, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, laboratoriesAttachExecute, laboratoriesAttachExecuteTransform, laboratoriesAttachRequestSchemaExecute, laboratoriesAttachRequestSchemaExecuteTransform, laboratoriesAttachResponseSchemaExecute, laboratoriesAttachResponseSchemaExecuteTransform, laboratoriesConfigAddressesAddExecute, laboratoriesConfigAddressesAddExecuteTransform, laboratoriesConfigAddressesAddRequestSchemaExecute, laboratoriesConfigAddressesAddRequestSchemaExecuteTransform, laboratoriesConfigAddressesAddResponseSchemaExecute, laboratoriesConfigAddressesAddResponseSchemaExecuteTransform, laboratoriesConfigAddressesDelExecute, laboratoriesConfigAddressesDelExecuteTransform, laboratoriesConfigAddressesDelRequestSchemaExecute, laboratoriesConfigAddressesDelRequestSchemaExecuteTransform, laboratoriesConfigAddressesDelResponseSchemaExecute, laboratoriesConfigAddressesDelResponseSchemaExecuteTransform, laboratoriesConfigAddressesGetExecute, laboratoriesConfigAddressesGetExecuteTransform, laboratoriesConfigAddressesGetRequestSchemaExecute, laboratoriesConfigAddressesGetRequestSchemaExecuteTransform, laboratoriesConfigAddressesGetResponseSchemaExecute, laboratoriesConfigAddressesGetResponseSchemaExecuteTransform, laboratoriesConfigLocalGetExecute, laboratoriesConfigLocalGetExecuteTransform, laboratoriesConfigLocalGetRequestSchemaExecute, laboratoriesConfigLocalGetRequestSchemaExecuteTransform, laboratoriesConfigLocalGetResponseSchemaExecute, laboratoriesConfigLocalGetResponseSchemaExecuteTransform, laboratoriesConfigLocalSetExecute, laboratoriesConfigLocalSetExecuteTransform, laboratoriesConfigLocalSetRequestSchemaExecute, laboratoriesConfigLocalSetRequestSchemaExecuteTransform, laboratoriesConfigLocalSetResponseSchemaExecute, laboratoriesConfigLocalSetResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesDeleteExecute, laboratoriesDeleteExecuteTransform, laboratoriesDeleteRequestSchemaExecute, laboratoriesDeleteRequestSchemaExecuteTransform, laboratoriesDeleteResponseSchemaExecute, laboratoriesDeleteResponseSchemaExecuteTransform, laboratoriesDetachExecute, laboratoriesDetachExecuteTransform, laboratoriesDetachRequestSchemaExecute, laboratoriesDetachRequestSchemaExecuteTransform, laboratoriesDetachResponseSchemaExecute, laboratoriesDetachResponseSchemaExecuteTransform, laboratoriesKillExecute, laboratoriesKillExecuteTransform, laboratoriesKillRequestSchemaExecute, laboratoriesKillRequestSchemaExecuteTransform, laboratoriesKillResponseSchemaExecute, laboratoriesKillResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, laboratoriesSpawnExecute, laboratoriesSpawnExecuteTransform, laboratoriesSpawnRequestSchemaExecute, laboratoriesSpawnRequestSchemaExecuteTransform, laboratoriesSpawnResponseSchemaExecute, laboratoriesSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, newStreamId, numberIsEmpty, openStream, openViewerTab, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, tasksCreateExecute, tasksCreateExecuteTransform, tasksCreateRequestSchemaExecute, tasksCreateRequestSchemaExecuteTransform, tasksCreateResponseSchemaExecute, tasksCreateResponseSchemaExecuteTransform, tasksDeleteExecute, tasksDeleteExecuteTransform, tasksDeleteRequestSchemaExecute, tasksDeleteRequestSchemaExecuteTransform, tasksDeleteResponseSchemaExecute, tasksDeleteResponseSchemaExecuteTransform, tasksListExecute, tasksListExecuteTransform, tasksListRequestSchemaExecute, tasksListRequestSchemaExecuteTransform, tasksListResponseSchemaExecute, tasksListResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };
