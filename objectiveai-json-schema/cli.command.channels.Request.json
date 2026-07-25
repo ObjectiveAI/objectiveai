@@ -14,6 +14,18 @@
       "$ref": "cli.command.channels.publish.response_schema.Request"
     },
     {
+      "title": "Close",
+      "$ref": "cli.command.channels.close.Request"
+    },
+    {
+      "title": "CloseRequestSchema",
+      "$ref": "cli.command.channels.close.request_schema.Request"
+    },
+    {
+      "title": "CloseResponseSchema",
+      "$ref": "cli.command.channels.close.response_schema.Request"
+    },
+    {
       "title": "Logs",
       "$ref": "cli.command.channels.logs.Request"
     }

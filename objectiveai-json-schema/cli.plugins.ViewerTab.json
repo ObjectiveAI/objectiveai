@@ -1,35 +1,60 @@
 {
   "title": "cli.plugins.ViewerTab",
-  "description": "One declared viewer tab: the component coordinates the viewer's\ngeneric bootstrap dereferences (`import(module)[export]`).",
-  "type": "object",
-  "properties": {
-    "export": {
-      "description": "The export holding the component (`None` = `\"default\"`).",
-      "anyOf": [
-        {
+  "description": "One declared viewer tab: the component coordinates the viewer's\ngeneric bootstrap dereferences (`import(module)[export]`), plus\nEXACTLY ONE of `channel_key` (a channel handler, titled by its\noffer key) or `title` (a regular boot tab). Untagged: the present\nfield decides the variant; an entry carrying both reads as a\nhandler and its `title` is ignored.",
+  "anyOf": [
+    {
+      "title": "Channel",
+      "description": "A channel handler — opened by the accept flow, never at boot.",
+      "type": "object",
+      "properties": {
+        "channel_key": {
+          "description": "The offer key this handler answers (e.g.\n`\"browser.login\"`) — also the opened tab's title.",
           "type": "string"
         },
-        {
-          "type": "null"
+        "export": {
+          "description": "The export holding the component (`None` = `\"default\"`).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "module": {
+          "description": "The component's module path, relative to `viewer/`.",
+          "type": "string"
         }
-      ],
-      "omitempty": true
+      }
     },
-    "module": {
-      "description": "The component's module path, relative to `viewer/`.",
-      "type": "string"
-    },
-    "title": {
-      "description": "Display title (`None` = the tab's name key).",
-      "anyOf": [
-        {
+    {
+      "title": "Tab",
+      "description": "A regular tab — opened at viewer boot.",
+      "type": "object",
+      "properties": {
+        "export": {
+          "description": "The export holding the component (`None` = `\"default\"`).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "module": {
+          "description": "The component's module path, relative to `viewer/`.",
           "type": "string"
         },
-        {
-          "type": "null"
+        "title": {
+          "description": "The tab's display title.",
+          "type": "string"
         }
-      ],
-      "omitempty": true
+      }
     }
-  }
+  ]
 }

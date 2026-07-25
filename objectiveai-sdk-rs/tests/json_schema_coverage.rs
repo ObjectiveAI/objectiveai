@@ -41,6 +41,11 @@ fn is_skipped_module(relative: &str) -> bool {
     relative.starts_with("src/mcp/")
         || relative.starts_with("src/client_objectiveai_mcp/")
         || relative.starts_with("src/laboratories/daemon/")
+        // Subprocess plumbing: the stdout readiness handshake
+        // (`ServerReady`) is an internal spawn contract between the
+        // daemon and its leashed children — never a published API
+        // shape.
+        || relative == "src/process.rs"
 }
 
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {

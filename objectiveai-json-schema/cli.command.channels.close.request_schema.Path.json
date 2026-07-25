@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.channels.close.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "channels/close/request_schema"
+  ]
+}

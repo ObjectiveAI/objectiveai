@@ -1,23 +1,7 @@
 {
   "title": "cli.channel_listener.ChannelEvent",
-  "description": "One frame on the `GET /channels` SSE stream.",
+  "description": "One frame on the `GET /channels` SSE stream — the offer lifecycle.",
   "anyOf": [
-    {
-      "title": "Connection",
-      "description": "This connection's secret (`S_conn`) — ALWAYS the first frame.\nPresent it to accept an offer.",
-      "type": "object",
-      "properties": {
-        "secret": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "connection"
-          ]
-        }
-      }
-    },
     {
       "title": "Offer",
       "description": "A channel offer — live broadcast or connect-time replay.",
@@ -46,41 +30,6 @@
           "type": "string",
           "enum": [
             "offer_withdrawn"
-          ]
-        }
-      }
-    },
-    {
-      "title": "OwnerSecret",
-      "description": "The owner secret (`S_owner`) for a channel THIS connection just\naccepted — sent ONLY to the accepting connection, NEVER in the\naccept POST response.",
-      "type": "object",
-      "properties": {
-        "channel_id": {
-          "type": "string"
-        },
-        "secret": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "owner_secret"
-          ]
-        }
-      }
-    },
-    {
-      "title": "Closed",
-      "description": "An open channel closed (owner dropped / ended): no further\nrequests or replies are accepted, though the log survives.",
-      "type": "object",
-      "properties": {
-        "channel_id": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "closed"
           ]
         }
       }
