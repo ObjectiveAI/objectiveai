@@ -222,26 +222,21 @@ pub(crate) async fn daemon_listen(
 }
 
 /// `POST /execute` — one command run. `request` is the raw
-/// `cli::command::Request` JSON, passed through as the body verbatim.
-/// Stamps the auth signature and the viewer agent identity — only
-/// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` is set (to `"Viewer"`,
-/// via `viewer_identity`); every absent
-/// identity header DELETES that config field on the daemon for the
-/// run (never inherits).
+/// `cli::command::Request` JSON, passed through as the body VERBATIM
+/// — a plain proxy, no body inspection (channel secrets ride in the
+/// body from the handler tab that owns them, handed over in its spawn
+/// arguments). Stamps the auth signature and the viewer agent
+/// identity — only `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` is set
+/// (to `"Viewer"`, via `viewer_identity`); every absent identity
+/// header DELETES that config field on the daemon for the run (never
+/// inherits).
 #[tauri::command]
 pub(crate) async fn daemon_execute(
     proxy: tauri::State<'_, DaemonProxy>,
-    requests: tauri::State<'_, crate::shell::ChannelRequests>,
-    webview: tauri::Webview,
     stream_id: String,
     request: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    // A tab that owns a channel gets its secret STAMPED into channels
-    // command bodies — the capability never enters the webview (the
-    // same derive-from-sender rule as identity).
-    let request =
-        crate::shell::stamp_channel_secret(&requests, webview.label(), request).await;
     let mut req = proxy
         .daemon
         .request(reqwest::Method::POST, "/execute")

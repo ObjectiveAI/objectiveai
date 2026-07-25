@@ -39,22 +39,11 @@ struct Template {
     export: Option<String>,
 }
 
-/// One accepted channel, owned by a handler tab: the capability the
-/// proxy stamps into that tab's channels command bodies.
-struct TabChannel {
-    channel_id: String,
-    secret: String,
-}
-
 struct ChannelsInner {
     template: Option<Template>,
     /// `channel_id` → tab id. Insert on spawn; remove ONLY on
     /// withdraw/reconcile/accept — see the module doc's dedup rules.
     offers: HashMap<String, u64>,
-    /// `tab id` → its accepted channel. Entries are never pruned (tab
-    /// ids are never reused, so a stale entry can never stamp the
-    /// wrong caller).
-    secrets: HashMap<u64, TabChannel>,
 }
 
 /// Managed state for the channel-request surface.
@@ -76,7 +65,6 @@ impl ChannelRequests {
             inner: tokio::sync::Mutex::new(ChannelsInner {
                 template: None,
                 offers: HashMap::new(),
-                secrets: HashMap::new(),
             }),
             plugins_root,
             declared_tx: tokio::sync::Mutex::new(Some(tx)),
@@ -119,10 +107,13 @@ pub async fn channel_request_declare(
 /// Flow: resolve the publishing plugin's manifest handler for the
 /// offer key (BEFORE the POST — a secret must never be minted with
 /// nowhere to land) → `POST /channels/{id}/accept` → open the handler
-/// component as a new tab (same window, activated + focused) with the
-/// FULL offer as its arguments → record the tab's secret for the
-/// proxy to stamp → close the request tab. ANY failure kills the
-/// request tab exactly as if it were closed.
+/// component as a new tab (same window, activated + focused) whose
+/// arguments are `{ request, response }` — the published offer and
+/// the accept's response body (`{ secret }`). The HANDLER owns the
+/// capability outright: it sends the secret itself on its channels
+/// commands; Rust neither stores nor stamps it. Then the request tab
+/// closes. ANY failure kills the request tab exactly as if it were
+/// closed.
 #[tauri::command]
 pub async fn channel_request_accept(
     app: tauri::AppHandle,
@@ -204,8 +195,15 @@ async fn accept_flow(
     // Handler tabs are titled by their offer key — the manifest's
     // Channel entries deliberately carry no title.
     let title = offer.key.clone();
-    let arguments = serde_json::to_value(&offer)
-        .map_err(|e| format!("offer serialize: {e}"))?;
+    // The handler's whole world: the published offer and what the
+    // accept came back with. The secret rides IN — the handler owns
+    // the capability and sends it itself on its channels commands.
+    let arguments = serde_json::json!({
+        "request": offer,
+        "response": objectiveai_sdk::daemon::channel_listener::ChannelAccepted {
+            secret,
+        },
+    });
     let kind = TabKind {
         identity,
         module: handler.module,
@@ -214,67 +212,10 @@ async fn accept_flow(
     };
     let opened =
         super::open_tab(app, window, kind, title, true, handler.icon, true).await;
-    {
-        let mut inner = state.inner.lock().await;
-        inner.secrets.insert(
-            opened.tab_id,
-            TabChannel {
-                channel_id: offer.channel_id.clone(),
-                secret,
-            },
-        );
-    }
     // The request tab dies; the handler tab takes its place, focused.
     super::close_tab(app, request_tab).await;
     super::select_tab(app, window, opened.tab_id).await;
     Ok(())
-}
-
-/// Stamp the calling tab's channel secret into a channels command
-/// body. A no-op unless the webview is a content webview whose tab
-/// owns a channel AND `request` is a `channels/*` command targeting
-/// that exact channel — then its `secret` field is overwritten (the
-/// component sends a placeholder; the capability stays Rust-side).
-pub(crate) async fn stamp_channel_secret(
-    requests: &ChannelRequests,
-    webview_label: &str,
-    request: String,
-) -> String {
-    let Some(tab_id) = native::tab_id(webview_label) else {
-        return request;
-    };
-    let entry = {
-        let inner = requests.inner.lock().await;
-        match inner.secrets.get(&tab_id) {
-            Some(entry) => TabChannel {
-                channel_id: entry.channel_id.clone(),
-                secret: entry.secret.clone(),
-            },
-            None => return request,
-        }
-    };
-    let Ok(mut value) = serde_json::from_str::<serde_json::Value>(&request) else {
-        return request;
-    };
-    let Some(object) = value.as_object_mut() else {
-        return request;
-    };
-    let is_channels = object
-        .get("path_type")
-        .and_then(|v| v.as_str())
-        .is_some_and(|path| path.starts_with("channels/"));
-    let matches_channel = object
-        .get("channel_id")
-        .and_then(|v| v.as_str())
-        .is_some_and(|id| id == entry.channel_id);
-    if !is_channels || !matches_channel {
-        return request;
-    }
-    object.insert(
-        "secret".to_string(),
-        serde_json::Value::String(entry.secret),
-    );
-    serde_json::to_string(&value).unwrap_or(request)
 }
 
 /// Spawn the resident listener: await the chrome's template
