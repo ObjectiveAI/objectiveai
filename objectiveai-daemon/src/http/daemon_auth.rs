@@ -21,7 +21,7 @@
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
-use objectiveai_sdk::cli::command::command_executor::sse::AuthEnvelope;
+use objectiveai_sdk::daemon::AuthEnvelope;
 use subtle::ConstantTimeEq;
 
 /// Consume the connection's auth preamble: read frames until the

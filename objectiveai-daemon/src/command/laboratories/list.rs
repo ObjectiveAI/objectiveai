@@ -12,7 +12,8 @@
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Kind, Mount};
+use objectiveai_sdk::cli::command::laboratories::create::Kind;
+use objectiveai_sdk::laboratories::{EnvVar, Mount};
 use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem};
 
 use crate::context::{GlobalContext, ScopedContext};

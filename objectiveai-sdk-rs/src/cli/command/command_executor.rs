@@ -5,10 +5,10 @@ use crate::cli::command::CommandResponse;
 
 pub mod binary;
 pub mod plugin;
-pub mod sse;
+
 
 pub use binary::BinaryExecutor;
-pub use sse::SseCommandExecutor;
+
 
 /// Run a [`CommandRequest`] against some backend (subprocess of the cli
 /// binary, in-process router, mock, …) and surface its output as a

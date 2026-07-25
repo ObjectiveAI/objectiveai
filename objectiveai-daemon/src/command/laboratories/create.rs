@@ -106,7 +106,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
         mounts: identify
             .mounts
             .into_iter()
-            .map(|m| objectiveai_sdk::cli::command::laboratories::create::Mount {
+            .map(|m| objectiveai_sdk::laboratories::Mount {
                 host: m.host,
                 container: m.container,
             })
@@ -115,7 +115,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             .env
             .into_iter()
             .map(|[key, value]| {
-                objectiveai_sdk::cli::command::laboratories::create::EnvVar { key, value }
+                objectiveai_sdk::laboratories::EnvVar { key, value }
             })
             .collect(),
         cwd: identify.cwd,

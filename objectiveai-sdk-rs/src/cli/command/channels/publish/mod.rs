@@ -153,10 +153,10 @@ pub mod request_schema;
 pub mod response_schema;
 
 /// One `/listen` broadcast run of `channels publish`. See
-/// [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
+    pub response: crate::daemon::command_listener::UnaryResponse<Response>,
 }

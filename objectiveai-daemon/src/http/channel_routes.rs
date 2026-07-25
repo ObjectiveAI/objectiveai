@@ -33,7 +33,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use axum::response::sse::{Event, Sse};
 use dashmap::DashMap;
-use objectiveai_sdk::cli::channel_listener::{
+use objectiveai_sdk::daemon::channel_listener::{
     ChannelAccepted, ChannelEvent, ChannelOffer,
 };
 use objectiveai_sdk::identity::Identity;

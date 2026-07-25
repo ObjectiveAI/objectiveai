@@ -8,7 +8,7 @@
 use std::str::FromStr;
 
 use crate::cli::command::CommandRequest;
-use crate::cli::command::path_ref::tokenize;
+use crate::laboratories::{EnvVar, Mount};
 
 /// Default working directory new agents start in, when `--cwd` is omitted (and
 /// `#[serde(default)]` for older clients that don't send the field).
@@ -66,61 +66,6 @@ pub enum Kind {
     // `title`, which the JS codegen then uses as the module path — a title
     // of "Client" would clobber `src/client.ts`. Let `rename` drive it.
     Client,
-}
-
-/// One host→container bind mount. CLI wire form is the docker-style
-/// `host=…,container=…` (both keys required).
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.create.Mount")]
-pub struct Mount {
-    pub host: String,
-    pub container: String,
-}
-
-impl FromStr for Mount {
-    type Err = String;
-    /// Parse a `--mount` arg. Accepted keys: `host`, `container` (both
-    /// required). Anything else is an unknown-key error.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut host: Option<String> = None;
-        let mut container: Option<String> = None;
-        for (k, v) in tokenize(s)? {
-            match k {
-                "host" => host = Some(v.to_string()),
-                "container" => container = Some(v.to_string()),
-                other => return Err(format!("unknown key: {other}")),
-            }
-        }
-        match (host, container) {
-            (Some(host), Some(container)) => Ok(Mount { host, container }),
-            (None, _) => Err("host is required".to_string()),
-            (_, None) => Err("container is required".to_string()),
-        }
-    }
-}
-
-/// One environment entry. CLI wire form is `KEY=VALUE`, split on the first
-/// `=` so values may contain `=`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.laboratories.create.EnvVar")]
-pub struct EnvVar {
-    pub key: String,
-    pub value: String,
-}
-
-impl FromStr for EnvVar {
-    type Err = String;
-    /// Parse an `--env` arg. Splits on the FIRST `=`; a missing `=` is an
-    /// error.
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.split_once('=') {
-            Some((key, value)) => Ok(EnvVar {
-                key: key.to_string(),
-                value: value.to_string(),
-            }),
-            None => Err(format!("expected KEY=VALUE, got: {s}")),
-        }
-    }
 }
 
 impl CommandRequest for Request {
@@ -384,10 +329,10 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `laboratories create`: the actual
 /// [`Request`], the producer's
 /// [`Identity`](crate::identity::Identity), and the
-/// unary response future. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// unary response future. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
+    pub response: crate::daemon::command_listener::UnaryResponse<Response>,
 }

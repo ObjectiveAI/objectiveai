@@ -1,0 +1,18 @@
+{
+  "title": "daemon.AuthEnvelope",
+  "description": "The first client→daemon frame on the `/laboratory` host-channel\nWebSocket (the daemon's ONE remaining WebSocket) — the auth preamble,\nalways sent, even to a secretless daemon (`{\"signature\": null}`). A\ndaemon holding a `DAEMON_SECRET` verifies the signature and closes\nthe connection on a missing/invalid one; a secretless daemon consumes\nthe envelope and ignores the value. (The HTTP routes authenticate by\nthe `X-OBJECTIVEAI-SIGNATURE` header instead.)",
+  "type": "object",
+  "properties": {
+    "signature": {
+      "description": "The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, or\n`null` when the client has none.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

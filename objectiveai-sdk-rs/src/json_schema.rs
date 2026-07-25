@@ -969,9 +969,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::python::response_schema::Request),
         schemars::schema_for!(crate::cli::command::Request),
         schemars::schema_for!(crate::cli::command::laboratories::Request),
-        schemars::schema_for!(crate::cli::command::laboratories::create::EnvVar),
+        schemars::schema_for!(crate::laboratories::EnvVar),
         schemars::schema_for!(crate::cli::command::laboratories::create::Kind),
-        schemars::schema_for!(crate::cli::command::laboratories::create::Mount),
+        schemars::schema_for!(crate::laboratories::Mount),
         schemars::schema_for!(crate::cli::command::laboratories::create::Path),
         schemars::schema_for!(crate::cli::command::laboratories::create::Request),
         schemars::schema_for!(crate::cli::command::laboratories::create::request_schema::Path),
@@ -1144,35 +1144,41 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::plugins::ViewerTab),
     ]);
 
-    #[cfg(feature = "cli-executor")]
+    #[cfg(feature = "daemon")]
     schemas.extend([schemars::schema_for!(
-        crate::cli::command::command_executor::sse::AuthEnvelope
+        crate::daemon::AuthEnvelope
     )]);
 
-    #[cfg(feature = "cli-listener")]
+    // The typed command_listener (its wire types live with it) needs
+    // `cli` on top of `daemon`.
+    #[cfg(all(feature = "daemon", feature = "cli"))]
+    schemas.extend([schemars::schema_for!(
+        crate::daemon::command_listener::ListenerEnd
+    )]);
+
+    #[cfg(feature = "daemon")]
     schemas.extend([
-        schemars::schema_for!(crate::cli::agents_instances_list_listener::AgentEvent),
-        schemars::schema_for!(crate::cli::agents_instances_list_listener::AgentStatus),
-        schemars::schema_for!(crate::cli::agents_instances_listener::AgentInstanceEvent),
-        schemars::schema_for!(crate::cli::agents_instances_listener::AgentRecord),
-        schemars::schema_for!(crate::cli::agents_instances_listener::AssistantResponsePart),
-        schemars::schema_for!(crate::cli::agents_instances_listener::AttachedLaboratory),
-        schemars::schema_for!(crate::cli::agents_instances_listener::ClientNotificationPart),
-        schemars::schema_for!(crate::cli::agents_instances_listener::ConversationBlock),
-        schemars::schema_for!(crate::cli::agents_instances_listener::PartContent),
-        schemars::schema_for!(crate::cli::agents_instances_listener::RequestMessageUserPart),
-        schemars::schema_for!(crate::cli::agents_instances_listener::ToolResponsePart),
-        schemars::schema_for!(crate::cli::agents_instances_listener::VectorRequestChoice),
-        schemars::schema_for!(crate::cli::agents_instances_listener::VectorRequestChoicePart),
-        schemars::schema_for!(crate::cli::laboratories_list_listener::LaboratoryEvent),
-        schemars::schema_for!(crate::cli::laboratories_list_listener::LaboratoryStatus),
-        schemars::schema_for!(crate::cli::channel_listener::ChannelOffer),
-        schemars::schema_for!(crate::cli::channel_listener::ChannelEvent),
-        schemars::schema_for!(crate::cli::channel_listener::ChannelAccepted),
-        schemars::schema_for!(crate::cli::laboratories_listener::LaboratoryAttachment),
-        schemars::schema_for!(crate::cli::laboratories_listener::LaboratoryInstanceEvent),
-        schemars::schema_for!(crate::cli::laboratories_listener::LaboratoryRecord),
-        schemars::schema_for!(crate::cli::broadcast_listener::ListenerEnd),
+        schemars::schema_for!(crate::daemon::agents_instances_list_listener::AgentEvent),
+        schemars::schema_for!(crate::daemon::agents_instances_list_listener::AgentStatus),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::AgentInstanceEvent),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::AgentRecord),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::AssistantResponsePart),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::AttachedLaboratory),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::ClientNotificationPart),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::ConversationBlock),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::PartContent),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::RequestMessageUserPart),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::ToolResponsePart),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::VectorRequestChoice),
+        schemars::schema_for!(crate::daemon::agents_instances_listener::VectorRequestChoicePart),
+        schemars::schema_for!(crate::daemon::laboratories_list_listener::LaboratoryEvent),
+        schemars::schema_for!(crate::daemon::laboratories_list_listener::LaboratoryStatus),
+        schemars::schema_for!(crate::daemon::channel_listener::ChannelOffer),
+        schemars::schema_for!(crate::daemon::channel_listener::ChannelEvent),
+        schemars::schema_for!(crate::daemon::channel_listener::ChannelAccepted),
+        schemars::schema_for!(crate::daemon::laboratories_listener::LaboratoryAttachment),
+        schemars::schema_for!(crate::daemon::laboratories_listener::LaboratoryInstanceEvent),
+        schemars::schema_for!(crate::daemon::laboratories_listener::LaboratoryRecord),
     ]);
 
     // The MCP types the `agents mcp tools|resources|servers` command

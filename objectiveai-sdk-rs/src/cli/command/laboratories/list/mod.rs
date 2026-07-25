@@ -40,8 +40,8 @@ impl CommandRequest for Request {
 pub struct ResponseItem {
     pub id: String,
     pub image: crate::laboratories::LaboratoryImage,
-    pub mounts: Vec<super::create::Mount>,
-    pub env: Vec<super::create::EnvVar>,
+    pub mounts: Vec<crate::laboratories::Mount>,
+    pub env: Vec<crate::laboratories::EnvVar>,
     pub cwd: String,
     /// Unix seconds when the laboratory container was created, from
     /// podman's container record. `None` when the host didn't report
@@ -176,10 +176,10 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `laboratories list`: the actual
 /// [`Request`], the producer's
 /// [`Identity`](crate::identity::Identity), and the
-/// response-item stream. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// response-item stream. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
+    pub response: crate::daemon::command_listener::ResponseItemStream<ResponseItem>,
 }

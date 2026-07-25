@@ -587,10 +587,10 @@ mod tests {
 /// One `/listen` broadcast run of `agents logs list`: the actual
 /// [`Request`], the producer's
 /// [`Identity`](crate::identity::Identity), and the
-/// response-item stream. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// response-item stream. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
+    pub response: crate::daemon::command_listener::ResponseItemStream<ResponseItem>,
 }

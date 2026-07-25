@@ -24,7 +24,7 @@
 use std::sync::Arc;
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use objectiveai_sdk::cli::agents_instances_listener::{
+use objectiveai_sdk::daemon::agents_instances_listener::{
     AgentInstanceEvent, ClientNotificationPart, PartContent,
 };
 use sqlx::Row as _;
@@ -216,7 +216,7 @@ fn instance_stream(
     aih: String,
 ) -> impl futures::Stream<Item = Result<axum::response::sse::Event, std::convert::Infallible>> {
     use axum::response::sse::Event;
-    use objectiveai_sdk::cli::agents_instances_listener::AgentRecord;
+    use objectiveai_sdk::daemon::agents_instances_listener::AgentRecord;
 
     use crate::http::agents_routes::StatusChange;
     async_stream::stream! {

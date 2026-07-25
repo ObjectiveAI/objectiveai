@@ -508,14 +508,14 @@ impl From<super::FromArgsError> for ParseError {
 }
 
 /// `/listen` mirror of [`Request`] — the root of the distributed
-/// `ListenerExecution` tree ([`crate::cli::broadcast_listener`]'s
+/// `ListenerExecution` tree ([`crate::daemon::command_listener`]'s
 /// stream item): one variant per child wrapping its
 /// `ListenerExecution`. The broadcast always carries the typed
 /// PRE-transform items (the producer tee sits below the CLI's
 /// jq/python transform), so every execution lands on its typed
 /// variant. Executions whose `path_type` this build's types predate
 /// are skipped by the listener, so there is no unknown fallback.
-#[cfg(feature = "cli-listener")]
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     Agents(super::agents::ListenerExecution),
     Api(super::api::ListenerExecution),

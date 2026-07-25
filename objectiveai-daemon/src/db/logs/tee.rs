@@ -20,7 +20,7 @@
 
 use std::collections::HashMap;
 
-use objectiveai_sdk::cli::agents_instances_listener::{
+use objectiveai_sdk::daemon::agents_instances_listener::{
     AgentInstanceEvent, AssistantResponsePart, PartContent, RequestMessageUserPart,
     ToolResponsePart, VectorRequestChoicePart,
 };

@@ -226,8 +226,8 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     Ok(stream)
 }
 
-/// `/listen` mirror of [`Request`]. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// `/listen` mirror of [`Request`]. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     Publish(publish::ListenerExecution),
     PublishRequestSchema(publish::request_schema::ListenerExecution),

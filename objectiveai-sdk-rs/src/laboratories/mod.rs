@@ -15,10 +15,12 @@
 pub mod daemon;
 
 mod composite;
+mod container;
 pub mod filetree;
 mod image;
 mod laboratories;
 
 pub use composite::*;
+pub use container::*;
 pub use image::*;
 pub use laboratories::*;

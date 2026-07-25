@@ -1,5 +1,5 @@
 //! The resident daemon's `/execute` route — the server side of
-//! [`objectiveai_sdk::cli::command::SseCommandExecutor`].
+//! `objectiveai_sdk::daemon::Client`.
 //!
 //! Request-per-command over plain HTTP: the client POSTs the
 //! `cli::command::Request` serde JSON as the raw request body — nothing

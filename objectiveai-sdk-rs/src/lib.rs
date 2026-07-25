@@ -76,6 +76,9 @@ pub mod gitrepo;
 
 pub mod identity;
 
+#[cfg(feature = "daemon")]
+pub mod daemon;
+
 #[cfg(windows)]
 pub(crate) mod win_handles;
 
@@ -87,7 +90,6 @@ pub(crate) mod win_handles;
     feature = "http",
     feature = "mcp",
     feature = "cli-executor",
-    feature = "cli-listener",
     feature = "lockfile",
     feature = "subprocess-reaper"
 ))]

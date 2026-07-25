@@ -31,11 +31,11 @@
 
 use std::collections::BTreeMap;
 
-use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Mount};
-use objectiveai_sdk::cli::laboratories_list_listener::{
+use objectiveai_sdk::laboratories::{EnvVar, Mount};
+use objectiveai_sdk::daemon::laboratories_list_listener::{
     LaboratoryEvent, LaboratoryStatus,
 };
-use objectiveai_sdk::cli::laboratories_listener::{
+use objectiveai_sdk::daemon::laboratories_listener::{
     LaboratoryAttachment, LaboratoryInstanceEvent, LaboratoryRecord,
 };
 use objectiveai_sdk::laboratories::daemon::Identify;

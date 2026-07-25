@@ -19,6 +19,12 @@ thiserror = "2.0.18"
 tokio = { version = "1.50.0", features = ["full"] }
 tokio-stream = { version = "0.1.18", features = ["io-util", "sync"] }
 futures = "0.3.32"
+# agents_message_lock_held_e2e reads the /agents/instances/list SSE
+# deltas RAW — its rising-edge assertions need per-event delivery,
+# which the SDK's materialized (watch-coalesced) listener can't
+# guarantee.
+reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "stream"] }
+reqwest-eventsource = "0.6.0"
 axum = "0.8.8"
 insta = { version = "1.40", features = ["json"] }
 uuid = { version = "1.22", features = ["v4"] }

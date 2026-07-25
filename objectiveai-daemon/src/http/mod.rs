@@ -25,7 +25,7 @@
 //!   below.
 //! - [`daemon_execute`] — the daemon's `POST /execute` SSE route:
 //!   request-per-command in-process execution for remote consumers
-//!   (the SDK's `SseCommandExecutor`, notably the viewer).
+//!   (the SDK's `daemon::Client` executor, notably the viewer).
 //! - [`agents_routes`] — the daemon's `/agents/instances/list` SSE
 //!   route + its dedicated `agents.sock` producer socket: a live
 //!   all-agents active/inactive stream, driven by AIH-lockfile

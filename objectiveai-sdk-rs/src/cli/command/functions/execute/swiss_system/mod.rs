@@ -327,12 +327,12 @@ pub mod response_schema;
 /// form (the plain `execute`): the actual [`Request`], the
 /// producer's
 /// [`Identity`](crate::identity::Identity), and the
-/// unary response future. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// unary response future. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
+    pub response: crate::daemon::command_listener::UnaryResponse<Response>,
 }
 
 /// One `/listen` broadcast run of `functions execute swiss_system` in its
@@ -340,12 +340,12 @@ pub struct ListenerExecution {
 /// `dangerous_advanced.stream: true`): the actual [`Request`], the
 /// producer's
 /// [`Identity`](crate::identity::Identity), and the
-/// response-item stream. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// response-item stream. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecutionStreaming {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
+    pub response: crate::daemon::command_listener::ResponseItemStream<ResponseItem>,
 }
 
 /// This leaf's multiple listener executions — one variant per
@@ -353,7 +353,7 @@ pub struct ListenerExecutionStreaming {
 /// for `execute_streaming`), discriminated per request off
 /// `dangerous_advanced.stream`. The branch enum's single variant
 /// for this leaf wraps this.
-#[cfg(feature = "cli-listener")]
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecutionVariant {
     Execution(ListenerExecution),
     Streaming(ListenerExecutionStreaming),

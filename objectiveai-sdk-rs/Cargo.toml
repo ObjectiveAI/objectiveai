@@ -24,8 +24,16 @@ http = ["mcp", "net", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource
 env = []
 mcp = ["cli", "dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util", "dep:regex", "dep:rmcp"]
 cli = ["mcp", "dep:clap", "dep:humantime"]
-cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs", "dep:reqwest", "dep:eventsource-stream"]
-cli-listener = ["cli", "dep:tokio", "dep:futures", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream"]
+cli-executor = ["cli", "mcp", "daemon", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs", "dep:reqwest", "dep:eventsource-stream"]
+# LEGACY ALIAS for the viewer's frozen manifest — dies with the
+# viewer's migration to the daemon client. New consumers name
+# `daemon` (+ `cli` for the typed command_listener) directly.
+cli-listener = ["daemon", "cli"]
+# The unified daemon client (`daemon::Client`): every daemon-endpoint
+# consumer surface behind one handle. Requires NEITHER `cli` nor
+# `cli-executor` — the typed command_listener lights up with `cli`,
+# and the client's CommandExecutor impl with `cli-executor`.
+daemon = ["dep:tokio", "dep:futures", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:bytes"]
 laboratory-daemon = ["mcp"]
 # TCP-keepalive socket policy (`net` module) — shared by every server
 # accept loop and long-lived client dial in the workspace.
@@ -82,6 +90,7 @@ humantime = { version = "2", optional = true }
 mime2ext = { version = "0.1.54" }
 tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "io-std", "macros", "process"], optional = true }
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"], optional = true }
+bytes = { version = "1", optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

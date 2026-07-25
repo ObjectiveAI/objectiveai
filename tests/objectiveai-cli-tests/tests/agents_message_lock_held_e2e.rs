@@ -37,7 +37,7 @@ use objectiveai_sdk::cli::command::agents::spawn::{
     Request as SpawnRequest, RequestDangerousAdvanced as SpawnDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
-use objectiveai_sdk::cli::agents_instances_list_listener::AgentsInstancesListListener;
+use objectiveai_sdk::daemon::agents_instances_list_listener::AgentEvent;
 
 const SEED: i64 = 42;
 
@@ -104,27 +104,70 @@ async fn message_wake_child_holds_the_aih_lock() {
     // ── 2. Watch the AIH's lock-driven active flag; idle now ─────
     // The LIST route ships typed Activated/Deactivated DELTAS (the
     // instance route rebuilds its record from live state, which races
-    // a tens-of-milliseconds wake). Every applied delta fires
-    // `on_change` with the folded statuses — record our AIH's flag per
-    // event; the sequence of flags carries the edge structure.
+    // a tens-of-milliseconds wake). The rising-edge assertions below
+    // need EVERY delta — the SDK's materialized listener coalesces
+    // through its watch counter — so this test reads the SSE frames
+    // RAW and records our AIH's flag per event; the sequence of flags
+    // carries the edge structure.
     let addr = cli_test_util::daemon_address(&executor, &state).await;
     let transitions: Arc<Mutex<Vec<bool>>> = Arc::new(Mutex::new(Vec::new()));
-    let recorder = Arc::clone(&transitions);
-    let watch_aih = aih.clone();
-    let listener = AgentsInstancesListListener::new(format!(
-        "{addr}/agents/instances/list"
-    ))
-    .on_change(move |agents| {
-        if let Some(status) = agents
-            .iter()
-            .find(|a| a.agent_instance_hierarchy == watch_aih)
-        {
-            recorder.lock().unwrap().push(status.active);
+    {
+        use futures::StreamExt;
+        use reqwest_eventsource::RequestBuilderExt;
+        let recorder = Arc::clone(&transitions);
+        let watch_aih = aih.clone();
+        let mut source = reqwest::Client::new()
+            .get(format!("{addr}/agents/instances/list"))
+            .header("Accept", "text/event-stream")
+            .eventsource()
+            .expect("open raw /agents/instances/list sse");
+        // Await the open frame so the recorder is live before the
+        // message below fires.
+        match source.next().await {
+            Some(Ok(reqwest_eventsource::Event::Open)) => {}
+            other => panic!("raw sse failed to open: {other:?}"),
         }
-    })
-    .connect()
-    .await
-    .expect("connect /agents/instances/list");
+        tokio::spawn(async move {
+            while let Some(event) = source.next().await {
+                let reqwest_eventsource::Event::Message(message) = (match event {
+                    Ok(event) => event,
+                    Err(_) => break,
+                }) else {
+                    continue;
+                };
+                let Ok(event) =
+                    serde_json::from_str::<AgentEvent>(&message.data)
+                else {
+                    continue;
+                };
+                match event {
+                    AgentEvent::Snapshot { agents } => {
+                        if let Some(status) = agents
+                            .iter()
+                            .find(|a| a.agent_instance_hierarchy == watch_aih)
+                        {
+                            recorder.lock().unwrap().push(status.active);
+                        }
+                    }
+                    AgentEvent::Activated {
+                        agent_instance_hierarchy,
+                    } if agent_instance_hierarchy == watch_aih => {
+                        recorder.lock().unwrap().push(true);
+                    }
+                    AgentEvent::Deactivated {
+                        agent_instance_hierarchy,
+                    } if agent_instance_hierarchy == watch_aih => {
+                        recorder.lock().unwrap().push(false);
+                    }
+                    _ => {}
+                }
+            }
+        });
+    }
+    let listener = objectiveai_sdk::daemon::Client::new(&addr)
+        .agents_instances_list_listener()
+        .await
+        .expect("connect /agents/instances/list");
     wait_for!("the connect-time list snapshot", {
         listener
             .agents()

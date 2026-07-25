@@ -14,7 +14,6 @@
     feature = "http",
     feature = "mcp",
     feature = "cli-executor",
-    feature = "cli-listener",
     feature = "lockfile",
     feature = "subprocess-reaper"
 ))]

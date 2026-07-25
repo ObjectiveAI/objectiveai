@@ -3,7 +3,7 @@ use std::pin::Pin;
 use envconfig::Envconfig;
 use futures::Stream;
 use objectiveai_sdk::cli::command::{CommandRequest, ResponseItem, parse_request};
-use objectiveai_sdk::cli::broadcast_listener::ListenerEnd;
+use objectiveai_sdk::daemon::command_listener::ListenerEnd;
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;

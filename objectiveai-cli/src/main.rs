@@ -4,7 +4,7 @@
 //! NOT run any command logic: it clap-parses argv into a `Request`
 //! locally, ensures the resident `objectiveai-daemon` is up, and ships
 //! the `Request` to the daemon's `/execute` route (POST) via the SDK
-//! [`SseCommandExecutor`]. The daemon runs it IN-PROCESS and streams the
+//! the daemon [`objectiveai_sdk::daemon::Client`]. The daemon runs it IN-PROCESS and streams the
 //! result back as SSE — one JSON line per item, exactly the stdout JSONL
 //! shapes the daemon itself would have written. We drain those lines to
 //! stdout verbatim.
@@ -32,11 +32,11 @@
 use std::path::PathBuf;
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::command_executor::sse;
 use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::{
-    CommandExecutor, ParseError, Request, SseCommandExecutor, parse_request,
+    CommandExecutor, ParseError, Request, parse_request,
 };
+use objectiveai_sdk::daemon::Client as DaemonClient;
 use tokio::io::AsyncWriteExt;
 
 /// The resident daemon's per-state singleton lock key. Must match
@@ -237,10 +237,11 @@ async fn read_daemon_config(layout: &Layout) -> Result<Option<DaemonConfigSectio
         .map_err(|e| format!("parse {}: {e}", path.display()))
 }
 
-/// Build a `/execute` [`SseCommandExecutor`] for an already-known daemon
-/// `http://` URL (no spawn), presenting `signature` when given.
-fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
-    let executor = SseCommandExecutor::new(format!("{url}/execute"));
+/// Build a daemon [`Client`](DaemonClient) — the `/execute` executor
+/// — for an already-known daemon `http://` URL (no spawn), presenting
+/// `signature` when given.
+fn executor_for(url: &str, signature: Option<String>) -> DaemonClient {
+    let executor = DaemonClient::new(url);
     match signature {
         Some(signature) => executor.signature(signature),
         None => executor,
@@ -248,10 +249,10 @@ fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
 }
 
 /// Ensure the right daemon is reachable and return a `/execute`
-/// [`SseCommandExecutor`] plus the per-request identity override to
+/// executor (the daemon [`Client`](DaemonClient)) plus the per-request identity override to
 /// send with every command. The selection ladder is documented on the
 /// module.
-async fn connect() -> Result<(SseCommandExecutor, Identity), String> {
+async fn connect() -> Result<(DaemonClient, Identity), String> {
     // Rung 1 — env override: when `DAEMON_ADDRESS` is set, connect to
     // that daemon directly and NEVER spawn a local one; an explicit
     // per-invocation choice outranks the persisted config.
@@ -423,9 +424,12 @@ fn is_informational(e: &clap::Error) -> bool {
 /// structured error (`Error::Cli`) is reserialized verbatim — it is
 /// already the cli's `{"type":"error",...}` line shape. Transport /
 /// decode / empty failures become a fresh fatal error line.
-async fn write_execute_error(stdout: &mut tokio::io::Stdout, e: sse::Error) {
+async fn write_execute_error(
+    stdout: &mut tokio::io::Stdout,
+    e: objectiveai_sdk::daemon::ExecuteError,
+) {
     match e {
-        sse::Error::Cli(cli) => write_json_line(stdout, &cli).await,
+        objectiveai_sdk::daemon::ExecuteError::Cli(cli) => write_json_line(stdout, &cli).await,
         other => write_error_line(stdout, other.to_string(), Some(true)).await,
     }
 }

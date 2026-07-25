@@ -1,0 +1,51 @@
+{
+  "title": "daemon.agents_instances_listener.AttachedLaboratory",
+  "description": "One laboratory attachment on the agent, as carried by\n[`AgentRecord::attached_laboratories`]. Mirrors `agents instances\nget`'s attachment shape (listener-local — this wire is a mirror,\nnot a re-export).",
+  "type": "object",
+  "properties": {
+    "attached_at": {
+      "description": "RFC3339 — when it was attached.",
+      "type": "string"
+    },
+    "attached_by": {
+      "description": "The AIH that ran the attach. `None` on attachments predating\nattacher tracking.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "description": "The attached laboratory's id.",
+      "type": "string"
+    },
+    "machine": {
+      "description": "The machine id of the laboratory host the attachment row\nrecords — laboratory ids are only unique per (machine, state).\n`None` on rows predating machine tracking.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "machine_state": {
+      "description": "The state the attachment row records, paired with `machine`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

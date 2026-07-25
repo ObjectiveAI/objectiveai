@@ -1,0 +1,79 @@
+{
+  "title": "daemon.laboratories_list_listener.LaboratoryEvent",
+  "description": "One event on the `/laboratories/list` stream. The first is always\na [`Snapshot`](LaboratoryEvent::Snapshot); every later one upserts\nor removes a single laboratory as the connected set or the local\nscan changes.",
+  "anyOf": [
+    {
+      "title": "Snapshot",
+      "description": "The full laboratory set (connected ∪ local scan), sent once\nimmediately on connect.",
+      "type": "object",
+      "properties": {
+        "laboratories": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.laboratories_list_listener.LaboratoryStatus"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "snapshot"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Upserted",
+      "description": "A laboratory appeared or changed — connected, disconnected\n(but still locally present), entered the local scan, or had\nits identity re-announced. Full-value replace by `id`.",
+      "type": "object",
+      "properties": {
+        "laboratory": {
+          "$ref": "daemon.laboratories_list_listener.LaboratoryStatus"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "upserted"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Removed",
+      "description": "A laboratory vanished — deleted, or its serving host\ndisconnected. Laboratory ids are only unique per (machine,\nstate), so the pair disambiguates WHICH same-id laboratory\nleft; an absent pair removes by bare id (legacy daemons).",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "machine": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "machine_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "removed"
+          ]
+        }
+      }
+    }
+  ]
+}

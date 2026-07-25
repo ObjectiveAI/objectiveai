@@ -101,10 +101,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 /// One `/listen` broadcast run of `api config github_authorization set`: the actual
 /// [`Request`], the producer's
 /// [`Identity`](crate::identity::Identity), and the
-/// unary response future. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// unary response future. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
     pub identity: crate::identity::Identity,
-    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
+    pub response: crate::daemon::command_listener::UnaryResponse<Response>,
 }
