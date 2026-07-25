@@ -1,7 +1,7 @@
 /**
  * The daemon transport: Tauri `invoke` + `Channel`, structurally
- * typed for the SDK's viewer-mode constructors (`connectViewer` /
- * `ViewerCommandExecutor`). Every daemon stream rides the Rust
+ * typed for the SDK's viewer-mode client (`Client.viewer` and the
+ * shell helpers). Every daemon stream rides the Rust
  * side's `daemon_*` proxy commands over IPC — the webview holds no
  * daemon connections, address, or credentials. `null` outside Tauri
  * (browser dev) — no daemon is reachable there.
