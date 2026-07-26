@@ -755,6 +755,12 @@ pub async fn create_plugin(
 /// steps, so all that remains is to open a filesystem view of it,
 /// copy the artifact out ([`copy_out`]), and remove both. No label
 /// (this is not a laboratory), no port, no mounts, no injection.
+///
+/// The trailing placeholder command is what makes this work for ANY
+/// image: podman refuses to create a container from an image with
+/// neither `CMD` nor `ENTRYPOINT` (a `FROM scratch` final stage, say),
+/// and since the container is never started, what the command says is
+/// irrelevant — only that one exists.
 pub async fn create_for_export(
     podman: &Podman,
     name: &str,
@@ -766,6 +772,7 @@ pub async fn create_for_export(
         .arg("--name")
         .arg(name)
         .arg(image_reference)
+        .arg("/objectiveai-never-runs")
         .output()
         .await
         .map_err(|e| Error(format!("spawn podman create: {e}")))?;
