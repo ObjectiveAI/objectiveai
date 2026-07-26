@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactElement,
+  type RefObject,
+} from "react";
 import cn from "classnames";
 import {
   DndContext,
@@ -47,6 +53,10 @@ import {
  *   `tabs_detach` fires.
  * - `dockPreview` (the Rust docking task's hover signal) highlights
  *   the strip as a drop target.
+ * - OVERFLOW SCROLLER (the Firefox pattern): chevrons on either side,
+ *   shown only while the strip overflows, each disabled at its own
+ *   end. Click pages by most of a viewport; press-and-hold (past
+ *   300ms) scrolls continuously until release.
  */
 export function TabStrip({
   tabs,
@@ -78,6 +88,41 @@ export function TabStrip({
       gesture.current = null;
     };
   }, []);
+
+  // The scroller's world-state: whether the strip overflows at all
+  // (no overflow = no chevrons) and whether each end is flush (a
+  // flush end disables its chevron). Recomputed on scroll, on
+  // resize, and on any tab-list change; the functional set bails
+  // unchanged states out of re-rendering (scroll fires constantly).
+  const [scroll, setScroll] = useState({
+    overflow: false,
+    atStart: true,
+    atEnd: true,
+  });
+  const updateScroll = () => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const overflow = strip.scrollWidth > strip.clientWidth + 1;
+    const atStart = strip.scrollLeft <= 1;
+    const atEnd =
+      strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 1;
+    setScroll((prev) =>
+      prev.overflow === overflow &&
+      prev.atStart === atStart &&
+      prev.atEnd === atEnd
+        ? prev
+        : { overflow, atStart, atEnd },
+    );
+  };
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    updateScroll();
+    const observer = new ResizeObserver(updateScroll);
+    observer.observe(strip);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(updateScroll, [tabs]);
 
   // Keep the active tab visible whenever it changes. HORIZONTAL
   // ONLY, by hand — scrollIntoView's block axis nudged the nav's
@@ -168,33 +213,46 @@ export function TabStrip({
   };
 
   return (
-    <nav
-      ref={stripRef}
-      role="tablist"
-      onWheel={(e) => {
-        const strip = stripRef.current;
-        if (strip && e.deltaY !== 0) {
-          strip.scrollLeft += e.deltaY;
-        }
-      }}
+    <div
       className={cn(
         "flex",
         "items-center",
-        "gap-1",
-        "px-2",
         "h-10",
         "shrink-0",
         "border-b",
         "bg-ground-raised",
-        "overflow-x-auto",
-        "overflow-y-hidden",
-        "[scrollbar-width:none]",
-        "[&::-webkit-scrollbar]:hidden",
         dockPreview ? "border-copper-hot" : "border-node-border",
         dockPreview && "bg-copper-warm/10",
       )}
     >
-      <DndContext
+      {scroll.overflow && (
+        <ScrollArrow direction={-1} disabled={scroll.atStart} stripRef={stripRef} />
+      )}
+      <nav
+        ref={stripRef}
+        role="tablist"
+        onScroll={updateScroll}
+        onWheel={(e) => {
+          const strip = stripRef.current;
+          if (strip && e.deltaY !== 0) {
+            strip.scrollLeft += e.deltaY;
+          }
+        }}
+        className={cn(
+          "flex",
+          "items-center",
+          "gap-1",
+          "px-2",
+          "h-full",
+          "flex-1",
+          "min-w-0",
+          "overflow-x-auto",
+          "overflow-y-hidden",
+          "[scrollbar-width:none]",
+          "[&::-webkit-scrollbar]:hidden",
+        )}
+      >
+        <DndContext
         key={dndEpoch}
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -213,17 +271,101 @@ export function TabStrip({
           items={tabs.map((t) => t.id)}
           strategy={horizontalListSortingStrategy}
         >
-          {tabs.map((tab) => (
-            <TabItem
-              key={tab.id}
-              tab={tab}
-              active={tab.id === activeId}
-              onClick={onTabClick}
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
-    </nav>
+            {tabs.map((tab) => (
+              <TabItem
+                key={tab.id}
+                tab={tab}
+                active={tab.id === activeId}
+                onClick={onTabClick}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+      </nav>
+      {scroll.overflow && (
+        <ScrollArrow direction={1} disabled={scroll.atEnd} stripRef={stripRef} />
+      )}
+    </div>
+  );
+}
+
+/** One scroller chevron (the Firefox pattern): a quick click pages
+ * the strip by most of a viewport (smooth); holding past 300ms
+ * scrolls continuously until release. Disabled = that end is flush.
+ * Rendered only while the strip overflows. */
+function ScrollArrow({
+  direction,
+  disabled,
+  stripRef,
+}: {
+  direction: -1 | 1;
+  disabled: boolean;
+  stripRef: RefObject<HTMLElement | null>;
+}) {
+  // The in-flight hold: the delay timer arms it; the rAF loop runs
+  // it; `held` decides on release whether the gesture was a click.
+  const hold = useRef<{ timer: number; raf: number; held: boolean } | null>(
+    null,
+  );
+  const stop = () => {
+    const h = hold.current;
+    if (!h) return;
+    clearTimeout(h.timer);
+    cancelAnimationFrame(h.raf);
+    hold.current = null;
+  };
+  // Unmount safety — the chevron disappears the instant overflow
+  // clears, possibly mid-hold.
+  useEffect(() => stop, []);
+  return (
+    <button
+      type="button"
+      aria-label={direction < 0 ? "scroll tabs left" : "scroll tabs right"}
+      disabled={disabled}
+      onPointerDown={() => {
+        if (disabled) return;
+        const state = { timer: 0, raf: 0, held: false };
+        state.timer = window.setTimeout(() => {
+          state.held = true;
+          const step = () => {
+            const strip = stripRef.current;
+            if (strip) {
+              strip.scrollLeft += direction * 6;
+            }
+            state.raf = requestAnimationFrame(step);
+          };
+          state.raf = requestAnimationFrame(step);
+        }, 300);
+        hold.current = state;
+      }}
+      onPointerUp={() => {
+        const wasHeld = hold.current?.held ?? false;
+        stop();
+        const strip = stripRef.current;
+        if (!wasHeld && strip) {
+          strip.scrollBy({
+            left: direction * strip.clientWidth * 0.65,
+            behavior: "smooth",
+          });
+        }
+      }}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      className={cn(
+        "h-full",
+        "px-1.5",
+        "shrink-0",
+        "font-mono",
+        "text-base",
+        "leading-none",
+        "select-none",
+        disabled
+          ? cn("text-info-dim/30", "cursor-default")
+          : cn("text-info-dim", "hover:text-info-mid", "cursor-pointer"),
+      )}
+    >
+      {direction < 0 ? "‹" : "›"}
+    </button>
   );
 }
 
