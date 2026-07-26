@@ -1140,7 +1140,10 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::plugins::Command),
         schemars::schema_for!(crate::cli::plugins::CommandType),
         schemars::schema_for!(crate::cli::plugins::Manifest),
+        schemars::schema_for!(crate::cli::plugins::Mcp),
         schemars::schema_for!(crate::cli::plugins::Output),
+        schemars::schema_for!(crate::cli::plugins::Viewer),
+        schemars::schema_for!(crate::cli::plugins::ViewerScript),
         schemars::schema_for!(crate::cli::plugins::ViewerTab),
     ]);
 

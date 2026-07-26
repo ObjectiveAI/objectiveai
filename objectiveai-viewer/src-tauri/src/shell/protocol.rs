@@ -52,21 +52,18 @@ async fn serve(
     let manifest =
         super::plugins::read_manifest(&dirs.plugins_root(), owner, name, version)
             .await?;
-    // The viewer sub-root the asset paths are relative to (the daemon
-    // build rewrites it to "viewer", but it's disk data — validated
-    // like the URL segments).
-    let viewer = manifest.viewer?;
-    if !viewer.split('/').all(safe_segment) {
-        return None;
-    }
+    // A plugin with no viewer half serves nothing.
+    manifest.viewer.as_ref()?;
+    // The sub-root asset paths are relative to is FIXED — the
+    // laboratory stages the build's output into it — so this joins a
+    // constant rather than manifest data, and the two sides cannot
+    // drift into 404ing everything.
     let mut file = dirs
         .plugins_root()
         .join(owner.to_lowercase())
         .join(name.to_lowercase())
-        .join(version);
-    for segment in viewer.split('/') {
-        file = file.join(segment);
-    }
+        .join(version)
+        .join(objectiveai_sdk::cli::plugins::VIEWER_DIR);
     for segment in &segments[3..] {
         file = file.join(segment);
     }

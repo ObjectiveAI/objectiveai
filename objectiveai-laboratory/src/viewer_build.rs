@@ -2,11 +2,12 @@
 //! artifacts it produces.
 //!
 //! One build = fetch the plugin repo at its version's git tag →
-//! `podman build` the manifest's `viewer_containerfile` with that
-//! checkout as context (verbatim the flow
+//! `podman build` the manifest's `viewer.containerfile` with THAT
+//! FILE'S OWN DIRECTORY as the context (verbatim the flow
 //! [`crate::plugin_image::ensure`] runs for the plugin's MCP image) →
-//! copy `viewer_output`'s contents out of the resulting image → pack
-//! them with the manifest → hand the daemon a drain handle.
+//! copy `viewer.output`'s contents out of the resulting image into
+//! the fixed [`VIEWER_DIR`] → pack them with the manifest → hand the
+//! daemon a drain handle.
 //!
 //! The image is never RUN. A viewer build's work happens in `RUN`
 //! steps at image-build time, so all that remains is to open a
@@ -29,7 +30,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use objectiveai_sdk::cli::plugins::{Manifest, ViewerTab};
+use objectiveai_sdk::cli::plugins::{VIEWER_DIR, Viewer, ViewerTab};
 
 use crate::plugin_image::PluginCoords;
 use crate::podman::{self, Podman};
@@ -163,42 +164,6 @@ pub struct Built {
     pub bytes: u64,
 }
 
-/// The viewer half of a manifest, validated: all three fields present
-/// together, or the plugin has no viewer extension at all.
-struct ViewerSpec {
-    /// Where the built assets land in the installed layout.
-    root: String,
-    /// The resolved Containerfile that builds them.
-    containerfile: PathBuf,
-    /// The path inside the built image to copy out.
-    output: String,
-}
-
-/// Validate a repo-relative forward-slash path and resolve it under
-/// `root` — the containerfile rules, mirroring
-/// [`crate::plugin_manifest`]'s.
-fn resolve_repo_rel(root: &Path, path: &str, what: &str) -> Result<PathBuf, String> {
-    let path = path.trim();
-    if path.is_empty() {
-        return Err(format!("`{what}` cannot be empty"));
-    }
-    if path.contains('\\') {
-        return Err(format!("`{what}` must use forward slashes"));
-    }
-    if path.starts_with('/') || path.contains(':') {
-        return Err(format!("`{what}` must be a repo-relative path"));
-    }
-    if path
-        .split('/')
-        .any(|component| component.is_empty() || component == "." || component == "..")
-    {
-        return Err(format!("`{what}` has an invalid path component: {path:?}"));
-    }
-    Ok(path
-        .split('/')
-        .fold(root.to_path_buf(), |path, component| path.join(component)))
-}
-
 /// A layout-relative path (a tab `module` or the `icon`), authored
 /// CWD-style against the viewer root. `None` = it tries to leave.
 fn normalize_layout_path(path: &str) -> Option<String> {
@@ -222,62 +187,25 @@ fn is_file(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file())
 }
 
-/// The viewer half of the checkout's manifest. `Ok(None)` = the plugin
-/// declares no viewer extension; `Err` = it declares half of one.
-fn viewer_spec(
-    checkout: &Path,
-    manifest: &Manifest,
-) -> Result<Option<ViewerSpec>, String> {
-    let Some(root) = manifest.viewer.as_deref() else {
-        return Ok(None);
-    };
-    let root = root.trim();
-    if normalize_layout_path(root).is_none() {
-        return Err(format!("`viewer` is not a valid layout directory: {root:?}"));
-    }
-    let Some(containerfile) = manifest.viewer_containerfile.as_deref() else {
-        return Err(
-            "plugin declares `viewer` but no `viewer_containerfile` — the Containerfile that builds the viewer extension"
-                .to_string(),
-        );
-    };
-    let Some(output) = manifest.viewer_output.as_deref() else {
-        return Err(
-            "plugin declares `viewer` but no `viewer_output` — the path inside the built image whose contents are the built assets"
-                .to_string(),
-        );
-    };
-    let output = output.trim();
+/// The declared output path must be an absolute in-container path —
+/// everything else about the viewer half is a type-level invariant
+/// now that it is one struct.
+fn validate_output_path(viewer: &Viewer) -> Result<(), String> {
+    let output = viewer.output.trim();
     if !output.starts_with('/') || output.contains("..") {
         return Err(format!(
-            "`viewer_output` must be an absolute in-container path: {output:?}"
+            "`viewer.output` must be an absolute in-container path: {output:?}"
         ));
     }
-    let containerfile =
-        resolve_repo_rel(checkout, containerfile, "viewer_containerfile")?;
-    if !is_file(&containerfile) {
-        return Err(format!(
-            "`viewer_containerfile` not found in the repo: {}",
-            containerfile.display()
-        ));
-    }
-    Ok(Some(ViewerSpec {
-        root: root.to_string(),
-        containerfile,
-        output: output.to_string(),
-    }))
+    Ok(())
 }
 
 /// Every file the manifest promises must actually be in the copied
 /// output. The author owns the build, so this is where a build that
 /// "succeeded" while producing nothing usable is caught — here, not in
 /// the user's viewer.
-fn validate_output(
-    staging: &Path,
-    spec: &ViewerSpec,
-    manifest: &Manifest,
-) -> Result<(), String> {
-    let root = staging.join(&spec.root);
+fn validate_output(staging: &Path, viewer: &Viewer) -> Result<(), String> {
+    let root = staging.join(VIEWER_DIR);
     let check = |relative: &str, what: &str| -> Result<(), String> {
         let Some(normalized) = normalize_layout_path(relative) else {
             return Err(format!("invalid {what} path {relative:?}"));
@@ -289,12 +217,11 @@ fn validate_output(
             Ok(())
         } else {
             Err(format!(
-                "{what} {relative:?} is not in the build's output ({}/{normalized})",
-                spec.root
+                "{what} {relative:?} is not in the build's output ({VIEWER_DIR}/{normalized})"
             ))
         }
     };
-    for tab in manifest.tabs.iter().flatten() {
+    for tab in viewer.tabs.iter().flatten() {
         let (module, styles) = match tab {
             ViewerTab::Channel { module, styles, .. }
             | ViewerTab::Tab { module, styles, .. } => (module, styles),
@@ -307,7 +234,10 @@ fn validate_output(
             check(style, "stylesheet")?;
         }
     }
-    if let Some(icon) = manifest.icon.as_deref() {
+    for script in viewer.scripts.iter().flatten() {
+        check(&script.module, "script")?;
+    }
+    if let Some(icon) = viewer.icon.as_deref() {
         check(icon, "icon")?;
     }
     Ok(())
@@ -415,17 +345,26 @@ async fn run(
     // The installed version dir, assembled: the archive's root.
     let staging = work.join("layout");
     let staging = staging.as_path();
-    let (manifest, _) = crate::plugin_manifest::read(&checkout.dir)
+    let manifest = crate::plugin_manifest::read(&checkout.dir)
         .await
         .map_err(BuildFailure::Failed)?;
-    let Some(spec) =
-        viewer_spec(&checkout.dir, &manifest).map_err(BuildFailure::Failed)?
-    else {
+    let Some(viewer) = manifest.viewer.as_ref() else {
         return Err(BuildFailure::Failed(
             "plugin declares no viewer extension (`viewer` absent from objectiveai.json)"
                 .to_string(),
         ));
     };
+    validate_output_path(viewer).map_err(BuildFailure::Failed)?;
+    // The containerfile's own directory is the build context, so a
+    // plugin scopes its viewer build to a subtree just by putting the
+    // file there.
+    let build = crate::plugin_manifest::resolve_build_file(
+        &checkout.dir,
+        &viewer.containerfile,
+        "viewer.containerfile",
+    )
+    .await
+    .map_err(BuildFailure::Failed)?;
 
     // An EPHEMERAL tag: the image exists only to be copied out of, and
     // two builds of one plugin version may legitimately run at once.
@@ -434,8 +373,8 @@ async fn run(
     let container = format!("objectiveai-viewer-build-{nonce}");
     podman::laboratory::image_build(
         podman,
-        &spec.containerfile,
-        &checkout.dir,
+        &build.containerfile,
+        &build.context,
         &image,
         &[],
     )
@@ -444,7 +383,7 @@ async fn run(
 
     // From here the IMAGE exists — it must be removed on every path.
     let extracted = async {
-        let root = staging.join(&spec.root);
+        let root = staging.join(VIEWER_DIR);
         tokio::fs::create_dir_all(&root)
             .await
             .map_err(|e| BuildFailure::Failed(format!("build staging dir: {e}")))?;
@@ -453,7 +392,7 @@ async fn run(
             .map_err(|e| BuildFailure::Failed(e.0))?;
         // From here the CONTAINER exists too.
         let copied =
-            podman::laboratory::copy_out(podman, &container, &spec.output, &root)
+            podman::laboratory::copy_out(podman, &container, &viewer.output, &root)
                 .await
                 .map_err(|e| BuildFailure::Failed(e.0));
         if let Err(e) = podman::laboratory::remove_named(podman, &container).await {
@@ -469,7 +408,7 @@ async fn run(
         )
         .await
         .map_err(|e| BuildFailure::Failed(format!("stage manifest: {e}")))?;
-        validate_output(staging, &spec, &manifest).map_err(BuildFailure::Failed)?;
+        validate_output(staging, viewer).map_err(BuildFailure::Failed)?;
         let archive = work.join("bundle.tar.gz");
         let bytes = pack(staging, &archive).await.map_err(BuildFailure::Failed)?;
         Ok((archive, bytes))

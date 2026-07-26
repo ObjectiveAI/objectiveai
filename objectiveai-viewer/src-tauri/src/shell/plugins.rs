@@ -83,7 +83,11 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
                 };
                 let manifest_path = version_dir.join("objectiveai.json");
                 let manifest = match tokio::fs::read(&manifest_path).await {
-                    Ok(bytes) => match serde_json::from_slice::<Manifest>(&bytes) {
+                    Ok(bytes) => match serde_json::from_slice::<Manifest>(&bytes)
+                        .map_err(|e| e.to_string())
+                        .and_then(|manifest| {
+                            manifest.validate().map(|()| manifest)
+                        }) {
                         Ok(manifest) => manifest,
                         Err(e) => {
                             super::report_shell(
@@ -172,7 +176,11 @@ pub(crate) async fn list_all_versions(
                 };
                 let manifest_path = version_dir.join("objectiveai.json");
                 let manifest = match tokio::fs::read(&manifest_path).await {
-                    Ok(bytes) => match serde_json::from_slice::<Manifest>(&bytes) {
+                    Ok(bytes) => match serde_json::from_slice::<Manifest>(&bytes)
+                        .map_err(|e| e.to_string())
+                        .and_then(|manifest| {
+                            manifest.validate().map(|()| manifest)
+                        }) {
                         Ok(manifest) => manifest,
                         Err(e) => {
                             super::report_shell(
@@ -253,7 +261,9 @@ pub(crate) async fn read_manifest(
         .join(version)
         .join("objectiveai.json");
     let bytes = tokio::fs::read(&manifest_path).await.ok()?;
-    serde_json::from_slice::<Manifest>(&bytes).ok()
+    let manifest = serde_json::from_slice::<Manifest>(&bytes).ok()?;
+    manifest.validate().ok()?;
+    Some(manifest)
 }
 
 /// The manifest icon of ONE exact installed version, normalized
@@ -268,8 +278,7 @@ pub(crate) async fn plugin_icon(
 ) -> Option<String> {
     let manifest = read_manifest(plugins_root, owner, name, version).await?;
     // No declared viewer root = no viewer extension at all.
-    manifest.viewer.as_ref()?;
-    normalize(manifest.icon?.as_str())
+    normalize(manifest.viewer?.icon?.as_str())
 }
 
 /// One resolved channel handler, ready to open as a tab (titled by
@@ -316,12 +325,12 @@ pub(crate) async fn channel_status(
     else {
         return ChannelStatus::NotInstalled;
     };
-    // No declared viewer root = no viewer extension at all.
-    if manifest.viewer.is_none() {
+    // No viewer half = no viewer extension at all.
+    let Some(viewer) = manifest.viewer.as_ref() else {
         return ChannelStatus::UnsupportedKey;
-    }
-    let icon = manifest.icon.as_deref().and_then(normalize);
-    let handler = manifest.tabs.iter().flatten().find_map(|tab| match tab {
+    };
+    let icon = viewer.icon.as_deref().and_then(normalize);
+    let handler = viewer.tabs.iter().flatten().find_map(|tab| match tab {
         ViewerTab::Channel {
             channel_key,
             module,
@@ -364,9 +373,9 @@ pub(crate) async fn collect_plugin_entries(
     let mut out = Vec::new();
     for plugin in scan(app, plugins_root).await {
         // No declared viewer root = no viewer extension at all.
-        if plugin.manifest.viewer.is_none() {
+        let Some(viewer) = plugin.manifest.viewer.as_ref() else {
             continue;
-        }
+        };
         // Display identity INCLUDES the version — multiple versions
         // can be installed, and the surface must say which one is
         // running. Slash-joined, mirroring the install path itself
@@ -377,14 +386,14 @@ pub(crate) async fn collect_plugin_entries(
         let identity =
             format!("{}/{}/{}", plugin.owner, plugin.name, plugin.version_tag);
         let identity_key = format!("{}/{}", plugin.owner, plugin.name);
-        let icon = match plugin.manifest.icon.as_deref().map(normalize) {
+        let icon = match viewer.icon.as_deref().map(normalize) {
             Some(None) => {
                 super::report_shell(
                     app,
                     "warn",
                     format!(
                         "plugins: {identity}: invalid icon path {:?}",
-                        plugin.manifest.icon
+                        viewer.icon
                     ),
                 )
                 .await;
@@ -393,7 +402,7 @@ pub(crate) async fn collect_plugin_entries(
             Some(icon) => icon,
             None => None,
         };
-        let Some(tabs) = &plugin.manifest.tabs else {
+        let Some(tabs) = &viewer.tabs else {
             continue;
         };
         // Channel-handler entries never open at boot and never join

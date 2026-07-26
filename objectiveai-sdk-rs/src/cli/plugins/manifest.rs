@@ -1,7 +1,7 @@
 //! The plugin manifest: `objectiveai.json` at the root of a plugin's
 //! repo — THE one schema for the one file, read by both halves of the
-//! system: the laboratory host (container build: `containerfile`,
-//! `port`) and the viewer (surface: `icon`, `tabs`; read from the
+//! system: the laboratory host (which builds each half's image) and
+//! the viewer (surface: `icon`, `tabs`, `scripts`; read from the
 //! installed copy at
 //! `<OBJECTIVEAI_DIR>/bin/plugins/<owner>/<name>/<version>/objectiveai.json`).
 //!
@@ -13,13 +13,22 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// The directory a plugin's built viewer assets occupy in the
+/// INSTALLED layout — fixed, never declared. The laboratory stages
+/// [`Viewer::output`]'s contents into it and the viewer's `plugin://`
+/// protocol joins it, so both sides must agree: a mismatch would 404
+/// every asset with no error anywhere. A tab `module` of `./home.js`
+/// therefore means `<version>/viewer/home.js` on disk.
+pub const VIEWER_DIR: &str = "viewer";
+
 /// A plugin's `objectiveai.json`, whole — ONE schema for the ONE
-/// file. The container half (`containerfile`, `port`) is what the
-/// laboratory host builds and runs; the viewer half
-/// (`viewer_containerfile`, `viewer_output`, `viewer`, `icon`,
-/// `tabs`) is what it builds and the viewer surfaces. `icon` and tab
-/// `module` paths are relative to the declared `viewer` directory
-/// (authored as if the CWD were inside it).
+/// file, in two independent halves.
+///
+/// [`Manifest::mcp`] is the MCP server the laboratory builds and runs;
+/// [`Manifest::viewer`] is the extension it builds and the viewer
+/// surfaces. Each is OPTIONAL and self-contained: a plugin may ship a
+/// server, a viewer extension, or both — but not NEITHER (see
+/// [`Manifest::validate`]).
 ///
 /// The SAME file is the repo's manifest and the installed one —
 /// nothing rewrites it in between, so every path it declares must
@@ -30,54 +39,79 @@ pub struct Manifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub description: Option<String>,
+    /// The MCP-server half. ABSENT = a viewer-only plugin: declaring
+    /// it as an agent's plugin fails when the laboratory goes to build
+    /// its image.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp: Option<Mcp>,
+    /// The viewer-extension half. ABSENT = a server-only plugin: it
+    /// contributes no tabs, no icon, and `plugin://` serves nothing
+    /// for it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub viewer: Option<Viewer>,
+}
+
+impl Manifest {
+    /// A manifest must declare at least one half. Both absent is an
+    /// inert plugin — always an authoring mistake, and worth catching
+    /// at the parse rather than installing a directory that does
+    /// nothing. Every field being optional is also what would let an
+    /// unrelated JSON file parse "successfully", so this is the check
+    /// that keeps foreign `objectiveai.json`s out.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.mcp.is_none() && self.viewer.is_none() {
+            return Err(
+                "plugin manifest declares neither `mcp` nor `viewer` — it would do nothing"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+}
+
+/// The MCP-server half: an image the laboratory builds and RUNS,
+/// serving MCP on a loopback-published port.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "cli.plugins.Mcp")]
+pub struct Mcp {
     /// Repo-relative path (forward slashes) to the Containerfile /
-    /// Dockerfile the plugin's image builds from — the repo checkout
-    /// is the build context.
+    /// Dockerfile the image builds from. Its OWN DIRECTORY is the
+    /// build context — so a Containerfile at `server/Containerfile`
+    /// sees `server/` as its root and its `COPY` steps carry no
+    /// `server/` prefix.
     pub containerfile: String,
-    /// The port the plugin's MCP server listens on inside the
-    /// container — published to a random loopback host port at
-    /// create. Never 0.
+    /// The port the MCP server listens on inside the container —
+    /// published to a random loopback host port at create. Never 0.
     pub port: u16,
-    /// The directory the BUILT viewer assets occupy in the installed
-    /// layout — `icon` and tab `module` paths resolve against it, and
-    /// it is what the viewer's `plugin://` protocol serves from.
-    /// ABSENT = the plugin has no viewer extension (`icon`/`tabs`,
-    /// and the two fields below, are ignored).
-    ///
-    /// This names the OUTPUT layout, not the repo's sources: the
-    /// plugin's own viewer build (see [`Manifest::viewer_containerfile`])
-    /// decides where its sources live and how they compile, and this
-    /// manifest is installed VERBATIM — nothing rewrites it, so tab
-    /// modules are authored against the built files (`./home.js`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub viewer: Option<String>,
+}
+
+/// The viewer-extension half: an image the laboratory builds and never
+/// RUNS — it is created, [`Viewer::output`] is copied out of it, and
+/// both the container and the image are discarded. So the build
+/// belongs in `RUN` steps, and the plugin owns its whole toolchain
+/// (Tailwind, PostCSS, whatever it likes).
+///
+/// The one contract that build must honor: `react`, `react-dom`,
+/// `react/jsx-runtime` and `react-dom/client` must be left EXTERNAL.
+/// The host viewer serves them through an import map so every plugin
+/// shares its single React instance; a bundle carrying its own copy
+/// dies on the first hook.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "cli.plugins.Viewer")]
+pub struct Viewer {
     /// Repo-relative path (forward slashes) to the Containerfile that
-    /// BUILDS the viewer extension — the repo checkout is the build
-    /// context, exactly like [`Manifest::containerfile`]. The image is
-    /// never run: it is created, [`Manifest::viewer_output`] is copied
-    /// out of it, and both the container and the image are removed.
-    /// So the build belongs in `RUN` steps, and the plugin owns its
-    /// whole toolchain (Tailwind, PostCSS, whatever).
-    ///
-    /// REQUIRED whenever `viewer` is present.
-    ///
-    /// The one contract the build must honor: `react`, `react-dom`,
-    /// `react/jsx-runtime` and `react-dom/client` must be left
-    /// EXTERNAL. The host viewer serves them through an import map, and
-    /// a bundle carrying its own React copy dies on the first hook.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub viewer_containerfile: Option<String>,
-    /// Absolute path INSIDE the built viewer image whose CONTENTS are
-    /// the built assets — copied out to become the installed
-    /// [`Manifest::viewer`] directory. Plugins never produce an
-    /// archive; the host packs one.
-    ///
-    /// REQUIRED whenever `viewer` is present.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub viewer_output: Option<String>,
+    /// BUILDS the extension. Its OWN DIRECTORY is the build context —
+    /// see [`Mcp::containerfile`].
+    pub containerfile: String,
+    /// Absolute path INSIDE the built image whose CONTENTS are the
+    /// built assets. They are copied out to become the installed
+    /// [`VIEWER_DIR`], so every path below is relative to THIS
+    /// directory's contents: an `output` of `/dist` holding `home.js`
+    /// is named `./home.js`. Plugins never produce an archive; the
+    /// host packs one.
+    pub output: String,
     /// The identity icon, shown beside the identity in the tab strip.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -93,6 +127,38 @@ pub struct Manifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub tabs: Option<Vec<ViewerTab>>,
+    /// Scripts the plugin can inject into a browser tab it spawns.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub scripts: Option<Vec<ViewerScript>>,
+}
+
+/// One injectable script: a self-contained bundle evaluated inside a
+/// page the plugin does not own.
+///
+/// Deliberately NOT shaped like [`ViewerTab`]:
+/// - **no `export`** — the injector evaluates a CLASSIC script, which
+///   has no module record and therefore nothing to name. A tab module
+///   is a value provider (the host needs the component back); a
+///   script is an action, and the host has no use for its result.
+/// - **no `styles`** — the page is not ours and `plugin://` does not
+///   exist there, so a stylesheet URL is unreachable (and a strict
+///   site's CSP would block it anyway). A script's CSS must be a
+///   string inside its own bundle, applied through CSSOM.
+///
+/// For the same reason the bundle must inline EVERYTHING, react
+/// included: no import map exists in a foreign page, and `import` is
+/// a syntax error in a classic script.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "cli.plugins.ViewerScript")]
+pub struct ViewerScript {
+    /// How a tab addresses this script when it spawns a browser tab.
+    /// Resolving by NAME keeps the runnable set closed: only what the
+    /// plugin declared at install time can ever be injected.
+    pub name: String,
+    /// The built bundle, relative to the installed [`VIEWER_DIR`] —
+    /// same rules as a tab's `module`.
+    pub module: String,
 }
 
 /// One declared viewer tab: the component coordinates the viewer's

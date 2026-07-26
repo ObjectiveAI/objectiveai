@@ -190,23 +190,44 @@ pub async fn ensure(
         )
         .await?;
         let built = async {
-            let (manifest, containerfile) =
-                crate::plugin_manifest::read(&checkout.dir).await?;
+            let manifest = crate::plugin_manifest::read(&checkout.dir).await?;
+            // A plugin may legitimately ship only a viewer extension.
+            // Declaring one as an agent's MCP plugin is the caller's
+            // mistake, and THIS is the first point that can see it —
+            // the API, proxy and daemon only ever handle coordinates.
+            // Nothing caches the refusal: there is no image to find on
+            // the fast path, so the next request re-fetches and fails
+            // identically.
+            let Some(mcp) = manifest.mcp.as_ref() else {
+                return Err(
+                    "plugin declares no MCP server (`mcp` absent from objectiveai.json)"
+                        .to_string(),
+                );
+            };
+            if mcp.port == 0 {
+                return Err("plugin manifest: `mcp.port` cannot be 0".to_string());
+            }
+            let build = crate::plugin_manifest::resolve_build_file(
+                &checkout.dir,
+                &mcp.containerfile,
+                "mcp.containerfile",
+            )
+            .await?;
             let labels = vec![
-                (PORT_LABEL.to_string(), manifest.port.to_string()),
+                (PORT_LABEL.to_string(), mcp.port.to_string()),
                 (SHA_LABEL.to_string(), checkout.commit_sha.clone()),
             ];
             podman::laboratory::image_build(
                 podman,
-                &containerfile,
-                &checkout.dir,
+                &build.containerfile,
+                &build.context,
                 &reference,
                 &labels,
             )
             .await
             .map_err(|e| e.0)?;
             Ok(EnsuredPluginImage {
-                port: manifest.port,
+                port: mcp.port,
                 sha: Some(checkout.commit_sha.clone()),
             })
         }
