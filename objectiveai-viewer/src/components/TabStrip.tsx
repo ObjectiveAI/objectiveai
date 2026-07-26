@@ -118,9 +118,22 @@ export function TabStrip({
     const strip = stripRef.current;
     if (!strip) return;
     updateScroll();
-    const observer = new ResizeObserver(updateScroll);
+    // The observer alone missed the fullscreen round-trip (a
+    // container-box notion of change — `scrollWidth` growing inside
+    // an unchanged box never fires it), so window resizes ALSO
+    // recheck, once immediately and once after the relayout settles
+    // (double rAF: the resize event runs before layout is final).
+    const recheck = () => {
+      updateScroll();
+      requestAnimationFrame(() => requestAnimationFrame(updateScroll));
+    };
+    const observer = new ResizeObserver(recheck);
     observer.observe(strip);
-    return () => observer.disconnect();
+    window.addEventListener("resize", recheck);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", recheck);
+    };
   }, []);
   useEffect(updateScroll, [tabs]);
 
