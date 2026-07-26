@@ -52,8 +52,27 @@ pub async fn execute(
                 Ok(true) => {
                     match channels::read_pending(&db, &channel_id, role, after_id, limit).await {
                         Ok(entries) => {
+                            // The publish item's message_id — resolved
+                            // only when this drain carries the seed.
+                            let message_id = match super::list::resolve_message_id(
+                                &db,
+                                &channel_id,
+                                &entries,
+                            )
+                            .await
+                            {
+                                Ok(message_id) => message_id,
+                                Err(e) => {
+                                    yield Err(e.into());
+                                    return;
+                                }
+                            };
                             for envelope in entries {
-                                yield Ok(ResponseItem::Item(super::list::to_entry(envelope)));
+                                if let Some(entry) =
+                                    super::list::to_entry(envelope, message_id)
+                                {
+                                    yield Ok(ResponseItem::Item(entry));
+                                }
                             }
                             return;
                         }

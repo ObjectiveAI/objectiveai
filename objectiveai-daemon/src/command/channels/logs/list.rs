@@ -16,16 +16,41 @@ pub(crate) fn to_kind(direction: Direction) -> MessageKind {
     match direction {
         Direction::Request => MessageKind::Request,
         Direction::Reply => MessageKind::Reply,
+        Direction::Publish => MessageKind::Publish,
+        Direction::PublishMessage => MessageKind::PublishMessage,
+    }
+}
+
+/// Resolve the publish item's `message_id` — one extra query, run
+/// only when the page actually carries the channel's `publish`
+/// envelope (its first entry).
+pub(crate) async fn resolve_message_id(
+    db: &crate::db::Pool,
+    channel_id: &str,
+    envelopes: &[MessageEnvelope],
+) -> Result<Option<i64>, Error> {
+    if envelopes.iter().any(|e| e.direction == Direction::Publish) {
+        Ok(channels::publish_message_id(db, channel_id).await?)
+    } else {
+        Ok(None)
     }
 }
 
 /// Map a DB envelope to the wire entry (unix-seconds → RFC3339). The
 /// stored full identity is projected to the inline sender-only shape;
-/// the entry variant follows the direction: a `request` (publisher
-/// write) carries the REQUIRED plugin trio — guaranteed present, since
-/// `publish` and `logs request` both require a plugin caller — while a
-/// `reply` (owner write) carries no plugin identity.
-pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
+/// the entry variant follows the direction: a `publish` seed (the
+/// offer) pairs its own id (`details_id`) with the channel's
+/// `publish_message` row id (`message_id`, resolved by the caller via
+/// [`resolve_message_id`]); a `request` (publisher write) carries the
+/// REQUIRED plugin trio — guaranteed present, since `publish` and
+/// `logs request` both require a plugin caller — while a `reply`
+/// (owner write) carries no plugin identity. The `publish_message`
+/// row itself is `None`: it never surfaces as its own entry (the
+/// enumeration filters it; this arm is belt-and-braces).
+pub(crate) fn to_entry(
+    envelope: MessageEnvelope,
+    message_id: Option<i64>,
+) -> Option<ChannelLogEntry> {
     let identity = envelope.identity;
     let timestamp = crate::db::time::unix_to_rfc3339(envelope.delivered_at);
     // The AIH is always stored (the daemon defaults it in
@@ -33,8 +58,22 @@ pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
     // defaults on a live row.
     let sender = identity.agent_instance_hierarchy.unwrap_or_default();
     match envelope.direction {
-        Direction::Request => ChannelLogEntry::Request {
-            id: envelope.id,
+        Direction::Publish => Some(ChannelLogEntry::Publish {
+            details_id: envelope.id,
+            // Present by construction (the seed rows are written in
+            // one transaction); 0 only for a corrupted pair.
+            message_id: message_id.unwrap_or_default(),
+            timestamp,
+            sender_agent_instance_hierarchy: sender,
+            // Present by construction (`publish` requires a plugin
+            // caller).
+            plugin_owner: identity.plugin_owner.unwrap_or_default(),
+            plugin_name: identity.plugin_name.unwrap_or_default(),
+            plugin_version: identity.plugin_version.unwrap_or_default(),
+        }),
+        Direction::PublishMessage => None,
+        Direction::Request => Some(ChannelLogEntry::Request {
+            details_id: envelope.id,
             timestamp,
             sender_agent_instance_hierarchy: sender,
             // Present by construction (require_plugin on the write
@@ -43,9 +82,9 @@ pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
             plugin_owner: identity.plugin_owner.unwrap_or_default(),
             plugin_name: identity.plugin_name.unwrap_or_default(),
             plugin_version: identity.plugin_version.unwrap_or_default(),
-        },
-        Direction::Reply => ChannelLogEntry::Reply {
-            id: envelope.id,
+        }),
+        Direction::Reply => Some(ChannelLogEntry::Reply {
+            details_id: envelope.id,
             timestamp,
             sender_agent_instance_hierarchy: sender,
             // Optional: the replier is usually not a plugin, but a
@@ -53,7 +92,7 @@ pub(crate) fn to_entry(envelope: MessageEnvelope) -> ChannelLogEntry {
             plugin_owner: identity.plugin_owner,
             plugin_name: identity.plugin_name,
             plugin_version: identity.plugin_version,
-        },
+        }),
     }
 }
 
@@ -75,8 +114,12 @@ pub async fn execute(
     } else {
         channels::read_all(&db, &request.channel_id, request.after_id, request.limit).await?
     };
+    let message_id = resolve_message_id(&db, &request.channel_id, &envelopes).await?;
     Ok(Response {
-        entries: envelopes.into_iter().map(to_entry).collect(),
+        entries: envelopes
+            .into_iter()
+            .filter_map(|envelope| to_entry(envelope, message_id))
+            .collect(),
     })
 }
 

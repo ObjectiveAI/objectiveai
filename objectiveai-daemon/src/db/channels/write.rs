@@ -14,8 +14,13 @@ pub struct PluginOrigin<'a> {
     pub version: Option<&'a str>,
 }
 
-/// Insert a newly-accepted channel (`state = open`). Called once, at
-/// accept time — the offer that preceded it was never persisted.
+/// Insert a newly-accepted channel (`state = open`) PLUS its two seed
+/// log rows — the offer's details (`publish`, the wire item's
+/// `details_id`) then its message (`publish_message`, the
+/// `message_id`) — in ONE transaction, all sharing the channel's
+/// `created_at` instant. Called once, at accept time; the offer that
+/// preceded it was never persisted. The seed inserts fire the
+/// `channel_messages_inserted` trigger like any other row.
 #[allow(clippy::too_many_arguments)]
 pub async fn insert_channel(
     pool: &Pool,
@@ -29,26 +34,46 @@ pub async fn insert_channel(
     identity: &Identity,
 ) -> Result<(), Error> {
     let now = chrono::Utc::now().timestamp();
+    let mut tx = pool.begin().await?;
     sqlx::query(
         "INSERT INTO objectiveai.channels \
-         (id, pub_secret, owner_secret, state, key, details, message, \
+         (id, pub_secret, owner_secret, state, key, \
           plugin_owner, plugin_name, plugin_version, identity, \
           pub_read_index, owner_read_index, created_at) \
-         VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, $9, $10, 0, 0, $11)",
+         VALUES ($1, $2, $3, 'open', $4, $5, $6, $7, $8, 0, 0, $9)",
     )
     .bind(id)
     .bind(pub_secret)
     .bind(owner_secret)
     .bind(key)
-    .bind(sqlx::types::Json(details))
-    .bind(message)
     .bind(plugin.owner)
     .bind(plugin.name)
     .bind(plugin.version)
     .bind(sqlx::types::Json(identity))
     .bind(now)
-    .execute(&**pool)
+    .execute(&mut *tx)
     .await?;
+    for (direction, content) in [
+        (super::Direction::Publish, details.clone()),
+        (
+            super::Direction::PublishMessage,
+            serde_json::Value::String(message.to_string()),
+        ),
+    ] {
+        sqlx::query(
+            "INSERT INTO objectiveai.channel_messages \
+             (channel_id, direction, identity, content, delivered_at) \
+             VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(id)
+        .bind(direction.as_str())
+        .bind(sqlx::types::Json(identity))
+        .bind(sqlx::types::Json(content))
+        .bind(now)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await?;
     Ok(())
 }
 

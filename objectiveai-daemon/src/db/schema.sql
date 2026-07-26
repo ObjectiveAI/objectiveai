@@ -1376,11 +1376,10 @@ CREATE TABLE IF NOT EXISTS objectiveai.channels (
     -- owner-side reads.
     owner_secret      TEXT   NOT NULL,
     state             TEXT   NOT NULL CHECK (state IN ('open', 'closed')),
-    -- The offer discriminator + payload the publisher broadcast.
+    -- The offer discriminator the publisher broadcast. The offer's
+    -- details + message live in `channel_messages` as the accept-time
+    -- seed rows (the log's `publish` item), not here.
     key               TEXT   NOT NULL,
-    details           JSONB  NOT NULL,
-    -- Human-readable offer message the publisher broadcast.
-    message           TEXT   NOT NULL,
     -- The originating plugin (unspoofable; stamped by `plugins run`),
     -- absent when the caller wasn't a plugin.
     plugin_owner      TEXT,
@@ -1405,8 +1404,12 @@ CREATE TABLE IF NOT EXISTS objectiveai.channels (
 CREATE TABLE IF NOT EXISTS objectiveai.channel_messages (
     id           BIGSERIAL PRIMARY KEY,
     channel_id   TEXT   NOT NULL REFERENCES objectiveai.channels(id) ON DELETE CASCADE,
-    -- 'request' = publisher -> owner; 'reply' = owner -> publisher.
-    direction    TEXT   NOT NULL CHECK (direction IN ('request', 'reply')),
+    -- 'request' = publisher -> owner; 'reply' = owner -> publisher;
+    -- 'publish' / 'publish_message' = the accept-time seed rows
+    -- holding the offer's details and message (the pair surfaces as
+    -- ONE wire `publish` item; the message row never enumerates).
+    direction    TEXT   NOT NULL CHECK
+        (direction IN ('request', 'reply', 'publish', 'publish_message')),
     -- The writer's agent identity, daemon-authored from its scope.
     identity     JSONB  NOT NULL,
     content      JSONB  NOT NULL,

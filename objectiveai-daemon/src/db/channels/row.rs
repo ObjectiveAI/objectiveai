@@ -5,13 +5,20 @@
 
 use objectiveai_sdk::identity::Identity;
 
-/// Which side of a channel a message came from.
+/// What a stored channel-log row IS.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     /// Publisher → owner.
     Request,
     /// Owner → publisher.
     Reply,
+    /// The offer's DETAILS — seeded at accept; the wire `publish`
+    /// item's `details_id`.
+    Publish,
+    /// The offer's human MESSAGE — seeded at accept, referenced as
+    /// the wire `publish` item's `message_id`; never enumerated as
+    /// its own list entry.
+    PublishMessage,
 }
 
 impl Direction {
@@ -20,6 +27,8 @@ impl Direction {
         match self {
             Direction::Request => "request",
             Direction::Reply => "reply",
+            Direction::Publish => "publish",
+            Direction::PublishMessage => "publish_message",
         }
     }
 
@@ -28,6 +37,8 @@ impl Direction {
         match s {
             "request" => Some(Direction::Request),
             "reply" => Some(Direction::Reply),
+            "publish" => Some(Direction::Publish),
+            "publish_message" => Some(Direction::PublishMessage),
             _ => None,
         }
     }
