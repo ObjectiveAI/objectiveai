@@ -244,31 +244,36 @@ function TabRow({ entry }: { entry: TabInventoryEntry }) {
         isDragging && cn("opacity-60", "relative", "z-10"),
       )}
     >
-      {iconUrl !== undefined ? (
-        <IdentityIcon
-          url={iconUrl}
-          className={cn("w-3.5", "h-3.5", "shrink-0")}
-        />
-      ) : (
-        <span className={cn("w-3.5", "shrink-0")} />
-      )}
-      <span
-        data-inventory-identity
-        className={cn(
-          "shrink-0",
-          "text-xs",
-          "text-info-dim",
-          "truncate",
-          "max-w-64",
-        )}
-      >
-        {entry.identity}
-      </span>
-      <span
-        data-inventory-title
-        className={cn("min-w-0", "truncate", "text-info-bright")}
-      >
-        {entry.title}
+      {/* Identity over name, stacked — the tab strip's own layout:
+          whose surface this is, then which one; the identity's icon
+          (optional) sits to its left. */}
+      <span className={cn("flex", "flex-col", "gap-0.5", "min-w-0")}>
+        <span
+          data-inventory-identity
+          className={cn(
+            "flex",
+            "items-center",
+            "gap-1",
+            "min-w-0",
+            "text-xs",
+            "leading-none",
+            "text-info-dim",
+          )}
+        >
+          {iconUrl !== undefined && (
+            <IdentityIcon
+              url={iconUrl}
+              className={cn("w-3.5", "h-3.5", "shrink-0")}
+            />
+          )}
+          <span className={cn("truncate", "min-w-0")}>{entry.identity}</span>
+        </span>
+        <span
+          data-inventory-title
+          className={cn("truncate", "min-w-0", "leading-none", "text-info-bright")}
+        >
+          {entry.title}
+        </span>
       </span>
       <Toggle entry={entry} />
     </div>
