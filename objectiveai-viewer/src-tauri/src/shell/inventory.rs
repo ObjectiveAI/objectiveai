@@ -68,6 +68,10 @@ pub struct TabEntry {
     pub export: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    /// Stylesheets the tab declares, identity-root-relative —
+    /// cosmetic like `icon`, and like it NOT part of the kind.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub styles: Vec<String>,
     pub closable: bool,
     /// Not toggleable, always open, always enabled (the tabs tab).
     pub permanent: bool,
@@ -448,6 +452,7 @@ pub(crate) async fn rescan_and_apply(
                 item.entry.title.clone(),
                 item.entry.closable,
                 item.entry.icon.clone(),
+                item.entry.styles.clone(),
                 false,
             )
             .await;
@@ -526,6 +531,7 @@ pub fn spawn_boot_orchestrator(
                 item.entry.title.clone(),
                 item.entry.closable,
                 item.entry.icon.clone(),
+                item.entry.styles.clone(),
                 true,
             )
             .await;

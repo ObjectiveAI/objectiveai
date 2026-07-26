@@ -278,6 +278,9 @@ pub(crate) struct PluginChannel {
     /// Root-relative module path (root = the plugin's viewer dir).
     pub module: String,
     pub export: Option<String>,
+    /// The handler's declared stylesheets, normalized — injected by
+    /// the content bootstrap before the component renders.
+    pub styles: Vec<String>,
     /// The plugin's manifest icon, normalized.
     pub icon: Option<String>,
 }
@@ -323,16 +326,28 @@ pub(crate) async fn channel_status(
             channel_key,
             module,
             export,
-        } if channel_key == key => Some((module.clone(), export.clone())),
+            styles,
+        } if channel_key == key => {
+            Some((module.clone(), export.clone(), styles.clone()))
+        }
         _ => None,
     });
-    let Some((module, export)) = handler else {
+    let Some((module, export, styles)) = handler else {
         return ChannelStatus::UnsupportedKey;
     };
+    // An unusable stylesheet path is dropped, not fatal: the handler
+    // still renders, just unstyled — and the BUILD already refused
+    // any path that doesn't resolve.
+    let styles: Vec<String> = styles
+        .iter()
+        .flatten()
+        .filter_map(|style| normalize(style))
+        .collect();
     match normalize(&module) {
         Some(module) => ChannelStatus::Ready(PluginChannel {
             module,
             export,
+            styles,
             icon,
         }),
         None => ChannelStatus::UnsupportedKey,
@@ -396,6 +411,7 @@ pub(crate) async fn collect_plugin_entries(
                 title,
                 module,
                 export,
+                styles,
             } = tab
             else {
                 continue;
@@ -427,6 +443,13 @@ pub(crate) async fn collect_plugin_entries(
                 title: title.clone(),
                 module,
                 export: export.clone(),
+                // Unusable paths are dropped, not fatal — the tab
+                // renders unstyled rather than not at all.
+                styles: styles
+                    .iter()
+                    .flatten()
+                    .filter_map(|style| normalize(style))
+                    .collect(),
                 icon: icon.clone(),
                 closable: true,
                 permanent: false,

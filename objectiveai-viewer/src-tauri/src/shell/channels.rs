@@ -210,8 +210,17 @@ async fn accept_flow(
         root_module: false,
         arguments: Some(arguments),
     };
-    let opened =
-        super::open_tab(app, window, kind, title, true, handler.icon, true).await;
+    let opened = super::open_tab(
+        app,
+        window,
+        kind,
+        title,
+        true,
+        handler.icon,
+        handler.styles,
+        true,
+    )
+    .await;
     // The request tab dies; the handler tab takes its place, focused.
     super::close_tab(app, request_tab).await;
     super::select_tab(app, window, opened.tab_id).await;
@@ -589,5 +598,5 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
     // Activated: an incoming request swaps to its tab (the window's
     // OS focus is left alone). No bookkeeping: the tab itself IS the
     // shown-offer record.
-    super::open_tab(app, &window, kind, title, true, icon, true).await;
+    super::open_tab(app, &window, kind, title, true, icon, Vec::new(), true).await;
 }

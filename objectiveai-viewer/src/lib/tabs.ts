@@ -72,6 +72,9 @@ export interface TabDescriptor {
   /** `true` = the module is ROOT code despite a plugin identity (the
    * channel-request template) — no plugin origin prefixing. */
   rootModule?: boolean;
+  /** Stylesheets to inject and AWAIT before rendering the component,
+   * identity-root-relative. */
+  styles?: string[];
   arguments?: unknown;
   title: string;
 }
@@ -242,18 +245,24 @@ export function tabsSnapshot(): Promise<TabsSnapshot | undefined> {
 }
 
 /** Resolve an identity-root-relative icon path to a URL the CHROME
- * can render. The root identity shares the chrome's origin, so the
- * path serves as-is; a plugin identity's icon is always a plugin
- * asset (no root-template case exists for icons), served through the
- * plugin:// protocol. */
+ * can render — see [`identityAssetUrl`]. */
 export function tabIconUrl(
   identity: string,
   icon: string | undefined,
 ): string | undefined {
-  if (icon === undefined || identity === ROOT_IDENTITY || !isTauri()) {
-    return icon;
+  return icon === undefined ? undefined : identityAssetUrl(identity, icon);
+}
+
+/** Resolve an identity-root-relative asset path to a fetchable URL.
+ * The root identity shares the chrome's origin, so its paths serve
+ * as-is; a plugin identity's root is its own origin, served through
+ * the plugin:// protocol. Outside Tauri there is no protocol at all,
+ * so paths pass through. */
+export function identityAssetUrl(identity: string, path: string): string {
+  if (identity === ROOT_IDENTITY || !isTauri()) {
+    return path;
   }
-  return pluginAssetUrl(identity, icon);
+  return pluginAssetUrl(identity, path);
 }
 
 /** Open (or focus) a tab — the SDK helper over the shell's

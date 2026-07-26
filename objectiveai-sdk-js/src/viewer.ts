@@ -34,6 +34,16 @@ export interface ViewerOpenTab {
    * — a path relative to the sender identity's root, same rules as
    * `module` (a plugin's manifest icon; omit for none). */
   icon?: string;
+  /** OPTIONAL stylesheets, as paths relative to the sender
+   * identity's root (same rules as `module`). The shell injects each
+   * as a `<link rel="stylesheet">` and WAITS for it before the
+   * component renders — so no flash of unstyled content, and a sheet
+   * that fails to load stops the tab rather than showing it wrong.
+   *
+   * Needed because a bundler strips `import "./x.css"` from a JS
+   * entry and emits the file beside it: nothing would ever request
+   * it. Cosmetic, like `icon` — not part of the dedupe identity. */
+  styles?: string[];
 }
 
 /**

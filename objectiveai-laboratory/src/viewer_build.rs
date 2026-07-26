@@ -295,10 +295,17 @@ fn validate_output(
         }
     };
     for tab in manifest.tabs.iter().flatten() {
-        let module = match tab {
-            ViewerTab::Channel { module, .. } | ViewerTab::Tab { module, .. } => module,
+        let (module, styles) = match tab {
+            ViewerTab::Channel { module, styles, .. }
+            | ViewerTab::Tab { module, styles, .. } => (module, styles),
         };
         check(module, "tab module")?;
+        // A declared stylesheet the build didn't produce is the whole
+        // reason `styles` is declared rather than inferred: catch it
+        // HERE, where the author sees it, not as an unstyled tab.
+        for style in styles.iter().flatten() {
+            check(style, "stylesheet")?;
+        }
     }
     if let Some(icon) = manifest.icon.as_deref() {
         check(icon, "icon")?;

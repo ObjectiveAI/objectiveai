@@ -70,6 +70,14 @@ pub struct Tab {
     /// like `title` (not part of the dedupe kind).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    /// Stylesheets the content bootstrap injects before it renders
+    /// the component, identity-root-relative. Cosmetic like `icon` —
+    /// and like it, NOT part of the dedupe kind, so re-opening never
+    /// restyles a live tab. Skipped when empty: the chrome never
+    /// reads it, so `tabs://changed` stays byte-identical for every
+    /// tab that declares none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub styles: Vec<String>,
 }
 
 /// One window's chrome-driven UI state. Owned by the window (a
@@ -174,6 +182,7 @@ impl Inner {
         title: String,
         closable: bool,
         icon: Option<String>,
+        styles: Vec<String>,
     ) -> Tab {
         self.next_tab += 1;
         Tab {
@@ -181,6 +190,7 @@ impl Inner {
             title,
             closable,
             icon,
+            styles,
             kind,
         }
     }
@@ -295,6 +305,7 @@ impl ShellModel {
         title: String,
         closable: bool,
         icon: Option<String>,
+        styles: Vec<String>,
         activate: bool,
         window_alive: impl Fn(&str) -> bool,
     ) -> Opened {
@@ -319,7 +330,7 @@ impl ShellModel {
             // on the caller.
             inner.windows.remove(&label);
         }
-        let tab = inner.mint_tab(kind, title, closable, icon);
+        let tab = inner.mint_tab(kind, title, closable, icon, styles);
         let id = tab.id;
         let ws = inner.windows.entry(caller.to_string()).or_default();
         ws.tabs.push(tab);

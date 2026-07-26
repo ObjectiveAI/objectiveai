@@ -40,6 +40,12 @@ pub struct OpenTab {
     /// the dedupe kind.
     #[serde(default)]
     pub icon: Option<String>,
+    /// OPTIONAL stylesheets, identity-root-relative (same validation
+    /// as `module`). Injected and AWAITED before the component
+    /// renders — cosmetic, like `icon`, and likewise not part of the
+    /// dedupe kind.
+    #[serde(default)]
+    pub styles: Option<Vec<String>>,
 }
 
 /// What a content webview learns about itself at boot — everything
@@ -57,6 +63,11 @@ pub struct TabDescriptor {
     pub root_module: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<serde_json::Value>,
+    /// Stylesheets to inject and AWAIT before rendering — the
+    /// bootstrap's whole reason to know about them. Empty for every
+    /// tab that declares none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub styles: Vec<String>,
     pub title: String,
 }
 
@@ -116,6 +127,9 @@ pub async fn tabs_open(
     if let Some(icon) = &tab.icon {
         validate_module(icon)?;
     }
+    for style in tab.styles.iter().flatten() {
+        validate_module(style)?;
+    }
     let identity = sender_identity(&webview, &model).await;
     let kind = TabKind {
         identity,
@@ -132,6 +146,7 @@ pub async fn tabs_open(
         tab.title,
         tab.closable.unwrap_or(true),
         tab.icon,
+        tab.styles.unwrap_or_default(),
         true,
     )
     .await;
@@ -154,13 +169,21 @@ pub(crate) async fn open_tab(
     title: String,
     closable: bool,
     icon: Option<String>,
+    styles: Vec<String>,
     activate: bool,
 ) -> super::model::Opened {
     let model = app.state::<ShellModel>();
     let opened = model
-        .open_or_focus(window, kind, title, closable, icon, activate, |label| {
-            app.get_window(label).is_some()
-        })
+        .open_or_focus(
+            window,
+            kind,
+            title,
+            closable,
+            icon,
+            styles,
+            activate,
+            |label| app.get_window(label).is_some(),
+        )
         .await;
     native::publish(app, &opened.snapshot, &opened.touched);
     // Reconcile in the BACKGROUND (sync serializes on its own mutex
@@ -196,6 +219,7 @@ pub async fn tab_self(
         export: tab.kind.export,
         root_module: tab.kind.root_module,
         arguments: tab.kind.arguments,
+        styles: tab.styles,
         title: tab.title,
     })
 }
@@ -427,6 +451,9 @@ pub async fn tabs_declare(
             module: entry.module,
             export: entry.export,
             icon: entry.icon,
+            // Root tabs are bundled by vite, which emits their CSS
+            // into the document itself — nothing to inject.
+            styles: Vec::new(),
             // A permanent tab is never strip-closable, whatever the
             // declaration says.
             closable: entry.closable && !entry.permanent,
@@ -515,6 +542,7 @@ pub async fn tabs_toggle(
                 entry.title.clone(),
                 entry.closable,
                 entry.icon.clone(),
+                entry.styles.clone(),
                 false,
             )
             .await;

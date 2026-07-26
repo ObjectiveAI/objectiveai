@@ -22,6 +22,7 @@ import { isTauri } from "./lib/tauri";
 import { viewerTransport } from "./lib/viewer-transport";
 import {
   ROOT_IDENTITY,
+  identityAssetUrl,
   pluginAssetUrl,
   tabSelf,
   uiGet,
@@ -34,6 +35,36 @@ import {
 } from "./lib/tabHarness";
 import "./function-tree/styles/function-tree.css";
 import "./app.css";
+
+/** Inject one declared stylesheet and resolve when it has APPLIED.
+ * A bundler strips `import "./x.css"` out of a JS entry and emits the
+ * file beside it, so the tab's own module can never pull its styles
+ * in — the shell does it here instead, from the descriptor.
+ *
+ * An href already in the document resolves immediately: a remounted
+ * tab must not stack duplicate links. A load failure REJECTS, which
+ * stops the tab rendering at all — an unstyled tab is a worse lie
+ * than a missing one, and the build already refused any path that
+ * didn't resolve, so reaching here means the file went missing after
+ * install. */
+function loadStylesheet(href: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`link[rel="stylesheet"][href="${CSS.escape(href)}"]`)) {
+      resolve();
+      return;
+    }
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = href;
+    link.addEventListener("load", () => resolve(), { once: true });
+    link.addEventListener(
+      "error",
+      () => reject(new Error(`tab stylesheet failed to load: ${href}`)),
+      { once: true },
+    );
+    document.head.append(link);
+  });
+}
 
 function TabRoot() {
   // The descriptor + the component it named, loaded once — kinds are
@@ -54,9 +85,18 @@ function TabRoot() {
         descriptor.identity === ROOT_IDENTITY || descriptor.rootModule
           ? descriptor.module
           : pluginAssetUrl(descriptor.identity, descriptor.module);
-      const module = (await import(
-        /* @vite-ignore */ moduleUrl
-      )) as Record<string, unknown>;
+      // The module and every declared stylesheet load CONCURRENTLY,
+      // and the component renders only once all of them have — so
+      // there is no flash of unstyled content, and the styles cost no
+      // wall-clock beyond the module's own fetch.
+      const [module] = await Promise.all([
+        import(/* @vite-ignore */ moduleUrl) as Promise<
+          Record<string, unknown>
+        >,
+        ...(descriptor.styles ?? []).map((style) =>
+          loadStylesheet(identityAssetUrl(descriptor.identity, style)),
+        ),
+      ]);
       const component = module[descriptor.export ?? "default"];
       if (disposed || typeof component !== "function") return;
       setLoaded({
@@ -106,6 +146,11 @@ function TabRoot() {
         unlisten?.();
         return;
       }
+      // SEQUENTIAL on purpose — the listener must be attached before
+      // the snapshot is taken, or a change landing in between is lost
+      // (the same subscribe-then-snapshot ordering the chrome uses
+      // for `tabs://changed`). Racing these would be a bug, not a
+      // speedup.
       const ui = await uiGet();
       if (ui) apply(ui);
     })();
