@@ -13,7 +13,7 @@ keywords = ["llm", "ai", "swarm", "cli"]
 publish = true
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.13", features = ["lockfile", "subprocess-reaper", "laboratory-daemon", "gitrepo"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.13", features = ["lockfile", "subprocess-reaper", "laboratory-daemon"] }
 axum = { version = "0.8.8", features = ["ws"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
 clap = { version = "4.6.0", features = ["derive"] }
@@ -40,9 +40,7 @@ envconfig = "0.11.1"
 rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 tower = "0.5"
 json-escape = { version = "0.3.1" }
-tokio-util = { version = "0.7.18", features = ["io", "io-util"] }
-tar = "0.4.46"
-flate2 = "1.1.9"
+tokio-util = "0.7.18"
 http = "1.4.0"
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 reqwest-eventsource = "0.6.0"

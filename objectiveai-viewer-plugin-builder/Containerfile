@@ -1,0 +1,43 @@
+# REFERENCE EXAMPLE — a viewer-extension build, end to end.
+#
+# Nothing in ObjectiveAI reads this file. Plugins own their viewer
+# build: a plugin's `objectiveai.json` names its own
+# `viewer_containerfile` and `viewer_output`, and the laboratory host
+# builds THAT with the repo checkout as context, copies the output
+# path out of the resulting image, and removes both. Copy this into
+# your plugin repo and change what you like — Tailwind, PostCSS, Sass,
+# a different base image, a different bundler.
+#
+# The build happens in `RUN` steps: the image is never started, only
+# copied out of. So `viewer_output` should name a directory this
+# Containerfile has already populated (here, /dist).
+#
+# THE ONE RULE: leave `react`, `react-dom`, `react/jsx-runtime` and
+# `react-dom/client` EXTERNAL. The host viewer serves them through an
+# import map so every plugin shares its single React instance; a
+# bundle that carries its own copy dies on the first hook. That is why
+# build.mjs strips them from package.json and passes `--external:` for
+# each — the one part of this example worth keeping verbatim.
+#
+# Reproduce a build exactly as the host does it:
+#
+#   podman build -t my-viewer-build -f Containerfile .
+#   podman create --name x my-viewer-build && podman cp x:/dist/. out/
+#   podman rm x && podman rmi my-viewer-build
+
+FROM docker.io/library/node:22-alpine
+
+# pnpm installs the plugin's own dependency tree; esbuild bundles it.
+# esbuild lives in the IMAGE, not in the author's package.json — the
+# build owns the bundling contract, and the author's tree stays theirs.
+RUN corepack enable && corepack prepare pnpm@10.15.0 --activate \
+    && npm install --global esbuild@0.25.10
+
+COPY build.mjs /builder/build.mjs
+# The build context is the repo checkout — the host passes it whole.
+COPY . /src
+
+# The build runs HERE, at image-build time — /dist is what the
+# host copies out.
+ENV OBJECTIVEAI_STAGING=/dist
+RUN node /builder/build.mjs

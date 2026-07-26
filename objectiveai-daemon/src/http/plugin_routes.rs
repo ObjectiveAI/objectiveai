@@ -1,41 +1,34 @@
 //! The daemon's `GET /plugins/{owner}/{name}/{version}/viewer` route:
-//! build a plugin's viewer extension on THIS machine and stream the
-//! finished artifact back as tar.gz — the build service behind viewer
-//! installs (essential for clients that cannot run pnpm/esbuild
-//! themselves, e.g. mobile viewers).
+//! build a plugin's viewer extension and stream the finished artifact
+//! back as tar.gz — the build service behind viewer installs
+//! (essential for clients that cannot run a JS toolchain themselves,
+//! e.g. mobile viewers).
 //!
-//! Flow: validate coordinates → single-tag fetch (local-override
-//! first, [`objectiveai_sdk::gitrepo`]) into the daemon's OWN temp
-//! partition `<bin>/temp/daemon-viewer` (the laboratory host owns
-//! `temp/daemon`, the local viewer `temp/viewer` — each sweeps only
-//! its own at boot) → [`crate::viewer_build::build`] into a staging
-//! dir shaped as the installed version dir → stream staging as
-//! gzip'd tar. The archive is NEVER buffered whole: a blocking task
-//! feeds `tar` through a bounded duplex pipe the response body reads
-//! from (the `objectiveai-mcp-laboratory` `/export` pattern), so
-//! memory stays flat on both ends however large the bundle is.
-//! Clients un-tar incrementally into their own staging and land it
-//! atomically — a dropped connection mid-stream yields a truncated
-//! (invalid) gzip and nothing lands.
+//! The daemon does not build anything: it DISPATCHES. A laboratory
+//! host builds the PLUGIN'S OWN viewer Containerfile — the same
+//! `podman build` it already runs for the plugin's MCP image — which
+//! is why this machine needs no node, no pnpm, no esbuild, and why an
+//! author can reproduce a build with one `podman build`. Host
+//! selection is the ordinary laboratory load balancer (a uniformly
+//! random connected host), the same one every ephemeral create rides.
 //!
-//! No lockfile: each request builds in fresh uuid dirs and lands no
-//! shared artifact — concurrent identical requests merely duplicate
-//! work (a build cache can come later).
+//! Flow: validate coordinates → `BuildCreate` on a random host, which
+//! fetches the tag, builds the image, copies the declared output out
+//! of it, and parks the archive → drain it with
+//! `BuildRead` chunks straight into the response body. The archive is
+//! NEVER buffered whole at either end. Nothing is written to the body
+//! until the build SUCCEEDED, so a failed build can never look like a
+//! truncated download; a dropped connection mid-drain yields a
+//! truncated (invalid) gzip and nothing lands client-side.
+//!
+//! No lockfile, no cache: concurrent identical requests merely
+//! duplicate work (a build cache can come later).
 
 use axum::response::IntoResponse;
-
-/// `<bin>/temp/daemon-viewer` — the daemon's build-scratch partition,
-/// swept at daemon boot ([`sweep_boot_temp`]).
-pub(crate) fn temp_dir(bin_dir: &std::path::Path) -> std::path::PathBuf {
-    bin_dir.join("temp").join("daemon-viewer")
-}
-
-/// Boot sweep of the daemon's build-scratch partition — hard-killed
-/// builds' checkouts and staging dirs. Fresh uuid dirs mean nothing
-/// races it.
-pub(crate) async fn sweep_boot_temp(bin_dir: &std::path::Path) {
-    objectiveai_sdk::gitrepo::sweep_temp(&temp_dir(bin_dir)).await;
-}
+use objectiveai_sdk::laboratories::daemon::{
+    BuildCreateRequest, BuildCreated, JsonRpcResult, RequestPayload, ResponsePayload,
+    TransferIdRequest, BUILD_TAG_NOT_FOUND_CODE,
+};
 
 /// Path-meaningful characters are rejected outright in wire-supplied
 /// identity segments.
@@ -54,7 +47,8 @@ fn safe_segment(segment: &str) -> bool {
 ///
 /// Status mapping: 401 unauthenticated; 400 invalid coordinates (the
 /// version must be the v-prefixed git tag, `v1.2.3`); 404 tag not
-/// found; 500 fetch/build failures, message as the plain-text body.
+/// found; 503 no laboratory host connected; 500 build failures,
+/// message as the plain-text body.
 pub(crate) async fn plugin_viewer_handler(
     axum::extract::State(state): axum::extract::State<
         crate::http::daemon_stream::DaemonHttpState,
@@ -99,80 +93,119 @@ pub(crate) async fn plugin_viewer_handler(
             .into_response();
     }
 
-    let bin_dir = state.scoped.filesystem.bin_dir();
-    let temp = temp_dir(&bin_dir);
-    // `<objectiveai_dir>/plugins` — the local repo override the fetch
-    // consults before GitHub.
-    let override_dir = state.scoped.filesystem.dir().join("plugins");
-    let checkout = match objectiveai_sdk::gitrepo::fetch_at_tag(
-        &temp,
-        Some(&override_dir),
-        &owner,
-        &name,
-        &version,
-    )
-    .await
-    {
-        Ok(checkout) => checkout,
-        Err(e) => {
-            let status = if e.contains("not found in") {
+    let Some(hubs) = state.global.resident_hubs() else {
+        return (
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "viewer builds require the resident daemon",
+        )
+            .into_response();
+    };
+    let laboratories = hubs.laboratories.clone();
+    // The ordinary laboratory load balancer: a uniformly random
+    // connected host, independently picked per request.
+    let Some((machine, machine_state)) = laboratories.random_host() else {
+        return (
+            axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            "no laboratory host is connected — run `laboratories spawn` first",
+        )
+            .into_response();
+    };
+
+    // The build runs to completion inside this one forward (which is
+    // timeout-free by design — a cold build pulls a base image and
+    // installs a dependency tree).
+    let built = laboratories
+        .forward_to_host(
+            &machine,
+            &machine_state,
+            indexmap::IndexMap::new(),
+            RequestPayload::BuildCreate(BuildCreateRequest {
+                owner: owner.clone(),
+                name: name.clone(),
+                version: version.clone(),
+            }),
+        )
+        .await;
+    let built: BuildCreated = match built {
+        Ok(ResponsePayload::BuildCreate(JsonRpcResult::Ok { result })) => result,
+        Ok(ResponsePayload::BuildCreate(JsonRpcResult::Err {
+            code, message, ..
+        })) => {
+            // A missing git tag is the caller's error, and it arrives
+            // as its own CODE — no message sniffing.
+            let status = if code == BUILD_TAG_NOT_FOUND_CODE {
                 axum::http::StatusCode::NOT_FOUND
             } else {
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR
             };
-            return (status, e).into_response();
+            return (status, message).into_response();
+        }
+        Ok(_) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                "laboratory host answered a viewer build with the wrong payload",
+            )
+                .into_response();
+        }
+        Err(e) => {
+            return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e).into_response();
         }
     };
 
-    let staging = temp.join(uuid::Uuid::new_v4().to_string());
-    let built = crate::viewer_build::build(&checkout.dir, &staging).await;
-    // Only staging streams; the checkout is done either way.
-    objectiveai_sdk::gitrepo::remove_checkout(&checkout.dir).await;
-    if let Err(e) = built {
-        objectiveai_sdk::gitrepo::remove_checkout(&staging).await;
-        return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e).into_response();
-    }
-
-    // Stream staging as tar.gz through a bounded duplex pipe — sync
-    // `tar` on the blocking pool feeding the async body, flat memory
-    // (the mcp-laboratory `/export` pattern, plus the gzip layer). A
-    // tar/write error (client disconnect included) just drops the
-    // writer: the client sees a truncated gzip and discards.
-    let (writer, reader) = tokio::io::duplex(64 * 1024);
-    let tar_staging = staging.clone();
-    let tar_task = tokio::task::spawn_blocking(move || {
-        let encoder = flate2::write::GzEncoder::new(
-            tokio_util::io::SyncIoBridge::new(writer),
-            flate2::Compression::default(),
-        );
-        let mut builder = tar::Builder::new(encoder);
-        let result = builder
-            .append_dir_all(".", &tar_staging)
-            .and_then(|_| builder.into_inner())
-            .and_then(|encoder| encoder.finish().map(|_| ()));
-        if let Err(e) = result {
-            eprintln!(
-                "plugin viewer build: stream tar of {}: {e}",
-                tar_staging.display()
-            );
+    // Drain the parked archive chunk by chunk straight into the body.
+    // A drain error (client disconnect included) just ends the stream:
+    // the client sees a truncated gzip and discards. The host retires
+    // the artifact on `eof`; an abandoned one is swept host-side.
+    let stream = async_stream::stream! {
+        let transfer_id = built.transfer_id;
+        loop {
+            let chunk = laboratories
+                .forward_to_host(
+                    &machine,
+                    &machine_state,
+                    indexmap::IndexMap::new(),
+                    RequestPayload::BuildRead(TransferIdRequest {
+                        transfer_id: transfer_id.clone(),
+                    }),
+                )
+                .await;
+            match chunk {
+                Ok(ResponsePayload::BuildRead(JsonRpcResult::Ok { result })) => {
+                    let eof = result.eof;
+                    if !result.data.is_empty() {
+                        yield Ok::<_, std::io::Error>(axum::body::Bytes::from(result.data));
+                    }
+                    if eof {
+                        return;
+                    }
+                }
+                Ok(ResponsePayload::BuildRead(JsonRpcResult::Err { message, .. })) => {
+                    eprintln!("plugin viewer build: drain: {message}");
+                    return;
+                }
+                Ok(_) => {
+                    eprintln!(
+                        "plugin viewer build: laboratory host answered a drain with the wrong payload"
+                    );
+                    return;
+                }
+                Err(e) => {
+                    eprintln!("plugin viewer build: drain: {e}");
+                    return;
+                }
+            }
         }
-    });
-    // The staging dir outlives the response body — sweep it once the
-    // tar task ends, success and failure alike.
-    tokio::spawn(async move {
-        let _ = tar_task.await;
-        objectiveai_sdk::gitrepo::remove_checkout(&staging).await;
-    });
+    };
 
     (
         [
             (axum::http::header::CONTENT_TYPE, "application/gzip"),
             (
                 axum::http::HeaderName::from_static("x-objectiveai-sha"),
-                checkout.commit_sha.as_str(),
+                built.commit_sha.as_str(),
             ),
         ],
-        axum::body::Body::from_stream(tokio_util::io::ReaderStream::new(reader)),
+        axum::body::Body::from_stream(stream),
     )
         .into_response()
 }

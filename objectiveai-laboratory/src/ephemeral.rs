@@ -196,6 +196,18 @@ impl EphemeralLab {
                 -32601,
                 "ephemeral laboratory does not serve local transfer (host-level op)".into(),
             )),
+            RequestPayload::BuildCreate(_) => ResponsePayload::BuildCreate(rpc_err(
+                -32601,
+                "ephemeral laboratory does not serve viewer-plugin builds (host-level op)".into(),
+            )),
+            RequestPayload::BuildRead(_) => ResponsePayload::BuildRead(rpc_err(
+                -32601,
+                "ephemeral laboratory does not serve viewer-plugin builds (host-level op)".into(),
+            )),
+            RequestPayload::BuildAbort(_) => ResponsePayload::BuildAbort(rpc_err(
+                -32601,
+                "ephemeral laboratory does not serve viewer-plugin builds (host-level op)".into(),
+            )),
         };
         ChannelResponse { id, payload }
     }

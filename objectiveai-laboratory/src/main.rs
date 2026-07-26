@@ -45,6 +45,7 @@ mod podman;
 mod server;
 mod transfer;
 mod upstream;
+mod viewer_build;
 
 use std::path::PathBuf;
 use std::sync::Arc;

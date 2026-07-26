@@ -750,6 +750,105 @@ pub async fn create_plugin(
     Ok(())
 }
 
+/// Create a container for EXPORT ONLY — never started. The
+/// viewer-plugin build bakes its artifact into the image with `RUN`
+/// steps, so all that remains is to open a filesystem view of it,
+/// copy the artifact out ([`copy_out`]), and remove both. No label
+/// (this is not a laboratory), no port, no mounts, no injection.
+pub async fn create_for_export(
+    podman: &Podman,
+    name: &str,
+    image_reference: &str,
+) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let output = container_command(exe)
+        .arg("create")
+        .arg("--name")
+        .arg(name)
+        .arg(image_reference)
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman create: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman create {name}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
+/// Copy a directory's CONTENTS out of a container (`podman cp
+/// <name>:<path>/. <destination>` — the trailing `/.` is what copies
+/// the contents rather than the directory itself). The destination
+/// must already exist.
+pub async fn copy_out(
+    podman: &Podman,
+    name: &str,
+    container_path: &str,
+    destination: &Path,
+) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let source = format!("{name}:{}/.", container_path.trim_end_matches('/'));
+    let output = container_command(exe)
+        .arg("cp")
+        .arg(&source)
+        .arg(destination)
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman cp: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman cp {source}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
+/// Remove a container by its RAW name — the export container, which
+/// is not a laboratory and so has no `(state, id)` to derive one from.
+pub async fn remove_named(podman: &Podman, name: &str) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let output = container_command(exe)
+        .arg("rm")
+        .arg("-f")
+        .arg(name)
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman rm: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman rm {name}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
+/// `podman rmi -f` — drop a local image tag. The viewer build's image
+/// exists only to be copied out of, so it is removed the moment the
+/// copy lands: the layers this build ADDED are freed, while the
+/// plugin's base image stays tagged and shared (repeat builds still
+/// skip the pull).
+pub async fn image_remove(podman: &Podman, reference: &str) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let output = container_command(exe)
+        .arg("rmi")
+        .arg("-f")
+        .arg(reference)
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman rmi: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman rmi {reference}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
 /// Start a laboratory container, idempotently. `podman start` is a no-op that
 /// still exits 0 when the container is already running, and podman serializes
 /// container ops internally — so this is safe to run BLINDLY and CONCURRENTLY

@@ -10,7 +10,6 @@ mod python_wasm;
 pub mod retrieve;
 mod source_resolver;
 mod spawn;
-mod viewer_build;
 pub(crate) mod http;
 
 #[cfg(test)]

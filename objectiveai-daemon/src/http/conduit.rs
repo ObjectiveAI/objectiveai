@@ -2228,13 +2228,17 @@ fn from_host_payload(
                 JsonRpcResult::Err { code, message, data }
             }
         }),
-        // Host-level ops (create/ephemeral-create/delete) never enter
-        // through this seam — the laboratories commands drive them
-        // directly.
+        // Host-level ops (create/ephemeral-create/delete, and the
+        // viewer-plugin build family) never enter through this seam —
+        // the laboratories commands and the `/plugins/…/viewer` route
+        // drive them directly.
         H::Create(_)
         | H::AgentEphemeralCreate(_)
         | H::PluginEphemeralCreate(_)
-        | H::Delete(_) => shape.clone().error(
+        | H::Delete(_)
+        | H::BuildCreate(_)
+        | H::BuildRead(_)
+        | H::BuildAbort(_) => shape.clone().error(
             -32603,
             "unexpected host-level reply through the conduit seam".to_string(),
         ),

@@ -35,7 +35,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use objectiveai_sdk::laboratories::daemon::{
     AgentEphemeralCreateRequest, ChannelRequest, ChannelResponse, CreateRequest,
-    EphemeralCreated, HostIdentify, HostNotification, Identify, IdentifyMount,
+    EphemeralCreated, ExportChunk, HostIdentify, HostNotification, Identify, IdentifyMount,
     InitializeReply, JsonRpcResult, LocalTransferRequest, LocalTransferResult,
     PluginEphemeralCreateRequest, RequestPayload, ResponsePayload, TransferAck,
 };
@@ -278,6 +278,9 @@ pub struct HostServer {
     /// per-lab filetree (see [`crate::mount_watch`]). Attached at
     /// container start, detached at stop/delete.
     mounts: crate::mount_watch::MountRegistry,
+    /// Finished viewer-plugin builds waiting to be drained by the
+    /// daemon that asked for them (see [`crate::viewer_build`]).
+    builds: crate::viewer_build::BuildArtifacts,
 }
 
 impl HostServer {
@@ -302,6 +305,7 @@ impl HostServer {
             lifecycle: DashMap::new(),
             attach_lock: tokio::sync::Mutex::new(()),
             mounts: crate::mount_watch::MountRegistry::default(),
+            builds: crate::viewer_build::BuildArtifacts::default(),
         }
     }
 
@@ -635,6 +639,40 @@ impl HostServer {
                 return ChannelResponse {
                     id: request.id,
                     payload: ResponsePayload::LocalTransfer(result),
+                };
+            }
+            // Host-level: a build laboratory is created, waited on and
+            // removed inside this ONE request, and its artifact is
+            // parked host-wide — there is never an envelope lab to
+            // demux to.
+            RequestPayload::BuildCreate(req) => {
+                let result = self.build_viewer_plugin(req).await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::BuildCreate(result),
+                };
+            }
+            RequestPayload::BuildRead(req) => {
+                let result = match self.builds.read(&req.transfer_id).await {
+                    Ok((data, eof)) => JsonRpcResult::Ok {
+                        // Raw bytes — they ride OUT OF BAND in the
+                        // channel's binary wire frame.
+                        result: ExportChunk { data, eof },
+                    },
+                    Err(message) => rpc_err(-32603, message),
+                };
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::BuildRead(result),
+                };
+            }
+            RequestPayload::BuildAbort(req) => {
+                self.builds.discard(&req.transfer_id).await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::BuildAbort(JsonRpcResult::Ok {
+                        result: TransferAck {},
+                    }),
                 };
             }
             // Lab-scoped but LIFECYCLE-owning, so it never demuxes (a
@@ -1755,6 +1793,44 @@ impl HostServer {
     /// daemon, as [`HostNotification::LaboratoryUpdated`]. Called on
     /// every lifecycle transition (lazy start, idle stop) so list
     /// subscribers everywhere hold live state.
+    /// Build a plugin's VIEWER extension end to end (see
+    /// [`crate::viewer_build`]). A plain host op — the plugin's own
+    /// Containerfile is built, copied out of, and removed, so nothing
+    /// long-lived exists to register as a laboratory.
+    async fn build_viewer_plugin(
+        &self,
+        req: &objectiveai_sdk::laboratories::daemon::BuildCreateRequest,
+    ) -> JsonRpcResult<objectiveai_sdk::laboratories::daemon::BuildCreated> {
+        let built = crate::viewer_build::build(
+            &self.podman,
+            &self.bin_dir,
+            &self.builds,
+            &req.owner,
+            &req.name,
+            &req.version,
+        )
+        .await;
+        match built {
+            Ok(built) => JsonRpcResult::Ok {
+                result: objectiveai_sdk::laboratories::daemon::BuildCreated {
+                    commit_sha: built.commit_sha,
+                    transfer_id: built.transfer_id,
+                    bytes: built.bytes,
+                },
+            },
+            // A missing git tag is the ONE build failure that is the
+            // caller's rather than the plugin's — its own code, so the
+            // daemon's 404 never depends on parsing prose.
+            Err(crate::viewer_build::BuildFailure::TagNotFound(message)) => rpc_err(
+                objectiveai_sdk::laboratories::daemon::BUILD_TAG_NOT_FOUND_CODE,
+                message,
+            ),
+            Err(crate::viewer_build::BuildFailure::Failed(message)) => {
+                rpc_err(-32603, message)
+            }
+        }
+    }
+
     async fn broadcast_updated(&self, id: &str) {
         let identify = match podman::laboratory::list(&self.podman, &self.state).await {
             Ok(labs) => labs
@@ -1864,6 +1940,9 @@ fn reject(
         }
         Req::Delete(_) => Resp::Delete(rpc_err(code, message)),
         Req::LocalTransfer(_) => Resp::LocalTransfer(rpc_err(code, message)),
+        Req::BuildCreate(_) => Resp::BuildCreate(rpc_err(code, message)),
+        Req::BuildRead(_) => Resp::BuildRead(rpc_err(code, message)),
+        Req::BuildAbort(_) => Resp::BuildAbort(rpc_err(code, message)),
     }
 }
 

@@ -37,6 +37,10 @@ use crate::podman;
 pub async fn sweep(bin_dir: PathBuf, state: String) {
     let temp = bin_dir.join("temp");
     objectiveai_sdk::gitrepo::sweep_temp(&temp.join("daemon")).await;
+    // The viewer-build partition: plugin checkouts and the staging
+    // dirs their built assets are copied into — all uuid-named scratch
+    // this host owns.
+    objectiveai_sdk::gitrepo::sweep_temp(&temp.join("build")).await;
     // Migration: pre-split builds put checkouts directly under
     // `<bin>/temp` — clear those, matched by their UUID dir names so
     // the sibling partitions (`viewer`, `daemon-viewer`, whatever

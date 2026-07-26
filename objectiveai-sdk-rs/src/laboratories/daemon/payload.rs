@@ -129,6 +129,27 @@ pub enum RequestPayload {
     /// Host-level: it addresses two labs, never the envelope's one.
     #[schemars(title = "LocalTransfer")]
     LocalTransfer(LocalTransferRequest),
+    /// Build a plugin's VIEWER extension: fetch the repo at the
+    /// version's git tag, run the baked builder image over the
+    /// checkout in a BUILD laboratory, and park the resulting
+    /// `bundle.tar.gz` for [`RequestPayload::BuildRead`]. Runs to
+    /// completion — the container is created, waited on, and removed
+    /// within this one request (timeout-free family: a cold build
+    /// pulls a base image and installs a dependency tree). Host-level:
+    /// the HOST derives the laboratory id.
+    #[schemars(title = "BuildCreate")]
+    BuildCreate(BuildCreateRequest),
+    /// Drain the next chunk of a parked build artifact — the
+    /// [`RequestPayload::ExportRead`] shape for a host-side FILE
+    /// rather than a container's export stream (a build container
+    /// serves no HTTP: it has no injected MCP binary and is gone by
+    /// the time this runs). Host-level.
+    #[schemars(title = "BuildRead")]
+    BuildRead(TransferIdRequest),
+    /// Discard a parked build artifact without draining it.
+    /// Host-level.
+    #[schemars(title = "BuildAbort")]
+    BuildAbort(TransferIdRequest),
 }
 
 /// Host → daemon: the reply vocabulary, 1:1 with [`RequestPayload`].
@@ -177,6 +198,12 @@ pub enum ResponsePayload {
     Delete(JsonRpcResult<TransferAck>),
     #[schemars(title = "LocalTransfer")]
     LocalTransfer(JsonRpcResult<LocalTransferResult>),
+    #[schemars(title = "BuildCreate")]
+    BuildCreate(JsonRpcResult<BuildCreated>),
+    #[schemars(title = "BuildRead")]
+    BuildRead(JsonRpcResult<ExportChunk>),
+    #[schemars(title = "BuildAbort")]
+    BuildAbort(JsonRpcResult<TransferAck>),
 }
 
 /// JSON-RPC result/error shape for this channel's typed methods —
@@ -384,6 +411,45 @@ pub struct EphemeralCreated {
     pub identify: super::Identify,
     pub reply: InitializeReply,
 }
+
+/// Parameters for [`RequestPayload::BuildCreate`] — the plugin's
+/// coordinate trio, exactly as [`PluginEphemeralCreateRequest`] takes
+/// it (owner/name lowercased defensively host-side; the version passes
+/// through untouched — it IS the git tag, byte-for-byte).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.BuildCreateRequest")]
+pub struct BuildCreateRequest {
+    /// GitHub `<owner>` segment.
+    pub owner: String,
+    /// Repository segment.
+    pub name: String,
+    /// Plugin version — IS the repo's git tag; the tag must exist.
+    pub version: String,
+}
+
+/// Successful payload for [`ResponsePayload::BuildCreate`]: the build
+/// SUCCEEDED and its artifact is parked. Nothing is streamed before
+/// this lands — a failed build never produces a truncated archive.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.BuildCreated")]
+pub struct BuildCreated {
+    /// The commit the version's tag resolved to — the daemon's
+    /// `X-OBJECTIVEAI-SHA`.
+    pub commit_sha: String,
+    /// Drain handle for [`RequestPayload::BuildRead`].
+    pub transfer_id: String,
+    /// The artifact's total size in bytes.
+    pub bytes: u64,
+}
+
+/// The JSON-RPC error code [`RequestPayload::BuildCreate`] answers
+/// with when the plugin's git TAG does not exist — the one build
+/// failure that is the caller's fault rather than the plugin's, and
+/// the daemon's `404`. Every other failure uses the generic internal
+/// code and becomes a `500`. A code (not a message substring) carries
+/// it: the old route sniffed `"not found in"` out of an error string,
+/// which is exactly the kind of coupling this replaces.
+pub const BUILD_TAG_NOT_FOUND_CODE: i64 = -32004;
 
 /// Parameters for [`RequestPayload::Delete`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
