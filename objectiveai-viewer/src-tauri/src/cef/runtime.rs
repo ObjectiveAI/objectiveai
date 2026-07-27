@@ -59,9 +59,6 @@ struct Entry {
     /// parents its own window under the one we passed at create time;
     /// this is that inner window, not ours.
     child: isize,
-    /// Has this browser's cookie store been flushed? Drives the
-    /// two-phase close — see the module docs.
-    flushed: Arc<AtomicBool>,
 }
 
 /// Live browsers by tab id.
@@ -669,11 +666,12 @@ wrap_life_span_handler! {
                 .map(|h| raw_from_handle(h.window_handle()))
                 .unwrap_or(0);
             // Clone bumps the CEF refcount so the handle outlives this
-            // borrow.
+            // borrow. The flushed flag is NOT mirrored here — the two
+            // handlers that drive the close each hold the same `Arc`,
+            // and a third copy could only ever go stale.
             let entry = Entry {
                 browser: b.clone(),
                 child,
-                flushed: self.flushed.clone(),
             };
             if let Ok(mut map) = browsers().lock() {
                 map.insert(self.tab, entry);

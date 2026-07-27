@@ -211,6 +211,9 @@ async fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
             if let Some(webview) = app.get_webview(&native::tab_label(active)) {
                 let _ = webview.set_focus();
             }
+            // Same for a browser tab, whose surface is CEF's and has no
+            // webview to focus. No-op for every component tab.
+            crate::cef::focus(active);
         }
     }
     if let Some(window) = app.get_window(source) {
