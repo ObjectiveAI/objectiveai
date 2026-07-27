@@ -6,6 +6,7 @@
 //! framework reads that context once, directly, rather than making
 //! every plugin rediscover it.
 
+pub mod config;
 pub mod db;
 mod environment;
 pub use environment::*;

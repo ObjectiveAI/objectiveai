@@ -2,31 +2,34 @@
 //! returns from.
 //!
 //! ```no_run
-//! # use objectiveai_mcp_plugin_framework::{serve, tools::Tools};
+//! # use objectiveai_mcp_plugin_framework::{config::Config, serve, tools::Tools};
 //! # use rmcp::handler::server::tool::ToolRouter;
-//! # #[derive(Clone)] struct State;
+//! # struct State;
 //! # fn tool_router() -> ToolRouter<State> { ToolRouter::new() }
-//! # async fn main_() -> Result<std::convert::Infallible, serve::Error> {
+//! # async fn main_() -> Result<std::convert::Infallible, std::io::Error> {
 //! let tools = Tools::new(tool_router());
 //! // Never returns except to fail.
-//! serve::serve(serve::Config::new(8080), State, tools).await
+//! serve::serve(Config::new(8080), State, tools).await
 //! # }
 //! ```
 //!
-//! **The wire shape is not a choice.** The laboratory host publishes
-//! the container's manifest port and dials `http://127.0.0.1:<port>/`
-//! with rmcp's streamable-HTTP protocol, session id and all. So the
-//! transport is `StreamableHttpService`, the route is `/`, and the
-//! only free variable is which port the manifest declared — which is
-//! why [`Config::new`] takes it and nothing else does. There is no
-//! `PORT` in the environment to read: the host publishes the port the
-//! manifest names, so the plugin and its manifest are the two halves
-//! that have to agree.
+//! **Almost none of this is a choice.** The laboratory host publishes
+//! the container's manifest port and dials
+//! `http://127.0.0.1:<port>/` speaking rmcp streamable-HTTP with a
+//! session id. So the transport is `StreamableHttpService`, the route
+//! is the ROOT, the session mode is stateful, and the bind address is
+//! `0.0.0.0` — podman publishes the CONTAINER's port, and a server
+//! bound to loopback inside the container is unreachable through that
+//! publish, which is the classic way to write a plugin that works
+//! under `cargo run` and never once in a container.
+//!
+//! None of those are configurable, because none of them have a second
+//! correct value. What a plugin does decide is in
+//! [`Config`][crate::config::Config], and it is short.
 
 use std::convert::Infallible;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::time::Duration;
 
 use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::model::{
@@ -39,123 +42,68 @@ use rmcp::transport::streamable_http_server::tower::{
 };
 use rmcp::{ErrorData, RoleServer, ServerHandler};
 
+use crate::config::Config;
 use crate::tools::Tools;
-
-/// Everything [`serve`] can fail with. Both are the listener — once
-/// serving starts, a failed request is an MCP error, not the end of
-/// the server.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("bind {addr}")]
-    Bind {
-        addr: SocketAddr,
-        #[source]
-        source: std::io::Error,
-    },
-    #[error("serve")]
-    Serve(#[source] std::io::Error),
-}
-
-/// How to serve.
-#[derive(Debug, Clone)]
-pub struct Config {
-    /// The port the plugin's manifest declares under `mcp.port`. The
-    /// host publishes exactly that port; a mismatch means the host
-    /// publishes a port nothing is listening on.
-    pub port: u16,
-    /// The bind address. `0.0.0.0` by default and almost never worth
-    /// changing: podman publishes the CONTAINER's port to a host port,
-    /// and a server bound to loopback INSIDE the container is
-    /// unreachable through that publish. Binding `127.0.0.1` here is
-    /// the classic way to build a plugin that works under `cargo run`
-    /// and never once inside a container.
-    pub bind: IpAddr,
-    /// SSE keep-alive ping interval, or `None` for none.
-    pub sse_keep_alive: Option<Duration>,
-    /// Whether the server keeps per-session state. TRUE, because the
-    /// ObjectiveAI client is a session client — it carries an
-    /// `mcp-session-id` and expects the server to remember it.
-    pub stateful: bool,
-}
-
-impl Config {
-    /// The config for a plugin declaring `mcp.port = port`.
-    pub fn new(port: u16) -> Self {
-        Self {
-            port,
-            bind: IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            sse_keep_alive: Some(Duration::from_secs(15)),
-            stateful: true,
-        }
-    }
-
-    fn addr(&self) -> SocketAddr {
-        SocketAddr::new(self.bind, self.port)
-    }
-}
 
 /// Serve `tools` over `state` until the process ends.
 ///
-/// Returns only on failure — a bind that did not take, or a listener
-/// that died. Every lesser problem is an MCP error on one request.
+/// Returns only to FAIL — a bind that did not take, or a listener that
+/// died — which is what `Infallible` in the success position says.
+/// Every lesser problem is an MCP error on one request, not the end of
+/// the server. Both failures are genuinely `io::Error`s, so there is
+/// no error type of our own to learn.
 ///
-/// `state` is what each tool receives as `&S`: rmcp's tool router is
-/// generic over the service type, so the tools and the state they run
-/// against are one unit and cannot be passed separately.
-pub async fn serve<S>(config: Config, state: S, tools: Tools<S>) -> Result<Infallible, Error>
+/// `state` comes along with `tools` because rmcp's tool router is
+/// generic over the service type and hands every tool an `&S`: the
+/// two are one unit and cannot be passed separately.
+pub async fn serve<S>(
+    config: Config,
+    state: S,
+    tools: Tools<S>,
+) -> Result<Infallible, std::io::Error>
 where
     S: Send + Sync + 'static,
 {
-    serve_handler(config, Handler::new(state, tools)).await
-}
+    let handler = Handler {
+        state: Arc::new(state),
+        tools,
+    };
 
-/// [`serve`] for a plugin that implements [`ServerHandler`] itself —
-/// the way in for prompts, resources, or a custom `get_info`, none of
-/// which the plain [`Handler`] exposes.
-///
-/// The handler is CLONED per session, which is what rmcp's transport
-/// asks for. Keep anything shared behind an `Arc` (as [`Tools`]
-/// already is) so clones stay cheap and see each other's changes.
-pub async fn serve_handler<H>(config: Config, handler: H) -> Result<Infallible, Error>
-where
-    H: ServerHandler + Clone + Send + Sync + 'static,
-{
-    // `#[non_exhaustive]`, so assign rather than construct — which
-    // also means a future rmcp field arrives at ITS default here
-    // instead of failing the build.
+    // Every rmcp config struct here is `#[non_exhaustive]`, so assign
+    // rather than construct — a field added upstream then arrives at
+    // ITS default instead of breaking the build.
     let mut http = StreamableHttpServerConfig::default();
     http.sse_keep_alive = config.sse_keep_alive;
-    http.stateful_mode = config.stateful;
+    // The ObjectiveAI client is a session client: it carries an
+    // `mcp-session-id` and expects the server to remember it.
+    http.stateful_mode = true;
     let service = StreamableHttpService::new(
+        // Cloned per session. Everything inside is `Arc`, so clones
+        // are cheap and see each other's tool edits.
         move || Ok(handler.clone()),
         Arc::new(LocalSessionManager::default()),
         http,
     );
-    // At the ROOT, because that is what the host dials — see the
-    // module docs.
-    let router = axum::Router::new().fallback_service(service);
 
-    let addr = config.addr();
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .map_err(|source| Error::Bind { addr, source })?;
-    axum::serve(listener, router)
-        .await
-        .map_err(Error::Serve)?;
-    // `axum::serve` only returns on error without a shutdown signal,
-    // and none is installed — the container's life is the server's.
-    Err(Error::Serve(std::io::Error::other(
-        "the listener stopped without an error",
-    )))
+    // At the ROOT, because that is what the host dials.
+    let router = axum::Router::new().fallback_service(service);
+    // `0.0.0.0`: see the module docs — loopback here is unreachable
+    // through podman's port publish.
+    let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, config.port));
+    let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| {
+        std::io::Error::new(e.kind(), format!("bind {addr}: {e}"))
+    })?;
+    axum::serve(listener, router).await?;
+    // Unreachable in practice: no shutdown signal is installed, so the
+    // container's life is the server's.
+    Err(std::io::Error::other("the listener stopped without an error"))
 }
 
-/// The [`ServerHandler`] [`serve`] builds: tools and nothing else.
+/// The [`ServerHandler`] [`serve`] runs: tools, and nothing else.
 ///
-/// A plugin that needs more than tools — prompts, resources, a
-/// `get_info` of its own — implements [`ServerHandler`] directly and
-/// calls [`serve_handler`]. This exists so that the common case does
-/// not have to.
-pub struct Handler<S> {
+/// Private because a plugin has no reason to hold one — `serve` builds
+/// it and owns it for the process's life.
+struct Handler<S> {
     state: Arc<S>,
     tools: Tools<S>,
 }
@@ -165,15 +113,6 @@ impl<S> Clone for Handler<S> {
         Self {
             state: self.state.clone(),
             tools: self.tools.clone(),
-        }
-    }
-}
-
-impl<S> Handler<S> {
-    pub fn new(state: S, tools: Tools<S>) -> Self {
-        Self {
-            state: Arc::new(state),
-            tools,
         }
     }
 }
@@ -208,8 +147,8 @@ impl<S: Send + Sync + 'static> ServerHandler for Handler<S> {
         request: CallToolRequestParams,
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
-        // The tool router hands `&S` to each tool, so the context
-        // borrows the STATE — not this handler.
+        // The router hands `&S` to each tool, so the context borrows
+        // the STATE — not this handler.
         let context = ToolCallContext::new(self.state.as_ref(), request, context);
         self.tools.call(context).await
     }
@@ -217,19 +156,13 @@ impl<S: Send + Sync + 'static> ServerHandler for Handler<S> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    /// The one invariant in this file worth pinning: a plugin bound to
+    /// loopback is unreachable through podman's port publish, so the
+    /// address `serve` builds must not be one.
     #[test]
-    fn default_bind_is_not_loopback() {
-        // A loopback bind inside a container is unreachable through
-        // podman's port publish, so the default must not be one.
-        assert!(!Config::new(8080).bind.is_loopback());
-        assert_eq!(Config::new(8080).port, 8080);
-    }
-
-    #[test]
-    fn stateful_by_default() {
-        // The ObjectiveAI client carries an `mcp-session-id`.
-        assert!(Config::new(1).stateful);
+    fn bind_address_is_not_loopback() {
+        let addr = super::SocketAddr::from((super::Ipv4Addr::UNSPECIFIED, 8080));
+        assert!(!addr.ip().is_loopback());
+        assert_eq!(addr.port(), 8080);
     }
 }
