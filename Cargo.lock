@@ -4487,6 +4487,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-mcp-plugin-framework"
+version = "2.2.13"
+
+[[package]]
 name = "objectiveai-mcp-proxy"
 version = "2.2.13"
 dependencies = [

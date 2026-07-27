@@ -1,0 +1,15 @@
+[package]
+name = "objectiveai-mcp-plugin-framework"
+version = "2.2.13"
+edition = "2024"
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
+description = "Plugin framework for ObjectiveAI MCP plugins"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objectiveai.dev"
+documentation = "https://docs.rs/objectiveai-mcp-plugin-framework"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "mcp"]
+publish = true
+
+[dependencies]

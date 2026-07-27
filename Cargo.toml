@@ -6,6 +6,7 @@ members = [
     "objectiveai-laboratory",
     "objectiveai-mcp-laboratory",
     "objectiveai-mcp-proxy",
+    "objectiveai-mcp-plugin-framework-rs",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",
