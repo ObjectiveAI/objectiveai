@@ -767,11 +767,16 @@ wrap_life_span_handler! {
     }
 }
 
-// `InjectScript` injects the tab's declared script into every
-// main-frame load.
+// `PageLoad` injects the tab's declared script into every main-frame
+// load, and reports what the load DID. The reporting is not
+// incidental: a browser tab has no other way to say "the page never
+// arrived", and a failed navigation is indistinguishable from a
+// working one that renders white.
 wrap_load_handler! {
-    struct InjectScript {
+    struct PageLoad {
         script: Option<String>,
+        app: tauri::AppHandle,
+        title: String,
     }
 
     impl LoadHandler {
@@ -781,19 +786,76 @@ wrap_load_handler! {
             frame: Option<&mut Frame>,
             _transition_type: TransitionType,
         ) {
-            let Some(script) = self.script.as_ref() else { return };
             let Some(frame) = frame else { return };
             // Top-level frame only — a page's iframes are not the
             // plugin's surface and must not run its code.
             if frame.is_main() != 1 {
                 return;
             }
+            self.report("info", format!("load start: {}", frame_url(frame)));
+            let Some(script) = self.script.as_ref() else { return };
             let code = CefString::from(script.as_str());
             // Cosmetic: the name DevTools shows in stack traces.
             let script_url = CefString::from("objectiveai://tab-script.js");
             frame.execute_java_script(Some(&code), Some(&script_url), 0);
         }
+
+        fn on_load_end(
+            &self,
+            _browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
+            http_status_code: i32,
+        ) {
+            let Some(frame) = frame else { return };
+            if frame.is_main() != 1 {
+                return;
+            }
+            self.report(
+                if (200..400).contains(&http_status_code) { "info" } else { "warn" },
+                format!("load end: HTTP {http_status_code} {}", frame_url(frame)),
+            );
+        }
+
+        fn on_load_error(
+            &self,
+            _browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
+            error_code: Errorcode,
+            error_text: Option<&CefString>,
+            failed_url: Option<&CefString>,
+        ) {
+            let Some(frame) = frame else { return };
+            if frame.is_main() != 1 {
+                return;
+            }
+            let text = error_text
+                .map(|t| t.to_string())
+                .unwrap_or_else(|| "no detail".to_string());
+            let url = failed_url
+                .map(|u| u.to_string())
+                .unwrap_or_else(|| "unknown url".to_string());
+            self.report(
+                "error",
+                format!("load failed ({error_code:?}): {text} — {url}"),
+            );
+        }
     }
+}
+
+impl PageLoad {
+    /// Into the viewer's log inbox, under this tab's title — the same
+    /// place the page's console goes.
+    fn report(&self, level: &'static str, message: String) {
+        let (app, title) = (self.app.clone(), self.title.clone());
+        tauri::async_runtime::spawn(async move {
+            crate::shell::report_as(&app, title, level, message, None).await;
+        });
+    }
+}
+
+/// A frame's current URL, for diagnostics.
+fn frame_url(frame: &Frame) -> String {
+    CefString::from(&frame.url()).to_string()
 }
 
 // `PageLogs` forwards a browser page's console into the viewer's log
@@ -855,7 +917,11 @@ wrap_client! {
         }
 
         fn load_handler(&self) -> Option<LoadHandler> {
-            Some(InjectScript::new(self.script.clone()))
+            Some(PageLoad::new(
+                self.script.clone(),
+                self.app.clone(),
+                self.title.clone(),
+            ))
         }
 
         fn display_handler(&self) -> Option<DisplayHandler> {
