@@ -31,15 +31,46 @@ serde_json = { version = "1.0.149", features = ["preserve_order"] }
 # WebviewBuilder/add_child, Webview::reparent past its webview-window
 # refusal — the per-tab content webviews ride all of them.
 tauri = { version = "2.10.3", features = ["unstable"] }
+# Chromium Embedded Framework — the browser-tab surface. Maintained by
+# the Tauri team. `default-features = false` drops `sandbox` (which
+# needs the bootstrap.exe/cdylib build pattern on Windows) and
+# `build-util` (the macOS bundling tool, not needed at runtime).
+#
+# The FIRST build downloads ~150MB of Chromium SDK and compiles a C++
+# wrapper with cmake. Set CEF_PATH to a persistent directory so a
+# `cargo clean` does not re-fetch it.
+cef = { version = "150.2.1", default-features = false }
+# Direct dep purely so cargo propagates DEP_CEF_DLL_WRAPPER_CEF_DIR
+# (the `links = "cef_dll_wrapper"` metadata) into our build.rs — cargo
+# only sets DEP_ vars for DIRECT consumers of the links-emitting crate.
+# Its types are all re-exported through `cef::sys`.
+cef-dll-sys = { version = "150.2.1", default-features = false }
+# The SAME crate cef-dll-sys's build script fetches with — driven at
+# runtime with the same target and version, so the runtime a user
+# downloads is the one the build linked against.
+download-cef = "2.3"
+# Profile directory names: one flat hashed segment per (identity, state
+# key). Same hash the SDK content-addresses agents with.
+twox-hash = { version = "2.1.2", default-features = false, features = ["xxhash3_128", "alloc"] }
 tokio = { version = "1.50.0", features = ["full"] }
 uuid = { version = "1.22", features = ["v4"] }
 tokio-util = { version = "0.7", features = ["io", "io-util"] }
 
 [target."cfg(windows)".dependencies]
-# The docking task's mouse-button check (GetAsyncKeyState): a dock
-# must never commit while the OS modal move loop still owns the
-# dragged window.
-windows-sys = { version = "0.59", features = ["Win32_UI_Input_KeyboardAndMouse"] }
+# - Win32_UI_Input_KeyboardAndMouse: the docking task's mouse-button
+#   check (GetAsyncKeyState) — a dock must never commit while the OS
+#   modal move loop still owns the dragged window.
+# - Win32_Foundation + Win32_UI_WindowsAndMessaging: a browser tab's
+#   CEF surface is a native child window, positioned with SetWindowPos
+#   and re-homed across shell windows with SetParent.
+# - Win32_System_LibraryLoader: AddDllDirectory, so the delay-loaded
+#   libcef.dll resolves out of the fetched runtime directory.
+windows-sys = { version = "0.59", features = [
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_LibraryLoader",
+] }
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }

@@ -22,7 +22,7 @@
 
 use tauri::{Emitter, Manager};
 
-use super::model::{ShellModel, Snapshot};
+use super::model::{ShellModel, Snapshot, Surface};
 
 /// The theme's ground color (`--color-ground: #0c0a09` in app.css) —
 /// painted behind every webview while its document boots, so neither
@@ -94,6 +94,22 @@ fn parked(rect: &tauri::Rect) -> tauri::Rect {
     }
 }
 
+/// A logical rect in PHYSICAL pixels — what a native child window
+/// (a browser tab's CEF surface) is positioned in. Tauri's own
+/// `set_bounds` takes the logical rect directly; `SetWindowPos` does
+/// not, and the difference is invisible at 100% scaling and glaring
+/// anywhere else.
+fn physical(rect: &tauri::Rect, scale: f64) -> (i32, i32, i32, i32) {
+    let position = rect.position.to_logical::<f64>(scale);
+    let size = rect.size.to_logical::<f64>(scale);
+    (
+        (position.x * scale).round() as i32,
+        (position.y * scale).round() as i32,
+        (size.width * scale).round() as i32,
+        (size.height * scale).round() as i32,
+    )
+}
+
 /// Build one shell window: a raw window + its chrome webview
 /// (full-window, proportional auto-resize — full-window IS
 /// expressible as 1.0 rates, unlike the fixed-band content rect).
@@ -145,19 +161,31 @@ pub async fn sync(app: &tauri::AppHandle) {
     // caller can only ever apply something newer.
     let windows = app.state::<ShellModel>().windows_full().await;
 
+    let alive = |id: u64| {
+        windows
+            .values()
+            .any(|ws| ws.tabs.iter().any(|t| t.id == id))
+    };
+
     // Orphans: a content webview whose tab is in no window died with
     // its tab (close is idempotent — the common case is the webview
     // already went down with its window's HWND).
     for (label, webview) in app.webviews() {
         if let Some(id) = tab_id(&label) {
-            let live = windows
-                .values()
-                .any(|ws| ws.tabs.iter().any(|t| t.id == id));
-            if !live {
+            if !alive(id) {
                 let _ = webview.close();
             }
         }
     }
+    // The same sweep for browser tabs, which `app.webviews()` cannot
+    // see: their surfaces belong to CEF, not Tauri, and closing one is
+    // a flush-then-close round trip rather than a synchronous drop.
+    let orphan_browsers: Vec<u64> = super::browser::live(app)
+        .await
+        .into_iter()
+        .filter(|&id| !alive(id))
+        .collect();
+    super::browser::close_many(app, &orphan_browsers).await;
 
     for (win_label, ws) in &windows {
         // A window mid-build or mid-teardown: skip; the next sync
@@ -177,6 +205,15 @@ pub async fn sync(app: &tauri::AppHandle) {
             } else {
                 parked(&rect)
             };
+            // A browser tab's surface is CEF's, not Tauri's: none of
+            // the webview machinery below applies to it, from
+            // `get_webview` through the `ui://changed` push (there is
+            // no document listening — its zoom rides CEF's own API).
+            if matches!(tab.kind.surface, Surface::Browser { .. }) {
+                sync_browser(app, &window, tab, &target, tab.id == ws.active, &ws.ui)
+                    .await;
+                continue;
+            }
             let webview = match app.get_webview(&label) {
                 Some(webview) if webview.window().label() == win_label => Some(webview),
                 Some(webview) => match webview.reparent(&window) {
@@ -221,6 +258,67 @@ pub async fn sync(app: &tauri::AppHandle) {
     }
 }
 
+/// One browser tab's leg of [`sync`]: create its CEF surface if it has
+/// none, re-home it if it moved windows, and put it at `target`.
+///
+/// Deliberately WITHOUT the webview path's self-heal: a failed reparent
+/// there degrades to close-and-recreate, which for a browser would
+/// destroy the very session the feature exists to preserve. A browser
+/// that cannot be re-homed stays where it is and the next sync retries.
+async fn sync_browser(
+    app: &tauri::AppHandle,
+    window: &tauri::Window,
+    tab: &super::model::Tab,
+    target: &tauri::Rect,
+    active: bool,
+    ui: &super::model::UiState,
+) {
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let (x, y, width, height) = physical(target, scale);
+    // The parent HWND — a browser's surface is a native child window of
+    // the shell window, not of any webview.
+    #[cfg(target_os = "windows")]
+    let parent = match window.hwnd() {
+        Ok(hwnd) => hwnd.0 as isize,
+        Err(_) => return,
+    };
+    #[cfg(not(target_os = "windows"))]
+    let parent = 0isize;
+
+    if crate::cef::has_browser(tab.id) {
+        // Re-home first (a no-op when it never moved — SetParent to the
+        // current parent is legal), then bound: reparenting does not
+        // preserve position any more than a webview reparent does.
+        let _ = crate::cef::reparent(tab.id, parent);
+    } else if let Err(e) = super::browser::spawn(
+        app,
+        tab.id,
+        &tab.kind.identity,
+        &tab.kind.surface,
+        parent,
+        (x, y, width, height),
+    )
+    .await
+    {
+        // The tab exists and stays in the strip; only its surface is
+        // missing. Report it the way every other shell failure is
+        // reported and let the user close the tab.
+        super::report_shell(app, "error", format!("browser tab {}: {e}", tab.title))
+            .await;
+        return;
+    }
+    crate::cef::set_bounds(tab.id, x, y, width, height);
+    // The chrome webview spans the whole window, so an active browser
+    // has to be re-asserted above it. (Parked tabs are far offscreen —
+    // z-order is meaningless there.)
+    if active {
+        crate::cef::raise(tab.id);
+    }
+    // The window's zoom, in CEF's units: a level, where each step is a
+    // factor of 1.2 and 0 is 100%.
+    crate::cef::set_zoom(tab.id, ui.zoom.max(0.01).ln() / 1.2f64.ln());
+}
+
 /// Resize one window's content webviews (Resized /
 /// ScaleFactorChanged). SIZE ONLY: the active position (0, strip)
 /// and the parked position (0, PARK_Y) are both constants, so a
@@ -239,6 +337,17 @@ pub fn layout_window(app: &tauri::AppHandle, label: &str) {
         if tab_id(webview.label()).is_some() {
             let _ = webview.set_size(rect.size);
         }
+    }
+    // Browser tabs are not in `window.webviews()`, and their surfaces
+    // take PHYSICAL bounds. Same size-only spirit: CEF remembers each
+    // browser's parent and its last y (active or parked — both
+    // constants a resize never changes), so this stays a pure
+    // reposition with no model read, exactly like the loop above.
+    #[cfg(target_os = "windows")]
+    if let Ok(hwnd) = window.hwnd() {
+        let scale = window.scale_factor().unwrap_or(1.0);
+        let (x, _, width, height) = physical(&rect, scale);
+        crate::cef::relayout(hwnd.0 as isize, x, width, height);
     }
 }
 

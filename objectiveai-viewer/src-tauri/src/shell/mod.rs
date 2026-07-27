@@ -1,3 +1,6 @@
+// Public directly rather than glob-re-exported: its verbs are `spawn`,
+// `close`, `live` — names that only read correctly qualified.
+pub mod browser;
 mod channels;
 pub use channels::*;
 mod command_logs;

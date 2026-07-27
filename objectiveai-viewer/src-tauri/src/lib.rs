@@ -1,3 +1,4 @@
+pub mod cef;
 pub mod daemon_proxy;
 mod laboratories;
 mod run;

@@ -17,13 +17,58 @@ import type { ViewerTransport } from "./daemon/viewerStream";
  * that identity's root — a caller can only ever open tabs whose code
  * lives under its own root.
  */
-export interface ViewerOpenTab {
+/** A tab rendering one of your components — the ordinary kind. */
+export interface ViewerOpenComponentTab extends ViewerOpenTabCommon {
   /** Component module path, relative to the sender identity's root
    * (e.g. `/tabs/agents.js`). Absolute-from-root, no scheme, no
    * traversal — the shell rejects anything else. */
   module: string;
   /** The export holding the component (default `"default"`). */
   export?: string;
+  url?: never;
+  script?: never;
+  state?: never;
+}
+
+/**
+ * A tab rendering a real web page in a real Chromium browser, opened
+ * inside the viewer as an ordinary tab: it sits in the strip, moves
+ * between windows, and closes like any other.
+ *
+ * It is NOT one of your components — there is no module, no props and
+ * no bootstrap, so none of the viewer SDK is available to the page.
+ * The only code of yours that runs in it is `script`.
+ */
+export interface ViewerOpenBrowserTab extends ViewerOpenTabCommon {
+  /** Where the browser opens. */
+  url: string;
+  /** OPTIONAL name of one of your plugin manifest's `scripts`,
+   * injected into every top-level page load (never into iframes).
+   *
+   * A NAME, not code: the runnable set is closed to what the plugin
+   * declared at install time. */
+  script?: string;
+  /** OPTIONAL profile key. Supply one and the browser's cookies,
+   * localStorage and cache PERSIST on disk — so a sign-in survives
+   * closing the tab and is still there next time you open it under
+   * the same key. Omit it and the browser is entirely in memory and
+   * forgets everything on close.
+   *
+   * The profile belongs to your identity and this key together, so
+   * different keys are different logins and no other plugin can reach
+   * either. Only ONE browser may drive a given profile at a time —
+   * opening a second on the same key fails rather than corrupting the
+   * store the first is writing.
+   *
+   * Part of the dedupe identity: two browsers on the same URL with
+   * different profiles are genuinely different tabs. */
+  state?: string;
+  module?: never;
+  export?: never;
+}
+
+/** What every tab has, whichever surface it renders. */
+interface ViewerOpenTabCommon {
   /** The tab's display title. */
   title: string;
   /** Opaque props delivered verbatim to the component at boot. */
@@ -55,6 +100,9 @@ export interface ViewerOpenTab {
    * children of one component and address them separately. */
   key?: string;
 }
+
+/** One tab open request — a component tab or a browser tab. */
+export type ViewerOpenTab = ViewerOpenComponentTab | ViewerOpenBrowserTab;
 
 /**
  * Open a viewer tab in the calling window — or focus it, wherever it

@@ -21,8 +21,10 @@ use super::native;
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct OpenTab {
-    /// Component module path, identity-root-relative.
-    pub module: String,
+    /// Component module path, identity-root-relative. Required for a
+    /// component tab; omitted (with `url` supplied) for a browser.
+    #[serde(default)]
+    pub module: Option<String>,
     /// The export holding the component (`None` = `"default"`).
     #[serde(default)]
     pub export: Option<String>,
@@ -53,6 +55,19 @@ pub struct OpenTab {
     /// keys are different tabs.
     #[serde(default)]
     pub key: Option<String>,
+    /// Supplying this makes the tab a BROWSER: a real Chromium
+    /// surface opened here, with no module and no bootstrap.
+    /// Mutually exclusive with `module`.
+    #[serde(default)]
+    pub url: Option<String>,
+    /// Browser only — the name of one of the owning plugin's manifest
+    /// `scripts`, injected into every main-frame load.
+    #[serde(default)]
+    pub script: Option<String>,
+    /// Browser only — the profile key. Present ⇒ cookies and storage
+    /// PERSIST on disk and reload next time; absent ⇒ in-memory only.
+    #[serde(default)]
+    pub state: Option<String>,
 }
 
 /// What a content webview learns about itself at boot — everything
@@ -130,7 +145,32 @@ pub async fn tabs_open(
     model: tauri::State<'_, ShellModel>,
     tab: OpenTab,
 ) -> Result<(), String> {
-    validate_module(&tab.module)?;
+    // Exactly one surface. `validate_module` governs component paths
+    // only — a browser URL is not identity-root-relative.
+    let surface = match (tab.module, &tab.url) {
+        (Some(_), Some(_)) => {
+            return Err(
+                "tabs_open: `module` and `url` are mutually exclusive — a tab is a component or a browser"
+                    .to_string(),
+            );
+        }
+        (None, None) => {
+            return Err("tabs_open: one of `module` or `url` is required".to_string());
+        }
+        (Some(module), None) => {
+            validate_module(&module)?;
+            super::Surface::Component {
+                module,
+                export: tab.export,
+                root_module: false,
+            }
+        }
+        (None, Some(_)) => super::Surface::Browser {
+            url: tab.url.clone().expect("checked Some"),
+            script: tab.script.clone(),
+            state: tab.state.clone(),
+        },
+    };
     if let Some(icon) = &tab.icon {
         validate_module(icon)?;
     }
@@ -149,11 +189,9 @@ pub async fn tabs_open(
     let identity = sender_identity(&webview, &model).await;
     let kind = TabKind {
         identity,
-        module: tab.module,
-        export: tab.export,
-        root_module: false,
         key: tab.key.clone(),
         arguments: tab.arguments,
+        surface,
     };
     let caller = webview.window().label().to_string();
     let opened = open_tab(
@@ -238,11 +276,21 @@ pub async fn tab_self(
         .tab(id)
         .await
         .ok_or_else(|| "tab_self: unknown tab".to_string())?;
+    // Only a component tab has a descriptor to fetch — a browser has
+    // no bootstrap to ask, so reaching here means a stale caller.
+    let super::Surface::Component {
+        module,
+        export,
+        root_module,
+    } = tab.kind.surface
+    else {
+        return Err("tab_self: this tab is a browser, not a component".to_string());
+    };
     Ok(TabDescriptor {
         identity: tab.kind.identity,
-        module: tab.kind.module,
-        export: tab.kind.export,
-        root_module: tab.kind.root_module,
+        module,
+        export,
+        root_module,
         arguments: tab.kind.arguments,
         styles: tab.styles,
         title: tab.title,
@@ -276,6 +324,9 @@ pub(crate) async fn select_tab(app: &tauri::AppHandle, window: &str, tab_id: u64
     if let Some(webview) = app.get_webview(&native::tab_label(tab_id)) {
         let _ = webview.set_focus();
     }
+    // A browser tab has no webview to focus — its keyboard focus is
+    // CEF's to give. No-op for every component tab.
+    crate::cef::focus(tab_id);
 }
 
 /// Close a tab (idempotent). A window whose last tab closes is
@@ -296,6 +347,12 @@ pub(crate) async fn close_tab(app: &tauri::AppHandle, tab_id: u64) {
     // Every removal path must reach the mailbox registry, or a peer
     // blocked on this tab waits forever.
     app.state::<super::TabMail>().closed(tab_id).await;
+    // A browser tab's surface is closed HERE, before its window can be
+    // torn down under it: the close flushes cookies first and CEF must
+    // be allowed to finish that against a live parent. No-op for a
+    // component tab. (The reconciler's orphan sweep would catch this
+    // too, but only after the window was already gone.)
+    super::browser::close(app, tab_id).await;
     let model = app.state::<ShellModel>();
     let Some(closed) = model.close(tab_id).await else {
         return;

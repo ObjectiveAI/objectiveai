@@ -165,6 +165,7 @@ pub fn serve(
     command_log_sink: crate::shell::CommandLogSink,
     tab_inventory: crate::shell::TabInventory,
     plugins_dirs: crate::shell::PluginsDirs,
+    profile_root: crate::cef::ProfileRoot,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
     let plugins_root = plugins_dirs.plugins_root();
@@ -190,6 +191,8 @@ pub fn serve(
         .manage(model)
         .manage(crate::shell::WebviewSync::default())
         .manage(crate::shell::TabMail::default())
+        .manage(crate::shell::browser::Browsers::default())
+        .manage(profile_root)
         .manage(log_sink)
         .manage(command_log_sink)
         .manage(tab_inventory)
@@ -308,7 +311,7 @@ pub fn serve(
         })
         .build(tauri::generate_context!())
         .expect("error building tauri application");
-    app.run_return(move |app_handle, event| {
+    let code = app.run_return(move |app_handle, event| {
         use tauri::Manager;
         if let tauri::RunEvent::WindowEvent { label, event, .. } = event {
             match event {
@@ -316,6 +319,35 @@ pub fn serve(
                 // teardown) are meaningless.
                 tauri::WindowEvent::Moved(_) => {
                     let _ = dock_tx.send(label);
+                }
+                // A window hosting browser tabs cannot just close: CEF
+                // writes cookies lazily, and a browser whose parent
+                // HWND is destroyed mid-flush loses the session it was
+                // flushing — invisibly, since the window closes
+                // normally either way. So DEFER the close, flush and
+                // close each browser (bounded), then re-issue it. The
+                // second pass finds no browsers left and proceeds.
+                #[cfg(target_os = "windows")]
+                tauri::WindowEvent::CloseRequested { ref api, .. } => {
+                    use tauri::Manager as _;
+                    let hwnd = app_handle
+                        .get_window(&label)
+                        .and_then(|window| window.hwnd().ok())
+                        .map(|hwnd| hwnd.0 as isize);
+                    if let Some(hwnd) = hwnd {
+                        let tabs = crate::cef::browsers_in(hwnd);
+                        if !tabs.is_empty() {
+                            api.prevent_close();
+                            let handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                crate::shell::browser::close_many(&handle, &tabs)
+                                    .await;
+                                if let Some(window) = handle.get_window(&label) {
+                                    let _ = window.close();
+                                }
+                            });
+                        }
+                    }
                 }
                 // A window died (user close, tabs_close auto-close,
                 // dock merge, teardown) — drop its model slice, then
@@ -344,6 +376,15 @@ pub fn serve(
                                 .state::<crate::shell::TabMail>()
                                 .closed_many(&tabs)
                                 .await;
+                            // And each may be a browser. Their parent
+                            // HWND is already gone by `Destroyed`, so
+                            // this is a best-effort flush of whatever
+                            // CEF can still write — the graceful path
+                            // is `close_tab`, which runs first
+                            // whenever the tab (rather than the OS
+                            // window) is what closed.
+                            crate::shell::browser::close_many(&handle, &tabs)
+                                .await;
                             crate::shell::publish(&handle, &snapshot, &[]);
                             crate::shell::sync(&handle).await;
                         }
@@ -364,7 +405,14 @@ pub fn serve(
                 _ => {}
             }
         }
-    })
+    });
+    // CEF outlives Tauri's event loop and must be told to stop — every
+    // browser is already closed by here (each window's CloseRequested
+    // flushes and closes its own before letting itself go). A viewer
+    // that never opened a browser tab never initialized CEF, and this
+    // is a no-op.
+    crate::cef::shutdown();
+    code
 }
 
 /// Sets up and serves the viewer. Returns the exit code from Tauri's event loop.
@@ -425,6 +473,15 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     // lives inside it, machine-wide, shared across states).
     let plugins_dirs = crate::shell::PluginsDirs::new(config.objectiveai_dir.clone());
 
+    // Browser-tab profiles: `<viewer_dir>/browsers/`, one flat hashed
+    // directory per (identity, state key). Chosen ONCE — CEF locks its
+    // root for the process lifetime, and every relocation of this path
+    // silently orphans every profile already on disk.
+    let profile_root = crate::cef::ProfileRoot::new(
+        &viewer_dir,
+        &config.objectiveai_dir.join("bin"),
+    );
+
     Ok(serve(
         proxy,
         agents_dir,
@@ -433,6 +490,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         command_log_sink,
         tab_inventory,
         plugins_dirs,
+        profile_root,
         None,
     ))
 }

@@ -46,6 +46,13 @@ impl PluginsDirs {
         self.objectiveai_dir.join("bin").join("temp").join("viewer")
     }
 
+    /// `<dir>/bin` — the machine-wide binaries root every on-demand
+    /// runtime installs under (podman, the pinned Python, and the
+    /// browser tabs' Chromium).
+    pub fn bin_dir(&self) -> PathBuf {
+        self.objectiveai_dir.join("bin")
+    }
+
     /// `<dir>/bin/locks` — the machine-wide lock dir the laboratory
     /// host also uses (distinct keys: `plugin-viewer-*` here,
     /// `plugin-image-*` there).
