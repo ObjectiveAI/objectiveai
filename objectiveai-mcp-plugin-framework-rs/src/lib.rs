@@ -9,8 +9,10 @@
 pub mod db;
 mod environment;
 pub use environment::*;
+pub mod tools;
 
-/// Re-exported so a plugin uses the SAME `sqlx` the pool came from.
-/// Depending on it separately risks two versions in one binary, where
-/// a `Pool` from here would not satisfy a query API from there.
-pub use sqlx;
+/// Re-exported so a plugin uses the SAME `rmcp` and `sqlx` the router
+/// and pool came from. Depending on either separately risks two
+/// versions in one binary, where a `Pool` or a `ToolRouter` from here
+/// would not satisfy an API from there.
+pub use {rmcp, sqlx};
