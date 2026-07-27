@@ -218,7 +218,15 @@ impl ChannelRequest {
 impl ChannelResponse {
     fn wire_payload(&self) -> Option<&[u8]> {
         match &self.payload {
+            // Both chunk-bearing replies: an export streams a live
+            // container, a build drains a parked archive, and BOTH
+            // carry their bytes out of band (the field is
+            // `serde(skip)` — omitting a variant here silently ships
+            // empty chunks).
             super::ResponsePayload::ExportRead(super::JsonRpcResult::Ok {
+                result,
+            })
+            | super::ResponsePayload::BuildRead(super::JsonRpcResult::Ok {
                 result,
             }) => Some(&result.data),
             _ => None,
@@ -246,6 +254,9 @@ impl ChannelResponse {
         let mut parsed: Self = serde_json::from_str(header).ok()?;
         match &mut parsed.payload {
             super::ResponsePayload::ExportRead(super::JsonRpcResult::Ok {
+                result,
+            })
+            | super::ResponsePayload::BuildRead(super::JsonRpcResult::Ok {
                 result,
             }) => {
                 result.data = payload.to_vec();
