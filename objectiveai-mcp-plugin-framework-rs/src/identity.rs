@@ -66,11 +66,10 @@ pub fn environment() -> &'static Environment {
 }
 
 impl Environment {
-    /// Read the process environment directly, bypassing the cache.
-    ///
-    /// [`environment`] is what callers want; this is for the rare case
-    /// of wanting a fresh read.
-    pub fn read() -> Self {
+    /// Read the process environment. Private: [`environment`] is the
+    /// only way in, so every caller shares one parse and none can
+    /// observe a second, differing read.
+    fn read() -> Self {
         Self::read_from(|name| std::env::var(name).ok())
     }
 
