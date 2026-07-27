@@ -1357,9 +1357,10 @@ impl HostServer {
         // Identity env: the six agent values from the request headers,
         // PLUS the plugin trio from the CANONICAL coordinates — this
         // authenticated create is the trio's authority (wire-parsed
-        // bags always null it) — PLUS the Postgres URL the container
-        // dials (role/password/database from the daemon; address is
-        // THIS host's tunnel listener).
+        // bags always null it) — PLUS the plugin's own declared
+        // arguments and the Postgres URL the container dials
+        // (role/password/database from the daemon; address is THIS
+        // host's tunnel listener).
         let identity_env = {
             let mut args =
                 objectiveai_sdk::identity::Identity::from_transient_headers(
@@ -1369,6 +1370,23 @@ impl HostServer {
             args.plugin_name = Some(coords.name.clone());
             args.plugin_version = Some(coords.version.clone());
             let mut env = args.identity_env();
+            // The plugin's declared arguments, verbatim off the header
+            // that already carries them to its MCP server on every
+            // call. Same JSON, same name minus the `X-` — so a plugin
+            // can read its configuration at startup instead of waiting
+            // for a call to hand it over.
+            //
+            // Safe to freeze into the environment ONLY because this is
+            // an EPHEMERAL container: one completion per container, so
+            // the arguments cannot change under it. Absent when the
+            // agent declared none — never an empty string.
+            if let Some(arguments) = headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-ARGUMENTS"))
+                .map(|(_, v)| v.clone())
+            {
+                env.push(("OBJECTIVEAI_ARGUMENTS".to_string(), arguments));
+            }
             let enc = |s: &str| {
                 percent_encoding::utf8_percent_encode(
                     s,
