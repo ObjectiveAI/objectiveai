@@ -285,28 +285,43 @@ async fn sync_browser(
     #[cfg(not(target_os = "windows"))]
     let parent = 0isize;
 
-    if crate::cef::has_browser(tab.id) {
-        // Re-home first (a no-op when it never moved — SetParent to the
-        // current parent is legal), then bound: reparenting does not
-        // preserve position any more than a webview reparent does.
-        let _ = crate::cef::reparent(tab.id, parent);
-    } else if let Err(e) = super::browser::spawn(
-        app,
-        tab.id,
-        &tab.kind.identity,
-        &tab.kind.surface,
-        parent,
-        (x, y, width, height),
-    )
-    .await
-    {
-        // The tab exists and stays in the strip; only its surface is
-        // missing. Report it the way every other shell failure is
-        // reported and let the user close the tab.
-        super::report_shell(app, "error", format!("browser tab {}: {e}", tab.title))
-            .await;
+    if !crate::cef::has_browser(tab.id) {
+        // DETACHED, deliberately. The first browser tab on a machine
+        // downloads ~200MB of Chromium, and this runs inside the
+        // reconciler's serialization guard — awaiting it here would
+        // freeze every tab operation in the app for the length of that
+        // download. `spawn` claims its slot before doing anything slow,
+        // so the syncs that land meanwhile are no-ops, and the browser
+        // is created at the bounds passed here regardless of how much
+        // later that is.
+        let app = app.clone();
+        let (id, title) = (tab.id, tab.title.clone());
+        let identity = tab.kind.identity.clone();
+        let surface = tab.kind.surface.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = super::browser::spawn(
+                &app,
+                id,
+                &identity,
+                &surface,
+                parent,
+                (x, y, width, height),
+            )
+            .await
+            {
+                // The tab exists and stays in the strip; only its
+                // surface is missing. Report it the way every other
+                // shell failure is reported and let the user close it.
+                super::report_shell(&app, "error", format!("browser tab {title}: {e}"))
+                    .await;
+            }
+        });
         return;
     }
+    // Re-home first (a no-op when it never moved — SetParent to the
+    // current parent is legal), then bound: reparenting does not
+    // preserve position any more than a webview reparent does.
+    let _ = crate::cef::reparent(tab.id, parent);
     crate::cef::set_bounds(tab.id, x, y, width, height);
     // The chrome webview spans the whole window, so an active browser
     // has to be re-asserted above it. (Parked tabs are far offscreen —

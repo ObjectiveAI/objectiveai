@@ -211,6 +211,29 @@ pub fn initialize(runtime_dir: &Path, root_cache: &Path) -> Result<(), String> {
         return Ok(());
     }
 
+    // macOS owns the main-thread run loop through NSApplication, so
+    // `multi_threaded_message_loop` is unavailable and CEF has to share
+    // it via `external_message_pump` — plus a `.app` layout with a
+    // separate helper bundle. Neither is built yet; refuse clearly
+    // rather than initialize into a deadlock.
+    #[cfg(target_os = "macos")]
+    {
+        let _ = (runtime_dir, root_cache);
+        return Err(
+            "browser tabs are not supported on macOS yet — CEF needs the \
+             external-message-pump + helper-bundle layout"
+                .to_string(),
+        );
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        initialize_inner(runtime_dir, root_cache)
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn initialize_inner(runtime_dir: &Path, root_cache: &Path) -> Result<(), String> {
     super::add_dll_directory(runtime_dir);
     // Inherited by every helper CEF spawns — see [`RUNTIME_DIR_ENV`].
     // SAFETY: single-threaded with respect to other env mutation — this
@@ -245,7 +268,6 @@ pub fn initialize(runtime_dir: &Path, root_cache: &Path) -> Result<(), String> {
         .map_err(|e| format!("current_exe: {e}"))?;
     let log_file = root_cache.join("cef-debug.log");
 
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
     let settings = Settings {
         // CEF runs its own UI thread; Tauri's wry/tao event loop keeps
         // the main one.
@@ -261,43 +283,22 @@ pub fn initialize(runtime_dir: &Path, root_cache: &Path) -> Result<(), String> {
         ..Default::default()
     };
 
-    // macOS owns the main-thread run loop through NSApplication, so
-    // `multi_threaded_message_loop` is unavailable and CEF has to share
-    // via `external_message_pump` — plus a `.app` layout with a
-    // separate helper bundle. Neither is built yet; refuse clearly
-    // rather than initialize into a deadlock.
-    #[cfg(target_os = "macos")]
-    {
-        let _ = (&settings_unused(), &exe, &log_file);
-        return Err(
-            "browser tabs are not supported on macOS yet — CEF needs the \
-             external-message-pump + helper-bundle layout"
-                .to_string(),
-        );
+    let mut app = ViewerApp::new();
+    let init = cef::initialize(
+        Some(main_args),
+        Some(&settings),
+        Some(&mut app),
+        std::ptr::null_mut(),
+    );
+    if init != 1 {
+        return Err(format!(
+            "cef initialize failed — see {}",
+            log_file.display()
+        ));
     }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        let mut app = ViewerApp::new();
-        let init = cef::initialize(
-            Some(main_args),
-            Some(&settings),
-            Some(&mut app),
-            std::ptr::null_mut(),
-        );
-        if init != 1 {
-            return Err(format!(
-                "cef initialize failed — see {}",
-                log_file.display()
-            ));
-        }
-        let _ = INITIALIZED.set(());
-        Ok(())
-    }
+    let _ = INITIALIZED.set(());
+    Ok(())
 }
-
-#[cfg(target_os = "macos")]
-fn settings_unused() {}
 
 /// Tear CEF down. Every browser must already be closed — the shell
 /// closes each browser tab (and waits for it) before its window dies.

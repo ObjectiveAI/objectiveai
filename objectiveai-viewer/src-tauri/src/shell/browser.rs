@@ -136,9 +136,13 @@ async fn resolve_script(
 /// Create the Chromium surface for a browser tab, once.
 ///
 /// `parent` is the hosting window's native handle and `bounds` its
-/// content rect in PHYSICAL pixels. Idempotent per tab: a second call
-/// while the first is still in flight (CEF registers the browser
-/// asynchronously) is a no-op rather than a second browser.
+/// content rect in PHYSICAL pixels.
+///
+/// Idempotent per tab, and the SLOT IS CLAIMED FIRST — before the
+/// runtime download, the profile claim, or anything else that can take
+/// time. It has to be: CEF registers a browser asynchronously, so
+/// "does this tab have one?" answers no for the whole spawn, and every
+/// reconcile in that window would otherwise start another.
 pub async fn spawn(
     app: &tauri::AppHandle,
     tab: u64,
@@ -152,17 +156,32 @@ pub async fn spawn(
     };
     let browsers = app.state::<Browsers>();
     {
-        let inner = browsers.inner.lock().await;
-        if inner.spawned.contains(&tab) {
+        let mut inner = browsers.inner.lock().await;
+        if !inner.spawned.insert(tab) {
             return Ok(());
         }
     }
-    browsers.ensure_started(app).await?;
+    // From here every failure hands the slot back, so the next
+    // reconcile retries rather than leaving a permanently blank tab.
+    let unclaim = || async {
+        let mut inner = browsers.inner.lock().await;
+        inner.spawned.remove(&tab);
+    };
+    if let Err(e) = browsers.ensure_started(app).await {
+        unclaim().await;
+        return Err(e);
+    }
 
     // Resolve the script BEFORE claiming anything: a bad script name is
     // a plain spawn error and should not leave a claimed profile behind.
     let script = match script {
-        Some(name) => Some(resolve_script(app, identity, name).await?),
+        Some(name) => match resolve_script(app, identity, name).await {
+            Ok(script) => Some(script),
+            Err(e) => {
+                unclaim().await;
+                return Err(e);
+            }
+        },
         None => None,
     };
 
@@ -170,11 +189,17 @@ pub async fn spawn(
     // browser is entirely in memory, which needs no directory and no
     // claim.
     let profile = match state {
-        Some(state) => Some(
-            app.state::<crate::cef::ProfileRoot>()
-                .claim(identity, state)
-                .await?,
-        ),
+        Some(state) => match app
+            .state::<crate::cef::ProfileRoot>()
+            .claim(identity, state)
+            .await
+        {
+            Ok(profile) => Some(profile),
+            Err(e) => {
+                unclaim().await;
+                return Err(e);
+            }
+        },
         None => None,
     };
 
@@ -187,13 +212,12 @@ pub async fn spawn(
         script,
     });
 
-    let mut inner = browsers.inner.lock().await;
     match result {
         Ok(()) => {
             if let Some(profile) = profile {
+                let mut inner = browsers.inner.lock().await;
                 inner.profiles.insert(tab, profile);
             }
-            inner.spawned.insert(tab);
             Ok(())
         }
         Err(e) => {
@@ -202,6 +226,7 @@ pub async fn spawn(
             if let Some(profile) = profile {
                 profile.release();
             }
+            unclaim().await;
             Err(e)
         }
     }
