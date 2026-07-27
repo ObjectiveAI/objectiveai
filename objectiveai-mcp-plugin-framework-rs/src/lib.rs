@@ -6,5 +6,11 @@
 //! framework reads that context once, directly, rather than making
 //! every plugin rediscover it.
 
+pub mod db;
 mod environment;
 pub use environment::*;
+
+/// Re-exported so a plugin uses the SAME `sqlx` the pool came from.
+/// Depending on it separately risks two versions in one binary, where
+/// a `Pool` from here would not satisfy a query API from there.
+pub use sqlx;

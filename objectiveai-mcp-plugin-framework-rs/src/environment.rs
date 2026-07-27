@@ -72,7 +72,6 @@ pub fn arguments() -> &'static Arguments {
 ///
 /// Crate-internal: the connection is the framework's to own, so a
 /// plugin is handed a database rather than a URL to dial for itself.
-#[allow(dead_code, reason = "for the framework's own database layer, still to come")]
 pub(crate) fn postgres_url() -> Option<&'static str> {
     static POSTGRES_URL: OnceLock<Option<String>> = OnceLock::new();
     POSTGRES_URL
