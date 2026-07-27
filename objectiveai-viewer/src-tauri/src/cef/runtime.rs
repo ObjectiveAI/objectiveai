@@ -559,6 +559,36 @@ pub fn relayout(parent: isize, x: i32, width: i32, height: i32) {
     }
 }
 
+/// Hide a browser's surface immediately.
+///
+/// The close it precedes is not immediate: CEF cancels the first close
+/// to flush cookies and only tears down on the second pass, which can
+/// take a moment. That is a fine thing to wait for and a terrible thing
+/// to WATCH — a tab that stays on screen after you closed it reads as a
+/// frozen app. So the pixels go now and the teardown finishes behind
+/// them.
+///
+/// `SW_HIDE` rather than a move offscreen: the window is being
+/// destroyed, so nothing needs it laid out any more (unlike a parked
+/// background tab, which must stay live and correctly sized — see
+/// `PARK_Y_LOGICAL`).
+pub fn hide(tab: u64) {
+    let Some(child) = browsers().lock().ok().and_then(|m| m.get(&tab).map(|e| e.child))
+    else {
+        return;
+    };
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows_sys::Win32::Foundation::HWND;
+        use windows_sys::Win32::UI::WindowsAndMessaging::{SW_HIDE, ShowWindow};
+        ShowWindow(child as HWND, SW_HIDE);
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = child;
+    }
+}
+
 /// Put a browser's surface at the TOP of its parent's child z-order.
 ///
 /// Needed because a shell window's chrome webview spans the whole

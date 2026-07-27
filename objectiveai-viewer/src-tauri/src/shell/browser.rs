@@ -254,7 +254,13 @@ pub async fn spawn(
 /// would let a second browser attach to a store Chromium is still
 /// flushing. A tab with no browser is a no-op, so every teardown path
 /// may call this unconditionally.
+///
+/// Callers that are tearing down the surrounding WINDOW must await
+/// this — the parent HWND cannot be destroyed while CEF is still
+/// flushing under it. Callers merely closing a TAB should prefer
+/// [`begin_close`], which returns at once.
 pub async fn close(app: &tauri::AppHandle, tab: u64) {
+    crate::cef::hide(tab);
     crate::cef::close(tab, CLOSE_TIMEOUT).await;
     let browsers = app.state::<Browsers>();
     let mut inner = browsers.inner.lock().await;
@@ -262,6 +268,27 @@ pub async fn close(app: &tauri::AppHandle, tab: u64) {
     if let Some(profile) = inner.profiles.remove(&tab) {
         profile.release();
     }
+}
+
+/// Start closing a tab's browser and return IMMEDIATELY, with its
+/// surface already hidden.
+///
+/// The cookie flush that makes a close correct also makes it slow
+/// enough to see, and what the user asked for was for the tab to go
+/// away. So the pixels go synchronously and the flush finishes behind
+/// them: by the time the strip has repainted without this tab, all
+/// that is left is Chromium writing to disk.
+///
+/// Safe precisely because it does NOT outlive the window: if this was
+/// the last tab, the window's own `CloseRequested` still finds the
+/// browser live and defers destroying the HWND until the flush is
+/// done. Nothing here can strand a half-written cookie store.
+pub fn begin_close(app: &tauri::AppHandle, tab: u64) {
+    crate::cef::hide(tab);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        close(&app, tab).await;
+    });
 }
 
 /// Close every browser among `tabs`, concurrently — a window teardown

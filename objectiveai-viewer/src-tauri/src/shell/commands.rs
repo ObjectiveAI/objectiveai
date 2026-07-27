@@ -347,12 +347,13 @@ pub(crate) async fn close_tab(app: &tauri::AppHandle, tab_id: u64) {
     // Every removal path must reach the mailbox registry, or a peer
     // blocked on this tab waits forever.
     app.state::<super::TabMail>().closed(tab_id).await;
-    // A browser tab's surface is closed HERE, before its window can be
-    // torn down under it: the close flushes cookies first and CEF must
-    // be allowed to finish that against a live parent. No-op for a
-    // component tab. (The reconciler's orphan sweep would catch this
-    // too, but only after the window was already gone.)
-    super::browser::close(app, tab_id).await;
+    // A browser tab's surface goes NOW — hidden synchronously, torn
+    // down behind us. Awaiting the teardown here would hold the tab in
+    // the strip for the length of a cookie flush, which reads as a
+    // frozen app; and it is unnecessary, because the thing that must
+    // not happen early (destroying the parent HWND) is gated by the
+    // window's own close, not by this. No-op for a component tab.
+    super::browser::begin_close(app, tab_id);
     let model = app.state::<ShellModel>();
     let Some(closed) = model.close(tab_id).await else {
         return;

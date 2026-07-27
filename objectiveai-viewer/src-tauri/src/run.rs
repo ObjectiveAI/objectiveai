@@ -338,6 +338,15 @@ pub fn serve(
                         let tabs = crate::cef::browsers_in(hwnd);
                         if !tabs.is_empty() {
                             api.prevent_close();
+                            // HIDE it in the same breath. The deferral
+                            // is correct but it is not instant, and a
+                            // window that visibly outlives the click
+                            // that closed it reads as a hang. Gone
+                            // from the screen now; destroyed once CEF
+                            // has finished writing.
+                            if let Some(window) = app_handle.get_window(&label) {
+                                let _ = window.hide();
+                            }
                             let handle = app_handle.clone();
                             tauri::async_runtime::spawn(async move {
                                 crate::shell::browser::close_many(&handle, &tabs)
