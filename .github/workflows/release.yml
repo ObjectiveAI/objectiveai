@@ -374,6 +374,9 @@ jobs:
           # path deps don't resolve from the published tarball alone.
           publish_crate objectiveai-mcp-proxy --no-verify
           publish_crate objectiveai-mcp-laboratory
+          # Depends on nothing in-repo, so it neither waits nor is
+          # waited on — order among these three is free.
+          publish_crate objectiveai-mcp-plugin-framework
           wait_crate objectiveai-mcp-proxy
 
           publish_crate objectiveai-api --no-verify
