@@ -1,14 +1,11 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! The ObjectiveAI MCP plugin framework.
+//!
+//! Written on ONE assumption: a plugin runs inside ObjectiveAI. The
+//! laboratory host gives it a container per completion, a single
+//! connector, and its identity in the environment — so the framework
+//! reads that context once, directly, rather than making every plugin
+//! rediscover it.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod identity;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use identity::{Arguments, Environment, environment};

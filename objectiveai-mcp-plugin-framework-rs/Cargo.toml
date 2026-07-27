@@ -13,5 +13,8 @@ keywords = ["llm", "ai", "swarm", "mcp"]
 publish = true
 
 [dependencies]
+indexmap = { version = "2.14.0", features = ["serde"] }
+objectiveai-sdk = { version = "2.2.13", path = "../objectiveai-sdk-rs", default-features = false }
 rmcp = "2.2.0"
 schemars = "1.2.2"
+serde_json = "1.0.151"
