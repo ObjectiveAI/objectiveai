@@ -6,11 +6,14 @@ from pydantic import ConfigDict, RootModel
 
 
 class MessageKind(RootModel):
-    """Which side of the channel an entry came from — `request` is
-publisher→owner, `reply` is owner→publisher. Retained for
-[`super::open`]'s flat entry; [`ChannelLogEntry`] is now split by
-this same axis into an enum instead."""
+    """What a stored entry IS — `request` is publisher→owner, `reply` is
+owner→publisher, and the two `publish*` kinds are the accept-time
+SEED rows holding the offer (`publish` = the details,
+`publish_message` = the human message; the pair surfaces in
+[`ChannelLogEntry`] as ONE `publish` item). Retained for
+[`super::open`]'s flat entry; [`ChannelLogEntry`] is split into an
+enum along this same axis."""
     model_config = ConfigDict(title='cli.command.channels.logs.list.MessageKind')
 
-    root: Literal['request', 'reply']
+    root: Literal['request', 'reply', 'publish', 'publish_message']
 

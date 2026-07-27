@@ -7,13 +7,18 @@ import (
 	"fmt"
 )
 
-// Which side of the channel an entry came from — `request` is
-// publisher→owner, `reply` is owner→publisher. Retained for
-// [`super::open`]'s flat entry; [`ChannelLogEntry`] is now split by
-// this same axis into an enum instead.
+// What a stored entry IS — `request` is publisher→owner, `reply` is
+// owner→publisher, and the two `publish*` kinds are the accept-time
+// SEED rows holding the offer (`publish` = the details,
+// `publish_message` = the human message; the pair surfaces in
+// [`ChannelLogEntry`] as ONE `publish` item). Retained for
+// [`super::open`]'s flat entry; [`ChannelLogEntry`] is split into an
+// enum along this same axis.
 type CliCommandChannelsLogsListMessageKind struct {
 	Request *string `validate:"omitempty,oneof=request"`
 	Reply *string `validate:"omitempty,oneof=reply"`
+	Publish *string `validate:"omitempty,oneof=publish"`
+	PublishMessage *string `validate:"omitempty,oneof=publish_message"`
 }
 
 func (v CliCommandChannelsLogsListMessageKind) MarshalJSON() ([]byte, error) {
@@ -22,6 +27,12 @@ func (v CliCommandChannelsLogsListMessageKind) MarshalJSON() ([]byte, error) {
 	}
 	if v.Reply != nil {
 		return json.Marshal(v.Reply)
+	}
+	if v.Publish != nil {
+		return json.Marshal(v.Publish)
+	}
+	if v.PublishMessage != nil {
+		return json.Marshal(v.PublishMessage)
 	}
 	return []byte("null"), nil
 }
@@ -49,6 +60,28 @@ func (v *CliCommandChannelsLogsListMessageKind) UnmarshalJSON(data []byte) error
 			}
 		}
 	}
+	{
+		var try string
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsLogsListMessageKind{}
+			candidate.Publish = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try string
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsLogsListMessageKind{}
+			candidate.PublishMessage = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandChannelsLogsListMessageKind")
 }
 
@@ -56,6 +89,8 @@ func (v CliCommandChannelsLogsListMessageKind) Validate() error {
 	count := 0
 	if v.Request != nil { count++ }
 	if v.Reply != nil { count++ }
+	if v.Publish != nil { count++ }
+	if v.PublishMessage != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandChannelsLogsListMessageKind: exactly one variant must be set, got %d", count)
 	}

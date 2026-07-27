@@ -5,12 +5,28 @@ from typing import Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
+class ChannelLogEntryPublish(BaseModel):
+    """The channel's offer, seeded at accept — ONE per channel, its
+first entry. Two openable ids so a reader pulls the bulky
+parts only when it wants them."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Publish'})
+
+    details_id: int = Field(..., description="The DETAILS entry id — `channels logs open` reveals the\noffer's `details` JSON. Also the `--after-id` cursor.", ge=-9223372036854775808, le=9223372036854775807)
+    kind: Literal['publish']
+    message_id: int = Field(..., description="The MESSAGE entry id — `channels logs open` reveals the\noffer's human-readable message.", ge=-9223372036854775808, le=9223372036854775807)
+    plugin_name: str
+    plugin_owner: str = Field(..., description="The originating plugin (owner/repository/version) — always\npresent: a channel's publisher is a plugin.")
+    plugin_version: str
+    sender_agent_instance_hierarchy: str = Field(..., description='The AIH of the publishing agent (always present — the\ndaemon defaults it).')
+    timestamp: str = Field(..., description="RFC3339 delivery time (the channel's accept time).")
+
+
 class ChannelLogEntryRequest(BaseModel):
     """A publisher→owner message. The publisher is a plugin, so the
 originating plugin trio is always present."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Request'})
 
-    id: int = Field(..., description="The entry's `channel_messages.id` — the cursor for\n`--after-id` and the `--entry-id` for `channels logs open`.", ge=-9223372036854775808, le=9223372036854775807)
+    details_id: int = Field(..., description="The entry's `channel_messages.id` — the cursor for\n`--after-id` and the `--entry-id` for `channels logs open`\n(revealing the entry's content).", ge=-9223372036854775808, le=9223372036854775807)
     kind: Literal['request']
     plugin_name: str
     plugin_owner: str = Field(..., description="The originating plugin (owner/repository/version) — always\npresent: a channel's requester is a plugin.")
@@ -25,7 +41,7 @@ plugin, so the plugin trio is OPTIONAL — present only when a
 plugin happened to send the reply."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Reply'})
 
-    id: int = Field(..., description="The entry's `channel_messages.id`.", ge=-9223372036854775808, le=9223372036854775807)
+    details_id: int = Field(..., description="The entry's `channel_messages.id` — the cursor for\n`--after-id` and the `--entry-id` for `channels logs open`\n(revealing the entry's content).", ge=-9223372036854775808, le=9223372036854775807)
     kind: Literal['reply']
     plugin_name: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     plugin_owner: Optional[str] = Field(None, description='The originating plugin (owner/repository/version) — present\nonly when a plugin sent the reply.', json_schema_extra={'omitempty': True})
@@ -36,15 +52,19 @@ plugin happened to send the reply."""
 
 class ChannelLogEntry(RootModel):
     """One channel-log entry ENVELOPE — no content (open reveals that).
-Identity is INLINE and daemon-authored (unspoofable). The two
-directions are ASYMMETRIC in identity, so the entry is an enum
+Identity is INLINE and daemon-authored (unspoofable). The kinds
+are ASYMMETRIC in identity and shape, so the entry is an enum
 tagged by `kind`:
 
+- `publish` (the accept-time seed, every channel's FIRST entry):
+  the offer itself — `details_id` opens the offer details,
+  `message_id` opens the human message. Publisher-authored, so
+  the plugin trio is REQUIRED.
 - `request` (publisher→owner): the publisher is a PLUGIN — the
   plugin trio is REQUIRED.
 - `reply` (owner→publisher): the replier is never a plugin — no
   plugin trio at all."""
     model_config = ConfigDict(title='cli.command.channels.logs.list.ChannelLogEntry')
 
-    root: Union[ChannelLogEntryRequest, ChannelLogEntryReply]
+    root: Union[ChannelLogEntryPublish, ChannelLogEntryRequest, ChannelLogEntryReply]
 

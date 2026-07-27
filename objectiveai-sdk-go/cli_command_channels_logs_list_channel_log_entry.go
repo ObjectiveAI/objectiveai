@@ -7,12 +7,56 @@ import (
 	"fmt"
 )
 
+// The channel's offer, seeded at accept — ONE per channel, its
+// first entry. Two openable ids so a reader pulls the bulky
+// parts only when it wants them.
+type CliCommandChannelsLogsListChannelLogEntryPublish struct {
+	// The DETAILS entry id — `channels logs open` reveals the
+	// offer's `details` JSON. Also the `--after-id` cursor.
+	DetailsID int64 `json:"details_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Kind string `json:"kind" validate:"oneof=publish"`
+	// The MESSAGE entry id — `channels logs open` reveals the
+	// offer's human-readable message.
+	MessageID int64 `json:"message_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	PluginName string `json:"plugin_name"`
+	// The originating plugin (owner/repository/version) — always
+	// present: a channel's publisher is a plugin.
+	PluginOwner string `json:"plugin_owner"`
+	PluginVersion string `json:"plugin_version"`
+	// The AIH of the publishing agent (always present — the
+	// daemon defaults it).
+	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
+	// RFC3339 delivery time (the channel's accept time).
+	Timestamp string `json:"timestamp"`
+}
+
+func (v *CliCommandChannelsLogsListChannelLogEntryPublish) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"details_id", "kind", "message_id", "plugin_name", "plugin_owner", "plugin_version", "sender_agent_instance_hierarchy", "timestamp"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntryPublish: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandChannelsLogsListChannelLogEntryPublish
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandChannelsLogsListChannelLogEntryPublish(alias)
+	return nil
+}
+func (CliCommandChannelsLogsListChannelLogEntryPublish) SchemaVariantTitle() string { return "Publish" }
+
 // A publisher→owner message. The publisher is a plugin, so the
 // originating plugin trio is always present.
 type CliCommandChannelsLogsListChannelLogEntryRequest struct {
 	// The entry's `channel_messages.id` — the cursor for
-	// `--after-id` and the `--entry-id` for `channels logs open`.
-	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// `--after-id` and the `--entry-id` for `channels logs open`
+	// (revealing the entry's content).
+	DetailsID int64 `json:"details_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Kind string `json:"kind" validate:"oneof=request"`
 	PluginName string `json:"plugin_name"`
 	// The originating plugin (owner/repository/version) — always
@@ -31,7 +75,7 @@ func (v *CliCommandChannelsLogsListChannelLogEntryRequest) UnmarshalJSON(data []
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "kind", "plugin_name", "plugin_owner", "plugin_version", "sender_agent_instance_hierarchy", "timestamp"} {
+	for _, key := range []string{"details_id", "kind", "plugin_name", "plugin_owner", "plugin_version", "sender_agent_instance_hierarchy", "timestamp"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntryRequest: missing required field %q", key)
 		}
@@ -50,8 +94,10 @@ func (CliCommandChannelsLogsListChannelLogEntryRequest) SchemaVariantTitle() str
 // plugin, so the plugin trio is OPTIONAL — present only when a
 // plugin happened to send the reply.
 type CliCommandChannelsLogsListChannelLogEntryReply struct {
-	// The entry's `channel_messages.id`.
-	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// The entry's `channel_messages.id` — the cursor for
+	// `--after-id` and the `--entry-id` for `channels logs open`
+	// (revealing the entry's content).
+	DetailsID int64 `json:"details_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Kind string `json:"kind" validate:"oneof=reply"`
 	PluginName *string `json:"plugin_name,omitempty"`
 	// The originating plugin (owner/repository/version) — present
@@ -70,7 +116,7 @@ func (v *CliCommandChannelsLogsListChannelLogEntryReply) UnmarshalJSON(data []by
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "kind", "sender_agent_instance_hierarchy", "timestamp"} {
+	for _, key := range []string{"details_id", "kind", "sender_agent_instance_hierarchy", "timestamp"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandChannelsLogsListChannelLogEntryReply: missing required field %q", key)
 		}
@@ -86,15 +132,23 @@ func (v *CliCommandChannelsLogsListChannelLogEntryReply) UnmarshalJSON(data []by
 func (CliCommandChannelsLogsListChannelLogEntryReply) SchemaVariantTitle() string { return "Reply" }
 
 // One channel-log entry ENVELOPE — no content (open reveals that).
-// Identity is INLINE and daemon-authored (unspoofable). The two
-// directions are ASYMMETRIC in identity, so the entry is an enum
+// Identity is INLINE and daemon-authored (unspoofable). The kinds
+// are ASYMMETRIC in identity and shape, so the entry is an enum
 // tagged by `kind`:
 //
+// - `publish` (the accept-time seed, every channel's FIRST entry):
+//   the offer itself — `details_id` opens the offer details,
+//   `message_id` opens the human message. Publisher-authored, so
+//   the plugin trio is REQUIRED.
 // - `request` (publisher→owner): the publisher is a PLUGIN — the
 //   plugin trio is REQUIRED.
 // - `reply` (owner→publisher): the replier is never a plugin — no
 //   plugin trio at all.
 type CliCommandChannelsLogsListChannelLogEntry struct {
+	// The channel's offer, seeded at accept — ONE per channel, its
+	// first entry. Two openable ids so a reader pulls the bulky
+	// parts only when it wants them.
+	Publish *CliCommandChannelsLogsListChannelLogEntryPublish `outerObject:"true"`
 	// A publisher→owner message. The publisher is a plugin, so the
 	// originating plugin trio is always present.
 	Request *CliCommandChannelsLogsListChannelLogEntryRequest `outerObject:"true"`
@@ -105,6 +159,9 @@ type CliCommandChannelsLogsListChannelLogEntry struct {
 }
 
 func (v CliCommandChannelsLogsListChannelLogEntry) MarshalJSON() ([]byte, error) {
+	if v.Publish != nil {
+		return json.Marshal(v.Publish)
+	}
 	if v.Request != nil {
 		return json.Marshal(v.Request)
 	}
@@ -115,6 +172,17 @@ func (v CliCommandChannelsLogsListChannelLogEntry) MarshalJSON() ([]byte, error)
 }
 
 func (v *CliCommandChannelsLogsListChannelLogEntry) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandChannelsLogsListChannelLogEntryPublish
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandChannelsLogsListChannelLogEntry{}
+			candidate.Publish = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try CliCommandChannelsLogsListChannelLogEntryRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -142,6 +210,7 @@ func (v *CliCommandChannelsLogsListChannelLogEntry) UnmarshalJSON(data []byte) e
 
 func (v CliCommandChannelsLogsListChannelLogEntry) Validate() error {
 	count := 0
+	if v.Publish != nil { count++ }
 	if v.Request != nil { count++ }
 	if v.Reply != nil { count++ }
 	if count != 1 {

@@ -3,7 +3,16 @@
 import { z } from "zod";
 
 export const CliCommandChannelsLogsListChannelLogEntrySchema = z.union([z.object({
-  id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The entry's `channel_messages.id` — the cursor for\n`--after-id` and the `--entry-id` for `channels logs open`."),
+  details_id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The DETAILS entry id — `channels logs open` reveals the\noffer's `details` JSON. Also the `--after-id` cursor."),
+  kind: z.literal("publish"),
+  message_id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The MESSAGE entry id — `channels logs open` reveals the\noffer's human-readable message."),
+  plugin_name: z.string(),
+  plugin_owner: z.string().describe("The originating plugin (owner/repository/version) — always\npresent: a channel's publisher is a plugin."),
+  plugin_version: z.string(),
+  sender_agent_instance_hierarchy: z.string().describe("The AIH of the publishing agent (always present — the\ndaemon defaults it)."),
+  timestamp: z.string().describe("RFC3339 delivery time (the channel's accept time)."),
+}).describe("The channel's offer, seeded at accept — ONE per channel, its\nfirst entry. Two openable ids so a reader pulls the bulky\nparts only when it wants them.").meta({"variantTitle":"Publish"}), z.object({
+  details_id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The entry's `channel_messages.id` — the cursor for\n`--after-id` and the `--entry-id` for `channels logs open`\n(revealing the entry's content)."),
   kind: z.literal("request"),
   plugin_name: z.string(),
   plugin_owner: z.string().describe("The originating plugin (owner/repository/version) — always\npresent: a channel's requester is a plugin."),
@@ -11,12 +20,12 @@ export const CliCommandChannelsLogsListChannelLogEntrySchema = z.union([z.object
   sender_agent_instance_hierarchy: z.string().describe("The AIH of the agent that sent the entry (always present —\nthe daemon defaults it)."),
   timestamp: z.string().describe("RFC3339 delivery time."),
 }).describe("A publisher→owner message. The publisher is a plugin, so the\noriginating plugin trio is always present.").meta({"variantTitle":"Request"}), z.object({
-  id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The entry's `channel_messages.id`."),
+  details_id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The entry's `channel_messages.id` — the cursor for\n`--after-id` and the `--entry-id` for `channels logs open`\n(revealing the entry's content)."),
   kind: z.literal("reply"),
   plugin_name: z.string().nullable().meta({ omitempty: true }).optional(),
   plugin_owner: z.string().nullable().describe("The originating plugin (owner/repository/version) — present\nonly when a plugin sent the reply.").meta({ omitempty: true }).optional(),
   plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
   sender_agent_instance_hierarchy: z.string().describe("The AIH of the agent that sent the entry (always present —\nthe daemon defaults it)."),
   timestamp: z.string().describe("RFC3339 delivery time."),
-}).describe("An owner→publisher message. The replier is typically not a\nplugin, so the plugin trio is OPTIONAL — present only when a\nplugin happened to send the reply.").meta({"variantTitle":"Reply"})]).describe("One channel-log entry ENVELOPE — no content (open reveals that).\nIdentity is INLINE and daemon-authored (unspoofable). The two\ndirections are ASYMMETRIC in identity, so the entry is an enum\ntagged by `kind`:\n\n- `request` (publisher→owner): the publisher is a PLUGIN — the\n  plugin trio is REQUIRED.\n- `reply` (owner→publisher): the replier is never a plugin — no\n  plugin trio at all.").meta({ title: "cli.command.channels.logs.list.ChannelLogEntry" });
+}).describe("An owner→publisher message. The replier is typically not a\nplugin, so the plugin trio is OPTIONAL — present only when a\nplugin happened to send the reply.").meta({"variantTitle":"Reply"})]).describe("One channel-log entry ENVELOPE — no content (open reveals that).\nIdentity is INLINE and daemon-authored (unspoofable). The kinds\nare ASYMMETRIC in identity and shape, so the entry is an enum\ntagged by `kind`:\n\n- `publish` (the accept-time seed, every channel's FIRST entry):\n  the offer itself — `details_id` opens the offer details,\n  `message_id` opens the human message. Publisher-authored, so\n  the plugin trio is REQUIRED.\n- `request` (publisher→owner): the publisher is a PLUGIN — the\n  plugin trio is REQUIRED.\n- `reply` (owner→publisher): the replier is never a plugin — no\n  plugin trio at all.").meta({ title: "cli.command.channels.logs.list.ChannelLogEntry" });
 export type CliCommandChannelsLogsListChannelLogEntry = z.infer<typeof CliCommandChannelsLogsListChannelLogEntrySchema>;
