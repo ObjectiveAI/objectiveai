@@ -410,7 +410,7 @@ fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String
     // A single state fans out many concurrent pools/sessions, and the full
     // integration suite runs a cluster per state in parallel — 100 is easily
     // exhausted under that load.
-    cmd.arg("-c").arg("max_connections=1000");
+    cmd.arg("-c").arg("max_connections=1024");
 
     #[cfg(unix)]
     {

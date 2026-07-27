@@ -59,13 +59,12 @@ pub struct Config {
     /// plugin that fans out should not have to discover a config knob
     /// to do so.
     ///
-    /// It is deliberately NOT a throttle. The daemon's Postgres runs
-    /// with `max_connections=1000` shared across every plugin
-    /// container alive at once, so this ceiling sits above the
-    /// server's — exhaustion surfaces as the server refusing
-    /// ("too many clients already"), not as the pool queueing. That is
-    /// the right place for it to surface: one plugin should not be
-    /// silently rationed to a fraction it might not need.
+    /// It is deliberately NOT a throttle, and it matches the
+    /// server's own `max_connections=1024`. Exhaustion therefore
+    /// surfaces as Postgres refusing ("too many clients already"),
+    /// not as this pool queueing — which is the right place for it:
+    /// one plugin should not be silently rationed to a fraction of a
+    /// budget it may be the only claimant on.
     pub max_connections: u32,
     /// Connections kept open when idle. Zero by default — a container
     /// that finishes its completion in a second should not have held
