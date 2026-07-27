@@ -45,15 +45,27 @@ pub enum Error {
 
 /// How the pool is built.
 ///
-/// [`Default`] suits a plugin container as it actually runs — one
-/// completion, one connector, a handful of concurrent queries at most.
-/// Reach for the fields only when a plugin genuinely fans out.
+/// [`Default`] suits a plugin container as it actually runs: nothing
+/// held open when idle, a generous ceiling for when it is not, and a
+/// bounded wait. Reach for the fields only to tighten them.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
-    /// Ceiling on open connections. Small by default: a plugin
-    /// container serves ONE completion, and every connection is real
-    /// weight on the daemon's Postgres, shared by every plugin
-    /// container alive at that moment.
+    /// Ceiling on open connections.
+    ///
+    /// High by default, and cheap to leave high: the pool opens
+    /// connections ON DEMAND and holds none idle (see
+    /// [`Config::min_connections`]), so a plugin that uses three opens
+    /// three. The ceiling only bites under real concurrency, and a
+    /// plugin that fans out should not have to discover a config knob
+    /// to do so.
+    ///
+    /// It is deliberately NOT a throttle. The daemon's Postgres runs
+    /// with `max_connections=1000` shared across every plugin
+    /// container alive at once, so this ceiling sits above the
+    /// server's — exhaustion surfaces as the server refusing
+    /// ("too many clients already"), not as the pool queueing. That is
+    /// the right place for it to surface: one plugin should not be
+    /// silently rationed to a fraction it might not need.
     pub max_connections: u32,
     /// Connections kept open when idle. Zero by default — a container
     /// that finishes its completion in a second should not have held
@@ -68,7 +80,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            max_connections: 5,
+            max_connections: 1024,
             min_connections: 0,
             acquire_timeout: Duration::from_secs(30),
         }
@@ -100,11 +112,13 @@ pub async fn connect(config: Config) -> Result<Pool, Error> {
 mod tests {
     use super::*;
 
-    /// The defaults are a container's defaults, not a server's.
+    /// A generous ceiling, nothing held idle, and a bounded wait —
+    /// the pool never costs what it does not use, but never throttles
+    /// a plugin that genuinely fans out either.
     #[test]
-    fn default_config_is_small_and_bounded() {
+    fn default_config_is_generous_but_bounded() {
         let config = Config::default();
-        assert_eq!(config.max_connections, 5);
+        assert_eq!(config.max_connections, 1024);
         assert_eq!(config.min_connections, 0);
         assert_eq!(config.acquire_timeout, Duration::from_secs(30));
     }
