@@ -15,6 +15,7 @@ publish = true
 [dependencies]
 arc-swap = "1.9.2"
 axum = "0.8.9"
+futures = { version = "0.3.33", default-features = false, features = ["std"] }
 indexmap = { version = "2.14.0", features = ["serde"] }
 objectiveai-sdk = { version = "2.2.13", path = "../objectiveai-sdk-rs", default-features = false }
 rmcp = { version = "2.2.0", features = ["transport-streamable-http-server"] }
@@ -25,4 +26,4 @@ thiserror = "2.0.19"
 tokio = { version = "1.53.1", features = ["net", "rt"] }
 
 [dev-dependencies]
-tokio = { version = "1.53.1", features = ["macros", "rt"] }
+tokio = { version = "1.53.1", features = ["macros", "rt", "time"] }
