@@ -202,18 +202,26 @@ async fn dock(app: &tauri::AppHandle, source: &str, target: &str) {
     if let Some(window) = app.get_window(target) {
         let _ = window.set_focus();
     }
-    // Park keyboard focus INSIDE the active tab's webview — leaving
-    // it on the window HWND makes the next click into any child
-    // webview get eaten moving focus in (the post-dock "first click
-    // does nothing"); select semantics put it here anyway.
+    // Park keyboard focus INSIDE one of the window's WEBVIEWS —
+    // leaving it on the window HWND makes the next click into any
+    // child webview get eaten moving focus in (the post-dock "first
+    // click does nothing").
+    //
+    // The active tab's own webview by preference: select semantics put
+    // it there anyway. A BROWSER tab has none — and its CEF surface is
+    // no substitute, being a foreign child window rather than a
+    // WebView2, so focusing THAT reproduces the very bug this avoids
+    // (a strip click consumed crossing back). Park in the strip
+    // instead: the user's next click after a dock is a strip click far
+    // more often than not, and from there it costs nothing.
     if let Some(active) = snapshot.windows.get(target).map(|ws| ws.active) {
         if active != 0 {
-            if let Some(webview) = app.get_webview(&native::tab_label(active)) {
+            let parked = app
+                .get_webview(&native::tab_label(active))
+                .or_else(|| app.get_webview(&native::chrome_label(target)));
+            if let Some(webview) = parked {
                 let _ = webview.set_focus();
             }
-            // Same for a browser tab, whose surface is CEF's and has no
-            // webview to focus. No-op for every component tab.
-            crate::cef::focus(active);
         }
     }
     if let Some(window) = app.get_window(source) {
