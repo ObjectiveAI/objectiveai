@@ -1,193 +1,132 @@
-//! A tool router a plugin can change while it is serving.
+//! The tools a plugin serves, swappable while it serves them.
 //!
 //! Tools are DECLARED with rmcp's own macros — `#[tool_router]`,
-//! `#[tool]` — because there is nothing wrong with them and a
-//! framework that reinvented the declaration would only have to keep
-//! pace with rmcp forever. What the framework adds is the other half:
-//! deciding at RUNTIME which of those declared tools a client can see.
+//! `#[tool]` — which produce a [`ToolRouter`]. What rmcp has no route
+//! to is changing that set once a server is running: every
+//! `ToolRouter` mutator takes `&mut self`, every `ServerHandler`
+//! method takes `&self`, and the transport builds a fresh handler per
+//! session from an `Fn` factory. Nothing in that chain can hand a
+//! plugin back a way in.
+//!
+//! [`Tools`] is that way in. It holds the route list and one callback,
+//! and it is immutable but for [`replace`][Tools::replace] — which
+//! swaps the whole list and tells whoever is serving it. Hand it to
+//! [`serve`][crate::serve::serve], keep a clone of the `Arc`, and call
+//! `replace` whenever the set should change.
 //!
 //! ```no_run
-//! # use objectiveai_mcp_plugin_framework::{arguments, tools::Tools};
-//! # use rmcp::handler::server::tool::ToolRouter;
-//! # struct MyServer { tools: Tools<MyServer> }
-//! # fn build() -> ToolRouter<MyServer> { ToolRouter::new() }
-//! # fn example() -> MyServer {
-//! let tools = Tools::new(build());
-//! // The agent decides what this plugin exposes.
-//! if !arguments().contains_key("admin") {
-//!     tools.remove("dangerous_thing");
-//! }
-//! MyServer { tools }
-//! # }
+//! # use objectiveai_mcp_plugin_framework::tools::Tools;
+//! # use rmcp::handler::server::tool::{ToolRoute, ToolRouter};
+//! # struct State;
+//! # fn routes() -> Vec<ToolRoute<State>> { Vec::new() }
+//! # fn fewer_routes() -> Vec<ToolRoute<State>> { Vec::new() }
+//! let tools = Tools::new(routes());
+//! let handle = tools.clone();
+//!
+//! // Later, from anywhere: the served set changes, and the client is
+//! // told.
+//! handle.replace(fewer_routes());
 //! ```
 //!
-//! Then delegate rmcp's two tool methods to it — `list_tools` to
-//! [`Tools::list`], `call_tool` to [`Tools::call`] — instead of using
-//! `#[tool_handler]`, which assumes the router is a plain field.
-//!
-//! **On the lock.** Every mutation takes it briefly and every call
-//! CLONES the router out and releases it before doing any work. That
-//! is deliberate: a tool call can run for a long time, and holding a
-//! read guard across it would let one slow call block a mutation — and
-//! then, because a waiting writer stops new readers, block every other
-//! call behind it. Cloning costs one map of `Arc`s per call, which is
-//! nothing next to the round trip a tool call already is.
+//! **No lock.** The route list is an [`ArcSwap`]: reads happen on every
+//! request and are wait-free, a swap happens rarely and is a single
+//! atomic store. A `RwLock` would put a lock on the hot path to make
+//! the cold path marginally simpler.
 
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, OnceLock};
 
-use rmcp::handler::server::tool::{ToolCallContext, ToolRoute, ToolRouter};
-use rmcp::model::{CallToolResult, Tool};
+use arc_swap::ArcSwap;
+use rmcp::handler::server::tool::ToolRoute;
 
-/// A [`ToolRouter`] that can be edited while the server is running.
+/// A callback run after the route list is replaced, receiving the NEW
+/// list.
 ///
-/// Cheap to clone — every clone shares one router, so a handler can
-/// hold one and a background task another.
+/// It is passed the routes rather than reading them back off [`Tools`]
+/// for a reason that is easy to miss: a closure holding
+/// `Arc<Tools<S>>` would close a cycle through the `notifier` field —
+/// `Tools` owns the closure, the closure owns `Tools` — and the whole
+/// structure would leak. Taking the list as an argument makes that
+/// cycle unrepresentable.
+type Notifier<S> = Box<dyn Fn(Arc<Vec<ToolRoute<S>>>) + Send + Sync>;
+
+/// The set of tools a plugin is serving.
 pub struct Tools<S> {
-    inner: Arc<RwLock<ToolRouter<S>>>,
+    routes: ArcSwap<Vec<ToolRoute<S>>>,
+    /// Installed once by [`serve`][crate::serve::serve], never by a
+    /// plugin. `OnceLock` because "set exactly once, then read from
+    /// many threads" is precisely what it is for — no lock, no
+    /// `Option<Mutex<_>>`.
+    notifier: OnceLock<Notifier<S>>,
 }
 
-impl<S> Clone for Tools<S> {
-    fn clone(&self) -> Self {
-        Self {
-            inner: self.inner.clone(),
-        }
-    }
-}
-
-impl<S: Send + Sync + 'static> std::fmt::Debug for Tools<S> {
+impl<S> std::fmt::Debug for Tools<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Tools").field("tools", &self.names()).finish()
+        f.debug_struct("Tools")
+            .field("routes", &self.routes.load().len())
+            .field("notifier", &self.notifier.get().is_some())
+            .finish()
     }
 }
 
-impl<S: Send + Sync + 'static> Default for Tools<S> {
-    fn default() -> Self {
-        Self::new(ToolRouter::new())
+impl<S> Tools<S> {
+    /// The tools to start with — typically the whole of
+    /// `MyServer::tool_router()`, which is
+    /// [`into_iter`][IntoIterator]-able.
+    pub fn new(routes: impl IntoIterator<Item = ToolRoute<S>>) -> Arc<Self> {
+        Arc::new(Self {
+            routes: ArcSwap::from_pointee(routes.into_iter().collect()),
+            notifier: OnceLock::new(),
+        })
     }
-}
 
-impl<S: Send + Sync + 'static> Tools<S> {
-    /// Wrap a router — typically the one rmcp's `#[tool_router]`
-    /// generated.
-    pub fn new(router: ToolRouter<S>) -> Self {
-        Self {
-            inner: Arc::new(RwLock::new(router)),
+    /// Replace the served tools, wholesale.
+    ///
+    /// The only mutation there is. After this returns, the new set is
+    /// what a request will route against, and whoever is serving has
+    /// been told — which for [`serve`][crate::serve::serve] means the
+    /// live router is rebuilt and the client is sent
+    /// `notifications/tools/list_changed`.
+    ///
+    /// Wholesale rather than add/remove because a partial edit has to
+    /// answer "what was there before?", and a plugin deciding its tool
+    /// set from its identity and arguments already knows the answer it
+    /// wants — it does not want to diff its way there.
+    pub fn replace(&self, routes: impl IntoIterator<Item = ToolRoute<S>>) {
+        let routes = Arc::new(routes.into_iter().collect::<Vec<_>>());
+        // Store BEFORE notifying: the callback's whole job is to make
+        // the world agree with this value, and it cannot do that if
+        // the value is not there yet.
+        self.routes.store(Arc::clone(&routes));
+        if let Some(notifier) = self.notifier.get() {
+            notifier(routes);
         }
     }
 
-    /// The tools a client can currently see, for `list_tools`.
-    pub fn list(&self) -> Vec<Tool> {
-        self.read().list_all()
+    /// The tools currently served.
+    pub fn routes(&self) -> Arc<Vec<ToolRoute<S>>> {
+        self.routes.load_full()
     }
 
-    /// Just the names, sorted — the cheap form of [`Self::list`].
-    pub fn names(&self) -> Vec<String> {
-        self.read()
-            .list_all()
-            .into_iter()
-            .map(|tool| tool.name.to_string())
-            .collect()
-    }
-
-    /// Whether `name` is currently routable.
-    pub fn has(&self, name: &str) -> bool {
-        self.read().get(name).is_some()
-    }
-
-    /// Add a route, replacing any tool of the same name.
-    pub fn add(&self, route: ToolRoute<S>) {
-        self.write().add_route(route);
-    }
-
-    /// Remove a tool entirely. Gone from `list_tools` and from
-    /// `call_tool`, as if it had never been declared.
+    /// Install the callback [`replace`][Self::replace] fires.
     ///
-    /// Use [`Self::disable`] instead to keep it re-enableable.
-    pub fn remove(&self, name: &str) {
-        self.write().remove_route(name);
-    }
-
-    /// Hide a tool without dropping it — reversible with
-    /// [`Self::enable`]. Returns whether the name was NEWLY disabled
-    /// (`false` if it already was).
-    ///
-    /// The name does not have to exist yet. A name disabled before its
-    /// route is added stays disabled when it arrives, which is what
-    /// makes the useful order possible: work out what this identity
-    /// and these arguments forbid, disable those names, and only then
-    /// install the router rmcp generated. The forbidden tools are
-    /// never briefly visible.
-    ///
-    /// A disabled tool is indistinguishable from an absent one to the
-    /// client: missing from `list_tools`, and calling it gives the same
-    /// "tool not found" an unknown name would. That is rmcp's
-    /// behaviour and the right one — a client should not be able to
-    /// map out what it is not allowed to reach.
-    pub fn disable(&self, name: &str) -> bool {
-        self.write().disable_route(name.to_string())
-    }
-
-    /// Undo [`Self::disable`]. Returns whether the name WAS disabled;
-    /// `false` means it was already visible (or never disabled), not
-    /// that it does not exist.
-    pub fn enable(&self, name: &str) -> bool {
-        self.write().enable_route(name)
-    }
-
-    /// Edit the router directly, for anything the methods above do not
-    /// cover (`merge`, bulk changes, rmcp APIs added later).
-    ///
-    /// The lock is held for the closure, so keep it short and do not
-    /// block in it.
-    pub fn with_router<R>(&self, f: impl FnOnce(&mut ToolRouter<S>) -> R) -> R {
-        f(&mut self.write())
-    }
-
-    /// Tell the connected client when the tool list changes, so a
-    /// mutation after `initialize` is not invisible until it happens
-    /// to re-list.
-    pub fn notify_changes_to(&self, peer: &rmcp::service::Peer<rmcp::RoleServer>) {
-        self.write().bind_peer_notifier(peer);
-    }
-
-    /// A read guard, recovering from poisoning.
-    ///
-    /// A panic while mutating leaves the router structurally intact —
-    /// it is a map — so refusing to serve afterwards would turn one
-    /// failed edit into a dead plugin.
-    fn read(&self) -> std::sync::RwLockReadGuard<'_, ToolRouter<S>> {
-        self.inner
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
-
-    fn write(&self) -> std::sync::RwLockWriteGuard<'_, ToolRouter<S>> {
-        self.inner
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-    }
-
-    /// Dispatch a call, for `call_tool`.
-    ///
-    /// Takes a SNAPSHOT of the router and releases the lock before
-    /// invoking anything — see the module docs. A tool removed while
-    /// its own call is in flight therefore still finishes; the removal
-    /// governs the next call, not this one.
-    pub async fn call(
+    /// Crate-internal and once-only: `serve` claims it, and a plugin
+    /// serving the same `Tools` twice would otherwise silently leave
+    /// one of the two servers stale. Returns `false` if it was already
+    /// claimed.
+    pub(crate) fn on_replace(
         &self,
-        context: ToolCallContext<'_, S>,
-    ) -> Result<CallToolResult, rmcp::ErrorData> {
-        let router = self.read().clone();
-        router.call(context).await
+        notifier: impl Fn(Arc<Vec<ToolRoute<S>>>) + Send + Sync + 'static,
+    ) -> bool {
+        self.notifier.set(Box::new(notifier)).is_ok()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rmcp::model::{CallToolResult, Tool};
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
-    /// The router is generic over the server type; these tests never
-    /// call a tool, so the type only has to satisfy the bounds.
     struct Server;
 
     fn route(name: &'static str) -> ToolRoute<Server> {
@@ -197,74 +136,97 @@ mod tests {
         })
     }
 
-    fn tools() -> Tools<Server> {
-        let tools = Tools::default();
-        tools.add(route("alpha"));
-        tools.add(route("beta"));
+    fn names(tools: &Tools<Server>) -> Vec<String> {
         tools
+            .routes()
+            .iter()
+            .map(|route| route.attr.name.to_string())
+            .collect()
     }
 
     #[test]
-    fn removal_is_permanent_and_disable_is_not() {
-        let tools = tools();
-        assert_eq!(tools.names(), ["alpha", "beta"]);
+    fn replace_swaps_the_served_set() {
+        let tools = Tools::new([route("alpha"), route("beta")]);
+        assert_eq!(names(&tools), ["alpha", "beta"]);
 
-        assert!(tools.disable("beta"));
-        assert_eq!(tools.names(), ["alpha"], "disabled tools are unlisted");
-        assert!(!tools.has("beta"), "and unreachable while disabled");
+        tools.replace([route("gamma")]);
+        assert_eq!(names(&tools), ["gamma"], "wholesale, not merged");
 
-        assert!(tools.enable("beta"));
-        assert_eq!(tools.names(), ["alpha", "beta"], "and come back");
+        tools.replace([]);
+        assert!(names(&tools).is_empty(), "and emptying is allowed");
+    }
 
-        tools.remove("beta");
-        assert_eq!(tools.names(), ["alpha"]);
-        assert!(
-            !tools.enable("beta"),
-            "enable reports the DISABLED set, and a removed tool was \
-             never in it",
+    /// The notifier gets the NEW list, once per replace. Anything else
+    /// and a server wired to it would drift from what is served.
+    #[test]
+    fn the_notifier_receives_the_new_list_once_per_replace() {
+        let tools = Tools::new([route("alpha")]);
+        let calls = Arc::new(AtomicUsize::new(0));
+        let seen = Arc::new(ArcSwap::from_pointee(Vec::<String>::new()));
+
+        let (calls_in, seen_in) = (calls.clone(), seen.clone());
+        assert!(tools.on_replace(move |routes| {
+            calls_in.fetch_add(1, Ordering::SeqCst);
+            seen_in.store(Arc::new(
+                routes.iter().map(|r| r.attr.name.to_string()).collect(),
+            ));
+        }));
+
+        tools.replace([route("beta"), route("gamma")]);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert_eq!(seen.load().as_slice(), ["beta", "gamma"]);
+
+        tools.replace([route("delta")]);
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        assert_eq!(seen.load().as_slice(), ["delta"]);
+    }
+
+    /// The store must land before the callback runs — the callback
+    /// exists to bring the world into line with it.
+    ///
+    /// Referencing `Tools` from inside its own callback takes a
+    /// [`Weak`][std::sync::Weak], never an `Arc`: an `Arc` would close
+    /// the cycle the notifier signature exists to avoid. This is the
+    /// supported way to look back, and the reason the new list is
+    /// passed as an argument is so that you rarely need to.
+    #[test]
+    fn the_new_routes_are_readable_from_inside_the_notifier() {
+        let tools = Tools::new([route("alpha")]);
+        let observed = Arc::new(ArcSwap::from_pointee(Vec::<String>::new()));
+
+        let weak = Arc::downgrade(&tools);
+        let observed_in = observed.clone();
+        tools.on_replace(move |_new| {
+            let Some(live) = weak.upgrade() else { return };
+            observed_in.store(Arc::new(
+                live.routes()
+                    .iter()
+                    .map(|r| r.attr.name.to_string())
+                    .collect(),
+            ));
+        });
+
+        tools.replace([route("beta")]);
+        assert_eq!(
+            observed.load().as_slice(),
+            ["beta"],
+            "the swap is visible before the callback runs",
         );
-        assert!(!tools.has("beta"), "removal is not undone by enable");
     }
 
-    /// The order that matters for a plugin: decide what is forbidden
-    /// BEFORE installing the router, so a forbidden tool is never
-    /// momentarily listed.
     #[test]
-    fn a_name_disabled_before_its_route_stays_disabled() {
-        let tools: Tools<Server> = Tools::default();
-        assert!(tools.disable("later"), "disabling an absent name is recorded");
-
-        tools.add(route("later"));
-        assert!(
-            !tools.has("later"),
-            "a route added under a disabled name arrives disabled",
-        );
-        assert!(tools.names().is_empty());
-
-        assert!(tools.enable("later"));
-        assert_eq!(tools.names(), ["later"], "and appears once enabled");
+    fn replacing_without_a_notifier_is_fine() {
+        let tools = Tools::new([route("alpha")]);
+        tools.replace([route("beta")]);
+        assert_eq!(names(&tools), ["beta"]);
     }
 
-    /// Clones share one router: a handler and a background task must
-    /// not end up editing different tool lists.
+    /// Two servers over one `Tools` would leave one of them stale, so
+    /// the second claim is refused rather than silently winning.
     #[test]
-    fn clones_share_one_router() {
-        let tools = tools();
-        let other = tools.clone();
-        other.remove("alpha");
-        assert_eq!(tools.names(), ["beta"]);
-    }
-
-    /// Editing an unknown tool is a no-op, not a panic — the caller is
-    /// usually a config-driven loop that should not have to check.
-    #[test]
-    fn editing_an_unknown_tool_is_harmless() {
-        let tools = tools();
-        tools.remove("nonexistent");
-        // Disabling records the NAME, so it reports true the first time
-        // even with no such route — see `disable`.
-        assert!(tools.disable("nonexistent"));
-        assert!(!tools.disable("nonexistent"), "and false the second");
-        assert_eq!(tools.names(), ["alpha", "beta"], "real tools untouched");
+    fn the_notifier_can_only_be_claimed_once() {
+        let tools: Arc<Tools<Server>> = Tools::new([]);
+        assert!(tools.on_replace(|_| {}));
+        assert!(!tools.on_replace(|_| {}));
     }
 }

@@ -201,6 +201,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "arc-swap"
+version = "1.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c049c0be4daef0b145cb3555416b3b8ef5b7888a38aea1a3a155801fe7b0810b"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "arrayvec"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4490,6 +4499,7 @@ dependencies = [
 name = "objectiveai-mcp-plugin-framework"
 version = "2.2.13"
 dependencies = [
+ "arc-swap",
  "axum",
  "indexmap 2.14.0",
  "objectiveai-sdk",

@@ -13,6 +13,7 @@ keywords = ["llm", "ai", "swarm", "mcp"]
 publish = true
 
 [dependencies]
+arc-swap = "1.9.2"
 axum = "0.8.9"
 indexmap = { version = "2.14.0", features = ["serde"] }
 objectiveai-sdk = { version = "2.2.13", path = "../objectiveai-sdk-rs", default-features = false }
