@@ -13,3 +13,5 @@ keywords = ["llm", "ai", "swarm", "mcp"]
 publish = true
 
 [dependencies]
+rmcp = "2.2.0"
+schemars = "1.2.2"
