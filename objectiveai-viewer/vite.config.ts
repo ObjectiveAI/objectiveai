@@ -42,8 +42,11 @@ export default defineConfig(async () => ({
       "remark-gfm",
     ],
   },
-  // Entries: `index.html` is the CHROME (tab strip + status bar, one
-  // per OS window), `tab.html` is the generic CONTENT bootstrap (one
+  // Entries: `index.html` is the tab STRIP and `status.html` the
+  // bottom bar — two band-sized chrome webviews per OS window rather
+  // than one full-window document, so the content band between them is
+  // covered by nothing (see src/status.tsx). `tab.html` is the generic
+  // CONTENT bootstrap (one
   // child webview per tab, importing whatever module Rust's
   // descriptor names), and each `src/tabs/*` is one built-in tab
   // component — emitted as a stably-named unhashed chunk so the
@@ -54,6 +57,7 @@ export default defineConfig(async () => ({
     rollupOptions: {
       input: {
         index: "index.html",
+        status: "status.html",
         tab: "tab.html",
         "tabs/agents": "src/tabs/agents.tsx",
         "tabs/laboratories": "src/tabs/laboratories.tsx",

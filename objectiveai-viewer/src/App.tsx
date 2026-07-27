@@ -1,32 +1,24 @@
 /**
- * The CHROME entry's root — one per OS window, in the `chrome-<label>`
- * webview: the tab strip, the status bar, and the empty-window
- * watermark. Tab CONTENT lives in sibling `tab-<id>` webviews (the
- * `tab.html` entry) that the Rust shell places over the middle — the
- * chrome renders nothing there.
+ * The STRIP entry's root — one per OS window, in the `chrome-<label>`
+ * webview, sized to the strip band alone.
  *
- * The chrome owns the per-window UI controls (zoom / orientation) and
- * pushes them through `ui_set`; the Rust model fans them out to the
- * window's content webviews.
+ * It is band-sized rather than full-window because a document that
+ * spans the content band paints over it, and a BROWSER tab's surface
+ * is a plain child window WebView2's compositor will cover regardless
+ * of HWND z-order. The bottom bar is therefore its own webview (the
+ * `status.html` entry) and the band between them belongs to the
+ * `tab-<id>` content webviews alone.
  */
 import { useEffect, useRef, useState } from "react";
-import cn from "classnames";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { viewerTransport } from "./lib/viewer-transport";
-import type { ViewerTransport } from "@objectiveai/sdk";
 import { isTauri, tauriListen } from "./lib/tauri";
 import {
   declareChannelRequestTab,
   declareTabs,
   tabsSnapshot,
-  uiSet,
   type TabsSnapshot,
   type WindowTabs,
 } from "./lib/tabs";
-import type { Orientation } from "./hooks/useOrientation";
-import { useAgentsInstancesList } from "./hooks/useAgentsInstancesList";
-import { useEntries } from "./hooks/useEntries";
-import { StatusBar } from "./components/layout/StatusBar";
 import { TabStrip } from "./components/TabStrip";
 
 /** This chrome's WINDOW label — the model key for its slice of tabs
@@ -95,55 +87,15 @@ function App() {
     };
   }, []);
 
-  // The daemon transport (the Rust proxy's invoke + Channel) — the
-  // chrome's OWN connection, for the footer's active-agents count
-  // (content webviews hold their own; Channels route per webview).
-  const [transport, setTransport] = useState<ViewerTransport | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    void viewerTransport().then((t) => {
-      if (!cancelled && t !== null) setTransport(t);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  const agents = useAgentsInstancesList(transport);
-  const activeAgents = agents.filter((agent) => agent.active).length;
-  // Status-bar entries + the per-window UI controls. Zoom renders
-  // locally (the slider) and pushes through `ui_set` for the content
-  // webviews; orientation only pushes (the toggle's label reads the
-  // local module store).
-  const entries = useEntries();
-  const [zoom, setZoom] = useState(1);
-  const handleZoomChange = (next: number) => {
-    setZoom(next);
-    uiSet({ zoom: next });
-  };
-  const handleOrientationChange = (orientation: Orientation) => {
-    uiSet({ orientation });
-  };
-
+  // The strip IS this document — no wrapper, no spacer, no footer.
+  // The webview is exactly the strip band, so anything else here would
+  // simply be clipped.
   return (
-    <div className={cn("flex", "flex-col", "h-screen")}>
-      <TabStrip
-        tabs={windowTabs.tabs}
-        activeId={windowTabs.active}
-        dockPreview={dockPreview}
-      />
-      {/* The middle band belongs to the content webviews, composited
-          above this document — the chrome paints bare ground beneath
-          them. (A tab-less window doesn't exist: every window closes
-          with its last tab, so there is no empty state.) */}
-      <div className={cn("flex-1", "min-h-0")} />
-      <StatusBar
-        entries={entries}
-        activeAgents={activeAgents}
-        zoom={zoom}
-        onZoomChange={handleZoomChange}
-        onOrientationChange={handleOrientationChange}
-      />
-    </div>
+    <TabStrip
+      tabs={windowTabs.tabs}
+      activeId={windowTabs.active}
+      dockPreview={dockPreview}
+    />
   );
 }
 

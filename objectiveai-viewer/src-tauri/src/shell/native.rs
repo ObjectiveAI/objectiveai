@@ -1,12 +1,21 @@
 //! The shell's NATIVE half: windows and webviews. Every OS window is
 //! a raw [`tauri::Window`] (label `shell-N` — ALL of them, none is
-//! special; the boot window is just the first mint) hosting exactly
-//! one CHROME webview (`chrome-<window>`, the `index.html` entry —
-//! tab strip + status bar, full-window with proportional auto-resize)
-//! plus one CONTENT webview per tab (`tab-<id>`, the `tab.html`
-//! entry) placed into the content rect between the strip and the
-//! status bar. Content webviews composite ABOVE the chrome's middle;
-//! the active tab sits in the content rect, background tabs are
+//! special; the boot window is just the first mint) hosting TWO chrome
+//! webviews — `chrome-<window>` (the `index.html` entry, the tab strip,
+//! pinned to the top band) and `status-<window>` (the `status.html`
+//! entry, the bottom bar) — plus one CONTENT webview per tab
+//! (`tab-<id>`, the `tab.html` entry) placed into the content rect
+//! between them.
+//!
+//! The chrome is TWO band-sized webviews rather than one full-window
+//! document because whatever spans the content band paints over it.
+//! Between two WebView2 surfaces that is invisible (same
+//! DirectComposition tree, ordered as expected); over a BROWSER tab,
+//! whose surface is a plain child window CEF paints itself, it is
+//! fatal — the compositor covers it regardless of HWND z-order. The
+//! band belongs to the content alone.
+//!
+//! The active tab sits in the content rect, background tabs are
 //! PARKED far offscreen but fully ALIVE and laid out (never
 //! `hide()`n — see [`PARK_Y_LOGICAL`]; their streams and listeners
 //! keep running — the old always-mounted CSS-hidden tabs, one
@@ -54,9 +63,42 @@ pub fn tab_id(label: &str) -> Option<u64> {
     label.strip_prefix("tab-")?.parse().ok()
 }
 
-/// A chrome webview's label, from its window's label.
+/// A strip webview's label, from its window's label.
 pub fn chrome_label(window: &str) -> String {
     format!("chrome-{window}")
+}
+
+/// A status-bar webview's label, from its window's label.
+pub fn status_label(window: &str) -> String {
+    format!("status-{window}")
+}
+
+/// The strip band (logical): the full width, `STRIP_HEIGHT_LOGICAL`
+/// tall, at the top.
+fn strip_rect(size: tauri::LogicalSize<f64>) -> tauri::Rect {
+    tauri::Rect {
+        position: tauri::LogicalPosition::new(0.0, 0.0).into(),
+        size: tauri::LogicalSize::new(size.width, STRIP_HEIGHT_LOGICAL).into(),
+    }
+}
+
+/// The status band (logical): the full width, `STATUS_HEIGHT_LOGICAL`
+/// tall, pinned to the bottom.
+fn status_rect(size: tauri::LogicalSize<f64>) -> tauri::Rect {
+    tauri::Rect {
+        position: tauri::LogicalPosition::new(
+            0.0,
+            (size.height - STATUS_HEIGHT_LOGICAL).max(0.0),
+        )
+        .into(),
+        size: tauri::LogicalSize::new(size.width, STATUS_HEIGHT_LOGICAL).into(),
+    }
+}
+
+/// A window's inner size in LOGICAL units.
+fn logical_size(window: &tauri::Window) -> Option<tauri::LogicalSize<f64>> {
+    let scale = window.scale_factor().ok()?;
+    Some(window.inner_size().ok()?.to_logical::<f64>(scale))
 }
 
 /// The content rect (logical): the window minus the strip band and
@@ -110,9 +152,21 @@ fn physical(rect: &tauri::Rect, scale: f64) -> (i32, i32, i32, i32) {
     )
 }
 
-/// Build one shell window: a raw window + its chrome webview
-/// (full-window, proportional auto-resize — full-window IS
-/// expressible as 1.0 rates, unlike the fixed-band content rect).
+/// Build one shell window: a raw window plus its two CHROME webviews —
+/// the tab strip pinned to the top band and the status bar to the
+/// bottom, with the content band between them left EMPTY.
+///
+/// Two webviews rather than one full-window document, because whatever
+/// spans the content band paints over it: harmless for a `tab-<id>`
+/// webview (another WebView2, composited in the same
+/// DirectComposition tree) and fatal for a browser tab, whose surface
+/// is a plain child window CEF paints itself.
+///
+/// Neither uses `auto_resize`, which scales proportionally — right for
+/// a full-window document and wrong for a fixed-height band. Both are
+/// re-placed by [`layout_window`] on every resize, exactly like the
+/// content webviews.
+///
 /// Content webviews are the reconciler's job, not this one's.
 pub fn build_shell_window(
     app: &tauri::AppHandle,
@@ -127,22 +181,23 @@ pub fn build_shell_window(
         builder = builder.position(position.x, position.y);
     }
     let window = builder.build()?;
-    let scale = window.scale_factor().unwrap_or(1.0);
-    let size = window
-        .inner_size()
-        .map(|s| s.to_logical::<f64>(scale))
-        .unwrap_or_else(|_| tauri::LogicalSize::new(1024.0, 768.0));
-    window.add_child(
-        tauri::webview::WebviewBuilder::new(
-            chrome_label(label),
-            tauri::WebviewUrl::App("index.html".into()),
-        )
-        .auto_resize()
-        .background_color(GROUND)
-        .initialization_script(super::CAPTURE_INIT_SCRIPT),
-        tauri::LogicalPosition::new(0.0, 0.0),
-        size,
-    )?;
+    let size = logical_size(&window)
+        .unwrap_or_else(|| tauri::LogicalSize::new(1024.0, 768.0));
+    for (label, entry, rect) in [
+        (chrome_label(label), "index.html", strip_rect(size)),
+        (status_label(label), "status.html", status_rect(size)),
+    ] {
+        window.add_child(
+            tauri::webview::WebviewBuilder::new(
+                label,
+                tauri::WebviewUrl::App(entry.into()),
+            )
+            .background_color(GROUND)
+            .initialization_script(super::CAPTURE_INIT_SCRIPT),
+            rect.position,
+            rect.size,
+        )?;
+    }
     Ok(window)
 }
 
@@ -196,37 +251,6 @@ pub async fn sync(app: &tauri::AppHandle) {
         let Some(rect) = content_rect(&window) else {
             continue;
         };
-        // The chrome webview spans the WHOLE window, content band
-        // included — which is invisible for a component tab (another
-        // WebView2, composited above it in the same DirectComposition
-        // tree) and fatal for a browser tab (a plain child window CEF
-        // paints itself, which WebView2's compositor simply covers,
-        // never mind that it is topmost in HWND z-order and that the
-        // chrome carries no WS_CLIPSIBLINGS).
-        //
-        // So while a browser tab is active the chrome is CUT BACK to
-        // its strip band and the content band belongs to CEF alone.
-        // The status bar goes with it — that is the cost until the
-        // chrome is split into separate strip and status webviews,
-        // which is the real fix.
-        let browser_active = ws
-            .tabs
-            .iter()
-            .find(|tab| tab.id == ws.active)
-            .is_some_and(|tab| matches!(tab.kind.surface, Surface::Browser { .. }));
-        if let Some(chrome) = app.get_webview(&chrome_label(win_label)) {
-            let scale = window.scale_factor().unwrap_or(1.0);
-            let full = window
-                .inner_size()
-                .map(|size| size.to_logical::<f64>(scale))
-                .unwrap_or_else(|_| tauri::LogicalSize::new(1024.0, 768.0));
-            let height = if browser_active {
-                STRIP_HEIGHT_LOGICAL
-            } else {
-                full.height
-            };
-            let _ = chrome.set_size(tauri::LogicalSize::new(full.width, height));
-        }
         for tab in &ws.tabs {
             let label = tab_label(tab.id);
             // Active = the content rect; background = parked (same
@@ -383,6 +407,20 @@ pub fn layout_window(app: &tauri::AppHandle, label: &str) {
     for webview in window.webviews() {
         if tab_id(webview.label()).is_some() {
             let _ = webview.set_size(rect.size);
+        }
+    }
+    // The two chrome bands. Unlike the content webviews these need
+    // their POSITION too — the status bar is pinned to the bottom, so
+    // its y moves with every resize — which is exactly what
+    // `auto_resize` could not express and why neither uses it.
+    if let Some(size) = logical_size(&window) {
+        for (label, band) in [
+            (chrome_label(label), strip_rect(size)),
+            (status_label(label), status_rect(size)),
+        ] {
+            if let Some(webview) = app.get_webview(&label) {
+                let _ = webview.set_bounds(band);
+            }
         }
     }
     // Browser tabs are not in `window.webviews()`, and their surfaces
