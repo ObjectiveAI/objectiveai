@@ -180,7 +180,7 @@ pub fn run_helper_and_exit() -> ! {
     // The runtime is wherever the browser process found it — a helper
     // has no way to resolve (let alone download) it for itself.
     if let Some(dir) = std::env::var_os(RUNTIME_DIR_ENV) {
-        super::add_dll_directory(Path::new(&dir));
+        super::preload_runtime(Path::new(&dir));
     }
     let _ = api_hash(sys::CEF_API_VERSION_LAST, 0);
     let args = args::Args::new();
@@ -231,7 +231,7 @@ pub fn initialize(runtime_dir: &Path, root_cache: &Path) -> Result<(), String> {
 
 #[cfg(not(target_os = "macos"))]
 fn initialize_inner(runtime_dir: &Path, root_cache: &Path) -> Result<(), String> {
-    super::add_dll_directory(runtime_dir);
+    super::preload_runtime(runtime_dir);
     // Inherited by every helper CEF spawns — see [`RUNTIME_DIR_ENV`].
     // SAFETY: single-threaded with respect to other env mutation — this
     // runs on the main thread before CEF exists, and nothing else in
@@ -263,7 +263,7 @@ fn initialize_inner(runtime_dir: &Path, root_cache: &Path) -> Result<(), String>
 
     let exe = std::env::current_exe()
         .map_err(|e| format!("current_exe: {e}"))?;
-    let log_file = root_cache.join("cef-debug.log");
+    let log_file = super::log_file(root_cache);
 
     let settings = Settings {
         // CEF runs its own UI thread; Tauri's wry/tao event loop keeps
@@ -356,6 +356,12 @@ pub struct Spawn {
     /// JavaScript injected into every main-frame load — already
     /// resolved from the plugin's manifest and read off disk.
     pub script: Option<String>,
+    /// The tab's title, which is what its console output is SOURCED as
+    /// in the viewer's log inbox — matching how a content webview
+    /// reports under its own tab title.
+    pub title: String,
+    /// Reaching back into the viewer to report that console output.
+    pub app: tauri::AppHandle,
 }
 
 /// Create the browser for a tab. Fire-and-forget: CEF creates
@@ -380,19 +386,23 @@ pub fn create_browser(spawn: Spawn) -> Result<(), String> {
     // The per-profile RequestContext. Its `cache_path` must be an
     // IMMEDIATE child of the `root_cache_path` given at initialize
     // time — see [`super::ProfileRoot`] for what nesting costs.
-    let mut request_context = match &spawn.cache {
-        Some(dir) => {
-            let ctx_settings = RequestContextSettings {
-                cache_path: cef_path(dir),
-                persist_session_cookies: 1,
-                ..Default::default()
-            };
-            request_context_create_context(Some(&ctx_settings), None)
-        }
-        // No cache path at all — CEF gives us an in-memory context.
-        None => request_context_create_context(None, None),
-    }
-    .ok_or_else(|| "cef request_context_create_context returned null".to_string())?;
+    //
+    // Settings are always PASSED, never `None`: the C entry point takes
+    // a pointer and rejects a null one outright, returning no context
+    // at all. An in-memory browser is expressed as settings with an
+    // EMPTY `cache_path` — which is also why `persist_session_cookies`
+    // rides along unconditionally; with no cache path there is nothing
+    // for it to persist to, and it is simply ignored.
+    let ctx_settings = match &spawn.cache {
+        Some(dir) => RequestContextSettings {
+            cache_path: cef_path(dir),
+            persist_session_cookies: 1,
+            ..Default::default()
+        },
+        None => RequestContextSettings::default(),
+    };
+    let mut request_context = request_context_create_context(Some(&ctx_settings), None)
+        .ok_or_else(|| "cef request_context_create_context returned null".to_string())?;
 
     if let Ok(mut placements) = layout().lock() {
         placements.insert(
@@ -405,7 +415,13 @@ pub fn create_browser(spawn: Spawn) -> Result<(), String> {
     }
 
     let flushed = Arc::new(AtomicBool::new(false));
-    let mut client = ViewerClient::new(spawn.tab, flushed, spawn.script);
+    let mut client = ViewerClient::new(
+        spawn.tab,
+        flushed,
+        spawn.script,
+        spawn.app,
+        spawn.title,
+    );
     let url = CefString::from(spawn.url.as_str());
     let settings = BrowserSettings::default();
     let created = browser_host_create_browser(
@@ -752,11 +768,57 @@ wrap_load_handler! {
     }
 }
 
+// `PageLogs` forwards a browser page's console into the viewer's log
+// inbox. Component tabs get this for free from the shell's capture
+// script; a browser page is a document we do not own, so the only
+// account of a script error in it is this callback.
+wrap_display_handler! {
+    struct PageLogs {
+        app: tauri::AppHandle,
+        title: String,
+    }
+
+    impl DisplayHandler {
+        fn on_console_message(
+            &self,
+            _browser: Option<&mut Browser>,
+            level: LogSeverity,
+            message: Option<&CefString>,
+            source: Option<&CefString>,
+            line: i32,
+        ) -> i32 {
+            let Some(message) = message else { return 0 };
+            let message = message.to_string();
+            // Where in the page it came from — the console's own
+            // file:line, which is all a browser tab can offer in place
+            // of a stack.
+            let detail = source
+                .map(|source| format!("{}:{line}", source.to_string()))
+                .filter(|detail| detail != ":0");
+            let level = match level {
+                LogSeverity::ERROR | LogSeverity::FATAL => "error",
+                LogSeverity::WARNING => "warn",
+                _ => "info",
+            };
+            let (app, title) = (self.app.clone(), self.title.clone());
+            tauri::async_runtime::spawn(async move {
+                crate::shell::report_as(&app, title, level, message, detail).await;
+            });
+            // 0 = do not suppress; Chromium still writes it to the
+            // log file, where the pump would see it anyway. Returning
+            // 1 here would only hide it from Chromium's own record.
+            0
+        }
+    }
+}
+
 wrap_client! {
     pub struct ViewerClient {
         tab: u64,
         flushed: Arc<AtomicBool>,
         script: Option<String>,
+        app: tauri::AppHandle,
+        title: String,
     }
 
     impl Client {
@@ -766,6 +828,10 @@ wrap_client! {
 
         fn load_handler(&self) -> Option<LoadHandler> {
             Some(InjectScript::new(self.script.clone()))
+        }
+
+        fn display_handler(&self) -> Option<DisplayHandler> {
+            Some(PageLogs::new(self.app.clone(), self.title.clone()))
         }
     }
 }

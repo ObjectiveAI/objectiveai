@@ -116,6 +116,22 @@ pub(crate) async fn report_shell(app: &tauri::AppHandle, level: &str, message: S
     .await;
 }
 
+/// Report under an ARBITRARY source — for feeds that are neither a
+/// webview nor the shell itself. Browser tabs need it twice over:
+/// Chromium's own diagnostics arrive as a logfile this process only
+/// tails, and a browser page's console has no
+/// [`CAPTURE_INIT_SCRIPT`] to forward it (the script would have to run
+/// in a document we do not own).
+pub(crate) async fn report_as(
+    app: &tauri::AppHandle,
+    source: String,
+    level: &str,
+    message: String,
+    detail: Option<String>,
+) {
+    record(app, source, level.to_string(), message, detail).await;
+}
+
 /// The capture forwarder's sink.
 #[tauri::command]
 pub async fn logs_report(

@@ -303,6 +303,7 @@ async fn sync_browser(
                 &app,
                 id,
                 &identity,
+                &title,
                 &surface,
                 parent,
                 (x, y, width, height),

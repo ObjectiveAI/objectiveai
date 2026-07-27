@@ -72,6 +72,12 @@ impl Browsers {
         let root = app.state::<crate::cef::ProfileRoot>().root().to_path_buf();
         let runtime = crate::cef::ensure_runtime(bin_dir).await?;
 
+        // Where the pump picks up: the logfile is append-only across
+        // viewer runs, so sample its length BEFORE anything is written
+        // to it and this session starts at its own first line.
+        let log_file = crate::cef::log_file(&root);
+        let log_from = crate::cef::current_len(&log_file);
+
         // CEF's `initialize` must run on the MAIN thread, and we are on
         // a tokio worker. Hop, and carry the result back — a failure
         // here is a spawn error, not a silent dark browser.
@@ -82,7 +88,13 @@ impl Browsers {
         })
         .map_err(|e| format!("cef initialize dispatch: {e}"))?;
         rx.await
-            .map_err(|_| "cef initialize did not report back".to_string())?
+            .map_err(|_| "cef initialize did not report back".to_string())??;
+
+        // Started LAST and only on success, so the one thing that can
+        // explain a browser failing to render is running before the
+        // first browser exists.
+        crate::cef::spawn_pump(app.clone(), log_file, log_from);
+        Ok(())
     }
 }
 
@@ -147,6 +159,7 @@ pub async fn spawn(
     app: &tauri::AppHandle,
     tab: u64,
     identity: &str,
+    title: &str,
     surface: &Surface,
     parent: isize,
     bounds: (i32, i32, i32, i32),
@@ -210,6 +223,8 @@ pub async fn spawn(
         cache: profile.as_ref().map(|p| p.dir.clone()),
         url: url.clone(),
         script,
+        title: title.to_string(),
+        app: app.clone(),
     });
 
     match result {

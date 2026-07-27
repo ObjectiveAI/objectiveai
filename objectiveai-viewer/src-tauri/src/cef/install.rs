@@ -229,37 +229,54 @@ async fn sweep_leftovers(cef_dir: &Path) {
     }
 }
 
-/// Make `dir` searchable for the delay-loaded `libcef.dll`.
+/// Make the delay-loaded `libcef.dll` resolvable out of `dir`.
 ///
-/// Windows only, and the ONE thing that makes a fetched runtime usable:
-/// the delay-load stub resolves `libcef.dll` by the normal search
-/// order, which does not include `<bin>/cef/<version>/`.
-/// `SetDefaultDllDirectories` switches the process to the safe
-/// (`LOAD_LIBRARY_SEARCH_*`) order — a prerequisite for
-/// `AddDllDirectory` to have any effect — and `AddDllDirectory` then
-/// adds ours to it.
+/// Windows only, and the ONE thing that makes a FETCHED runtime usable:
+/// the delay-load stub resolves `libcef.dll` by the ordinary search
+/// order, which has no reason to include `<bin>/cef/<version>/`.
 ///
-/// Idempotent and best-effort: when the runtime is already beside the
-/// exe the default order finds it regardless, so a failure here is only
-/// fatal in the fetched case, where the delay-load stub raises it as a
-/// clear "module not found" at the first CEF call.
+/// It does that by LOADING the DLL by absolute path, so the module is
+/// already in the process under the base name the stub asks for and no
+/// search ever happens. `LOAD_WITH_ALTERED_SEARCH_PATH` makes CEF's own
+/// directory the search root for ITS dependencies — the ANGLE and
+/// Vulkan DLLs that ship beside it.
+///
+/// It deliberately does NOT touch the process-wide search order
+/// (`SetDefaultDllDirectories`/`AddDllDirectory`). That would apply to
+/// every later `LoadLibrary` in the process, and this runs in Chromium
+/// HELPER processes too — including the GPU process, which loads
+/// graphics drivers by name and has no business inheriting an
+/// embedder's search-order preferences.
+///
+/// A no-op when the runtime is already beside the executable (`cargo`
+/// builds, and any packaging that ships it): the ordinary search finds
+/// it, and doing nothing keeps that case a stock CEF embedding.
 #[cfg(target_os = "windows")]
-pub fn add_dll_directory(dir: &Path) {
+pub fn preload_runtime(dir: &Path) {
     use std::os::windows::ffi::OsStrExt as _;
     use windows_sys::Win32::System::LibraryLoader::{
-        AddDllDirectory, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, SetDefaultDllDirectories,
+        LOAD_WITH_ALTERED_SEARCH_PATH, LoadLibraryExW,
     };
 
-    let wide: Vec<u16> = dir
+    let beside_exe = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|parent| parent == dir))
+        .unwrap_or(false);
+    if beside_exe {
+        return;
+    }
+    let dll = dir.join(RUNTIME_MARKER);
+    let wide: Vec<u16> = dll
         .as_os_str()
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
+    // Best-effort: a failure surfaces as the delay-load stub's own
+    // "module not found" at the first CEF call, which names the DLL.
     unsafe {
-        SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-        AddDllDirectory(wide.as_ptr());
+        LoadLibraryExW(wide.as_ptr(), std::ptr::null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH);
     }
 }
 
 #[cfg(not(target_os = "windows"))]
-pub fn add_dll_directory(_dir: &Path) {}
+pub fn preload_runtime(_dir: &Path) {}
