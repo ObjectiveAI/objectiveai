@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 /// later iteration of the plugin model; it remains part of the
 /// identity triple for now.
 #[derive(
-    Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema, arbitrary::Arbitrary,
+    Debug, Clone, Serialize, Deserialize, PartialEq, JsonSchema, arbitrary::Arbitrary,
 )]
 #[schemars(rename = "agent.Plugin")]
 pub struct Plugin {
@@ -37,46 +37,49 @@ pub struct Plugin {
     /// Plugin version.
     pub version: String,
     /// Optional key→value arguments handed to the plugin's MCP server
-    /// at startup. `Some(value)` ⇒ `--key value`; `None` ⇒ a bare
-    /// `--key` flag. The plugin author decides how to interpret them.
-    /// [`prepare`] normalizes (`Some("") → None`), sorts the map by
-    /// key, and collapses an empty map to `None` so two equivalent
-    /// declarations canonicalize to byte-identical JSON.
+    /// at startup. Values are free-form JSON: a string behaves as
+    /// `--key value` and `null` as a bare `--key` flag, but an object,
+    /// an array or a number is equally valid and the plugin author
+    /// decides how to interpret them.
+    ///
+    /// [`prepare`] normalizes (an empty STRING becomes `null`, so the
+    /// two spellings of a valueless flag canonicalize together), sorts
+    /// the map by key AND every object key nested inside a value at
+    /// any depth, and collapses an empty map to `None` — so two
+    /// equivalent declarations serialize byte-identically, which is
+    /// what makes an agent id content-addressable. Array element order
+    /// is left alone: that is data, not spelling.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    #[arbitrary(with = crate::arbitrary_util::arbitrary_option_indexmap_string_option_string)]
-    pub arguments: Option<IndexMap<String, Option<String>>>,
-}
-
-impl PartialOrd for Plugin {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Plugin {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        // Coordinates first. `IndexMap` doesn't derive `Ord`, so the
-        // arguments compare by walking entries in iteration order —
-        // deterministic after `prepare`'s `sort_keys` pass. `None`
-        // sorts before `Some(...)` via the standard `Option<T>::cmp`.
-        let by_coord = (&self.owner, &self.name, &self.version).cmp(&(
-            &other.owner,
-            &other.name,
-            &other.version,
-        ));
-        if by_coord.is_ne() {
-            return by_coord;
-        }
-        let a: Option<Vec<(&String, &Option<String>)>> =
-            self.arguments.as_ref().map(|m| m.iter().collect());
-        let b: Option<Vec<(&String, &Option<String>)>> =
-            other.arguments.as_ref().map(|m| m.iter().collect());
-        a.cmp(&b)
-    }
+    #[arbitrary(with = crate::arbitrary_util::arbitrary_option_indexmap_string_json_value)]
+    pub arguments: Option<IndexMap<String, serde_json::Value>>,
 }
 
 impl Plugin {
+    /// The total order [`prepare`] sorts by: coordinates first, then
+    /// the arguments as their JSON text.
+    ///
+    /// A KEY rather than an `Ord` impl because `serde_json::Value` is
+    /// neither `Ord` nor `Eq` — it holds `f64`, which has no total
+    /// order — so `Plugin` cannot have one either. Comparing the
+    /// serialized text instead is well-defined and, after
+    /// `prepare`'s `sort_keys` pass, deterministic.
+    ///
+    /// Coordinates are joined with NUL, which cannot appear in any of
+    /// them, so no boundary is ambiguous — `("a", "b/c")` and
+    /// `("a/b", "c")` cannot collide into one key.
+    fn sort_key(&self) -> String {
+        let arguments = self
+            .arguments
+            .as_ref()
+            .and_then(|arguments| serde_json::to_string(arguments).ok())
+            .unwrap_or_default();
+        format!(
+            "{}\0{}\0{}\0{arguments}",
+            self.owner, self.name, self.version,
+        )
+    }
+
     /// `owner`, `name`, and `version` must all be non-empty; `version`
     /// must start with `v` — it IS the plugin repo's git tag, Go-modules
     /// style (`v1.2.3`), byte-for-byte with no rewriting anywhere
@@ -144,6 +147,37 @@ pub fn validate(plugins: &[Plugin]) -> Result<(), String> {
 /// `(owner, name, version, arguments)`. The enclosing field uses
 /// `skip_serializing_if = "Vec::is_empty"`, so an empty list needs no
 /// collapse here.
+/// Sort every object key in `value`, at every depth — inside nested
+/// objects and inside arrays alike.
+///
+/// Needed because `serde_json` runs with `preserve_order` here, so a
+/// `Map` keeps INSERTION order: `{"b":1,"a":2}` and `{"a":2,"b":1}`
+/// are equal as data but serialize to different bytes, and the agent
+/// id is a hash of those bytes. Sorting only the TOP level would leave
+/// `{"opts":{"b":1,"a":2}}` uncanonical.
+///
+/// Array ELEMENT order is deliberately untouched: an array is ordered
+/// data, and reordering it would change what the plugin was told, not
+/// just how it was spelled. (This is the difference from the
+/// `deep_sort` in the api tests, which reorders arrays because it
+/// exists to compare two documents ignoring order.)
+fn sort_object_keys(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (_, nested) in map.iter_mut() {
+                sort_object_keys(nested);
+            }
+            map.sort_keys();
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                sort_object_keys(item);
+            }
+        }
+        _ => {}
+    }
+}
+
 pub fn prepare(mut plugins: Vec<Plugin>) -> Vec<Plugin> {
     for plugin in &mut plugins {
         plugin.owner = plugin.owner.to_lowercase();
@@ -151,11 +185,12 @@ pub fn prepare(mut plugins: Vec<Plugin>) -> Vec<Plugin> {
         let drop_empty = match plugin.arguments.as_mut() {
             Some(args) => {
                 for (_, v) in args.iter_mut() {
-                    if let Some(s) = v.as_deref() {
-                        if s.is_empty() {
-                            *v = None;
-                        }
+                    // An empty string and `null` are two spellings of
+                    // the same valueless flag; canonicalize on `null`.
+                    if v.as_str() == Some("") {
+                        *v = serde_json::Value::Null;
                     }
+                    sort_object_keys(v);
                 }
                 args.sort_keys();
                 args.is_empty()
@@ -166,13 +201,24 @@ pub fn prepare(mut plugins: Vec<Plugin>) -> Vec<Plugin> {
             plugin.arguments = None;
         }
     }
-    plugins.sort();
+    // By CACHED key: the key serializes the arguments to JSON, so
+    // computing it per comparison would re-serialize every plugin
+    // O(log n) times. `sort_by_cached_key` computes it once each.
+    plugins.sort_by_cached_key(Plugin::sort_key);
     plugins
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `None` ⇒ JSON null (the bare flag); `Some(s)` ⇒ a JSON string.
+    fn json_value(v: Option<&str>) -> serde_json::Value {
+        match v {
+            Some(s) => serde_json::Value::String(s.to_string()),
+            None => serde_json::Value::Null,
+        }
+    }
 
     fn plugin(
         owner: &str,
@@ -185,7 +231,8 @@ mod tests {
         } else {
             let mut m = IndexMap::new();
             for (k, v) in args {
-                m.insert(k.to_string(), v.map(|s| s.to_string()));
+                // `None` is the bare flag, i.e. a JSON null.
+                m.insert(k.to_string(), json_value(*v));
             }
             Some(m)
         };
@@ -210,7 +257,115 @@ mod tests {
             args.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
             vec!["a", "z"],
         );
-        assert_eq!(args.get("a").unwrap(), &None);
+        assert_eq!(args.get("a").unwrap(), &serde_json::Value::Null);
+    }
+
+    /// The point of widening: a value is any JSON, not just a string.
+    #[test]
+    fn arguments_carry_arbitrary_json() {
+        let mut arguments = IndexMap::new();
+        arguments.insert("retries".to_string(), serde_json::json!(3));
+        arguments.insert("verbose".to_string(), serde_json::json!(true));
+        arguments.insert("hosts".to_string(), serde_json::json!(["a", "b"]));
+        arguments.insert("nested".to_string(), serde_json::json!({"k": "v"}));
+        let prepared = prepare(vec![Plugin {
+            owner: "o".into(),
+            name: "n".into(),
+            version: "v1".into(),
+            arguments: Some(arguments),
+        }]);
+        let args = prepared[0].arguments.as_ref().unwrap();
+        assert_eq!(args.get("retries").unwrap(), &serde_json::json!(3));
+        assert_eq!(args.get("hosts").unwrap(), &serde_json::json!(["a", "b"]));
+        assert_eq!(args.get("nested").unwrap(), &serde_json::json!({"k": "v"}));
+        // Still key-sorted.
+        assert_eq!(
+            args.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
+            vec!["hosts", "nested", "retries", "verbose"],
+        );
+    }
+
+    /// Object keys canonicalize at EVERY depth, including inside
+    /// arrays — a top-level-only sort would leave two equal documents
+    /// hashing differently, and the agent id is that hash.
+    #[test]
+    fn prepare_sorts_object_keys_at_every_depth() {
+        let mut arguments = IndexMap::new();
+        arguments.insert(
+            "opts".to_string(),
+            serde_json::json!({"z": 1, "a": {"y": 2, "b": 3}}),
+        );
+        arguments.insert(
+            "list".to_string(),
+            serde_json::json!([{"q": 1, "p": 2}]),
+        );
+        let prepared = prepare(vec![Plugin {
+            owner: "o".into(),
+            name: "n".into(),
+            version: "v1".into(),
+            arguments: Some(arguments),
+        }]);
+        let args = prepared[0].arguments.as_ref().unwrap();
+        assert_eq!(
+            serde_json::to_string(args).unwrap(),
+            r#"{"list":[{"p":2,"q":1}],"opts":{"a":{"b":3,"y":2},"z":1}}"#,
+        );
+    }
+
+    /// Two spellings of the same document canonicalize to identical
+    /// bytes however deeply the difference is buried — which is the
+    /// whole point, since the id is a hash of those bytes.
+    #[test]
+    fn deeply_nested_orderings_canonicalize_identically() {
+        let build = |value: serde_json::Value| {
+            let mut arguments = IndexMap::new();
+            arguments.insert("k".to_string(), value);
+            prepare(vec![Plugin {
+                owner: "o".into(),
+                name: "n".into(),
+                version: "v1".into(),
+                arguments: Some(arguments),
+            }])
+        };
+        let a = build(serde_json::json!({"outer": [{"b": 1, "a": {"d": 2, "c": 3}}]}));
+        let b = build(serde_json::json!({"outer": [{"a": {"c": 3, "d": 2}, "b": 1}]}));
+        assert_eq!(
+            serde_json::to_string(&a).unwrap(),
+            serde_json::to_string(&b).unwrap(),
+        );
+    }
+
+    /// Array ELEMENT order is data, not spelling — canonicalization
+    /// must not touch it.
+    #[test]
+    fn prepare_preserves_array_element_order() {
+        let mut arguments = IndexMap::new();
+        arguments.insert("hosts".to_string(), serde_json::json!(["c", "a", "b"]));
+        let prepared = prepare(vec![Plugin {
+            owner: "o".into(),
+            name: "n".into(),
+            version: "v1".into(),
+            arguments: Some(arguments),
+        }]);
+        assert_eq!(
+            prepared[0].arguments.as_ref().unwrap().get("hosts").unwrap(),
+            &serde_json::json!(["c", "a", "b"]),
+        );
+    }
+
+    /// Sorting is by the serialized text, since JSON values have no
+    /// total order — but it must still be a deterministic one.
+    #[test]
+    fn prepare_orders_same_coordinates_by_arguments() {
+        let a = prepare(vec![
+            plugin("o", "n", "v1", &[("k", Some("b"))]),
+            plugin("o", "n", "v1", &[("k", Some("a"))]),
+        ]);
+        let values: Vec<_> = a
+            .iter()
+            .map(|p| p.arguments.as_ref().unwrap().get("k").unwrap().clone())
+            .collect();
+        assert_eq!(values, vec![serde_json::json!("a"), serde_json::json!("b")]);
     }
 
     #[test]

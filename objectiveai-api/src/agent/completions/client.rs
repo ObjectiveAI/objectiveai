@@ -642,7 +642,7 @@ where
                 > = indexmap::IndexMap::new();
                 let mut client_mcp_synthetic_urls: Vec<(
                     String,
-                    Option<indexmap::IndexMap<String, Option<String>>>,
+                    Option<indexmap::IndexMap<String, serde_json::Value>>,
                 )> = Vec::new();
                 if needs_reverse_attach {
                     for plugin in agent.base().plugins() {
