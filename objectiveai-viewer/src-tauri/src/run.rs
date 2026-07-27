@@ -189,6 +189,7 @@ pub fn serve(
         .manage(lab_env)
         .manage(model)
         .manage(crate::shell::WebviewSync::default())
+        .manage(crate::shell::TabMail::default())
         .manage(log_sink)
         .manage(command_log_sink)
         .manage(tab_inventory)
@@ -211,6 +212,12 @@ pub fn serve(
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_close_self,
+        crate::shell::tabs_send,
+        crate::shell::tabs_subscribe,
+        crate::shell::tabs_list,
+        crate::shell::tabs_parent_send,
+        crate::shell::tabs_parent_subscribe,
+        crate::shell::tabs_parent_list,
         crate::shell::channel_request_declare,
         crate::shell::channel_request_accept,
         crate::shell::channel_request_status,
@@ -326,7 +333,16 @@ pub fn serve(
                     let handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
                         let model = handle.state::<crate::shell::ShellModel>();
-                        if let Some(snapshot) = model.remove_window(&label).await {
+                        if let Some((snapshot, tabs)) =
+                            model.remove_window(&label).await
+                        {
+                            // Closing a window with the X destroys
+                            // every tab in it at once — each may be
+                            // somebody's mailbox peer.
+                            handle
+                                .state::<crate::shell::TabMail>()
+                                .closed_many(&tabs)
+                                .await;
                             crate::shell::publish(&handle, &snapshot, &[]);
                             crate::shell::sync(&handle).await;
                         }

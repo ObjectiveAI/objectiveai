@@ -86,6 +86,7 @@ impl TabEntry {
             module: self.module.clone(),
             export: self.export.clone(),
             root_module: false,
+            key: None,
             arguments: None,
         }
     }

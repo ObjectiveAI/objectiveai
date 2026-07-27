@@ -39,6 +39,12 @@ export interface TabKind {
   identity: string;
   module: string;
   export?: string;
+  /** `true` = root code under a plugin identity (the channel-request
+   * template) — no plugin origin prefixing. */
+  rootModule?: boolean;
+  /** The name the SPAWNING tab gave this one — its mailbox address.
+   * Part of the dedupe kind, unlike the cosmetic fields on `TabDesc`. */
+  key?: string;
   arguments?: unknown;
 }
 

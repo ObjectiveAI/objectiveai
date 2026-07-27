@@ -14,6 +14,8 @@ mod jsonl;
 pub use jsonl::*;
 mod logs;
 pub use logs::*;
+mod mailbox;
+pub use mailbox::*;
 mod model;
 pub use model::*;
 mod native;

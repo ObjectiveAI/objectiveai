@@ -48,6 +48,16 @@ pub struct TabKind {
         skip_serializing_if = "std::ops::Not::not"
     )]
     pub root_module: bool,
+    /// The name the SPAWNING tab gave this one — its address in that
+    /// parent's mailbox map (see [`crate::shell::TabMail`]). `None`
+    /// for every tab nobody spawned by key.
+    ///
+    /// Part of the dedupe kind ON PURPOSE, unlike the cosmetic fields
+    /// beside it: two children of the same component under different
+    /// keys are genuinely different tabs, and open-or-focus must mint
+    /// the second rather than focusing the first.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
     /// Opaque component props — stored verbatim, delivered verbatim
     /// at boot. Rust never looks inside.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -210,6 +220,9 @@ pub struct Opened {
 
 /// What [`ShellModel::close`] did.
 pub struct Closed {
+    /// The tab that was removed — every caller must tell the mailbox
+    /// registry, or a peer blocked on it waits forever.
+    pub tab_id: u64,
     pub snapshot: Snapshot,
     /// A SHELL window left empty by the close — the caller closes it.
     pub close_window: Option<String>,
@@ -252,6 +265,7 @@ fn remove_at(inner: &mut Inner, label: String, idx: usize) -> Closed {
     let close_window = ws.tabs.is_empty();
     inner.generation += 1;
     Closed {
+        tab_id,
         snapshot: inner.snapshot(),
         close_window: close_window.then(|| label.clone()),
         touched: vec![label],
@@ -564,11 +578,15 @@ impl ShellModel {
 
     /// Remove a window's entry entirely (window destroyed).
     /// Idempotent; `None` = nothing changed.
-    pub async fn remove_window(&self, label: &str) -> Option<Snapshot> {
+    pub async fn remove_window(&self, label: &str) -> Option<(Snapshot, Vec<u64>)> {
         let mut inner = self.inner.lock().await;
-        inner.windows.remove(label)?;
+        // The removed tabs are reported, not discarded: closing a
+        // window with the X destroys every tab in it at once, and
+        // each one may be somebody's mailbox peer.
+        let removed = inner.windows.remove(label)?;
+        let tabs: Vec<u64> = removed.tabs.iter().map(|tab| tab.id).collect();
         inner.generation += 1;
-        Some(inner.snapshot())
+        Some((inner.snapshot(), tabs))
     }
 
     /// Merge UI fields into `window`'s state; returns the merged

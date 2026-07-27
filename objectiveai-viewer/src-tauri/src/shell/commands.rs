@@ -46,6 +46,13 @@ pub struct OpenTab {
     /// dedupe kind.
     #[serde(default)]
     pub styles: Option<Vec<String>>,
+    /// OPTIONAL name for the spawned tab, unique among THIS caller's
+    /// children — the address it is messaged at afterwards (see
+    /// [`super::TabMail`]). Unlike the cosmetics above it IS part of
+    /// the dedupe kind: two children of one component under different
+    /// keys are different tabs.
+    #[serde(default)]
+    pub key: Option<String>,
 }
 
 /// What a content webview learns about itself at boot — everything
@@ -130,12 +137,22 @@ pub async fn tabs_open(
     for style in tab.styles.iter().flatten() {
         validate_module(style)?;
     }
+    // A keyed open addresses a mailbox, and a mailbox is keyed by the
+    // CALLER's tab — so chrome (which has no tab) cannot open one.
+    let parent = native::tab_id(webview.label());
+    if tab.key.is_some() && parent.is_none() {
+        return Err(
+            "tabs_open: `key` requires a content webview — chrome spawns no children"
+                .to_string(),
+        );
+    }
     let identity = sender_identity(&webview, &model).await;
     let kind = TabKind {
         identity,
         module: tab.module,
         export: tab.export,
         root_module: false,
+        key: tab.key.clone(),
         arguments: tab.arguments,
     };
     let caller = webview.window().label().to_string();
@@ -150,6 +167,14 @@ pub async fn tabs_open(
         true,
     )
     .await;
+    // Bind AFTER the open, using the id it actually landed on: a
+    // dedupe hit reuses an existing tab, and rebinding must rejoin
+    // that mailbox rather than reset it.
+    if let (Some(parent), Some(key)) = (parent, tab.key) {
+        app.state::<super::TabMail>()
+            .bind(parent, key, opened.tab_id)
+            .await;
+    }
     if let Some(label) = opened.focus {
         if let Some(target) = app.get_window(&label) {
             let _ = target.set_focus();
@@ -268,6 +293,9 @@ pub async fn tabs_close(
 /// The internal close path — the command above, the channel-offer
 /// withdrawal handler, and the self-close land here.
 pub(crate) async fn close_tab(app: &tauri::AppHandle, tab_id: u64) {
+    // Every removal path must reach the mailbox registry, or a peer
+    // blocked on this tab waits forever.
+    app.state::<super::TabMail>().closed(tab_id).await;
     let model = app.state::<ShellModel>();
     let Some(closed) = model.close(tab_id).await else {
         return;
@@ -552,7 +580,14 @@ pub async fn tabs_toggle(
             if let Some(kinds) = &live_apply_kinds {
                 live_slot(&app, &model, kinds).await;
             }
-        } else if let Some(closed) = model.remove_by_kind(&entry.kind()).await {
+        } else if let Some(closed) = {
+            // A disabled tab may be parked in a subscribe — end the
+            // wait before the tab stops existing.
+            if let Some(tab_id) = model.tab_id_of(&entry.kind()).await {
+                app.state::<super::TabMail>().closed(tab_id).await;
+            }
+            model.remove_by_kind(&entry.kind()).await
+        } {
             native::publish(&app, &closed.snapshot, &closed.touched);
             native::sync(&app).await;
             if let Some(label) = closed.close_window {

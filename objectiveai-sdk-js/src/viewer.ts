@@ -44,6 +44,16 @@ export interface ViewerOpenTab {
    * entry and emits the file beside it: nothing would ever request
    * it. Cosmetic, like `icon` — not part of the dedupe identity. */
   styles?: string[];
+  /** OPTIONAL name for the spawned tab, unique among THIS tab's
+   * children. It is the address the parent messages the child at
+   * afterwards ([`sendViewerTab`] and friends); the child answers
+   * with [`sendViewerParent`] and needs no key of its own.
+   *
+   * Unlike the cosmetic fields above this IS part of the dedupe
+   * identity: opening the same component under a different key gives
+   * you a genuinely different tab, so one parent can spawn several
+   * children of one component and address them separately. */
+  key?: string;
 }
 
 /**
@@ -75,4 +85,93 @@ export async function closeViewerTab(
   } else {
     await transport.invoke("tabs_close", { tabId: tab });
   }
+}
+
+/**
+ * Messaging between a tab and the tabs it spawned.
+ *
+ * Every tab is its own webview, so the only thing a parent could ever
+ * hand a child was `arguments`, delivered once at boot. These keep the
+ * two talking: name a tab when you open it (`ViewerOpenTab.key`) and
+ * the pair share a mailbox with a lane in each direction.
+ *
+ * The parent addresses a child by that key; the child answers with the
+ * `...Parent` calls and supplies no key at all — the shell knows who
+ * spawned it, so a child can neither name nor misname anyone.
+ *
+ * A mailbox outlives either tab alone: it accepts sends, subscribes
+ * and lists until BOTH ends are closed. Sends queue unconditionally,
+ * so a parent may send the instant it spawns and the child drains it
+ * on its first subscribe.
+ */
+
+/** Queue a value for the tab this one spawned as `key`. */
+export async function sendViewerTab(
+  transport: ViewerTransport,
+  key: string,
+  value: unknown,
+): Promise<void> {
+  await transport.invoke("tabs_send", { key, value });
+}
+
+/**
+ * Everything that child has sent and this tab has not yet seen.
+ *
+ * Returns IMMEDIATELY when anything is pending, and never yields the
+ * same item twice. Blocks ONLY on an empty lane — until something
+ * arrives, until the child closes (a wait never outlives the tab it
+ * waits on), or until `timeoutMs` elapses; omit it to wait forever.
+ * Once the child is closed this stops blocking, so a bare `while
+ * (true)` loop will spin — drive it off your own condition.
+ */
+export async function subscribeViewerTab(
+  transport: ViewerTransport,
+  key: string,
+  timeoutMs?: number,
+): Promise<unknown[]> {
+  return (await transport.invoke("tabs_subscribe", {
+    key,
+    timeoutMs,
+  })) as unknown[];
+}
+
+/**
+ * That child's retained history (capped at the most recent 1024).
+ * `pending` drains, advancing the cursor exactly like a non-blocking
+ * subscribe; otherwise the full history comes back and nothing is
+ * marked read — the `--pending` / `--all` split the channel and agent
+ * log commands take.
+ */
+export async function listViewerTab(
+  transport: ViewerTransport,
+  key: string,
+  pending = false,
+): Promise<unknown[]> {
+  return (await transport.invoke("tabs_list", { key, pending })) as unknown[];
+}
+
+/** Queue a value for the tab that spawned this one. */
+export async function sendViewerParent(
+  transport: ViewerTransport,
+  value: unknown,
+): Promise<void> {
+  await transport.invoke("tabs_parent_send", { value });
+}
+
+/** [`subscribeViewerTab`] against the spawning tab. */
+export async function subscribeViewerParent(
+  transport: ViewerTransport,
+  timeoutMs?: number,
+): Promise<unknown[]> {
+  return (await transport.invoke("tabs_parent_subscribe", {
+    timeoutMs,
+  })) as unknown[];
+}
+
+/** [`listViewerTab`] against the spawning tab. */
+export async function listViewerParent(
+  transport: ViewerTransport,
+  pending = false,
+): Promise<unknown[]> {
+  return (await transport.invoke("tabs_parent_list", { pending })) as unknown[];
 }

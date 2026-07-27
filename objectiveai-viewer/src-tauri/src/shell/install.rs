@@ -20,6 +20,7 @@
 use std::path::{Path, PathBuf};
 
 use futures::StreamExt;
+use tauri::Manager;
 
 /// The installer's directory layout, derived from `OBJECTIVEAI_DIR`
 /// once — managed state so every command shares one source of truth.
@@ -253,6 +254,9 @@ pub(crate) async fn uninstall(
     // live tab, so uninstalling it closes nothing.
     let tab_identity = format!("{owner}/{name}/{version}");
     while let Some(closed) = model.remove_by_identity(&tab_identity).await {
+        // A plugin tab may be parked in a subscribe; uninstalling it
+        // must end that wait, not orphan it.
+        app.state::<super::TabMail>().closed(closed.tab_id).await;
         super::native::publish(app, &closed.snapshot, &closed.touched);
         super::native::sync(app).await;
         if let Some(label) = closed.close_window {

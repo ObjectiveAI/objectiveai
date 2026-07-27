@@ -208,6 +208,7 @@ async fn accept_flow(
         module: handler.module,
         export: handler.export,
         root_module: false,
+        key: None,
         arguments: Some(arguments),
     };
     let opened = super::open_tab(
@@ -583,6 +584,8 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
         identity,
         module: template.0,
         export: template.1,
+        // Nobody SPAWNED this tab by key — the listener opens it.
+        key: None,
         // The request TEMPLATE is root code even when the identity is
         // the offering plugin's — the module must not be prefixed
         // onto the plugin origin.
