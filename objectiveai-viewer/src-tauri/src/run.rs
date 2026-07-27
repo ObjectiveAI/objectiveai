@@ -212,6 +212,7 @@ pub fn serve(
         crate::shell::tabs_select,
         crate::shell::tabs_close,
         crate::shell::tabs_close_self,
+        crate::shell::tabs_close_child,
         crate::shell::tabs_send,
         crate::shell::tabs_subscribe,
         crate::shell::tabs_list,

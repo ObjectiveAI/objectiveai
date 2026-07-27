@@ -71,19 +71,31 @@ export async function openViewerTab(
 }
 
 /**
- * Close a viewer tab: the CALLING tab when `tab` is omitted (the
- * self-close every component may use — a spawned window's sole tab
- * closes the window with it), or the tab with that id. Either way
- * the shell's closability rules apply.
+ * Close a viewer tab. Three targets:
+ *
+ * - **omitted** — the CALLING tab (the self-close every component may
+ *   use; a spawned window's sole tab closes the window with it).
+ * - **`{ key }`** — the tab this one spawned under that name. The only
+ *   SCOPED form: the key resolves through the caller's own mailbox
+ *   index, so a tab can close a tab it spawned and nothing else. A
+ *   child that has already closed is not an error.
+ * - **a tab id** — that exact tab, whoever owns it. Intended for the
+ *   chrome, which renders the snapshot and legitimately knows every
+ *   id; a component has no sanctioned way to learn another tab's id
+ *   and should prefer `{ key }`.
+ *
+ * Either way the shell's closability rules apply.
  */
 export async function closeViewerTab(
   transport: ViewerTransport,
-  tab?: number,
+  tab?: number | { key: string },
 ): Promise<void> {
   if (tab === undefined) {
     await transport.invoke("tabs_close_self", {});
-  } else {
+  } else if (typeof tab === "number") {
     await transport.invoke("tabs_close", { tabId: tab });
+  } else {
+    await transport.invoke("tabs_close_child", { key: tab.key });
   }
 }
 

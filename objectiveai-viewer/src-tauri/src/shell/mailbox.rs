@@ -186,6 +186,16 @@ impl TabMail {
         self.inner.lock().await.by_child.get(&child).cloned()
     }
 
+    /// Which tab is bound at `id`, if one is still live there.
+    ///
+    /// The mailbox outlives its tabs, so this answers `None` for a
+    /// child that has already closed even though the history remains.
+    pub async fn child_tab(&self, id: &(u64, String)) -> Option<u64> {
+        let inner = self.inner.lock().await;
+        let mailbox = inner.boxes.get(id)?;
+        mailbox.child_alive.then_some(mailbox.child).flatten()
+    }
+
     /// Queue one value on the lane `side` writes. Always succeeds while
     /// the mailbox exists — a parent may send before its child has
     /// booted, and the child drains it on its first subscribe.
@@ -368,6 +378,29 @@ pub async fn tabs_list(
 ) -> Result<Vec<serde_json::Value>, String> {
     let id = as_parent(&webview, key).await?;
     mail.list(&id, Side::Parent, pending).await
+}
+
+/// Close the tab this one spawned as `key`.
+///
+/// The ONLY scoped close in the shell: `tabs_close` takes a raw tab id
+/// and checks nothing, but a caller has no sanctioned way to learn a
+/// child's id — and this resolves the key through the mailbox index,
+/// so a tab can only ever reach a tab it spawned itself.
+///
+/// A child that is already gone is not an error: the mailbox outlives
+/// its tabs, so "close it" is satisfied either way.
+#[tauri::command]
+pub async fn tabs_close_child(
+    app: tauri::AppHandle,
+    webview: tauri::Webview,
+    mail: tauri::State<'_, TabMail>,
+    key: String,
+) -> Result<(), String> {
+    let id = as_parent(&webview, key).await?;
+    if let Some(child) = mail.child_tab(&id).await {
+        super::close_tab(&app, child).await;
+    }
+    Ok(())
 }
 
 // ── Child-side commands: address the spawner, no key needed ─────────
