@@ -76,10 +76,16 @@ static BROWSERS: OnceLock<Mutex<HashMap<u64, Entry>>> = OnceLock::new();
 /// already recorded here.
 static LAYOUT: OnceLock<Mutex<HashMap<u64, Placement>>> = OnceLock::new();
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct Placement {
     parent: isize,
     y: i32,
+    /// The owning tab's title — what this browser's diagnostics are
+    /// SOURCED as in the viewer's log inbox. It lives HERE rather than
+    /// on [`Entry`] because the most valuable diagnostics arrive while
+    /// the browser is still being created, before `on_after_created`
+    /// has anything to register.
+    title: String,
 }
 
 fn layout() -> &'static Mutex<HashMap<u64, Placement>> {
@@ -118,6 +124,27 @@ pub fn has_browser(id: u64) -> bool {
 /// the handle outlives the registry lock).
 fn browser(id: u64) -> Option<Browser> {
     browsers().lock().ok()?.get(&id).map(|e| e.browser.clone())
+}
+
+/// The title of the ONE browser tab, if exactly one is live or being
+/// created.
+///
+/// This exists because `cef-debug.log` is process-global: every
+/// Chromium process writes to it and the lines carry a pid, not a tab.
+/// Much of what it says (the GPU process, the network service, the
+/// browser process itself) genuinely belongs to no single tab. But
+/// "which tab is this about?" is the only question a reader actually
+/// has, and while one browser tab is open there is an unambiguous
+/// answer — so give it, and fall back only when there is not one.
+///
+/// Read from the placement registry rather than the browser registry
+/// so a tab counts from the moment its browser is REQUESTED: creation
+/// is exactly when the loudest diagnostics arrive.
+pub fn sole_browser_title() -> Option<String> {
+    let placements = layout().lock().ok()?;
+    let mut entries = placements.values();
+    let first = entries.next()?;
+    entries.next().is_none().then(|| first.title.clone())
 }
 
 // ---------------------------------------------------------------------
@@ -410,6 +437,7 @@ pub fn create_browser(spawn: Spawn) -> Result<(), String> {
             Placement {
                 parent: spawn.parent,
                 y,
+                title: spawn.title.clone(),
             },
         );
     }
@@ -839,5 +867,41 @@ wrap_client! {
 wrap_app! {
     pub struct ViewerApp {}
 
-    impl App {}
+    impl App {
+        /// Chromium's command line, before it is acted on — where the
+        /// GPU is turned OFF.
+        ///
+        /// Not a workaround for one machine. Chromium's GPU process is
+        /// the single most environment-dependent part of it: it CHECKs
+        /// and dies on virtualized display adapters, on stale drivers,
+        /// and in RDP sessions, and when it does the compositor never
+        /// recovers — the browser window stays blank with the failure
+        /// recorded nowhere the user would look. Observed here as
+        /// `GPU process exited unexpectedly: exit_code=-2147483645`
+        /// (STATUS_BREAKPOINT) three times, then
+        /// `Failed to create shared context for virtualization`
+        /// forever after.
+        ///
+        /// Software compositing costs nothing that matters for what a
+        /// browser tab is FOR — sign-in flows, OAuth, consoles, docs —
+        /// and buys a surface that renders on every machine rather than
+        /// most of them. A tab that reliably works beats a tab that is
+        /// occasionally faster and sometimes blank.
+        ///
+        /// Applies to every process type: the switches must reach the
+        /// GPU and renderer children too, and CEF calls this with an
+        /// empty `process_type` for the browser process and the type
+        /// name for each child.
+        fn on_before_command_line_processing(
+            &self,
+            _process_type: Option<&CefString>,
+            command_line: Option<&mut CommandLine>,
+        ) {
+            let Some(command_line) = command_line else { return };
+            for switch in ["disable-gpu", "disable-gpu-compositing"] {
+                let switch = CefString::from(switch);
+                command_line.append_switch(Some(&switch));
+            }
+        }
+    }
 }

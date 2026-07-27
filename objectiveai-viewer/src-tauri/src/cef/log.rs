@@ -79,8 +79,13 @@ pub fn spawn_pump(app: tauri::AppHandle, path: PathBuf, from: u64) {
                 }
                 let level = level_of(&line);
                 last = Some(line.clone());
-                crate::shell::report_as(&app, "cef".to_string(), level, line, None)
-                    .await;
+                // Sourced as the browser tab these lines are about
+                // whenever that is unambiguous — see
+                // [`super::sole_browser_title`] for why it sometimes
+                // is not.
+                let source = super::sole_browser_title()
+                    .unwrap_or_else(|| "browser tabs".to_string());
+                crate::shell::report_as(&app, source, level, line, None).await;
             }
             // Trust the metadata length over the byte count, which a
             // partially-written final line would leave short.
