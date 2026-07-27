@@ -13,13 +13,15 @@ keywords = ["llm", "ai", "swarm", "mcp"]
 publish = true
 
 [dependencies]
+axum = "0.8.9"
 indexmap = { version = "2.14.0", features = ["serde"] }
 objectiveai-sdk = { version = "2.2.13", path = "../objectiveai-sdk-rs", default-features = false }
-rmcp = "2.2.0"
+rmcp = { version = "2.2.0", features = ["transport-streamable-http-server"] }
 schemars = "1.2.2"
 serde_json = "1.0.151"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres"] }
 thiserror = "2.0.19"
+tokio = { version = "1.53.1", features = ["net", "rt"] }
 
 [dev-dependencies]
 tokio = { version = "1.53.1", features = ["macros", "rt"] }

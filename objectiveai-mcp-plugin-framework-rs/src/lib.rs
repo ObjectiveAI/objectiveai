@@ -9,6 +9,7 @@
 pub mod db;
 mod environment;
 pub use environment::*;
+pub mod serve;
 pub mod tools;
 
 /// Re-exported so a plugin uses the SAME `rmcp` and `sqlx` the router
