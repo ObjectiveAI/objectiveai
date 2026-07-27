@@ -16,6 +16,24 @@ type CliPluginsViewerTabChannel struct {
 	Export *string `json:"export,omitempty"`
 	// The component's module path, relative to `viewer/`.
 	Module string `json:"module"`
+	// Stylesheets this tab needs, as paths relative to the
+	// `viewer` directory (`"./home.css"`) against the BUILT
+	// layout, like `module`. The viewer injects each as a
+	// `<link rel="stylesheet">` and waits for it BEFORE the
+	// component renders — so there is no flash of unstyled
+	// content, and a sheet that fails to load stops the tab
+	// rather than showing it wrong.
+	//
+	// Declaring them is what makes them checkable: the build
+	// fails if a listed sheet is missing from its output. It is
+	// also the only thing that works — a bundler strips
+	// `import "./x.css"` from a JS entry and emits the file
+	// beside it, so nothing would ever request it.
+	//
+	// Scope is the tab's own document (every tab is its own
+	// webview), so a plugin's global CSS cannot reach another
+	// tab or the chrome.
+	Styles *[]string `json:"styles,omitempty"`
 }
 
 func (v *CliPluginsViewerTabChannel) UnmarshalJSON(data []byte) error {
@@ -44,6 +62,24 @@ type CliPluginsViewerTabTab struct {
 	Export *string `json:"export,omitempty"`
 	// The component's module path, relative to `viewer/`.
 	Module string `json:"module"`
+	// Stylesheets this tab needs, as paths relative to the
+	// `viewer` directory (`"./home.css"`) against the BUILT
+	// layout, like `module`. The viewer injects each as a
+	// `<link rel="stylesheet">` and waits for it BEFORE the
+	// component renders — so there is no flash of unstyled
+	// content, and a sheet that fails to load stops the tab
+	// rather than showing it wrong.
+	//
+	// Declaring them is what makes them checkable: the build
+	// fails if a listed sheet is missing from its output. It is
+	// also the only thing that works — a bundler strips
+	// `import "./x.css"` from a JS entry and emits the file
+	// beside it, so nothing would ever request it.
+	//
+	// Scope is the tab's own document (every tab is its own
+	// webview), so a plugin's global CSS cannot reach another
+	// tab or the chrome.
+	Styles *[]string `json:"styles,omitempty"`
 	// The tab's display title.
 	Title string `json:"title"`
 }

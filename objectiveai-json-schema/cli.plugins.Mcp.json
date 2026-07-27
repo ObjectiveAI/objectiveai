@@ -1,0 +1,17 @@
+{
+  "title": "cli.plugins.Mcp",
+  "description": "The MCP-server half: an image the laboratory builds and RUNS,\nserving MCP on a loopback-published port.",
+  "type": "object",
+  "properties": {
+    "containerfile": {
+      "description": "Repo-relative path (forward slashes) to the Containerfile /\nDockerfile the image builds from. Its OWN DIRECTORY is the\nbuild context — so a Containerfile at `server/Containerfile`\nsees `server/` as its root and its `COPY` steps carry no\n`server/` prefix.",
+      "type": "string"
+    },
+    "port": {
+      "description": "The port the MCP server listens on inside the container —\npublished to a random loopback host port at create. Never 0.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    }
+  }
+}

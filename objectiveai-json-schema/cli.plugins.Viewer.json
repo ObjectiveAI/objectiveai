@@ -1,0 +1,57 @@
+{
+  "title": "cli.plugins.Viewer",
+  "description": "The viewer-extension half: an image the laboratory builds and never\nRUNS — it is created, [`Viewer::output`] is copied out of it, and\nboth the container and the image are discarded. So the build\nbelongs in `RUN` steps, and the plugin owns its whole toolchain\n(Tailwind, PostCSS, whatever it likes).\n\nThe one contract that build must honor: `react`, `react-dom`,\n`react/jsx-runtime` and `react-dom/client` must be left EXTERNAL.\nThe host viewer serves them through an import map so every plugin\nshares its single React instance; a bundle carrying its own copy\ndies on the first hook.",
+  "type": "object",
+  "properties": {
+    "containerfile": {
+      "description": "Repo-relative path (forward slashes) to the Containerfile that\nBUILDS the extension. Its OWN DIRECTORY is the build context —\nsee [`Mcp::containerfile`].",
+      "type": "string"
+    },
+    "icon": {
+      "description": "The identity icon, shown beside the identity in the tab strip.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "output": {
+      "description": "Absolute path INSIDE the built image whose CONTENTS are the\nbuilt assets. They are copied out to become the installed\n[`VIEWER_DIR`], so every path below is relative to THIS\ndirectory's contents: an `output` of `/dist` holding `home.js`\nis named `./home.js`. Plugins never produce an archive; the\nhost packs one.",
+      "type": "string"
+    },
+    "scripts": {
+      "description": "Scripts the plugin can inject into a browser tab it spawns.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "cli.plugins.ViewerScript"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "tabs": {
+      "description": "The plugin's tabs, in declaration order (strip order). A\n[`ViewerTab::Channel`] entry (`channel_key`) is a CHANNEL\nHANDLER: it never opens at boot — it opens when an offer with\nthat key is accepted, with the full offer as its arguments,\ntitled by the offer key. A [`ViewerTab::Tab`] entry (`title`)\nis a regular tab, opened at viewer boot. Duplicates (same\n`module` among regular tabs, same `channel_key` among\nhandlers) — entries after the first are ignored.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "cli.plugins.ViewerTab"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

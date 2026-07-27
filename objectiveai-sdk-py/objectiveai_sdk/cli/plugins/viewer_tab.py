@@ -12,6 +12,7 @@ class ViewerTabChannel(BaseModel):
     channel_key: str = Field(..., description='The offer key this handler answers (e.g.\n`"browser.login"`) — also the opened tab\'s title.')
     export: Optional[str] = Field(None, description='The export holding the component (`None` = `"default"`).', json_schema_extra={'omitempty': True})
     module: str = Field(..., description="The component's module path, relative to `viewer/`.")
+    styles: Optional[list[str]] = Field(None, description='Stylesheets this tab needs, as paths relative to the\n`viewer` directory (`"./home.css"`) against the BUILT\nlayout, like `module`. The viewer injects each as a\n`<link rel="stylesheet">` and waits for it BEFORE the\ncomponent renders — so there is no flash of unstyled\ncontent, and a sheet that fails to load stops the tab\nrather than showing it wrong.\n\nDeclaring them is what makes them checkable: the build\nfails if a listed sheet is missing from its output. It is\nalso the only thing that works — a bundler strips\n`import "./x.css"` from a JS entry and emits the file\nbeside it, so nothing would ever request it.\n\nScope is the tab\'s own document (every tab is its own\nwebview), so a plugin\'s global CSS cannot reach another\ntab or the chrome.', json_schema_extra={'omitempty': True})
 
 
 class ViewerTabTab(BaseModel):
@@ -20,6 +21,7 @@ class ViewerTabTab(BaseModel):
 
     export: Optional[str] = Field(None, description='The export holding the component (`None` = `"default"`).', json_schema_extra={'omitempty': True})
     module: str = Field(..., description="The component's module path, relative to `viewer/`.")
+    styles: Optional[list[str]] = Field(None, description='Stylesheets this tab needs, as paths relative to the\n`viewer` directory (`"./home.css"`) against the BUILT\nlayout, like `module`. The viewer injects each as a\n`<link rel="stylesheet">` and waits for it BEFORE the\ncomponent renders — so there is no flash of unstyled\ncontent, and a sheet that fails to load stops the tab\nrather than showing it wrong.\n\nDeclaring them is what makes them checkable: the build\nfails if a listed sheet is missing from its output. It is\nalso the only thing that works — a bundler strips\n`import "./x.css"` from a JS entry and emits the file\nbeside it, so nothing would ever request it.\n\nScope is the tab\'s own document (every tab is its own\nwebview), so a plugin\'s global CSS cannot reach another\ntab or the chrome.', json_schema_extra={'omitempty': True})
     title: str = Field(..., description="The tab's display title.")
 
 
