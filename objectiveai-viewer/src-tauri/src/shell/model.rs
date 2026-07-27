@@ -18,50 +18,113 @@
 
 use std::collections::HashMap;
 
-/// What a tab IS — one UNIFORM shape for every identity: the
-/// component coordinates the generic bootstrap dereferences
-/// (`import(module)[export]`), plus opaque props. Built-in tabs are
-/// identity `objectiveai`; plugins will be their own identity, with
-/// `module` resolved against that identity's root. Rust stores all
-/// of it verbatim — there is no name→component table anywhere.
-/// Kind equality (identity + module + export + arguments; title is
-/// cosmetic and lives outside) is the open-or-focus dedupe key.
-/// The TS mirror lives in the frontend's `lib/tabs.ts`.
+/// What a tab IS. Two fields are common to every tab — who owns it
+/// and what its parent calls it — and the rest depends on what kind
+/// of SURFACE it is: our React bootstrap dereferencing a component,
+/// or a Chromium browser. Rust stores all of it verbatim; there is no
+/// name→component table anywhere.
+///
+/// Kind equality is the open-or-focus dedupe key (`title`, `icon` and
+/// `styles` are cosmetic and live outside on [`Tab`]). The TS mirror
+/// lives in the frontend's `lib/tabs.ts`.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TabKind {
     /// The OWNING identity — always derived from the opener's
     /// webview, never claimed by arguments.
     pub identity: String,
-    /// Component module path, relative to the identity's root.
-    pub module: String,
-    /// The export holding the component (`None` = `"default"`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub export: Option<String>,
-    /// `true` = the module resolves against the APP origin even
-    /// though the identity is a plugin's — the channel-REQUEST
-    /// template (root code branded with the offering plugin's
-    /// identity) is the one case. Constant per flow, so its place in
-    /// kind equality never splits a dedupe.
-    #[serde(
-        default,
-        rename = "rootModule",
-        skip_serializing_if = "std::ops::Not::not"
-    )]
-    pub root_module: bool,
     /// The name the SPAWNING tab gave this one — its address in that
     /// parent's mailbox map (see [`crate::shell::TabMail`]). `None`
     /// for every tab nobody spawned by key.
     ///
     /// Part of the dedupe kind ON PURPOSE, unlike the cosmetic fields
-    /// beside it: two children of the same component under different
+    /// on [`Tab`]: two children of the same component under different
     /// keys are genuinely different tabs, and open-or-focus must mint
     /// the second rather than focusing the first.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
     /// Opaque component props — stored verbatim, delivered verbatim
-    /// at boot. Rust never looks inside.
+    /// at boot. Rust never looks inside. Unused by a browser surface.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arguments: Option<serde_json::Value>,
+    /// WHAT this tab renders — and therefore what native surface the
+    /// reconciler builds for it.
+    #[serde(flatten)]
+    pub surface: Surface,
+}
+
+/// The two kinds of tab surface. Flattened into [`TabKind`] on the
+/// wire, tagged by `surface`, so a component tab's JSON keeps its
+/// familiar shape with one added discriminator.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "surface", rename_all = "snake_case")]
+pub enum Surface {
+    /// A React component in one of OUR webviews — the generic
+    /// bootstrap imports the module and renders the export.
+    Component {
+        /// Component module path, relative to the identity's root.
+        module: String,
+        /// The export holding the component (`None` = `"default"`).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        export: Option<String>,
+        /// `true` = the module resolves against the APP origin even
+        /// though the identity is a plugin's — the channel-REQUEST
+        /// template (root code branded with the offering plugin's
+        /// identity) is the one case. Constant per flow, so its place
+        /// in kind equality never splits a dedupe.
+        #[serde(
+            default,
+            rename = "rootModule",
+            skip_serializing_if = "std::ops::Not::not"
+        )]
+        root_module: bool,
+    },
+    /// A Chromium browser (CEF) parented into the window — no module,
+    /// no bootstrap, no Tauri IPC.
+    Browser {
+        /// Where it opens.
+        url: String,
+        /// A script from the owning plugin's manifest `scripts`,
+        /// injected into every main-frame load. Named, never inline:
+        /// the runnable set stays closed to what the plugin declared
+        /// at install time.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        script: Option<String>,
+        /// The profile key. `Some` ⇒ cookies, localStorage and cache
+        /// PERSIST on disk under a directory derived from this plus
+        /// the owning identity, and reload next time. `None` ⇒ the
+        /// browser is entirely in-memory.
+        ///
+        /// Inside the dedupe kind deliberately: two browsers on one
+        /// URL with different profiles are different tabs. Outside
+        /// it, re-opening would silently hand back a
+        /// differently-profiled browser.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        state: Option<String>,
+    },
+}
+
+impl TabKind {
+    /// The component module, if this is a component tab.
+    pub fn module(&self) -> Option<&str> {
+        match &self.surface {
+            Surface::Component { module, .. } => Some(module.as_str()),
+            Surface::Browser { .. } => None,
+        }
+    }
+
+    /// Whether this tab is a browser surface — the reconciler builds
+    /// something entirely different for it.
+    pub fn is_browser(&self) -> bool {
+        matches!(self.surface, Surface::Browser { .. })
+    }
+
+    /// The profile key of a browser surface, if it persists.
+    pub fn browser_state(&self) -> Option<&str> {
+        match &self.surface {
+            Surface::Browser { state, .. } => state.as_deref(),
+            Surface::Component { .. } => None,
+        }
+    }
 }
 
 /// The ROOT identity — what a CHROME webview speaks as. This is the

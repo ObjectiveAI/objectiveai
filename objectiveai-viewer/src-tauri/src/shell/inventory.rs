@@ -83,11 +83,13 @@ impl TabEntry {
     pub fn kind(&self) -> TabKind {
         TabKind {
             identity: self.identity.clone(),
-            module: self.module.clone(),
-            export: self.export.clone(),
-            root_module: false,
             key: None,
             arguments: None,
+            surface: super::Surface::Component {
+                module: self.module.clone(),
+                export: self.export.clone(),
+                root_module: false,
+            },
         }
     }
 }

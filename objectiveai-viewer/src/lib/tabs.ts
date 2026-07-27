@@ -33,20 +33,40 @@ export function pluginAssetUrl(identity: string, path: string): string {
   return convertFileSrc("", "plugin") + identity + path;
 }
 
-/** What a tab IS — identity + component coordinates + opaque props.
- * Kind equality (all four fields) is the shell's dedupe key. */
-export interface TabKind {
+/** What every tab has, whichever surface it renders. Mirror of Rust's
+ * `model.rs` `TabKind`; kind equality is the shell's dedupe key. */
+interface TabKindCommon {
   identity: string;
-  module: string;
-  export?: string;
-  /** `true` = root code under a plugin identity (the channel-request
-   * template) — no plugin origin prefixing. */
-  rootModule?: boolean;
   /** The name the SPAWNING tab gave this one — its mailbox address.
    * Part of the dedupe kind, unlike the cosmetic fields on `TabDesc`. */
   key?: string;
   arguments?: unknown;
 }
+
+/** A tab rendering one of our components through the bootstrap. */
+export interface ComponentTabKind extends TabKindCommon {
+  surface: "component";
+  module: string;
+  export?: string;
+  /** `true` = root code under a plugin identity (the channel-request
+   * template) — no plugin origin prefixing. */
+  rootModule?: boolean;
+}
+
+/** A tab rendering a real page in a CEF browser. It has no module and
+ * no document of ours: the chrome shows it in the strip like any other
+ * tab, but there is nothing here to render its contents — the surface
+ * is a native child window the shell parents into the content rect. */
+export interface BrowserTabKind extends TabKindCommon {
+  surface: "browser";
+  url: string;
+  /** A manifest-declared script injected into every main-frame load. */
+  script?: string;
+  /** The profile key — present means cookies and storage persist. */
+  state?: string;
+}
+
+export type TabKind = ComponentTabKind | BrowserTabKind;
 
 export interface TabDesc {
   id: number;

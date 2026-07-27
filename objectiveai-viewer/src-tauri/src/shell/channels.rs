@@ -205,11 +205,13 @@ async fn accept_flow(
     });
     let kind = TabKind {
         identity,
-        module: handler.module,
-        export: handler.export,
-        root_module: false,
         key: None,
         arguments: Some(arguments),
+        surface: super::Surface::Component {
+            module: handler.module,
+            export: handler.export,
+            root_module: false,
+        },
     };
     let opened = super::open_tab(
         app,
@@ -492,7 +494,11 @@ async fn request_tabs(app: &tauri::AppHandle) -> Vec<(String, u64)> {
         .into_values()
         .flat_map(|window| window.tabs)
         .filter(|tab| {
-            tab.kind.module == template.0 && tab.kind.export == template.1
+            matches!(
+                &tab.kind.surface,
+                super::Surface::Component { module, export, .. }
+                    if module == &template.0 && export == &template.1
+            )
         })
         .filter_map(|tab| {
             let channel_id = tab
@@ -582,17 +588,19 @@ async fn handle_offer(app: &tauri::AppHandle, plugins_root: &Path, offer: Channe
     };
     let kind = TabKind {
         identity,
-        module: template.0,
-        export: template.1,
         // Nobody SPAWNED this tab by key — the listener opens it.
         key: None,
-        // The request TEMPLATE is root code even when the identity is
-        // the offering plugin's — the module must not be prefixed
-        // onto the plugin origin.
-        root_module: true,
         // The whole wire offer, verbatim — the tab is a pure render
         // of it, and the embedded channel_id keeps every kind unique.
         arguments: Some(arguments),
+        surface: super::Surface::Component {
+            module: template.0,
+            export: template.1,
+            // The request TEMPLATE is root code even when the
+            // identity is the offering plugin's — the module must not
+            // be prefixed onto the plugin origin.
+            root_module: true,
+        },
     };
     let model = app.state::<ShellModel>();
     let Some(window) = target_window(app, &model).await else {
