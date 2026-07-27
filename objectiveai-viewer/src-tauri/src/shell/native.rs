@@ -196,6 +196,37 @@ pub async fn sync(app: &tauri::AppHandle) {
         let Some(rect) = content_rect(&window) else {
             continue;
         };
+        // The chrome webview spans the WHOLE window, content band
+        // included — which is invisible for a component tab (another
+        // WebView2, composited above it in the same DirectComposition
+        // tree) and fatal for a browser tab (a plain child window CEF
+        // paints itself, which WebView2's compositor simply covers,
+        // never mind that it is topmost in HWND z-order and that the
+        // chrome carries no WS_CLIPSIBLINGS).
+        //
+        // So while a browser tab is active the chrome is CUT BACK to
+        // its strip band and the content band belongs to CEF alone.
+        // The status bar goes with it — that is the cost until the
+        // chrome is split into separate strip and status webviews,
+        // which is the real fix.
+        let browser_active = ws
+            .tabs
+            .iter()
+            .find(|tab| tab.id == ws.active)
+            .is_some_and(|tab| matches!(tab.kind.surface, Surface::Browser { .. }));
+        if let Some(chrome) = app.get_webview(&chrome_label(win_label)) {
+            let scale = window.scale_factor().unwrap_or(1.0);
+            let full = window
+                .inner_size()
+                .map(|size| size.to_logical::<f64>(scale))
+                .unwrap_or_else(|_| tauri::LogicalSize::new(1024.0, 768.0));
+            let height = if browser_active {
+                STRIP_HEIGHT_LOGICAL
+            } else {
+                full.height
+            };
+            let _ = chrome.set_size(tauri::LogicalSize::new(full.width, height));
+        }
         for tab in &ws.tabs {
             let label = tab_label(tab.id);
             // Active = the content rect; background = parked (same
