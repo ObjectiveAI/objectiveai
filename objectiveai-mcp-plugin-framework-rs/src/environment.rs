@@ -30,9 +30,19 @@ use std::sync::OnceLock;
 use indexmap::IndexMap;
 use objectiveai_sdk::identity::Identity;
 
-/// The plugin's declared arguments: whatever the agent configured for
-/// this plugin, in DECLARATION ORDER (hence `IndexMap`, not `HashMap` —
-/// the order is part of what was declared).
+/// The plugin's declared arguments, exactly as
+/// [`objectiveai_sdk::agent::Plugin::arguments`] declares them.
+///
+/// Values are free-form JSON. A string reads as `--key value` and
+/// `null` as a bare `--key`, but an object, array or number is equally
+/// valid — what they MEAN is the plugin author's to decide. A `null`
+/// is a key that is PRESENT without a value, which is not the same as
+/// the key being absent.
+///
+/// `IndexMap` because the order is canonical, not incidental: the API
+/// key-SORTS these (`agent::plugin::prepare`) so two equivalent
+/// declarations serialize byte-identically. Iterating gives them back
+/// in that sorted order.
 pub type Arguments = IndexMap<String, serde_json::Value>;
 
 /// Who this plugin is running as: agent coordinates, response routing,
@@ -50,7 +60,8 @@ pub fn identity() -> &'static Identity {
 ///
 /// Empty when it declared none — the same JSON that arrives as
 /// `X-OBJECTIVEAI-ARGUMENTS` on every MCP call, available here before
-/// the first call arrives.
+/// the first call arrives. Already canonicalized upstream: key-sorted,
+/// and an empty-string value normalized to a bare flag.
 pub fn arguments() -> &'static Arguments {
     static ARGUMENTS: OnceLock<Arguments> = OnceLock::new();
     ARGUMENTS.get_or_init(|| read_arguments(env))
@@ -166,13 +177,28 @@ mod tests {
     }
 
     #[test]
-    fn arguments_keep_declaration_order() {
+    fn arguments_keep_canonical_key_order() {
         let arguments = read_arguments(lookup(&[(
             "OBJECTIVEAI_ARGUMENTS",
-            r#"{"zebra":1,"apple":2,"mango":3}"#,
+            r#"{"apple":"1","mango":null,"zebra":[1,2]}"#,
         )]));
         let keys: Vec<&str> = arguments.keys().map(String::as_str).collect();
-        assert_eq!(keys, ["zebra", "apple", "mango"]);
+        assert_eq!(keys, ["apple", "mango", "zebra"]);
+    }
+
+    /// Values are any JSON, and `null` is a key PRESENT without a
+    /// value — distinct from a key that is absent.
+    #[test]
+    fn arguments_carry_arbitrary_json() {
+        let arguments = read_arguments(lookup(&[(
+            "OBJECTIVEAI_ARGUMENTS",
+            r#"{"level":"debug","retries":3,"hosts":["a"],"verbose":null}"#,
+        )]));
+        assert_eq!(arguments.get("level"), Some(&serde_json::json!("debug")));
+        assert_eq!(arguments.get("retries"), Some(&serde_json::json!(3)));
+        assert_eq!(arguments.get("hosts"), Some(&serde_json::json!(["a"])));
+        assert_eq!(arguments.get("verbose"), Some(&serde_json::Value::Null));
+        assert_eq!(arguments.get("absent"), None);
     }
 
     /// Absence and emptiness are the same thing here, so a caller never
