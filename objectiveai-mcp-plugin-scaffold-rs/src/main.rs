@@ -36,6 +36,11 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// The argument that gates the pair below. Declared by the AGENT, in
 /// its plugin entry — not by this process, and not changeable while it
 /// runs.
+///
+/// Read strictly as a boolean: JSON `true` and nothing else. Absent,
+/// `null`, `0`, `"true"` — all off. Argument values are free-form JSON
+/// that some human typed into an agent definition, so the only safe
+/// reading of "is this feature on" is the exact one.
 const SWITCH_ARGUMENT: &str = "switch";
 
 const SWITCH_TOOL: &str = "scaffold_switch_deleteme";
@@ -58,11 +63,15 @@ const SWITCHED_TOOL: &str = "scaffold_switched_deleteme";
 /// hand, means the macros stay the single declaration of what a tool
 /// IS — this only decides whether it is currently served.
 fn served_routes(switched_on: bool) -> Vec<ToolRoute<Plugin>> {
-    // Presence, not truthiness: a bare `--switch` arrives as a `null`
-    // value, and a key present with no value is still the agent asking
-    // for it. See `arguments()` for why `null` and absent differ.
+    // `as_bool` is `Some` only for a JSON boolean, so every other
+    // shape — missing, `null`, a number, the STRING "true" — falls
+    // through to off. Deliberately not lenient: a plugin that guesses
+    // what someone meant by `"true"` is a plugin that will one day
+    // guess wrong about a feature that should have stayed off.
     let has_switch = objectiveai_mcp_plugin_framework::arguments()
-        .contains_key(SWITCH_ARGUMENT);
+        .get(SWITCH_ARGUMENT)
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
 
     Plugin::tool_router()
         .into_iter()

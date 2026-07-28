@@ -52,10 +52,12 @@ the same tools as the next copy of itself. `served_routes` in
 `greet` and `whoami` exist to demonstrate it:
 
 - **`scaffold_switch_deleteme` only exists if the agent asked for it.**
-  It is served only when `arguments()` contains a `switch` key. An
-  agent that declared no such argument never sees it, and nothing at
-  runtime can talk it into existing — arguments are stamped at
-  container create and never rewritten.
+  It is served only when `arguments()` has `switch` set to the JSON
+  boolean `true`. Absent, `null`, `0`, the string `"true"` — all off,
+  because a plugin that guesses what someone meant will one day guess
+  a feature on that should have stayed off. Nothing at runtime can
+  talk it into existing either: arguments are stamped at container
+  create and never rewritten.
 - **`scaffold_switched_deleteme` starts off**, and appears when the
   first tool is called. `Tools::replace` swaps the served set and sends
   `notifications/tools/list_changed`, so a client that re-lists on that
@@ -66,7 +68,10 @@ is not a property of a tool — it is a property of the list you build:
 
 ```rust
 fn served_routes(switched_on: bool) -> Vec<ToolRoute<Plugin>> {
-    let has_switch = arguments().contains_key(SWITCH_ARGUMENT);
+    let has_switch = arguments()
+        .get(SWITCH_ARGUMENT)
+        .and_then(|value| value.as_bool())
+        .unwrap_or(false);
     Plugin::tool_router()
         .into_iter()
         .filter(|route| /* decide, by name */)
