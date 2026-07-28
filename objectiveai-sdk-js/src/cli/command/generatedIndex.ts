@@ -5,6 +5,7 @@ export * from "./api/index";
 export * from "./channels/index";
 export * from "./daemon/index";
 export * from "./db/index";
+export * from "./development/index";
 export * from "./executor/index";
 export * from "./functions/index";
 export * from "./laboratories/index";

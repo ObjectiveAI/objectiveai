@@ -5,6 +5,7 @@ import { type CliCommandApiListenerExecution } from "./api/listenerExecution";
 import { type CliCommandChannelsListenerExecution } from "./channels/listenerExecution";
 import { type CliCommandDaemonListenerExecution } from "./daemon/listenerExecution";
 import { type CliCommandDbListenerExecution } from "./db/listenerExecution";
+import { type CliCommandDevelopmentListenerExecution } from "./development/listenerExecution";
 import { type CliCommandFunctionsListenerExecution } from "./functions/listenerExecution";
 import { type CliCommandLaboratoriesListenerExecution } from "./laboratories/listenerExecution";
 import { type CliCommandPythonListenerExecution } from "./python/listenerExecution";
@@ -33,6 +34,7 @@ export type CliCommandListenerExecution =
   | CliCommandUpdateRequestSchemaListenerExecution
   | CliCommandUpdateResponseSchemaListenerExecution
   | CliCommandChannelsListenerExecution
+  | CliCommandDevelopmentListenerExecution
   | CliCommandTasksListenerExecution
   | CliCommandViewerListenerExecution;
 
@@ -266,6 +268,18 @@ export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unar
   "db/query": "unary",
   "db/query/request_schema": "unary",
   "db/query/response_schema": "unary",
+  "development/plugins/mcp/create": "unary",
+  "development/plugins/mcp/create/request_schema": "unary",
+  "development/plugins/mcp/create/response_schema": "unary",
+  "development/plugins/mcp/delete": "unary",
+  "development/plugins/mcp/delete/request_schema": "unary",
+  "development/plugins/mcp/delete/response_schema": "unary",
+  "development/plugins/mcp/list": "stream",
+  "development/plugins/mcp/list/request_schema": "unary",
+  "development/plugins/mcp/list/response_schema": "unary",
+  "development/plugins/mcp/reset": "unary",
+  "development/plugins/mcp/reset/request_schema": "unary",
+  "development/plugins/mcp/reset/response_schema": "unary",
   "functions/execute/standard": "both",
   "functions/execute/standard/request_schema": "unary",
   "functions/execute/standard/response_schema": "unary",
