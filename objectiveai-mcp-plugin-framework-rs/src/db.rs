@@ -186,6 +186,41 @@ async fn coalesce(start: impl FnOnce() -> BoxFuture<'static, Outcome>) -> Outcom
     // serialize the very callers this exists to coalesce.
     let (generation, attempt) = {
         let mut state = ATTEMPT.lock().unwrap_or_else(|e| e.into_inner());
+
+        // RETIRE a finished attempt before deciding anything.
+        //
+        // Without this there is a window — between an attempt
+        // resolving and a waiter clearing the slot — in which the slot
+        // still holds a FINISHED attempt. A caller arriving then would
+        // join it and receive its cached outcome, which for a failure
+        // is exactly the stale error that is supposed to be
+        // unreachable. Worse, if every waiter is dropped in that
+        // window, nobody ever clears and the next caller is guaranteed
+        // the dead attempt.
+        //
+        // Deciding it HERE, under the same lock that hands out joins,
+        // is what makes the boundary exact: "arrived before it
+        // finished" and "arrived after" are separated by this critical
+        // section rather than by a clear that races it.
+        let finished = state.current.as_ref().and_then(|(_, a)| a.peek().cloned());
+        match finished {
+            // It succeeded and we are the first to notice. Publish and
+            // hand it back: starting a fresh connection here would
+            // waste one, and joining a completed future would leave it
+            // in the slot forever.
+            Some(Ok(pool)) => {
+                state.current = None;
+                drop(state);
+                let _ = POOL.set(pool.clone());
+                return Ok(pool);
+            }
+            // It failed, and we arrived after. Retire it and start over
+            // — the whole point of not caching failure.
+            Some(Err(_)) => state.current = None,
+            // Still running, so joinable.
+            None => {}
+        }
+
         match &state.current {
             Some((generation, attempt)) => (*generation, attempt.clone()),
             None => {
@@ -204,6 +239,14 @@ async fn coalesce(start: impl FnOnce() -> BoxFuture<'static, Outcome>) -> Outcom
             // return the same pool regardless, since they are all
             // holding clones of one `PgPool`.
             let _ = POOL.set(pool.clone());
+            // Release the slot too. `POOL` is the answer from here on,
+            // so holding the completed attempt would retain a finished
+            // future and a duplicate pool handle for the life of the
+            // process.
+            let mut state = ATTEMPT.lock().unwrap_or_else(|e| e.into_inner());
+            if state.current.as_ref().is_some_and(|(g, _)| *g == generation) {
+                state.current = None;
+            }
             Ok(pool)
         }
         Err(error) => {
@@ -338,6 +381,56 @@ mod tests {
             after - before,
             1,
             "eight concurrent callers, one attempt between them",
+        );
+    }
+
+    /// A caller arriving AFTER a failed attempt resolved must start
+    /// over, not inherit its error.
+    ///
+    /// The natural window is too narrow to hit on purpose, so the
+    /// state it produces is built directly: a slot holding an attempt
+    /// that has already finished with an error, exactly as it looks
+    /// between resolution and the waiter clearing it.
+    #[tokio::test]
+    async fn a_finished_failure_is_retired_not_joined() {
+        let _serial = exclusive();
+
+        // An attempt that is already resolved, with a DISTINGUISHABLE
+        // error.
+        let stale: Shared<BoxFuture<'static, Outcome>> =
+            async { Err(Arc::new(Error::NoDatabase)) }.boxed().shared();
+        assert!(
+            stale.clone().now_or_never().is_some(),
+            "resolved, so it is what the slot holds after a failure",
+        );
+
+        let before = {
+            let mut state = ATTEMPT.lock().unwrap();
+            state.generation += 1;
+            state.current = Some((state.generation, stale));
+            state.generation
+        };
+
+        // A fresh attempt with a different error, so the two are
+        // telling apart.
+        let outcome = coalesce(|| {
+            async { Err(Arc::new(Error::Connect(sqlx::Error::PoolClosed))) }.boxed()
+        })
+        .await;
+
+        let error = outcome.expect_err("still no database");
+        assert!(
+            matches!(*error, Error::Connect(_)),
+            "the FRESH attempt answered, not the retired one",
+        );
+        assert_eq!(
+            ATTEMPT.lock().unwrap().generation - before,
+            1,
+            "and it really was a new attempt",
+        );
+        assert!(
+            ATTEMPT.lock().unwrap().current.is_none(),
+            "which then retired itself in turn",
         );
     }
 
