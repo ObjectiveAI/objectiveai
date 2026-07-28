@@ -218,6 +218,14 @@ to the ObjectiveAI viewer by declaring a `viewer` half in the same
 `objectiveai.json` — its own containerfile, built in its own directory.
 The two are independent; neither build sees the other.
 
+## For agents
+
+`.agents/skills/plugin-development/SKILL.md` teaches a coding agent this
+whole loop — the coordinates to read, the reset that makes an edit take
+effect, and the failures that look like something else. It travels with
+this directory, so an agent working in your plugin picks it up with no
+setup.
+
 ## Learn More
 
 - [ObjectiveAI](https://objectiveai.dev) — what all of this is for.
