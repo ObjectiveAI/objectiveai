@@ -51,13 +51,11 @@ use sqlx::postgres::PgPoolOptions;
 /// every `sqlx` query API already takes. Hold one and clone it around.
 pub type Pool = sqlx::PgPool;
 
-/// The outcome every waiter on one attempt receives.
-///
-/// `Arc` because [`Shared`] hands each waiter a CLONE of the output
-/// and `sqlx::Error` is not `Clone`.
-pub type Outcome = Result<Pool, Arc<Error>>;
-
 /// Everything [`connect`] can fail with.
+///
+/// Handed out as `Arc<Error>`, because overlapping callers share one
+/// attempt and [`Shared`] gives each of them a CLONE of its output —
+/// which `sqlx::Error` is not.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// No `OBJECTIVEAI_POSTGRES_URL` in the environment.
@@ -140,7 +138,7 @@ static ATTEMPT: LazyLock<Mutex<Attempt>> = LazyLock::new(|| {
 
 struct Attempt {
     /// The live attempt, and the generation identifying it.
-    current: Option<(u64, Shared<BoxFuture<'static, Outcome>>)>,
+    current: Option<(u64, Shared<BoxFuture<'static, Result<Pool, Arc<Error>>>>)>,
     /// Bumped per attempt, so a finishing attempt can tell whether the
     /// slot still holds ITSELF before clearing it. Without it, a slow
     /// failure could clear the slot out from under a newer attempt
@@ -164,7 +162,7 @@ struct Attempt {
 ///
 /// Connects EAGERLY, so a bad tunnel or stale credentials surface here
 /// rather than at the first query somewhere deep in a tool call.
-pub async fn connect(config: Config) -> Outcome {
+pub async fn connect(config: Config) -> Result<Pool, Arc<Error>> {
     coalesce(|| connect_once(config).boxed()).await
 }
 
@@ -175,7 +173,9 @@ pub async fn connect(config: Config) -> Outcome {
 /// real attempt fails synchronously when there is no database, so it
 /// never suspends, so nothing can ever overlap it — and a test that
 /// drove the real thing would prove nothing about joining.
-async fn coalesce(start: impl FnOnce() -> BoxFuture<'static, Outcome>) -> Outcome {
+async fn coalesce(
+    start: impl FnOnce() -> BoxFuture<'static, Result<Pool, Arc<Error>>>,
+) -> Result<Pool, Arc<Error>> {
     // After the first success, this is the entire function.
     if let Some(pool) = POOL.get() {
         return Ok(pool.clone());
@@ -263,7 +263,7 @@ async fn coalesce(start: impl FnOnce() -> BoxFuture<'static, Outcome>) -> Outcom
 }
 
 /// One connection attempt, with no memoization of its own.
-async fn connect_once(config: Config) -> Outcome {
+async fn connect_once(config: Config) -> Result<Pool, Arc<Error>> {
     let url = crate::environment::postgres_url()
         .ok_or_else(|| Arc::new(Error::NoDatabase))?;
     PgPoolOptions::new()
@@ -397,7 +397,7 @@ mod tests {
 
         // An attempt that is already resolved, with a DISTINGUISHABLE
         // error.
-        let stale: Shared<BoxFuture<'static, Outcome>> =
+        let stale: Shared<BoxFuture<'static, Result<Pool, Arc<Error>>>> =
             async { Err(Arc::new(Error::NoDatabase)) }.boxed().shared();
         assert!(
             stale.clone().now_or_never().is_some(),
