@@ -52,10 +52,19 @@ impl SessionManager {
     /// its response id. Builds the `prefix -> Upstream` routing map (see
     /// [`build_prefix_map`]) and inserts a fresh [`Session`]. An existing
     /// entry for the same response id is replaced.
-    pub fn add(&self, response_id: String, connections: Vec<Upstream>) {
+    pub fn add(
+        &self,
+        response_id: String,
+        connections: Vec<Upstream>,
+        transient_headers: Arc<
+            tokio::sync::RwLock<IndexMap<String, String>>,
+        >,
+    ) {
         let by_prefix = build_prefix_map(connections);
-        self.sessions
-            .insert(response_id, Arc::new(Session::new(by_prefix)));
+        self.sessions.insert(
+            response_id,
+            Arc::new(Session::new(by_prefix, transient_headers)),
+        );
     }
 
     /// Cheap clone-out of a [`Session`] by response id — never holds a
@@ -261,7 +270,13 @@ mod tests {
     #[tokio::test]
     async fn get_or_wait_immediate_hit_and_miss() {
         let manager = SessionManager::new();
-        manager.add("known".to_string(), Vec::new());
+        manager.add(
+            "known".to_string(),
+            Vec::new(),
+            std::sync::Arc::new(tokio::sync::RwLock::new(
+                indexmap::IndexMap::new(),
+            )),
+        );
         assert!(manager.get_or_wait("known").await.is_some());
         // Neither registered nor initializing: misses without waiting.
         assert!(manager.get_or_wait("unknown").await.is_none());
@@ -280,7 +295,13 @@ mod tests {
         tokio::task::yield_now().await;
         assert!(!waiter.is_finished());
 
-        manager.add("r1".to_string(), Vec::new());
+        manager.add(
+            "r1".to_string(),
+            Vec::new(),
+            std::sync::Arc::new(tokio::sync::RwLock::new(
+                indexmap::IndexMap::new(),
+            )),
+        );
         drop(guard);
         let session = waiter.await.expect("waiter task");
         assert!(session.is_some());

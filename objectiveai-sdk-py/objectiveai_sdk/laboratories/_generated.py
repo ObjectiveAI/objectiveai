@@ -4,8 +4,10 @@ from .agent_laboratory import AgentLaboratory  # noqa: F401
 from .agent_laboratory_type import AgentLaboratoryType  # noqa: F401
 from .client_laboratory import ClientLaboratory  # noqa: F401
 from .client_laboratory_type import ClientLaboratoryType  # noqa: F401
+from .env_var import EnvVar  # noqa: F401
 from .inline_laboratory_image import InlineLaboratoryImage  # noqa: F401
 from .laboratory import Laboratory, LaboratoryAgent, LaboratoryClient  # noqa: F401
 from .laboratory_image import LaboratoryImage, LaboratoryImageInline, LaboratoryImageRegistry  # noqa: F401
 from .laboratory_image_pin import LaboratoryImagePin, LaboratoryImagePinDigest, LaboratoryImagePinTag  # noqa: F401
+from .mount import Mount  # noqa: F401
 from .registry_laboratory_image import RegistryLaboratoryImage, RegistryLaboratoryImageDigest, RegistryLaboratoryImageTag  # noqa: F401

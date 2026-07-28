@@ -14,7 +14,8 @@
  */
 import { useEffect, useState } from "react";
 import {
-  LaboratoriesFiletreeListener,
+  Client,
+  FileTree,
   type LaboratoriesFiletreeFileTreeNode,
   type ViewerTransport,
 } from "@objectiveai/sdk";
@@ -34,23 +35,16 @@ export function useLaboratoryFiletree(
     setChildren(null);
     if (transport === null) return;
     let cancelled = false;
-    let current: LaboratoriesFiletreeListener | null = null;
+    let current: FileTree | null = null;
 
     void (async () => {
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await LaboratoriesFiletreeListener.connectViewer(
-            transport,
-            id,
-            {
-              machine,
-              machineState,
-              onChange: (next) => {
-                if (!cancelled) setChildren(next);
-              },
-            },
-          );
+          const listener = await Client.viewer(transport).fileTree(id, {
+            machine,
+            machineState,
+          });
           if (cancelled) {
             listener.close();
             return;
@@ -58,9 +52,11 @@ export function useLaboratoryFiletree(
           current = listener;
           setChildren(listener.children());
           // Ride the connection until it closes (subscribe resolves on
-          // every change AND on close).
+          // every change AND on close), pushing the fold each wake.
           while (!listener.closed) {
             await listener.subscribe();
+            if (cancelled) return;
+            setChildren(listener.children());
           }
         } catch (error) {
           // Connect refused / handshake failure — surface it, then retry.

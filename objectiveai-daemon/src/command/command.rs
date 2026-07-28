@@ -54,14 +54,6 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let inner = super::laboratories::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
         }
-        Request::Mcp(req) => {
-            let inner = super::mcp::execute(global, scoped, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))
-        }
-        Request::Plugins(req) => {
-            let inner = super::plugins::execute(global, scoped, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
-        }
         Request::Python(req) => {
             let value = super::python::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::Python(value)))
@@ -78,10 +70,6 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let inner = super::swarms::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
         }
-        Request::Tools(req) => {
-            let inner = super::tools::execute(global, scoped, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
-        }
         Request::Update(req) => {
             let inner = super::update::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Update)))
@@ -94,9 +82,17 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
             let value = super::update::response_schema::execute(global, scoped, req).await?;
             once(Ok(ResponseItem::UpdateResponseSchema(value)))
         }
-        Request::User(req) => {
-            let inner = super::user::execute(global, scoped, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::User)))
+        Request::Channels(req) => {
+            let inner = super::channels::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Channels)))
+        }
+        Request::Development(req) => {
+            let inner = super::development::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Development)))
+        }
+        Request::Tasks(req) => {
+            let inner = super::tasks::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
         }
         Request::Viewer(req) => {
             let inner = super::viewer::execute(global, scoped, req).await?;

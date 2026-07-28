@@ -1,0 +1,54 @@
+{
+  "title": "cli.command.tasks.delete.DeleteNamespace",
+  "description": "Which plugin namespace `tasks delete` resolves the id within.",
+  "anyOf": [
+    {
+      "title": "Caller",
+      "description": "Default: the caller's own plugin identity (the caller's trio,\nor the all-NULL namespace when the caller isn't a plugin).",
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "enum": [
+            "caller"
+          ]
+        }
+      }
+    },
+    {
+      "title": "NoPlugin",
+      "description": "The non-plugin (all-NULL) namespace, explicitly.",
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "type": "string",
+          "enum": [
+            "no_plugin"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Plugin",
+      "description": "A specific plugin's namespace.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string",
+          "enum": [
+            "plugin"
+          ]
+        },
+        "owner": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

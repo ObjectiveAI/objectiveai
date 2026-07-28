@@ -40,8 +40,8 @@ impl CommandRequest for Request {
 pub struct ResponseItem {
     pub id: String,
     pub image: crate::laboratories::LaboratoryImage,
-    pub mounts: Vec<super::create::Mount>,
-    pub env: Vec<super::create::EnvVar>,
+    pub mounts: Vec<crate::laboratories::Mount>,
+    pub env: Vec<crate::laboratories::EnvVar>,
     pub cwd: String,
     /// Unix seconds when the laboratory container was created, from
     /// podman's container record. `None` when the host didn't report
@@ -54,6 +54,19 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
+    /// For plugin laboratories: the plugin's canonical coordinate
+    /// trio (owner/name lowercased, version verbatim — the repo's
+    /// `v`-prefixed git tag). `None` for every other laboratory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
+    /// For EPHEMERAL laboratories (agent and plugin): the
+    /// agent-completion response id the laboratory serves — its
+    /// lifetime is that completion's single MCP connection. `None`
+    /// for regular laboratories.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
     /// The machine whose laboratory host serves this laboratory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -68,6 +81,19 @@ pub struct ResponseItem {
     /// older daemons' items parse (as not-running).
     #[serde(default)]
     pub running: bool,
+}
+
+/// A plugin laboratory's canonical coordinate trio, as carried by
+/// [`ResponseItem::plugin`] — a local wire-shape twin of the host
+/// channel's `laboratories.daemon.IdentifyPlugin` (that module is
+/// feature-gated behind `laboratory-daemon` and deliberately not
+/// imported here).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.laboratories.list.Plugin")]
+pub struct Plugin {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
 }
 
 #[derive(clap::Args)]
@@ -119,10 +145,10 @@ impl TryFrom<Args> for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<E::Stream<ResponseItem>, E::Error> {
     request.base.clear_transform();
-    executor.execute(request, agent_arguments).await
+    executor.execute(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -130,10 +156,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
     transform: crate::cli::command::Transform,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.base.set_transform(transform);
-    executor.execute(request, agent_arguments).await
+    executor.execute(request, identity).await
 }
 
 #[cfg(feature = "mcp")]
@@ -149,11 +175,11 @@ pub mod response_schema;
 
 /// One `/listen` broadcast run of `laboratories list`: the actual
 /// [`Request`], the producer's
-/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// response-item stream. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// [`Identity`](crate::identity::Identity), and the
+/// response-item stream. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
-    pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
+    pub identity: crate::identity::Identity,
+    pub response: crate::daemon::command_listener::ResponseItemStream<ResponseItem>,
 }

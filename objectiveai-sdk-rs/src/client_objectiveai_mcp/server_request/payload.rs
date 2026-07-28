@@ -20,8 +20,8 @@ pub enum Payload {
     /// POST `initialize`. The proxy's `protocolVersion` doesn't ride
     /// across this hop — the API discards it on the way in and
     /// substitutes its own `canonical_initialize_result` on the way
-    /// out. The variant carries the plugin arguments the CLI needs at
-    /// dial time (parsed by the API off the URL query string).
+    /// out. Plugin arguments do NOT ride here — they are headers-only
+    /// (see [`InitializeRequest`]).
     #[schemars(title = "Initialize")]
     Initialize {
         mcp_kind: super::super::McpKind,
@@ -153,6 +153,35 @@ pub enum Payload {
     #[schemars(title = "LaboratoryLocalTransfer")]
     LaboratoryLocalTransfer(LaboratoryLocalTransferRequest),
 
+    /// Execute a CLI command on the CLI daemon on behalf of a
+    /// server-side PLUGIN (the command-execution extension: a plugin
+    /// MCP server asked the proxy — its MCP client — to run a
+    /// command). Non-MCP — no `mcp_kind`: the daemon executes the
+    /// command itself in-process; `plugin` is scope identity, not
+    /// routing.
+    ///
+    /// EVERY field is REQUIRED — no defaults, no header bags:
+    /// - `identity`: the caller's agent identity, from the
+    ///   proxy session's transient identity bag (the API stamps it on
+    ///   every connect).
+    /// - `plugin`: the four coordinates of the plugin whose MCP
+    ///   server originated the request, from the typed
+    ///   `X-MCP-Plugins` marker. The daemon stamps this trio on the
+    ///   command's scope (the authenticated-conduit exception to
+    ///   "never trust wire plugin identity") so the plugin run-gates
+    ///   apply.
+    /// - `request`: the typed CLI command to run.
+    ///
+    /// Answered by a MULTI-FRAME response: one
+    /// [`super::super::server_response::Payload::Command`] frame per
+    /// event, sharing this request's envelope id, streamed as items
+    /// arrive — grammar `Ack (Item|Error)* Done`.
+    #[schemars(title = "Command")]
+    Command {
+        identity: crate::identity::Identity,
+        plugin: crate::mcp::server::Plugin,
+        request: crate::cli::command::Request,
+    },
 }
 
 impl Payload {
@@ -180,6 +209,7 @@ impl Payload {
             | Payload::LaboratoryImportAbort(_)
             | Payload::LaboratoryTransfer(_)
             | Payload::LaboratoryLocalTransfer(_)
+            | Payload::Command { .. }
             => None,
         }
     }
@@ -275,8 +305,10 @@ pub struct LaboratoryImportBeginRequest {
 #[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryImportWriteRequest")]
 pub struct LaboratoryImportWriteRequest {
     pub transfer_id: String,
-    /// Base64-encoded tar bytes.
-    pub data: String,
+    /// RAW tar bytes. Never in the JSON header — rides OUT OF BAND in
+    /// the binary wire frame (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
 }
 
 /// Parameters for [`Payload::LaboratoryImportEnd`].
@@ -347,22 +379,20 @@ pub struct LaboratoryLocalTransferRequest {
     pub destination_path: String,
 }
 
-/// Parameters for [`Payload::Initialize`].
+/// Parameters for [`Payload::Initialize`]. Currently EMPTY — kept as
+/// a struct so the wire shape survives and future per-connect
+/// parameters have a home.
 ///
-/// Carries plugin arguments lifted off the inbound URL's query
-/// string (`?key=value&flag` → `{"key": Some("value"), "flag": None}`).
-/// Empty for [`super::super::McpKind::ObjectiveAi`] (the primary
-/// upstream takes no args).
+/// Plugin arguments deliberately do NOT ride here: they are
+/// HEADERS-ONLY — the API stamps the per-upstream
+/// `X-OBJECTIVEAI-ARGUMENTS` header, which flows through this
+/// request's envelope headers → the daemon's `/laboratory` forward
+/// (`ChannelRequest.headers`) → the host's connect headers → the
+/// plugin container's MCP server, on initialize and on every later
+/// call.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "client_objectiveai_mcp.server_request.InitializeRequest")]
-pub struct InitializeRequest {
-    /// Plugin arguments the CLI passes through to
-    /// `<plugin> mcp <mcp_name> begin --<key> [value]`. `None` value
-    /// means presence-only flag (`--key`); `Some(v)` means `--key v`.
-    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    #[schemars(extend("omitempty" = true))]
-    pub args: IndexMap<String, Option<String>>,
-}
+pub struct InitializeRequest {}
 
 /// Parameters for [`Payload::Script`].
 ///
@@ -400,4 +430,83 @@ pub struct ScriptRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub response_ids: Option<String>,
+}
+
+#[cfg(test)]
+mod command_request_tests {
+    use super::*;
+
+    fn update_request() -> crate::cli::command::Request {
+        crate::cli::command::Request::Update(
+            crate::cli::command::update::Request {
+                path_type: crate::cli::command::update::Path::Update,
+                base: crate::cli::command::RequestBase {
+                    jq: None,
+                    python: None,
+                    timeout_seconds: None,
+                    max_tokens: None,
+                },
+            },
+        )
+    }
+
+    /// The Command payload round-trips with every REQUIRED field, and
+    /// carries no mcp_kind.
+    #[test]
+    fn command_round_trips_and_has_no_mcp_kind() {
+        let payload = Payload::Command {
+            identity: crate::identity::Identity {
+                response_id: Some("resp-1".to_string()),
+                ..Default::default()
+            },
+            plugin: crate::mcp::server::Plugin {
+                owner: "acme".to_string(),
+                name: "widgets".to_string(),
+                version: "1.2.3".to_string(),
+            },
+            request: update_request(),
+        };
+        assert!(payload.mcp_kind().is_none());
+
+        let envelope = super::super::Request {
+            id: "cmd-1".to_string(),
+            headers: indexmap::IndexMap::new(),
+            payload,
+        };
+        let text = serde_json::to_string(&envelope).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(value["type"], "command");
+        assert_eq!(value["plugin"]["owner"], "acme");
+        assert_eq!(value["identity"]["response_id"], "resp-1");
+
+        let back: super::super::Request = serde_json::from_str(&text).unwrap();
+        assert!(matches!(
+            back.payload,
+            Payload::Command { plugin, .. } if plugin.name == "widgets",
+        ));
+    }
+
+    /// Every Command field is REQUIRED — a frame missing `plugin` (or
+    /// the others) does not parse.
+    #[test]
+    fn command_fields_are_required() {
+        for missing in ["identity", "plugin", "request"] {
+            let mut frame = serde_json::json!({
+                "id": "cmd-2",
+                "type": "command",
+                "identity": {},
+                "plugin": {
+                    "owner": "a", "name": "b",
+                    "version": "1.0.0", "mcp": "m",
+                },
+                "request": {"path_type": "update", "jq": null, "python": null},
+            });
+            frame.as_object_mut().unwrap().remove(missing);
+            assert!(
+                serde_json::from_str::<super::super::Request>(&frame.to_string())
+                    .is_err(),
+                "expected parse failure with {missing} absent",
+            );
+        }
+    }
 }

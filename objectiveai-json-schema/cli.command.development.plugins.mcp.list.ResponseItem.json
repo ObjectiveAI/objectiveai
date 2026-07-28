@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.development.plugins.mcp.list.ResponseItem",
+  "description": "One registration: the canonical coordinates an agent's declaration\nis matched against, and the directory its image builds from.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

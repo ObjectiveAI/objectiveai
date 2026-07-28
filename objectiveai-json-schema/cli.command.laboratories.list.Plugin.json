@@ -1,0 +1,16 @@
+{
+  "title": "cli.command.laboratories.list.Plugin",
+  "description": "A plugin laboratory's canonical coordinate trio, as carried by\n[`ResponseItem::plugin`] — a local wire-shape twin of the host\nchannel's `laboratories.daemon.IdentifyPlugin` (that module is\nfeature-gated behind `laboratory-daemon` and deliberately not\nimported here).",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

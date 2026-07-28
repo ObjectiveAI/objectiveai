@@ -1,0 +1,38 @@
+{
+  "title": "cli.command.channels.logs.request.Response",
+  "description": "The appended entry's id + delivery time. `channel_closed` when the\nchannel is closed (owner dropped) — the write was refused.",
+  "anyOf": [
+    {
+      "title": "Appended",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "timestamp": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "appended"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ChannelClosed",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "channel_closed"
+          ]
+        }
+      }
+    }
+  ]
+}

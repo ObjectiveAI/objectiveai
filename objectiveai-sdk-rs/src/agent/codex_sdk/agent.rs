@@ -59,12 +59,13 @@ pub struct AgentBase {
     #[schemars(extend("omitempty" = true))]
     pub laboratories: Option<super::super::Laboratories>,
 
-    /// Client-side ObjectiveAI MCP surface the calling client is
-    /// expected to expose locally back to the API (objectiveai
-    /// built-in, plus specific plugins / tools by owner+name+version).
-    #[serde(skip_serializing_if = "Option::is_none")]
+
+
+    /// Plugins this agent uses — each IS one MCP server (the
+    /// next-iteration plugin shape; see [`super::super::plugin`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schemars(extend("omitempty" = true))]
-    pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
+    pub plugins: Vec<super::super::Plugin>,
 }
 
 impl AgentBase {
@@ -114,10 +115,8 @@ impl AgentBase {
             }
             None => None,
         };
-        self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
-            Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
-            None => None,
-        };
+        self.plugins =
+            super::super::plugin::prepare(std::mem::take(&mut self.plugins));
     }
 
     /// Validates the configuration.
@@ -144,9 +143,7 @@ impl AgentBase {
         if let Some(laboratories) = &self.laboratories {
             super::super::laboratory::laboratories::validate(laboratories)?;
         }
-        if let Some(cm) = &self.client_objectiveai_mcp {
-            super::super::client_objectiveai_mcp::validate(cm)?;
-        }
+        super::super::plugin::validate(&self.plugins)?;
         Ok(())
     }
 

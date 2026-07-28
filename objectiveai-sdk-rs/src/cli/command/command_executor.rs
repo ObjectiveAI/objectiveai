@@ -5,10 +5,10 @@ use crate::cli::command::CommandResponse;
 
 pub mod binary;
 pub mod plugin;
-pub mod sse;
+
 
 pub use binary::BinaryExecutor;
-pub use sse::SseCommandExecutor;
+
 
 /// Run a [`CommandRequest`] against some backend (subprocess of the cli
 /// binary, in-process router, mock, …) and surface its output as a
@@ -18,7 +18,7 @@ pub use sse::SseCommandExecutor;
 /// (`agents::spawn::Response`, `functions::execute::standard::ResponseItem`,
 /// …) or a more general `serde_json::Value` for opaque consumption.
 ///
-/// Every call accepts an optional [`AgentArguments`] bag controlling
+/// Every call accepts an optional [`Identity`] bag controlling
 /// per-call identity. When `Some`, subprocess-spawning executors stamp
 /// each `Some(v)` field on the child env and `env_remove` each `None`
 /// — atomic per-call override. When `None`, the child inherits parent
@@ -33,7 +33,7 @@ pub trait CommandExecutor {
     fn execute<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&super::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> impl Future<Output = Result<Self::Stream<T>, Self::Error>> + Send
     where
         R: CommandRequest + Send + serde::Serialize,
@@ -46,7 +46,7 @@ pub trait CommandExecutor {
     fn execute_one<R, T>(
         &self,
         request: R,
-        agent_arguments: Option<&super::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> impl Future<Output = Result<T, Self::Error>> + Send
     where
         R: CommandRequest + Send + serde::Serialize,

@@ -39,7 +39,6 @@ export PATH="$HOME/.objectiveai/bin:$PATH"
 | `objectiveai` | CLI + embedded viewer | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 | `objectiveai-api` | API server | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 | `objectiveai-viewer` | Standalone Tauri desktop app | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
-| `objectiveai-mcp` | MCP server (streamable HTTP) | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 
 Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, Windows x86_64. See [Binaries & self-hosting](#binaries--self-hosting) for install flags and per-binary detail.
 
@@ -344,7 +343,7 @@ curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/instal
 export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
-All four binaries land in `~/.objectiveai/bin/` and are added to `PATH`. The CLI (`objectiveai`) self-updates on startup; re-run the installer to upgrade `objectiveai-api`, `objectiveai-viewer`, and `objectiveai-mcp`.
+All binaries land in `~/.objectiveai/bin/` and are added to `PATH`. The CLI (`objectiveai`) self-updates on startup; re-run the installer to upgrade `objectiveai-api` and `objectiveai-viewer`.
 
 ### `objectiveai` (CLI)
 
@@ -384,13 +383,13 @@ The server is streaming-first: every layer (agent completions, vector completion
 
 Standalone Tauri desktop application. Presents the same UI that the CLI embeds as a sidecar, but runs as a first-class window manager process rather than being spawned in-process by a CLI command. Reach for it when you want the viewer always open and decoupled from CLI invocations.
 
-### `objectiveai-mcp`
+### MCP (served by the daemon)
 
-MCP (Model Context Protocol) server built from `objectiveai-mcp`. Exposes ObjectiveAI's tooling over the streamable-HTTP MCP transport so editors and agents (Claude, Cursor, etc.) can invoke it via the standard MCP protocol. Defaults to `0.0.0.0:3000`; override with `ADDRESS` and `PORT`.
+The daemon itself serves MCP (Model Context Protocol) over streamable HTTP at `/mcp` on its own address, executing commands in-process. Editors and agents (Claude, Cursor, etc.) point at `http://127.0.0.1:<daemon-port>/mcp` (plus the `X-OBJECTIVEAI-SIGNATURE` header when a daemon secret is configured).
 
 Three crates make up the MCP surface:
 
-- **`objectiveai-mcp`** — the primary MCP surface. Wraps the CLI as MCP tools over streamable-HTTP. What users run locally and expose upstream for distributed agents.
+- **the daemon's `/mcp` route** — the primary MCP surface. Wraps the CLI as MCP tools over streamable HTTP, in-process. What users expose upstream for distributed agents.
 - **`objectiveai-mcp-proxy`** — a multiplexing sidecar of `objectiveai-api`. Terminates an MCP client connection and forwards tool calls to an upstream MCP server or to ObjectiveAI-native tools. Embedded inside `objectiveai-api` at runtime.
 - **`objectiveai-mcp-laboratory`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls.
 
@@ -406,8 +405,7 @@ curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/instal
 |---|---|
 | `--no-viewer` | Skips the standalone `objectiveai-viewer`; installs the CLI variant without an embedded Tauri viewer (smaller binary). |
 | `--no-api` | Skips `objectiveai-api`. |
-| `--no-mcp` | Skips `objectiveai-mcp`. |
-| `--cli-only` | Equivalent to `--no-viewer --no-api --no-mcp`. Only `objectiveai` is installed. |
+| `--cli-only` | Equivalent to `--no-viewer --no-api`. Only `objectiveai` is installed. |
 
 Flags compose freely.
 
@@ -548,7 +546,7 @@ objectiveai/
 │   ├── objectiveai-api/                       # API server (self-hostable or importable)
 │   ├── objectiveai-cli/                       # Command-line interface
 │   ├── objectiveai-viewer/                    # Desktop viewer app (Tauri)
-│   └── objectiveai-mcp/                       # MCP server binary (ships as objectiveai-mcp)
+│   └── objectiveai-mcp/                       # retired standalone MCP server (folded into the daemon, #276)
 │
 ├── # MCP integration
 │   ├── objectiveai-mcp-proxy/                 # MCP proxy — multiplexes tool calls

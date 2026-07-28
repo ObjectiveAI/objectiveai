@@ -35,7 +35,7 @@
     "env": {
       "type": "array",
       "items": {
-        "$ref": "cli.command.laboratories.create.EnvVar"
+        "$ref": "laboratories.EnvVar"
       }
     },
     "id": {
@@ -71,8 +71,32 @@
     "mounts": {
       "type": "array",
       "items": {
-        "$ref": "cli.command.laboratories.create.Mount"
+        "$ref": "laboratories.Mount"
       }
+    },
+    "plugin": {
+      "description": "For plugin laboratories: the plugin's canonical coordinate\ntrio (owner/name lowercased, version verbatim — the repo's\n`v`-prefixed git tag). `None` for every other laboratory.",
+      "anyOf": [
+        {
+          "$ref": "cli.command.laboratories.list.Plugin"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "response_id": {
+      "description": "For EPHEMERAL laboratories (agent and plugin): the\nagent-completion response id the laboratory serves — its\nlifetime is that completion's single MCP connection. `None`\nfor regular laboratories.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "running": {
       "description": "Whether the laboratory's CONTAINER is running right now (the\nlifecycle starts and stops containers on demand). Defaulted so\nolder daemons' items parse (as not-running).",

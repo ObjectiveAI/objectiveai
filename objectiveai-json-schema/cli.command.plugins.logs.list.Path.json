@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.logs.list.Path",
-  "type": "string",
-  "enum": [
-    "plugins/logs/list"
-  ]
-}

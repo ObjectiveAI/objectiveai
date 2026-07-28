@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 /// params}` envelope is unwrapped into the typed variant payload.
 ///
 /// Which CLI-hosted MCP server the request targets rides as
-/// `mcp_kind` on the envelope. The API parses this off the inbound
-/// URL path (`/objectiveai` → [`super::super::McpKind::ObjectiveAi`];
-/// `/{owner}/{name}/{version}/{mcp}` → [`super::super::McpKind::Plugin`])
-/// before forwarding.
+/// `mcp_kind` on the envelope
+/// ([`super::super::McpKind::PluginLaboratory`] from the plugin's
+/// typed marker; the two laboratory kinds from the laboratory
+/// marker).
 ///
 /// Wire shape (envelope is `{id, mcp_kind, headers?, type, …variant
 /// fields…}` after the `#[serde(flatten)]` on `payload`):
@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 /// ```json
 /// {
 ///   "id":"…",
-///   "mcp_kind":{"type":"objective_ai"},
+///   "mcp_kind":{"type":"plugin_laboratory","owner":"…","name":"…","version":"…"},
 ///   "headers":{"Mcp-Session-Id":"…"},
 ///   "type":"tools_list",
 ///   "cursor":"…"
@@ -56,5 +56,38 @@ impl Request {
     /// own local state. Delegates to [`super::Payload::mcp_kind`].
     pub fn mcp_kind(&self) -> Option<super::super::McpKind> {
         self.payload.mcp_kind()
+    }
+
+    /// Serialize for the wire: JSON text for ordinary requests, the
+    /// [`crate::binary_frame`] sandwich for the chunk-bearing
+    /// `LaboratoryImportWrite` (VARIANT-keyed — always binary, even
+    /// with an empty payload).
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(match &self.payload {
+            super::Payload::LaboratoryImportWrite(req) => {
+                crate::binary_frame::WireFrame::Binary(
+                    crate::binary_frame::encode(&header, &req.data),
+                )
+            }
+            _ => crate::binary_frame::WireFrame::Text(header),
+        })
+    }
+
+    /// Parse a BINARY wire frame. `None` for anything that isn't a
+    /// well-formed sandwich around a chunk-bearing request (receivers
+    /// drop it — the forward-compat posture).
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        match &mut parsed.payload {
+            super::Payload::LaboratoryImportWrite(req) => {
+                req.data = payload.to_vec();
+                Some(parsed)
+            }
+            _ => None,
+        }
     }
 }

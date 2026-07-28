@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.channels.logs.subscribe.ResponseItem",
+  "description": "Subscribe's wire shape. Either a real envelope entry (the EXACT\nsame shape `list` emits) OR the literal string `\"channel_closed\"`.\n`#[serde(untagged)]` so the `Item` arm passes through transparently.",
+  "anyOf": [
+    {
+      "title": "Item",
+      "$ref": "cli.command.channels.logs.list.ChannelLogEntry"
+    },
+    {
+      "title": "ChannelClosed",
+      "$ref": "cli.command.channels.logs.subscribe.ChannelClosedTag"
+    }
+  ]
+}

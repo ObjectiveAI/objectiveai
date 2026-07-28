@@ -7,9 +7,6 @@
 mod command;
 pub use command::*;
 
-mod agent_arguments;
-pub use agent_arguments::*;
-
 mod command_request;
 pub use command_request::*;
 
@@ -46,15 +43,14 @@ pub use response_schema::*;
 
 pub mod agents;
 pub mod api;
+pub mod channels;
 pub mod daemon;
 pub mod db;
+pub mod development;
 pub mod functions;
 pub mod laboratories;
-pub mod mcp;
-pub mod plugins;
 pub mod python;
 pub mod swarms;
-pub mod tools;
+pub mod tasks;
 pub mod update;
-pub mod user;
 pub mod viewer;

@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.channels.close.Response",
+  "description": "The closed channel's id, echoed.",
+  "type": "object",
+  "properties": {
+    "channel_id": {
+      "type": "string"
+    }
+  }
+}

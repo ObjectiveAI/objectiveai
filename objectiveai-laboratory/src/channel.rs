@@ -1,11 +1,11 @@
 //! One daemon channel: dial `<daemon>/laboratory`, attach, then serve
 //! [`ChannelRequest`]s until the socket drops — forever, with a 1s
 //! reconnect pause, so a daemon restart just re-registers us — or
-//! until the `cancel` watch fires (the stdin dial-list removed this
-//! address), which tears down through the SAME detach path as a
-//! natural disconnect and then ends the task instead of reconnecting.
-//! The host runs one `run` task per stdin-added daemon address, all
-//! sharing one [`HostServer`].
+//! until the `cancel` watch fires (a stdin `set_addresses` convergence
+//! dropped this address), which tears down through the SAME detach
+//! path as a natural disconnect and then ends the task instead of
+//! reconnecting. The host runs one `run` task per desired daemon
+//! address, all sharing one [`HostServer`].
 //!
 //! Wire order is load-bearing: the FIRST text frame is the
 //! `HostIdentify` (who this HOST is — state, machine identity, and its
@@ -40,7 +40,7 @@
 use std::sync::Arc;
 
 use futures::{SinkExt, StreamExt};
-use objectiveai_sdk::laboratories::daemon::ChannelRequest;
+use objectiveai_sdk::laboratories::daemon::{ChannelRequest, HostCommandResponse};
 use tokio_tungstenite::tungstenite::Message;
 
 use crate::host::HostServer;
@@ -57,6 +57,35 @@ fn http_to_ws(url: &str) -> String {
     } else {
         url.to_string()
     }
+}
+
+/// Spawn one request's handling: run it against the [`HostServer`],
+/// frame the reply via `to_wire` (chunk-bearing `ExportRead` replies
+/// go out as binary sandwiches, everything else as text), and queue it
+/// on the control lane. Shared by the text and binary demux arms.
+fn spawn_handle(
+    host: &Arc<HostServer>,
+    channel_id: u64,
+    reply_tx: &tokio::sync::mpsc::UnboundedSender<crate::host_command::LaneFrame>,
+    request: ChannelRequest,
+) {
+    let host = Arc::clone(host);
+    let reply_tx = reply_tx.clone();
+    tokio::spawn(async move {
+        let response = host.handle(channel_id, request).await;
+        let Ok(frame) = response.to_wire() else {
+            return;
+        };
+        let frame = match frame {
+            objectiveai_sdk::binary_frame::WireFrame::Text(text) => {
+                crate::host_command::LaneFrame::Text(text)
+            }
+            objectiveai_sdk::binary_frame::WireFrame::Binary(bytes) => {
+                crate::host_command::LaneFrame::Binary(bytes)
+            }
+        };
+        let _ = reply_tx.send(frame);
+    });
 }
 
 pub async fn run(
@@ -91,9 +120,23 @@ pub async fn run(
                 if !suppress_output {
                     eprintln!("connected: {url}");
                 }
+                // TCP keepalive on the host↔daemon channel: a
+                // silently-dead daemon must surface as a recv error so
+                // the detach path runs instead of the host serving a
+                // ghost forever.
+                match ws.get_ref() {
+                    tokio_tungstenite::MaybeTlsStream::Plain(tcp) => {
+                        objectiveai_sdk::net::set_tcp_keepalive(tcp)
+                    }
+                    tokio_tungstenite::MaybeTlsStream::Rustls(tls) => {
+                        objectiveai_sdk::net::set_tcp_keepalive(tls.get_ref().0)
+                    }
+                    _ => {}
+                }
                 let (mut sink, mut stream) = ws.split();
-                let (reply_tx, mut reply_rx) =
-                    tokio::sync::mpsc::unbounded_channel::<String>();
+                let (reply_tx, mut reply_rx) = tokio::sync::mpsc::unbounded_channel::<
+                    crate::host_command::LaneFrame,
+                >();
                 // Attach FIRST: enqueues identify + auth + snapshots on
                 // the control lane and subscribes the filetree ring,
                 // atomically against broadcasts and folds. The frames
@@ -111,7 +154,18 @@ pub async fn run(
                             biased;
                             frame = reply_rx.recv() => match frame {
                                 Some(frame) => {
-                                    if sink.send(Message::Text(frame)).await.is_err() {
+                                    // Control frames arrive pre-framed:
+                                    // JSON text, or the binary sandwich
+                                    // for chunk-bearing replies.
+                                    let msg = match frame {
+                                        crate::host_command::LaneFrame::Text(text) => {
+                                            Message::Text(text)
+                                        }
+                                        crate::host_command::LaneFrame::Binary(bytes) => {
+                                            Message::Binary(bytes)
+                                        }
+                                    };
+                                    if sink.send(msg).await.is_err() {
                                         break;
                                     }
                                 }
@@ -163,26 +217,62 @@ pub async fn run(
                     };
                     let text = match frame {
                         Ok(Message::Text(text)) => text,
+                        Ok(Message::Binary(bytes)) => {
+                            // Chunk-bearing requests (ImportWrite) ride
+                            // the binary sandwich; then Postgres tunnel
+                            // bytes; other binary frames are dropped
+                            // (forward-compat).
+                            if let Some(request) =
+                                ChannelRequest::from_binary(&bytes)
+                            {
+                                spawn_handle(
+                                    &host,
+                                    channel_id,
+                                    &reply_tx,
+                                    request,
+                                );
+                            } else if let Some(data) =
+                                objectiveai_sdk::laboratories::daemon::PostgresData::from_binary(&bytes)
+                            {
+                                host.bridge().deliver_postgres_data(
+                                    channel_id,
+                                    &data.stream_id,
+                                    data.bytes,
+                                );
+                            }
+                            continue;
+                        }
                         Ok(Message::Close(_)) | Err(_) => break,
                         // Pings are answered by tungstenite itself;
                         // ignore everything else.
                         Ok(_) => continue,
                     };
+                    // ChannelRequest first (it requires `payload`,
+                    // which a command frame never carries), then the
+                    // daemon's multi-frame HostCommandResponse — the
+                    // mirror of the daemon's own demux order.
                     let Ok(request) =
                         serde_json::from_str::<ChannelRequest>(&text)
                     else {
+                        if let Ok(response) =
+                            serde_json::from_str::<HostCommandResponse>(&text)
+                        {
+                            host.bridge().deliver(response);
+                        } else if let Ok(
+                            objectiveai_sdk::laboratories::daemon::DaemonPostgres::Close {
+                                stream_id,
+                            },
+                        ) = serde_json::from_str::<
+                            objectiveai_sdk::laboratories::daemon::DaemonPostgres,
+                        >(&text)
+                        {
+                            host.bridge().close_postgres(channel_id, &stream_id);
+                        }
                         // Forward-compat: skip frames this build
                         // doesn't know.
                         continue;
                     };
-                    let host = Arc::clone(&host);
-                    let reply_tx = reply_tx.clone();
-                    tokio::spawn(async move {
-                        let response = host.handle(channel_id, request).await;
-                        if let Ok(frame) = serde_json::to_string(&response) {
-                            let _ = reply_tx.send(frame);
-                        }
-                    });
+                    spawn_handle(&host, channel_id, &reply_tx, request);
                 }
                 host.detach_channel(channel_id);
                 drop(reply_tx);

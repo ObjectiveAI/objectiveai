@@ -19,7 +19,33 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 
 mkdir -p "$LOG_DIR"
 
+# CEF (the browser tabs' Chromium) compiles a C++ wrapper with cmake, and
+# cef-dll-sys hardcodes the Ninja generator — so `ninja` must be on PATH or
+# the build dies at "CMake was unable to find a build program". Visual
+# Studio ships one; find it rather than making every developer install a
+# separate ninja. No-op where ninja is already on PATH (Linux/mac, or a
+# Windows box that has it).
+ensure_ninja_on_path() {
+  if command -v ninja >/dev/null 2>&1; then
+    return 0
+  fi
+  local vs_ninja
+  for vs_ninja in \
+    "/c/Program Files/Microsoft Visual Studio"/*/*/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja \
+    "/c/Program Files (x86)/Microsoft Visual Studio"/*/*/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja
+  do
+    if [ -x "$vs_ninja/ninja.exe" ]; then
+      export PATH="$vs_ninja:$PATH"
+      echo "$MODULE: using ninja from $vs_ninja"
+      return 0
+    fi
+  done
+  echo "$MODULE: WARNING — ninja not found; the CEF wrapper build will fail" >&2
+}
+
 run() {
+  ensure_ninja_on_path
+
   # Check fingerprint — returns 1 if embed/ is up to date (not an error).
   if ! source "$SCRIPT_DIR/fingerprint.sh" "$@"; then
     return 0

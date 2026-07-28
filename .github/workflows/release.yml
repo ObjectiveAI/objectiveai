@@ -370,13 +370,14 @@ jobs:
           publish_crate objectiveai-sdk
           wait_crate objectiveai-sdk
 
-          # --no-verify on api/cli/mcp/mcp-proxy: their build.rs / dev-only
+          # --no-verify on api/cli/mcp-proxy: their build.rs / dev-only
           # path deps don't resolve from the published tarball alone.
           publish_crate objectiveai-mcp-proxy --no-verify
           publish_crate objectiveai-mcp-laboratory
-          publish_crate objectiveai-mcp --no-verify
+          # Depends on nothing in-repo, so it neither waits nor is
+          # waited on — order among these three is free.
+          publish_crate objectiveai-mcp-plugin-framework
           wait_crate objectiveai-mcp-proxy
-          wait_crate objectiveai-mcp
 
           publish_crate objectiveai-api --no-verify
           publish_crate objectiveai-cli --no-verify
@@ -498,10 +499,26 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.14.0'
+          # MUST satisfy the pinned npm's `engines` below. `24` floats
+          # within the major, so it is always >= 24.15.0.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
       - name: Upgrade npm to a Trusted-Publishing-aware version
-        run: npm install -g npm@latest
+        # PINNED, and pinned TOGETHER with node-version above — bump the
+        # two in one commit or not at all.
+        #
+        # This was `npm@latest` against `node-version: '22.14.0'`, which
+        # silently became unbuildable the day npm 12 raised its floor to
+        # `^22.22.2 || ^24.15.0 || >=26.0.0`. Nothing in the repo
+        # changed; the pipeline just started resolving a newer npm than
+        # the pinned node could run, and every release after that failed
+        # `EBADENGINE` before reaching the publish. It cost 2.2.11 AND
+        # 2.2.12 — both are on crates.io and PyPI and missing from npm.
+        #
+        # A floating `@latest` in a release pipeline means the pipeline's
+        # behaviour can change with no commit and no review, and the only
+        # signal is a red run after the version is already tagged.
+        run: npm install -g npm@12.0.1
       - name: Publish committed dist to npm (no build — ships committed wasm/zod)
         working-directory: objectiveai-sdk-js
         # The package's `files` is ["dist"] and dist/ is committed (wasm

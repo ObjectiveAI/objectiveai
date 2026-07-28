@@ -1,245 +1,101 @@
-import { useState, useEffect } from "react";
-import cn from "classnames";
-import { tauriInvoke } from "./lib/tauri";
-import { viewerTransport } from "./lib/viewer-transport";
-import type { ViewerTransport } from "@objectiveai/sdk";
+/**
+ * The STRIP entry's root — one per OS window, in the `chrome-<label>`
+ * webview, sized to the strip band alone.
+ *
+ * It is band-sized rather than full-window because a document that
+ * spans the content band paints over it, and a BROWSER tab's surface
+ * is a plain child window WebView2's compositor will cover regardless
+ * of HWND z-order. The bottom bar is therefore its own webview (the
+ * `status.html` entry) and the band between them belongs to the
+ * `tab-<id>` content webviews alone.
+ */
+import { useEffect, useRef, useState } from "react";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { isTauri, tauriListen } from "./lib/tauri";
 import {
-  useAgentsInstancesList,
-  type AgentStatus,
-} from "./hooks/useAgentsInstancesList";
-import { useEntries } from "./hooks/useEntries";
-import { StatusBar } from "./components/layout/StatusBar";
-import { ErrorToast } from "./components/ErrorToast";
-import { HierarchyTree } from "./components/HierarchyTree";
-import { LaboratoriesPane } from "./components/LaboratoriesPane";
-import { TabBar, type Tab } from "./TabBar";
-import { PluginPane } from "./PluginPane";
-import { CommandPalette } from "./components/shared/CommandPalette";
-import { LogoMark, Wordmark } from "./components/shared/Logo";
-import type { Entry } from "./types";
+  declareChannelRequestTab,
+  declareTabs,
+  tabsSnapshot,
+  type TabsSnapshot,
+  type WindowTabs,
+} from "./lib/tabs";
+import { TabStrip } from "./components/TabStrip";
 
-/** The home pane's second-level tabs — the row below the main header
- * bar. `agents` is the historic hierarchy view; `laboratories` hosts
- * the laboratory builder. */
-const HOME_TABS: Tab[] = [
-  { id: "agents", label: "agents" },
-  { id: "laboratories", label: "laboratories" },
-];
-
-function ObjectiveAIView({
-  transport,
-  agents,
-  zoom,
-  onStatusChange,
-}: {
-  transport: ViewerTransport | null;
-  agents: AgentStatus[];
-  zoom: number;
-  onStatusChange?: (status: ViewerStatus) => void;
-}) {
-  const entries = useEntries();
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [homeTab, setHomeTab] = useState<string>("agents");
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setCommandPaletteOpen((v) => !v);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  // Report the status-bar inputs up to App — the bar spans every tab,
-  // so it lives above the panes.
-  useEffect(() => {
-    onStatusChange?.({ entries });
-  }, [entries, onStatusChange]);
-
-  return (
-    <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-      <TabBar tabs={HOME_TABS} activeTab={homeTab} onSelect={setHomeTab} />
-      {/* Both panes stay mounted; only the active one shows — the
-          hierarchy tree's per-agent listeners keep running while the
-          laboratories pane is focused (same pattern as the main
-          plugin tabs). */}
-      <div
-        className={cn(
-          "relative",
-          "flex-1",
-          "min-h-0",
-          homeTab === "agents" ? "block" : "hidden",
-        )}
-      >
-        <CommandPalette
-          open={commandPaletteOpen}
-          onOpenChange={setCommandPaletteOpen}
-        />
-        {/* The brand mark: perfectly centered, always behind the body. */}
-        <div
-          className={cn(
-            "absolute",
-            "inset-0",
-            "flex",
-            "flex-col",
-            "items-center",
-            "justify-center",
-            "gap-3",
-            "pointer-events-none",
-            "select-none",
-          )}
-        >
-          <LogoMark className={cn("h-24", "w-auto", "text-info-dim/15")} />
-          <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
-        </div>
-        {/* The body: the agent hierarchy tree, over the watermark. */}
-        <HierarchyTree transport={transport} agents={agents} zoom={zoom} />
-      </div>
-      <div
-        className={cn(
-          "flex-col",
-          "flex-1",
-          "min-h-0",
-          homeTab === "laboratories" ? "flex" : "hidden",
-        )}
-      >
-        <LaboratoriesPane
-          transport={transport}
-          active={homeTab === "laboratories"}
-        />
-      </div>
-    </div>
-  );
-}
-
-const OBJECTIVEAI_TAB_ID = "objectiveai";
-
-export interface ViewerPluginInfo {
-  owner: string;
-  name: string;
-  version: string;
-  iframe_src: string;
-}
-
-/** The status-bar inputs ObjectiveAIView reports up to App. */
-interface ViewerStatus {
-  entries: Entry[];
-}
+/** This chrome's WINDOW label — the model key for its slice of tabs
+ * (the chrome webview itself is labeled `chrome-<window>`; every
+ * window is a shell-N, none is special). */
+const WINDOW_LABEL = isTauri()
+  ? getCurrentWebview().label.replace(/^chrome-/, "")
+  : "shell-1";
 
 function App() {
-  const [plugins, setPlugins] = useState<ViewerPluginInfo[]>([]);
-  const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
-  const [status, setStatus] = useState<ViewerStatus>({
-    entries: [],
+  // This window's slice of the shell model, rebuilt from every
+  // `tabs://changed` snapshot (generation-guarded: a stale snapshot
+  // response can never clobber a newer event).
+  const [windowTabs, setWindowTabs] = useState<WindowTabs>({
+    tabs: [],
+    active: 0,
   });
-  // The daemon transport (the Rust proxy's invoke + Channel), fetched
-  // once. There is no global listener singleton — App threads this
-  // down and components construct and own their own listeners.
-  const [transport, setTransport] = useState<ViewerTransport | null>(null);
+  const generation = useRef(0);
+  const [dockPreview, setDockPreview] = useState(false);
+
+  // Declare the root tab inventory — the chrome's manifest-
+  // equivalent. Every chrome declares on mount; Rust applies the
+  // FIRST declaration per app run (later ones no-op), and the boot
+  // orchestrator opens the enabled tabs.
   useEffect(() => {
-    let cancelled = false;
-    void viewerTransport().then((t) => {
-      if (!cancelled && t !== null) setTransport(t);
-    });
+    void declareTabs();
+    void declareChannelRequestTab();
+  }, []);
+
+
+  useEffect(() => {
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    let unlistenPreview: (() => void) | undefined;
+    const apply = (snapshot: TabsSnapshot) => {
+      if (disposed || snapshot.generation <= generation.current) return;
+      generation.current = snapshot.generation;
+      setWindowTabs(
+        snapshot.windows[WINDOW_LABEL] ?? { tabs: [], active: 0 },
+      );
+    };
+    void (async () => {
+      // Subscribe FIRST (events are not queued for future listeners),
+      // then snapshot; the generation guard orders the two.
+      unlisten = await tauriListen<TabsSnapshot>("tabs://changed", (e) =>
+        apply(e.payload),
+      );
+      unlistenPreview = await tauriListen<boolean>(
+        "tabs://dock-preview",
+        (e) => {
+          if (!disposed) setDockPreview(e.payload);
+        },
+      );
+      if (disposed) {
+        unlisten?.();
+        unlistenPreview?.();
+        return;
+      }
+      const snapshot = await tabsSnapshot();
+      if (snapshot) apply(snapshot);
+    })();
     return () => {
-      cancelled = true;
+      disposed = true;
+      unlisten?.();
+      unlistenPreview?.();
     };
   }, []);
-  // The app's ONE agents-list connection: {aih, active} items, live.
-  const agents = useAgentsInstancesList(transport);
-  const activeAgents = agents.filter((agent) => agent.active).length;
-  // Canvas zoom — the footer slider drives it; the main tab's canvas
-  // consumes it (per-tab zoom for plugin panes comes later).
-  const [zoom, setZoom] = useState(1);
 
-  useEffect(() => {
-    tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
-      .then((p) => { if (p) setPlugins(p); })
-      .catch((e) => {
-        // eslint-disable-next-line no-console
-        console.warn("list_plugins_with_viewer failed:", e);
-      });
-  }, []);
-
-  const tabs: Tab[] = [
-    { id: OBJECTIVEAI_TAB_ID, label: "ObjectiveAI" },
-    ...plugins.map((p) => ({ id: p.name, label: p.name })),
-  ];
-
-  if (plugins.length === 0) {
-    return (
-      <div className={cn("flex", "flex-col", "h-screen")}>
-        <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-          <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
-        </div>
-        <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
-      <ErrorToast />
-      </div>
-    );
-  }
-
+  // The strip IS this document — no wrapper, no spacer, no footer.
+  // The webview is exactly the strip band, so anything else here would
+  // simply be clipped.
   return (
-    <div className={cn("flex", "flex-col", "h-screen")}>
-      <div
-        className={cn(
-          "flex",
-          "flex-row",
-          "items-stretch",
-          "bg-neutral-100",
-          "dark:bg-neutral-900",
-          "border-b",
-          "border-neutral-300",
-          "dark:border-neutral-700",
-        )}
-      >
-        <div className={cn("flex-1", "min-w-0")}>
-          <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
-        </div>
-      </div>
-      <div
-        className={cn(
-          "relative",
-          "flex",
-          "flex-col",
-          "flex-1",
-          "min-h-0",
-        )}
-      >
-        {/* Every pane stays mounted at all times; only the active one is
-            shown (the rest are display:none). Keeping plugin iframes
-            mounted means their JS — and any daemon SSE
-            connections they hold — keeps running regardless of which
-            tab is focused. */}
-        <div
-          className={cn(
-            "flex-col",
-            "flex-1",
-            "min-h-0",
-            activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
-          )}
-        >
-          <ObjectiveAIView transport={transport} agents={agents} zoom={zoom} onStatusChange={setStatus} />
-        </div>
-        {plugins.map((p) => (
-          <div
-            key={p.name}
-            className={cn(
-              "flex-col",
-              "flex-1",
-              "min-h-0",
-              activeTab === p.name ? "flex" : "hidden",
-            )}
-          >
-            <PluginPane info={p} />
-          </div>
-        ))}
-      </div>
-      {/* Spans every tab — plugin panes included. */}
-      <StatusBar entries={status.entries} activeAgents={activeAgents} zoom={zoom} onZoomChange={setZoom} />
-      <ErrorToast />
-    </div>
+    <TabStrip
+      tabs={windowTabs.tabs}
+      activeId={windowTabs.active}
+      dockPreview={dockPreview}
+    />
   );
 }
 

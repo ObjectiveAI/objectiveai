@@ -11,6 +11,9 @@
 
 pub mod agents;
 pub mod api;
+pub mod channels;
+pub mod development;
+pub mod tasks;
 pub mod command;
 pub mod daemon;
 pub mod db;
@@ -18,14 +21,10 @@ pub mod detached;
 pub mod functions;
 pub mod kill_helpers;
 pub mod laboratories;
-pub mod mcp;
-pub mod plugins;
 pub mod python;
 pub mod reexec;
 pub mod swarms;
-pub mod tools;
 pub mod update;
-pub mod user;
 pub mod viewer;
 
 pub use command::execute;

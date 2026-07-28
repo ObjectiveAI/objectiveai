@@ -1,5 +1,5 @@
 //! The resident daemon's `/execute` route — the server side of
-//! [`objectiveai_sdk::cli::command::SseCommandExecutor`].
+//! `objectiveai_sdk::daemon::Client`.
 //!
 //! Request-per-command over plain HTTP: the client POSTs the
 //! `cli::command::Request` serde JSON as the raw request body — nothing
@@ -7,7 +7,7 @@
 //! (verified by [`crate::http::daemon_auth::authenticate_header`]).
 //! The daemon streams the result back as Server-Sent Events.
 //!
-//! The [`AgentArguments`] identity rides the
+//! The [`Identity`] identity rides the
 //! [`AGENT_ARGUMENT_HEADERS`] request headers (the same
 //! `X-OBJECTIVEAI-*` names the api stamps on outbound calls), one
 //! header per field. A missing header DELETES that config field for
@@ -16,7 +16,7 @@
 //! The daemon runs the request IN-PROCESS via the re-entrant
 //! [`crate::run`] (the same path `plugins run` uses for nested plugin
 //! commands) against its resident context pair with the
-//! override applied ([`crate::executor::apply_agent_arguments`]).
+//! override applied ([`crate::executor::apply_identity`]).
 //! The daemon's filesystem layout and secret are never overridable.
 //!
 //! Each stream item goes back as one SSE `data:` event in exactly the
@@ -36,7 +36,7 @@
 
 use axum::response::sse::{Event, Sse};
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -57,7 +57,7 @@ pub(crate) async fn execute_handler(
     Sse::new(execute_stream(
         state.global,
         state.scoped,
-        agent_arguments(&headers),
+        identity(&headers),
         body,
     ))
     .into_response()
@@ -66,16 +66,16 @@ pub(crate) async fn execute_handler(
 /// The per-request identity from the `X-OBJECTIVEAI-*` request headers
 /// — the same names the api stamps on outbound calls, one header per
 /// field. A missing (or non-UTF-8) header is `None`, which
-/// [`crate::executor::apply_agent_arguments`] DELETES on the run's
+/// [`crate::executor::apply_identity`] DELETES on the run's
 /// scope — never inherits.
-pub(crate) fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments {
+pub(crate) fn identity(headers: &axum::http::HeaderMap) -> Identity {
     let get = |name: &str| {
         headers
             .get(name)
             .and_then(|v| v.to_str().ok())
             .map(String::from)
     };
-    AgentArguments {
+    Identity {
         agent_instance_hierarchy: get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"),
         agent_id: get("X-OBJECTIVEAI-AGENT-ID"),
         agent_full_id: get("X-OBJECTIVEAI-AGENT-FULL-ID"),
@@ -86,8 +86,11 @@ pub(crate) fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments
         // identity is unspoofable — only the daemon's own `plugins
         // run` may assert it (in-process); a wire claim is ignored.
         plugin_owner: None,
-        plugin_repository: None,
+        plugin_name: None,
         plugin_version: None,
+        // Same discipline: only the task scheduler stamps this,
+        // in-process (`ScopedContext::with_task`).
+        task: false,
     }
 }
 
@@ -98,12 +101,12 @@ pub(crate) fn agent_arguments(headers: &axum::http::HeaderMap) -> AgentArguments
 fn execute_stream(
     global: GlobalContext,
     scoped: ScopedContext,
-    agent_arguments: AgentArguments,
+    identity: Identity,
     body: axum::body::Bytes,
 ) -> impl futures::Stream<Item = Result<Event, std::convert::Infallible>> {
     async_stream::stream! {
         let scoped =
-            crate::executor::apply_agent_arguments(&scoped, Some(&agent_arguments))
+            crate::executor::apply_identity(&scoped, Some(&identity))
                 .await
                 .into_owned();
 

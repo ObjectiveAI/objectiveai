@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.completions.message.message import Message
 from objectiveai_sdk.agent.laboratory import Laboratory
 from objectiveai_sdk.agent.mcp_server import McpServer
@@ -15,13 +14,13 @@ from objectiveai_sdk.agent.openrouter.stop import Stop
 from objectiveai_sdk.agent.openrouter.system_prompt import SystemPrompt
 from objectiveai_sdk.agent.openrouter.upstream import Upstream
 from objectiveai_sdk.agent.openrouter.verbosity import Verbosity
+from objectiveai_sdk.agent.plugin import Plugin
 
 
 class AgentBase(BaseModel):
     """The base configuration for an OpenRouter Agent (without computed ID)."""
     model_config = ConfigDict(title='agent.openrouter.AgentBase')
 
-    client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     context_compression: Optional[ContextCompression] = Field(None, description='Context compression engine for long contexts. When set, the\nupstream client emits the matching `plugins` entry on the\noutgoing OpenRouter chat-completions request.', json_schema_extra={'omitempty': True})
     frequency_penalty: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).', json_schema_extra={'omitempty': True})
     laboratories: Optional[list[Laboratory]] = Field(None, description="Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).", json_schema_extra={'omitempty': True})
@@ -32,6 +31,7 @@ class AgentBase(BaseModel):
     min_p: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Minimum probability threshold for sampling (0.0 to 1.0).', json_schema_extra={'omitempty': True})
     model: str = Field(..., description='The upstream language model identifier (e.g., `"gpt-4"`, `"claude-3-opus"`).')
     output_mode: OutputMode = Field('instruction', description='The output mode for vector completions. Ignored for agent completions.')
+    plugins: list[Plugin] = Field(..., description='Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).', json_schema_extra={'omitempty': True})
     prefix_messages: Optional[list[Message]] = Field(None, description="Messages prepended to the user's prompt.", json_schema_extra={'omitempty': True})
     presence_penalty: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Penalizes tokens based on their presence in the output so far (-2.0 to 2.0).', json_schema_extra={'omitempty': True})
     provider: Optional[Provider] = Field(None, description='Provider routing preferences.', json_schema_extra={'omitempty': True})

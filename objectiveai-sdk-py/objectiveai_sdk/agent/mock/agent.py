@@ -3,12 +3,12 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.laboratory import Laboratory
 from objectiveai_sdk.agent.mcp_server import McpServer
 from objectiveai_sdk.agent.mock.call import Call
 from objectiveai_sdk.agent.mock.output_mode import OutputMode
 from objectiveai_sdk.agent.mock.upstream import Upstream
+from objectiveai_sdk.agent.plugin import Plugin
 
 
 class Agent(BaseModel):
@@ -16,13 +16,13 @@ class Agent(BaseModel):
     model_config = ConfigDict(title='agent.mock.Agent')
 
     calls: Optional[list[Call]] = Field(None, description="Deterministic-script override. When `Some`, the mock agent\nemits each [`super::Call`] as its own assistant turn —\n`tool_calls` first, then `content` — in array order. Each\nsubsequent turn inspects the continuation to count how many\n`Call`s have already been satisfied (assistant message with\nexactly that `Call`'s `tool_calls` (by name+arguments) and\n`content`); the next un-matched `Call` is what that turn\nemits. Once every `Call` has been satisfied in the\ncontinuation, the mock falls through to its normal\ndispatcher. Pure addition — agents without `calls` are\nunaffected.", json_schema_extra={'omitempty': True})
-    client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     error: Optional[bool] = Field(None, description='If true, the mock client will return an error instead of a response.', json_schema_extra={'omitempty': True})
     error_probability: Optional[Annotated[int, Field(ge=0, le=255)]] = Field(None, description='Probability (0-100) that the mock returns an error mid-stream.\nRequires `error` to be `Some(true)`.', json_schema_extra={'omitempty': True})
     id: str = Field(..., description='The deterministic content-addressed ID (22-character base62 string).')
     laboratories: Optional[list[Laboratory]] = Field(None, description="Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).", json_schema_extra={'omitempty': True})
     mcp_servers: Optional[list[McpServer]] = Field(None, description='MCP servers the agent can connect to.', json_schema_extra={'omitempty': True})
     output_mode: OutputMode = Field(..., description='The output mode for vector completions. Ignored for agent completions.')
+    plugins: list[Plugin] = Field(..., description='Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).', json_schema_extra={'omitempty': True})
     top_logprobs: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Number of top log probabilities to return (2-20).\n\n**Vector completions only.** Ignored for agent completions.', json_schema_extra={'omitempty': True})
     upstream: Upstream = Field(..., description='The upstream provider marker.')
 

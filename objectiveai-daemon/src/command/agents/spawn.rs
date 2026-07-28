@@ -352,7 +352,7 @@ async fn resolve_laboratories(
     )
     .await?;
     // Dedup by BARE id, earliest attachment wins: an agent dials at
-    // most one laboratory per id (the session's `ws://laboratory/{id}`
+    // most one laboratory per id (the session's `client://laboratory/{id}`
     // upstreams key by id). Each kept record's (machine, machine_state)
     // pair rides the ClientLaboratory so downstream routing is exact.
     let mut records: Vec<crate::db::laboratory_attachments::AttachmentRecord> = Vec::new();
@@ -515,36 +515,19 @@ pub(crate) fn run_multi_pass(
         // the caller only sees the Id after at least one log row
         // has been persisted.
         let mut id_emitted = false;
-        // Resolve the MCP retry budget once for the whole spawn; every
-        // pass's conduit reuses it (cheap to pass per pass). No MCP
-        // timeout — the daemon never bounds its own MCP calls.
-        let backoff_max_elapsed_time_ms =
-            match crate::context::resolve_backoff_max_elapsed_time_ms(&scoped.filesystem).await {
-                Ok(v) => v,
-                Err(e) => {
-                    note_error(global, scoped, &conversation_tee, registry.aih(), None, &e)
-                        .await;
-                    Err(e)?;
-                    unreachable!("Err(e)? diverges");
-                }
-            };
         // Track the most recent response id seen on the wire — the id
         // logged errors attach to once a stream has existed.
         let mut last_response_id: Option<String> = None;
 
         loop {
             // Per-pass resources. New WS connection, new log writer,
-            // new conduit + MCP server. The registry survives across
-            // passes (see above).
-            let mcp_server =
-                crate::http::mcp_server::spawn(global.clone(), scoped.clone());
+            // new conduit. The registry survives across passes (see
+            // above).
             let conduit =
                 crate::http::conduit::ConduitMcpHandler::new(
-                    mcp_server,
                     global.clone(),
                     scoped.clone(),
                     agent_tag.clone(),
-                    backoff_max_elapsed_time_ms,
                 );
             // Spawn.rs doesn't need the primary-id ready signal —
             // it yields `ResponseItem::Id` from

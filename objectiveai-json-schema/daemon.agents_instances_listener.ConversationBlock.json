@@ -1,0 +1,271 @@
+{
+  "title": "daemon.agents_instances_listener.ConversationBlock",
+  "description": "One materialized conversation block — **the mirror of\n`agents logs list`'s `ResponseItem`**, variant-for-variant and\nfield-for-field, with parts carrying opened content instead of\n`read id` addresses; plus the additional `Error` block (a logged\nfailure — the list gains the same variant). Produced by the\nlistener's incremental coalescer; blocks appear in conversation\norder with `read_all`'s exact boundary rule.",
+  "anyOf": [
+    {
+      "title": "RequestMessageUser",
+      "description": "A `user`-role message from the request/task input.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.RequestMessageUserPart"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request_message_user"
+          ]
+        }
+      }
+    },
+    {
+      "title": "RequestMessageAssistant",
+      "description": "An `assistant`-role message from the request/task input.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.AssistantResponsePart"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request_message_assistant"
+          ]
+        }
+      }
+    },
+    {
+      "title": "RequestMessageTool",
+      "description": "A `tool`-role message from the request/task input, answering a\nprior tool call.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.ToolResponsePart"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this request message answers.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request_message_tool"
+          ]
+        }
+      }
+    },
+    {
+      "title": "VectorRequestChoices",
+      "description": "The response choices a vector-completion task voted over.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.VectorRequestChoice"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_request_choices"
+          ]
+        }
+      }
+    },
+    {
+      "title": "VectorResponseVote",
+      "description": "The closer for a vector task: this agent's own vote (its score\nfor each choice, in choice order).",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_response_vote"
+          ]
+        },
+        "vote": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38
+          }
+        }
+      }
+    },
+    {
+      "title": "ClientNotification",
+      "description": "Consumed message-queue notifications from one parent queue row.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "key": {
+          "description": "Idempotency token, if the row was enqueued with `--key`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.ClientNotificationPart"
+          }
+        },
+        "queued_at": {
+          "description": "`message_queue.enqueued_at` of the consumed parent queue\nrow — one block = one parent row.",
+          "type": "string"
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "sender_agent_instance_hierarchy": {
+          "description": "AIH of the enqueuer.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "client_notification"
+          ]
+        }
+      }
+    },
+    {
+      "title": "AssistantResponse",
+      "description": "The agent's own assistant output.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.AssistantResponsePart"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "assistant_response"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ToolResponse",
+      "description": "One tool call's response — one block per `tool_call_id`.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_listener.ToolResponsePart"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this response answers.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_response"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Error",
+      "description": "One logged failure, value inline — an error is a single row,\nnever a parts-carrying container (the failing attempt dies at\nits first raised error), so each error row is its own block.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "delivered_at": {
+          "description": "RFC3339 — when the failure was logged.",
+          "type": "string"
+        },
+        "error": {
+          "description": "The CLI's user-facing error value — a structured object for\nAPI response errors, a plain string otherwise."
+        },
+        "response_id": {
+          "description": "The response the failure belongs to when one existed;\n`None` for post-lock pre-stream failures.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "error"
+          ]
+        }
+      }
+    }
+  ]
+}

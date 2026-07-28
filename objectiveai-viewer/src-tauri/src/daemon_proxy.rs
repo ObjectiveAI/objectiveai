@@ -33,16 +33,22 @@ use futures::StreamExt;
 use tauri::ipc::Channel;
 use tokio_util::sync::CancellationToken;
 
-/// Managed state: the daemon coordinates every proxy dial uses, one
-/// pooled client, and the live-stream cancellation registry.
+/// Per-call identity for viewer-initiated daemon runs: instance
+/// hierarchy `"Viewer"`, every other field `None` so the daemon
+/// clears rather than inherits it — nothing leaks from the daemon's
+/// own environment into a viewer-initiated run.
+fn viewer_identity() -> objectiveai_sdk::identity::Identity {
+    objectiveai_sdk::identity::Identity {
+        agent_instance_hierarchy: Some("Viewer".to_string()),
+        ..Default::default()
+    }
+}
+
+/// Managed state: THE daemon client (address + signature + pool
+/// behind [`objectiveai_sdk::daemon::Client`]) plus the live-stream
+/// cancellation registry.
 pub struct DaemonProxy {
-    /// The daemon's published base address, e.g. `http://127.0.0.1:49152`.
-    pub address: String,
-    /// The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>` sent as
-    /// the `X-OBJECTIVEAI-SIGNATURE` header, or `None` against a
-    /// secretless daemon.
-    pub signature: Option<String>,
-    client: reqwest::Client,
+    daemon: objectiveai_sdk::daemon::Client,
     /// `stream_id → cancellation` for every live stream. Entries are
     /// inserted before the pump spawns and removed by the pump itself
     /// on ANY exit, so [`daemon_stream_close`] on an ended stream is a
@@ -52,24 +58,52 @@ pub struct DaemonProxy {
 
 impl DaemonProxy {
     pub fn new(address: String, signature: Option<String>) -> Self {
+        let mut daemon = objectiveai_sdk::daemon::Client::new(address);
+        if let Some(signature) = signature {
+            daemon = daemon.signature(signature);
+        }
         Self {
-            address,
-            signature,
-            client: reqwest::Client::new(),
+            daemon,
             streams: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// GET builder for an SSE route: accept header + auth signature.
-    fn get(&self, url: String) -> reqwest::RequestBuilder {
-        let mut req = self
-            .client
-            .get(url)
-            .header("Accept", "text/event-stream");
-        if let Some(signature) = &self.signature {
-            req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
-        }
-        req
+    /// The consolidated daemon client — typed surfaces (accept,
+    /// plugin downloads) go straight through it.
+    pub(crate) fn daemon(&self) -> &objectiveai_sdk::daemon::Client {
+        &self.daemon
+    }
+
+    /// The `/listen` broadcast dial — the shell's resident
+    /// command-logs capture task connects with this (same route the
+    /// `daemon_listen` proxy serves to webviews).
+    pub(crate) fn listen_builder(&self) -> reqwest::RequestBuilder {
+        self.get("/listen")
+    }
+
+    /// The `GET /channels` dial — the shell's resident channel-offer
+    /// listener connects with this (auth = signature header only).
+    pub(crate) fn channels_builder(&self) -> reqwest::RequestBuilder {
+        self.get("/channels")
+    }
+
+    /// Accept a channel offer: a bare `POST /channels/{id}/accept`
+    /// (first-wins). Returns the owner secret (`S_owner`); refusals
+    /// map to an error string (404 unknown/withdrawn, 409 already
+    /// accepted).
+    pub(crate) async fn accept_channel(&self, channel_id: &str) -> Result<String, String> {
+        self.daemon
+            .accept_channel(channel_id)
+            .await
+            .map_err(|e| format!("channel accept: {e}"))
+    }
+
+    /// Raw GET builder for an SSE route (the client stamps the
+    /// signature; this adds the accept header).
+    fn get(&self, route: &str) -> reqwest::RequestBuilder {
+        self.daemon
+            .request(reqwest::Method::GET, route)
+            .header("Accept", "text/event-stream")
     }
 }
 
@@ -183,17 +217,19 @@ pub(crate) async fn daemon_listen(
     stream_id: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let request = proxy.get(format!("{}/listen", proxy.address));
+    let request = proxy.get("/listen");
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
 /// `POST /execute` — one command run. `request` is the raw
-/// `cli::command::Request` JSON, passed through as the body verbatim.
-/// Stamps the auth signature and the viewer agent identity — only
-/// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` is set (to `"Viewer"`,
-/// via [`crate::plugins::viewer_agent_arguments`]); every absent
-/// identity header DELETES that config field on the daemon for the
-/// run (never inherits).
+/// `cli::command::Request` JSON, passed through as the body VERBATIM
+/// — a plain proxy, no body inspection (channel secrets ride in the
+/// body from the handler tab that owns them, handed over in its spawn
+/// arguments). Stamps the auth signature and the viewer agent
+/// identity — only `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` is set
+/// (to `"Viewer"`, via `viewer_identity`); every absent identity
+/// header DELETES that config field on the daemon for the run (never
+/// inherits).
 #[tauri::command]
 pub(crate) async fn daemon_execute(
     proxy: tauri::State<'_, DaemonProxy>,
@@ -202,15 +238,12 @@ pub(crate) async fn daemon_execute(
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
     let mut req = proxy
-        .client
-        .post(format!("{}/execute", proxy.address))
+        .daemon
+        .request(reqwest::Method::POST, "/execute")
         .header("Accept", "text/event-stream")
         .header("Content-Type", "application/json")
         .body(request);
-    if let Some(signature) = &proxy.signature {
-        req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
-    }
-    let args = crate::plugins::viewer_agent_arguments();
+    let args = viewer_identity();
     if let Some(v) = &args.agent_instance_hierarchy {
         req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
     }
@@ -239,7 +272,7 @@ pub(crate) async fn daemon_agents_instances_list(
     stream_id: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let request = proxy.get(format!("{}/agents/instances/list", proxy.address));
+    let request = proxy.get("/agents/instances/list");
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
@@ -253,7 +286,7 @@ pub(crate) async fn daemon_agents_instance(
     aih: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let request = proxy.get(format!("{}/agents/instances/{}", proxy.address, aih));
+    let request = proxy.get(&format!("/agents/instances/{aih}"));
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
@@ -264,7 +297,7 @@ pub(crate) async fn daemon_laboratories_list(
     stream_id: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let request = proxy.get(format!("{}/laboratories/list", proxy.address));
+    let request = proxy.get("/laboratories/list");
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
@@ -280,7 +313,7 @@ pub(crate) async fn daemon_laboratory(
     machine_state: Option<String>,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let mut request = proxy.get(format!("{}/laboratories/{}", proxy.address, id));
+    let mut request = proxy.get(&format!("/laboratories/{id}"));
     if let Some(machine) = machine {
         request = request.query(&[("machine", machine)]);
     }
@@ -301,7 +334,7 @@ pub(crate) async fn daemon_laboratory_filetree(
     machine_state: Option<String>,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let mut request = proxy.get(format!("{}/laboratories/{}/filetree", proxy.address, id));
+    let mut request = proxy.get(&format!("/laboratories/{id}/filetree"));
     if let Some(machine) = machine {
         request = request.query(&[("machine", machine)]);
     }
@@ -311,70 +344,115 @@ pub(crate) async fn daemon_laboratory_filetree(
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
-/// `GET /user` — the user-requests channel: every pending request
-/// replayed on connect (then the `live` caught-up marker), live
-/// requests / settlements / timeouts after.
+/// `GET /channels` — the duplex-channels offer-lifecycle SSE.
 #[tauri::command]
-pub(crate) async fn daemon_user(
+pub(crate) async fn daemon_channels(
     proxy: tauri::State<'_, DaemonProxy>,
     stream_id: String,
     on_event: Channel<StreamEvent>,
 ) -> Result<(), String> {
-    let request = proxy.get(format!("{}/user", proxy.address));
+    let request = proxy.get("/channels");
     proxy_sse(proxy.streams.clone(), stream_id, on_event, request).await
 }
 
-/// `POST /user/{id}/reply` — answer one pending user request as the
-/// VIEWER. Stamps the auth signature and the viewer agent identity
-/// (the same header set [`daemon_execute`] stamps — the replier
-/// identity the daemon reports to the originating command). Unlike
-/// the streaming commands this returns a VALUE: the daemon's
-/// `UserReplyOutcome` JSON (`accepted` / `rejected` / `settled` /
-/// `not_found`), whatever the HTTP status — only transport and parse
-/// failures are `Err`.
+/// `POST /channels/{id}/accept` — accept an open channel offer as a
+/// webview-facing command (the shell's own accept flow stays
+/// capability-gated through `channel_request_accept`). Resolves with
+/// the owner secret.
 #[tauri::command]
-pub(crate) async fn daemon_user_reply(
+pub(crate) async fn daemon_channel_accept(
     proxy: tauri::State<'_, DaemonProxy>,
-    id: String,
-    reply: serde_json::Value,
-) -> Result<serde_json::Value, String> {
-    let mut req = proxy
-        .client
-        .post(format!("{}/user/{}/reply", proxy.address, id))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "reply": reply }));
-    if let Some(signature) = &proxy.signature {
-        req = req.header("X-OBJECTIVEAI-SIGNATURE", signature);
-    }
-    let args = crate::plugins::viewer_agent_arguments();
-    if let Some(v) = &args.agent_instance_hierarchy {
-        req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", v);
-    }
-    if let Some(v) = &args.agent_id {
-        req = req.header("X-OBJECTIVEAI-AGENT-ID", v);
-    }
-    if let Some(v) = &args.agent_full_id {
-        req = req.header("X-OBJECTIVEAI-AGENT-FULL-ID", v);
-    }
-    if let Some(v) = &args.agent_remote {
-        req = req.header("X-OBJECTIVEAI-AGENT-REMOTE", v);
-    }
-    if let Some(v) = &args.response_id {
-        req = req.header("X-OBJECTIVEAI-RESPONSE-ID", v);
-    }
-    if let Some(v) = &args.response_ids {
-        req = req.header("X-OBJECTIVEAI-RESPONSE-IDS", v);
-    }
-    let response = req
-        .send()
+    channel_id: String,
+) -> Result<String, String> {
+    proxy.accept_channel(&channel_id).await
+}
+
+/// One per-stream event of a viewer-plugin bundle download
+/// (serde-tagged; the TS mirror is the SDK client's viewer-mode
+/// chunk shape): binary rides base64 — the text stream shape can't
+/// carry it.
+#[derive(Clone, serde::Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PluginStreamEvent {
+    /// One chunk of tar.gz bytes, base64-encoded.
+    Chunk { data: String },
+    /// The body ended.
+    End,
+    /// Transport error mid-stream; the download is over.
+    Error { message: String },
+}
+
+/// `daemon_viewer_plugin`'s resolve value: what the download opened
+/// with, before any chunk arrives.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginDownloadStarted {
+    pub commit_sha: Option<String>,
+}
+
+/// `GET /plugins/{owner}/{name}/{version}/viewer` — the daemon-built
+/// viewer-extension bundle, streamed to the webview as base64 chunk
+/// events. The invoke resolves once the response headers arrive
+/// (carrying the tag's commit SHA); the chunk pump registers under
+/// `stream_id` for [`daemon_stream_close`] like every stream.
+#[tauri::command]
+pub(crate) async fn daemon_viewer_plugin(
+    proxy: tauri::State<'_, DaemonProxy>,
+    stream_id: String,
+    owner: String,
+    name: String,
+    version: String,
+    on_event: Channel<PluginStreamEvent>,
+) -> Result<PluginDownloadStarted, String> {
+    let mut plugin = proxy
+        .daemon
+        .get_viewer_plugin(&owner, &name, &version)
         .await
-        .map_err(|e| format!("user reply: {}", error_chain(&e)))?;
-    let body = response
-        .text()
-        .await
-        .map_err(|e| format!("user reply body: {}", error_chain(&e)))?;
-    serde_json::from_str(&body)
-        .map_err(|e| format!("user reply outcome parse: {e}: {body}"))
+        .map_err(|e| format!("get viewer plugin: {e}"))?;
+    let started = PluginDownloadStarted {
+        commit_sha: plugin.commit_sha.clone(),
+    };
+    let token = CancellationToken::new();
+    proxy
+        .streams
+        .lock()
+        .unwrap()
+        .insert(stream_id.clone(), token.clone());
+    let streams = proxy.streams.clone();
+    tokio::spawn(async move {
+        let work = async {
+            loop {
+                match plugin.chunk().await {
+                    Ok(Some(bytes)) => {
+                        use base64::Engine;
+                        let data = base64::engine::general_purpose::STANDARD
+                            .encode(&bytes);
+                        if on_event.send(PluginStreamEvent::Chunk { data }).is_err() {
+                            // Webview gone — drop the response,
+                            // aborting the transfer.
+                            return;
+                        }
+                    }
+                    Ok(None) => {
+                        let _ = on_event.send(PluginStreamEvent::End);
+                        return;
+                    }
+                    Err(e) => {
+                        let _ = on_event.send(PluginStreamEvent::Error {
+                            message: e.to_string(),
+                        });
+                        return;
+                    }
+                }
+            }
+        };
+        tokio::select! {
+            _ = token.cancelled() => {}
+            _ = work => {}
+        }
+        streams.lock().unwrap().remove(&stream_id);
+    });
+    Ok(started)
 }
 
 /// Cancel a live proxy stream by its client-minted id. No-op on an

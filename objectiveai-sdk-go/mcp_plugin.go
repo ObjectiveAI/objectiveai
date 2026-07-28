@@ -7,10 +7,10 @@ import (
 	"fmt"
 )
 
-// A plugin-hosted MCP server's identity — the four coordinates that name
-// a plugin's MCP (mirrors `McpKind::Plugin`).
+// A plugin MCP server's identity — the `(owner, name, version)`
+// coordinate trio (one plugin IS one MCP server; mirrors
+// `McpKind::PluginLaboratory`).
 type McpPlugin struct {
-	MCP string `json:"mcp"`
 	Name string `json:"name"`
 	Owner string `json:"owner"`
 	Version string `json:"version"`
@@ -26,7 +26,7 @@ func (v *McpPlugin) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"mcp", "name", "owner", "version"} {
+	for _, key := range []string{"name", "owner", "version"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("McpPlugin: missing required field %q", key)
 		}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.list.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "plugins/list/request_schema"
-  ]
-}

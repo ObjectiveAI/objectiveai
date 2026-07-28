@@ -21,8 +21,9 @@ use objectiveai_sdk::cli::command::agents::tags::apply::{
     Path as ApplyPath, Request as ApplyReq, Response as ApplyResp, Target as ApplyTarget,
 };
 use objectiveai_sdk::cli::command::laboratories::create::{
-    EnvVar, Kind, Mount, Path as CreatePath, Request as CreateReq, Response as CreateResp,
+    Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
+use objectiveai_sdk::laboratories::{EnvVar, Mount};
 use serde_json::json;
 
 /// The split base image every lab in this file uses —

@@ -26,14 +26,6 @@
       "$ref": "cli.command.laboratories.Request"
     },
     {
-      "title": "Mcp",
-      "$ref": "cli.command.mcp.Request"
-    },
-    {
-      "title": "Plugins",
-      "$ref": "cli.command.plugins.Request"
-    },
-    {
       "title": "Python",
       "$ref": "cli.command.python.Request"
     },
@@ -50,10 +42,6 @@
       "$ref": "cli.command.swarms.Request"
     },
     {
-      "title": "Tools",
-      "$ref": "cli.command.tools.Request"
-    },
-    {
       "title": "Update",
       "$ref": "cli.command.update.Request"
     },
@@ -66,8 +54,16 @@
       "$ref": "cli.command.update.response_schema.Request"
     },
     {
-      "title": "User",
-      "$ref": "cli.command.user.Request"
+      "title": "Channels",
+      "$ref": "cli.command.channels.Request"
+    },
+    {
+      "title": "Development",
+      "$ref": "cli.command.development.Request"
+    },
+    {
+      "title": "Tasks",
+      "$ref": "cli.command.tasks.Request"
     },
     {
       "title": "Viewer",

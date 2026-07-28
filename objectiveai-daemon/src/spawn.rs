@@ -16,51 +16,7 @@
 
 use std::path::Path;
 
-use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, Signal, System};
 use tokio::process::Command;
-
-/// Send SIGTERM (Unix) / TerminateProcess (Windows) to one specific
-/// pid. Returns 1 if a live process with that pid existed and was
-/// targeted, 0 otherwise. Kills strictly by pid — a name match would
-/// hit unrelated processes (e.g. other postgres servers). Used by the
-/// legacy lock-owner sweep in `command::kill_helpers`.
-pub fn kill_pid(pid: u32) -> usize {
-    let mut sys = System::new();
-    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
-    match sys.process(sysinfo::Pid::from_u32(pid)) {
-        Some(process) => {
-            let _ = process
-                .kill_with(Signal::Term)
-                .or_else(|| Some(process.kill()));
-            1
-        }
-        None => 0,
-    }
-}
-
-/// Absolutize a relative exec *path* against `cwd`; keep bare names'
-/// PATH-lookup semantics. Shared by `tools run` and `plugins run`,
-/// whose manifest exec paths are relative to their version / `cli`
-/// folder (e.g. `./count-tool.exe`) — but on Windows `CreateProcess`
-/// resolves a relative program against the PARENT's cwd, not the
-/// child's `current_dir` (rust-lang/rust#37868), so the spawn would
-/// miss the binary entirely without this.
-///
-/// Path-vs-name is decided by `Path::components()`, which encodes
-/// the platform split for us:
-///   - Windows: `/` and `\` are both separators (and both illegal
-///     in file names), so either marks a path — 2+ components.
-///   - Unix: only `/` separates; `\` is a legal filename byte, so
-///     a program literally named `my\tool` stays a bare name —
-///     1 component — and still resolves via PATH.
-pub fn resolve_program(program: String, cwd: &Path) -> std::ffi::OsString {
-    let path = Path::new(&program);
-    if path.components().count() > 1 && path.is_relative() {
-        cwd.join(path).into_os_string()
-    } else {
-        program.into()
-    }
-}
 
 /// Lock-based DETACHED spawn — used only by `daemon spawn` for peer
 /// plugins-daemons (the persistent servers use
@@ -173,9 +129,7 @@ pub async fn spawn_leashed_until_ready(
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, false)
-        .await
-        .map(|(address, _freshly_spawned)| address)
+    spawn_leashed_inner(global, key, exe, configure, false).await
 }
 
 /// [`spawn_leashed_until_ready`] for the laboratory host: stdin is
@@ -183,35 +137,34 @@ pub async fn spawn_leashed_until_ready(
 /// line, the pipe receiver goes to an ack ROUTER task (stdout lines
 /// parsing as [`objectiveai_sdk::laboratories::daemon::HostStdioAck`]
 /// are forwarded to the [`crate::context::LabHostStdio`] parked on the
-/// resident entry; everything else is discarded as before). Also
-/// returns whether THIS call spawned the child — the caller seeds the
-/// dial list over stdio only then (a reused live child already has
-/// its list; config changes reach it through the config handlers).
+/// resident entry; everything else is discarded as before). Fresh or
+/// reused makes no difference to the caller — every `laboratories
+/// spawn` CONVERGES the dial list afterward (idempotent host-side
+/// diff).
 pub async fn spawn_leashed_until_ready_with_stdio(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
-) -> Result<(Option<String>, bool), crate::error::Error> {
+) -> Result<Option<String>, crate::error::Error> {
     spawn_leashed_inner(global, key, exe, configure, true).await
 }
 
 /// The shared core of the two spawn entry points; `stdio` selects the
 /// laboratory host's piped-stdin + ack-router mode. Returns the ready
-/// address and whether a child was actually spawned (`false` = a live
-/// resident child was reused).
+/// address (a live resident child is reused, not respawned).
 async fn spawn_leashed_inner(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
     stdio: bool,
-) -> Result<(Option<String>, bool), crate::error::Error> {
+) -> Result<Option<String>, crate::error::Error> {
     let gate = global.spawn_gate(key);
     let _guard = gate.lock().await;
 
     if let Some(address) = global.resident_child_address(key) {
-        return Ok((address, false));
+        return Ok(address);
     }
 
     let name = exe
@@ -337,8 +290,53 @@ async fn spawn_leashed_inner(
         None
     };
 
-    global.hold_resident_child(key, child, address.clone(), stdio_handle);
-    Ok((address, true))
+    // Lifecycle wiring: the map entry is metadata; the CHILD ITSELF
+    // goes to a lifecycle task that (a) executes kill requests —
+    // `Term` by pid while the un-reaped handle provably pins the pid,
+    // `Kill` via the handle — and (b) awaits `child.wait()`, the TRUE
+    // process exit, then fires the death watch and removes the entry
+    // (generation-guarded: never a respawned successor's). Insert
+    // FIRST (still under the spawn gate), THEN spawn the task, so
+    // even an instantly-dying child's removal finds its own entry.
+    let pid = child.id().unwrap_or_default();
+    let generation = crate::context::next_child_generation();
+    let (dead_tx, dead_rx) = tokio::sync::watch::channel(false);
+    let (kill_tx, mut kill_rx) =
+        tokio::sync::mpsc::unbounded_channel::<crate::context::KillRequest>();
+    global.hold_resident_child(
+        key,
+        generation,
+        kill_tx,
+        address.clone(),
+        stdio_handle,
+        dead_rx,
+    );
+    let lifecycle_global = global.clone();
+    let lifecycle_key = key.to_string();
+    tokio::spawn(async move {
+        let mut kill_closed = false;
+        loop {
+            tokio::select! {
+                // `Child::wait` is cancel-safe; stdin was taken long
+                // before the first poll, so no EOF side effect.
+                _status = child.wait() => break,
+                req = kill_rx.recv(), if !kill_closed => match req {
+                    Some(crate::context::KillRequest::Term) => {
+                        let _ = objectiveai_sdk::process::kill_pid(pid);
+                    }
+                    Some(crate::context::KillRequest::Kill) => {
+                        let _ = child.start_kill();
+                    }
+                    // Entry removed and every kill path done — just
+                    // wait out the exit.
+                    None => kill_closed = true,
+                },
+            }
+        }
+        let _ = dead_tx.send(true);
+        lifecycle_global.remove_resident_child_if(&lifecycle_key, generation);
+    });
+    Ok(address)
 }
 
 /// Basename-or-path display name for spawn errors.
@@ -441,12 +439,12 @@ pub fn apply_config_env(
             cmd.env_remove("OBJECTIVEAI_PLUGIN_OWNER");
         }
     }
-    match scoped.plugin_repository() {
+    match scoped.plugin_name() {
         Some(v) => {
-            cmd.env("OBJECTIVEAI_PLUGIN_REPOSITORY", v);
+            cmd.env("OBJECTIVEAI_PLUGIN_NAME", v);
         }
         None => {
-            cmd.env_remove("OBJECTIVEAI_PLUGIN_REPOSITORY");
+            cmd.env_remove("OBJECTIVEAI_PLUGIN_NAME");
         }
     }
     match scoped.plugin_version() {

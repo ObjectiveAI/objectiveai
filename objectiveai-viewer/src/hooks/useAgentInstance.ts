@@ -14,15 +14,16 @@
 import { useEffect, useState } from "react";
 import {
   AgentsInstancesListener,
-  type CliAgentsInstancesListenerAgentRecord,
-  type CliAgentsInstancesListenerConversationBlock,
+  Client,
+  type DaemonAgentsInstancesListenerAgentRecord,
+  type DaemonAgentsInstancesListenerConversationBlock,
   type ViewerTransport,
 } from "@objectiveai/sdk";
 import { reportError } from "../lib/errors";
 
-export type AgentRecord = CliAgentsInstancesListenerAgentRecord;
+export type AgentRecord = DaemonAgentsInstancesListenerAgentRecord;
 export type ConversationBlock =
-  CliAgentsInstancesListenerConversationBlock;
+  DaemonAgentsInstancesListenerConversationBlock;
 
 export interface AgentInstanceView {
   /** The agent's status record — `null` until the first status frame
@@ -55,37 +56,32 @@ export function useAgentInstance(
       for (;;) {
         if (cancelled) return;
         try {
-          const listener = await AgentsInstancesListener.connectViewer(
+          const listener = await Client.viewer(
             transport,
-            agentInstanceHierarchy,
-            {
-              onChange: (blocks) => {
-                if (cancelled) return;
-                const lastBlock =
-                  blocks.length > 0 ? blocks[blocks.length - 1] : null;
-                setView((previous) => ({
-                  ...previous,
-                  blocks,
-                  lastBlock,
-                  live: current?.live ?? previous.live,
-                }));
-              },
-              onAgentChange: (agent) => {
-                if (!cancelled) {
-                  setView((previous) => ({ ...previous, agent }));
-                }
-              },
-            },
-          );
+          ).agentsInstancesListener(agentInstanceHierarchy);
           if (cancelled) {
             listener.close();
             return;
           }
           current = listener;
+          const push = () => {
+            const blocks = listener.conversation();
+            const lastBlock =
+              blocks.length > 0 ? blocks[blocks.length - 1] : null;
+            setView({
+              agent: listener.agent(),
+              blocks,
+              lastBlock,
+              live: listener.live,
+            });
+          };
+          push();
           // Ride the connection until it closes (subscribe resolves on
-          // every change AND on close).
+          // every change AND on close), pushing the fold each wake.
           while (!listener.closed) {
             await listener.subscribe();
+            if (cancelled) return;
+            push();
           }
         } catch (error) {
           // Connect refused / handshake failure — surface it, then retry.

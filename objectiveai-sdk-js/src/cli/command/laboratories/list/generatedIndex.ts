@@ -3,6 +3,7 @@
 export * from "./request_schema/index";
 export * from "./response_schema/index";
 export * from "./path";
+export * from "./plugin";
 export * from "./request";
 export * from "./responseItem";
 export * from "./execute";

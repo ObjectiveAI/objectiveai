@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tools.get.Path",
-  "type": "string",
-  "enum": [
-    "tools/get"
-  ]
-}

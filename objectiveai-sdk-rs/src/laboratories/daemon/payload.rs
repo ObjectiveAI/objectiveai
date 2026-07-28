@@ -92,6 +92,44 @@ pub enum RequestPayload {
     /// `laboratory_id`.
     #[schemars(title = "Create")]
     Create(CreateRequest),
+    /// Create an EPHEMERAL agent laboratory AND establish its single
+    /// MCP connection, atomically: ensure the content-addressed agent
+    /// image, `rm -f` any stale container for the id, create + start
+    /// the container, connect using THIS request's envelope headers
+    /// (they carry the FULL originating header set — the agent
+    /// arguments the in-container MCP requires; unlike `Create`, which
+    /// rides with an empty map). Succeeds only when BOTH the container
+    /// and the connection exist; the reply carries identity AND the
+    /// initialize result. Exactly ONE connection, ever — the
+    /// laboratory's lifetime IS that connection's, and the container
+    /// evaporates (`rm -f`, zero grace) the moment it ends. Host-level:
+    /// no envelope `laboratory_id` — the HOST derives the id
+    /// (`{derived_id}-{response_id}`, see
+    /// [`crate::agent::laboratories::ephemeral_id`]).
+    ///
+    /// NOTE for the daemon phase: the image ensure runs a pull/build
+    /// inline, which can exceed the standard RPC forward timeout —
+    /// classify this op with the timeout-free transfer family.
+    #[schemars(title = "AgentEphemeralCreate")]
+    AgentEphemeralCreate(AgentEphemeralCreateRequest),
+    /// The PLUGIN twin of [`RequestPayload::AgentEphemeralCreate`]:
+    /// ensure the plugin image (git fetch at the version tag + `podman
+    /// build` — timeout-free family, same note as above), then the
+    /// same atomic create + start + connect with this request's
+    /// headers. The HOST derives the id
+    /// (`oai-plugin-{owner}-{name}-{version}-{response_id}`).
+    #[schemars(title = "PluginEphemeralCreate")]
+    PluginEphemeralCreate(PluginEphemeralCreateRequest),
+    /// DEVELOPMENT mode: drop a plugin's local image so the next
+    /// [`RequestPayload::PluginEphemeralCreate`] has to rebuild it.
+    ///
+    /// Rebuilds are EXPLICIT — the image-exists fast path is kept for
+    /// registered plugins too — so this is the thing that makes an
+    /// edit take effect. Host-level: it addresses an IMAGE, never the
+    /// envelope's laboratory. Takes the same build lock the build
+    /// takes, so it can never land mid-build.
+    #[schemars(title = "PluginImageReset")]
+    PluginImageReset(PluginImageResetRequest),
     /// Delete a laboratory from this host (podman rm). Host-level.
     #[schemars(title = "Delete")]
     Delete(DeleteRequest),
@@ -101,6 +139,27 @@ pub enum RequestPayload {
     /// Host-level: it addresses two labs, never the envelope's one.
     #[schemars(title = "LocalTransfer")]
     LocalTransfer(LocalTransferRequest),
+    /// Build a plugin's VIEWER extension: fetch the repo at the
+    /// version's git tag, run the baked builder image over the
+    /// checkout in a BUILD laboratory, and park the resulting
+    /// `bundle.tar.gz` for [`RequestPayload::BuildRead`]. Runs to
+    /// completion — the container is created, waited on, and removed
+    /// within this one request (timeout-free family: a cold build
+    /// pulls a base image and installs a dependency tree). Host-level:
+    /// the HOST derives the laboratory id.
+    #[schemars(title = "BuildCreate")]
+    BuildCreate(BuildCreateRequest),
+    /// Drain the next chunk of a parked build artifact — the
+    /// [`RequestPayload::ExportRead`] shape for a host-side FILE
+    /// rather than a container's export stream (a build container
+    /// serves no HTTP: it has no injected MCP binary and is gone by
+    /// the time this runs). Host-level.
+    #[schemars(title = "BuildRead")]
+    BuildRead(TransferIdRequest),
+    /// Discard a parked build artifact without draining it.
+    /// Host-level.
+    #[schemars(title = "BuildAbort")]
+    BuildAbort(TransferIdRequest),
 }
 
 /// Host → daemon: the reply vocabulary, 1:1 with [`RequestPayload`].
@@ -141,10 +200,22 @@ pub enum ResponsePayload {
     ImportAbort(JsonRpcResult<TransferAck>),
     #[schemars(title = "Create")]
     Create(JsonRpcResult<super::Identify>),
+    #[schemars(title = "AgentEphemeralCreate")]
+    AgentEphemeralCreate(JsonRpcResult<EphemeralCreated>),
+    #[schemars(title = "PluginEphemeralCreate")]
+    PluginEphemeralCreate(JsonRpcResult<EphemeralCreated>),
+    #[schemars(title = "PluginImageReset")]
+    PluginImageReset(JsonRpcResult<PluginImageResetResult>),
     #[schemars(title = "Delete")]
     Delete(JsonRpcResult<TransferAck>),
     #[schemars(title = "LocalTransfer")]
     LocalTransfer(JsonRpcResult<LocalTransferResult>),
+    #[schemars(title = "BuildCreate")]
+    BuildCreate(JsonRpcResult<BuildCreated>),
+    #[schemars(title = "BuildRead")]
+    BuildRead(JsonRpcResult<ExportChunk>),
+    #[schemars(title = "BuildAbort")]
+    BuildAbort(JsonRpcResult<TransferAck>),
 }
 
 /// JSON-RPC result/error shape for this channel's typed methods —
@@ -230,8 +301,10 @@ pub struct TransferIdRequest {
 #[schemars(rename = "laboratories.daemon.ImportWriteRequest")]
 pub struct ImportWriteRequest {
     pub transfer_id: String,
-    /// Base64-encoded tar bytes.
-    pub data: String,
+    /// RAW tar bytes. Never in the JSON header — rides OUT OF BAND in
+    /// the binary wire frame (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
 }
 
 /// Successful payload for the two `*Begin` transfer replies.
@@ -245,8 +318,11 @@ pub struct TransferBeginResult {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "laboratories.daemon.ExportChunk")]
 pub struct ExportChunk {
-    /// Base64-encoded tar bytes; may be non-empty on the final chunk.
-    pub data: String,
+    /// RAW tar bytes; may be non-empty on the final chunk. Never in
+    /// the JSON header — rides OUT OF BAND in the binary wire frame
+    /// (`crate::binary_frame`); serde skips it.
+    #[serde(skip)]
+    pub data: Vec<u8>,
     /// `true` ⇒ the export completed and its parked entry is gone.
     pub eof: bool,
 }
@@ -290,6 +366,162 @@ pub struct CreateRequest {
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
 }
+
+/// Parameters for [`RequestPayload::AgentEphemeralCreate`].
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.AgentEphemeralCreateRequest")]
+pub struct AgentEphemeralCreateRequest {
+    /// The agent-completion response id this laboratory serves — bare
+    /// base62, unique per completion. Becomes the laboratory id's
+    /// suffix and the container label's `response_id`.
+    pub response_id: String,
+    /// The full id of the agent the laboratory derives from.
+    pub agent_full_id: String,
+    /// The agent-embedded laboratory spec (image, env, cwd) — the
+    /// host re-derives the content-addressed image key from
+    /// `(agent_full_id, laboratory)`.
+    pub laboratory: crate::agent::Laboratory,
+}
+
+/// Parameters for [`RequestPayload::PluginEphemeralCreate`] — the
+/// plugin's coordinate trio (`agent::plugin::prepare` already
+/// lowercases owner/name; the host re-lowercases them defensively —
+/// the version passes through untouched: it is required `v`-prefixed
+/// at the declaration layer and git tags are case-sensitive) plus the
+/// response id the laboratory serves.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginEphemeralCreateRequest")]
+pub struct PluginEphemeralCreateRequest {
+    /// The agent-completion response id this laboratory serves.
+    pub response_id: String,
+    /// GitHub `<owner>` segment.
+    pub owner: String,
+    /// Repository segment.
+    pub name: String,
+    /// Plugin version — IS the repo's git tag (Go-modules style,
+    /// `v`-prefixed), byte-for-byte; the tag must exist.
+    pub version: String,
+    /// The plugin's Postgres compartment ROLE, resolved (and
+    /// provisioned) daemon-side before the create is forwarded. The
+    /// host builds `OBJECTIVEAI_POSTGRES_URL` from this + its own
+    /// tunnel-listener address (it never sees the daemon's own DB
+    /// address).
+    pub db_role: String,
+    /// The compartment role's password (random, stored daemon-side).
+    pub db_password: String,
+    /// The application database name.
+    pub db_database: String,
+    /// DEVELOPMENT mode: an ABSOLUTE host directory that stands in for
+    /// the git checkout, from `development plugins mcp create`.
+    ///
+    /// `Some` ⇒ the host fetches nothing and deletes nothing (the tree
+    /// is the developer's), builds the image straight out of that
+    /// directory, and binds the manifest's `mcp.development.caches` as
+    /// build volumes. The daemon only forwards a registered plugin to
+    /// the LOCAL host, so this path is always one the host can see.
+    ///
+    /// Optional + defaulted so frames from daemons predating this
+    /// field still parse.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub development: Option<String>,
+}
+
+/// Parameters for [`RequestPayload::PluginImageReset`] — the
+/// coordinate trio, exactly as [`PluginEphemeralCreateRequest`] takes
+/// it.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginImageResetRequest")]
+pub struct PluginImageResetRequest {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
+    /// Also delete the plugin's development CACHE directories.
+    ///
+    /// OFF by default, and that default is the point: reset is the
+    /// per-edit verb, and the caches are the only reason the rebuild
+    /// it triggers is fast. Wiping them every time would leave no way
+    /// to ask for a fast rebuild. Turn it on for the rarer case — a
+    /// corrupted cache, a changed toolchain, disk pressure.
+    #[serde(default)]
+    pub caches: bool,
+}
+
+/// Successful payload for [`ResponsePayload::PluginImageReset`].
+///
+/// Both fields are informational. Resetting a plugin that was never
+/// built is a SUCCESS with `removed: false` — the point of the command
+/// is that the next run rebuilds, and that is already true.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginImageResetResult")]
+pub struct PluginImageResetResult {
+    /// Whether an image was actually removed.
+    pub removed: bool,
+    /// How many cache directories were deleted — always 0 unless
+    /// [`PluginImageResetRequest::caches`] was set.
+    pub caches_removed: u32,
+}
+
+/// Successful payload for BOTH ephemeral-create replies: the created
+/// laboratory's identity (`response_id` Some, `running` true) AND its
+/// single MCP connection's initialize result — one round trip, both
+/// or neither.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.EphemeralCreated")]
+pub struct EphemeralCreated {
+    pub identify: super::Identify,
+    pub reply: InitializeReply,
+}
+
+/// Parameters for [`RequestPayload::BuildCreate`] — the plugin's
+/// coordinate trio, exactly as [`PluginEphemeralCreateRequest`] takes
+/// it (owner/name lowercased defensively host-side; the version passes
+/// through untouched — it IS the git tag, byte-for-byte).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.BuildCreateRequest")]
+pub struct BuildCreateRequest {
+    /// GitHub `<owner>` segment.
+    pub owner: String,
+    /// Repository segment.
+    pub name: String,
+    /// Plugin version — IS the repo's git tag; the tag must exist.
+    pub version: String,
+}
+
+/// Successful payload for [`ResponsePayload::BuildCreate`]: the build
+/// SUCCEEDED and its artifact is parked. Nothing is streamed before
+/// this lands — a failed build never produces a truncated archive.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.BuildCreated")]
+pub struct BuildCreated {
+    /// The commit the version's tag resolved to — the daemon's
+    /// `X-OBJECTIVEAI-SHA`.
+    pub commit_sha: String,
+    /// Drain handle for [`RequestPayload::BuildRead`].
+    pub transfer_id: String,
+    /// The artifact's total size in bytes.
+    pub bytes: u64,
+}
+
+/// The JSON-RPC error code [`RequestPayload::BuildCreate`] answers
+/// with when the plugin's git TAG does not exist — the one build
+/// failure that is the caller's fault rather than the plugin's, and
+/// the daemon's `404`. Every other failure uses the generic internal
+/// code and becomes a `500`. A code (not a message substring) carries
+/// it: the old route sniffed `"not found in"` out of an error string,
+/// which is exactly the kind of coupling this replaces.
+pub const BUILD_TAG_NOT_FOUND_CODE: i64 = -32004;
+
+/// The code [`RequestPayload::PluginEphemeralCreate`] answers with
+/// when a DEVELOPMENT registration's source is unusable — the
+/// directory is missing, is not a directory, holds no
+/// `objectiveai.json`, or its manifest does not validate.
+///
+/// Distinct from the generic internal code because it is not an
+/// internal fault: it is the developer's own registration, and the
+/// answer is "fix or remove it" rather than a 500. Same reasoning as
+/// [`BUILD_TAG_NOT_FOUND_CODE`] — a code, never a message substring.
+pub const PLUGIN_DEVELOPMENT_SOURCE_CODE: i64 = -32005;
 
 /// Parameters for [`RequestPayload::Delete`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

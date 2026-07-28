@@ -44,7 +44,8 @@ use objectiveai_sdk::cli::command::laboratories::create::{
 use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem,
 };
-use objectiveai_sdk::laboratories::filetree::{FileTree, FileTreeNode};
+use objectiveai_sdk::daemon::Client as DaemonClient;
+use objectiveai_sdk::laboratories::filetree::FileTreeNode;
 use serde_json::json;
 
 /// Poll `$cond` (an `await`-ing bool) until true or a 180s deadline —
@@ -309,8 +310,8 @@ async fn created_attached_lab_filetree_live_deltas() {
     // everything below must reach this client as pushed deltas.
     // `connect()` itself is lazy (resolves before response headers),
     // so the hold shows up as a later first event, not a hang here.
-    let tree = FileTree::daemon(&addr, &lab)
-        .connect()
+    let tree = DaemonClient::new(&addr)
+        .file_tree(&lab)
         .await
         .expect("connect /laboratories/{id}/filetree");
 
@@ -392,8 +393,8 @@ async fn agent_embedded_lab_filetree_snapshot() {
 
     // Connect after the fact: the write happened before this client
     // existed, so it MUST come from the daemon's materialized snapshot.
-    let tree = FileTree::daemon(&addr, &lab_id)
-        .connect()
+    let tree = DaemonClient::new(&addr)
+        .file_tree(&lab_id)
         .await
         .expect("connect /laboratories/{id}/filetree");
     wait_for!("marker in the connect-time snapshot", {

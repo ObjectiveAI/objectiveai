@@ -9,7 +9,6 @@
 //!   `agent_instance_hierarchy`. Mutual exclusion across processes
 //!   for a given agent slot. Backed by [`objectiveai_sdk::lockfile`]
 //!   at the per-agent layout in [`crate::command::agents::locks`].
-//! - [`mcp_server`] — the in-process `objectiveai-mcp` server handle
 //!   the conduit forwards plugin tool calls to.
 //! - [`conduit`] — the MCP reverse-attach proxy that routes upstream
 //!   WS request frames out to upstream plugin MCPs.
@@ -26,7 +25,7 @@
 //!   below.
 //! - [`daemon_execute`] — the daemon's `POST /execute` SSE route:
 //!   request-per-command in-process execution for remote consumers
-//!   (the SDK's `SseCommandExecutor`, notably the viewer).
+//!   (the SDK's `daemon::Client` executor, notably the viewer).
 //! - [`agents_routes`] — the daemon's `/agents/instances/list` SSE
 //!   route + its dedicated `agents.sock` producer socket: a live
 //!   all-agents active/inactive stream, driven by AIH-lockfile
@@ -43,6 +42,10 @@
 //!   `/laboratories/{id}` SSE routes: the live laboratories
 //!   merge (connected ∪ local scan) and per-laboratory records with
 //!   attachments.
+//! - [`plugin_routes`] — the daemon's
+//!   `GET /plugins/{owner}/{name}/{version}/viewer` route: build a
+//!   plugin's viewer extension on this machine
+//!   ([`crate::viewer_build`]) and stream it back as tar.gz.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
@@ -50,10 +53,11 @@ pub mod conduit;
 pub mod daemon_auth;
 pub mod daemon_execute;
 pub mod daemon_stream;
+pub mod mcp;
 pub mod mcp_listener;
-pub mod mcp_server;
 pub mod agent_instance_route;
 pub mod agents_routes;
+pub mod channel_routes;
 pub mod laboratories_routes;
-pub mod user_routes;
+pub mod plugin_routes;
 pub mod websocket_laboratory;

@@ -1,0 +1,11 @@
+{
+  "title": "cli.command.channels.logs.list.MessageKind",
+  "description": "What a stored entry IS — `request` is publisher→owner, `reply` is\nowner→publisher, and the two `publish*` kinds are the accept-time\nSEED rows holding the offer (`publish` = the details,\n`publish_message` = the human message; the pair surfaces in\n[`ChannelLogEntry`] as ONE `publish` item). Retained for\n[`super::open`]'s flat entry; [`ChannelLogEntry`] is split into an\nenum along this same axis.",
+  "type": "string",
+  "enum": [
+    "request",
+    "reply",
+    "publish",
+    "publish_message"
+  ]
+}

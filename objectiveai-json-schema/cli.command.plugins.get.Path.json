@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.get.Path",
-  "type": "string",
-  "enum": [
-    "plugins/get"
-  ]
-}

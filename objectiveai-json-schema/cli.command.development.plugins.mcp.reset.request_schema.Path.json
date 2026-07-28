@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.plugins.mcp.reset.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "development/plugins/mcp/reset/request_schema"
+  ]
+}

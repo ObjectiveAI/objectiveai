@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-daemon"
-version = "2.2.12"
+version = "2.2.13"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI resident daemon: the sole command executor and WebSocket server"
@@ -13,8 +13,7 @@ keywords = ["llm", "ai", "swarm", "cli"]
 publish = true
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.12", features = ["lockfile", "subprocess-reaper", "laboratory-daemon"] }
-objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.2.12" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.13", features = ["lockfile", "subprocess-reaper", "laboratory-daemon"] }
 axum = { version = "0.8.8", features = ["ws"] }
 tower-http = { version = "0.6.8", features = ["cors"] }
 clap = { version = "4.6.0", features = ["derive"] }
@@ -38,6 +37,11 @@ rust_decimal = { version = "1.40.0", features = ["serde-float"] }
 thiserror = "2.0.18"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
+tower = "0.5"
+json-escape = { version = "0.3.1" }
+tokio-util = "0.7.18"
+http = "1.4.0"
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 reqwest-eventsource = "0.6.0"
 serde_path_to_error = "0.1.20"
@@ -60,7 +64,6 @@ os_pipe = "1.2"
 semver = "1.0.28"
 indexmap = "2.13"
 hashbrown = "0.15"
-sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 dashmap = "6.1.0"
 tiktoken-rs = "0.12.0"
 wasmtime = "45.0.1"
@@ -75,7 +78,7 @@ windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_
 nix = { version = "0.29", features = ["fs"] }
 
 [build-dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.12", default-features = false, features = ["lockfile"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.13", default-features = false, features = ["lockfile"] }
 tokio = { version = "1.50.0", features = ["rt"] }
 twox-hash = { version = "2.1.2", default-features = false, features = ["xxhash3_128"] }
 zstd = "0.13"

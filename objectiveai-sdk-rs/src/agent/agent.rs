@@ -66,10 +66,8 @@ impl InlineAgentBase {
         self.as_ref().laboratories()
     }
 
-    pub fn client_objectiveai_mcp(
-        &self,
-    ) -> Option<&super::ClientObjectiveaiMcp> {
-        self.as_ref().client_objectiveai_mcp()
+    pub fn plugins(&self) -> &[super::Plugin] {
+        self.as_ref().plugins()
     }
 
     pub fn prepare(&mut self) {
@@ -159,10 +157,8 @@ impl RemoteAgentBase {
         self.inner.laboratories()
     }
 
-    pub fn client_objectiveai_mcp(
-        &self,
-    ) -> Option<&super::ClientObjectiveaiMcp> {
-        self.inner.client_objectiveai_mcp()
+    pub fn plugins(&self) -> &[super::Plugin] {
+        self.inner.plugins()
     }
 
     pub fn prepare(&mut self) {
@@ -240,12 +236,10 @@ impl AgentBase {
         }
     }
 
-    pub fn client_objectiveai_mcp(
-        &self,
-    ) -> Option<&super::ClientObjectiveaiMcp> {
+    pub fn plugins(&self) -> &[super::Plugin] {
         match self {
-            AgentBase::Remote(r) => r.client_objectiveai_mcp(),
-            AgentBase::Inline(i) => i.client_objectiveai_mcp(),
+            AgentBase::Remote(r) => r.plugins(),
+            AgentBase::Inline(i) => i.plugins(),
         }
     }
 
@@ -358,17 +352,13 @@ impl<'a> InlineAgentRef<'a> {
         }
     }
 
-    pub fn client_objectiveai_mcp(
-        &self,
-    ) -> Option<&'a super::ClientObjectiveaiMcp> {
+    pub fn plugins(&self) -> &'a [super::Plugin] {
         match self {
-            InlineAgentRef::Openrouter(b) => b.client_objectiveai_mcp.as_ref(),
-            InlineAgentRef::ClaudeAgentSdk(b) => {
-                b.client_objectiveai_mcp.as_ref()
-            }
-            InlineAgentRef::CodexSdk(b) => b.client_objectiveai_mcp.as_ref(),
-            InlineAgentRef::Mock(b) => b.client_objectiveai_mcp.as_ref(),
-            InlineAgentRef::Script(b) => b.client_objectiveai_mcp.as_ref(),
+            InlineAgentRef::Openrouter(b) => &b.plugins,
+            InlineAgentRef::ClaudeAgentSdk(b) => &b.plugins,
+            InlineAgentRef::CodexSdk(b) => &b.plugins,
+            InlineAgentRef::Mock(b) => &b.plugins,
+            InlineAgentRef::Script(b) => &b.plugins,
         }
     }
 

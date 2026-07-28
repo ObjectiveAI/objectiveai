@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk"
-version = "2.2.12"
+version = "2.2.13"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI SDK, definitions, and utilities"
@@ -19,20 +19,31 @@ include = [
 ]
 
 [features]
-default = ["http", "env", "mcp", "cli", "cli-executor", "cli-listener"]
-http = ["mcp", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures", "dep:tokio", "dep:backoff", "dep:tokio-tungstenite", "dep:dashmap"]
+default = ["http", "env", "mcp", "cli", "cli-executor", "daemon"]
+http = ["mcp", "net", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures", "dep:tokio", "dep:backoff", "dep:tokio-tungstenite", "dep:dashmap"]
 env = []
-mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util", "dep:regex", "dep:rmcp"]
+mcp = ["cli", "dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util", "dep:regex", "dep:rmcp"]
 cli = ["mcp", "dep:clap", "dep:humantime"]
-cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs", "dep:reqwest", "dep:eventsource-stream"]
-cli-listener = ["cli", "dep:tokio", "dep:futures", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream"]
+cli-executor = ["cli", "mcp", "daemon", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs", "dep:reqwest", "dep:eventsource-stream"]
+# The unified daemon client (`daemon::Client`): every daemon-endpoint
+# consumer surface behind one handle. Requires NEITHER `cli` nor
+# `cli-executor` — the typed command_listener lights up with `cli`,
+# and the client's CommandExecutor impl with `cli-executor`.
+daemon = ["dep:tokio", "dep:futures", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:bytes"]
 laboratory-daemon = ["mcp"]
+# TCP-keepalive socket policy (`net` module) — shared by every server
+# accept loop and long-lived client dial in the workspace.
+net = ["dep:socket2"]
 lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys", "dep:dashmap", "dep:hostname"]
+# Single-tag git checkouts of plugin repos (local-override-first) —
+# shared by the laboratory host (container builds) and the viewer
+# (extension installs). Heavy: vendored libgit2.
+gitrepo = ["dep:git2", "dep:tokio"]
 machine = ["dep:hostname", "dep:windows-sys"]
 subprocess-reaper = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
-objectiveai-sdk-macros = { version = "2.2.12", path = "../objectiveai-sdk-rs-macros" }
+objectiveai-sdk-macros = { version = "2.2.13", path = "../objectiveai-sdk-rs-macros" }
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
@@ -55,6 +66,7 @@ futures = { version = "0.3.32", optional = true }
 futures-util = { version = "0.3.32", optional = true }
 backoff = { version = "0.4.0", features = ["tokio"], optional = true }
 tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "rustls-tls-native-roots"], optional = true }
+socket2 = { version = "0.6.3", optional = true }
 dashmap = { version = "6.1", optional = true }
 tokio-util = { version = "0.7.18", features = ["io"], optional = true }
 dirs = { version = "6.0.0", optional = true }
@@ -73,6 +85,8 @@ clap = { version = "4.6.0", features = ["derive"], optional = true }
 humantime = { version = "2", optional = true }
 mime2ext = { version = "0.1.54" }
 tokio = { version = "1.51.1", features = ["fs", "time", "sync", "rt", "io-util", "io-std", "macros", "process"], optional = true }
+git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"], optional = true }
+bytes = { version = "1", optional = true }
 
 [dev-dependencies]
 proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

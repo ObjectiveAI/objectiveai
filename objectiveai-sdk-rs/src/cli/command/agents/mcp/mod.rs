@@ -109,7 +109,7 @@ impl CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
@@ -119,15 +119,15 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
     > = match request {
         Request::Resources(req) => {
-            let inner = resources::execute(executor, req, agent_arguments).await?;
+            let inner = resources::execute(executor, req, identity).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Resources)))
         }
         Request::Servers(req) => {
-            let inner = servers::execute(executor, req, agent_arguments).await?;
+            let inner = servers::execute(executor, req, identity).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Servers)))
         }
         Request::Tools(req) => {
-            let inner = tools::execute(executor, req, agent_arguments).await?;
+            let inner = tools::execute(executor, req, identity).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
         }
     };
@@ -139,7 +139,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     transform: crate::cli::command::Transform,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -148,15 +148,15 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
     > = match request {
         Request::Resources(req) => {
-            let inner = resources::execute_transform(executor, req, transform, agent_arguments).await?;
+            let inner = resources::execute_transform(executor, req, transform, identity).await?;
             Box::pin(inner)
         }
         Request::Servers(req) => {
-            let inner = servers::execute_transform(executor, req, transform, agent_arguments).await?;
+            let inner = servers::execute_transform(executor, req, transform, identity).await?;
             Box::pin(inner)
         }
         Request::Tools(req) => {
-            let inner = tools::execute_transform(executor, req, transform, agent_arguments).await?;
+            let inner = tools::execute_transform(executor, req, transform, identity).await?;
             Box::pin(inner)
         }
     };
@@ -164,8 +164,8 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// its `ListenerExecution`. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     Resources(resources::ListenerExecution),
     Servers(servers::ListenerExecution),

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.mcp.config.address.set.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "mcp/config/address/set/request_schema"
-  ]
-}

@@ -71,6 +71,14 @@ pub mod mcp;
 #[cfg(feature = "lockfile")]
 pub mod lockfile;
 
+#[cfg(feature = "gitrepo")]
+pub mod gitrepo;
+
+pub mod identity;
+
+#[cfg(feature = "daemon")]
+pub mod daemon;
+
 #[cfg(windows)]
 pub(crate) mod win_handles;
 
@@ -82,7 +90,6 @@ pub(crate) mod win_handles;
     feature = "http",
     feature = "mcp",
     feature = "cli-executor",
-    feature = "cli-listener",
     feature = "lockfile",
     feature = "subprocess-reaper"
 ))]
@@ -90,6 +97,11 @@ pub mod process;
 
 #[cfg(feature = "subprocess-reaper")]
 pub mod subprocess_reaper;
+
+#[cfg(feature = "net")]
+pub mod net;
+
+pub mod binary_frame;
 
 // `client_objectiveai_mcp` is the reverse-attach protocol's wire
 // envelope. The typed `server_request::Payload` and

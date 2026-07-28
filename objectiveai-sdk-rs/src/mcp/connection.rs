@@ -73,12 +73,29 @@ impl std::fmt::Debug for CallbackSlot {
 /// reachable via `Deref` for read-only field access (e.g.
 /// `connection.url`, `connection.initialize_result.server_info.name`),
 /// but its methods are private — you must go through `Connection`.
-#[derive(Debug)]
-pub struct Connection {
-    inner: Arc<ConnectionInner>,
+///
+/// `E` is the command-execution extension's fulfiller: when the server
+/// exposed the objectiveai capability, `cli_request` frames arriving on
+/// the SSE stream run through it and their results are POSTed back —
+/// see [`super::McpClientCommandExecutor`]. The default
+/// [`super::NotSupportedMcpClientCommandExecutor`] answers every
+/// request with a "not supported" error.
+pub struct Connection<
+    E: super::McpClientCommandExecutor =
+        super::NotSupportedMcpClientCommandExecutor,
+> {
+    inner: Arc<ConnectionInner<E>>,
 }
 
-impl Clone for Connection {
+/// Manual `Debug` (not derived) so `E` need not be `Debug` — holders
+/// (e.g. the proxy's `Upstream` enum) derive `Debug` themselves.
+impl<E: super::McpClientCommandExecutor> std::fmt::Debug for Connection<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connection").field("inner", &self.inner).finish()
+    }
+}
+
+impl<E: super::McpClientCommandExecutor> Clone for Connection<E> {
     fn clone(&self) -> Self {
         Self {
             inner: Arc::clone(&self.inner),
@@ -90,14 +107,14 @@ impl Clone for Connection {
 // when the last `Arc<ConnectionInner>` clone is dropped, which drops
 // the `_listener_cancel_guard` field and cancels the listener token.
 
-impl Deref for Connection {
-    type Target = ConnectionInner;
-    fn deref(&self) -> &ConnectionInner {
+impl<E: super::McpClientCommandExecutor> Deref for Connection<E> {
+    type Target = ConnectionInner<E>;
+    fn deref(&self) -> &ConnectionInner<E> {
         &self.inner
     }
 }
 
-impl Connection {
+impl<E: super::McpClientCommandExecutor> Connection<E> {
     /// Tear this connection down explicitly.
     ///
     /// 1. Cancels the long-lived list-changed listener task immediately
@@ -187,6 +204,7 @@ impl Connection {
         call_timeout: Option<Duration>,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
+        executor: E,
     ) -> Self {
         let inner = ConnectionInner::new(
             http_client,
@@ -202,31 +220,10 @@ impl Connection {
             call_timeout,
             initialize_result,
             initial_sse_lines,
+            executor,
         )
         .await;
         Self { inner }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn new_for_test(name: String, url: String) -> Self {
-        Self {
-            inner: ConnectionInner::new_for_test(name, url),
-        }
-    }
-
-    #[cfg(test)]
-    pub(crate) fn new_for_test_with_caps(
-        name: String,
-        url: String,
-        capabilities: super::initialize_result::ServerCapabilities,
-    ) -> Self {
-        Self {
-            inner: ConnectionInner::new_for_test_with_caps(
-                name,
-                url,
-                capabilities,
-            ),
-        }
     }
 
     /// Returns a key identifying this connection for tool namespacing.
@@ -332,13 +329,40 @@ impl Connection {
     }
 }
 
+/// Test constructors live on the DEFAULT-executor `Connection` — the
+/// capability-gate tests never execute commands.
+#[cfg(test)]
+impl Connection {
+    pub(crate) fn new_for_test(name: String, url: String) -> Self {
+        Self {
+            inner: ConnectionInner::new_for_test(name, url),
+        }
+    }
+
+    pub(crate) fn new_for_test_with_caps(
+        name: String,
+        url: String,
+        capabilities: super::initialize_result::ServerCapabilities,
+    ) -> Self {
+        Self {
+            inner: ConnectionInner::new_for_test_with_caps(
+                name,
+                url,
+                capabilities,
+            ),
+        }
+    }
+}
+
 /// The actual connection state. Behind an `Arc` inside [`Connection`].
 ///
 /// Fields are public for read-only access (callers reach them via
 /// `Connection`'s `Deref`), but every method on this type is private —
 /// the public surface lives on [`Connection`] and delegates through.
-#[derive(Debug)]
-pub struct ConnectionInner {
+pub struct ConnectionInner<
+    E: super::McpClientCommandExecutor =
+        super::NotSupportedMcpClientCommandExecutor,
+> {
     pub http_client: reqwest::Client,
     pub url: String,
     pub session_id: String,
@@ -420,8 +444,30 @@ pub struct ConnectionInner {
     /// `notifications/resources/list_changed`.
     /// Set via [`Connection::set_on_resources_list_changed`].
     on_resources_list_changed: CallbackSlot,
+
+    /// Fulfiller for the command-execution extension. When the server
+    /// exposed the objectiveai capability, the SSE listener runs each
+    /// inbound `cli_request` through this and POSTs the results back —
+    /// see [`Self::fulfill_cli_request`].
+    executor: E,
 }
 
+/// Manual `Debug` (not derived) so `E` need not be `Debug`.
+impl<E: super::McpClientCommandExecutor> std::fmt::Debug
+    for ConnectionInner<E>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectionInner")
+            .field("url", &self.url)
+            .field("session_id", &self.session_id)
+            .field("initialize_result", &self.initialize_result)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Test constructors on the DEFAULT-executor inner — mirrors the
+/// `#[cfg(test)] impl Connection` block above.
+#[cfg(test)]
 impl ConnectionInner {
     /// Creates a minimal connection for unit testing. Declares both
     /// `tools` and `resources` capabilities with `list_changed:
@@ -429,7 +475,6 @@ impl ConnectionInner {
     /// list_changed-enabled paths in `list_*`, `refresh_*`, and
     /// `subscribe_*`. For other capability shapes use
     /// `new_for_test_with_caps`.
-    #[cfg(test)]
     fn new_for_test(name: String, url: String) -> Arc<Self> {
         Self::new_for_test_with_caps(
             name,
@@ -456,7 +501,6 @@ impl ConnectionInner {
     /// Creates a minimal connection for unit testing with an explicit
     /// `ServerCapabilities`. Used by the capability-gating tests to
     /// drive each gate's absent-cap branch.
-    #[cfg(test)]
     fn new_for_test_with_caps(
         name: String,
         url: String,
@@ -497,9 +541,12 @@ impl ConnectionInner {
             _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
+            executor: super::NotSupportedMcpClientCommandExecutor,
         })
     }
+}
 
+impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
     /// Creates a new connection and spawns background tasks to paginate
     /// all tools and resources. Called internally by
     /// [`Client::connect`](super::Client::connect) (via [`Connection::new`]).
@@ -509,8 +556,8 @@ impl ConnectionInner {
     /// first iteration, instead of opening its own GET `/`. The caller
     /// is responsible for arranging for one of these to exist whenever
     /// the upstream advertises `tools.list_changed` or
-    /// `resources.list_changed` — see
-    /// [`Client::connect`](super::Client::connect).
+    /// `resources.list_changed`, or the objectiveai command-execution
+    /// capability — see [`Client::connect`](super::Client::connect).
     async fn new(
         http_client: reqwest::Client,
         url: String,
@@ -525,6 +572,7 @@ impl ConnectionInner {
         call_timeout: Option<Duration>,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
+        executor: E,
     ) -> Arc<Self> {
         // Cancel-the-listener machinery: store the DropGuard inside the
         // inner so the cancellation fires deterministically when the
@@ -558,6 +606,7 @@ impl ConnectionInner {
             )),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
+            executor,
         });
 
         // Spawn background tool lister if the server supports tools.
@@ -739,19 +788,18 @@ impl ConnectionInner {
     /// `objectiveai-api/src/agent/completions/client.rs` (sequential
     /// dispatch) and `mock/client.rs::mock.seed_derive` for the
     /// downstream consequence.
-    async fn rpc<P: serde::Serialize, R: serde::de::DeserializeOwned>(
+    /// Mint the next request id from the connection's counter.
+    fn next_request_id(&self) -> super::RequestId {
+        super::RequestId::Number(
+            self.next_id.fetch_add(1, Ordering::Relaxed).into(),
+        )
+    }
+
+    async fn rpc<R: serde::de::DeserializeOwned>(
         &self,
-        method: &str,
-        params: &P,
+        body: super::JsonRpcRequest,
         idempotent: bool,
     ) -> Result<R, super::Error> {
-        let id = self.next_id.fetch_add(1, Ordering::Relaxed);
-        let body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "method": method,
-            "params": params,
-        });
 
         let attempt_one = || async {
             let url = self.url.clone();
@@ -824,10 +872,12 @@ impl ConnectionInner {
         cursor: Option<&str>,
     ) -> Result<super::tool::ListToolsResult, super::Error> {
         self.rpc(
-            "tools/list",
-            &super::tool::ListToolsRequest {
-                cursor: cursor.map(String::from),
-            },
+            super::JsonRpcRequest::list_tools(
+                self.next_request_id(),
+                super::tool::ListToolsRequest {
+                    cursor: cursor.map(String::from),
+                },
+            ),
             true,
         )
         .await
@@ -887,8 +937,15 @@ impl ConnectionInner {
                 capability: "tools",
             });
         }
-        let mut result: super::tool::CallToolResult =
-            self.rpc("tools/call", params, false).await?;
+        let mut result: super::tool::CallToolResult = self
+            .rpc(
+                super::JsonRpcRequest::call_tool(
+                    self.next_request_id(),
+                    params.clone(),
+                ),
+                false,
+            )
+            .await?;
 
         // Build the known-resource URI set for ResourceLink
         // resolution. `list_resources` failure → empty set (same
@@ -996,10 +1053,12 @@ impl ConnectionInner {
         cursor: Option<&str>,
     ) -> Result<super::resource::ListResourcesResult, super::Error> {
         self.rpc(
-            "resources/list",
-            &super::resource::ListResourcesRequest {
-                cursor: cursor.map(String::from),
-            },
+            super::JsonRpcRequest::list_resources(
+                self.next_request_id(),
+                super::resource::ListResourcesRequest {
+                    cursor: cursor.map(String::from),
+                },
+            ),
             true,
         )
         .await
@@ -1039,10 +1098,12 @@ impl ConnectionInner {
             });
         }
         self.rpc(
-            "resources/read",
-            &super::resource::ReadResourceRequestParams {
-                uri: uri.to_string(),
-            },
+            super::JsonRpcRequest::read_resource(
+                self.next_request_id(),
+                super::resource::ReadResourceRequestParams {
+                    uri: uri.to_string(),
+                },
+            ),
             true,
         )
         .await
@@ -1231,6 +1292,120 @@ impl ConnectionInner {
         *guard = Some(result);
     }
 
+    /// Fulfill one command-execution request from the server: run it
+    /// through the connection's executor and POST every resulting
+    /// frame to `{url}/objectiveai/command`, in stream order, one POST
+    /// per frame, each carrying the request's correlation id.
+    ///
+    /// Frame discipline (see [`super::CliResponse`]): the exchange
+    /// ALWAYS opens with an `Ack` — POSTed before the run starts, so
+    /// the server knows a response is coming even when the run is
+    /// slow — and ALWAYS ends with a `Done`, even when the run failed
+    /// to start or the pump aborted. Stream errors are NON-terminal
+    /// (`Error` frames — the stream may keep yielding). A POST
+    /// transport failure aborts the pump — dropping the stream cancels
+    /// the run — but the final `Done` is still attempted (its own
+    /// failure is ignored: there is nobody left to tell, and no
+    /// logging surface to tell them on). An undeliverable `Ack` skips
+    /// the run entirely: the server is unreachable, so the output
+    /// would be undeliverable too.
+    ///
+    /// Spawned from the SSE listener — requests are fulfilled in
+    /// PARALLEL (a long run never delays other notifications). Frame
+    /// order is guaranteed per run; ordering ACROSS concurrent runs is
+    /// not.
+    async fn fulfill_cli_request(&self, params: super::CliRequestParams) {
+        use futures_util::StreamExt;
+        let endpoint = format!(
+            "{}{}",
+            self.url.trim_end_matches('/'),
+            super::CLI_COMMAND_ENDPOINT_SUFFIX,
+        );
+        let id = params.id;
+        // Opener — before execute(), which may be slow to even start.
+        if self
+            .post_cli_response(
+                &endpoint,
+                &super::CliResponse::Ack { id: id.clone() },
+            )
+            .await
+            .is_err()
+        {
+            let _ = self
+                .post_cli_response(
+                    &endpoint,
+                    &super::CliResponse::Done { id },
+                )
+                .await;
+            return;
+        }
+        match self.executor.execute(params.request).await {
+            Err(e) => {
+                let _ = self
+                    .post_cli_response(
+                        &endpoint,
+                        &super::CliResponse::Error {
+                            id: id.clone(),
+                            error: e.to_string(),
+                        },
+                    )
+                    .await;
+            }
+            Ok(stream) => {
+                let mut stream = std::pin::pin!(stream);
+                while let Some(result) = stream.next().await {
+                    let frame = match result {
+                        Ok(item) => super::CliResponse::Item {
+                            id: id.clone(),
+                            item,
+                        },
+                        Err(e) => super::CliResponse::Error {
+                            id: id.clone(),
+                            error: e.to_string(),
+                        },
+                    };
+                    if self
+                        .post_cli_response(&endpoint, &frame)
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+        let _ = self
+            .post_cli_response(&endpoint, &super::CliResponse::Done { id })
+            .await;
+    }
+
+    /// POST one [`super::CliResponse`] frame to the command-response
+    /// endpoint. `Ok(())` on any 2xx; every failure mode (connect,
+    /// timeout, non-2xx) collapses to `Err(())` — the pump's only
+    /// decision is "keep going or abort".
+    async fn post_cli_response(
+        &self,
+        endpoint: &str,
+        frame: &super::CliResponse,
+    ) -> Result<(), ()> {
+        let request = super::apply_timeout(
+            self.http_client.post(endpoint),
+            self.call_timeout,
+        )
+        .headers(
+            self.build_request_headers(
+                Some("application/json"),
+                Some("application/json"),
+            )
+            .await,
+        )
+        .json(frame);
+        match request.send().await {
+            Ok(response) if response.status().is_success() => Ok(()),
+            _ => Err(()),
+        }
+    }
+
     /// Builds a GET request to the MCP endpoint for receiving server
     /// notifications via SSE.
     async fn get(&self) -> reqwest::RequestBuilder {
@@ -1294,6 +1469,16 @@ impl ConnectionInner {
         // consumed by the inner loop on its next read.
         let mut is_reconnect = false;
 
+        // The stream's SSE last-event-id, updated from every `id:`
+        // line. Reconnects send it as the `Last-Event-ID` header so a
+        // spec-conformant server (rmcp caches server→client frames in
+        // a ring buffer) resumes PRECISELY after the last event we
+        // processed. Without it, rmcp treats a bare GET as
+        // resume-from-0 and replays its whole retained cache — for
+        // list_changed that's harmless, but a replayed `cli_request`
+        // would re-execute a command we already ran.
+        let mut last_event_id: Option<String> = None;
+
         loop {
             // The token cancels deterministically when the last
             // `Arc<ConnectionInner>` clone is dropped (see
@@ -1318,7 +1503,12 @@ impl ConnectionInner {
                     // under heavy churn).
                     let send_outcome = tokio::select! {
                         out = async {
-                            this.get().await.send().await
+                            let mut request = this.get().await;
+                            if let Some(id) = last_event_id.as_deref() {
+                                request =
+                                    request.header("Last-Event-ID", id);
+                            }
+                            request.send().await
                         } => out,
                         _ = cancel.cancelled() => {
                             drop(this);
@@ -1327,7 +1517,19 @@ impl ConnectionInner {
                     };
                     let response = match send_outcome {
                         Ok(r) if r.status().is_success() => r,
-                        _ => {
+                        outcome => {
+                            // A definite HTTP rejection may mean the
+                            // server no longer honors our
+                            // Last-Event-ID (index evicted from its
+                            // cache, restarted session) — drop it so
+                            // the next attempt reconnects plain
+                            // instead of retrying a permanently
+                            // rejected resume forever. Transport
+                            // errors keep it: the id may still be
+                            // good once the network recovers.
+                            if outcome.is_ok() {
+                                last_event_id = None;
+                            }
                             drop(this);
                             // Sleep with cancel-arm: instant exit on
                             // drop, no zombie retries.
@@ -1347,15 +1549,28 @@ impl ConnectionInner {
             // the `is_reconnect` doc-comment above for the
             // refresh-AFTER-resubscribe rationale.
             if is_reconnect {
-                // tools and resources are independent locks; run the
-                // catch-up refreshes concurrently so disconnect
-                // recovery isn't sequential.
-                let _ = tokio::join!(
-                    this.refresh_tools(this.on_tools_list_changed.get()),
-                    this.refresh_resources(
-                        this.on_resources_list_changed.get()
-                    ),
-                );
+                // Spawned like every other handler — the read loop
+                // starts immediately (we're already resubscribed, so
+                // nothing is lost: a notification landing during the
+                // catch-up just spawns its own refresh). tools and
+                // resources are independent locks; the two catch-ups
+                // run concurrently inside the task.
+                let conn = Arc::clone(&this);
+                let cancel = cancel.clone();
+                tokio::spawn(async move {
+                    tokio::select! {
+                        _ = async {
+                            let tools_cb = conn.on_tools_list_changed.get();
+                            let resources_cb =
+                                conn.on_resources_list_changed.get();
+                            let _ = tokio::join!(
+                                conn.refresh_tools(tools_cb),
+                                conn.refresh_resources(resources_cb),
+                            );
+                        } => {}
+                        _ = cancel.cancelled() => {}
+                    }
+                });
             }
             is_reconnect = true;
 
@@ -1364,16 +1579,43 @@ impl ConnectionInner {
                     line_result = lines.next_line() => {
                         match line_result {
                             Ok(Some(line)) => {
+                                // SSE `id:` lines set the stream's
+                                // last-event-id — remember it (empty
+                                // value ignored) for precise resume
+                                // on reconnect.
+                                if let Some(id) = line.strip_prefix("id:") {
+                                    let id = id.trim();
+                                    if !id.is_empty() {
+                                        last_event_id =
+                                            Some(id.to_string());
+                                    }
+                                    continue 'inner;
+                                }
                                 // SSE data lines start with "data: ".
                                 let Some(data) = line.strip_prefix("data: ") else {
                                     continue 'inner;
                                 };
-                                let method = match serde_json::from_str::<super::JsonRpcNotification>(data) {
-                                    Ok(n) => n.method,
+                                let notification = match serde_json::from_str::<super::JsonRpcServerNotification>(data) {
+                                    Ok(n) => n,
                                     Err(_) => continue 'inner,
                                 };
-                                match method.as_str() {
-                                    "notifications/tools/list_changed" => {
+                                // EVERY handler is SPAWNED — the
+                                // listener never blocks on one, so
+                                // notifications are handled in
+                                // parallel and a long-running command
+                                // run can't delay a list_changed
+                                // refresh (or another command).
+                                //
+                                // Spawned tasks hold a strong
+                                // `Arc<ConnectionInner>` for their
+                                // duration, so a plainly-dropped
+                                // connection stays alive until its
+                                // in-flight handlers finish; explicit
+                                // teardown (`Connection::delete`)
+                                // fires the cancel token, which every
+                                // task races against and aborts on.
+                                match notification {
+                                    super::JsonRpcServerNotification::ToolsListChanged { .. } => {
                                         // refresh_tools fires the
                                         // callback after the cache is
                                         // installed, so the proxy's
@@ -1381,18 +1623,46 @@ impl ConnectionInner {
                                         // notifications/tools/list_changed
                                         // emission lines up with the
                                         // staleness window opening.
-                                        this.refresh_tools(
-                                            this.on_tools_list_changed.get(),
-                                        )
-                                        .await;
+                                        let conn = Arc::clone(&this);
+                                        let cancel = cancel.clone();
+                                        tokio::spawn(async move {
+                                            tokio::select! {
+                                                _ = async {
+                                                    let cb = conn.on_tools_list_changed.get();
+                                                    conn.refresh_tools(cb).await;
+                                                } => {}
+                                                _ = cancel.cancelled() => {}
+                                            }
+                                        });
                                     }
-                                    "notifications/resources/list_changed" => {
-                                        this.refresh_resources(
-                                            this.on_resources_list_changed.get(),
-                                        )
-                                        .await;
+                                    super::JsonRpcServerNotification::ResourcesListChanged { .. } => {
+                                        let conn = Arc::clone(&this);
+                                        let cancel = cancel.clone();
+                                        tokio::spawn(async move {
+                                            tokio::select! {
+                                                _ = async {
+                                                    let cb = conn.on_resources_list_changed.get();
+                                                    conn.refresh_resources(cb).await;
+                                                } => {}
+                                                _ = cancel.cancelled() => {}
+                                            }
+                                        });
                                     }
-                                    _ => {}
+                                    // Command-execution extension. The
+                                    // executor decides support (the
+                                    // default answers with a
+                                    // "not supported" Error frame).
+                                    super::JsonRpcServerNotification::CliRequest { params, .. } => {
+                                        let conn = Arc::clone(&this);
+                                        let cancel = cancel.clone();
+                                        tokio::spawn(async move {
+                                            tokio::select! {
+                                                _ = conn.fulfill_cli_request(params) => {}
+                                                _ = cancel.cancelled() => {}
+                                            }
+                                        });
+                                    }
+                                    super::JsonRpcServerNotification::Fallback { .. } => {}
                                 }
                             }
                             // Stream ended cleanly or errored — break out
@@ -1478,6 +1748,26 @@ mod capability_gate_tests {
             execution: None,
             _meta: None,
         }
+    }
+
+    /// The objectiveai command-execution capability is the presence of
+    /// the `"objectiveai"` key in `experimental` — other keys don't
+    /// count, absence doesn't count.
+    #[test]
+    fn objectiveai_capability_is_the_experimental_key() {
+        let mut capabilities = caps(None, None);
+        assert!(!capabilities.has_objectiveai());
+
+        let mut experimental = IndexMap::new();
+        experimental
+            .insert("objectiveai".to_string(), serde_json::json!({}));
+        capabilities.experimental = Some(experimental);
+        assert!(capabilities.has_objectiveai());
+
+        let mut experimental = IndexMap::new();
+        experimental.insert("other".to_string(), serde_json::json!({}));
+        capabilities.experimental = Some(experimental);
+        assert!(!capabilities.has_objectiveai());
     }
 
     /// 3.1 — `list_tools` short-circuits to `Ok(empty)` when the server

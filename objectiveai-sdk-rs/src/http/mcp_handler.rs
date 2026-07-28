@@ -123,6 +123,14 @@ impl McpHandler for RejectHandler {
             server_request::Payload::LaboratoryLocalTransfer(_) => {
                 Payload::LaboratoryLocalTransfer(reject_err())
             }
+            // A reject handler executes nothing. A first-frame Error
+            // is a start failure to the requesting side (it never
+            // sees an Ack), so no further frames are owed.
+            server_request::Payload::Command { .. } => Payload::Command {
+                frame: server_response::CommandFrame::Error {
+                    error: REJECT_MESSAGE.into(),
+                },
+            },
         };
         server_response::Response {
             id: request.id,

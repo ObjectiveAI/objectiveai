@@ -60,7 +60,7 @@ where
         // The API server's own forwarding path uses the SDK's WS
         // streaming with a RejectHandler — no objectiveai-mcp is
         // available on the API server side; downstream agents that
-        // declare `client_objectiveai_mcp` and hit this path will
+        // declare client-side MCP and hit this path will
         // fall through to their next fallback (as designed).
         let (stream, _notifier) = objectiveai_sdk::functions::profiles::computations::compute_profile_streaming(
             &client,

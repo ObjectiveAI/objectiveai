@@ -85,14 +85,14 @@ pub struct Context<CTXEXT> {
     /// current WS reverse channel. Set on WS-attached requests by the
     /// streaming handlers; `None` on HTTP/SSE. Many ids may register
     /// against the same handle — one per swarm agent that declares
-    /// `client_objectiveai_mcp` — all cleaned up when the owning
+    /// client-side MCP — all cleaned up when the owning
     /// [`crate::streaming_ws::ReverseAttachGuard`] drops at WS close.
     reverse_attach: Option<Arc<crate::streaming_ws::ReverseAttachHandle>>,
     /// Per-request reverse channel for `ws://` MCP upstreams. Set by the
     /// streaming WS handler (`with_reverse_channel`); `None` on HTTP/SSE
     /// (no CLI attached → HTTP MCP upstreams only). Handed to this
-    /// request's proxy at boot so `ws://objectiveai` / `ws:///…` upstreams
-    /// speak the reverse-channel protocol directly over the WS.
+    /// request's proxy at boot so `client://` upstreams speak the
+    /// reverse-channel protocol directly over the WS.
     reverse_channel: Option<objectiveai_mcp_proxy::ReverseChannel>,
     /// This request's in-process MCP proxy, lazily booted on first MCP
     /// need (see `agent::completions::Client::create_streaming`). Held by

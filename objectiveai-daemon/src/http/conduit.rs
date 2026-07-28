@@ -1,87 +1,50 @@
 //! `ConduitMcpHandler` — true medium for the proxy's per-MCP
 //! Streamable HTTP requests. Each request the API forwards over the
 //! WS reverse-attach channel carries a typed [`McpKind`]
-//! discriminator that names exactly one upstream MCP server (the
-//! local primary `objectiveai-mcp` for [`McpKind::ObjectiveAi`], or
-//! a plugin-spawned MCP for [`McpKind::Other`]). The conduit dials
-//! that upstream and forwards verbatim — no tool renaming, no
-//! routing, no aggregation, no capability synthesis. The CLI is a
-//! pass-through; capabilities, server name, and protocol version
-//! all come from the upstream itself.
+//! discriminator that names exactly one upstream MCP server. The
+//! daemon holds ZERO MCP connections itself — it is a pure router;
+//! every kind lives on a LABORATORY HOST:
 //!
-//! Storage is a two-level `connections` map keyed by `(objectiveai
-//! response id, McpKind)` — the conduit is naive to the upstream's MCP
-//! `Mcp-Session-Id`. Both key components ride on every MCP-routed
-//! request frame (`mcp_kind` on the payload, `X-OBJECTIVEAI-RESPONSE-ID`
-//! in the envelope headers). Each response id owns its own upstream
-//! connection set (no cross-response_id sharing); within a response id,
-//! each distinct `McpKind` is one connection. Connections are created
-//! only by `initialize`; the conduit never re-dials out of band, so any
-//! cache miss returns `-32001` and lets the proxy retry with a fresh
-//! `initialize`.
+//! - [`McpKind::PluginLaboratory`] and [`McpKind::AgentLaboratory`]
+//!   upstreams are EPHEMERAL containers — the session-opening
+//!   `Initialize` becomes one atomic `{Agent,Plugin}EphemeralCreate`
+//!   on a UNIFORMLY RANDOM connected host (the load balancer;
+//!   the local host is ensured only when NO host is connected),
+//!   which builds/starts the container AND opens its single MCP
+//!   connection, succeeding only when both did. Later ops resolve
+//!   through the per-response [`HostRoutes`] table to the
+//!   host-authoritative ephemeral lab id + pinned host pair.
+//! - Client laboratories ([`McpKind::Laboratory`]) forward by id/pin
+//!   as before.
 //!
-//! `Notifier` is late-bound: the pump needs one, but the `Notifier`
-//! is output of `send_streaming_ws(handler, ...)` and the handler is
-//! input. The caller constructs the conduit, threads its clone into
-//! `send_streaming_ws`, then calls [`ConduitMcpHandler::install_notifier`]
-//! on the original handle once the notifier is in hand. Pump
-//! closures read the slot at fire time; events that fire before
-//! install are dropped (the window is bounded by a few statements
-//! at stream startup).
+//! The conduit forwards verbatim — no tool renaming, no aggregation,
+//! no capability synthesis; capabilities, server name, and protocol
+//! version all come from the upstream itself.
+//!
+//! Storage: `routes` maps `(response id, wire identity)` → host route
+//! for everything host-side. Routes are created only by `initialize`;
+//! the conduit never re-dials out of band, so any route miss returns
+//! `-32001` and lets the proxy retry with a fresh `initialize`.
+//!
+//! `Notifier` is late-bound: the dispatchers need one, but the
+//! `Notifier` is output of `send_streaming_ws(handler, ...)` and the
+//! handler is input. The caller constructs the conduit, threads its
+//! clone into `send_streaming_ws`, then calls
+//! [`ConduitMcpHandler::install_notifier`] on the original handle
+//! once the notifier is in hand. Consumers read the slot at use time;
+//! events that fire before install are dropped (the window is bounded
+//! by a few statements at stream startup).
 
 use dashmap::{DashMap, DashSet};
 use indexmap::IndexMap;
 use objectiveai_sdk::Notifier;
-use objectiveai_sdk::cli::command::plugins::run::Mcp as PluginMcp;
 use objectiveai_sdk::client_objectiveai_mcp::McpKind;
-use objectiveai_sdk::client_objectiveai_mcp::client_request::{McpListChanged, McpListChangedKind};
 use objectiveai_sdk::client_objectiveai_mcp::server_response::{InitializeReply, JsonRpcResult};
 use objectiveai_sdk::client_objectiveai_mcp::{server_request, server_response};
 use objectiveai_sdk::http::McpHandler;
-use objectiveai_sdk::mcp::resource::{
-    ListResourcesRequest, ListResourcesResult, ReadResourceRequestParams, ReadResourceResult,
-};
-use objectiveai_sdk::mcp::tool::{
-    CallToolRequestParams, CallToolResult, ListToolsRequest, ListToolsResult,
-};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Weak};
 
 use std::time::Duration;
-
-struct ConduitState {
-    connection: objectiveai_sdk::mcp::Connection,
-    /// Which upstream this state addresses. Captured at dial time so
-    /// the list-changed pump can stamp it on every
-    /// [`McpListChanged`] frame.
-    mcp_kind: McpKind,
-    /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` of the request that
-    /// dialed this upstream. Carried for wire-shape parity and
-    /// diagnostic readability.
-    agent_instance_hierarchy: String,
-    /// For plugin upstreams (`McpKind::Other`): the abort handle of the
-    /// stdout-drain task spawned in [`dial_plugin_upstream`]. `None` for
-    /// `McpKind::ObjectiveAi`, which has no subprocess.
-    ///
-    /// Dropping this `ConduitState` aborts that task (see [`Drop`]),
-    /// which drops the `execute` stream it owns, which drops the
-    /// `tokio::process::Child` — spawned with `kill_on_drop(true)` via
-    /// `objectiveai_sdk::subprocess_reaper::spawn` in
-    /// `command::plugins::run::execute` — killing the plugin subprocess.
-    /// This kill path depends on that `kill_on_drop(true)` staying set.
-    plugin_drain: Option<tokio::task::AbortHandle>,
-}
-
-impl Drop for ConduitState {
-    /// Kill the plugin subprocess tied to this state, if any. Aborting
-    /// the drain task drops the stream that owns the plugin's
-    /// `tokio::process::Child`; its `kill_on_drop(true)` then kills the
-    /// subprocess. No-op for `McpKind::ObjectiveAi` (no subprocess).
-    fn drop(&mut self) {
-        if let Some(handle) = &self.plugin_drain {
-            handle.abort();
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct ConduitMcpHandler {
@@ -89,21 +52,6 @@ pub struct ConduitMcpHandler {
 }
 
 struct Inner {
-    /// In-process `objectiveai-mcp` server spawned at the top of
-    /// `instance::run`. Each `McpKind::ObjectiveAi` dial awaits the
-    /// handle's shared port future and builds
-    /// `http://127.0.0.1:{port}` on the fly.
-    mcp_server: crate::http::mcp_server::McpServerHandle,
-    client: objectiveai_sdk::mcp::Client,
-    /// Every dialed upstream — primary + plugin — keyed by `(objectiveai
-    /// response id → McpKind → connection)`. The outer key is the
-    /// `X-OBJECTIVEAI-RESPONSE-ID`; the inner key is the request's
-    /// `McpKind` (the primary `objectiveai-mcp`, or a specific plugin
-    /// owner/name/version/mcp). The conduit never reads the upstream's
-    /// `Mcp-Session-Id` for indexing. Connections are created only by
-    /// `initialize`; any cache miss returns `-32001`. Inner maps are
-    /// reaped on terminate so the outer map doesn't grow unbounded.
-    connections: DashMap<String, DashMap<McpKind, Arc<ConduitState>>>,
     /// Which laboratory each in-flight transfer belongs to: the
     /// chunked transfer ops after Begin carry only a `transfer_id`,
     /// but socket routing needs the laboratory — Begin forwards
@@ -113,14 +61,12 @@ struct Inner {
     /// after the WS-creating call returns the notifier. Pump
     /// closures read it at fire time.
     notifier: OnceLock<Notifier>,
-    /// The conduit's context pair. `scoped` is the BASE scope each
-    /// `dial_plugin_upstream` / script dispatch derives its
-    /// per-call scope from ([`ScopedContext::for_request`], stamping
-    /// the transient header identities — five required +
-    /// `AGENT-REMOTE` for remote agents) before calling
-    /// [`crate::command::plugins::run::execute`]; its filesystem
-    /// client resolves installed plugin binaries. `global` carries
-    /// the shared services (hubs, db, python).
+    /// The conduit's context pair. `scoped` is the BASE scope the
+    /// script/command dispatches derive their per-call scopes from
+    /// ([`ScopedContext::for_request`], stamping the transient header
+    /// identities — five required + `AGENT-REMOTE` for remote
+    /// agents). `global` carries the shared services (hubs, db,
+    /// python).
     global: crate::context::GlobalContext,
     scoped: crate::context::ScopedContext,
     /// Tag the spawn resolved against, if any. Threaded into
@@ -137,81 +83,276 @@ struct Inner {
     /// Register-once guard; this conduit's entries are removed from the
     /// map when [`Inner`] drops (agent completion ended).
     listener_ids: DashSet<String>,
-    /// Laboratory MCP sessions THIS reverse connection opened:
-    /// `response_id → {(lab id, machine, machine_state)}`, recorded on
-    /// every forwarded lab `Initialize` and cleared by forwarded
-    /// `SessionTerminate`/`Drop`. [`Inner`]'s drop forwards a host
-    /// `Drop { response_id }` for every remainder — an ABRUPT reverse-
-    /// channel death (API crash, network cut) never says goodbye, and
-    /// without this the host's per-lab session entry would leak and
-    /// pin the container against its idle stop forever. The whole map
-    /// is this connection's lab state; connection gone ⇒ state gone.
-    laboratory_sessions: DashMap<String, std::collections::HashSet<LabSessionKey>>,
+    /// This conduit's unique notifier token, stamped alongside every
+    /// `mcp_notifiers` insert. A NEW conduit for the same response id
+    /// (agent respawn) overwrites the old entry with its own token;
+    /// the OLD conduit's late drop then only removes entries still
+    /// carrying ITS token (`remove_if`) — never clobbering the live
+    /// successor's registration.
+    notifier_token: u64,
+    /// Every HOST-side session THIS reverse connection opened —
+    /// client-laboratory MCP sessions AND the ephemeral (agent /
+    /// plugin) laboratories it created — in ONE structure serving
+    /// both ROUTING (later ops for an ephemeral resolve the wire's
+    /// identity to the host-authoritative lab id + pinned host pair)
+    /// and the DEATH SWEEP ([`Inner`]'s drop forwards a host
+    /// `Drop { response_id }` per remaining entry — an ABRUPT
+    /// reverse-channel death never says goodbye, and without this a
+    /// leaked session would pin a regular container against its idle
+    /// stop, or leave an ephemeral un-evaporated until its channel
+    /// died). The whole map is this connection's host-session state;
+    /// connection gone ⇒ state gone.
+    routes: HostRoutes,
+    /// Response ids a `Drop` has terminally torn down — STICKY for
+    /// this conduit's life (bounded: one entry per dropped response).
+    /// An ephemeral create observes this inside its atomic
+    /// `Creating → Live` transition; set, it evaporates the container
+    /// it just made instead of recording a route — closing the
+    /// Drop-races-in-flight-create window. A tombstoned id can never
+    /// initialize again on this conduit.
+    dropped_ids: DashSet<String>,
 }
 
-/// One recorded lab session target — the resolved routing triple the
-/// teardown `Drop` re-uses.
-type LabSessionKey = (String, Option<String>, Option<String>);
+/// The wire-side identity of one host-routed upstream within a
+/// response — what later ops carry, resolved to a [`HostRoute`].
+#[derive(Clone, PartialEq, Eq, Hash)]
+enum RouteKey {
+    /// A client (regular) laboratory session — recorded for the death
+    /// sweep only (later ops carry their own machine pins on the
+    /// wire).
+    Client {
+        id: String,
+        machine: Option<String>,
+        machine_state: Option<String>,
+    },
+    /// An agent-embedded EPHEMERAL laboratory. The wire carries the
+    /// content-addressed DERIVED id; the route holds the actual
+    /// ephemeral lab id (`{derived}-{response_id}`, host-authoritative
+    /// from the create reply).
+    Agent { derived_id: String },
+    /// A plugin EPHEMERAL laboratory, identified on the wire by its
+    /// coordinate trio.
+    Plugin {
+        owner: String,
+        name: String,
+        version: String,
+    },
+}
+
+/// Where a host-routed upstream actually lives: the laboratory id the
+/// HOST knows it by, on the exact host pair it was created on /
+/// resolved to.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct HostRoute {
+    lab_id: String,
+    machine: Option<String>,
+    machine_state: Option<String>,
+}
+
+/// The one-shot outcome of an ephemeral create, delivered to the
+/// creator AND every retry that joined the in-flight create through
+/// the [`RouteState::Creating`] watch channel.
+type CreateResult =
+    Result<objectiveai_sdk::laboratories::daemon::InitializeReply, String>;
+
+/// One `(response_id, RouteKey)` entry's lifecycle state. The
+/// single-flight state machine: `Absent → Creating → Live → Absent`,
+/// with `Drop` making the response id terminally dead via the
+/// separate `Inner::dropped_ids` tombstone set (a tombstoned id can
+/// never re-enter `Creating`).
+enum RouteState {
+    /// An ephemeral create is in flight. A retry (the proxy's
+    /// initialize is connect-timeout-bounded and re-sends) JOINS this
+    /// create by awaiting the watch instead of starting a second one —
+    /// which is what makes a cross-host duplicate container
+    /// structurally impossible.
+    Creating(tokio::sync::watch::Receiver<Option<CreateResult>>),
+    /// An established session. `reply` is `Some` for ephemerals (a
+    /// late retry that lands after the create completed is answered
+    /// idempotently from it) and `None` for client laboratories
+    /// (their Initialize is forwarded, never answered from cache).
+    Live {
+        route: HostRoute,
+        reply: Option<objectiveai_sdk::laboratories::daemon::InitializeReply>,
+    },
+}
+
+/// The conduit's host-session table: `(response_id, RouteKey) →
+/// RouteState`. See [`Inner::routes`].
+///
+/// Every LIVE-route mutation WRITE-THROUGHS the resident hubs'
+/// `lab_mcp_kinds` mirror (`(response_id, host lab id) → McpKind`) —
+/// the lookup the laboratory-WS relay uses to stamp the wire kind
+/// onto an inbound `HostNotification::McpListChanged` before pushing
+/// it up the reverse channel. The mirrored kind is the REQUEST's wire
+/// kind VERBATIM (byte-match with the proxy's list-changed registry
+/// key). `Creating` entries have no mirror entry (no container id is
+/// known yet). `mirror` is `None` outside the resident daemon.
+#[derive(Default)]
+struct HostRoutes {
+    routes: DashMap<(String, RouteKey), RouteState>,
+    mirror: Option<Arc<DashMap<(String, String), McpKind>>>,
+}
+
+impl HostRoutes {
+    fn new(mirror: Option<Arc<DashMap<(String, String), McpKind>>>) -> Self {
+        Self {
+            routes: DashMap::new(),
+            mirror,
+        }
+    }
+
+    fn mirror_remove(&self, response_id: &str, lab_id: &str) {
+        if let Some(mirror) = &self.mirror {
+            mirror.remove(&(response_id.to_string(), lab_id.to_string()));
+        }
+    }
+
+    /// Record (or overwrite — a reconnect re-Initialize replaces) one
+    /// CLIENT-laboratory route, mirroring its wire kind. Ephemerals
+    /// never pass through here — their `Creating → Live` transition is
+    /// the create task's own atomic entry section. A displaced route
+    /// (same key, different host lab id) drops its stale mirror entry.
+    fn record(
+        &self,
+        response_id: &str,
+        key: RouteKey,
+        route: HostRoute,
+        mcp_kind: McpKind,
+    ) {
+        if let Some(mirror) = &self.mirror {
+            mirror.insert(
+                (response_id.to_string(), route.lab_id.clone()),
+                mcp_kind,
+            );
+        }
+        if let Some(RouteState::Live {
+            route: displaced, ..
+        }) = self.routes.insert(
+            (response_id.to_string(), key),
+            RouteState::Live {
+                route: route.clone(),
+                reply: None,
+            },
+        ) && displaced.lab_id != route.lab_id
+        {
+            self.mirror_remove(response_id, &displaced.lab_id);
+        }
+    }
+
+    /// Resolve one LIVE route, cloning it out (no guard escapes). A
+    /// `Creating` entry resolves to `None` — the later op answers
+    /// `-32001`, the proxy re-initializes, and the re-initialize JOINS
+    /// the in-flight create.
+    fn resolve(&self, response_id: &str, key: &RouteKey) -> Option<HostRoute> {
+        self.routes
+            .get(&(response_id.to_string(), key.clone()))
+            .and_then(|e| match e.value() {
+                RouteState::Live { route, .. } => Some(route.clone()),
+                RouteState::Creating(_) => None,
+            })
+    }
+
+    /// Remove one route (graceful session end). Removing a `Creating`
+    /// entry is deliberate: the create task's conditional transition
+    /// then finds its entry gone, treats the response as dropped, and
+    /// evaporates the container it just made (terminate-mid-create).
+    fn remove(&self, response_id: &str, key: &RouteKey) {
+        if let Some((_, RouteState::Live { route, .. })) =
+            self.routes.remove(&(response_id.to_string(), key.clone()))
+        {
+            self.mirror_remove(response_id, &route.lab_id);
+        }
+    }
+
+    /// Remove and return every LIVE route under `response_id` — the
+    /// bulk `Drop` teardown. `Creating` entries are left alone: their
+    /// create task observes the caller's tombstone (inserted BEFORE
+    /// this runs) inside its own atomic transition and self-cleans.
+    /// Deduplicated by [`HostRoute`].
+    fn take_response(&self, response_id: &str) -> Vec<HostRoute> {
+        let keys: Vec<(String, RouteKey)> = self
+            .routes
+            .iter()
+            .filter(|e| {
+                e.key().0 == response_id
+                    && matches!(e.value(), RouteState::Live { .. })
+            })
+            .map(|e| e.key().clone())
+            .collect();
+        let mut out: Vec<HostRoute> = Vec::new();
+        for key in keys {
+            if let Some((_, RouteState::Live { route, .. })) =
+                self.routes.remove(&key)
+            {
+                self.mirror_remove(response_id, &route.lab_id);
+                if !out.contains(&route) {
+                    out.push(route);
+                }
+            }
+        }
+        out
+    }
+
+    /// Drain EVERYTHING — the death sweep. Returns LIVE
+    /// `(response_id, route)` pairs, deduplicated per pair. `Creating`
+    /// entries are cleared without a forward: their create tasks hold
+    /// only a `Weak<Inner>`, fail the upgrade after this drop, and
+    /// forward the host `Drop` for their own containers themselves.
+    fn drain_all(&self) -> Vec<(String, HostRoute)> {
+        let mut out: Vec<(String, HostRoute)> = Vec::new();
+        for entry in self.routes.iter() {
+            let RouteState::Live { route, .. } = entry.value() else {
+                continue;
+            };
+            let pair = (entry.key().0.clone(), route.clone());
+            self.mirror_remove(&pair.0, &pair.1.lab_id);
+            if !out.contains(&pair) {
+                out.push(pair);
+            }
+        }
+        self.routes.clear();
+        out
+    }
+}
 
 impl ConduitMcpHandler {
-    /// Construct a handler over the given in-process `objectiveai-mcp`
-    /// server. `scoped` is the BASE scope the conduit derives a fresh
-    /// per-dial scope from (threading the transient header identities);
-    /// `global` carries the shared services. `agent_tag` is the tag the
-    /// spawn resolved against (if any); when present, each
-    /// `dispatch_read_message_queue` call fuses the tag-group upgrade
-    /// with the row read in one transaction.
+    /// Construct a handler. `scoped` is the BASE scope the conduit
+    /// derives a fresh per-call scope from (threading the transient
+    /// header identities); `global` carries the shared services.
+    /// `agent_tag` is the tag the spawn resolved against (if any);
+    /// when present, each `dispatch_read_message_queue` call fuses the
+    /// tag-group upgrade with the row read in one transaction.
     pub fn new(
-        mcp_server: crate::http::mcp_server::McpServerHandle,
         global: crate::context::GlobalContext,
         scoped: crate::context::ScopedContext,
         agent_tag: Option<String>,
-        backoff_max_elapsed_time_ms: u64,
     ) -> Self {
-        let http = reqwest::Client::builder()
-            .build()
-            .expect("reqwest::Client::build is infallible without rustls toggles");
-        // The daemon NEVER bounds its own MCP calls — connect + per-call
-        // timeouts are `None` (wait forever); only the API applies
-        // timeouts anywhere. `backoff_max_elapsed_time_ms` still caps the
-        // RETRY budget (give-up-on-errors, not a per-call deadline). The
-        // other exponential-backoff knobs are fixed defaults matching the
-        // api/proxy (100ms / 100ms / 0.5 / 1.5 / 1000ms).
-        let client = objectiveai_sdk::mcp::Client::new(
-            http,
-            "objectiveai-cli-stream-conduit".to_string(),
-            String::new(),
-            String::new(),
-            None,
-            Duration::from_millis(100),
-            Duration::from_millis(100),
-            0.5,
-            1.5,
-            Duration::from_millis(1000),
-            Duration::from_millis(backoff_max_elapsed_time_ms),
-            None,
-        );
+        static NOTIFIER_TOKEN: std::sync::atomic::AtomicU64 =
+            std::sync::atomic::AtomicU64::new(0);
+        let mirror = global
+            .resident_hubs()
+            .map(|hubs| hubs.lab_mcp_kinds.clone());
         Self {
             inner: Arc::new(Inner {
-                mcp_server,
-                client,
-                connections: DashMap::new(),
                 transfer_routes: DashMap::new(),
                 notifier: OnceLock::new(),
                 global,
                 scoped,
                 agent_tag,
                 listener_ids: DashSet::new(),
-                laboratory_sessions: DashMap::new(),
+                notifier_token: NOTIFIER_TOKEN
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+                routes: HostRoutes::new(mirror),
+                dropped_ids: DashSet::new(),
             }),
         }
     }
 
-    /// Install the `Notifier` the list-changed pump uses to push
-    /// `McpListChanged` frames up the WS. Idempotent — first set
-    /// wins; later calls are no-ops. Call once, after
-    /// `send_streaming_ws` returns the notifier and before the proxy
-    /// could plausibly have triggered upstream `list_changed` fires.
+    /// Install the `Notifier` the `agents mcp *` dispatch and the
+    /// laboratory-WS list-changed relay use to push frames up the WS.
+    /// Idempotent — first set wins; later calls are no-ops. Call once,
+    /// after `send_streaming_ws` returns the notifier.
     pub fn install_notifier(&self, notifier: Notifier) {
         let _ = self.inner.notifier.set(notifier);
     }
@@ -251,8 +392,147 @@ impl ConduitMcpHandler {
         if self.inner.listener_ids.insert(response_id.clone())
             && let Some(hubs) = self.inner.global.resident_hubs()
         {
-            hubs.mcp_notifiers.insert(response_id, notifier);
+            hubs.mcp_notifiers
+                .insert(response_id, (self.inner.notifier_token, notifier));
         }
+    }
+
+    /// Fulfill a proxy→daemon `Command` request: run the CLI command
+    /// in-process — the same `crate::run` re-entry `/execute` and
+    /// `plugins run` use — and stream one `Command` frame per event
+    /// back over the WS AS ITEMS ARRIVE (never collected). Spawned so
+    /// the conduit's dispatch never blocks on a run.
+    ///
+    /// Scope identity: the REQUIRED `identity` are applied
+    /// exactly like `/execute` (wire plugin claims inside them are
+    /// nulled by `from_identity`), then the REQUIRED `plugin`
+    /// coordinates are stamped with the same [`ScopedContext::with_plugin`]
+    /// `plugins run` uses. This authenticated conduit channel is the
+    /// deliberate exception to "never trust wire plugin identity": the
+    /// API asserts the trio from its typed `X-MCP-Plugins` marker, and
+    /// the plugin run-gates then apply to nested commands.
+    ///
+    /// Frame discipline: `Ack` was already returned by `handle`;
+    /// stream errors are NON-terminal `Error` frames; `Done` is ALWAYS
+    /// the final frame. A WS send failure breaks the pump — dropping
+    /// the run stream cancels the command — but `Done` is still
+    /// attempted.
+    fn dispatch_command(
+        &self,
+        id: String,
+        identity: objectiveai_sdk::identity::Identity,
+        plugin: objectiveai_sdk::mcp::server::Plugin,
+        request: objectiveai_sdk::cli::command::Request,
+    ) {
+        use futures::StreamExt;
+        use objectiveai_sdk::client_objectiveai_mcp::server_response::CommandFrame;
+
+        /// One frame onto the WS; `false` = sink gone, stop pumping.
+        async fn send(notifier: &Notifier, id: &str, frame: CommandFrame) -> bool {
+            notifier
+                .send_server_response(&server_response::Response {
+                    id: id.to_string(),
+                    payload: server_response::Payload::Command { frame },
+                })
+                .await
+                .is_ok()
+        }
+
+        let inner = Arc::clone(&self.inner);
+        tokio::spawn(async move {
+            // Resolve the notifier with a bounded retry over the
+            // documented pre-`install_notifier` window (see module
+            // docs). Unlike the list-changed pumps, a Command exchange
+            // must not silently drop its frames — but if the notifier
+            // never lands the WS is gone and there is nobody to tell.
+            let mut tries = 0u32;
+            let notifier = loop {
+                if let Some(n) = inner.notifier.get().cloned() {
+                    break n;
+                }
+                tries += 1;
+                if tries >= 50 {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            };
+
+            let scoped = crate::executor::apply_identity(
+                &inner.scoped,
+                Some(&identity),
+            )
+            .await
+            .into_owned()
+            .with_plugin(plugin.owner, plugin.name, plugin.version);
+
+            // The `--request` front door: serialize the typed request
+            // and re-enter `crate::run`, exactly like `/execute`.
+            let request_json = match serde_json::to_string(&request) {
+                Ok(json) => json,
+                Err(e) => {
+                    let _ = send(
+                        &notifier,
+                        &id,
+                        CommandFrame::Error {
+                            error: format!("serialize command request: {e}"),
+                        },
+                    )
+                    .await;
+                    let _ = send(&notifier, &id, CommandFrame::Done).await;
+                    return;
+                }
+            };
+            let args = vec![
+                "objectiveai".to_string(),
+                "--request".to_string(),
+                request_json,
+            ];
+            match crate::run(args, Some((inner.global.clone(), scoped))).await {
+                Ok(crate::RunStream::Execute(mut stream)) => {
+                    while let Some(item) = stream.next().await {
+                        let frame = match item {
+                            Ok(item) => CommandFrame::Item { item },
+                            Err(e) => CommandFrame::Error {
+                                error: e.output_message().to_string(),
+                            },
+                        };
+                        if !send(&notifier, &id, frame).await {
+                            break;
+                        }
+                    }
+                }
+                Ok(crate::RunStream::ExecuteTransform(mut stream)) => {
+                    while let Some(item) = stream.next().await {
+                        let frame = match item {
+                            // A jq/python transform yields bare JSON
+                            // values; `ResponseItem::Python` is the
+                            // untagged bare-value variant —
+                            // wire-identical passthrough.
+                            Ok(value) => CommandFrame::Item {
+                                item: objectiveai_sdk::cli::command::ResponseItem::Python(value),
+                            },
+                            Err(e) => CommandFrame::Error {
+                                error: e.output_message().to_string(),
+                            },
+                        };
+                        if !send(&notifier, &id, frame).await {
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = send(
+                        &notifier,
+                        &id,
+                        CommandFrame::Error {
+                            error: e.output_message().to_string(),
+                        },
+                    )
+                    .await;
+                }
+            }
+            let _ = send(&notifier, &id, CommandFrame::Done).await;
+        });
     }
 }
 
@@ -263,49 +543,48 @@ impl Drop for Inner {
     /// former per-response sockets never cleaned up — this is a strict
     /// improvement over unbounded growth.
     ///
-    /// Also forward a host `Drop { response_id }` for every laboratory
-    /// session still in this connection's ledger: an abrupt reverse-
-    /// channel death (API crash, network cut) never sent
-    /// `SessionTerminate`/`Drop`, and the host's per-lab session entry
-    /// counts as run demand — leaked, it would pin the container
-    /// against its idle stop forever. This connection's lab state dies
-    /// WITH the connection. Fire-and-forget: a session the host
-    /// already dropped (e.g. the daemon↔host channel bounced, whose
-    /// detach sweep clears per-channel sessions) answers
-    /// `dropped: false` harmlessly.
+    /// Also forward a host `Drop { response_id }` for every host-side
+    /// session still in this connection's route table: an abrupt
+    /// reverse-channel death (API crash, network cut) never sent
+    /// `SessionTerminate`/`Drop`. For regular laboratories the leaked
+    /// session would pin the container against its idle stop; for
+    /// EPHEMERAL (agent/plugin) laboratories the host EVAPORATES the
+    /// container on the Drop. Fire-and-forget, all forwards spawned
+    /// concurrently: a session the host already dropped (e.g. the
+    /// daemon↔host channel bounced, whose detach sweep clears
+    /// per-channel sessions — and evaporates channel-owned
+    /// ephemerals) answers `dropped: false` harmlessly.
     fn drop(&mut self) {
         if let Some(hubs) = self.global.resident_hubs() {
             for id in self.listener_ids.iter() {
-                hubs.mcp_notifiers.remove(id.key());
+                // Only remove OUR registration: a successor conduit for
+                // the same response id (agent respawn) may have already
+                // overwritten the entry with its own token — leave it.
+                hubs.mcp_notifiers
+                    .remove_if(id.key(), |_, (token, _)| *token == self.notifier_token);
             }
             let registry = hubs.laboratories.clone();
             // `Drop` is sync; the forwards need the runtime. Teardown
             // outside a runtime (process exit) can skip — the host's
             // own shutdown/boot sweep covers that case.
             if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                for entry in self.laboratory_sessions.iter() {
-                    let response_id = entry.key().clone();
-                    for (id, machine, machine_state) in entry.value().iter() {
-                        let registry = registry.clone();
-                        let response_id = response_id.clone();
-                        let (id, machine, machine_state) =
-                            (id.clone(), machine.clone(), machine_state.clone());
-                        handle.spawn(async move {
-                            let _ = registry
-                                .forward(
-                                    &id,
-                                    machine.as_deref(),
-                                    machine_state.as_deref(),
-                                    indexmap::IndexMap::new(),
-                                    objectiveai_sdk::laboratories::daemon::RequestPayload::Drop(
-                                        objectiveai_sdk::laboratories::daemon::DropRequest {
-                                            response_id,
-                                        },
-                                    ),
-                                )
-                                .await;
-                        });
-                    }
+                for (response_id, route) in self.routes.drain_all() {
+                    let registry = registry.clone();
+                    handle.spawn(async move {
+                        let _ = registry
+                            .forward(
+                                &route.lab_id,
+                                route.machine.as_deref(),
+                                route.machine_state.as_deref(),
+                                indexmap::IndexMap::new(),
+                                objectiveai_sdk::laboratories::daemon::RequestPayload::Drop(
+                                    objectiveai_sdk::laboratories::daemon::DropRequest {
+                                        response_id,
+                                    },
+                                ),
+                            )
+                            .await;
+                    });
                 }
             }
         }
@@ -348,6 +627,51 @@ impl McpHandler for ConduitMcpHandler {
             return server_response::Response { id, payload };
         }
 
+        // EPHEMERAL upstreams (plugin MCP servers + agent-embedded
+        // laboratories): the session-opening Initialize IS the create —
+        // one atomic host round trip (`{Agent,Plugin}EphemeralCreate`)
+        // that builds/starts the container AND opens its single MCP
+        // connection, on a RANDOMLY chosen connected host.
+        if let server_request::Payload::Initialize { mcp_kind, .. } = &request.payload
+            && Self::is_ephemeral_kind(mcp_kind)
+        {
+            let payload = self
+                .dispatch_ephemeral_initialize(mcp_kind.clone(), &request.headers)
+                .await;
+            return server_response::Response { id, payload };
+        }
+        // Later ops for an ephemeral upstream resolve the wire's
+        // identity (plugin trio / derived agent-lab id) to the
+        // host-authoritative ephemeral lab id + pinned host pair
+        // recorded at create.
+        if let Some(resolved) = self.ephemeral_target(&request.payload, &request.headers)
+        {
+            let payload = match resolved {
+                Ok((key, target)) => {
+                    let response_id = response_id_from_headers(&request.headers);
+                    let ends_session = matches!(
+                        request.payload,
+                        server_request::Payload::SessionTerminate { .. }
+                    );
+                    let payload = self
+                        .dispatch_laboratory_forward(
+                            target,
+                            &request.headers,
+                            request.payload,
+                        )
+                        .await;
+                    if ends_session
+                        && let Some(response_id) = response_id
+                    {
+                        self.inner.routes.remove(&response_id, &key);
+                    }
+                    payload
+                }
+                Err(payload) => payload,
+            };
+            return server_response::Response { id, payload };
+        }
+
         if let Some(target) = self.laboratory_target(&request.payload) {
             let payload = self
                 .dispatch_laboratory_forward(target, &request.headers, request.payload)
@@ -356,46 +680,67 @@ impl McpHandler for ConduitMcpHandler {
         }
 
         let payload = match request.payload {
-            server_request::Payload::Initialize { mcp_kind, params } => {
-                dispatch_initialize(&self.inner, mcp_kind, params, &request.headers).await
+            // Every MCP op is laboratory-addressed and intercepted
+            // above (ephemeral kinds by `ephemeral_target`, client
+            // laboratories by `laboratory_target`) — the daemon holds
+            // no MCP connections of its own. Reaching one of these
+            // arms is a routing bug on the peer's side; answer typed,
+            // never dial.
+            server_request::Payload::Initialize { mcp_kind, .. } => {
+                server_response::Payload::Initialize {
+                    mcp_kind,
+                    result: rpc_err(
+                        -32603,
+                        "conduit: initialize must be intercepted upstream".to_string(),
+                    ),
+                }
             }
             server_request::Payload::SessionTerminate { mcp_kind } => {
-                dispatch_session_terminate(&self.inner, mcp_kind, &request.headers).await
-            }
-            server_request::Payload::ToolsList { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers) {
-                    Ok(state) => dispatch_tools_list(&state, &request.headers, params).await,
-                    Err((code, message)) => server_response::Payload::ToolsList {
-                        mcp_kind,
-                        result: rpc_err(code, message),
-                    },
+                server_response::Payload::SessionTerminate {
+                    mcp_kind,
+                    result: rpc_err(
+                        -32603,
+                        "conduit: session terminate must be intercepted upstream"
+                            .to_string(),
+                    ),
                 }
             }
-            server_request::Payload::ToolsCall { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers) {
-                    Ok(state) => dispatch_tools_call(&state, &request.headers, params).await,
-                    Err((code, message)) => server_response::Payload::ToolsCall {
-                        mcp_kind,
-                        result: rpc_err(code, message),
-                    },
+            server_request::Payload::ToolsList { mcp_kind, .. } => {
+                server_response::Payload::ToolsList {
+                    mcp_kind,
+                    result: rpc_err(
+                        -32603,
+                        "conduit: tools/list must be intercepted upstream".to_string(),
+                    ),
                 }
             }
-            server_request::Payload::ResourcesList { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers) {
-                    Ok(state) => dispatch_resources_list(&state, &request.headers, params).await,
-                    Err((code, message)) => server_response::Payload::ResourcesList {
-                        mcp_kind,
-                        result: rpc_err(code, message),
-                    },
+            server_request::Payload::ToolsCall { mcp_kind, .. } => {
+                server_response::Payload::ToolsCall {
+                    mcp_kind,
+                    result: rpc_err(
+                        -32603,
+                        "conduit: tools/call must be intercepted upstream".to_string(),
+                    ),
                 }
             }
-            server_request::Payload::ResourcesRead { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers) {
-                    Ok(state) => dispatch_resources_read(&state, &request.headers, params).await,
-                    Err((code, message)) => server_response::Payload::ResourcesRead {
-                        mcp_kind,
-                        result: rpc_err(code, message),
-                    },
+            server_request::Payload::ResourcesList { mcp_kind, .. } => {
+                server_response::Payload::ResourcesList {
+                    mcp_kind,
+                    result: rpc_err(
+                        -32603,
+                        "conduit: resources/list must be intercepted upstream"
+                            .to_string(),
+                    ),
+                }
+            }
+            server_request::Payload::ResourcesRead { mcp_kind, .. } => {
+                server_response::Payload::ResourcesRead {
+                    mcp_kind,
+                    result: rpc_err(
+                        -32603,
+                        "conduit: resources/read must be intercepted upstream"
+                            .to_string(),
+                    ),
                 }
             }
             server_request::Payload::ReadMessageQueue(req) => {
@@ -408,6 +753,28 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_script(&self.inner, req).await
             }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
+            server_request::Payload::Command {
+                identity,
+                plugin,
+                request,
+            } => {
+                // Spawns the pump and returns immediately — the `Ack`
+                // frame IS this handler's single return value; the
+                // pump emits `Item`/`Error` frames and the
+                // ALWAYS-terminal `Done` via
+                // `Notifier::send_server_response`, sharing the
+                // request's envelope id (the wire's one multi-frame
+                // exchange).
+                self.dispatch_command(
+                    id.clone(),
+                    identity,
+                    plugin,
+                    request,
+                );
+                server_response::Payload::Command {
+                    frame: server_response::CommandFrame::Ack,
+                }
+            }
             // Laboratory-addressed payloads are intercepted above when a
             // route exists; reaching one of these arms means the transfer
             // id maps to no known laboratory (never Begun here, or its
@@ -480,49 +847,6 @@ impl McpHandler for ConduitMcpHandler {
     }
 }
 
-/// Resolve the cached upstream for this request by `(response id,
-/// McpKind)`. A connection is only ever created by `dispatch_initialize`;
-/// the conduit never re-dials out of band. A miss here means the proxy
-/// issued a non-initialize request for a connection the conduit doesn't
-/// hold (no prior `initialize`, or it was already terminated) — return
-/// `-32001` so the proxy re-initializes. (This can't reconstruct a
-/// plugin's `initialize` args anyway, and the primary should always have
-/// been initialized first, so re-dialing would only ever paper over a
-/// terminate/call race.)
-///
-/// On failure returns a bare `(code, message)` — the caller builds the
-/// `JsonRpcResult::Err` in the response variant matching its request
-/// (see [`rpc_err`]).
-fn resolve_connection(
-    handler: &ConduitMcpHandler,
-    mcp_kind: &McpKind,
-    headers: &IndexMap<String, String>,
-) -> Result<Arc<ConduitState>, (i64, String)> {
-    let Some(response_id) = response_id_from_headers(headers) else {
-        return Err((-32600, "missing X-OBJECTIVEAI-RESPONSE-ID header".to_string()));
-    };
-    get_connection(&handler.inner, &response_id, mcp_kind).ok_or_else(|| {
-        (
-            -32001,
-            format!("no cached connection for response id {response_id:?}"),
-        )
-    })
-}
-
-/// Await the in-process `objectiveai-mcp` server's bound port and
-/// build `http://127.0.0.1:{port}`. The shared `oneshot` resolves
-/// once the spawner's `setup` has bound the listener; consumers
-/// can `clone().await` it any number of times.
-async fn objectiveai_mcp_url(inner: &Arc<Inner>) -> Result<String, String> {
-    let port = inner
-        .mcp_server
-        .port
-        .clone()
-        .await
-        .map_err(|_| "in-process objectiveai-mcp failed to bind".to_string())?;
-    Ok(format!("http://127.0.0.1:{port}"))
-}
-
 /// A `JsonRpcResult::Err` whose `T` is inferred from the
 /// `Payload::<Method> { result }` field it's assigned to. Each `handle`
 /// arm builds its error result with this **in its own response
@@ -549,201 +873,651 @@ fn rpc_err<T>(code: i64, message: String) -> JsonRpcResult<T> {
 // Per-variant dispatchers
 // ────────────────────────────────────────────────────────────────
 
-/// `Initialize`: dispatch on McpKind to dial the right upstream,
-/// install the list-changed pump tagged with the McpKind, cache,
-/// and return the upstream's verbatim `InitializeResult` plus its
-/// native `Mcp-Session-Id`.
-async fn dispatch_initialize(
-    inner: &Arc<Inner>,
-    mcp_kind: McpKind,
-    init: server_request::InitializeRequest,
-    headers: &IndexMap<String, String>,
-) -> server_response::Payload {
-    let initialize_err = |code: i64, message: String| server_response::Payload::Initialize {
-        mcp_kind: mcp_kind.clone(),
-        result: JsonRpcResult::Err {
-            code,
-            message,
-            data: None,
-        },
-    };
-    let transient = match require_transient(headers) {
-        Ok(t) => t,
-        Err(message) => {
-            return initialize_err(-32600, format!("conduit: {message}"));
-        }
-    };
-
-    let dial = match &mcp_kind {
-        McpKind::ObjectiveAi => {
-            let mcp_url = match objectiveai_mcp_url(inner).await {
-                Ok(u) => u,
-                Err(message) => {
-                    return initialize_err(-32603, message);
-                }
-            };
-            let connect_headers = sanitize_connect_headers(headers);
-            // No session-id resume hint: the conduit keys by
-            // (response_id, McpKind) and is naive to Mcp-Session-Id.
-            // ObjectiveAi has no subprocess, so no drain handle.
-            inner
-                .client
-                .connect(mcp_url, None, Some(connect_headers))
-                .await
-                .map(|c| (c, None))
-                .map_err(|e| format!("connect: {e}"))
-        }
-        McpKind::Plugin { owner, name, version, mcp } => {
-            let connect_headers = sanitize_connect_headers(headers);
-            dial_plugin_upstream(
-                inner,
-                owner.clone(),
-                name.clone(),
-                version.clone(),
-                mcp.clone(),
-                init.args,
-                &transient,
-                connect_headers,
-                None,
-            )
-            .await
-            .map(|(c, drain)| (c, Some(drain)))
-            .map_err(|e| format!("{e}"))
-        }
-        McpKind::Laboratory { .. } => {
-            // Laboratory payloads are intercepted in `handle` and
-            // forwarded over the laboratories socket — they never
-            // reach this dial.
-            Err("laboratory requests route via the daemon".to_string())
-        }
-    };
-
-    let (connection, plugin_drain) = match dial {
-        Ok(c) => c,
-        Err(message) => {
-            return initialize_err(-32603, format!("conduit: {message}"));
-        }
-    };
-
-    install_list_changed_pump(&connection, inner.clone(), mcp_kind.clone());
-
-    // The upstream's own `Mcp-Session-Id` — still returned to the proxy
-    // (and stamped on the real upstream call), but NOT the registry key.
-    let mcp_session_id = connection.session_id.clone();
-    let result = connection.initialize_result.clone();
-
-    insert_connection(
-        inner,
-        transient.response_id.clone(),
-        mcp_kind.clone(),
-        Arc::new(ConduitState {
-            connection,
-            mcp_kind: mcp_kind.clone(),
-            agent_instance_hierarchy: transient.agent_instance_hierarchy,
-            plugin_drain,
-        }),
-    );
-
-    server_response::Payload::Initialize {
-        mcp_kind,
-        result: JsonRpcResult::Ok {
-            result: InitializeReply {
-                mcp_session_id,
-                result,
-            },
-        },
-    }
-}
-
-/// `SessionTerminate`: forward an explicit HTTP DELETE to the
-/// upstream MCP server via `Connection::delete()`; on success drop
-/// the cached connection. On failure leave the cache entry intact
-/// so the proxy can retry — the SDK's `Connection::delete()` already
-/// folds upstream 404/401/403 into `Ok(())`, so the only `Err`
-/// paths here are real transport / status failures the caller
-/// should know about.
-async fn dispatch_session_terminate(
-    inner: &Arc<Inner>,
-    mcp_kind: McpKind,
-    headers: &IndexMap<String, String>,
-) -> server_response::Payload {
-    let ok = || server_response::Payload::SessionTerminate {
-        mcp_kind: mcp_kind.clone(),
-        result: JsonRpcResult::Ok { result: () },
-    };
-    let Some(response_id) = response_id_from_headers(headers) else {
-        // Nothing to terminate.
-        return ok();
-    };
-    // Clone the Arc out and drop every DashMap guard before awaiting the
-    // upstream DELETE — never hold a guard across `.await`.
-    let Some(state) = get_connection(inner, &response_id, &mcp_kind) else {
-        // Not in cache. Idempotent success — the proxy may have
-        // already torn down its half.
-        return ok();
-    };
-    match state.connection.delete().await {
-        Ok(()) => {
-            if let Some(by_kind) = inner.connections.get(&response_id) {
-                by_kind.remove(&mcp_kind);
-            }
-            // Reap the response-id entry once its last upstream is gone.
-            // `remove_if` re-checks emptiness under the outer shard lock,
-            // serialized against `entry().or_default()` inserts.
-            inner.connections.remove_if(&response_id, |_, by_kind| by_kind.is_empty());
-            ok()
-        }
-        Err(e) => server_response::Payload::SessionTerminate {
-            mcp_kind,
-            result: JsonRpcResult::Err {
-                code: -32603,
-                message: format!("conduit: upstream delete: {e}"),
-                data: None,
-            },
-        },
-    }
-}
-
-/// `Drop`: forceful bulk teardown of every upstream connection for one
-/// objectiveai response id. Removes the whole response-id bucket from the
-/// registry; dropping it drops every `Arc<ConduitState>` under it, which
-/// tears down each MCP connection and kills each plugin subprocess (see
-/// `ConduitState`'s `Drop`). Idempotent — `dropped` reports whether a
-/// bucket was actually present. The id comes from the payload, not the
-/// headers, and no transient headers are required. Infallible.
+/// `Drop`: forceful bulk teardown of everything one objectiveai
+/// response id holds — every host-side session/ephemeral this
+/// connection routed for it (the losers of an agent race get their
+/// containers evaporated promptly instead of waiting for the
+/// conduit's death sweep). Host forwards fan out CONCURRENTLY,
+/// fire-and-forget. Idempotent — `dropped` (ADVISORY) reports whether
+/// any route was actually present. The id comes from the payload, not
+/// the headers, and no transient headers are required. Infallible.
 fn dispatch_drop(
     inner: &Arc<Inner>,
     req: server_request::DropRequest,
 ) -> server_response::Payload {
-    // The removed inner map (if any) drops here, dropping every
-    // `Arc<ConduitState>` under this response id.
-    let dropped = inner.connections.remove(&req.response_id).is_some();
+    // Tombstone FIRST, take second — the order the create task's
+    // atomic transition linearizes against: a create completing after
+    // this insert either transitioned to Live before we look (we take
+    // and forward it) or sees the tombstone and self-cleans.
+    inner.dropped_ids.insert(req.response_id.clone());
+    let mut dropped = false;
+    if let Some(hubs) = inner.global.resident_hubs() {
+        let routes = inner.routes.take_response(&req.response_id);
+        dropped = !routes.is_empty();
+        for route in routes {
+            let registry = hubs.laboratories.clone();
+            let response_id = req.response_id.clone();
+            tokio::spawn(async move {
+                let _ = registry
+                    .forward(
+                        &route.lab_id,
+                        route.machine.as_deref(),
+                        route.machine_state.as_deref(),
+                        indexmap::IndexMap::new(),
+                        objectiveai_sdk::laboratories::daemon::RequestPayload::Drop(
+                            objectiveai_sdk::laboratories::daemon::DropRequest {
+                                response_id,
+                            },
+                        ),
+                    )
+                    .await;
+            });
+        }
+    }
     server_response::Payload::Drop(server_response::DropResult { dropped })
 }
 
+/// The create task's panic/early-exit net: on drop, removes the
+/// task's OWN `Creating` entry (channel-identity checked — never a
+/// successor's) unless a deliberate exit path already resolved it via
+/// [`Self::clear_now`] or [`Self::disarm`].
+struct ClearCreatingGuard {
+    inner: Weak<Inner>,
+    key: Option<(String, RouteKey)>,
+    rx: tokio::sync::watch::Receiver<Option<CreateResult>>,
+}
+
+impl ClearCreatingGuard {
+    /// The entry reached a terminal state by other means (`Live`
+    /// transition, or the completion section removed it) — do nothing
+    /// on drop.
+    fn disarm(&mut self) {
+        self.key = None;
+    }
+
+    /// Remove our `Creating` entry now (idempotent; no-op if a
+    /// foreign state took the slot) and disarm.
+    fn clear_now(&mut self) {
+        let Some(key) = self.key.take() else {
+            return;
+        };
+        let Some(inner) = self.inner.upgrade() else {
+            return;
+        };
+        inner.routes.routes.remove_if(&key, |_, state| {
+            matches!(
+                state,
+                RouteState::Creating(rx) if rx.same_channel(&self.rx)
+            )
+        });
+    }
+}
+
+impl Drop for ClearCreatingGuard {
+    fn drop(&mut self) {
+        self.clear_now();
+    }
+}
+
+/// The create's host half: pick a connected host (uniformly random;
+/// no host is an error — the host is never auto-spawned), build the
+/// kind's ephemeral-create payload, and run the ONE atomic host round
+/// trip. Timeout-free by design (a cold image build can take minutes);
+/// only host-channel death fails it. Returns the host's reply plus the
+/// pinned route.
+async fn run_ephemeral_create(
+    global: &crate::context::GlobalContext,
+    response_id: &str,
+    mcp_kind: &McpKind,
+    headers: IndexMap<String, String>,
+) -> Result<
+    (
+        objectiveai_sdk::laboratories::daemon::EphemeralCreated,
+        HostRoute,
+    ),
+    String,
+> {
+    let Some(hubs) = global.resident_hubs() else {
+        return Err("ephemeral create requires the resident daemon".to_string());
+    };
+    // The host pick and (for plugins) the DB-credential resolution are
+    // INDEPENDENT — neither needs the other's result — and the
+    // credential resolution can cold-start a leashed child (embedded
+    // Postgres). Run them CONCURRENTLY so a fresh daemon's first plugin
+    // doesn't pay that cold start after the pick. `join!` runs both on
+    // this task (shared `&` borrows of `global`/`hubs`), never a spawn.
+    // The host is NEVER auto-spawned: no connected host is an error
+    // (run `laboratories spawn` first).
+    // A plugin registered for DEVELOPMENT builds from a directory only
+    // this machine can see, so it is pinned to the local host — no load
+    // balancing, and no auto-spawn either: the developer brings the
+    // host up themselves.
+    let development = match mcp_kind {
+        McpKind::PluginLaboratory {
+            owner,
+            name,
+            version,
+        } => hubs.development_plugins.get(
+            &crate::command::development::registry::key(owner, name, version),
+        ),
+        _ => None,
+    };
+    let host_pick = async {
+        match &development {
+            Some(_) => {
+                let (machine, machine_state) = global.local_host();
+                if hubs.laboratories.has_host(machine, machine_state) {
+                    Ok((machine.clone(), machine_state.clone()))
+                } else {
+                    Err("no laboratory host is running for this machine/state —                          run `laboratories spawn` first (this plugin is registered                          for development, so it only runs locally)"
+                        .to_string())
+                }
+            }
+            None => hubs.laboratories.random_host().ok_or_else(|| {
+                "no laboratory host is connected — run `laboratories spawn` first"
+                    .to_string()
+            }),
+        }
+    };
+    let cred_resolve = async {
+        // Plugin only: mint-or-fetch + provision the Postgres
+        // compartment credential (MANDATORY — a failure fails the
+        // create). No-op for agent labs.
+        if let McpKind::PluginLaboratory {
+            owner,
+            name,
+            version,
+        } = mcp_kind
+        {
+            let handle = global
+                .db_handle()
+                .await
+                .map_err(|e| format!("plugin db: {e}"))?;
+            let cred = crate::db::compartment::resolve_plugin_db_credential(
+                &handle, owner, name, version,
+            )
+            .await
+            .map_err(|e| format!("plugin db credential: {e}"))?;
+            Ok::<_, String>(Some(cred))
+        } else {
+            Ok(None)
+        }
+    };
+    let (host_result, cred_result) = tokio::join!(host_pick, cred_resolve);
+    let (machine, machine_state) = host_result?;
+    let plugin_cred = cred_result?;
+    let create = match mcp_kind {
+        McpKind::PluginLaboratory {
+            owner,
+            name,
+            version,
+        } => {
+            let cred = plugin_cred
+                .expect("PluginLaboratory always resolves a credential above");
+            objectiveai_sdk::laboratories::daemon::RequestPayload::PluginEphemeralCreate(
+                objectiveai_sdk::laboratories::daemon::PluginEphemeralCreateRequest {
+                    response_id: response_id.to_string(),
+                    owner: owner.clone(),
+                    name: name.clone(),
+                    version: version.clone(),
+                    db_role: cred.role,
+                    db_password: cred.password,
+                    db_database: cred.database,
+                    development: development
+                        .as_ref()
+                        .map(|dir| dir.to_string_lossy().into_owned()),
+                },
+            )
+        }
+        McpKind::AgentLaboratory {
+            id: _,
+            agent_full_id,
+            laboratory,
+        } => objectiveai_sdk::laboratories::daemon::RequestPayload::AgentEphemeralCreate(
+            objectiveai_sdk::laboratories::daemon::AgentEphemeralCreateRequest {
+                response_id: response_id.to_string(),
+                agent_full_id: agent_full_id.clone(),
+                laboratory: laboratory.clone(),
+            },
+        ),
+        McpKind::Laboratory { .. } => {
+            return Err("not an ephemeral kind".to_string());
+        }
+    };
+    // FULL headers on the create — they seed the host's MCP connect
+    // into the container (the in-container server needs the
+    // agent-argument set), unlike a regular Create's empty set.
+    use objectiveai_sdk::laboratories::daemon::{
+        JsonRpcResult as LabRpc, ResponsePayload as LabResp,
+    };
+    let created = match hubs
+        .laboratories
+        .forward_to_host(&machine, &machine_state, headers, create)
+        .await
+    {
+        Ok(
+            LabResp::AgentEphemeralCreate(LabRpc::Ok { result })
+            | LabResp::PluginEphemeralCreate(LabRpc::Ok { result }),
+        ) => result,
+        Ok(
+            LabResp::AgentEphemeralCreate(LabRpc::Err { message, .. })
+            | LabResp::PluginEphemeralCreate(LabRpc::Err { message, .. }),
+        ) => return Err(message),
+        Ok(_) => {
+            return Err(
+                "host answered with an unexpected payload".to_string()
+            );
+        }
+        Err(message) => return Err(message),
+    };
+    // `identify.id` is the HOST-authoritative ephemeral lab id.
+    let route = HostRoute {
+        lab_id: created.identify.id.clone(),
+        machine: Some(machine),
+        machine_state: Some(machine_state),
+    };
+    Ok((created, route))
+}
+
+/// Fire-and-forget host `Drop { response_id }` for a container the
+/// conduit will never route to (dropped/terminated mid-create, or the
+/// conduit itself died) — the create task's self-cleanup.
+fn spawn_host_drop(
+    global: &crate::context::GlobalContext,
+    route: HostRoute,
+    response_id: String,
+) {
+    let Some(hubs) = global.resident_hubs() else {
+        return;
+    };
+    let registry = hubs.laboratories.clone();
+    tokio::spawn(async move {
+        let _ = registry
+            .forward(
+                &route.lab_id,
+                route.machine.as_deref(),
+                route.machine_state.as_deref(),
+                indexmap::IndexMap::new(),
+                objectiveai_sdk::laboratories::daemon::RequestPayload::Drop(
+                    objectiveai_sdk::laboratories::daemon::DropRequest {
+                        response_id,
+                    },
+                ),
+            )
+            .await;
+    });
+}
+
 impl ConduitMcpHandler {
+    /// Whether this kind is an EPHEMERAL upstream — a plugin MCP
+    /// server or an agent-embedded laboratory. Both are one-per-
+    /// response containers on laboratory hosts, created (and
+    /// connected) by the atomic ephemeral-create ops.
+    fn is_ephemeral_kind(mcp_kind: &McpKind) -> bool {
+        matches!(
+            mcp_kind,
+            McpKind::PluginLaboratory { .. } | McpKind::AgentLaboratory { .. }
+        )
+    }
+
+    /// The wire identity of an ephemeral upstream as a [`RouteKey`].
+    fn route_key(mcp_kind: &McpKind) -> Option<RouteKey> {
+        match mcp_kind {
+            McpKind::PluginLaboratory {
+                owner,
+                name,
+                version,
+            } => Some(RouteKey::Plugin {
+                owner: owner.clone(),
+                name: name.clone(),
+                version: version.clone(),
+            }),
+            McpKind::AgentLaboratory { id, .. } => Some(RouteKey::Agent {
+                derived_id: id.clone(),
+            }),
+            McpKind::Laboratory { .. } => None,
+        }
+    }
+
+    /// Resolve a LATER op on an ephemeral upstream (its Initialize was
+    /// intercepted as the create) to the host-authoritative lab id +
+    /// pinned host pair recorded at create. `None` ⇒ not an ephemeral
+    /// op; `Some(Err(payload))` ⇒ typed error (missing response id, or
+    /// no route — the proxy re-initializes on `-32001`).
+    fn ephemeral_target(
+        &self,
+        payload: &server_request::Payload,
+        headers: &IndexMap<String, String>,
+    ) -> Option<Result<(RouteKey, LabTarget), server_response::Payload>> {
+        let mcp_kind = payload.mcp_kind()?;
+        let key = Self::route_key(&mcp_kind)?;
+        let shape = LabErrorShape::of(payload);
+        let Some(response_id) = response_id_from_headers(headers) else {
+            return Some(Err(shape.error(
+                -32600,
+                "missing X-OBJECTIVEAI-RESPONSE-ID header".to_string(),
+            )));
+        };
+        match self.inner.routes.resolve(&response_id, &key) {
+            Some(route) => Some(Ok((
+                key,
+                LabTarget {
+                    id: route.lab_id,
+                    machine: route.machine,
+                    machine_state: route.machine_state,
+                },
+            ))),
+            None => Some(Err(shape.error(
+                -32001,
+                format!(
+                    "no ephemeral laboratory for response id {response_id:?}"
+                ),
+            ))),
+        }
+    }
+
+    /// The EPHEMERAL initialize: ONE atomic host round trip that
+    /// creates the container (building/pulling its image if absent),
+    /// starts it, and opens its single MCP connection with THIS
+    /// request's full header set — succeeding only when all of it
+    /// did (a failed connect removes the container host-side and
+    /// fails this op, which fails the proxy's upstream connect).
+    ///
+    /// SINGLE-FLIGHT: the proxy's initialize is connect-timeout-
+    /// bounded and retries, but a create is timeout-free and can run
+    /// long (cold image build). Exactly ONE create runs per
+    /// `(response_id, key)`: the first initialize inserts a
+    /// [`RouteState::Creating`] entry and spawns the create task;
+    /// every retry JOINS it by awaiting the same watch channel. A
+    /// retry can therefore never re-roll the random host and orphan a
+    /// duplicate container on another machine. A retry landing AFTER
+    /// the create completed is answered idempotently from the cached
+    /// `Live` reply.
+    ///
+    /// LOAD BALANCING: every create picks a UNIFORMLY RANDOM
+    /// connected laboratory host. Only when NO host is connected does
+    /// the daemon ensure (spawn) its local host — never when remote
+    /// hosts exist (latency: the ensure path can cold-start podman).
+    async fn dispatch_ephemeral_initialize(
+        &self,
+        mcp_kind: McpKind,
+        headers: &IndexMap<String, String>,
+    ) -> server_response::Payload {
+        let initialize_err =
+            |code: i64, message: String| server_response::Payload::Initialize {
+                mcp_kind: mcp_kind.clone(),
+                result: JsonRpcResult::Err {
+                    code,
+                    message,
+                    data: None,
+                },
+            };
+        let transient = match require_transient(headers) {
+            Ok(t) => t,
+            Err(message) => {
+                return initialize_err(-32600, format!("conduit: {message}"));
+            }
+        };
+        let response_id = transient.response_id;
+        // Sticky tombstone: a Drop for this response already ran —
+        // nothing may initialize under it again (NOT -32001: that
+        // invites a re-initialize loop for a response that is dead).
+        if self.inner.dropped_ids.contains(&response_id) {
+            return initialize_err(
+                -32603,
+                "conduit: response already dropped".to_string(),
+            );
+        }
+        if self.inner.global.resident_hubs().is_none() {
+            return initialize_err(
+                -32603,
+                "ephemeral create requires the resident daemon".to_string(),
+            );
+        }
+        let Some(key) = Self::route_key(&mcp_kind) else {
+            return initialize_err(
+                -32603,
+                "conduit: not an ephemeral kind".to_string(),
+            );
+        };
+        // The single-flight entry section — NO await while the entry
+        // guard is held.
+        let mut spawn_tx = None;
+        let mut rx = {
+            use dashmap::mapref::entry::Entry;
+            match self
+                .inner
+                .routes
+                .routes
+                .entry((response_id.clone(), key.clone()))
+            {
+                Entry::Occupied(entry) => match entry.get() {
+                    // Late retry: the create already completed —
+                    // answer from the cached reply, byte-identical to
+                    // the winner's.
+                    RouteState::Live { reply: Some(reply), .. } => {
+                        let reply = reply.clone();
+                        return server_response::Payload::Initialize {
+                            mcp_kind,
+                            result: JsonRpcResult::Ok {
+                                result: InitializeReply {
+                                    mcp_session_id: reply.mcp_session_id,
+                                    result: reply.result,
+                                },
+                            },
+                        };
+                    }
+                    // Ephemeral keys always cache a reply; a reply-less
+                    // Live here is a routing bug, never a dial target.
+                    RouteState::Live { reply: None, .. } => {
+                        return initialize_err(
+                            -32603,
+                            "conduit: ephemeral route without a cached reply"
+                                .to_string(),
+                        );
+                    }
+                    // Join the in-flight create.
+                    RouteState::Creating(rx) => rx.clone(),
+                },
+                Entry::Vacant(entry) => {
+                    let (tx, rx) = tokio::sync::watch::channel(None);
+                    entry.insert(RouteState::Creating(rx.clone()));
+                    spawn_tx = Some(tx);
+                    rx
+                }
+            }
+        };
+        if let Some(tx) = spawn_tx {
+            self.spawn_ephemeral_create(
+                tx,
+                response_id,
+                key,
+                mcp_kind.clone(),
+                headers.clone(),
+            );
+        }
+        // Creator and joiners alike: park (event-driven, no polling)
+        // until the create task publishes its one-shot outcome. A
+        // dead channel (task panicked before sending) surfaces as a
+        // plain error.
+        let outcome = match rx.wait_for(|v| v.is_some()).await {
+            Ok(value) => value.clone().expect("wait_for(is_some) guarantees Some"),
+            Err(_) => {
+                Err("ephemeral create task ended without a result".to_string())
+            }
+        };
+        match outcome {
+            Ok(reply) => server_response::Payload::Initialize {
+                mcp_kind,
+                result: JsonRpcResult::Ok {
+                    result: InitializeReply {
+                        mcp_session_id: reply.mcp_session_id,
+                        result: reply.result,
+                    },
+                },
+            },
+            Err(message) => {
+                initialize_err(-32603, format!("ephemeral create: {message}"))
+            }
+        }
+    }
+
+    /// Spawn the actual create — host pick, atomic host round trip,
+    /// atomic `Creating → Live` transition — publishing the outcome
+    /// through `tx`.
+    ///
+    /// SPAWNED (not inline) so the requester's future being cancelled
+    /// (WS death mid-create) never abandons a host-side create the
+    /// daemon then knows nothing about. Captures `Weak<Inner>` — NOT
+    /// `Arc` — because creates are timeout-free: an `Arc` would pin
+    /// the conduit's death sweep behind a wedged create without
+    /// bound. If the conduit dies mid-create, the upgrade fails and
+    /// THIS task forwards the host `Drop` for its own container.
+    fn spawn_ephemeral_create(
+        &self,
+        tx: tokio::sync::watch::Sender<Option<CreateResult>>,
+        response_id: String,
+        key: RouteKey,
+        mcp_kind: McpKind,
+        headers: IndexMap<String, String>,
+    ) {
+        let weak = Arc::downgrade(&self.inner);
+        let global = self.inner.global.clone();
+        tokio::spawn(async move {
+            // Panic/early-exit net: clears OUR Creating entry (channel-
+            // identity checked) unless a deliberate exit path already
+            // resolved it. Without this, a panic would wedge the
+            // (response_id, key) in Creating forever — every retry
+            // joining a dead channel.
+            let mut guard = ClearCreatingGuard {
+                inner: weak.clone(),
+                key: Some((response_id.clone(), key.clone())),
+                rx: tx.subscribe(),
+            };
+
+            let outcome =
+                run_ephemeral_create(&global, &response_id, &mcp_kind, headers)
+                    .await;
+
+            match outcome {
+                Err(message) => {
+                    // Remove-then-send: a retry arriving after the
+                    // removal starts a FRESH create (correct — this
+                    // one failed and the host's fail path removed the
+                    // container) instead of joining a dead exchange.
+                    guard.clear_now();
+                    let _ = tx.send(Some(Err(message)));
+                }
+                Ok((created, route)) => {
+                    let reply = created.reply;
+                    match weak.upgrade() {
+                        // Conduit died mid-create: no route table to
+                        // record into, no death sweep coming for this
+                        // container — Drop it ourselves.
+                        None => {
+                            guard.clear_now();
+                            spawn_host_drop(&global, route, response_id.clone());
+                            let _ = tx.send(Some(Err(
+                                "conduit closed during ephemeral create"
+                                    .to_string(),
+                            )));
+                        }
+                        Some(inner) => {
+                            // THE atomic transition (no await, one
+                            // entry guard): only OUR Creating entry
+                            // becomes Live, and only if no Drop
+                            // tombstoned the response meanwhile. This
+                            // linearizes against `dispatch_drop`
+                            // (tombstone-then-take): either we go Live
+                            // first and its take finds us, or we see
+                            // its tombstone and self-clean.
+                            let my_rx = tx.subscribe();
+                            let transitioned = {
+                                use dashmap::mapref::entry::Entry;
+                                match inner.routes.routes.entry((
+                                    response_id.clone(),
+                                    key.clone(),
+                                )) {
+                                    Entry::Occupied(mut entry)
+                                        if matches!(
+                                            entry.get(),
+                                            RouteState::Creating(rx)
+                                                if rx.same_channel(&my_rx)
+                                        ) =>
+                                    {
+                                        if inner.dropped_ids.contains(&response_id)
+                                        {
+                                            entry.remove();
+                                            false
+                                        } else {
+                                            entry.insert(RouteState::Live {
+                                                route: route.clone(),
+                                                reply: Some(reply.clone()),
+                                            });
+                                            true
+                                        }
+                                    }
+                                    // Vacant or foreign (terminated /
+                                    // superseded): the response no
+                                    // longer wants this container.
+                                    _ => false,
+                                }
+                            };
+                            guard.disarm();
+                            if transitioned {
+                                // Mirror write-through OUTSIDE the
+                                // routes entry guard (no cross-map
+                                // holds).
+                                if let Some(mirror) = &inner.routes.mirror {
+                                    mirror.insert(
+                                        (
+                                            response_id.clone(),
+                                            route.lab_id.clone(),
+                                        ),
+                                        mcp_kind.clone(),
+                                    );
+                                }
+                                let _ = tx.send(Some(Ok(reply)));
+                            } else {
+                                spawn_host_drop(
+                                    &global,
+                                    route,
+                                    response_id.clone(),
+                                );
+                                let _ = tx.send(Some(Err(
+                                    "response dropped during ephemeral create"
+                                        .to_string(),
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
     /// Which laboratory (if any) a payload is addressed to — the id
     /// plus the exact host pair when the payload carries it
     /// (laboratory ids are only unique per (machine, state); a
-    /// pair-less target routes first-match-by-id).
+    /// pair-less target routes first-match-by-id). Ephemeral kinds
+    /// never reach this — [`Self::ephemeral_target`] resolves them
+    /// first.
     fn laboratory_target(&self, payload: &server_request::Payload) -> Option<LabTarget> {
-        if let Some(McpKind::Laboratory { id, machine, machine_state, agent }) =
+        if let Some(McpKind::Laboratory { id, machine, machine_state }) =
             payload.mcp_kind()
         {
-            return Some(LabTarget { id, machine, machine_state, agent_seed: agent });
+            return Some(LabTarget { id, machine, machine_state });
         }
         match payload {
             server_request::Payload::LaboratoryExportBegin(req) => Some(LabTarget {
                 id: req.laboratory_id.clone(),
                 machine: req.machine.clone(),
                 machine_state: req.machine_state.clone(),
-                agent_seed: None,
             }),
             server_request::Payload::LaboratoryImportBegin(req) => Some(LabTarget {
                 id: req.laboratory_id.clone(),
                 machine: req.machine.clone(),
                 machine_state: req.machine_state.clone(),
-                agent_seed: None,
             }),
             // Both endpoints share one host (equal (machine, state) by
             // construction) - route by the source pair, forward whole.
@@ -751,7 +1525,6 @@ impl ConduitMcpHandler {
                 id: req.source_id.clone(),
                 machine: req.source_machine.clone(),
                 machine_state: req.source_machine_state.clone(),
-                agent_seed: None,
             }),
             server_request::Payload::LaboratoryExportRead(req) => self
                 .inner
@@ -788,7 +1561,7 @@ impl ConduitMcpHandler {
     /// close it).
     async fn dispatch_laboratory_forward(
         &self,
-        mut target: LabTarget,
+        target: LabTarget,
         headers: &IndexMap<String, String>,
         payload: server_request::Payload,
     ) -> server_response::Payload {
@@ -815,185 +1588,41 @@ impl ConduitMcpHandler {
                 "laboratory forward requires the resident daemon".to_string(),
             );
         };
-        // Agent-embedded laboratory: the lab need not pre-exist. On
-        // the session-opening Initialize, REUSE the derived id from
-        // whichever connected host already serves it; otherwise CREATE
-        // it on THIS machine's own-state host right now (no mounts —
-        // agent laboratories don't support them). Later ops carry the
-        // seed too but skip this block: they ride the registry's
-        // normal id routing.
-        if let Some(seed) = target.agent_seed.take() {
-            let is_initialize =
-                matches!(payload, server_request::Payload::Initialize { .. });
-            if is_initialize
-                && (target.machine.is_none() || target.machine_state.is_none())
-            {
-                match hubs.laboratories.host_for_laboratory(&target.id).await {
-                    Some((machine, machine_state)) => {
-                        target.machine = Some(machine);
-                        target.machine_state = Some(machine_state);
-                    }
-                    None => {
-                        if let Err(e) = crate::command::laboratories::ensure_local_host(
-                            &self.inner.global,
-                            &self.inner.scoped,
-                        )
-                        .await
-                        {
-                            return shape.error(
-                                -32603,
-                                format!(
-                                    "agent laboratory {}: local host: {e}",
-                                    target.id
-                                ),
-                            );
-                        }
-                        let machine = objectiveai_sdk::machine::machine_id(
-                            self.inner.scoped.filesystem.dir(),
-                        );
-                        let machine_state =
-                            self.inner.scoped.filesystem.state().to_string();
-                        let create = objectiveai_sdk::laboratories::daemon::RequestPayload::Create(
-                            objectiveai_sdk::laboratories::daemon::CreateRequest {
-                                id: target.id.clone(),
-                                image: seed.laboratory.image.clone(),
-                                mounts: Vec::new(),
-                                env: seed.laboratory.env.clone().unwrap_or_default(),
-                                cwd: seed
-                                    .laboratory
-                                    .cwd
-                                    .clone()
-                                    .unwrap_or_else(|| "/".to_string()),
-                                agent_full_id: Some(seed.agent_full_id.clone()),
-                            },
-                        );
-                        use objectiveai_sdk::laboratories::daemon::{
-                            JsonRpcResult as LabRpc, ResponsePayload as LabResp,
-                        };
-                        match hubs
-                            .laboratories
-                            .forward_to_host(
-                                &machine,
-                                &machine_state,
-                                indexmap::IndexMap::new(),
-                                create,
-                            )
-                            .await
-                        {
-                            Ok(LabResp::Create(LabRpc::Ok { .. })) => {}
-                            // A concurrent Initialize won the create
-                            // race — the lab exists, which is all this
-                            // needs.
-                            Ok(LabResp::Create(LabRpc::Err { message, .. }))
-                                if message.contains("already exists") => {}
-                            Ok(LabResp::Create(LabRpc::Err { message, .. })) => {
-                                return shape.error(
-                                    -32603,
-                                    format!(
-                                        "agent laboratory {}: create: {message}",
-                                        target.id
-                                    ),
-                                );
-                            }
-                            Ok(_) => {
-                                return shape.error(
-                                    -32603,
-                                    format!(
-                                        "agent laboratory {}: host answered create with an unexpected payload",
-                                        target.id
-                                    ),
-                                );
-                            }
-                            Err(message) => {
-                                return shape.error(
-                                    -32603,
-                                    format!(
-                                        "agent laboratory {}: create: {message}",
-                                        target.id
-                                    ),
-                                );
-                            }
-                        }
-                        target.machine = Some(machine);
-                        target.machine_state = Some(machine_state);
-                    }
-                }
-            }
-        }
-        // A laboratory addressed to (or plausibly living on) THIS
-        // daemon's own (machine, state) may have no CONNECTED host
-        // simply because the daemon restarted since the lab was
-        // created — the host is a leashed daemon child and died with
-        // it. Mirror the id-routed commands' best-effort local ensure
-        // BEFORE forwarding: an exact local pair ensures; a pair-less
-        // id no connected host serves ensures too (it may well be a
-        // local lab). Remote pairs keep the registry's own no-host
-        // error — this daemon cannot spawn a host elsewhere.
-        {
-            let local_machine = objectiveai_sdk::machine::machine_id(
-                self.inner.scoped.filesystem.dir(),
-            );
-            let local_state = self.inner.scoped.filesystem.state();
-            let addressed_local = target.machine.as_deref()
-                == Some(local_machine.as_str())
-                && target.machine_state.as_deref() == Some(local_state);
-            let pairless_unserved = target.machine.is_none()
-                && target.machine_state.is_none()
-                && hubs
-                    .laboratories
-                    .host_for_laboratory(&target.id)
-                    .await
-                    .is_none();
-            if (addressed_local || pairless_unserved)
-                && !hubs.laboratories.has_host(&local_machine, local_state)
-            {
-                if let Err(e) = crate::command::laboratories::ensure_local_host(
-                    &self.inner.global,
-                    &self.inner.scoped,
-                )
-                .await
-                {
-                    return shape.error(
-                        -32603,
-                        format!("laboratory {}: local host: {e}", target.id),
+        // The host is NEVER auto-spawned on demand: if the local host
+        // died with a daemon restart (it is a leashed daemon child),
+        // the forward hits the registry's own no-host error and the
+        // operator brings it back with `laboratories spawn`.
+        // Session routes: remember every CLIENT-lab Initialize this
+        // reverse connection forwards (keyed by response id + the
+        // resolved routing triple), and forget on the graceful end —
+        // the remainder is what [`Inner`]'s drop cleans up after an
+        // abrupt reverse-channel death. Over-approximate on purpose:
+        // a failed Initialize still records, and its teardown Drop is
+        // a harmless `dropped: false` no-op host-side. (Ephemeral
+        // upstreams record their routes at create and remove them in
+        // `handle`'s ephemeral branch — the removal below misses
+        // their Client-shaped key harmlessly.)
+        if let Some(response_id) = response_id_from_headers(headers) {
+            let key = RouteKey::Client {
+                id: target.id.clone(),
+                machine: target.machine.clone(),
+                machine_state: target.machine_state.clone(),
+            };
+            match &payload {
+                server_request::Payload::Initialize { mcp_kind, .. } => {
+                    self.inner.routes.record(
+                        &response_id,
+                        key,
+                        HostRoute {
+                            lab_id: target.id.clone(),
+                            machine: target.machine.clone(),
+                            machine_state: target.machine_state.clone(),
+                        },
+                        mcp_kind.clone(),
                     );
                 }
-            }
-        }
-        // Session ledger: remember every lab Initialize this reverse
-        // connection forwards (keyed by response id + the RESOLVED
-        // routing triple), and forget on the graceful ends — the
-        // remainder is what [`Inner`]'s drop cleans up after an abrupt
-        // reverse-channel death. Over-approximate on purpose: a failed
-        // Initialize still records, and its teardown Drop is a
-        // harmless `dropped: false` no-op host-side.
-        if let Some(response_id) = response_id_from_headers(headers).or_else(|| {
-            match &payload {
-                server_request::Payload::Drop(req) => Some(req.response_id.clone()),
-                _ => None,
-            }
-        }) {
-            let key: LabSessionKey = (
-                target.id.clone(),
-                target.machine.clone(),
-                target.machine_state.clone(),
-            );
-            match &payload {
-                server_request::Payload::Initialize { .. } => {
-                    self.inner
-                        .laboratory_sessions
-                        .entry(response_id)
-                        .or_default()
-                        .insert(key);
-                }
-                server_request::Payload::SessionTerminate { .. }
-                | server_request::Payload::Drop(_) => {
-                    self.inner
-                        .laboratory_sessions
-                        .remove_if_mut(&response_id, |_, keys| {
-                            keys.remove(&key);
-                            keys.is_empty()
-                        });
+                server_request::Payload::SessionTerminate { .. } => {
+                    self.inner.routes.remove(&response_id, &key);
                 }
                 _ => {}
             }
@@ -1052,12 +1681,14 @@ impl ConduitMcpHandler {
 
     /// The daemon-side splice for a cross-host client-to-client
     /// transfer: export from the source host, import into the
-    /// destination host, exactly ONE chunk in transit - the API never
-    /// touches payload bytes, and this daemon never accumulates beyond
-    /// the chunk being moved (the `data` strings pass through opaque,
-    /// no base64 work). Abort discipline mirrors the proxy's old
-    /// splice: an import-side failure aborts the parked export and
-    /// vice versa, so neither host leaks a parked transfer.
+    /// destination host, at most TWO chunks in flight (one-chunk
+    /// prefetch) — the API never touches payload bytes, and this
+    /// daemon never accumulates beyond the chunks being moved (the
+    /// raw `data` bytes pass through opaque; chunks ride the channel's
+    /// binary frames, no base64 anywhere). Abort discipline mirrors
+    /// the proxy's old splice: an import-side failure aborts the
+    /// parked export and vice versa, so neither host leaks a parked
+    /// transfer.
     async fn dispatch_laboratory_transfer(
         &self,
         headers: &IndexMap<String, String>,
@@ -1153,19 +1784,131 @@ impl ConduitMcpHandler {
             }
         };
 
-        // The splice: pull one chunk, push it, repeat. `eof: true`
+        // The splice, ONE-CHUNK PREFETCHED (double-buffered): while
+        // chunk N is being written to the destination, chunk N+1 is
+        // already being pulled from the source — throughput is the
+        // slower SIDE's round trip instead of the SUM of both, and
+        // memory stays bounded at two chunks in flight. `eof: true`
         // means the export side already dropped its entry (the final
         // chunk's data may still be non-empty).
+        let read_error = |other: Result<HR, String>| match other {
+            Ok(HR::ExportRead(labd::JsonRpcResult::Err {
+                code, message, ..
+            })) => err(code, format!("export read: {message}")),
+            Ok(_) => err(-32603, "export read: variant mismatch".to_string()),
+            Err(message) => err(-32603, format!("export read: {message}")),
+        };
+        let write_error = |other: Result<HR, String>| match other {
+            Ok(HR::ImportWrite(labd::JsonRpcResult::Err {
+                code, message, ..
+            })) => err(code, format!("import write: {message}")),
+            Ok(_) => err(-32603, "import write: variant mismatch".to_string()),
+            Err(message) => err(-32603, format!("import write: {message}")),
+        };
+        // Prime the pipeline with the first chunk.
+        let mut current = match forward(
+            &source,
+            P::ExportRead(labd::TransferIdRequest {
+                transfer_id: export_id.clone(),
+            }),
+        )
+        .await
+        {
+            Ok(HR::ExportRead(labd::JsonRpcResult::Ok { result })) => result,
+            other => {
+                let _ = forward(
+                    &destination,
+                    P::ImportAbort(labd::TransferIdRequest {
+                        transfer_id: import_id,
+                    }),
+                )
+                .await;
+                return read_error(other);
+            }
+        };
         loop {
-            let chunk = match forward(
+            let eof = current.eof;
+            let data = std::mem::take(&mut current.data);
+            if data.is_empty() && eof {
+                break;
+            }
+            if eof {
+                // Final chunk: nothing left to prefetch (the export
+                // entry is already gone host-side) — plain write.
+                match forward(
+                    &destination,
+                    P::ImportWrite(labd::ImportWriteRequest {
+                        transfer_id: import_id.clone(),
+                        data,
+                    }),
+                )
+                .await
+                {
+                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => {}
+                    other => {
+                        let _ = forward(
+                            &destination,
+                            P::ImportAbort(labd::TransferIdRequest {
+                                transfer_id: import_id,
+                            }),
+                        )
+                        .await;
+                        return write_error(other);
+                    }
+                }
+                break;
+            }
+            // Overlap the write of THIS chunk with the read of the
+            // NEXT (an empty non-final chunk just skips the write).
+            let write = async {
+                if data.is_empty() {
+                    return Ok(true);
+                }
+                match forward(
+                    &destination,
+                    P::ImportWrite(labd::ImportWriteRequest {
+                        transfer_id: import_id.clone(),
+                        data,
+                    }),
+                )
+                .await
+                {
+                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => Ok(true),
+                    other => Err(other),
+                }
+            };
+            let read = forward(
                 &source,
                 P::ExportRead(labd::TransferIdRequest {
                     transfer_id: export_id.clone(),
                 }),
-            )
-            .await
-            {
+            );
+            let (wrote, next) = tokio::join!(write, read);
+            if let Err(other) = wrote {
+                // Write failure aborts both halves. The export may
+                // have ended meanwhile (the prefetched read hit eof,
+                // dropping its entry) — an unknown-id abort is a
+                // harmless no-op host-side.
+                let _ = forward(
+                    &source,
+                    P::ExportAbort(labd::TransferIdRequest {
+                        transfer_id: export_id,
+                    }),
+                )
+                .await;
+                let _ = forward(
+                    &destination,
+                    P::ImportAbort(labd::TransferIdRequest {
+                        transfer_id: import_id,
+                    }),
+                )
+                .await;
+                return write_error(other);
+            }
+            current = match next {
                 Ok(HR::ExportRead(labd::JsonRpcResult::Ok { result })) => result,
+                // Read failure: the source dropped its own entry on
+                // error; only the import needs aborting.
                 other => {
                     let _ = forward(
                         &destination,
@@ -1174,69 +1917,9 @@ impl ConduitMcpHandler {
                         }),
                     )
                     .await;
-                    return match other {
-                        Ok(HR::ExportRead(labd::JsonRpcResult::Err {
-                            code,
-                            message,
-                            ..
-                        })) => err(code, format!("export read: {message}")),
-                        Ok(_) => {
-                            err(-32603, "export read: variant mismatch".to_string())
-                        }
-                        Err(message) => err(-32603, format!("export read: {message}")),
-                    };
+                    return read_error(other);
                 }
             };
-            let eof = chunk.eof;
-            if !chunk.data.is_empty() {
-                match forward(
-                    &destination,
-                    P::ImportWrite(labd::ImportWriteRequest {
-                        transfer_id: import_id.clone(),
-                        data: chunk.data,
-                    }),
-                )
-                .await
-                {
-                    Ok(HR::ImportWrite(labd::JsonRpcResult::Ok { .. })) => {}
-                    other => {
-                        if !eof {
-                            let _ = forward(
-                                &source,
-                                P::ExportAbort(
-                                    labd::TransferIdRequest {
-                                        transfer_id: export_id,
-                                    },
-                                ),
-                            )
-                            .await;
-                        }
-                        let _ = forward(
-                            &destination,
-                            P::ImportAbort(labd::TransferIdRequest {
-                                transfer_id: import_id,
-                            }),
-                        )
-                        .await;
-                        return match other {
-                            Ok(HR::ImportWrite(labd::JsonRpcResult::Err {
-                                code,
-                                message,
-                                ..
-                            })) => err(code, format!("import write: {message}")),
-                            Ok(_) => {
-                                err(-32603, "import write: variant mismatch".to_string())
-                            }
-                            Err(message) => {
-                                err(-32603, format!("import write: {message}"))
-                            }
-                        };
-                    }
-                }
-            }
-            if eof {
-                break;
-            }
         }
 
         // Close the import and surface the byte total.
@@ -1273,10 +1956,6 @@ struct LabTarget {
     id: String,
     machine: Option<String>,
     machine_state: Option<String>,
-    /// For agent-embedded laboratories: the create seed from the
-    /// McpKind. Consumed by the Initialize-time reuse-or-create in
-    /// `dispatch_laboratory_forward`; `None` on every other route.
-    agent_seed: Option<objectiveai_sdk::client_objectiveai_mcp::AgentLaboratorySeed>,
 }
 
 /// Enough of a request payload's shape to build a same-variant error
@@ -1578,9 +2257,18 @@ fn from_host_payload(
                 JsonRpcResult::Err { code, message, data }
             }
         }),
-        // Host-level ops (create/delete) never enter through this
-        // seam — the laboratories commands drive them directly.
-        H::Create(_) | H::Delete(_) => shape.clone().error(
+        // Host-level ops (create/ephemeral-create/delete, and the
+        // viewer-plugin build family) never enter through this seam —
+        // the laboratories commands and the `/plugins/…/viewer` route
+        // drive them directly.
+        H::Create(_)
+        | H::AgentEphemeralCreate(_)
+        | H::PluginEphemeralCreate(_)
+        | H::Delete(_)
+        | H::PluginImageReset(_)
+        | H::BuildCreate(_)
+        | H::BuildRead(_)
+        | H::BuildAbort(_) => shape.clone().error(
             -32603,
             "unexpected host-level reply through the conduit seam".to_string(),
         ),
@@ -1598,78 +2286,6 @@ fn ack(
         JsonRpcResult::Err { code, message, data } => {
             JsonRpcResult::Err { code, message, data }
         }
-    }
-}
-
-async fn dispatch_tools_list(
-    state: &ConduitState,
-    headers: &IndexMap<String, String>,
-    params: ListToolsRequest,
-) -> server_response::Payload {
-    let result = upstream_call::<ListToolsRequest, ListToolsResult>(
-        &state.connection,
-        headers,
-        "tools/list",
-        &params,
-    )
-    .await;
-    server_response::Payload::ToolsList {
-        mcp_kind: state.mcp_kind.clone(),
-        result: into_rpc_result(result),
-    }
-}
-
-async fn dispatch_tools_call(
-    state: &ConduitState,
-    headers: &IndexMap<String, String>,
-    params: CallToolRequestParams,
-) -> server_response::Payload {
-    let result = upstream_call::<CallToolRequestParams, CallToolResult>(
-        &state.connection,
-        headers,
-        "tools/call",
-        &params,
-    )
-    .await;
-    server_response::Payload::ToolsCall {
-        mcp_kind: state.mcp_kind.clone(),
-        result: into_rpc_result(result),
-    }
-}
-
-async fn dispatch_resources_list(
-    state: &ConduitState,
-    headers: &IndexMap<String, String>,
-    params: ListResourcesRequest,
-) -> server_response::Payload {
-    let result = upstream_call::<ListResourcesRequest, ListResourcesResult>(
-        &state.connection,
-        headers,
-        "resources/list",
-        &params,
-    )
-    .await;
-    server_response::Payload::ResourcesList {
-        mcp_kind: state.mcp_kind.clone(),
-        result: into_rpc_result(result),
-    }
-}
-
-async fn dispatch_resources_read(
-    state: &ConduitState,
-    headers: &IndexMap<String, String>,
-    params: ReadResourceRequestParams,
-) -> server_response::Payload {
-    let result = upstream_call::<ReadResourceRequestParams, ReadResourceResult>(
-        &state.connection,
-        headers,
-        "resources/read",
-        &params,
-    )
-    .await;
-    server_response::Payload::ResourcesRead {
-        mcp_kind: state.mcp_kind.clone(),
-        result: into_rpc_result(result),
     }
 }
 
@@ -1745,10 +2361,9 @@ fn script_err(message: impl Into<String>) -> server_response::Payload {
 /// deadline discipline).
 ///
 /// The execution context carries the request's TYPED identity fields
-/// (the same application `dial_plugin_upstream` does from the MCP
-/// path's transient headers), so anything the script runs via
-/// `objectiveai.execute` uses the calling agent's identity — its
-/// response id, agent full id, lineage.
+/// (derived from the MCP path's transient headers), so anything the
+/// script runs via `objectiveai.execute` uses the calling agent's
+/// identity — its response id, agent full id, lineage.
 async fn dispatch_script(
     inner: &Arc<Inner>,
     req: server_request::ScriptRequest,
@@ -1764,10 +2379,12 @@ async fn dispatch_script(
             response_id: Some(req.response_id.clone()),
             response_ids: req.response_ids.clone(),
             // Script agents are not plugins; the trio's single
-            // writer is `plugins run`.
+            // writer is `plugins run`. Same for the task flag — the
+            // scheduler is its single writer.
             plugin_owner: None,
-            plugin_repository: None,
+            plugin_name: None,
             plugin_version: None,
+            task: false,
         })
         .await;
     let python = match inner.global.python().await {
@@ -1913,322 +2530,6 @@ async fn dispatch_retrieve(
     server_response::Payload::Retrieve(JsonRpcResult::Ok { result: response })
 }
 
-fn into_rpc_result<R>(
-    result: Result<JsonRpcResult<R>, ConduitError>,
-) -> JsonRpcResult<R> {
-    match result {
-        Ok(r) => r,
-        Err(e) => JsonRpcResult::Err {
-            code: -32603,
-            message: format!("conduit: {e}"),
-            data: None,
-        },
-    }
-}
-
-/// Raw POST through an `mcp::Connection`. Builds a JSON-RPC
-/// envelope (`{jsonrpc, id, method, params}`) from the typed
-/// `params`, forwards inbound headers verbatim (modulo a hop-by-hop
-/// blacklist), sets `Mcp-Session-Id` to the connection's own
-/// session id, parses the response body via [`parse_json_or_sse`],
-/// and projects the JSON-RPC `{result|error}` shape into the
-/// SDK-typed [`JsonRpcResult<R>`].
-async fn upstream_call<P, R>(
-    conn: &objectiveai_sdk::mcp::Connection,
-    headers: &IndexMap<String, String>,
-    method: &str,
-    params: &P,
-) -> Result<JsonRpcResult<R>, ConduitError>
-where
-    P: serde::Serialize,
-    R: serde::de::DeserializeOwned,
-{
-    let rpc_id = uuid::Uuid::new_v4().to_string();
-    let envelope = serde_json::json!({
-        "jsonrpc": "2.0",
-        "id": rpc_id,
-        "method": method,
-        "params": params,
-    });
-
-    let mut req = conn.http_client.post(&conn.url);
-    for (k, v) in headers {
-        if k.eq_ignore_ascii_case("host")
-            || k.eq_ignore_ascii_case("content-length")
-            || k.eq_ignore_ascii_case("connection")
-            || k.eq_ignore_ascii_case("accept")
-            || k.eq_ignore_ascii_case("content-type")
-            || k.eq_ignore_ascii_case("mcp-session-id")
-        {
-            continue;
-        }
-        req = req.header(k, v);
-    }
-    req = req
-        .header("Content-Type", "application/json")
-        .header("Accept", "application/json, text/event-stream")
-        .header("Mcp-Session-Id", &conn.session_id)
-        .json(&envelope);
-
-    let resp = req.send().await.map_err(ConduitError::Request)?;
-    let resp_text = resp.text().await.map_err(ConduitError::Body)?;
-    let Some(body) = parse_json_or_sse(&resp_text) else {
-        return Err(ConduitError::MalformedUpstream(
-            "empty or unparseable upstream response".into(),
-        ));
-    };
-
-    if let Some(result) = body.get("result") {
-        let typed: R = serde_json::from_value(result.clone())
-            .map_err(|e| ConduitError::MalformedUpstream(format!("decode upstream result: {e}")))?;
-        return Ok(JsonRpcResult::Ok { result: typed });
-    }
-    if let Some(err) = body.get("error") {
-        let code = err.get("code").and_then(|c| c.as_i64()).unwrap_or(-32603);
-        let message = err
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("upstream returned an error envelope without a message")
-            .to_string();
-        let data = err.get("data").cloned();
-        return Ok(JsonRpcResult::Err {
-            code,
-            message,
-            data,
-        });
-    }
-    Err(ConduitError::MalformedUpstream(
-        "upstream response missing both `result` and `error`".into(),
-    ))
-}
-
-// ────────────────────────────────────────────────────────────────
-// Plugin dial
-// ────────────────────────────────────────────────────────────────
-
-/// Dial a plugin's MCP upstream: clone the base
-/// scope from `inner.scoped`, stamp the six
-/// transient header values into `Config`, then call the shared
-/// [`crate::command::plugins::run::execute`] with
-/// `Request { name: plugin, args: ["mcp", mcp_name, "begin", …], base: default }`.
-/// A background drain task forwards the first
-/// [`PluginMcp`](objectiveai_sdk::cli::command::plugins::run::Mcp)
-/// item it sees via a `tokio::sync::oneshot`, then discards every
-/// subsequent stream item until EOF so the plugin's nested-command
-/// demux stays unstuck. The CLI does NOT time the dial out — the
-/// API layer above owns the deadline; if the plugin exits without
-/// ever emitting an Mcp, the oneshot sender drops and we surface
-/// that as a `PluginDialFailed`.
-///
-/// `connect_headers` is the sanitized inbound header set (see
-/// [`sanitize_connect_headers`]) forwarded verbatim onto the upstream
-/// handshake, so the plugin's MCP server receives the six
-/// `X-OBJECTIVEAI-*` transient headers (notably
-/// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`) on `initialize` and every
-/// later RPC — parity with the `McpKind::ObjectiveAi` dial path. The
-/// `transient` struct (the parsed subset) is still stamped into the
-/// spawned subprocess's env so it can re-stamp them downstream.
-///
-/// Owner / version are carried through for diagnostic readability +
-/// future versioning; today's filesystem layer looks up plugins by
-/// `name` alone. The `mcp` field discriminates which of the plugin
-/// manifest's declared MCP servers to spawn.
-#[allow(clippy::too_many_arguments)]
-async fn dial_plugin_upstream(
-    inner: &Arc<Inner>,
-    plugin_owner: String,
-    plugin_name: String,
-    plugin_version: String,
-    mcp_name: String,
-    args: IndexMap<String, Option<String>>,
-    transient: &TransientHeaders,
-    connect_headers: IndexMap<String, String>,
-    stored_session_id: Option<String>,
-) -> Result<(objectiveai_sdk::mcp::Connection, tokio::task::AbortHandle), ConduitError> {
-    let fail = |reason: String| ConduitError::PluginDialFailed {
-        plugin_owner: plugin_owner.clone(),
-        plugin_name: plugin_name.clone(),
-        plugin_version: plugin_version.clone(),
-        mcp_name: mcp_name.clone(),
-        reason,
-    };
-
-    // Derive the per-dial scope carrying the transient header
-    // identities. `crate::spawn::apply_config_env` (called inside
-    // `command::plugins::run::execute`) projects these onto the
-    // plugin subprocess env so the plugin's MCP server can
-    // re-stamp them on any outbound calls it makes downstream.
-    // `agent_remote` is `None` for inline agents (the api omits
-    // the header entirely; empty-string transients are forbidden),
-    // which `apply_config_env` translates into an `env_remove` of
-    // `OBJECTIVEAI_AGENT_REMOTE` on the spawned subprocess. The
-    // fresh scope's api cell is born with the transient identity,
-    // so the conduit owner's memoized client can neither be reused
-    // nor poisoned.
-    let dial_scope = inner
-        .scoped
-        .for_request(crate::context::ScopeIdentity {
-            agent_instance_hierarchy: transient.agent_instance_hierarchy.clone(),
-            agent_id: Some(transient.agent_id.clone()),
-            agent_full_id: Some(transient.agent_full_id.clone()),
-            agent_remote: transient.agent_remote.clone(),
-            response_id: Some(transient.response_id.clone()),
-            response_ids: Some(transient.response_ids.clone()),
-            // None here on purpose: `plugins run` (which this dial
-            // flows into) is the trio's SINGLE writer — it stamps
-            // the nested scope with this very plugin's coordinates.
-            plugin_owner: None,
-            plugin_repository: None,
-            plugin_version: None,
-        })
-        .await;
-
-    // Build argv: `mcp <mcp_name> begin [--<k> [<v>]]…`. Manifest /
-    // binary resolution is `command::plugins::run::execute`'s job;
-    // it surfaces `Error::PluginNotFound` when the plugin isn't
-    // installed.
-    let mut argv: Vec<String> = vec!["mcp".to_string(), mcp_name.clone(), "begin".to_string()];
-    for (k, v) in &args {
-        argv.push(format!("--{k}"));
-        if let Some(value) = v {
-            argv.push(value.clone());
-        }
-    }
-
-    let request = objectiveai_sdk::cli::command::plugins::run::Request {
-        path_type: objectiveai_sdk::cli::command::plugins::run::Path::PluginsRun,
-        owner: plugin_owner.clone(),
-        name: plugin_name.clone(),
-        version: plugin_version.clone(),
-        args: argv,
-        base: Default::default(),
-    };
-
-    let stream = crate::command::plugins::run::execute(&inner.global, &dial_scope, request)
-        .await
-        .map_err(|e| fail(format!("plugin spawn failed: {e}")))?;
-
-    let (mcp_tx, mcp_rx) = tokio::sync::oneshot::channel::<PluginMcp>();
-
-    // The drain task OWNS the `execute` stream, which owns the plugin's
-    // `tokio::process::Child` (kill_on_drop=true). Keeping its abort
-    // handle is what lets us kill the subprocess later: aborting the
-    // task drops the stream → drops the Child → kill_on_drop fires.
-    let drain = tokio::spawn(async move {
-        use futures::StreamExt;
-        use objectiveai_sdk::cli::command::plugins::run::ResponseItem;
-        let mut stream = stream;
-        let mut mcp_tx = Some(mcp_tx);
-        while let Some(item) = stream.next().await {
-            if let Ok(ResponseItem::Mcp(mcp)) = item {
-                if let Some(tx) = mcp_tx.take() {
-                    let _ = tx.send(mcp);
-                }
-            }
-            // Every other variant (Error, Notification, stream Err)
-            // and every Mcp after the first is discarded — but we
-            // keep reading so the plugin's nested-command demux
-            // (which writes back into the plugin's stdin) keeps
-            // draining the stream until EOF.
-        }
-        // Stream EOF: if we never saw an Mcp, `mcp_tx` is dropped
-        // here, waking `mcp_rx.await` with `Err(Canceled)`.
-    });
-    let drain_handle = drain.abort_handle();
-
-    // Wait forever — the API layer above owns the timeout. On any
-    // post-spawn failure, abort the drain task so the just-spawned
-    // subprocess isn't orphaned (it would otherwise linger until plugin
-    // EOF or CLI exit, since the success path is the only one that hands
-    // the abort handle to a `ConduitState`).
-    let mcp = match mcp_rx.await {
-        Ok(mcp) => mcp,
-        Err(_) => {
-            drain_handle.abort();
-            return Err(fail("plugin exited without emitting mcp{url}".into()));
-        }
-    };
-
-    // Forward the sanitized inbound headers on the handshake so the
-    // plugin's MCP server gets the six X-OBJECTIVEAI-* transient
-    // headers (incl. AGENT-INSTANCE-HIERARCHY) on initialize + every
-    // later RPC — parity with the McpKind::ObjectiveAi dial.
-    let connection = match inner
-        .client
-        .connect(mcp.url, stored_session_id, Some(connect_headers))
-        .await
-    {
-        Ok(connection) => connection,
-        Err(e) => {
-            drain_handle.abort();
-            return Err(fail(format!("connect: {e}")));
-        }
-    };
-
-    Ok((connection, drain_handle))
-}
-
-/// Wire `set_on_{tools,resources}_list_changed` to fire-and-forget
-/// notifier sends. Closures read the late-bound `Notifier` from the
-/// `Inner`'s `OnceLock` at fire time — events that fire before
-/// `install_notifier` is called are dropped silently. Each pump is
-/// keyed to a single [`McpKind`]; the emitted [`McpListChanged`]
-/// frame carries that kind so the API can route to the matching
-/// per-MCP GET-SSE subscriber.
-fn install_list_changed_pump(
-    connection: &objectiveai_sdk::mcp::Connection,
-    inner: Arc<Inner>,
-    mcp_kind: McpKind,
-) {
-    let inner_tools = inner.clone();
-    let kind_tools = mcp_kind.clone();
-    connection.set_on_tools_list_changed(move || {
-        let Some(notifier) = inner_tools.notifier.get().cloned() else {
-            return;
-        };
-        let mcp_kind = kind_tools.clone();
-        tokio::spawn(async move {
-            let _ = notifier
-                .notify_list_changed(McpListChanged {
-                    mcp_kind,
-                    kind: McpListChangedKind::Tools,
-                })
-                .await;
-        });
-    });
-
-    connection.set_on_resources_list_changed(move || {
-        let Some(notifier) = inner.notifier.get().cloned() else {
-            return;
-        };
-        let mcp_kind = mcp_kind.clone();
-        tokio::spawn(async move {
-            let _ = notifier
-                .notify_list_changed(McpListChanged {
-                    mcp_kind,
-                    kind: McpListChangedKind::Resources,
-                })
-                .await;
-        });
-    });
-}
-
-/// Hop-by-hop and layer-internal headers don't propagate to MCP.
-fn sanitize_connect_headers(headers: &IndexMap<String, String>) -> IndexMap<String, String> {
-    let mut out = headers.clone();
-    for k in [
-        "Host",
-        "host",
-        "Content-Length",
-        "content-length",
-        "Mcp-Session-Id",
-        "mcp-session-id",
-    ] {
-        out.shift_remove(k);
-    }
-    out
-}
-
 // ────────────────────────────────────────────────────────────────
 // Header helpers
 // ────────────────────────────────────────────────────────────────
@@ -2241,36 +2542,6 @@ fn response_id_from_headers(headers: &IndexMap<String, String>) -> Option<String
         .iter()
         .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-RESPONSE-ID"))
         .map(|(_, v)| v.clone())
-}
-
-/// Look a connection up in the two-level `(response_id → McpKind →
-/// ConduitState)` registry, cloning the `Arc` out so no DashMap guard is
-/// held past return (and never across an `.await`).
-fn get_connection(
-    inner: &Inner,
-    response_id: &str,
-    mcp_kind: &McpKind,
-) -> Option<Arc<ConduitState>> {
-    inner
-        .connections
-        .get(response_id)
-        .and_then(|by_kind| by_kind.get(mcp_kind).map(|e| e.value().clone()))
-}
-
-/// Insert a connection into the two-level registry, creating the inner
-/// `McpKind` map on first use for this response id. Replaces any existing
-/// entry for the same `(response_id, McpKind)`.
-fn insert_connection(
-    inner: &Inner,
-    response_id: String,
-    mcp_kind: McpKind,
-    state: Arc<ConduitState>,
-) {
-    inner
-        .connections
-        .entry(response_id)
-        .or_default()
-        .insert(mcp_kind, state);
 }
 
 /// The five required session-global transient headers the proxy
@@ -2302,6 +2573,10 @@ const OPTIONAL_AGENT_REMOTE_HEADER: &str = "X-OBJECTIVEAI-AGENT-REMOTE";
 /// `server_request::Request.headers` map. Built by
 /// [`require_transient`]; a missing or empty required key is a
 /// hard error returned to the API as a `JsonRpcResult::Err`.
+// The PARSE is the contract: `require_transient` enforces presence +
+// non-emptiness of the full transient set on every session-opening
+// request, whether or not the conduit consumes each field directly.
+#[allow(dead_code)]
 struct TransientHeaders {
     agent_instance_hierarchy: String,
     agent_id: String,
@@ -2362,39 +2637,4 @@ fn require_transient(
     })
 }
 
-/// Parses bare JSON; falls back to stripping `data:` prefixes and
-/// reparsing for SSE-wrapped responses.
-fn parse_json_or_sse(text: &str) -> Option<serde_json::Value> {
-    if text.is_empty() {
-        return None;
-    }
-    if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
-        return Some(v);
-    }
-    let collected: String = text
-        .lines()
-        .filter_map(|l| l.strip_prefix("data: ").or_else(|| l.strip_prefix("data:")))
-        .collect();
-    if collected.is_empty() {
-        return None;
-    }
-    serde_json::from_str::<serde_json::Value>(&collected).ok()
-}
 
-#[derive(Debug, thiserror::Error)]
-enum ConduitError {
-    #[error("forwarding HTTP request failed: {0}")]
-    Request(reqwest::Error),
-    #[error("reading response body failed: {0}")]
-    Body(reqwest::Error),
-    #[error("upstream response was malformed: {0}")]
-    MalformedUpstream(String),
-    #[error("plugin upstream {plugin_owner:?}/{plugin_name:?}@{plugin_version:?}/{mcp_name:?} dial failed: {reason}")]
-    PluginDialFailed {
-        plugin_owner: String,
-        plugin_name: String,
-        plugin_version: String,
-        mcp_name: String,
-        reason: String,
-    },
-}

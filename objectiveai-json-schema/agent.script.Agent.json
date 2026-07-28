@@ -4,18 +4,6 @@
   "type": "object",
   "$ref": "agent.script.Script",
   "properties": {
-    "client_objectiveai_mcp": {
-      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
-      "anyOf": [
-        {
-          "$ref": "agent.ClientObjectiveaiMcp"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "id": {
       "description": "The deterministic content-addressed ID (22-character base62 string).",
       "type": "string"
@@ -53,6 +41,14 @@
     "output_mode": {
       "description": "The output mode for vector completions. Ignored for agent completions.",
       "$ref": "agent.script.OutputMode"
+    },
+    "plugins": {
+      "description": "Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).",
+      "type": "array",
+      "items": {
+        "$ref": "agent.Plugin"
+      },
+      "omitempty": true
     },
     "upstream": {
       "description": "The upstream provider marker.",

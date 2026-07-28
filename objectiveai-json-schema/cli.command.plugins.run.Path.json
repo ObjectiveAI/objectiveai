@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.run.Path",
-  "type": "string",
-  "enum": [
-    "plugins/run"
-  ]
-}

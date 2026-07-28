@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.install.github.Path",
-  "type": "string",
-  "enum": [
-    "plugins/install/github"
-  ]
-}

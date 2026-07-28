@@ -1,0 +1,15 @@
+{
+  "title": "cli.plugins.ViewerScript",
+  "description": "One injectable script: a self-contained bundle evaluated inside a\npage the plugin does not own.\n\nDeliberately NOT shaped like [`ViewerTab`]:\n- **no `export`** — the injector evaluates a CLASSIC script, which\n  has no module record and therefore nothing to name. A tab module\n  is a value provider (the host needs the component back); a\n  script is an action, and the host has no use for its result.\n- **no `styles`** — the page is not ours and `plugin://` does not\n  exist there, so a stylesheet URL is unreachable (and a strict\n  site's CSP would block it anyway). A script's CSS must be a\n  string inside its own bundle, applied through CSSOM.\n\nFor the same reason the bundle must inline EVERYTHING, react\nincluded: no import map exists in a foreign page, and `import` is\na syntax error in a classic script.",
+  "type": "object",
+  "properties": {
+    "module": {
+      "description": "The built bundle, relative to the installed [`VIEWER_DIR`] —\nsame rules as a tab's `module`.",
+      "type": "string"
+    },
+    "name": {
+      "description": "How a tab addresses this script when it spawns a browser tab.\nResolving by NAME keeps the runnable set closed: only what the\nplugin declared at install time can ever be injected.",
+      "type": "string"
+    }
+  }
+}

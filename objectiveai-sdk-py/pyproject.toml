@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "objectiveai-sdk"
-version = "2.2.12"
+version = "2.2.13"
 description = "ObjectiveAI SDK"
 readme = "README.md"
 license = "MIT"

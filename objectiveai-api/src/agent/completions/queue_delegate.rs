@@ -156,13 +156,13 @@ impl Default for ApiQueueDelegate {
 impl QueueDelegate for ApiQueueDelegate {
     fn read_pending_blocks<'a>(
         &'a self,
-        agent_arguments: &'a IndexMap<String, String>,
+        identity: &'a IndexMap<String, String>,
     ) -> Pin<Box<dyn Future<Output = Option<QueueRead>> + Send + 'a>> {
         Box::pin(async move {
             // Locate the per-loop state by AIH header. Lookup is
             // case-insensitive — clients normalize but headers
             // can arrive in either form.
-            let aih = agent_arguments
+            let aih = identity
                 .iter()
                 .find(|(k, _)| k.eq_ignore_ascii_case(AIH_HEADER))
                 .map(|(_, v)| v.as_str())?;

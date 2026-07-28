@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "plugins/get/response_schema"
-  ]
-}

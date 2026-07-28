@@ -74,12 +74,13 @@ pub struct AgentBase {
     #[schemars(extend("omitempty" = true))]
     pub laboratories: Option<super::super::Laboratories>,
 
-    /// Client-side ObjectiveAI MCP surface the calling client is
-    /// expected to expose locally back to the API (objectiveai
-    /// built-in, plus specific plugins / tools by owner+name+version).
-    #[serde(skip_serializing_if = "Option::is_none")]
+
+
+    /// Plugins this agent uses — each IS one MCP server (the
+    /// next-iteration plugin shape; see [`super::super::plugin`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schemars(extend("omitempty" = true))]
-    pub client_objectiveai_mcp: Option<super::super::ClientObjectiveaiMcp>,
+    pub plugins: Vec<super::super::Plugin>,
 
     // --- OpenAI-compatible parameters ---
     /// Penalizes tokens based on their frequency in the output so far (-2.0 to 2.0).
@@ -214,10 +215,8 @@ impl AgentBase {
             }
             None => None,
         };
-        self.client_objectiveai_mcp = match self.client_objectiveai_mcp.take() {
-            Some(cm) => super::super::client_objectiveai_mcp::prepare(cm),
-            None => None,
-        };
+        self.plugins =
+            super::super::plugin::prepare(std::mem::take(&mut self.plugins));
         self.frequency_penalty = match self.frequency_penalty {
             Some(frequency_penalty) if frequency_penalty == 0.0 => None,
             other => other,
@@ -348,9 +347,7 @@ impl AgentBase {
         if let Some(laboratories) = &self.laboratories {
             super::super::laboratory::laboratories::validate(laboratories)?;
         }
-        if let Some(cm) = &self.client_objectiveai_mcp {
-            super::super::client_objectiveai_mcp::validate(cm)?;
-        }
+        super::super::plugin::validate(&self.plugins)?;
         validate_f64("frequency_penalty", self.frequency_penalty, -2.0, 2.0)?;
         if let Some(logit_bias) = &self.logit_bias {
             for (token, weight) in logit_bias {

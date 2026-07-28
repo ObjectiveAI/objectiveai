@@ -26,7 +26,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
 
     let (machine, machine_state) =
         super::resolve_pair(global, scoped, request.machine.clone(), request.machine_state.clone())?;
-    super::ensure_host(global, scoped, &machine, &machine_state).await?;
+    super::require_host(global, scoped, &machine, &machine_state)?;
     let hubs = global
         .resident_hubs()
         .ok_or_else(|| Error::Laboratory("laboratories delete requires the resident daemon".to_string()))?;

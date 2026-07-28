@@ -14,7 +14,7 @@ type CliCommandLaboratoriesCreateResponse struct {
 	// it.
 	CreatedAt *int64 `json:"created_at,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Cwd string `json:"cwd"`
-	Env []CliCommandLaboratoriesCreateEnvVar `json:"env"`
+	Env []LaboratoriesEnvVar `json:"env"`
 	ID string `json:"id"`
 	Image LaboratoriesLaboratoryImage `json:"image"`
 	// The machine whose laboratory host owns the container.
@@ -22,7 +22,7 @@ type CliCommandLaboratoriesCreateResponse struct {
 	// The state (on that machine) whose laboratory host owns the
 	// container.
 	MachineState *string `json:"machine_state,omitempty"`
-	Mounts []CliCommandLaboratoriesCreateMount `json:"mounts"`
+	Mounts []LaboratoriesMount `json:"mounts"`
 }
 
 func (CliCommandLaboratoriesCreateResponse) SchemaTitle() string { return "cli.command.laboratories.create.Response" }

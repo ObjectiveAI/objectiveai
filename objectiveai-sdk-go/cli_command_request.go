@@ -14,17 +14,16 @@ type CliCommandRequest struct {
 	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
 	Laboratories *CliCommandLaboratoriesRequest 
-	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
-	Plugins *CliCommandPluginsRequest 
 	Python *CliCommandPythonRequest 
 	PythonRequestSchema *CliCommandPythonRequestSchemaRequest 
 	PythonResponseSchema *CliCommandPythonResponseSchemaRequest 
 	Swarms *CliCommandSwarmsRequest 
-	Tools *CliCommandToolsRequest 
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
 	UpdateResponseSchema *CliCommandUpdateResponseSchemaRequest 
-	User *CliCommandUserRequest 
+	Channels *CliCommandChannelsRequest 
+	Development *CliCommandDevelopmentRequest 
+	Tasks *CliCommandTasksRequest 
 	Viewer *CliCommandViewerRequest 
 }
 
@@ -47,12 +46,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.Laboratories != nil {
 		return json.Marshal(v.Laboratories)
 	}
-	if v.MCP != nil {
-		return json.Marshal(v.MCP)
-	}
-	if v.Plugins != nil {
-		return json.Marshal(v.Plugins)
-	}
 	if v.Python != nil {
 		return json.Marshal(v.Python)
 	}
@@ -65,9 +58,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.Swarms != nil {
 		return json.Marshal(v.Swarms)
 	}
-	if v.Tools != nil {
-		return json.Marshal(v.Tools)
-	}
 	if v.Update != nil {
 		return json.Marshal(v.Update)
 	}
@@ -77,8 +67,14 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.UpdateResponseSchema != nil {
 		return json.Marshal(v.UpdateResponseSchema)
 	}
-	if v.User != nil {
-		return json.Marshal(v.User)
+	if v.Channels != nil {
+		return json.Marshal(v.Channels)
+	}
+	if v.Development != nil {
+		return json.Marshal(v.Development)
+	}
+	if v.Tasks != nil {
+		return json.Marshal(v.Tasks)
 	}
 	if v.Viewer != nil {
 		return json.Marshal(v.Viewer)
@@ -154,28 +150,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandMcpRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.MCP = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandPluginsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.Plugins = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandPythonRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -220,17 +194,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandToolsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.Tools = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandUpdateRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -264,10 +227,32 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandUserRequest
+		var try CliCommandChannelsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
-			candidate.User = &try
+			candidate.Channels = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDevelopmentRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Development = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandTasksRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Tasks = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -296,17 +281,16 @@ func (v CliCommandRequest) Validate() error {
 	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
 	if v.Laboratories != nil { count++ }
-	if v.MCP != nil { count++ }
-	if v.Plugins != nil { count++ }
 	if v.Python != nil { count++ }
 	if v.PythonRequestSchema != nil { count++ }
 	if v.PythonResponseSchema != nil { count++ }
 	if v.Swarms != nil { count++ }
-	if v.Tools != nil { count++ }
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }
 	if v.UpdateResponseSchema != nil { count++ }
-	if v.User != nil { count++ }
+	if v.Channels != nil { count++ }
+	if v.Development != nil { count++ }
+	if v.Tasks != nil { count++ }
 	if v.Viewer != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandRequest: exactly one variant must be set, got %d", count)

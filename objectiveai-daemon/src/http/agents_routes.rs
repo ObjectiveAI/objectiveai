@@ -29,8 +29,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
-use objectiveai_sdk::cli::agents_instances_list_listener::{AgentEvent, AgentStatus};
-use objectiveai_sdk::cli::agents_instances_listener::AgentRecord;
+use objectiveai_sdk::daemon::agents_instances_list_listener::{AgentEvent, AgentStatus};
+use objectiveai_sdk::daemon::agents_instances_listener::AgentRecord;
 use tokio::sync::{Mutex, broadcast};
 
 
@@ -416,7 +416,7 @@ fn record_from_item(
         attached_laboratories: attached
             .into_iter()
             .map(|record| {
-                objectiveai_sdk::cli::agents_instances_listener::AttachedLaboratory {
+                objectiveai_sdk::daemon::agents_instances_listener::AttachedLaboratory {
                     id: record.laboratory_id,
                     machine: record.machine_id,
                     machine_state: record.machine_state,

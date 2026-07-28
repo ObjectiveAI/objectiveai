@@ -66,8 +66,8 @@ pub(crate) struct DaemonHttpState {
     /// `/laboratories/{id}` +
     /// `/laboratories/{id}/filetree` routes.
     pub(crate) labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
-    /// The `/user` user-requests hub.
-    pub(crate) user: crate::http::user_routes::UserHub,
+    /// The `/channels` duplex-channels hub.
+    pub(crate) channels: crate::http::channel_routes::ChannelHub,
 }
 
 /// Serve the daemon's HTTP API on `listener`:
@@ -100,9 +100,46 @@ pub fn serve_http(
     conversations: crate::http::agent_instance_route::ConversationHub,
     laboratories: crate::http::websocket_laboratory::LaboratoryRegistry,
     labs_hub: crate::http::laboratories_routes::LaboratoriesHub,
-    user: crate::http::user_routes::UserHub,
+    channels: crate::http::channel_routes::ChannelHub,
 ) -> tokio::task::JoinHandle<()> {
+    // The daemon's own MCP server (#276): rmcp streamable HTTP nested
+    // at /mcp, tool calls executing in-process through the daemon
+    // executor. Auth is a wrapping middleware rather than an inline
+    // handler check because the routes belong to rmcp's service — the
+    // one route family whose handlers aren't ours. Same
+    // X-OBJECTIVEAI-SIGNATURE header as every route; the secret is
+    // read LIVE per request, so `daemon config` changes apply
+    // immediately like everywhere else.
+    let (mcp_service, mcp_ct) = crate::http::mcp::service(
+        crate::executor::DaemonCommandExecutor::new(
+            global.clone(),
+            scoped.clone(),
+            None,
+        ),
+    );
+    let mcp_auth_global = global.clone();
+    let mcp_service = tower::Layer::layer(
+        &axum::middleware::from_fn(
+            move |req: axum::extract::Request,
+                  next: axum::middleware::Next| {
+                let global = mcp_auth_global.clone();
+                async move {
+                    use axum::response::IntoResponse;
+                    if !crate::http::daemon_auth::authenticate_header(
+                        req.headers(),
+                        global.auth_secret().as_ref(),
+                    ) {
+                        return axum::http::StatusCode::UNAUTHORIZED
+                            .into_response();
+                    }
+                    next.run(req).await
+                }
+            },
+        ),
+        mcp_service,
+    );
     let app = axum::Router::new()
+        .nest_service("/mcp", mcp_service)
         .route("/listen", axum::routing::get(listen_handler))
         .route(
             "/execute",
@@ -151,15 +188,23 @@ pub fn serve_http(
                 crate::http::laboratories_routes::laboratory_filetree_handler,
             ),
         )
-        // The user-requests channel: the SSE broadcast every user
-        // surface holds open, and its reply POST.
+        // The duplex-channels endpoints: the offer-lifecycle SSE, and
+        // the bare accept POST (returns the owner secret).
         .route(
-            "/user",
-            axum::routing::get(crate::http::user_routes::user_handler),
+            "/channels",
+            axum::routing::get(crate::http::channel_routes::channels_handler),
         )
         .route(
-            "/user/{id}/reply",
-            axum::routing::post(crate::http::user_routes::user_reply_handler),
+            "/channels/{id}/accept",
+            axum::routing::post(crate::http::channel_routes::channels_accept_handler),
+        )
+        // The viewer-extension build service: build on this machine,
+        // stream the artifact back as tar.gz.
+        .route(
+            "/plugins/{owner}/{name}/{version}/viewer",
+            axum::routing::get(
+                crate::http::plugin_routes::plugin_viewer_handler,
+            ),
         )
         .with_state(DaemonHttpState {
             tx,
@@ -169,7 +214,7 @@ pub fn serve_http(
             conversations,
             laboratories,
             labs_hub,
-            user,
+            channels,
         })
         // CORS, permissive — mirrors objectiveai-api. The viewer's
         // webview fetches these routes cross-origin (its page origin is
@@ -185,6 +230,17 @@ pub fn serve_http(
                 .expose_headers(tower_http::cors::Any),
         );
     tokio::spawn(async move {
+        // The MCP session workers' cancellation root lives (uncancelled)
+        // for the server's whole life — the daemon never tears its HTTP
+        // server down separately from the process.
+        let _mcp_ct = mcp_ct;
+        // TCP keepalive on every accepted connection (host /laboratory
+        // WSes, /listen + /user SSE, viewer traffic): a silently-dead
+        // peer surfaces as a socket error instead of an eternally-idle
+        // stream.
+        use axum::serve::ListenerExt;
+        let listener = listener
+            .tap_io(|io| objectiveai_sdk::net::set_tcp_keepalive(io));
         let _ = axum::serve(listener, app).await;
     })
 }

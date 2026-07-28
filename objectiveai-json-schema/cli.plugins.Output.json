@@ -1,14 +1,10 @@
 {
   "title": "cli.plugins.Output",
-  "description": "One line of plugin output. Untagged outer enum — deserialization\ntries each typed variant by its constant `type:\"…\"` discriminator\nin source order and falls through to [`Output::Notification`] as\na catch-all carrying the raw JSON value.\n\n[`Mcp`] is imported from\n[`crate::cli::command::plugins::run`] — this module does NOT\nre-export it; importers reach it by its canonical path.",
+  "description": "One line of plugin output. Untagged outer enum — deserialization\ntries each typed variant by its constant `type:\"…\"` discriminator\nin source order and falls through to [`Output::Notification`] as\na catch-all carrying the raw JSON value.\n\nThe former `Mcp` announcement variant was removed with the\n`plugins run` machinery — future plugins have no stdout protocol\nat all; an MCP-URL announcement lands in the `Notification`\ncatch-all like any other untyped line.",
   "anyOf": [
     {
       "title": "Command",
       "$ref": "cli.plugins.Command"
-    },
-    {
-      "title": "Mcp",
-      "$ref": "cli.command.plugins.run.Mcp"
     },
     {
       "title": "Error",

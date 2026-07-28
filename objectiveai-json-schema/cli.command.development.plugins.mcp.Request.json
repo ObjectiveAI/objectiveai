@@ -1,0 +1,53 @@
+{
+  "title": "cli.command.development.plugins.mcp.Request",
+  "anyOf": [
+    {
+      "title": "Create",
+      "$ref": "cli.command.development.plugins.mcp.create.Request"
+    },
+    {
+      "title": "CreateRequestSchema",
+      "$ref": "cli.command.development.plugins.mcp.create.request_schema.Request"
+    },
+    {
+      "title": "CreateResponseSchema",
+      "$ref": "cli.command.development.plugins.mcp.create.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.development.plugins.mcp.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.development.plugins.mcp.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.development.plugins.mcp.list.response_schema.Request"
+    },
+    {
+      "title": "Delete",
+      "$ref": "cli.command.development.plugins.mcp.delete.Request"
+    },
+    {
+      "title": "DeleteRequestSchema",
+      "$ref": "cli.command.development.plugins.mcp.delete.request_schema.Request"
+    },
+    {
+      "title": "DeleteResponseSchema",
+      "$ref": "cli.command.development.plugins.mcp.delete.response_schema.Request"
+    },
+    {
+      "title": "Reset",
+      "$ref": "cli.command.development.plugins.mcp.reset.Request"
+    },
+    {
+      "title": "ResetRequestSchema",
+      "$ref": "cli.command.development.plugins.mcp.reset.request_schema.Request"
+    },
+    {
+      "title": "ResetResponseSchema",
+      "$ref": "cli.command.development.plugins.mcp.reset.response_schema.Request"
+    }
+  ]
+}

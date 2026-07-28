@@ -257,13 +257,13 @@ pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<E::Stream<ResponseItem>, E::Error> {
     request.base.clear_transform();
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
-    executor.execute(request, agent_arguments).await
+    executor.execute(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -272,13 +272,13 @@ pub async fn execute_streaming_transform<E: crate::cli::command::CommandExecutor
     mut request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.base.set_transform(transform);
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
-    executor.execute(request, agent_arguments).await
+    executor.execute(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -286,13 +286,13 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<Response, E::Error> {
     request.base.clear_transform();
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
-    executor.execute_one(request, agent_arguments).await
+    executor.execute_one(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -301,13 +301,13 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<serde_json::Value, E::Error> {
     request.base.set_transform(transform);
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
-    executor.execute_one(request, agent_arguments).await
+    executor.execute_one(request, identity).await
 }
 
 #[cfg(feature = "mcp")]
@@ -324,26 +324,26 @@ pub mod response_schema;
 /// One `/listen` broadcast run of `functions execute standard` in its unary
 /// form (the plain `execute`): the actual [`Request`], the
 /// producer's
-/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// unary response future. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// [`Identity`](crate::identity::Identity), and the
+/// unary response future. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
-    pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
+    pub identity: crate::identity::Identity,
+    pub response: crate::daemon::command_listener::UnaryResponse<Response>,
 }
 
 /// One `/listen` broadcast run of `functions execute standard` in its
 /// streaming form (`execute_streaming` — the request set
 /// `dangerous_advanced.stream: true`): the actual [`Request`], the
 /// producer's
-/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// response-item stream. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// [`Identity`](crate::identity::Identity), and the
+/// response-item stream. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecutionStreaming {
     pub request: Request,
-    pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::broadcast_listener::ResponseItemStream<ResponseItem>,
+    pub identity: crate::identity::Identity,
+    pub response: crate::daemon::command_listener::ResponseItemStream<ResponseItem>,
 }
 
 /// This leaf's multiple listener executions — one variant per
@@ -351,7 +351,7 @@ pub struct ListenerExecutionStreaming {
 /// for `execute_streaming`), discriminated per request off
 /// `dangerous_advanced.stream`. The branch enum's single variant
 /// for this leaf wraps this.
-#[cfg(feature = "cli-listener")]
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecutionVariant {
     Execution(ListenerExecution),
     Streaming(ListenerExecutionStreaming),

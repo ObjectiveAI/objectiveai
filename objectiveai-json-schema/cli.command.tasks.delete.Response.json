@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.tasks.delete.Response",
+  "type": "object",
+  "properties": {
+    "deleted": {
+      "description": "Whether a task was actually removed (`false` = no such id).",
+      "type": "boolean"
+    }
+  }
+}

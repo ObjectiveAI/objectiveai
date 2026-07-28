@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.mcp.spawn.Response",
-  "type": "object",
-  "properties": {
-    "listening": {
-      "type": "string"
-    }
-  }
-}

@@ -578,6 +578,16 @@ impl HttpClient {
         })?;
 
         let (ws_stream, _resp) = tokio_tungstenite::connect_async(req).await?;
+        // TCP keepalive on the long-lived streaming WS: a silently-
+        // dead API host would otherwise leave this stream parked
+        // forever (an idle TCP connection has no liveness signal).
+        match ws_stream.get_ref() {
+            MaybeTlsStream::Plain(tcp) => crate::net::set_tcp_keepalive(tcp),
+            MaybeTlsStream::Rustls(tls) => {
+                crate::net::set_tcp_keepalive(tls.get_ref().0)
+            }
+            _ => {}
+        }
         let (mut sink, rx_stream): (
             _,
             SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
@@ -609,6 +619,34 @@ impl HttpClient {
         tokio::spawn(async move {
             let mut rx_stream = rx_stream;
             let mut chunk_tx = chunk_tx;
+            // One handler-dispatch path shared by the text and binary
+            // arms: spawn the handle, frame the reply via `to_wire`
+            // (chunk-bearing replies go out as binary sandwiches,
+            // everything else as text), write it back.
+            let spawn_server_request = {
+                let handler = handler.clone();
+                let demux_sink = demux_sink.clone();
+                move |request: ServerRequest| {
+                    let handler = handler.clone();
+                    let demux_sink = demux_sink.clone();
+                    tokio::spawn(async move {
+                        // Handler returns the full response (incl.
+                        // matching id); we just frame + write it.
+                        let response = handler.handle(request).await;
+                        let msg = match response.to_wire() {
+                            Ok(crate::binary_frame::WireFrame::Text(s)) => {
+                                tungstenite::Message::Text(s.into())
+                            }
+                            Ok(crate::binary_frame::WireFrame::Binary(b)) => {
+                                tungstenite::Message::Binary(b)
+                            }
+                            Err(_) => return,
+                        };
+                        let mut guard = demux_sink.lock().await;
+                        let _ = guard.send(msg).await;
+                    });
+                }
+            };
             loop {
                 let msg = match rx_stream.next().await {
                     Some(m) => m,
@@ -619,7 +657,16 @@ impl HttpClient {
                         let s = t.to_string();
                         s
                     }
-                    Ok(tungstenite::Message::Binary(_)) => {
+                    Ok(tungstenite::Message::Binary(bytes)) => {
+                        // Chunk-bearing reverse-attach requests ride
+                        // the binary sandwich (`crate::binary_frame`);
+                        // any other binary frame is dropped
+                        // (forward-compat).
+                        if let Some(request) =
+                            ServerRequest::from_binary(&bytes)
+                        {
+                            spawn_server_request(request);
+                        }
                         continue;
                     }
                     Ok(
@@ -651,25 +698,7 @@ impl HttpClient {
                 if let Ok(request) =
                     serde_json::from_str::<ServerRequest>(&text)
                 {
-                    let id = request.id.clone();
-                    let handler = handler.clone();
-                    let demux_sink = demux_sink.clone();
-                    tokio::spawn(async move {
-                        let id = id;
-                        // Handler returns the full response (incl.
-                        // matching id); we just frame + write it.
-                        let response = handler.handle(request).await;
-                        let frame = match serde_json::to_string(&response) {
-                            Ok(s) => s,
-                            Err(_) => {
-                                return;
-                            }
-                        };
-                        let mut guard = demux_sink.lock().await;
-                        let send_result = guard
-                            .send(tungstenite::Message::Text(frame.into()))
-                            .await;
-                    });
+                    spawn_server_request(request);
                     continue;
                 }
 

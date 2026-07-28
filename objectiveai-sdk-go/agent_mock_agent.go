@@ -21,10 +21,6 @@ type AgentMockAgent struct {
 	// dispatcher. Pure addition — agents without `calls` are
 	// unaffected.
 	Calls *[]AgentMockCall `json:"calls,omitempty"`
-	// Client-side ObjectiveAI MCP surface the calling client is
-	// expected to expose locally back to the API (objectiveai
-	// built-in, plus specific plugins / tools by owner+name+version).
-	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// If true, the mock client will return an error instead of a response.
 	Error *bool `json:"error,omitempty"`
 	// Probability (0-100) that the mock returns an error mid-stream.
@@ -41,6 +37,9 @@ type AgentMockAgent struct {
 	MCPServers *[]AgentMcpServer `json:"mcp_servers,omitempty"`
 	// The output mode for vector completions. Ignored for agent completions.
 	OutputMode AgentMockOutputMode `json:"output_mode"`
+	// Plugins this agent uses — each IS one MCP server (the
+	// next-iteration plugin shape; see [`super::super::plugin`]).
+	Plugins []AgentPlugin `json:"plugins,omitempty"`
 	// Number of top log probabilities to return (2-20).
 	//
 	// **Vector completions only.** Ignored for agent completions.
@@ -59,7 +58,7 @@ func (v *AgentMockAgent) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "output_mode", "upstream"} {
+	for _, key := range []string{"id", "output_mode", "plugins", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentMockAgent: missing required field %q", key)
 		}

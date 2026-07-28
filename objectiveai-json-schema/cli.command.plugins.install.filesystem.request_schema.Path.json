@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.install.filesystem.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "plugins/install/filesystem/request_schema"
-  ]
-}

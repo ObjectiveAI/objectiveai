@@ -1,0 +1,507 @@
+/**
+ * Materialized consumer of the cli daemon's `/agents/instances/{*aih}`
+ * endpoint — the JS mirror of the Rust SDK's
+ * `daemon::agents_instances_listener::AgentsInstancesListener`,
+ * identical in semantics.
+ *
+ * One connection carries TWO structurally independent concerns:
+ *
+ * - **The conversation** — typed part events (one per conversation
+ *   row, each naming its block class and carrying its class's boundary
+ *   fields + ONE mirrored part + the DB row identity as an opaque
+ *   replace-at key), replayed from the DB snapshot first, one `live`
+ *   marker, then live as the agent produces them. Events fold into an
+ *   ordered list of {@link ConversationBlock}s — the exact mirror of
+ *   `agents logs list`'s `ResponseItem` family with content INLINED.
+ *   A re-sent identity REPLACES the prior part (later = more
+ *   complete), which also converges the snapshot/live seam.
+ * - **The agent's status** — `agent` events carry this agent's list
+ *   record (lock-driven active flag, bound tags, counters), once at
+ *   connect and on every change. Held separately from the
+ *   conversation.
+ *
+ * One listener = one connection: the daemon DISCONNECTS lagging
+ * clients rather than dropping frames, so a closed socket means
+ * "reconnect for a fresh snapshot" — mint a new listener from the
+ * client; the view freezes at its last state. Unparseable events are
+ * SKIPPED — the forward-compat contract for future event variants. No
+ * runtime validation, like {@link BroadcastListener}.
+ */
+
+import type {
+  DaemonAgentsInstancesListenerAgentInstanceEvent,
+  DaemonAgentsInstancesListenerAgentRecord,
+  DaemonAgentsInstancesListenerAssistantResponsePart,
+  DaemonAgentsInstancesListenerClientNotificationPart,
+  DaemonAgentsInstancesListenerConversationBlock,
+  DaemonAgentsInstancesListenerRequestMessageUserPart,
+  DaemonAgentsInstancesListenerToolResponsePart,
+  DaemonAgentsInstancesListenerVectorRequestChoice,
+  DaemonAgentsInstancesListenerVectorRequestChoicePart,
+} from "./agents_instances_listener";
+import { openStream, type ClientMode } from "./mode";
+
+type AgentRecord = DaemonAgentsInstancesListenerAgentRecord;
+type AgentInstanceEvent = DaemonAgentsInstancesListenerAgentInstanceEvent;
+type ConversationBlock = DaemonAgentsInstancesListenerConversationBlock;
+type AssistantResponsePart = DaemonAgentsInstancesListenerAssistantResponsePart;
+type ClientNotificationPart =
+  DaemonAgentsInstancesListenerClientNotificationPart;
+type RequestMessageUserPart =
+  DaemonAgentsInstancesListenerRequestMessageUserPart;
+type ToolResponsePart = DaemonAgentsInstancesListenerToolResponsePart;
+type VectorRequestChoice = DaemonAgentsInstancesListenerVectorRequestChoice;
+type VectorRequestChoicePart =
+  DaemonAgentsInstancesListenerVectorRequestChoicePart;
+
+/** The conversation part-event variants (everything except `live` /
+ * `agent` / the single-shot `vector_response_vote` and `error`). */
+type PartEvent = Extract<
+  AgentInstanceEvent,
+  {
+    type:
+      | "request_message_user_part"
+      | "request_message_assistant_part"
+      | "request_message_tool_part"
+      | "vector_request_choice_part"
+      | "client_notification_part"
+      | "assistant_response_part"
+      | "tool_response_part";
+  }
+>;
+
+/** One in-progress multi-part block: its boundary key (canonical
+ * string — equal keys join on adjacency), block-level fields, and its
+ * parts keyed by the row identity for replace-in-place. */
+type OpenBlock = {
+  kind: "open";
+  class: PartEvent["type"];
+  keyString: string;
+  agent_instance_hierarchy: string;
+  response_id: string;
+  tool_call_id: string;
+  sender: string;
+  message_queue_id: number;
+  queued_at: string;
+  key: string | null;
+  parts: Map<
+    string,
+    {
+      rowIndex: number;
+      rowSubIndex: number | null;
+      choiceKey: string;
+      part:
+        | AssistantResponsePart
+        | ClientNotificationPart
+        | RequestMessageUserPart
+        | ToolResponsePart
+        | VectorRequestChoicePart;
+    }
+  >;
+};
+
+/** A complete single-row block (vote — replaced at identity; error —
+ * immutable, deduped by value). */
+type SingleBlock = {
+  kind: "single";
+  block: ConversationBlock;
+};
+
+type Slot = OpenBlock | SingleBlock;
+
+/** The block boundary as a canonical string — `read_all`'s exact
+ * tuple, typed per class (AIH omitted: constant per connection). */
+function blockKeyString(event: PartEvent): string {
+  switch (event.type) {
+    case "request_message_user_part":
+    case "request_message_assistant_part":
+    case "assistant_response_part":
+    case "vector_request_choice_part":
+      return `${event.type}|${event.response_id}`;
+    case "request_message_tool_part":
+    case "tool_response_part":
+      return `${event.type}|${event.response_id}|${event.tool_call_id}`;
+    case "client_notification_part":
+      return `${event.type}|${event.response_id}|${event.sender_agent_instance_hierarchy}|${event.message_queue_id}`;
+  }
+}
+
+/** A part's replace-at key (identical between snapshot and live). */
+function partIdentity(event: PartEvent): string {
+  const [rowIndex, rowSubIndex] = eventIndices(event);
+  return `${event.type}|${event.response_id}|${rowIndex}|${rowSubIndex ?? ""}`;
+}
+
+function eventIndices(event: PartEvent): [number, number | null] {
+  if (event.type === "vector_request_choice_part") {
+    return [event.choice_index, event.part_index];
+  }
+  if (event.type === "client_notification_part") {
+    return [event.row_index, null];
+  }
+  return [event.row_index, event.row_sub_index ?? null];
+}
+
+function newOpenBlock(event: PartEvent): OpenBlock {
+  return {
+    kind: "open",
+    class: event.type,
+    keyString: blockKeyString(event),
+    agent_instance_hierarchy: event.agent_instance_hierarchy,
+    response_id: event.response_id,
+    tool_call_id:
+      event.type === "request_message_tool_part" ||
+      event.type === "tool_response_part"
+        ? event.tool_call_id
+        : "",
+    sender:
+      event.type === "client_notification_part"
+        ? event.sender_agent_instance_hierarchy
+        : "",
+    message_queue_id:
+      event.type === "client_notification_part" ? event.message_queue_id : 0,
+    queued_at: event.type === "client_notification_part" ? event.queued_at : "",
+    key: null,
+    parts: new Map(),
+  };
+}
+
+/** Fold one part event into its block: block-level metadata refreshes
+ * (constant per block by construction), the part upserts its slot. */
+function applyToBlock(block: OpenBlock, event: PartEvent): void {
+  const [rowIndex, rowSubIndex] = eventIndices(event);
+  if (event.type === "client_notification_part") {
+    block.queued_at = event.queued_at;
+    block.key = event.key ?? null;
+  }
+  block.parts.set(partIdentity(event), {
+    rowIndex,
+    rowSubIndex,
+    choiceKey: event.type === "vector_request_choice_part" ? event.key : "",
+    part: event.part,
+  });
+}
+
+/** Sorted part entries — `(row_index, row_sub_index [null first])`. */
+function sortedParts(block: OpenBlock) {
+  return [...block.parts.values()].sort((a, b) => {
+    if (a.rowIndex !== b.rowIndex) return a.rowIndex - b.rowIndex;
+    const aSub = a.rowSubIndex ?? -Infinity;
+    const bSub = b.rowSubIndex ?? -Infinity;
+    return aSub < bSub ? -1 : aSub > bSub ? 1 : 0;
+  });
+}
+
+/** Materialize one open block as its `ResponseItem`-mirror shape. */
+function toBlock(block: OpenBlock): ConversationBlock | null {
+  if (block.parts.size === 0) return null;
+  const base = {
+    agent_instance_hierarchy: block.agent_instance_hierarchy,
+    response_id: block.response_id,
+  };
+  switch (block.class) {
+    case "request_message_user_part":
+      return {
+        type: "request_message_user",
+        ...base,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as RequestMessageUserPart,
+        ),
+      };
+    case "request_message_assistant_part":
+      return {
+        type: "request_message_assistant",
+        ...base,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as AssistantResponsePart,
+        ),
+      };
+    case "assistant_response_part":
+      return {
+        type: "assistant_response",
+        ...base,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as AssistantResponsePart,
+        ),
+      };
+    case "request_message_tool_part":
+      return {
+        type: "request_message_tool",
+        ...base,
+        tool_call_id: block.tool_call_id,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as ToolResponsePart,
+        ),
+      };
+    case "tool_response_part":
+      return {
+        type: "tool_response",
+        ...base,
+        tool_call_id: block.tool_call_id,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as ToolResponsePart,
+        ),
+      };
+    case "client_notification_part":
+      return {
+        type: "client_notification",
+        ...base,
+        sender_agent_instance_hierarchy: block.sender,
+        queued_at: block.queued_at,
+        ...(block.key !== null ? { key: block.key } : {}),
+        parts: sortedParts(block).map(
+          (entry) => entry.part as ClientNotificationPart,
+        ),
+      };
+    case "vector_request_choice_part": {
+      // Ordered by (choice index, part index); group consecutive runs
+      // of one choice index.
+      const choices: VectorRequestChoice[] = [];
+      let current: { index: number; choice: VectorRequestChoice } | null =
+        null;
+      for (const entry of sortedParts(block)) {
+        if (current !== null && current.index === entry.rowIndex) {
+          current.choice.key = entry.choiceKey;
+          current.choice.parts.push(entry.part as VectorRequestChoicePart);
+        } else {
+          if (current !== null) choices.push(current.choice);
+          current = {
+            index: entry.rowIndex,
+            choice: {
+              key: entry.choiceKey,
+              parts: [entry.part as VectorRequestChoicePart],
+            },
+          };
+        }
+      }
+      if (current !== null) choices.push(current.choice);
+      return { type: "vector_request_choices", ...base, choices };
+    }
+  }
+}
+
+/**
+ * The materialized `/agents/instances/{*aih}` view — minted by
+ * {@link Client.agentsInstancesListener}; resolves only once the
+ * stream has OPENED.
+ *
+ * ```ts
+ * const listener = await client.agentsInstancesListener(aih);
+ * listener.conversation(); // ConversationBlock[] — the logs-list mirror
+ * listener.agent();        // AgentRecord | null — active, tags, counters
+ * listener.live;           // snapshot replay complete?
+ * await listener.subscribe(); // resolves on the next change (either concern)
+ * ```
+ */
+export class AgentsInstancesListener {
+  #abort: AbortController;
+  #closed = false;
+  #slots: Slot[] = [];
+  #partToSlot = new Map<string, number>();
+  #live = false;
+  #agent: AgentRecord | null = null;
+  #waiters = new Set<() => void>();
+
+  private constructor(abort: AbortController) {
+    this.#abort = abort;
+  }
+
+  /** @internal — minted by `Client.agentsInstancesListener`.
+   * `agentInstanceHierarchy` is the agent's full hierarchy (raw
+   * slashes are fine — the daemon route is a wildcard). */
+  static async _connect(
+    mode: ClientMode,
+    agentInstanceHierarchy: string,
+  ): Promise<AgentsInstancesListener> {
+    const abort = new AbortController();
+    const events = await openStream(mode, abort.signal, {
+      route: `/agents/instances/${agentInstanceHierarchy}`,
+      viewerCommand: "daemon_agents_instance",
+      viewerArgs: { aih: agentInstanceHierarchy },
+    });
+    const listener = new AgentsInstancesListener(abort);
+    void listener.#pump(events);
+    return listener;
+  }
+
+  /** Read the SSE stream, feeding each event to {@link #onFrame} until
+   * it ends (or is aborted); then settle as closed. */
+  async #pump(events: AsyncGenerator<string>): Promise<void> {
+    try {
+      for await (const data of events) {
+        let frame: unknown;
+        try {
+          frame = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        this.#onFrame(frame);
+      }
+    } catch {
+      // Aborted or transport error — fall through to close.
+    } finally {
+      this.#onClose();
+    }
+  }
+
+  /** Whether the connection has closed (the view is frozen; the daemon
+   * disconnects lagging clients — reconnect for a fresh snapshot). */
+  get closed(): boolean {
+    return this.#closed;
+  }
+
+  /** Whether the snapshot replay has completed — every conversation
+   * event after the `live` marker is the conversation as it occurs. */
+  get live(): boolean {
+    return this.#live;
+  }
+
+  /** Drop the connection: the view freezes and any pending
+   * {@link subscribe} resolves. */
+  close(): void {
+    if (this.#closed) return;
+    this.#abort.abort();
+    this.#onClose();
+  }
+
+  /** The current conversation, blocks in conversation order — the
+   * `agents logs list` `ResponseItem` mirror, content inlined. */
+  conversation(): ConversationBlock[] {
+    const out: ConversationBlock[] = [];
+    for (const slot of this.#slots) {
+      if (slot.kind === "single") {
+        out.push(slot.block);
+        continue;
+      }
+      const materialized = toBlock(slot);
+      if (materialized !== null) out.push(materialized);
+    }
+    return out;
+  }
+
+  /** The agent's current list record (active flag, bound tags,
+   * counters) — the same shape `/agents/instances/list` tracks, scoped
+   * to this agent. `null` until the connection's first agent-status
+   * event lands (the daemon ships one right after connect).
+   * Structurally independent of {@link conversation}. */
+  agent(): AgentRecord | null {
+    return this.#agent;
+  }
+
+  /** Resolves on the next applied event — conversation OR agent
+   * status. A fresh call waits for the FIRST event after it is made;
+   * loop with the getters. Resolves immediately if already closed. */
+  subscribe(): Promise<void> {
+    if (this.#closed) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.#waiters.add(resolve);
+    });
+  }
+
+  #onFrame(frame: unknown): void {
+    if (typeof frame !== "object" || frame === null) return;
+    if (typeof (frame as { type?: unknown }).type !== "string") return;
+    const event = frame as AgentInstanceEvent;
+    switch (event.type) {
+      case "live":
+        this.#live = true;
+        break;
+      case "agent":
+        this.#agent = event.agent;
+        break;
+      case "vector_response_vote":
+        this.#applySingle(`vote|${event.response_id}`, {
+          type: "vector_response_vote",
+          agent_instance_hierarchy: event.agent_instance_hierarchy,
+          response_id: event.response_id,
+          vote: event.vote,
+        });
+        break;
+      case "error":
+        this.#applyError({
+          type: "error",
+          agent_instance_hierarchy: event.agent_instance_hierarchy,
+          ...(event.response_id != null
+            ? { response_id: event.response_id }
+            : {}),
+          error: event.error,
+          delivered_at: event.delivered_at,
+        });
+        break;
+      case "request_message_user_part":
+      case "request_message_assistant_part":
+      case "request_message_tool_part":
+      case "vector_request_choice_part":
+      case "client_notification_part":
+      case "assistant_response_part":
+      case "tool_response_part":
+        this.#applyPart(event);
+        break;
+      default:
+        // Unknown event kind — skipped (forward compat).
+        return;
+    }
+    this.#wake();
+  }
+
+  /** Fold one part event: a known identity routes straight back to its
+   * slot (replace in place — never re-runs boundary logic); a new
+   * identity joins the LAST slot iff it is an open block with an EQUAL
+   * boundary key, else opens a new block. Block order = arrival order
+   * = conversation order. */
+  #applyPart(event: PartEvent): void {
+    const identity = partIdentity(event);
+    let target = this.#partToSlot.get(identity);
+    if (target === undefined) {
+      const keyString = blockKeyString(event);
+      const last = this.#slots[this.#slots.length - 1];
+      if (last !== undefined && last.kind === "open" && last.keyString === keyString) {
+        target = this.#slots.length - 1;
+      } else {
+        this.#slots.push(newOpenBlock(event));
+        target = this.#slots.length - 1;
+      }
+      this.#partToSlot.set(identity, target);
+    }
+    const slot = this.#slots[target];
+    if (slot.kind !== "open") return; // impossible by class
+    applyToBlock(slot, event);
+  }
+
+  /** Fold one complete single-row block: replace at a known identity,
+   * else append. */
+  #applySingle(identity: string, block: ConversationBlock): void {
+    const target = this.#partToSlot.get(identity);
+    if (target !== undefined) {
+      this.#slots[target] = { kind: "single", block };
+      return;
+    }
+    this.#slots.push({ kind: "single", block });
+    this.#partToSlot.set(identity, this.#slots.length - 1);
+  }
+
+  /** Fold one error block. Errors are IMMUTABLE and carry no
+   * replace-at identity — the snapshot/live seam (the one way the same
+   * error arrives twice) dedupes by VALUE equality. */
+  #applyError(block: ConversationBlock): void {
+    const encoded = JSON.stringify(block);
+    for (const slot of this.#slots) {
+      if (slot.kind === "single" && JSON.stringify(slot.block) === encoded) {
+        return;
+      }
+    }
+    this.#slots.push({ kind: "single", block });
+  }
+
+  #wake(): void {
+    const waiters = [...this.#waiters];
+    this.#waiters.clear();
+    for (const wake of waiters) wake();
+  }
+
+  #onClose(): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    this.#wake();
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "title": "daemon.agents_instances_list_listener.AgentEvent",
+  "description": "One event on the `/agents/instances/list` stream. The first is\nalways a [`Snapshot`](AgentEvent::Snapshot); every later one flips\none AIH's `active` flag as its instance lock is acquired or\nreleased (an [`Activated`](AgentEvent::Activated) for an unseen AIH\nintroduces it).",
+  "anyOf": [
+    {
+      "title": "Snapshot",
+      "description": "The full agent set (every known AIH with its `active` flag),\nsent once immediately on connect.",
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "array",
+          "items": {
+            "$ref": "daemon.agents_instances_list_listener.AgentStatus"
+          }
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "snapshot"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Activated",
+      "description": "An agent acquired its per-instance lock (became active).",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "activated"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Deactivated",
+      "description": "An agent released its per-instance lock (became inactive) — on\nnormal stream end OR holder death. For the release timestamp,\ntags, and counters, use `/agents/instances/{*aih}`.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "deactivated"
+          ]
+        }
+      }
+    }
+  ]
+}

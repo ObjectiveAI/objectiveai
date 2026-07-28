@@ -47,7 +47,7 @@
 # phase — by construction, nothing happens.
 #
 # By default phase 1 ALSO compiles the integration-test fixture crates —
-# the plugin/tool stubs under tests/plugins/ and tests/tools/ that the cli
+# the plugin stubs under tests/plugins/ that the cli
 # integration tests build and exec. They're discovered by glob (no
 # hardcoded list, so new fixtures are picked up automatically), built in
 # the same cargo invocation as the product binaries, and never packaged
@@ -182,14 +182,14 @@ build_bin() {
 }
 
 # Print the cargo package name of every integration-test fixture crate
-# — the plugin/tool stubs under tests/plugins/ and tests/tools/ — one
+# — the plugin stubs under tests/plugins/ — one
 # per line. Discovery is by glob over their Cargo.toml `name` fields, so
-# a fixture added under either folder is co-built with no edit here.
-# Prints nothing if the folders are absent (the glob is nullglob-guarded
+# a fixture added under that folder is co-built with no edit here.
+# Prints nothing if the folder is absent (the glob is nullglob-guarded
 # by the `-f` test).
 discover_test_integration_crates() {
   local toml name
-  for toml in "$REPO_ROOT"/tests/plugins/*/Cargo.toml "$REPO_ROOT"/tests/tools/*/Cargo.toml; do
+  for toml in "$REPO_ROOT"/tests/plugins/*/Cargo.toml; do
     [ -f "$toml" ] || continue
     name=$(sed -n 's/^name *= *"\(.*\)"/\1/p' "$toml" | head -1)
     [ -n "$name" ] && printf '%s\n' "$name"
@@ -244,7 +244,7 @@ if [ "$NO_ZIP" != "1" ]; then
       FIXTURE_CRATES+=("$_fixture")
     done < <(discover_test_integration_crates)
     if [ "${#FIXTURE_CRATES[@]}" -gt 0 ]; then
-      echo "Co-building ${#FIXTURE_CRATES[@]} integration-test fixture crate(s) from tests/{plugins,tools}/."
+      echo "Co-building ${#FIXTURE_CRATES[@]} integration-test fixture crate(s) from tests/plugins/."
     fi
   fi
 
@@ -261,7 +261,7 @@ if [ "$NO_ZIP" != "1" ]; then
     # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
     # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
     # `--no-test-integration` case (FIXTURE_CRATES left empty).
-    for crate in objectiveai-cli objectiveai-daemon objectiveai-api objectiveai-db objectiveai-mcp objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
+    for crate in objectiveai-cli objectiveai-daemon objectiveai-api objectiveai-db objectiveai-laboratory ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
@@ -441,7 +441,7 @@ package_host_zip() {
   # The CLI + daemon + server crates from the cargo build (built-name ->
   # ship-name; the thin objectiveai-cli crate builds the `objectiveai`
   # binary, and the daemon crate builds/ships `objectiveai-daemon`).
-  local pairs="objectiveai|objectiveai objectiveai-daemon|objectiveai-daemon objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
+  local pairs="objectiveai|objectiveai objectiveai-daemon|objectiveai-daemon objectiveai-api|objectiveai-api objectiveai-db|objectiveai-db objectiveai-laboratory|objectiveai-laboratory"
   local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"

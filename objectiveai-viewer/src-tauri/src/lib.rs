@@ -1,6 +1,7 @@
+pub mod cef;
 pub mod daemon_proxy;
 mod laboratories;
-mod plugins;
 mod run;
+mod shell;
 
 pub use run::*;

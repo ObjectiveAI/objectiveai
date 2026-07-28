@@ -269,6 +269,12 @@ pub async fn setup(
 }
 
 pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std::io::Result<()> {
+    // TCP keepalive on every accepted connection (MCP Streamable HTTP
+    // + GET SSE): a silently-dead peer surfaces as a socket error
+    // instead of an eternally-idle stream.
+    use axum::serve::ListenerExt;
+    let listener =
+        listener.tap_io(|io| objectiveai_sdk::net::set_tcp_keepalive(io));
     axum::serve(listener, app).await
 }
 

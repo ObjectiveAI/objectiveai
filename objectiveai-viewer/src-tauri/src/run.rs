@@ -9,12 +9,9 @@
 //! marker (content `"ready"`).
 
 use envconfig::Envconfig;
-use objectiveai_sdk::cli::command::sse::SseCommandExecutor;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Notify;
-
-use crate::plugins::serve_plugin_asset;
 
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
@@ -58,145 +55,6 @@ fn open_url(url: String) -> Result<(), String> {
     open::that_detached(&url).map_err(|e| e.to_string())
 }
 
-/// The deterministic-within-one-process window label for an AIH —
-/// labels must be alphanumeric/`-`/`_` and AIHs contain `/`, so the
-/// label is a hash; create-or-focus keys on it.
-fn agent_window_label(agent_instance_hierarchy: &str) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    agent_instance_hierarchy.hash(&mut hasher);
-    format!("agent-{:016x}", hasher.finish())
-}
-
-/// Create — or focus, when already open — the agent conversation
-/// window for one AIH: the `agent.html` entry (the popup UI as a full
-/// window; no tabs, no footer). The AIH reaches the page via an
-/// initialization script (a global set before any page script runs) —
-/// NOT a URL query: `WebviewUrl::App` is a PathBuf, so a query string
-/// would be treated as part of the asset path and 404 to a white
-/// window.
-fn open_agent_window_impl(
-    app: &tauri::AppHandle,
-    agent_instance_hierarchy: &str,
-) -> tauri::Result<()> {
-    use tauri::Manager;
-    let label = agent_window_label(agent_instance_hierarchy);
-    if let Some(existing) = app.get_webview_window(&label) {
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-    let aih_json = serde_json::to_string(agent_instance_hierarchy)
-        .expect("a str serializes infallibly");
-    tauri::WebviewWindowBuilder::new(
-        app,
-        &label,
-        tauri::WebviewUrl::App("agent.html".into()),
-    )
-    .initialization_script(format!(
-        "window.__AGENT_INSTANCE_HIERARCHY__ = {aih_json};"
-    ))
-    .title(agent_instance_hierarchy)
-    .inner_size(1024.0, 768.0)
-    .build()?;
-    Ok(())
-}
-
-/// Open (or focus) the agent conversation window for `aih` — the tree's
-/// explicit `open` chip calls this instead of an in-page popup.
-///
-/// ASYNC on purpose: a sync command runs on the MAIN thread, and
-/// webview creation on Windows contends with that same event loop —
-/// the window shell appears but the page never initializes (a white
-/// window). An async command runs off the main thread, so the
-/// creation dispatches cleanly.
-#[tauri::command]
-async fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), String> {
-    open_agent_window_impl(&app, &aih).map_err(|e| e.to_string())
-}
-
-/// The deterministic-within-one-process window label for one
-/// laboratory. Lab ids are only unique per (machine, machine_state),
-/// so all three feed the hash; `Hash for str` is length-prefixed, so
-/// sequential hashing needs no separators.
-fn laboratory_window_label(
-    id: &str,
-    machine: Option<&str>,
-    machine_state: Option<&str>,
-) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    machine.unwrap_or("").hash(&mut hasher);
-    machine_state.unwrap_or("").hash(&mut hasher);
-    format!("laboratory-{:016x}", hasher.finish())
-}
-
-/// Create — or focus, when already open — the laboratory filesystem
-/// window for one laboratory: the `laboratory.html` entry. The
-/// identity reaches the page via an initialization script (a global
-/// set before any page script runs) — NOT a URL query:
-/// `WebviewUrl::App` is a PathBuf, so a query string would be treated
-/// as part of the asset path and 404 to a white window (same as
-/// [`open_agent_window_impl`]).
-fn open_laboratory_window_impl(
-    app: &tauri::AppHandle,
-    id: &str,
-    machine: Option<&str>,
-    machine_state: Option<&str>,
-    machine_os: Option<&str>,
-) -> tauri::Result<()> {
-    use tauri::Manager;
-    let label = laboratory_window_label(id, machine, machine_state);
-    if let Some(existing) = app.get_webview_window(&label) {
-        let _ = existing.set_focus();
-        return Ok(());
-    }
-    let global = serde_json::json!({
-        "id": id,
-        "machine": machine,
-        "machineState": machine_state,
-    })
-    .to_string();
-    // `{os}/{machine id}/{lab id}` — the serving machine's identity as
-    // the window's name, unknown segments rendered as `?`.
-    let title = format!(
-        "{}/{}/{id}",
-        machine_os.unwrap_or("?"),
-        machine.unwrap_or("?"),
-    );
-    tauri::WebviewWindowBuilder::new(
-        app,
-        &label,
-        tauri::WebviewUrl::App("laboratory.html".into()),
-    )
-    .initialization_script(format!("window.__LABORATORY__ = {global};"))
-    .title(title)
-    .inner_size(1024.0, 768.0)
-    .build()?;
-    Ok(())
-}
-
-/// Open (or focus) the laboratory filesystem window — the laboratory
-/// card's `open` tab calls this. ASYNC on purpose, same as
-/// [`open_agent_window`]: a sync command white-screens webview
-/// creation on Windows.
-#[tauri::command]
-async fn open_laboratory_window(
-    app: tauri::AppHandle,
-    id: String,
-    machine: Option<String>,
-    machine_state: Option<String>,
-    machine_os: Option<String>,
-) -> Result<(), String> {
-    open_laboratory_window_impl(
-        &app,
-        &id,
-        machine.as_deref(),
-        machine_state.as_deref(),
-        machine_os.as_deref(),
-    )
-    .map_err(|e| e.to_string())
-}
 
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
@@ -266,7 +124,6 @@ impl ConfigBuilder {
             objectiveai_state: self
                 .objectiveai_state
                 .unwrap_or_else(|| "default".to_string()),
-            agent_instance_hierarchy: None,
         }
     }
 }
@@ -287,32 +144,6 @@ pub struct Config {
     pub objectiveai_dir: PathBuf,
     /// State name (`OBJECTIVEAI_STATE`); default `"default"`.
     pub objectiveai_state: String,
-    /// `--agent-instance-hierarchy`: open ONLY the agent conversation
-    /// window for this AIH (the main window never opens, and the
-    /// per-state viewer singleton lock is NOT taken — a scoped debug
-    /// instance, not THE viewer). Set by `main.rs` from clap, not the
-    /// environment.
-    pub agent_instance_hierarchy: Option<String>,
-}
-
-/// The one Rust-side command executor: `list_plugins_with_viewer`
-/// discovers plugins through it at startup. Everything else is
-/// JS-native. Commands travel to the daemon's `/execute` route and
-/// run in-process there — the viewer never spawns the cli binary, so
-/// it can live on a different machine than the CLI. `daemon_address`
-/// is the daemon's published base `http://` URL (the same one the JS
-/// frontend connects to).
-pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> SseCommandExecutor {
-    let executor = SseCommandExecutor::new(format!("{daemon_address}/execute"));
-    match signature {
-        Some(signature) => executor.signature(signature),
-        None => executor,
-    }
-}
-
-/// Resolve the shell's supporting state. No IO.
-pub fn setup(config: &Config) -> PathBuf {
-    crate::plugins::plugins_dir(&config.objectiveai_dir)
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -327,36 +158,82 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 ///
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
-    executor: SseCommandExecutor,
     proxy: crate::daemon_proxy::DaemonProxy,
     agents_dir: AgentsDir,
-    plugins_dir: PathBuf,
     lab_env: crate::laboratories::LabEnv,
+    log_sink: crate::shell::LogSink,
+    command_log_sink: crate::shell::CommandLogSink,
+    tab_inventory: crate::shell::TabInventory,
+    plugins_dirs: crate::shell::PluginsDirs,
+    profile_root: crate::cef::ProfileRoot,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
-    agent_window: Option<String>,
 ) -> i32 {
+    let plugins_root = plugins_dirs.plugins_root();
+    let plugins_temp = plugins_dirs.temp_dir();
     // `viewer_ready`'s readiness marker. Nothing consumes the
     // notification today; the command is kept as a startup signal
     // for later.
     let ready = Arc::new(Notify::new());
 
-    let plugins_dir_for_protocol = plugins_dir.clone();
+    // The shell model — one EMPTY boot window. Rust seeds no tabs
+    // and knows no tab names: the boot chrome opens the home tabs
+    // through `tabs_open`, the same API every identity (plugins
+    // included, later) uses. The boot window is an ORDINARY shell
+    // window (no window is special; the app lives exactly as long as
+    // windows exist).
+    let (model, boot_label) = crate::shell::ShellModel::boot();
+
     let builder = tauri::Builder::default()
         .manage(ready)
-        .manage(executor)
         .manage(proxy)
         .manage(agents_dir)
         .manage(lab_env)
-        .manage(crate::plugins::PluginsDir(plugins_dir))
-        .register_uri_scheme_protocol("plugin", move |_app, request| {
-            serve_plugin_asset(&plugins_dir_for_protocol, request)
-        });
+        .manage(model)
+        .manage(crate::shell::WebviewSync::default())
+        .manage(crate::shell::TabMail::default())
+        .manage(crate::shell::browser::Browsers::default())
+        .manage(profile_root)
+        .manage(log_sink)
+        .manage(command_log_sink)
+        .manage(tab_inventory)
+        .manage(plugins_dirs)
+        .manage(crate::shell::ChannelRequests::new(plugins_root.clone()));
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
         open_url,
-        open_agent_window,
-        open_laboratory_window,
+        crate::shell::tabs_snapshot,
+        crate::shell::tabs_open,
+        crate::shell::tab_self,
+        crate::shell::tabs_declare,
+        crate::shell::tabs_inventory,
+        crate::shell::tabs_toggle,
+        crate::shell::tabs_reorder,
+        crate::shell::plugins_list,
+        crate::shell::plugins_install,
+        crate::shell::plugins_uninstall,
+        crate::shell::tabs_select,
+        crate::shell::tabs_close,
+        crate::shell::tabs_close_self,
+        crate::shell::tabs_close_child,
+        crate::shell::tabs_send,
+        crate::shell::tabs_subscribe,
+        crate::shell::tabs_list,
+        crate::shell::tabs_parent_send,
+        crate::shell::tabs_parent_subscribe,
+        crate::shell::tabs_parent_list,
+        crate::shell::channel_request_declare,
+        crate::shell::channel_request_accept,
+        crate::shell::channel_request_status,
+        crate::shell::channel_request_install,
+        crate::shell::tabs_move,
+        crate::shell::tabs_detach,
+        crate::shell::ui_set,
+        crate::shell::ui_get,
+        crate::shell::logs_report,
+        crate::shell::logs_pull,
+        crate::shell::command_logs_pull,
+        crate::shell::command_log_items_pull,
         crate::daemon_proxy::daemon_listen,
         crate::daemon_proxy::daemon_execute,
         crate::daemon_proxy::daemon_agents_instances_list,
@@ -364,41 +241,187 @@ pub fn serve(
         crate::daemon_proxy::daemon_laboratories_list,
         crate::daemon_proxy::daemon_laboratory,
         crate::daemon_proxy::daemon_laboratory_filetree,
-        crate::daemon_proxy::daemon_user,
-        crate::daemon_proxy::daemon_user_reply,
+        crate::daemon_proxy::daemon_channels,
+        crate::daemon_proxy::daemon_channel_accept,
+        crate::daemon_proxy::daemon_viewer_plugin,
         crate::daemon_proxy::daemon_stream_close,
-        crate::plugins::list_plugins_with_viewer,
         crate::laboratories::machine_identity,
     ]);
-    builder
+    // The plugin:// asset protocol — content webviews import installed
+    // plugin modules through it (cross-origin from the app origin).
+    let builder = builder.register_asynchronous_uri_scheme_protocol(
+        "plugin",
+        crate::shell::handle_plugin_protocol,
+    );
+    // The docking task's Moved feed — the run_return closure is the
+    // producer; the task (spawned in setup, where an AppHandle
+    // exists) is the consumer.
+    let (dock_tx, dock_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+    let mut dock_rx = Some(dock_rx);
+    let app = builder
         .setup(move |tauri_app| {
             if let Some(tx) = exiter_tx {
                 let exit_handle = tauri_app.handle().clone();
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
             }
-            // Windows are created HERE, not in tauri.conf.json —
-            // `--agent-instance-hierarchy` opens ONLY that agent's
-            // conversation window; otherwise the main window opens.
-            match &agent_window {
-                Some(aih) => {
-                    open_agent_window_impl(tauri_app.handle(), aih)?;
-                }
-                None => {
-                    tauri::WebviewWindowBuilder::new(
-                        tauri_app,
-                        "main",
-                        tauri::WebviewUrl::App("index.html".into()),
-                    )
-                    .title("ObjectiveAI Viewer")
-                    .inner_size(1024.0, 768.0)
-                    .build()?;
-                }
-            }
+            crate::shell::spawn_docking(
+                tauri_app.handle().clone(),
+                dock_rx.take().expect("setup runs once"),
+            );
+            // The resident /listen capture — Rust holds the daemon
+            // stream for the viewer's whole life; the command-logs
+            // tab is just a view over what it writes.
+            crate::shell::spawn_command_listener(tauri_app.handle().clone());
+            // Sweep the viewer's OWN temp partition (a hard-killed
+            // predecessor's install scratch) — installs can't start
+            // before a chrome webview can invoke, so nothing races.
+            tauri::async_runtime::spawn(async move {
+                objectiveai_sdk::gitrepo::sweep_temp(&plugins_temp).await;
+            });
+            // The resident /channels listener — every incoming offer
+            // spawns a detached channel-request window.
+            crate::shell::spawn_channel_listener(
+                tauri_app.handle().clone(),
+                plugins_root.clone(),
+            );
+            // Windows are created HERE, not in tauri.conf.json. Every
+            // window is a raw Window + a chrome webview (strip +
+            // status bar); the model decides which tab webviews it
+            // hosts — the spawned sync seeds the boot tabs' content
+            // webviews.
+            crate::shell::build_shell_window(
+                tauri_app.handle(),
+                &boot_label,
+                "ObjectiveAI Viewer",
+                None,
+            )?;
+            // The boot orchestrator: await the chrome's root-tab
+            // declaration + the bin/plugins scan, then open every
+            // ENABLED inventory tab into the boot window.
+            crate::shell::spawn_boot_orchestrator(
+                tauri_app.handle().clone(),
+                plugins_root,
+                boot_label.clone(),
+            );
+            let handle = tauri_app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                crate::shell::sync(&handle).await;
+            });
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("error building tauri application")
-        .run_return(|_, _| {})
+        .expect("error building tauri application");
+    let code = app.run_return(move |app_handle, event| {
+        use tauri::Manager;
+        if let tauri::RunEvent::WindowEvent { label, event, .. } = event {
+            match event {
+                // Feed the docking task. Send errors (task gone at
+                // teardown) are meaningless.
+                tauri::WindowEvent::Moved(_) => {
+                    let _ = dock_tx.send(label);
+                }
+                // A window hosting browser tabs cannot just close: CEF
+                // writes cookies lazily, and a browser whose parent
+                // HWND is destroyed mid-flush loses the session it was
+                // flushing — invisibly, since the window closes
+                // normally either way. So DEFER the close, flush and
+                // close each browser (bounded), then re-issue it. The
+                // second pass finds no browsers left and proceeds.
+                #[cfg(target_os = "windows")]
+                tauri::WindowEvent::CloseRequested { ref api, .. } => {
+                    use tauri::Manager as _;
+                    let hwnd = app_handle
+                        .get_window(&label)
+                        .and_then(|window| window.hwnd().ok())
+                        .map(|hwnd| hwnd.0 as isize);
+                    if let Some(hwnd) = hwnd {
+                        let tabs = crate::cef::browsers_in(hwnd);
+                        if !tabs.is_empty() {
+                            api.prevent_close();
+                            // HIDE it in the same breath. The deferral
+                            // is correct but it is not instant, and a
+                            // window that visibly outlives the click
+                            // that closed it reads as a hang. Gone
+                            // from the screen now; destroyed once CEF
+                            // has finished writing.
+                            if let Some(window) = app_handle.get_window(&label) {
+                                let _ = window.hide();
+                            }
+                            let handle = app_handle.clone();
+                            tauri::async_runtime::spawn(async move {
+                                crate::shell::browser::close_many(&handle, &tabs)
+                                    .await;
+                                if let Some(window) = handle.get_window(&label) {
+                                    let _ = window.close();
+                                }
+                            });
+                        }
+                    }
+                }
+                // A window died (user close, tabs_close auto-close,
+                // dock merge, teardown) — drop its model slice, then
+                // reconcile (belt-and-braces: its content webviews
+                // normally die with the parent HWND). Spawned: this
+                // closure is synchronous on the runtime's thread and
+                // the model lock is a tokio mutex. Idempotent, every
+                // Result ignored — this also runs during teardown.
+                //
+                // No window is special, so the app's lifetime is
+                // simply "while windows exist": the LAST window's
+                // death exits the process. (Detach can't hit this —
+                // a sole tab drags its window whole; dock closes the
+                // source only after the target proved alive.)
+                tauri::WindowEvent::Destroyed => {
+                    let handle = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let model = handle.state::<crate::shell::ShellModel>();
+                        if let Some((snapshot, tabs)) =
+                            model.remove_window(&label).await
+                        {
+                            // Closing a window with the X destroys
+                            // every tab in it at once — each may be
+                            // somebody's mailbox peer.
+                            handle
+                                .state::<crate::shell::TabMail>()
+                                .closed_many(&tabs)
+                                .await;
+                            // And each may be a browser. Their parent
+                            // HWND is already gone by `Destroyed`, so
+                            // this is a best-effort flush of whatever
+                            // CEF can still write — the graceful path
+                            // is `close_tab`, which runs first
+                            // whenever the tab (rather than the OS
+                            // window) is what closed.
+                            crate::shell::browser::close_many(&handle, &tabs)
+                                .await;
+                            crate::shell::publish(&handle, &snapshot, &[]);
+                            crate::shell::sync(&handle).await;
+                        }
+                        if handle.windows().is_empty() {
+                            handle.exit(0);
+                        }
+                    });
+                }
+                // Keep the content webviews SIZED to the content
+                // band. Inline + size-only: positions (active and
+                // parked alike) are constants that resize never
+                // changes, so no model read and no dispatch round
+                // trips — set_size fast-paths on this thread.
+                tauri::WindowEvent::Resized(_)
+                | tauri::WindowEvent::ScaleFactorChanged { .. } => {
+                    crate::shell::layout_window(app_handle, &label);
+                }
+                _ => {}
+            }
+        }
+    });
+    // CEF outlives Tauri's event loop and must be told to stop — every
+    // browser is already closed by here (each window's CloseRequested
+    // flushes and closes its own before letting itself go). A viewer
+    // that never opened a browser tab never initialized CEF, and this
+    // is a no-op.
+    crate::cef::shutdown();
+    code
 }
 
 /// Sets up and serves the viewer. Returns the exit code from Tauri's event loop.
@@ -413,32 +436,11 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         )
     })?;
 
-    let lock_dir = config
-        .objectiveai_dir
-        .join("state")
-        .join(&config.objectiveai_state)
-        .join("locks");
-    let plugins_dir = setup(&config);
-    let executor = make_executor(&daemon_address, config.daemon_signature.as_deref());
-
-    // There is only ever ONE viewer per STATE (unlike the api, which
-    // is one per OBJECTIVEAI_DIR): claim key "viewer" in
-    // <dir>/state/<state>/locks. The viewer is an HTTP client of the daemon (no
-    // listener), so the content is a plain readiness marker, not a
-    // URL. The claim is held until process death (LockClaim leaks on
-    // drop by design) and the kernel releases it on any exit, crash
-    // included. An `--agent-instance-hierarchy` instance is a SCOPED
-    // debug window, not THE viewer — it takes no lock and coexists
-    // with a running main viewer.
-    if config.agent_instance_hierarchy.is_none() {
-        // Readiness handshake: the daemon (this viewer's spawner and
-        // leash-holder) blocks on this stdout line. No address — the
-        // viewer is a client, not a server. No lockfile: the daemon
-        // owns this process's lifetime outright. Scoped debug windows
-        // (--agent-instance-hierarchy) stay silent — they are not THE
-        // viewer.
-        objectiveai_sdk::process::print_ready(None);
-    }
+    // Readiness handshake: the daemon (this viewer's spawner and
+    // leash-holder) blocks on this stdout line. No address — the
+    // viewer is a client of the daemon, not a server; the daemon owns
+    // this process's lifetime outright.
+    objectiveai_sdk::process::print_ready(None);
 
     // ALL daemon streams flow through the Rust-side proxy commands
     // (`crate::daemon_proxy`) — the JS frontend never holds the
@@ -461,13 +463,43 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         state: config.objectiveai_state.clone(),
     };
 
+    // This run's logfile sinks — timestamped at viewer start, under
+    // the state folder: <dir>/state/<state>/viewer/{viewer-logs,
+    // command-logs}.
+    let viewer_dir = config
+        .objectiveai_dir
+        .join("state")
+        .join(&config.objectiveai_state)
+        .join("viewer");
+    let log_sink = crate::shell::LogSink::new(viewer_dir.join("viewer-logs"));
+    let command_log_sink =
+        crate::shell::CommandLogSink::new(viewer_dir.join("command-logs"));
+    // Persisted tab toggles, beside the log sinks in the state
+    // folder.
+    let tab_inventory = crate::shell::TabInventory::new(viewer_dir.join("tabs.json"));
+
+    // The installer's directory layout (the installed-plugin tree
+    // lives inside it, machine-wide, shared across states).
+    let plugins_dirs = crate::shell::PluginsDirs::new(config.objectiveai_dir.clone());
+
+    // Browser-tab profiles: `<viewer_dir>/browsers/`, one flat hashed
+    // directory per (identity, state key). Chosen ONCE — CEF locks its
+    // root for the process lifetime, and every relocation of this path
+    // silently orphans every profile already on disk.
+    let profile_root = crate::cef::ProfileRoot::new(
+        &viewer_dir,
+        &config.objectiveai_dir.join("bin"),
+    );
+
     Ok(serve(
-        executor,
         proxy,
         agents_dir,
-        plugins_dir,
         lab_env,
+        log_sink,
+        command_log_sink,
+        tab_inventory,
+        plugins_dirs,
+        profile_root,
         None,
-        config.agent_instance_hierarchy.clone(),
     ))
 }

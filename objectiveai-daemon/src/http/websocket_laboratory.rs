@@ -23,7 +23,12 @@
 //!    host proxies each running lab's `/filetree` SSE verbatim), which
 //!    update the registry's per-host set and per-lab materialized
 //!    trees. No scanning, no polling: the announced set + notifications
-//!    ARE the daemon's laboratory knowledge.
+//!    ARE the daemon's laboratory knowledge. The host can also
+//!    initiate its own exchange: a [`HostCommandRequest`] runs a CLI
+//!    command on the daemon and streams [`HostCommandResponse`]
+//!    frames back (`Ack (Item|Error)* Done`) — identical to the
+//!    conduit's API-side `Command` exchange, host-minted id space
+//!    (see [`dispatch_host_command`]).
 //!
 //! The set of live `/laboratory` connections IS the laboratory
 //! registry: `laboratories list` snapshots it, and a host disconnect
@@ -40,16 +45,43 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use indexmap::IndexMap;
 use objectiveai_sdk::laboratories::daemon::{
-    ChannelRequest, ChannelResponse, HostIdentify, HostNotification, Identify,
+    ChannelRequest, ChannelResponse, CommandFrame, HostCommandRequest,
+    HostCommandResponse, HostIdentify, HostNotification, Identify,
 };
 use objectiveai_sdk::laboratories::filetree::{FileTreeEvent, FileTreeNode};
 use objectiveai_sdk::machine::MachineIdentity;
 use tokio::sync::{mpsc, oneshot, RwLock};
 
-/// How long a forward waits for the host's reply. Generous — tool
-/// calls and 2 MiB transfer chunks ride this; the API layer above owns
-/// the real deadlines.
-const FORWARD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
+/// One daemon→host frame queued to a connection's writer half. The
+/// host demuxes by shape, exactly like the daemon does inbound —
+/// [`ChannelRequest`] carries `headers` + `payload`, a
+/// [`HostCommandResponse`] carries a flattened `frame` tag.
+enum OutboundFrame {
+    /// A daemon-minted correlated request ([`ChannelRequest`]).
+    Request(ChannelRequest),
+    /// One frame of a HOST-initiated command exchange
+    /// ([`HostCommandResponse`], correlated by the host's own id).
+    Command(HostCommandResponse),
+    /// Raw Postgres bytes for a tunnel stream (daemon → host).
+    PostgresData(objectiveai_sdk::laboratories::daemon::PostgresData),
+    /// Postgres tunnel stream teardown (daemon → host): pg EOF, dial
+    /// failure, or connection death. Carries the `stream_id`.
+    PostgresClose(String),
+}
+
+/// One live Postgres tunnel stream on this connection: the write half
+/// (bytes host→daemon→pg, drained by a spawned write task). Dropping
+/// the entry ends the write task (→ pg write half shuts down → pg
+/// closes → the read pump reads EOF and exits), so removal is the one
+/// teardown lever — no separate abort handle needed.
+struct PgStream {
+    write_tx: mpsc::UnboundedSender<Vec<u8>>,
+}
+
+/// Max raw Postgres bytes per `PostgresData` frame — bounds per-frame
+/// wire time so a busy pg stream can't monopolize the single WS
+/// against control/command traffic.
+const PG_CHUNK: usize = 64 * 1024;
 
 /// One connected laboratory host.
 struct HostConnection {
@@ -71,10 +103,22 @@ struct HostConnection {
     filetree: RwLock<IndexMap<String, Vec<FileTreeNode>>>,
     /// Frames queued to the host (drained by the connection's writer
     /// half).
-    tx: mpsc::UnboundedSender<ChannelRequest>,
+    tx: mpsc::UnboundedSender<OutboundFrame>,
     /// In-flight forwards awaiting the host's correlated reply.
     /// Dropped wholesale on disconnect, failing every waiter.
     pending: DashMap<String, oneshot::Sender<ChannelResponse>>,
+    /// Live Postgres tunnel streams keyed by host-minted `stream_id`.
+    /// Living inside `HostConnection` keys it implicitly by (this
+    /// connection, stream_id) — no cross-connection collision. Drained
+    /// on teardown: every write half dropped, every read pump aborted.
+    postgres_streams: DashMap<String, PgStream>,
+    /// Displacement kill: notified by the successor's registration so
+    /// this connection's handler exits through the SAME post-loop
+    /// teardown every other ending takes (close frame, recv error,
+    /// stream end) — never a lingering zombie folding stale state
+    /// under a live identity. `notify_one` stores a permit if the
+    /// handler isn't parked yet, so there is no lost-wakeup window.
+    shutdown: tokio::sync::Notify,
 }
 
 /// One connected-set mutation, broadcast to the live `/laboratories/*`
@@ -317,6 +361,18 @@ impl LaboratoryRegistry {
             .contains_key(&(machine_id.to_string(), state.to_string()))
     }
 
+    /// A UNIFORMLY RANDOM connected host `(machine id, state)` — the
+    /// whole load balancer for ephemeral laboratory creates: every
+    /// individual plugin/agent laboratory request routes to an
+    /// independent random pick. `None` when no host is connected (the
+    /// caller then ensures the local host).
+    pub fn random_host(&self) -> Option<(String, String)> {
+        use rand::prelude::IndexedRandom;
+        let keys: Vec<(String, String)> =
+            self.hosts.iter().map(|entry| entry.key().clone()).collect();
+        keys.choose(&mut rand::rng()).cloned()
+    }
+
     /// The identity of the exact connected host `(machine id, state)`.
     pub fn machine(&self, machine_id: &str, state: &str) -> Option<MachineIdentity> {
         self.hosts
@@ -415,60 +471,33 @@ impl LaboratoryRegistry {
             }
         };
         let id = uuid::Uuid::new_v4().to_string();
-        // Transfer-family ops are timeout-free: an archive can exceed
-        // any fixed cap, and the host disconnect (pending-map drop) is
-        // the failure signal. Everything else keeps the standard cap.
-        let timeout_free = {
-            use objectiveai_sdk::laboratories::daemon::RequestPayload as P;
-            matches!(
-                request,
-                P::ExportBegin(_)
-                    | P::ExportRead(_)
-                    | P::ExportAbort(_)
-                    | P::ImportBegin(_)
-                    | P::ImportWrite(_)
-                    | P::ImportEnd(_)
-                    | P::ImportAbort(_)
-                    | P::LocalTransfer(_)
-            )
-        };
         let (reply_tx, reply_rx) = oneshot::channel();
         host.pending.insert(id.clone(), reply_tx);
-        let sent = host.tx.send(ChannelRequest {
+        let sent = host.tx.send(OutboundFrame::Request(ChannelRequest {
             id: id.clone(),
             laboratory_id,
             headers,
             payload: request,
-        });
+        }));
         if sent.is_err() {
             host.pending.remove(&id);
             return Err(format!(
                 "laboratory host for machine '{machine_id}' disconnected"
             ));
         }
-        if timeout_free {
-            return match reply_rx.await {
-                Ok(response) => Ok(response.payload),
-                // Pending map dropped — the host disconnected.
-                Err(_) => Err(format!(
-                    "laboratory host for machine '{machine_id}' disconnected mid-request"
-                )),
-            };
-        }
-        match tokio::time::timeout(FORWARD_TIMEOUT, reply_rx).await {
-            Ok(Ok(response)) => Ok(response.payload),
-            Ok(Err(_)) => {
-                // Pending map dropped — the host disconnected.
-                Err(format!(
-                    "laboratory host for machine '{machine_id}' disconnected mid-request"
-                ))
-            }
-            Err(_) => {
-                host.pending.remove(&id);
-                Err(format!(
-                    "laboratory host for machine '{machine_id}' timed out"
-                ))
-            }
+        // EVERY forward is timeout-free: a tool call can run an
+        // arbitrarily long command, an archive can exceed any fixed
+        // cap, and a cold plugin build clones + builds a container
+        // image. The failure signal is the host disconnecting — the
+        // pending map drops (channel teardown fails every waiter), and
+        // TCP keepalive guarantees even a silent death surfaces there
+        // within a bounded window. No artificial deadlines.
+        match reply_rx.await {
+            Ok(response) => Ok(response.payload),
+            // Pending map dropped — the host disconnected.
+            Err(_) => Err(format!(
+                "laboratory host for machine '{machine_id}' disconnected mid-request"
+            )),
         }
     }
 }
@@ -505,6 +534,237 @@ impl Drop for FiletreeWatchGuard {
                 .send_filetree_signal(self.key.clone(), false);
         }
     }
+}
+
+/// Fulfill a host→daemon [`HostCommandRequest`]: run the CLI command
+/// in-process — the same `crate::run` re-entry `/execute` and the
+/// conduit's `Command` exchange use — and stream one
+/// [`HostCommandResponse`] frame per event back over the WS AS ITEMS
+/// ARRIVE (never collected). The run is spawned so the connection's
+/// pump never blocks on a command.
+///
+/// Scope identity: identical to the conduit's `dispatch_command`. The
+/// REQUIRED `identity` are applied exactly like `/execute`
+/// (wire plugin claims inside them are nulled by
+/// `from_identity`), then the REQUIRED `plugin` coordinates are
+/// stamped with [`ScopedContext::with_plugin`](crate::context::ScopedContext::with_plugin).
+/// This authenticated `/laboratory` channel is, like the conduit, a
+/// deliberate exception to "never trust wire plugin identity": the
+/// host asserts the trio of the plugin whose MCP server originated the
+/// command, and the plugin run-gates then apply to nested commands.
+///
+/// Frame discipline: `Ack` is queued the moment the request is picked
+/// up — an undeliverable `Ack` (writer gone) skips the run entirely;
+/// stream errors are NON-terminal `Error` frames; `Done` is ALWAYS
+/// the final frame. A queue failure mid-stream breaks the pump —
+/// dropping the run stream cancels the command — but `Done` is still
+/// attempted.
+/// Handle one host→daemon Postgres tunnel control frame. `Open` dials
+/// THIS daemon's configured Postgres and attaches the stream (a dumb
+/// byte pipe — never parses pgwire, so the client's SSL rides through
+/// end to end); `Close` tears the stream down. Data frames
+/// (`PostgresData`) are handled inline in the binary demux arm.
+fn dispatch_host_postgres(
+    state: &crate::http::daemon_stream::DaemonHttpState,
+    host: &Arc<HostConnection>,
+    frame: objectiveai_sdk::laboratories::daemon::HostPostgres,
+) {
+    use objectiveai_sdk::laboratories::daemon::HostPostgres;
+    match frame {
+        HostPostgres::Open { stream_id } => {
+            // Register the write half SYNCHRONOUSLY, before dialing.
+            // The host pipes the container's first bytes (the pgwire
+            // StartupMessage) the instant it accepts, so they arrive
+            // right behind `Open`; with the entry present they queue in
+            // this unbounded channel instead of being dropped during
+            // the dial. Synchronous insert also means the connection's
+            // post-loop drain can never miss this stream (both run on
+            // the one handler task — insert happens-before teardown).
+            let (write_tx, mut write_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+            host.postgres_streams
+                .insert(stream_id.clone(), PgStream { write_tx });
+            let global = state.global.clone();
+            let host = Arc::clone(host);
+            tokio::spawn(async move {
+                // Resolve + dial this daemon's Postgres. Any failure
+                // closes the stream (a runtime pg error to the plugin;
+                // it never touched the create): drop the entry (ends
+                // any queued write) and tell the host.
+                let fail = |host: &HostConnection, id: &str| {
+                    host.postgres_streams.remove(id);
+                    let _ = host
+                        .tx
+                        .send(OutboundFrame::PostgresClose(id.to_string()));
+                };
+                let addr = match global.db_handle().await {
+                    Ok(handle) => handle.address,
+                    Err(_) => return fail(&host, &stream_id),
+                };
+                let pg = match tokio::net::TcpStream::connect(&addr).await {
+                    Ok(pg) => pg,
+                    Err(_) => return fail(&host, &stream_id),
+                };
+                let _ = pg.set_nodelay(true);
+                objectiveai_sdk::net::set_tcp_keepalive(&pg);
+                let (mut pg_read, mut pg_write) = pg.into_split();
+
+                // Write task: drain host→pg bytes (incl. the ones that
+                // queued during the dial). Ends when the stream entry is
+                // dropped (teardown / Close / read-side EOF) → the pg
+                // write half shuts down.
+                let write = tokio::spawn(async move {
+                    use tokio::io::AsyncWriteExt;
+                    while let Some(bytes) = write_rx.recv().await {
+                        if pg_write.write_all(&bytes).await.is_err() {
+                            break;
+                        }
+                    }
+                    let _ = pg_write.shutdown().await;
+                });
+
+                // Read pump (this task): pg→host as PostgresData frames.
+                use tokio::io::AsyncReadExt;
+                let mut buf = vec![0u8; PG_CHUNK];
+                loop {
+                    match pg_read.read(&mut buf).await {
+                        Ok(0) | Err(_) => break,
+                        Ok(n) => {
+                            let sent = host.tx.send(OutboundFrame::PostgresData(
+                                objectiveai_sdk::laboratories::daemon::PostgresData {
+                                    stream_id: stream_id.clone(),
+                                    bytes: buf[..n].to_vec(),
+                                },
+                            ));
+                            if sent.is_err() {
+                                break; // WS writer gone
+                            }
+                        }
+                    }
+                }
+                // pg EOF/error (or WS gone): drop the entry (ends the
+                // write task → pg write half closes), tell the host,
+                // and stop the write task promptly.
+                host.postgres_streams.remove(&stream_id);
+                let _ = host
+                    .tx
+                    .send(OutboundFrame::PostgresClose(stream_id.clone()));
+                write.abort();
+            });
+        }
+        HostPostgres::Close { stream_id } => {
+            // Dropping the entry drops `write_tx` → the write task ends
+            // → the pg write half shuts down → pg closes → the read
+            // pump reads EOF and exits, closing the backend.
+            host.postgres_streams.remove(&stream_id);
+        }
+    }
+}
+
+fn dispatch_host_command(
+    state: &crate::http::daemon_stream::DaemonHttpState,
+    host: &Arc<HostConnection>,
+    command: HostCommandRequest,
+) {
+    use futures::StreamExt;
+
+    /// One frame onto the writer queue; `false` = writer gone, stop
+    /// pumping.
+    fn send(host: &HostConnection, id: &str, frame: CommandFrame) -> bool {
+        host.tx
+            .send(OutboundFrame::Command(HostCommandResponse {
+                id: id.to_string(),
+                frame,
+            }))
+            .is_ok()
+    }
+
+    let HostCommandRequest {
+        id,
+        identity,
+        plugin,
+        request,
+    } = command;
+    if !send(host, &id, CommandFrame::Ack) {
+        return;
+    }
+    let global = state.global.clone();
+    let base_scoped = state.scoped.clone();
+    let host = Arc::clone(host);
+    tokio::spawn(async move {
+        let scoped = crate::executor::apply_identity(
+            &base_scoped,
+            Some(&identity),
+        )
+        .await
+        .into_owned()
+        .with_plugin(plugin.owner, plugin.name, plugin.version);
+
+        // The `--request` front door: serialize the typed request and
+        // re-enter `crate::run`, exactly like `/execute`.
+        let request_json = match serde_json::to_string(&request) {
+            Ok(json) => json,
+            Err(e) => {
+                let _ = send(
+                    &host,
+                    &id,
+                    CommandFrame::Error {
+                        error: format!("serialize command request: {e}"),
+                    },
+                );
+                let _ = send(&host, &id, CommandFrame::Done);
+                return;
+            }
+        };
+        let args = vec![
+            "objectiveai".to_string(),
+            "--request".to_string(),
+            request_json,
+        ];
+        match crate::run(args, Some((global, scoped))).await {
+            Ok(crate::RunStream::Execute(mut stream)) => {
+                while let Some(item) = stream.next().await {
+                    let frame = match item {
+                        Ok(item) => CommandFrame::Item { item },
+                        Err(e) => CommandFrame::Error {
+                            error: e.output_message().to_string(),
+                        },
+                    };
+                    if !send(&host, &id, frame) {
+                        break;
+                    }
+                }
+            }
+            Ok(crate::RunStream::ExecuteTransform(mut stream)) => {
+                while let Some(item) = stream.next().await {
+                    let frame = match item {
+                        // A jq/python transform yields bare JSON
+                        // values; `ResponseItem::Python` is the
+                        // untagged bare-value variant — wire-identical
+                        // passthrough.
+                        Ok(value) => CommandFrame::Item {
+                            item: objectiveai_sdk::cli::command::ResponseItem::Python(value),
+                        },
+                        Err(e) => CommandFrame::Error {
+                            error: e.output_message().to_string(),
+                        },
+                    };
+                    if !send(&host, &id, frame) {
+                        break;
+                    }
+                }
+            }
+            Err(e) => {
+                let _ = send(
+                    &host,
+                    &id,
+                    CommandFrame::Error {
+                        error: e.output_message().to_string(),
+                    },
+                );
+            }
+        }
+        let _ = send(&host, &id, CommandFrame::Done);
+    });
 }
 
 /// `/laboratory`: upgrade, read the HostIdentify frame, consume the
@@ -547,11 +807,14 @@ pub(crate) async fn laboratory_handler(
         // 3. Register under (machine id, state). A live entry means
         // either a stale duplicate (the host's `laboratories` lock
         // should prevent one) or a reconnect racing its own
-        // predecessor's teardown — the NEW connection wins: displace
-        // the old entry (its pending waiters fail). Same-machine hosts
-        // of OTHER states are untouched.
+        // predecessor's teardown — the NEW connection wins: the old
+        // entry is displaced AND EXPLICITLY KILLED (its in-flight
+        // waiters fail now, its handler is sent through the shared
+        // teardown) so it can never linger as a zombie emitting stale
+        // state under this same identity. Same-machine hosts of OTHER
+        // states are untouched.
         let host_key = (identify.machine.id.clone(), identify.state.clone());
-        let (tx, mut rx) = mpsc::unbounded_channel::<ChannelRequest>();
+        let (tx, mut rx) = mpsc::unbounded_channel::<OutboundFrame>();
         let labs: IndexMap<String, Identify> = identify
             .laboratories
             .into_iter()
@@ -564,11 +827,21 @@ pub(crate) async fn laboratory_handler(
             filetree: RwLock::new(IndexMap::new()),
             tx,
             pending: DashMap::new(),
+            postgres_streams: DashMap::new(),
+            shutdown: tokio::sync::Notify::new(),
         });
-        state
+        if let Some(displaced) = state
             .laboratories
             .hosts
-            .insert(host_key.clone(), Arc::clone(&host));
+            .insert(host_key.clone(), Arc::clone(&host))
+        {
+            // Fail its in-flight forwards NOW (dropping the oneshot
+            // senders errors every waiter) rather than whenever its
+            // handler gets around to dropping the last Arc...
+            displaced.pending.retain(|_, _| false);
+            // ...and send its handler through the shared teardown.
+            displaced.shutdown.notify_one();
+        }
         let _ = state
             .laboratories
             .events
@@ -589,19 +862,59 @@ pub(crate) async fn laboratory_handler(
         }
 
         // Pump: outbound requests + inbound correlated replies and
-        // uncorrelated notifications.
+        // uncorrelated notifications. FOUR endings, ONE teardown: the
+        // host's close frame, a recv error (incl. a keepalive-detected
+        // dead peer), the stream ending, and displacement by a
+        // successor connection all `break` to the shared
+        // deregistration below.
         loop {
             tokio::select! {
+                _ = host.shutdown.notified() => break,
                 queued = rx.recv() => match queued {
-                    Some(request) => {
-                        let Ok(frame) = serde_json::to_string(&request) else {
-                            continue;
+                    Some(outbound) => {
+                        // Requests frame via `to_wire`: chunk-bearing
+                        // ImportWrite goes out as ONE binary sandwich
+                        // (raw bytes after the JSON header — see
+                        // `objectiveai_sdk::binary_frame`), everything
+                        // else as JSON text.
+                        let msg = match &outbound {
+                            OutboundFrame::Request(request) => {
+                                match request.to_wire() {
+                                    Ok(objectiveai_sdk::binary_frame::WireFrame::Text(frame)) => {
+                                        axum::extract::ws::Message::Text(frame.into())
+                                    }
+                                    Ok(objectiveai_sdk::binary_frame::WireFrame::Binary(frame)) => {
+                                        axum::extract::ws::Message::Binary(frame.into())
+                                    }
+                                    Err(_) => continue,
+                                }
+                            }
+                            OutboundFrame::Command(response) => {
+                                match serde_json::to_string(response) {
+                                    Ok(frame) => axum::extract::ws::Message::Text(frame.into()),
+                                    Err(_) => continue,
+                                }
+                            }
+                            OutboundFrame::PostgresData(data) => {
+                                // Raw pg bytes ride the binary sandwich.
+                                match data.to_wire() {
+                                    Ok(objectiveai_sdk::binary_frame::WireFrame::Binary(frame)) => {
+                                        axum::extract::ws::Message::Binary(frame.into())
+                                    }
+                                    _ => continue,
+                                }
+                            }
+                            OutboundFrame::PostgresClose(stream_id) => {
+                                let close = objectiveai_sdk::laboratories::daemon::DaemonPostgres::Close {
+                                    stream_id: stream_id.clone(),
+                                };
+                                match serde_json::to_string(&close) {
+                                    Ok(frame) => axum::extract::ws::Message::Text(frame.into()),
+                                    Err(_) => continue,
+                                }
+                            }
                         };
-                        if socket
-                            .send(axum::extract::ws::Message::Text(frame.into()))
-                            .await
-                            .is_err()
-                        {
+                        if socket.send(msg).await.is_err() {
                             break;
                         }
                     }
@@ -610,14 +923,56 @@ pub(crate) async fn laboratory_handler(
                     None => break,
                 },
                 received = socket.recv() => match received {
+                    Some(Ok(axum::extract::ws::Message::Binary(bytes))) => {
+                        // Chunk-bearing replies (ExportRead) ride the
+                        // binary sandwich (`objectiveai_sdk::binary_frame`);
+                        // any other binary frame is dropped
+                        // (forward-compat).
+                        if let Some(response) =
+                            ChannelResponse::from_binary(&bytes)
+                        {
+                            if let Some((_, waiter)) =
+                                host.pending.remove(&response.id)
+                            {
+                                let _ = waiter.send(response);
+                            }
+                            continue;
+                        }
+                        // Postgres tunnel bytes (host→daemon→pg).
+                        if let Some(data) =
+                            objectiveai_sdk::laboratories::daemon::PostgresData::from_binary(&bytes)
+                        {
+                            if let Some(stream) =
+                                host.postgres_streams.get(&data.stream_id)
+                            {
+                                let _ = stream.write_tx.send(data.bytes);
+                            }
+                        }
+                        continue;
+                    }
                     Some(Ok(axum::extract::ws::Message::Text(text))) => {
-                        // ChannelResponse first (it has `id`), then
-                        // HostNotification (no correlation id) — the
-                        // same parse strategy the API recv_loop uses.
+                        // ChannelResponse first (it has `payload`),
+                        // then HostCommandRequest (host-initiated
+                        // command exchange), then HostNotification (no
+                        // correlation id) — the same parse strategy
+                        // the API recv_loop uses.
                         if let Ok(response) = serde_json::from_str::<ChannelResponse>(&text) {
                             if let Some((_, waiter)) = host.pending.remove(&response.id) {
                                 let _ = waiter.send(response);
                             }
+                            continue;
+                        }
+                        if let Ok(command) =
+                            serde_json::from_str::<HostCommandRequest>(&text)
+                        {
+                            dispatch_host_command(&state, &host, command);
+                            continue;
+                        }
+                        if let Ok(pg) = serde_json::from_str::<
+                            objectiveai_sdk::laboratories::daemon::HostPostgres,
+                        >(&text)
+                        {
+                            dispatch_host_postgres(&state, &host, pg);
                             continue;
                         }
                         let Ok(notification) =
@@ -705,6 +1060,60 @@ pub(crate) async fn laboratory_handler(
                                     },
                                 );
                             }
+                            HostNotification::McpListChanged {
+                                id,
+                                response_id,
+                                kind,
+                            } => {
+                                // Relay a container connection's
+                                // list-changed up the owning response's
+                                // reverse channel. The mirror resolves
+                                // the host lab id back to the WIRE kind
+                                // the proxy registered its callback
+                                // under; the notifier is the response's
+                                // conduit WS. Either lookup missing ⇒
+                                // the session is already gone — drop
+                                // silently.
+                                let Some(hubs) = state.global.resident_hubs()
+                                else {
+                                    continue;
+                                };
+                                let Some(mcp_kind) = hubs
+                                    .lab_mcp_kinds
+                                    .get(&(response_id.clone(), id.clone()))
+                                    .map(|e| e.value().clone())
+                                else {
+                                    continue;
+                                };
+                                let Some(notifier) = hubs
+                                    .mcp_notifiers
+                                    .get(&response_id)
+                                    .map(|e| e.value().1.clone())
+                                else {
+                                    continue;
+                                };
+                                use objectiveai_sdk::client_objectiveai_mcp::client_request as cr;
+                                let change = cr::McpListChanged {
+                                    mcp_kind,
+                                    kind: match kind {
+                                        objectiveai_sdk::laboratories::daemon::McpListChangedKind::Tools => {
+                                            cr::McpListChangedKind::Tools
+                                        }
+                                        objectiveai_sdk::laboratories::daemon::McpListChangedKind::Resources => {
+                                            cr::McpListChangedKind::Resources
+                                        }
+                                    },
+                                    response_id: Some(response_id),
+                                };
+                                // Spawned: `notify_list_changed` awaits
+                                // the reverse-channel WS round trip;
+                                // this recv loop must not block on it.
+                                tokio::spawn(async move {
+                                    let _ = notifier
+                                        .notify_list_changed(change)
+                                        .await;
+                                });
+                            }
                         }
                     }
                     Some(Ok(axum::extract::ws::Message::Close(_))) | Some(Err(_)) | None => break,
@@ -712,6 +1121,16 @@ pub(crate) async fn laboratory_handler(
                 },
             }
         }
+
+        // Tear down every Postgres tunnel stream: clearing the map
+        // drops each `write_tx`, which ends the write task → shuts the
+        // pg write half → pg closes → the read pump reads EOF and
+        // exits (releasing its `Arc<HostConnection>`, so this
+        // connection can finally drop). This is the one lever that
+        // breaks the read-pump ↔ HostConnection reference cycle.
+        // Covers all four endings (close frame, recv error, keepalive
+        // death, displacement).
+        host.postgres_streams.clear();
 
         // Deregister — but only if the entry is still OURS (a reconnect
         // may have displaced it already).

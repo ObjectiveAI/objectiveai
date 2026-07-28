@@ -6,7 +6,7 @@ import {
   classifyLaboratories,
   type DisplayLaboratory,
 } from "../lib/laboratories";
-import { tauriInvoke } from "../lib/tauri";
+import { builtinTabModule, tabsOpen } from "../lib/tabs";
 import { LogoMark } from "./shared/Logo";
 import { OpenTab } from "./shared/OpenTab";
 
@@ -23,7 +23,6 @@ export function LaboratoriesPane({
   transport,
 }: {
   transport: ViewerTransport | null;
-  active: boolean;
 }) {
   const daemon = useLaboratoriesList(transport);
   const laboratories = classifyLaboratories(daemon);
@@ -75,15 +74,21 @@ export function LaboratoriesPane({
   );
 }
 
-/** Open (or focus) the laboratory's filesystem WINDOW — a real Tauri
- * window on the `laboratory.html` entry, created by the Rust shell
- * (`open_laboratory_window`). */
+/** Open (or focus) the laboratory's filesystem TAB — appended to this
+ * window's strip, or focused wherever it already lives (the shell
+ * dedupes by kind). The `{os}/{machine}/{id}` title format is the
+ * old bespoke window title's. */
 function openLaboratoryWindow(lab: DisplayLaboratory): void {
-  void tauriInvoke("open_laboratory_window", {
-    id: lab.id,
-    machine: lab.machine?.id ?? null,
-    machineState: lab.machineState,
-    machineOs: lab.machine?.os ?? null,
+  void tabsOpen({
+    module: builtinTabModule("laboratory"),
+    title: `${lab.machine?.os ?? "?"}/${lab.machine?.id ?? "?"}/${lab.id}`,
+    arguments: {
+      id: lab.id,
+      ...(lab.machine?.id !== undefined ? { machine: lab.machine.id } : {}),
+      ...(lab.machineState !== undefined && lab.machineState !== null
+        ? { machine_state: lab.machineState }
+        : {}),
+    },
   });
 }
 
@@ -156,15 +161,9 @@ function LaboratoryCard({ lab }: { lab: DisplayLaboratory }) {
           <>
             <DetailRow label="os" value={lab.machine.os} />
             <DetailRow label="hostname" value={lab.machine.hostname ?? ""} />
-            <DetailRow
-              label="machine"
-              value={
-                lab.machine.id.length > 16
-                  ? `${lab.machine.id.slice(0, 16)}…`
-                  : lab.machine.id
-              }
-              title={lab.machine.id}
-            />
+            {/* The FULL id — DetailRow wraps (break-all) if the card
+                genuinely runs out of room; no pre-truncation. */}
+            <DetailRow label="machine" value={lab.machine.id} />
             <DetailRow label="state" value={lab.machineState ?? ""} />
           </>
         )}

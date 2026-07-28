@@ -48,9 +48,6 @@ pub enum Error {
     WriterPanic,
     #[error("subscribe timed out")]
     LogSubscribeTimedOut,
-    #[error("plugins may not run tools (caller: plugin {caller})")]
-    ToolRunByPlugin { caller: String },
-
     #[error(
         "a plugin may only run itself at the same or a lower version          (caller: plugin {caller}, requested: {requested})"
     )]
@@ -66,6 +63,14 @@ pub enum Error {
     PluginExit(i32),
     #[error("plugins may not invoke `{0}` commands")]
     PluginCommandForbidden(&'static str),
+    #[error("channels {0} requires a plugin caller: no plugin identity on this request")]
+    ChannelRequiresPlugin(&'static str),
+    #[error("channel: {0}")]
+    Channel(String),
+    #[error("task: {0}")]
+    Task(String),
+    #[error("development: {0}")]
+    Development(String),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]

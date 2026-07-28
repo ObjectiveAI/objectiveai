@@ -58,24 +58,94 @@ pub(crate) struct ResidentHubs {
     pub laboratories: LaboratoryRegistry,
     /// Local-laboratory change hub (former `laboratories.sock`).
     pub labs_hub: LaboratoriesHub,
-    /// Per-`response_id` MCP notifiers (former per-response mcp sockets).
-    pub mcp_notifiers: Arc<DashMap<String, Notifier>>,
-    /// The `/user` user-requests hub (tracked per-connection
-    /// delivery; see `http::user_routes`).
-    pub user: crate::http::user_routes::UserHub,
+    /// Per-`response_id` MCP notifiers (former per-response mcp
+    /// sockets), each tagged with its registering conduit's unique
+    /// token so a stale conduit's late drop can `remove_if` on token
+    /// equality instead of clobbering a respawned successor's entry.
+    pub mcp_notifiers: Arc<DashMap<String, (u64, Notifier)>>,
+    /// `(response_id, host laboratory id) → wire McpKind` mirror,
+    /// write-through-maintained by every conduit's `HostRoutes`. The
+    /// laboratory-WS relay resolves an inbound
+    /// `HostNotification::McpListChanged` here to stamp the exact wire
+    /// kind (byte-match with the proxy's list-changed registry key)
+    /// before pushing the frame up the reverse channel.
+    pub lab_mcp_kinds:
+        Arc<DashMap<(String, String), objectiveai_sdk::client_objectiveai_mcp::McpKind>>,
+    /// The `/channels` duplex-channels hub (live coordination; the
+    /// durable log lives in `db::channels`). See `http::channel_routes`.
+    pub channels: crate::http::channel_routes::ChannelHub,
+    /// The resident task scheduler's handle (durable rows live in
+    /// `db::tasks`). `notify()` wakes the driver on schedule changes.
+    pub tasks: crate::command::tasks::scheduler::TaskScheduler,
+    /// Plugins registered to build from a local directory instead of
+    /// their git tag. Purely in-process — see
+    /// `crate::command::development::registry`.
+    pub development_plugins: crate::command::development::registry::DevelopmentPlugins,
 }
 
-/// One leashed resident server: the held [`tokio::process::Child`]
-/// (its OS leash + `kill_on_drop` tie the server's life to the
-/// daemon's) and the address it announced in its stdout readiness
-/// handshake. The laboratory host additionally carries its stdio
-/// dial-list channel — dropped with the entry on every kill path,
-/// which closes the child's stdin (EOF = the host's graceful-shutdown
-/// signal, container-stop included, even on Windows).
+/// One leashed resident server — the map entry is METADATA ONLY. The
+/// [`tokio::process::Child`] itself is owned by the spawn's LIFECYCLE
+/// TASK (see `crate::spawn`), which awaits `child.wait()`, fires
+/// [`Self::dead_rx`] on TRUE process exit, and removes this entry
+/// (generation-guarded, so a late-firing task never removes a
+/// successor). The OS leash + `kill_on_drop` are independent of where
+/// the `Child` handle lives ([`objectiveai_sdk::subprocess_reaper`]).
+///
+/// The laboratory host additionally carries its stdio dial-list
+/// channel — dropped with the entry on every kill path, which closes
+/// the child's stdin (EOF = the host's graceful-shutdown signal,
+/// container-stop included, even on Windows).
 pub(crate) struct ResidentChild {
-    pub(crate) child: tokio::process::Child,
+    /// Process-unique spawn generation — the identity guard for
+    /// removal: `remove_if(|rc| rc.generation == g)` removes exactly
+    /// the entry a caller snapshotted, never a respawned successor.
+    /// (The pid lives with the lifecycle task, which is the only place
+    /// a signal may originate — its un-reaped handle pins the pid.)
+    pub(crate) generation: u64,
+    /// Signal requests routed THROUGH the lifecycle task: it owns the
+    /// `Child`, so `Term` (SIGTERM/TerminateProcess by pid, safe while
+    /// the un-reaped handle pins the pid) and `Kill`
+    /// (`child.start_kill()`, handle-based) can never hit a recycled
+    /// pid. A closed channel means the child already exited.
+    pub(crate) kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
     pub(crate) address: Option<String>,
     pub(crate) stdio: Option<Arc<LabHostStdio>>,
+    /// PUSH death signal: flips `false → true` when `child.wait()`
+    /// completes in the lifecycle task — TRUE process exit (reaped),
+    /// not a pipe-EOF proxy. Lets a waiter `changed().await` the
+    /// child's death instead of polling `try_wait`. A CLOSED watch
+    /// (sender dropped without firing) must also be read as dead.
+    pub(crate) dead_rx: tokio::sync::watch::Receiver<bool>,
+}
+
+/// A kill signal for a resident child, executed by its lifecycle task.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum KillRequest {
+    /// Graceful signal: Unix `SIGTERM` (handlers run), Windows
+    /// `TerminateProcess` (its only option).
+    Term,
+    /// Hard kill: `child.start_kill()` — SIGKILL / TerminateProcess.
+    Kill,
+}
+
+/// Process-unique generation source for [`ResidentChild::generation`].
+static CHILD_GENERATION: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+
+/// Mint the next spawn generation.
+pub(crate) fn next_child_generation() -> u64 {
+    CHILD_GENERATION.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// Everything a kill path needs from one atomic map read — snapshot
+/// first, then act via [`GlobalContext::remove_resident_child_if`] +
+/// the snapshotted channels, so a respawned successor is never
+/// touched.
+pub(crate) struct KillSnapshot {
+    pub(crate) generation: u64,
+    pub(crate) kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
+    pub(crate) dead_rx: tokio::sync::watch::Receiver<bool>,
+    pub(crate) has_stdio: bool,
 }
 
 /// The laboratory host's stdin/stdout dial-list channel (see
@@ -260,13 +330,18 @@ pub struct GlobalContext {
     /// boot (`execute_foreground`). `None` in any process that is not
     /// the resident daemon. Shared across clones (first set wins).
     resident_hubs: Arc<std::sync::OnceLock<ResidentHubs>>,
+    /// This daemon's own `(machine id, state)`, computed on first use.
+    /// See [`GlobalContext::local_host`].
+    local_host: Arc<std::sync::OnceLock<(String, String)>>,
     /// The persistent server subprocesses the resident daemon spawns —
-    /// `db` / `api` / `mcp` / `viewer` / `laboratories` — held here for
-    /// the daemon's whole life. They are LEASHED
+    /// `db` / `api` / `mcp` / `viewer` / `laboratories` — metadata
+    /// entries for the daemon's whole life (the
+    /// [`tokio::process::Child`] itself lives in each spawn's
+    /// lifecycle task; see [`ResidentChild`]). They are LEASHED
     /// ([`objectiveai_sdk::subprocess_reaper`]): the OS kills each one
-    /// when the daemon dies, and holding the [`tokio::process::Child`]
-    /// here keeps it alive meanwhile. The cached `address` is the
-    /// server's stdout readiness-handshake coordinate
+    /// when the daemon dies, independent of where the handle lives.
+    /// The cached `address` is the server's stdout
+    /// readiness-handshake coordinate
     /// ([`objectiveai_sdk::process::ServerReady`]) — this map IS the
     /// discovery state.
     resident_children: Arc<DashMap<String, ResidentChild>>,
@@ -310,6 +385,7 @@ impl GlobalContext {
             python: Arc::new(OnceCell::new()),
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             resident_hubs: Arc::new(std::sync::OnceLock::new()),
+            local_host: Arc::new(std::sync::OnceLock::new()),
             resident_children: Arc::new(DashMap::new()),
             spawn_gates: Arc::new(DashMap::new()),
         }
@@ -388,73 +464,102 @@ impl GlobalContext {
             .clone()
     }
 
-    /// Park a freshly-spawned leashed server child (+ its readiness
-    /// address, + the laboratory host's stdio channel) for the
-    /// daemon's life. Only the spawn path calls this, under the key's
-    /// spawn gate, after confirming no live child — so a live server
-    /// is never displaced.
+    /// Park a freshly-spawned leashed server child's metadata (+ its
+    /// readiness address, + the laboratory host's stdio channel) for
+    /// the daemon's life. Only the spawn path calls this, under the
+    /// key's spawn gate, after confirming no live child — so a live
+    /// server is never displaced. The `Child` itself goes to the
+    /// spawn's lifecycle task, spawned AFTER this insert (so the
+    /// task's generation-guarded removal always finds its own entry,
+    /// even for a child that dies instantly).
     pub(crate) fn hold_resident_child(
         &self,
         key: &str,
-        child: tokio::process::Child,
+        generation: u64,
+        kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
         address: Option<String>,
         stdio: Option<Arc<LabHostStdio>>,
+        dead_rx: tokio::sync::watch::Receiver<bool>,
     ) {
         self.resident_children.insert(
             key.to_string(),
             ResidentChild {
-                child,
+                generation,
+                kill_tx,
                 address,
                 stdio,
+                dead_rx,
             },
         );
     }
 
+    /// Remove the resident `key` entry ONLY if it is still generation
+    /// `generation` — the identity-guarded removal every retire path
+    /// uses (the lifecycle task on exit, the kill paths up front), so
+    /// nobody ever removes a respawned successor.
+    pub(crate) fn remove_resident_child_if(&self, key: &str, generation: u64) {
+        self.resident_children
+            .remove_if(key, |_, rc| rc.generation == generation);
+    }
+
+    /// A clone of the resident `key` child's PUSH death watch (see
+    /// [`ResidentChild::dead_rx`]), for a waiter that wants to
+    /// `changed().await` the child's exit rather than poll. `None` when
+    /// the key holds no child. Does NOT probe liveness — the returned
+    /// receiver's current `*borrow()` already tells the caller whether
+    /// the child is dead.
+    pub(crate) fn resident_child_dead_rx(
+        &self,
+        key: &str,
+    ) -> Option<tokio::sync::watch::Receiver<bool>> {
+        self.resident_children.get(key).map(|rc| rc.dead_rx.clone())
+    }
+
+    /// One atomic read of everything a kill path needs — see
+    /// [`KillSnapshot`]. `None` when the key holds no child.
+    pub(crate) fn resident_child_kill_snapshot(
+        &self,
+        key: &str,
+    ) -> Option<KillSnapshot> {
+        self.resident_children.get(key).map(|rc| KillSnapshot {
+            generation: rc.generation,
+            kill_tx: rc.kill_tx.clone(),
+            dead_rx: rc.dead_rx.clone(),
+            has_stdio: rc.stdio.is_some(),
+        })
+    }
+
     /// The LIVE laboratory host's stdio dial-list channel. `None` when
-    /// no host child is running (liveness via the same `try_wait`
-    /// probe as [`Self::resident_child_address`]) — callers then fall
-    /// back to write-only config semantics; the next spawn seeds from
-    /// config.
+    /// no host child is running — callers then fall back to write-only
+    /// config semantics; the next spawn converges from config.
+    /// Liveness is a pure read of the death watch (the lifecycle task
+    /// removes dead entries eagerly; the borrow covers the removal
+    /// in-flight window).
     pub(crate) fn lab_host_stdio(&self) -> Option<Arc<LabHostStdio>> {
-        let mut entry = self.resident_children.get_mut("laboratories")?;
-        match entry.child.try_wait() {
-            Ok(None) => entry.stdio.clone(),
-            _ => {
-                drop(entry);
-                self.resident_children.remove("laboratories");
-                None
-            }
+        let entry = self.resident_children.get("laboratories")?;
+        if *entry.dead_rx.borrow() {
+            return None;
         }
+        entry.stdio.clone()
     }
 
     /// The cached readiness address of a LIVE resident child. `None`
-    /// when the key has no child, the child has exited (the dead entry
-    /// is removed on observation), or the server reported no address.
-    /// The liveness probe is `try_wait` — sync, no reaping race (the
-    /// child is exclusively ours).
+    /// when the key has no child or the child has exited; `Some(None)`
+    /// when it is live but reported no address. Pure read — no
+    /// `try_wait`, no removal side effect (the lifecycle task removes
+    /// dead entries eagerly; the death-watch borrow covers the
+    /// removal in-flight window).
     pub(crate) fn resident_child_address(&self, key: &str) -> Option<Option<String>> {
-        let mut entry = self.resident_children.get_mut(key)?;
-        match entry.child.try_wait() {
-            Ok(None) => Some(entry.address.clone()),
-            // Exited (or errored — treat as gone): drop the corpse so
-            // the caller respawns.
-            _ => {
-                drop(entry);
-                self.resident_children.remove(key);
-                None
-            }
+        let entry = self.resident_children.get(key)?;
+        if *entry.dead_rx.borrow() {
+            return None;
         }
+        Some(entry.address.clone())
     }
 
     /// Whether the key currently holds a live resident child.
     pub(crate) fn server_child_alive(&self, key: &str) -> bool {
         self.resident_child_address(key).is_some()
-    }
-
-    /// Take the resident child out entirely (the kill commands own it
-    /// from here — killing, waiting, reporting).
-    pub(crate) fn take_resident_child(&self, key: &str) -> Option<tokio::process::Child> {
-        self.resident_children.remove(key).map(|(_, rc)| rc.child)
     }
 
     /// Record the daemon's published `http://` connect URL. Called by
@@ -483,6 +588,25 @@ impl GlobalContext {
     /// in-process replacement for the former unix sockets.
     pub(crate) fn resident_hubs(&self) -> Option<&ResidentHubs> {
         self.resident_hubs.get()
+    }
+
+    /// THIS daemon's own laboratory-host identity: `(machine id,
+    /// state)` — the pair a development-mode plugin is pinned to, since
+    /// it builds from a directory only this machine can see.
+    ///
+    /// Memoized: `machine_id` reads the OS (a registry read on Windows,
+    /// `ioreg` on macOS) and the answer cannot change while the process
+    /// lives. It is also the one identity that must NOT be recomputed
+    /// carelessly — when neither the OS id nor the persisted file is
+    /// readable it falls back to a fresh UUID per call, which would
+    /// make two calls disagree about which host is local.
+    pub(crate) fn local_host(&self) -> &(String, String) {
+        self.local_host.get_or_init(|| {
+            (
+                objectiveai_sdk::machine::machine_id(self.boot_filesystem().dir()),
+                self.boot_filesystem().state().to_string(),
+            )
+        })
     }
 
     /// The WASI python runtime, initialized on first use and
@@ -678,16 +802,6 @@ pub async fn resolve_mcp_connect_timeout_ms_opt(
         .read_config()
         .await?;
     Ok(config.api().get_mcp_connect_timeout_ms())
-}
-
-/// Effective backoff max-elapsed-time (ms) — the retry budget for the
-/// daemon's own MCP client. The merged `api.backoff_max_elapsed_time_ms`
-/// config value, or the canonical default (60000ms) when unset. The
-/// other exponential-backoff knobs keep their built-in defaults.
-pub async fn resolve_backoff_max_elapsed_time_ms(
-    fs: &filesystem::Client,
-) -> Result<u64, crate::error::Error> {
-    Ok(resolve_backoff_max_elapsed_time_ms_opt(fs).await?.unwrap_or(60000))
 }
 
 /// The configured `api.backoff_max_elapsed_time_ms`, or `None` when

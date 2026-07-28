@@ -1,0 +1,20 @@
+{
+  "title": "cli.command.development.plugins.mcp.delete.Response",
+  "description": "The coordinates, echoed as canonicalized.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "removed": {
+      "description": "Whether a registration was actually removed. Deleting one that\nwas never registered is a SUCCESS with `false` — the requested\nstate (\"this plugin is not in development mode\") already holds.",
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

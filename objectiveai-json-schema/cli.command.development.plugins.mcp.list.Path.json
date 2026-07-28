@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.plugins.mcp.list.Path",
+  "type": "string",
+  "enum": [
+    "development/plugins/mcp/list"
+  ]
+}

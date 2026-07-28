@@ -18,6 +18,15 @@
 //!    uncorrelated host→daemon [`HostNotification`]s whenever the
 //!    host's laboratory set changes (create/delete), so every
 //!    connected daemon's view stays current without scanning.
+//! 4. The HOST-initiated lane: the host sends a
+//!    [`HostCommandRequest`] (its OWN id space, host-minted) to run a
+//!    CLI command on the daemon, answered by a MULTI-FRAME stream of
+//!    [`HostCommandResponse`]s sharing that id — grammar
+//!    `Ack (Item|Error)* Done`. The exact same exchange the
+//!    API↔daemon reverse channel carries as its `Command` payloads,
+//!    mirrored here because the two channels stay naive to each
+//!    other's vocabulary (see [`super::RequestPayload`]'s module
+//!    docs).
 //!
 //! The daemon reaches laboratories in-process: the conduit and the
 //! `laboratories` commands call the resident laboratory registry
@@ -64,6 +73,22 @@ pub struct Identify {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_full_id: Option<String>,
+    /// For plugin laboratories: the plugin's canonical coordinate
+    /// trio (owner/name lowercased, version verbatim — the repo's
+    /// `v`-prefixed git tag). `None` for every other laboratory.
+    /// Optional + defaulted so frames from hosts predating this field
+    /// still parse (the `created_at` precedent).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<IdentifyPlugin>,
+    /// For EPHEMERAL laboratories (agent and plugin): the
+    /// agent-completion response id the laboratory serves — its id
+    /// embeds it, and its lifetime is its single MCP connection's.
+    /// `None` for regular laboratories. Optional + defaulted so
+    /// frames from hosts predating this field still parse.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub response_id: Option<String>,
     /// Whether the laboratory's container is RUNNING right now. The
     /// lifecycle starts and stops containers on demand, and the host
     /// re-announces on every transition
@@ -72,6 +97,19 @@ pub struct Identify {
     /// field still parse (as not-running).
     #[serde(default)]
     pub running: bool,
+}
+
+/// A plugin laboratory's canonical coordinate trio, as carried by
+/// [`Identify::plugin`]: owner/name lowercased, version verbatim (it
+/// IS the repo's `v`-prefixed, case-sensitive git tag) — exactly the
+/// identity the laboratory host derived the laboratory id and image
+/// tag from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.IdentifyPlugin")]
+pub struct IdentifyPlugin {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
 }
 
 /// The `/laboratory` connection's FIRST frame: who this HOST is. Sent
@@ -129,6 +167,106 @@ pub struct ChannelResponse {
     pub payload: super::ResponsePayload,
 }
 
+// ── Wire framing ────────────────────────────────────────────────
+//
+// Chunk-bearing frames (`ImportWrite` requests, successful
+// `ExportRead` replies) ride the BINARY sandwich of
+// [`crate::binary_frame`]: the envelope's normal JSON (whose `data`
+// field serde skips) is the header, the raw bytes follow. The choice
+// is VARIANT-keyed — those variants are always binary, even with an
+// empty payload — so both ends share one unambiguous rule. Everything
+// else stays a plain JSON text frame.
+
+impl ChannelRequest {
+    fn wire_payload(&self) -> Option<&[u8]> {
+        match &self.payload {
+            super::RequestPayload::ImportWrite(req) => Some(&req.data),
+            _ => None,
+        }
+    }
+
+    /// Serialize for the wire: text for ordinary frames, the binary
+    /// sandwich for chunk-bearing ones.
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(match self.wire_payload() {
+            None => crate::binary_frame::WireFrame::Text(header),
+            Some(payload) => crate::binary_frame::WireFrame::Binary(
+                crate::binary_frame::encode(&header, payload),
+            ),
+        })
+    }
+
+    /// Parse a BINARY wire frame. `None` for anything that isn't a
+    /// well-formed sandwich around a chunk-bearing request (dropped by
+    /// receivers, the forward-compat posture).
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        match &mut parsed.payload {
+            super::RequestPayload::ImportWrite(req) => {
+                req.data = payload.to_vec();
+                Some(parsed)
+            }
+            _ => None,
+        }
+    }
+}
+
+impl ChannelResponse {
+    fn wire_payload(&self) -> Option<&[u8]> {
+        match &self.payload {
+            // Both chunk-bearing replies: an export streams a live
+            // container, a build drains a parked archive, and BOTH
+            // carry their bytes out of band (the field is
+            // `serde(skip)` — omitting a variant here silently ships
+            // empty chunks).
+            super::ResponsePayload::ExportRead(super::JsonRpcResult::Ok {
+                result,
+            })
+            | super::ResponsePayload::BuildRead(super::JsonRpcResult::Ok {
+                result,
+            }) => Some(&result.data),
+            _ => None,
+        }
+    }
+
+    /// Serialize for the wire: text for ordinary frames, the binary
+    /// sandwich for chunk-bearing ones.
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(match self.wire_payload() {
+            None => crate::binary_frame::WireFrame::Text(header),
+            Some(payload) => crate::binary_frame::WireFrame::Binary(
+                crate::binary_frame::encode(&header, payload),
+            ),
+        })
+    }
+
+    /// Parse a BINARY wire frame. `None` for anything that isn't a
+    /// well-formed sandwich around a chunk-bearing reply.
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        match &mut parsed.payload {
+            super::ResponsePayload::ExportRead(super::JsonRpcResult::Ok {
+                result,
+            })
+            | super::ResponsePayload::BuildRead(super::JsonRpcResult::Ok {
+                result,
+            }) => {
+                result.data = payload.to_vec();
+                Some(parsed)
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Host → daemon, UNCORRELATED: the host's laboratory set (or a
 /// served laboratory's live file tree) changed. The daemon's pump
 /// tries [`ChannelResponse`] first (it has `id`), then this —
@@ -164,4 +302,297 @@ pub enum HostNotification {
         id: String,
         event: crate::laboratories::filetree::FileTreeEvent,
     },
+    /// A served laboratory's container MCP emitted a
+    /// `tools/list_changed` or `resources/list_changed` on the session
+    /// owned by `(this channel, response_id)`. Sent ONLY to the owning
+    /// daemon channel, never broadcast — the session (and its
+    /// daemon-side notifier) exists only there. The daemon relays it
+    /// up the matching reverse channel; without this hop, container
+    /// list-changed events would be silently dropped.
+    #[schemars(title = "McpListChanged")]
+    McpListChanged {
+        /// The host-authoritative laboratory id.
+        id: String,
+        /// The owning session's agent-completion response id.
+        response_id: String,
+        kind: McpListChangedKind,
+    },
+}
+
+/// Which catalog changed, for [`HostNotification::McpListChanged`] — a
+/// deliberate LOCAL twin of the reverse channel's
+/// `client_objectiveai_mcp.client_request.McpListChangedKind` (the two
+/// vocabularies never import each other; the `CommandFrame` precedent).
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
+)]
+#[schemars(rename = "laboratories.daemon.McpListChangedKind")]
+#[serde(rename_all = "snake_case")]
+pub enum McpListChangedKind {
+    Tools,
+    Resources,
+}
+
+/// Host → daemon over the `/laboratory` WS: execute a CLI command on
+/// the DAEMON on behalf of a plugin whose MCP server runs host-side —
+/// the host-initiated twin of the reverse channel's `Command` payload,
+/// working identically. Correlation `id` is HOST-minted and lives in
+/// its own id space, unrelated to [`ChannelRequest`] ids (which the
+/// daemon mints).
+///
+/// EVERY field is REQUIRED — no defaults, no header bags:
+/// - `identity`: the calling agent's identity.
+/// - `plugin`: the coordinates of the plugin whose MCP server
+///   originated the command. The daemon stamps this trio on the
+///   command's scope (this authenticated channel is, like the
+///   conduit, a deliberate exception to "never trust wire plugin
+///   identity") so the plugin run-gates apply.
+/// - `request`: the typed CLI command to run.
+///
+/// Answered by a MULTI-FRAME reply: one [`HostCommandResponse`] per
+/// event, sharing this request's `id`, streamed as items arrive —
+/// grammar `Ack (Item|Error)* Done`.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.HostCommandRequest")]
+pub struct HostCommandRequest {
+    /// Correlation id, minted by the HOST; echoed by every reply
+    /// frame.
+    pub id: String,
+    pub identity: crate::identity::Identity,
+    pub plugin: crate::mcp::server::Plugin,
+    pub request: crate::cli::command::Request,
+}
+
+/// Daemon → host: one frame of the MULTI-FRAME reply to a
+/// [`HostCommandRequest`], correlated by `id` — the only exchange on
+/// this wire where one request id is answered by many frames.
+///
+/// Wire: `{"id":…,"frame":"item","item":{…}}` — `frame` is
+/// [`CommandFrame`]'s tag, flattened beside the id (no field
+/// collision: the frame carries no `id` of its own).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.HostCommandResponse")]
+pub struct HostCommandResponse {
+    pub id: String,
+    #[serde(flatten)]
+    pub frame: CommandFrame,
+}
+
+/// One frame of a [`HostCommandRequest`] exchange. The grammar is
+/// `Ack (Item|Error)* Done` — mirroring the reverse channel's
+/// `client_objectiveai_mcp.server_response.CommandFrame` (a deliberate
+/// LOCAL twin: the two channels never import each other's vocabulary):
+///
+/// - [`CommandFrame::Ack`] — ALWAYS the opening frame, sent the
+///   moment the daemon picks the request up, BEFORE the run starts.
+/// - [`CommandFrame::Item`] — one typed command-output item, sent AS
+///   IT ARRIVES (never collected, never delayed).
+/// - [`CommandFrame::Error`] — a start failure or a stream error.
+///   NON-terminal: the stream may keep yielding after one.
+/// - [`CommandFrame::Done`] — ALWAYS the final frame, error or no.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.CommandFrame")]
+#[serde(tag = "frame", rename_all = "snake_case")]
+pub enum CommandFrame {
+    Ack,
+    Item {
+        item: crate::cli::command::ResponseItem,
+    },
+    Error { error: String },
+    Done,
+}
+
+// ── Per-plugin Postgres tunnel ───────────────────────────────────
+//
+// A plugin container connects to `OBJECTIVEAI_POSTGRES_URL` (a
+// per-plugin TCP port the HOST listens on); the host tunnels those
+// RAW Postgres wire bytes over this same `/laboratory` WS to the
+// owning daemon, which dials its OWN configured Postgres as a client
+// and pipes opaquely. The daemon binds no port. Auth/isolation is
+// Postgres-native (the per-plugin compartment role); the frames below
+// are a dumb byte pipe — they never parse the pgwire protocol, so a
+// client's SSL negotiation rides through end to end.
+//
+// One `stream_id` (HOST-minted UUID) per plugin TCP connection. The
+// control frames are TEXT; the byte payload is a BINARY sandwich
+// (`crate::binary_frame`, header `{stream_id}`, raw bytes after).
+// Disjoint serde tag key `"postgres"` keeps them out of the
+// `HostNotification` (`type`) and `HostCommandRequest` parses.
+
+/// Host → daemon control frames for a Postgres tunnel stream.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.HostPostgres")]
+#[serde(tag = "postgres", rename_all = "snake_case")]
+pub enum HostPostgres {
+    /// A container opened a Postgres connection — the daemon should
+    /// dial its cluster and attach this stream.
+    Open { stream_id: String },
+    /// The container socket ended (or the host is tearing the stream
+    /// down); the daemon drops its Postgres socket for `stream_id`.
+    Close { stream_id: String },
+}
+
+/// Daemon → host control frame for a Postgres tunnel stream — the
+/// only direction-specific control frame (data rides [`PostgresData`]
+/// both ways).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.DaemonPostgres")]
+#[serde(tag = "postgres", rename_all = "snake_case")]
+pub enum DaemonPostgres {
+    /// Postgres EOF, a dial failure, or connection teardown; the host
+    /// drops the container socket for `stream_id`.
+    Close { stream_id: String },
+}
+
+/// Raw Postgres bytes for one tunnel stream, flowing in BOTH
+/// directions. Rides the [`crate::binary_frame`] sandwich: the JSON
+/// header carries `stream_id` (its `bytes` field is `#[serde(skip)]`),
+/// the raw payload follows out of band.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PostgresData")]
+pub struct PostgresData {
+    pub stream_id: String,
+    /// Raw Postgres wire bytes — never in the JSON header; rides the
+    /// binary frame's payload.
+    #[serde(skip)]
+    pub bytes: Vec<u8>,
+}
+
+impl PostgresData {
+    /// Serialize as the binary sandwich: `[u32 len][JSON header][raw
+    /// bytes]`.
+    pub fn to_wire(
+        &self,
+    ) -> Result<crate::binary_frame::WireFrame, serde_json::Error> {
+        let header = serde_json::to_string(self)?;
+        Ok(crate::binary_frame::WireFrame::Binary(
+            crate::binary_frame::encode(&header, &self.bytes),
+        ))
+    }
+
+    /// Parse a BINARY wire frame into a `PostgresData`. `None` for a
+    /// malformed sandwich or a header that isn't this type (a
+    /// `ChannelResponse`/`ChannelRequest` sandwich carries `id` /
+    /// `payload`, so it won't deserialize here).
+    pub fn from_binary(frame: &[u8]) -> Option<Self> {
+        let (header, payload) = crate::binary_frame::decode(frame)?;
+        let mut parsed: Self = serde_json::from_str(header).ok()?;
+        parsed.bytes = payload.to_vec();
+        Some(parsed)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The daemon's inbound demux tries [`ChannelResponse`] first,
+    /// then [`HostCommandRequest`], then [`HostNotification`] — a
+    /// command request must never satisfy the earlier parses.
+    #[test]
+    fn host_command_request_is_not_a_channel_response() {
+        let request = HostCommandRequest {
+            id: "cmd-1".to_string(),
+            identity: Default::default(),
+            plugin: crate::mcp::server::Plugin {
+                owner: "acme".to_string(),
+                name: "widgets".to_string(),
+                version: "1.2.3".to_string(),
+            },
+            request: crate::cli::command::Request::Update(
+                crate::cli::command::update::Request {
+                    path_type: crate::cli::command::update::Path::Update,
+                    base: crate::cli::command::RequestBase {
+                        jq: None,
+                        python: None,
+                        timeout_seconds: None,
+                        max_tokens: None,
+                    },
+                },
+            ),
+        };
+        let text = serde_json::to_string(&request).unwrap();
+        assert!(serde_json::from_str::<ChannelResponse>(&text).is_err());
+        let parsed: HostCommandRequest = serde_json::from_str(&text).unwrap();
+        assert_eq!(parsed.id, "cmd-1");
+        assert_eq!(parsed.plugin.owner, "acme");
+    }
+
+    /// Frame tags ride flattened beside the envelope id.
+    #[test]
+    fn host_command_response_wire_shape() {
+        let ack = HostCommandResponse {
+            id: "cmd-1".to_string(),
+            frame: CommandFrame::Ack,
+        };
+        assert_eq!(
+            serde_json::to_string(&ack).unwrap(),
+            r#"{"id":"cmd-1","frame":"ack"}"#,
+        );
+        let error = HostCommandResponse {
+            id: "cmd-1".to_string(),
+            frame: CommandFrame::Error {
+                error: "boom".to_string(),
+            },
+        };
+        assert_eq!(
+            serde_json::to_string(&error).unwrap(),
+            r#"{"id":"cmd-1","frame":"error","error":"boom"}"#,
+        );
+        let done: HostCommandResponse =
+            serde_json::from_str(r#"{"id":"cmd-1","frame":"done"}"#).unwrap();
+        assert!(matches!(done.frame, CommandFrame::Done));
+    }
+
+    /// A `HostPostgres::Open` text frame must satisfy NONE of the
+    /// earlier demux parses (its `"postgres"` tag is disjoint from
+    /// `id`/`payload`/`type`).
+    #[test]
+    fn host_postgres_open_is_disjoint() {
+        let open = HostPostgres::Open {
+            stream_id: "pg-1".to_string(),
+        };
+        let text = serde_json::to_string(&open).unwrap();
+        assert_eq!(text, r#"{"postgres":"open","stream_id":"pg-1"}"#);
+        assert!(serde_json::from_str::<ChannelResponse>(&text).is_err());
+        assert!(serde_json::from_str::<ChannelRequest>(&text).is_err());
+        assert!(serde_json::from_str::<HostCommandRequest>(&text).is_err());
+        assert!(serde_json::from_str::<HostNotification>(&text).is_err());
+    }
+
+    /// `PostgresData` round-trips through the binary sandwich, and a
+    /// `ChannelResponse` sandwich is NOT mistaken for one (its header
+    /// carries `id`/`payload`, not `stream_id`).
+    #[test]
+    fn postgres_data_binary_round_trip() {
+        let data = PostgresData {
+            stream_id: "pg-1".to_string(),
+            bytes: vec![0, 1, 2, 255, 254],
+        };
+        let crate::binary_frame::WireFrame::Binary(frame) = data.to_wire().unwrap()
+        else {
+            panic!("PostgresData must serialize as a binary sandwich");
+        };
+        let parsed = PostgresData::from_binary(&frame).unwrap();
+        assert_eq!(parsed.stream_id, "pg-1");
+        assert_eq!(parsed.bytes, vec![0, 1, 2, 255, 254]);
+        // A chunk-bearing ChannelResponse sandwich must not parse here.
+        let chan = ChannelResponse {
+            id: "c-1".to_string(),
+            payload: super::super::ResponsePayload::ExportRead(
+                super::super::JsonRpcResult::Ok {
+                    result: super::super::ExportChunk {
+                        data: vec![9, 9, 9],
+                        eof: false,
+                    },
+                },
+            ),
+        };
+        let crate::binary_frame::WireFrame::Binary(chan_frame) =
+            chan.to_wire().unwrap()
+        else {
+            panic!("chunk-bearing ChannelResponse is binary");
+        };
+        assert!(PostgresData::from_binary(&chan_frame).is_none());
+    }
 }

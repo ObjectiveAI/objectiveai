@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.tasks.Request",
+  "anyOf": [
+    {
+      "title": "Create",
+      "$ref": "cli.command.tasks.create.Request"
+    },
+    {
+      "title": "CreateRequestSchema",
+      "$ref": "cli.command.tasks.create.request_schema.Request"
+    },
+    {
+      "title": "CreateResponseSchema",
+      "$ref": "cli.command.tasks.create.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.tasks.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.tasks.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.tasks.list.response_schema.Request"
+    },
+    {
+      "title": "Delete",
+      "$ref": "cli.command.tasks.delete.Request"
+    },
+    {
+      "title": "DeleteRequestSchema",
+      "$ref": "cli.command.tasks.delete.request_schema.Request"
+    },
+    {
+      "title": "DeleteResponseSchema",
+      "$ref": "cli.command.tasks.delete.response_schema.Request"
+    }
+  ]
+}

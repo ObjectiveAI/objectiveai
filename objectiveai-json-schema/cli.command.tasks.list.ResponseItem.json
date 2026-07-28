@@ -1,0 +1,127 @@
+{
+  "title": "cli.command.tasks.list.ResponseItem",
+  "description": "One task.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "description": "The creator identity the task runs with.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "command": {
+      "description": "The stored command — the full typed command request. Unboxed:\nunlike `create::Request`, this type is not part of the request\nenum's own cycle. Schema-opaque (`serde_json::Value`) ON\nPURPOSE: embedding the root request enum's schema in a leaf\ntransitively expands the whole command tree (TS7056) — same\nreasoning as `create`. A stored row that no longer parses as\nthe current request type (a pre-wire-change task) surfaces as\nan error ITEM in the list stream rather than a listed entry."
+    },
+    "complete": {
+      "description": "The task will not fire again (one-shot that ran, or a counted\nrepeat whose success budget is met). Stays listed until\ndeleted.",
+      "type": "boolean"
+    },
+    "created_at": {
+      "description": "RFC3339 creation time.",
+      "type": "string"
+    },
+    "delay_secs": {
+      "description": "Seconds until the (first) run / between runs.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "error_count": {
+      "description": "Runs whose LAST stream item was an error.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "id": {
+      "description": "The task id (`tasks delete --id`).",
+      "type": "string"
+    },
+    "last_result": {
+      "description": "The most recent run's outcome — absent when the task has never\nrun.",
+      "anyOf": [
+        {
+          "$ref": "cli.command.tasks.list.LastResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "next_run_at": {
+      "description": "RFC3339 next fire time — absent when complete.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "plugin_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "plugin_owner": {
+      "description": "The creating plugin (owner/repository/version) — present only\nwhen a plugin created the task.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "plugin_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "repeat": {
+      "type": "boolean"
+    },
+    "repeat_count": {
+      "description": "Cap on SUCCESSFUL runs — absent = unbounded (or one-shot).",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "run_count": {
+      "description": "Completed runs (at-least-once: a run lost to a daemon crash\nre-fires uncounted).",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

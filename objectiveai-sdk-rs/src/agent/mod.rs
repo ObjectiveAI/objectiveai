@@ -28,7 +28,6 @@
 
 mod agent;
 pub mod claude_agent_sdk;
-mod client_objectiveai_mcp;
 pub mod codex_sdk;
 pub mod completions;
 mod continuation;
@@ -38,12 +37,13 @@ pub mod mock;
 pub mod openrouter;
 pub mod script;
 mod output_mode;
+mod plugin;
 mod upstream;
 
 pub use agent::*;
-pub use client_objectiveai_mcp::*;
 pub use continuation::*;
 pub use laboratory::*;
 pub use mcp::*;
 pub use output_mode::*;
+pub use plugin::*;
 pub use upstream::*;

@@ -3,9 +3,9 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import ConfigDict, Field
-from objectiveai_sdk.agent.client_objectiveai_mcp import ClientObjectiveaiMcp
 from objectiveai_sdk.agent.laboratory import Laboratory
 from objectiveai_sdk.agent.mcp_server import McpServer
+from objectiveai_sdk.agent.plugin import Plugin
 from objectiveai_sdk.agent.script.output_mode import OutputMode
 from objectiveai_sdk.agent.script.script import Script
 from objectiveai_sdk.agent.script.upstream import Upstream
@@ -15,9 +15,9 @@ class AgentBase(Script):
     """The base configuration for a Script Agent (without computed ID)."""
     model_config = ConfigDict(title='agent.script.AgentBase')
 
-    client_objectiveai_mcp: Optional[ClientObjectiveaiMcp] = Field(None, description='Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).', json_schema_extra={'omitempty': True})
     laboratories: Optional[list[Laboratory]] = Field(None, description="Laboratories provisioned for the agent — each becomes a\nclient-side laboratory MCP server whose id DERIVES from the\nagent's full id plus the spec (see\n[`laboratories::derived_id`](super::super::laboratory::laboratories::derived_id)).", json_schema_extra={'omitempty': True})
     mcp_servers: Optional[list[McpServer]] = Field(None, description='MCP servers the agent can connect to.', json_schema_extra={'omitempty': True})
     output_mode: OutputMode = Field(..., description='The output mode for vector completions. Ignored for agent completions.')
+    plugins: list[Plugin] = Field(..., description='Plugins this agent uses — each IS one MCP server (the\nnext-iteration plugin shape; see [`super::super::plugin`]).', json_schema_extra={'omitempty': True})
     upstream: Upstream = Field(..., description='The upstream provider marker.')
 

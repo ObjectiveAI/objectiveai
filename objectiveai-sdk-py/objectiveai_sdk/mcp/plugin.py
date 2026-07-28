@@ -5,11 +5,11 @@ from pydantic import BaseModel, ConfigDict
 
 
 class Plugin(BaseModel):
-    """A plugin-hosted MCP server's identity — the four coordinates that name
-a plugin's MCP (mirrors `McpKind::Plugin`)."""
+    """A plugin MCP server's identity — the `(owner, name, version)`
+coordinate trio (one plugin IS one MCP server; mirrors
+`McpKind::PluginLaboratory`)."""
     model_config = ConfigDict(title='mcp.Plugin')
 
-    mcp: str
     name: str
     owner: str
     version: str

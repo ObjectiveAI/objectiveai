@@ -19,12 +19,12 @@ func (v *CliPluginsOutputNotification) UnmarshalJSON(data []byte) error { return
 // in source order and falls through to [`Output::Notification`] as
 // a catch-all carrying the raw JSON value.
 //
-// [`Mcp`] is imported from
-// [`crate::cli::command::plugins::run`] — this module does NOT
-// re-export it; importers reach it by its canonical path.
+// The former `Mcp` announcement variant was removed with the
+// `plugins run` machinery — future plugins have no stdout protocol
+// at all; an MCP-URL announcement lands in the `Notification`
+// catch-all like any other untyped line.
 type CliPluginsOutput struct {
 	Command *CliPluginsCommand 
-	MCP *CliCommandPluginsRunMcp `variantTitle:"Mcp"`
 	Error *CliError 
 	// Final fallback — anything that didn't match a typed variant
 	// lands here as an opaque JSON value. Hosts treat this as a
@@ -35,9 +35,6 @@ type CliPluginsOutput struct {
 func (v CliPluginsOutput) MarshalJSON() ([]byte, error) {
 	if v.Command != nil {
 		return json.Marshal(v.Command)
-	}
-	if v.MCP != nil {
-		return json.Marshal(v.MCP)
 	}
 	if v.Error != nil {
 		return json.Marshal(v.Error)
@@ -54,17 +51,6 @@ func (v *CliPluginsOutput) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliPluginsOutput{}
 			candidate.Command = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandPluginsRunMcp
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliPluginsOutput{}
-			candidate.MCP = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -99,7 +85,6 @@ func (v *CliPluginsOutput) UnmarshalJSON(data []byte) error {
 func (v CliPluginsOutput) Validate() error {
 	count := 0
 	if v.Command != nil { count++ }
-	if v.MCP != nil { count++ }
 	if v.Error != nil { count++ }
 	if v.Notification != nil { count++ }
 	if count != 1 {

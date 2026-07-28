@@ -9,10 +9,6 @@ import (
 
 // A validated Codex SDK Agent with its computed content-addressed ID.
 type AgentCodexSdkAgent struct {
-	// Client-side ObjectiveAI MCP surface the calling client is
-	// expected to expose locally back to the API (objectiveai
-	// built-in, plus specific plugins / tools by owner+name+version).
-	ClientObjectiveaiMCP *AgentClientObjectiveaiMcp `json:"client_objectiveai_mcp,omitempty"`
 	// Reasoning effort — maps to Codex's `model_reasoning_effort`.
 	Effort *AgentCodexSdkEffort `json:"effort,omitempty"`
 	// The deterministic content-addressed ID (22-character base62 string).
@@ -28,6 +24,9 @@ type AgentCodexSdkAgent struct {
 	Model string `json:"model"`
 	// The output mode for vector completions. Ignored for agent completions.
 	OutputMode AgentCodexSdkOutputMode `json:"output_mode"`
+	// Plugins this agent uses — each IS one MCP server (the
+	// next-iteration plugin shape; see [`super::super::plugin`]).
+	Plugins []AgentPlugin `json:"plugins,omitempty"`
 	// Rich content prepended to the user's prompt.
 	PrefixContent *AgentCompletionsMessageRichContent `json:"prefix_content,omitempty"`
 	// Rich content appended after the user's prompt.
@@ -48,7 +47,7 @@ func (v *AgentCodexSdkAgent) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "model", "output_mode", "upstream"} {
+	for _, key := range []string{"id", "model", "output_mode", "plugins", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCodexSdkAgent: missing required field %q", key)
 		}

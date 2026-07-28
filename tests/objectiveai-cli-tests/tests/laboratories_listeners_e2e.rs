@@ -41,10 +41,8 @@ use objectiveai_sdk::cli::command::laboratories::delete::{
 use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem,
 };
-use objectiveai_sdk::cli::laboratories_list_listener::LaboratoriesListListener;
-use objectiveai_sdk::cli::laboratories_listener::{
-    LaboratoryAttachment, LaboratoriesListener,
-};
+use objectiveai_sdk::daemon::Client as DaemonClient;
+use objectiveai_sdk::daemon::laboratories_listener::LaboratoryAttachment;
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
 
@@ -202,12 +200,12 @@ async fn laboratories_list_and_record_streams() {
     // Listeners up-front: the list snapshot must NOT contain the
     // attachment-only laboratory (nothing serves it); the record
     // stream must serve it zero-filled with the attachment row.
-    let list = LaboratoriesListListener::new(format!("{addr}/laboratories/list"))
-        .connect()
+    let list = DaemonClient::new(&addr)
+        .laboratories_list_listener()
         .await
         .expect("connect /laboratories/list");
-    let record = LaboratoriesListener::new(format!("{addr}/laboratories/{id}"))
-        .connect()
+    let record = DaemonClient::new(&addr)
+        .laboratories_listener(&id)
         .await
         .expect("connect /laboratories/{id}");
 
@@ -310,12 +308,12 @@ async fn laboratories_cross_daemon_propagation() {
     )
     .await;
 
-    let list_a = LaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
-        .connect()
+    let list_a = DaemonClient::new(&addr_a)
+        .laboratories_list_listener()
         .await
         .expect("connect daemon A /laboratories/list");
-    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
-        .connect()
+    let list_b = DaemonClient::new(&addr_b)
+        .laboratories_list_listener()
         .await
         .expect("connect daemon B /laboratories/list");
 
@@ -415,8 +413,8 @@ async fn addresses_add_reaches_live_host() {
     let lab = format!("e2e-live-add-lab-{}", nanos());
     create_lab(&exec_a, &lab).await;
 
-    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
-        .connect()
+    let list_b = DaemonClient::new(&addr_b)
+        .laboratories_list_listener()
         .await
         .expect("connect daemon B /laboratories/list");
     assert!(
@@ -482,12 +480,12 @@ async fn duplicate_ids_across_hosts() {
     let addr_a = cli_test_util::daemon_address(&exec_a, &state_a).await;
     let addr_b = cli_test_util::daemon_address(&exec_b, &state_b).await;
 
-    let list_a = LaboratoriesListListener::new(format!("{addr_a}/laboratories/list"))
-        .connect()
+    let list_a = DaemonClient::new(&addr_a)
+        .laboratories_list_listener()
         .await
         .expect("connect daemon A /laboratories/list");
-    let list_b = LaboratoriesListListener::new(format!("{addr_b}/laboratories/list"))
-        .connect()
+    let list_b = DaemonClient::new(&addr_b)
+        .laboratories_list_listener()
         .await
         .expect("connect daemon B /laboratories/list");
 

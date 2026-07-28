@@ -6,8 +6,9 @@
 mod cli_test_util;
 
 use objectiveai_sdk::cli::command::laboratories::create::{
-    EnvVar, Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
+    Kind, Path as CreatePath, Request as CreateReq, Response as CreateResp,
 };
+use objectiveai_sdk::laboratories::EnvVar;
 use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem,
 };

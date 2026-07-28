@@ -141,7 +141,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
     E::Error,
@@ -149,55 +149,55 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
             Request::Add(req) => {
-                let value = add::execute(executor, req, agent_arguments).await?;
+                let value = add::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::Add(value),
                 )))
             }
             Request::AddRequestSchema(req) => {
-                let value = add::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = add::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::AddRequestSchema(value),
                 )))
             }
             Request::AddResponseSchema(req) => {
-                let value = add::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = add::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::AddResponseSchema(value),
                 )))
             }
             Request::Del(req) => {
-                let value = del::execute(executor, req, agent_arguments).await?;
+                let value = del::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::Del(value),
                 )))
             }
             Request::DelRequestSchema(req) => {
-                let value = del::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = del::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::DelRequestSchema(value),
                 )))
             }
             Request::DelResponseSchema(req) => {
-                let value = del::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = del::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::DelResponseSchema(value),
                 )))
             }
             Request::Get(req) => {
-                let value = get::execute(executor, req, agent_arguments).await?;
+                let value = get::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::Get(value),
                 )))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute(executor, req, agent_arguments).await?;
+                let value = get::request_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::GetRequestSchema(value),
                 )))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute(executor, req, agent_arguments).await?;
+                let value = get::response_schema::execute(executor, req, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::GetResponseSchema(value),
                 )))
@@ -212,7 +212,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -220,39 +220,39 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Add(req) => {
-                let value = add::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = add::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::AddRequestSchema(req) => {
-                let value = add::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = add::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::AddResponseSchema(req) => {
-                let value = add::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = add::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Del(req) => {
-                let value = del::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = del::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::DelRequestSchema(req) => {
-                let value = del::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = del::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::DelResponseSchema(req) => {
-                let value = del::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = del::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Get(req) => {
-                let value = get::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = get::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = get::request_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                let value = get::response_schema::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
         };
@@ -260,8 +260,8 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// its `ListenerExecution`. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     Add(add::ListenerExecution),
     AddRequestSchema(add::request_schema::ListenerExecution),

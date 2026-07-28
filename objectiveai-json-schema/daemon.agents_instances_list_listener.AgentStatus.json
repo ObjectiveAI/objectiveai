@@ -1,0 +1,15 @@
+{
+  "title": "daemon.agents_instances_list_listener.AgentStatus",
+  "description": "One agent on the `/agents/instances/list` stream: its hierarchy and\nwhether its per-instance lock is currently held. That's all this\nendpoint carries.",
+  "type": "object",
+  "properties": {
+    "active": {
+      "description": "Whether the agent's per-instance lock is currently held — i.e.\na live process owns this agent right now.",
+      "type": "boolean"
+    },
+    "agent_instance_hierarchy": {
+      "description": "Full hierarchy of this agent instance.",
+      "type": "string"
+    }
+  }
+}

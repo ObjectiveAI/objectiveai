@@ -1,5 +1,4 @@
 use super::*;
-use crate::cli::command::plugins::run::{Mcp, McpType};
 use crate::cli::{Error, ErrorType, Level};
 use serde_json::json;
 
@@ -55,13 +54,3 @@ fn command_wire_shape() {
     assert_eq!(v["id"], "cmd-1");
 }
 
-#[test]
-fn mcp_wire_shape() {
-    let out = Output::Mcp(Mcp {
-        r#type: McpType::Mcp,
-        url: "https://example.com/mcp".into(),
-    });
-    let v = roundtrip(&out);
-    assert_eq!(v["type"], "mcp");
-    assert_eq!(v["url"], "https://example.com/mcp");
-}

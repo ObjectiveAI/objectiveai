@@ -172,6 +172,16 @@ pub fn arbitrary_option_indexmap_string_option_string(
     })
 }
 
+/// Generates an arbitrary `Option<IndexMap<String, serde_json::Value>>`
+/// — plugin arguments, whose values are free-form JSON.
+pub fn arbitrary_option_indexmap_string_json_value(
+    u: &mut arbitrary::Unstructured,
+) -> arbitrary::Result<Option<indexmap::IndexMap<String, serde_json::Value>>> {
+    arbitrary_option(u, |u| {
+        arbitrary_index_map(u, |u| u.arbitrary(), arbitrary_json_value)
+    })
+}
+
 /// Generates an arbitrary `Option<u64>` (bounded range).
 pub fn arbitrary_option_u64(
     u: &mut arbitrary::Unstructured,

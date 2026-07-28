@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.tasks.list.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "tasks/list/response_schema"
+  ]
+}

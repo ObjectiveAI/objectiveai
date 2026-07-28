@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.user.request.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "user/request/request_schema"
-  ]
-}

@@ -9,6 +9,28 @@ use serde::{Deserialize, Serialize};
 /// attachable or detachable.
 pub const AGENT_LABORATORY_ID_PREFIX: &str = "oai-agent-";
 
+/// RESERVED environment variable names in laboratory containers: the
+/// full agent-argument env surface of the CLI config — the six
+/// agent-identity values (stamped from the create request's transient
+/// headers) plus the plugin trio (stamped from the CANONICAL plugin
+/// coordinates on plugin containers; never wire-derived — the host is
+/// the authority). The laboratory HOST stamps these on every
+/// ephemeral (agent and plugin) container at create, so a
+/// user-declared value could only be overridden or an identity spoof
+/// — [`laboratories::validate`] rejects them from agent-laboratory
+/// `env` outright.
+pub const RESERVED_LABORATORY_ENV: &[&str] = &[
+    "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
+    "OBJECTIVEAI_AGENT_ID",
+    "OBJECTIVEAI_AGENT_FULL_ID",
+    "OBJECTIVEAI_AGENT_REMOTE",
+    "OBJECTIVEAI_RESPONSE_ID",
+    "OBJECTIVEAI_RESPONSE_IDS",
+    "OBJECTIVEAI_PLUGIN_OWNER",
+    "OBJECTIVEAI_PLUGIN_NAME",
+    "OBJECTIVEAI_PLUGIN_VERSION",
+];
+
 /// A laboratory provisioned for an agent: the container spec the CLI
 /// conduit materializes on demand at MCP-initialize. No mounts —
 /// agent laboratories don't support them.
@@ -78,14 +100,23 @@ pub mod laboratories {
     }
 
     /// Validates all laboratories in the list: each image must be
-    /// valid, and no duplicate entries may exist (duplicates would
-    /// derive the same laboratory id).
+    /// valid, no `env` key may use a
+    /// [reserved identity name](super::RESERVED_LABORATORY_ENV) (the
+    /// laboratory host stamps those), and no duplicate entries may
+    /// exist (duplicates would derive the same laboratory id).
     pub fn validate(this: &super::Laboratories) -> Result<(), String> {
         for laboratory in this {
             laboratory
                 .image
                 .validate()
                 .map_err(|message| format!("`laboratories` image: {message}"))?;
+            for [key, _] in laboratory.env.as_deref().unwrap_or(&[]) {
+                if super::RESERVED_LABORATORY_ENV.contains(&key.as_str()) {
+                    return Err(format!(
+                        "`laboratories` env {key:?} is reserved — the laboratory host stamps the agent-identity environment authoritatively",
+                    ));
+                }
+            }
         }
         for (i, a) in this.iter().enumerate() {
             for b in &this[i + 1..] {
@@ -117,5 +148,18 @@ pub mod laboratories {
             super::AGENT_LABORATORY_ID_PREFIX,
             base62::encode(hasher.finish_128())
         )
+    }
+
+    /// The EPHEMERAL laboratory id for ONE agent-completion response:
+    /// the content-addressed [`derived_id`] (which keys the cached
+    /// agent image) plus the response id (which makes the container
+    /// unique to its completion). Ephemeral laboratories live exactly
+    /// as long as their single MCP connection.
+    pub fn ephemeral_id(
+        agent_full_id: &str,
+        laboratory: &super::Laboratory,
+        response_id: &str,
+    ) -> String {
+        format!("{}-{response_id}", derived_id(agent_full_id, laboratory))
     }
 }

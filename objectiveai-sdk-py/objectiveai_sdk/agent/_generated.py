@@ -4,11 +4,6 @@ from .agent import Agent, AgentInline, AgentRemote  # noqa: F401
 from .agent_base import AgentBase, AgentBaseInline, AgentBaseRemote  # noqa: F401
 from .agent_with_fallbacks import AgentWithFallbacks, AgentWithFallbacksInline, AgentWithFallbacksRemote  # noqa: F401
 from .agent_with_fallbacks_with_count import AgentWithFallbacksWithCount, AgentWithFallbacksWithCountInlineClaudeAgentSdk, AgentWithFallbacksWithCountInlineCodexSdk, AgentWithFallbacksWithCountInlineMock, AgentWithFallbacksWithCountInlineOpenrouter, AgentWithFallbacksWithCountInlineScript, AgentWithFallbacksWithCountRemoteClaudeAgentSdk, AgentWithFallbacksWithCountRemoteCodexSdk, AgentWithFallbacksWithCountRemoteMock, AgentWithFallbacksWithCountRemoteOpenrouter, AgentWithFallbacksWithCountRemoteScript  # noqa: F401
-from .client_objectiveai_mcp import ClientObjectiveaiMcp  # noqa: F401
-from .client_objectiveai_mcp_entry import ClientObjectiveaiMcpEntry  # noqa: F401
-from .client_objectiveai_mcp_headers import ClientObjectiveaiMcpHeaders  # noqa: F401
-from .client_objectiveai_mcp_plugin_entry import ClientObjectiveaiMcpPluginEntry  # noqa: F401
-from .client_objectiveai_mcp_plugin_mcp_server import ClientObjectiveaiMcpPluginMcpServer  # noqa: F401
 from .continuation import Continuation, ContinuationClaudeAgentSdk, ContinuationCodexSdk, ContinuationMock, ContinuationOpenrouter, ContinuationScript  # noqa: F401
 from .inline_agent import InlineAgent, InlineAgentClaudeAgentSdk, InlineAgentCodexSdk, InlineAgentMock, InlineAgentOpenrouter, InlineAgentScript  # noqa: F401
 from .inline_agent_base import InlineAgentBase, InlineAgentBaseClaudeAgentSdk, InlineAgentBaseCodexSdk, InlineAgentBaseMock, InlineAgentBaseOpenrouter, InlineAgentBaseScript  # noqa: F401
@@ -20,6 +15,7 @@ from .inline_agent_with_fallbacks import InlineAgentWithFallbacks, InlineAgentWi
 from .laboratory import Laboratory  # noqa: F401
 from .mcp_server import McpServer  # noqa: F401
 from .output_mode import OutputMode, OutputModeInstruction, OutputModeJsonSchema, OutputModeToolCall  # noqa: F401
+from .plugin import Plugin  # noqa: F401
 from .remote_agent import RemoteAgent, RemoteAgentClaudeAgentSdk, RemoteAgentCodexSdk, RemoteAgentMock, RemoteAgentOpenrouter, RemoteAgentScript  # noqa: F401
 from .remote_agent_base import RemoteAgentBase, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseCodexSdk, RemoteAgentBaseMock, RemoteAgentBaseOpenrouter, RemoteAgentBaseScript  # noqa: F401
 from .remote_agent_base_with_fallbacks import RemoteAgentBaseWithFallbacks, RemoteAgentBaseWithFallbacksClaudeAgentSdk, RemoteAgentBaseWithFallbacksCodexSdk, RemoteAgentBaseWithFallbacksMock, RemoteAgentBaseWithFallbacksOpenrouter, RemoteAgentBaseWithFallbacksScript  # noqa: F401

@@ -1,0 +1,32 @@
+{
+  "title": "agent.Plugin",
+  "description": "One plugin declaration: the plugin's coordinates plus optional\nstartup arguments for its MCP server.\n\nNOTE: `name` (the repository segment) is slated for removal in a\nlater iteration of the plugin model; it remains part of the\nidentity triple for now.",
+  "type": "object",
+  "properties": {
+    "arguments": {
+      "description": "Optional key→value arguments handed to the plugin's MCP server\nat startup. Values are free-form JSON: a string behaves as\n`--key value` and `null` as a bare `--key` flag, but an object,\nan array or a number is equally valid and the plugin author\ndecides how to interpret them.\n\n[`prepare`] normalizes (an empty STRING becomes `null`, so the\ntwo spellings of a valueless flag canonicalize together), sorts\nthe map by key AND every object key nested inside a value at\nany depth, and collapses an empty map to `None` — so two\nequivalent declarations serialize byte-identically, which is\nwhat makes an agent id content-addressable. Array element order\nis left alone: that is data, not spelling.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "name": {
+      "description": "Repository segment.",
+      "type": "string"
+    },
+    "owner": {
+      "description": "GitHub `<owner>` segment.",
+      "type": "string"
+    },
+    "version": {
+      "description": "Plugin version.",
+      "type": "string"
+    }
+  }
+}

@@ -18,7 +18,7 @@
 use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
-use objectiveai_sdk::cli::command::AgentArguments;
+use objectiveai_sdk::identity::Identity;
 use tokio::sync::OnceCell;
 
 use crate::context::GlobalContext;
@@ -38,8 +38,12 @@ pub struct ScopeIdentity {
     pub response_id: Option<String>,
     pub response_ids: Option<String>,
     pub plugin_owner: Option<String>,
-    pub plugin_repository: Option<String>,
+    pub plugin_name: Option<String>,
     pub plugin_version: Option<String>,
+    /// Fired by the task scheduler — daemon-authored like the plugin
+    /// trio: never taken from a wire envelope, set only via
+    /// [`ScopedContext::with_task`].
+    pub task: bool,
 }
 
 impl ScopeIdentity {
@@ -59,8 +63,9 @@ impl ScopeIdentity {
             response_id: None,
             response_ids: None,
             plugin_owner: None,
-            plugin_repository: None,
+            plugin_name: None,
             plugin_version: None,
+            task: false,
         }
     }
 
@@ -69,7 +74,7 @@ impl ScopeIdentity {
     /// inherits the base scope's value) — and
     /// `agent_instance_hierarchy` falls back to `"UNKNOWN"` when
     /// missing because it is non-nullable.
-    pub fn from_agent_arguments(args: &AgentArguments) -> Self {
+    pub fn from_identity(args: &Identity) -> Self {
         Self {
             agent_instance_hierarchy: args
                 .agent_instance_hierarchy
@@ -85,8 +90,11 @@ impl ScopeIdentity {
             // daemon's own `plugins run` stamps it, via
             // [`ScopedContext::with_plugin`] on the nested scope.
             plugin_owner: None,
-            plugin_repository: None,
+            plugin_name: None,
             plugin_version: None,
+            // Daemon-authored like the trio — never taken from a wire
+            // envelope; the task scheduler re-stamps via `with_task`.
+            task: false,
         }
     }
 }
@@ -109,8 +117,11 @@ pub struct ScopedContext {
     response_id: Option<String>,
     response_ids: Option<String>,
     plugin_owner: Option<String>,
-    plugin_repository: Option<String>,
+    plugin_name: Option<String>,
     plugin_version: Option<String>,
+    /// Task-scheduler-fired run marker — daemon-authored (see
+    /// [`ScopeIdentity::task`]); set only by [`Self::with_task`].
+    task: bool,
     /// When true, the embedded python's `objectiveai.execute(...)`
     /// host call raises instead of dispatching a CLI command. Set by
     /// the `python --no-objectiveai` flag and automatically for the
@@ -149,8 +160,9 @@ impl ScopedContext {
             // trio arrives per request (envelope headers) or via
             // `with_plugin` (nested plugin commands).
             plugin_owner: None,
-            plugin_repository: None,
+            plugin_name: None,
             plugin_version: None,
+            task: false,
             no_objectiveai: false,
             api: Arc::new(OnceCell::new()),
         }
@@ -200,8 +212,9 @@ impl ScopedContext {
             response_id: identity.response_id,
             response_ids: identity.response_ids,
             plugin_owner: identity.plugin_owner,
-            plugin_repository: identity.plugin_repository,
+            plugin_name: identity.plugin_name,
             plugin_version: identity.plugin_version,
+            task: identity.task,
             no_objectiveai: self.no_objectiveai,
             api: Arc::new(OnceCell::new()),
         }
@@ -244,8 +257,8 @@ impl ScopedContext {
         self.plugin_owner.as_deref()
     }
 
-    pub fn plugin_repository(&self) -> Option<&str> {
-        self.plugin_repository.as_deref()
+    pub fn plugin_name(&self) -> Option<&str> {
+        self.plugin_name.as_deref()
     }
 
     pub fn plugin_version(&self) -> Option<&str> {
@@ -265,8 +278,22 @@ impl ScopedContext {
     ) -> Self {
         let mut clone = self.clone();
         clone.plugin_owner = Some(owner.into());
-        clone.plugin_repository = Some(repository.into());
+        clone.plugin_name = Some(repository.into());
         clone.plugin_version = Some(version.into());
+        clone
+    }
+
+    /// Whether this scope is a task-scheduler-fired run.
+    pub fn task(&self) -> bool {
+        self.task
+    }
+
+    /// Derive a clone marked as a task-scheduler-fired run — the
+    /// SCHEDULER is the only caller (daemon-authored, like
+    /// [`Self::with_plugin`] for the trio).
+    pub fn with_task(&self) -> Self {
+        let mut clone = self.clone();
+        clone.task = true;
         clone
     }
 

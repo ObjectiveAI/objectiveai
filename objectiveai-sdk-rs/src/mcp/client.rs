@@ -9,8 +9,17 @@ use indexmap::IndexMap;
 /// Holds shared configuration (HTTP client, headers, backoff parameters)
 /// and creates [`Connection`](super::Connection) instances via
 /// [`connect`](Client::connect).
-#[derive(Debug, Clone)]
-pub struct Client {
+///
+/// `E` is the command-execution extension's fulfiller, cloned into
+/// every [`Connection`](super::Connection) this client opens. The
+/// default [`super::NotSupportedMcpClientCommandExecutor`] answers any
+/// server-issued command request with a "not supported" error; opt in
+/// with [`Client::with_executor`].
+#[derive(Clone)]
+pub struct Client<
+    E: super::McpClientCommandExecutor =
+        super::NotSupportedMcpClientCommandExecutor,
+> {
     /// HTTP client for making requests.
     pub http_client: reqwest::Client,
     /// User-Agent header value.
@@ -39,6 +48,22 @@ pub struct Client {
     /// Timeout for individual RPC calls after connection is established.
     /// `None` = no timeout (see [`Client::connect_timeout`]).
     pub call_timeout: Option<Duration>,
+    /// Fulfiller for the command-execution extension, cloned into
+    /// every connection this client opens.
+    pub executor: E,
+}
+
+/// Manual `Debug` (not derived) so `E` need not be `Debug`.
+impl<E: super::McpClientCommandExecutor> std::fmt::Debug for Client<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Client")
+            .field("user_agent", &self.user_agent)
+            .field("x_title", &self.x_title)
+            .field("http_referer", &self.http_referer)
+            .field("connect_timeout", &self.connect_timeout)
+            .field("call_timeout", &self.call_timeout)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Apply an optional per-request timeout to a builder: `None` leaves the
@@ -54,7 +79,9 @@ pub(crate) fn apply_timeout(
 }
 
 impl Client {
-    /// Creates a new MCP client.
+    /// Creates a new MCP client with the default (not-supported)
+    /// command executor. Opt into command execution with
+    /// [`Client::with_executor`].
     pub fn new(
         http_client: reqwest::Client,
         user_agent: String,
@@ -82,6 +109,34 @@ impl Client {
             backoff_max_interval,
             backoff_max_elapsed_time,
             call_timeout,
+            executor: super::NotSupportedMcpClientCommandExecutor,
+        }
+    }
+}
+
+impl<E: super::McpClientCommandExecutor + Clone> Client<E> {
+    /// Swap in a command-execution fulfiller: connections opened by
+    /// the returned client answer the server's command requests
+    /// through `executor` (cloned per connection) instead of the
+    /// default "not supported" error.
+    pub fn with_executor<E2: super::McpClientCommandExecutor + Clone>(
+        self,
+        executor: E2,
+    ) -> Client<E2> {
+        Client {
+            http_client: self.http_client,
+            user_agent: self.user_agent,
+            x_title: self.x_title,
+            http_referer: self.http_referer,
+            connect_timeout: self.connect_timeout,
+            backoff_current_interval: self.backoff_current_interval,
+            backoff_initial_interval: self.backoff_initial_interval,
+            backoff_randomization_factor: self.backoff_randomization_factor,
+            backoff_multiplier: self.backoff_multiplier,
+            backoff_max_interval: self.backoff_max_interval,
+            backoff_max_elapsed_time: self.backoff_max_elapsed_time,
+            call_timeout: self.call_timeout,
+            executor,
         }
     }
 
@@ -146,7 +201,7 @@ impl Client {
         url: String,
         session_id: Option<String>,
         headers: Option<IndexMap<String, String>>,
-    ) -> Result<super::Connection, super::Error> {
+    ) -> Result<super::Connection<E>, super::Error> {
         // Merge the caller's headers with the client's defaults once,
         // then reuse the same merged map across every retry of the
         // handshake AND hand it to the resulting Connection for every
@@ -256,20 +311,22 @@ impl Client {
         url: &str,
         session_id: Option<&str>,
         headers: &IndexMap<String, String>,
-    ) -> Result<super::Connection, super::Error> {
-        let init_request = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "objectiveai",
-                    "version": env!("CARGO_PKG_VERSION"),
-                }
-            }
-        });
+    ) -> Result<super::Connection<E>, super::Error> {
+        let init_request = super::JsonRpcRequest::initialize(
+            super::RequestId::Number(1.into()),
+            super::InitializeRequestParams {
+                protocol_version: "2025-06-18".to_string(),
+                capabilities: super::ClientCapabilities::default(),
+                client_info: Some(super::initialize_result::Implementation {
+                    name: "objectiveai".to_string(),
+                    title: None,
+                    version: env!("CARGO_PKG_VERSION").to_string(),
+                    website_url: None,
+                    description: None,
+                    icons: None,
+                }),
+            },
+        );
 
         let mut request = apply_timeout(
             self.http_client.post(url),
@@ -381,7 +438,9 @@ impl Client {
             (result, None)
         };
 
-        // Whether we need a notification SSE channel at all.
+        // Whether we need a notification SSE channel at all: either
+        // list_changed listening, or the objectiveai command-execution
+        // capability (command requests arrive on the same stream).
         let needs_sse = initialize_result
             .capabilities
             .tools
@@ -393,7 +452,8 @@ impl Client {
                 .resources
                 .as_ref()
                 .and_then(|r| r.list_changed)
-                .unwrap_or(false);
+                .unwrap_or(false)
+            || initialize_result.capabilities.has_objectiveai();
 
         // Send `notifications/initialized` BEFORE any other request.
         // rmcp's per-session worker is in `expect_notification("initialized")`
@@ -409,11 +469,8 @@ impl Client {
         // `refresh_tools` / `refresh_resources` background tasks that
         // race with this notification, which is exactly the bug we're
         // avoiding. We therefore POST inline here.
-        let init_notification_body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": "notifications/initialized",
-            "params": {},
-        });
+        let init_notification_body =
+            super::JsonRpcClientNotification::initialized();
         let mut notify_request = apply_timeout(
             self.http_client.post(url),
             self.call_timeout,
@@ -504,6 +561,7 @@ impl Client {
             self.call_timeout,
             initialize_result,
             initial_sse_lines,
+            self.executor.clone(),
         )
         .await;
 

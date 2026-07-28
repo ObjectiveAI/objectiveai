@@ -1,0 +1,13 @@
+{
+  "title": "daemon.agents_instances_listener.ToolResponsePart",
+  "description": "Mirror of `logs.list.ToolResponsePart`: `id` + `type` → the opened\ncontent. The tool-call linkage (`tool_call_id`) lives on the\nenclosing block, exactly as in the list shape.",
+  "type": "object",
+  "properties": {
+    "content": {
+      "$ref": "daemon.agents_instances_listener.PartContent"
+    },
+    "delivered_at": {
+      "type": "string"
+    }
+  }
+}

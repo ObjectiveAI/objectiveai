@@ -112,7 +112,7 @@ impl CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
@@ -122,23 +122,23 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
     > = match request {
             Request::Config(req) => {
-                let inner = config::execute(executor, req, agent_arguments).await?;
+                let inner = config::execute(executor, req, identity).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
             }
         Request::Query(req) => {
-            let value = query::execute(executor, req, agent_arguments).await?;
+            let value = query::execute(executor, req, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::Query(value),
             )))
         }
         Request::QueryRequestSchema(req) => {
-            let value = query::request_schema::execute(executor, req, agent_arguments).await?;
+            let value = query::request_schema::execute(executor, req, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::QueryRequestSchema(value),
             )))
         }
         Request::QueryResponseSchema(req) => {
-            let value = query::response_schema::execute(executor, req, agent_arguments).await?;
+            let value = query::response_schema::execute(executor, req, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::QueryResponseSchema(value),
             )))
@@ -152,7 +152,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     transform: crate::cli::command::Transform,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -161,21 +161,21 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
     > = match request {
             Request::Config(req) => {
-                let inner = config::execute_transform(executor, req, transform, agent_arguments).await?;
+                let inner = config::execute_transform(executor, req, transform, identity).await?;
                 Box::pin(inner)
             }
         Request::Query(req) => {
-            let value = query::execute_transform(executor, req, transform, agent_arguments).await?;
+            let value = query::execute_transform(executor, req, transform, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::QueryRequestSchema(req) => {
             let value =
-                query::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                query::request_schema::execute_transform(executor, req, transform, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::QueryResponseSchema(req) => {
             let value =
-                query::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                query::response_schema::execute_transform(executor, req, transform, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };
@@ -183,8 +183,8 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// its `ListenerExecution`. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     Config(config::ListenerExecution),
     Query(query::ListenerExecution),

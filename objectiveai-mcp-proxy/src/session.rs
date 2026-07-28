@@ -13,7 +13,7 @@ use std::sync::Arc;
 use objectiveai_sdk::laboratories::{ClientLaboratory, Laboratory};
 use objectiveai_sdk::client_objectiveai_mcp::server_request;
 use objectiveai_sdk::mcp::{
-    JsonRpcNotification,
+    JsonRpcServerNotification, RequestId,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
     server::{ListServersResult, Server},
     tool::{
@@ -36,13 +36,6 @@ use tokio_util::sync::CancellationToken;
 /// Capacity of the per-session outbound notification channel. Sized so
 /// even a noisy upstream can't easily lap a slow SSE consumer.
 const OUTBOUND_CAPACITY: usize = 64;
-
-/// Hashable key for a JSON-RPC request id. JSON-RPC ids can be number,
-/// string, or null, so we serialize to canonical JSON and hash on that.
-fn request_id_key(id: &serde_json::Value) -> String {
-    // serde_json::to_string is infallible for any Value.
-    serde_json::to_string(id).unwrap_or_default()
-}
 
 /// Per-session state.
 ///
@@ -71,23 +64,24 @@ pub struct Session {
     pub connections: IndexMap<String, Upstream>,
     /// Fan-out channel for server-initiated notifications. Whenever an
     /// upstream emits `notifications/tools/list_changed` or
-    /// `notifications/resources/list_changed`, a JsonRpcNotification with
-    /// the matching method is published here. Subscribers (the SSE GET
-    /// stream in `mcp::handle_get`) drain it onto the wire to the
-    /// downstream client.
+    /// `notifications/resources/list_changed`, the matching typed
+    /// [`JsonRpcServerNotification`] is published here. Subscribers (the
+    /// SSE GET stream in `mcp::handle_get`) drain it onto the wire to
+    /// the downstream client.
     ///
     /// `broadcast` rather than `mpsc` so multiple concurrent GET streams
     /// for the same session — which the MCP spec allows — each see every
     /// notification.
-    pub outbound: broadcast::Sender<JsonRpcNotification>,
+    pub outbound: broadcast::Sender<JsonRpcServerNotification>,
     /// In-flight per-request cancellation tokens, keyed by the inbound
-    /// JSON-RPC request id (stringified for hashability — JSON-RPC ids
-    /// can be number, string, or null). The downstream client cancels a
-    /// request by sending `notifications/cancelled` with the matching
-    /// `requestId`; the handler that owns that id observes the token
-    /// firing via `tokio::select!` and returns a `-32800 request cancelled`
+    /// JSON-RPC request id (`RequestId` is `Eq + Hash`; number and
+    /// string ids are distinct keys, mirroring their distinct wire
+    /// forms). The downstream client cancels a request by sending
+    /// `notifications/cancelled` with the matching `requestId`; the
+    /// handler that owns that id observes the token firing via
+    /// `tokio::select!` and returns a `-32800 request cancelled`
     /// JSON-RPC error. Drops the upstream call's future as a side effect.
-    in_flight: DashMap<String, CancellationToken>,
+    in_flight: DashMap<RequestId, CancellationToken>,
     /// Session-global header overrides stamped on every outbound
     /// request to every upstream. The only keys ever recorded are the
     /// agent-identity + response-routing headers (see
@@ -99,12 +93,18 @@ pub struct Session {
     /// applied on the Connection's own RwLock); writes fire only on
     /// inbound `initialize` (reuse or fresh connect). `RwLock` matches
     /// the read/write ratio.
-    pub transient_headers: RwLock<IndexMap<String, String>>,
+    ///
+    /// `Arc`-SHARED with every plugin command executor built at
+    /// connect time (`connect_all_fresh` creates the allocation) —
+    /// executors read it at execute() time, so every
+    /// `apply_transient_headers` full-replace reaches them too.
+    pub transient_headers: Arc<RwLock<IndexMap<String, String>>>,
 }
 
 impl Session {
     pub(crate) fn new(
         connections: IndexMap<String, Upstream>,
+        transient_headers: Arc<RwLock<IndexMap<String, String>>>,
     ) -> Self {
         let (outbound, _) = broadcast::channel(OUTBOUND_CAPACITY);
 
@@ -118,19 +118,14 @@ impl Session {
         for connection in connections.values() {
             let tx = outbound.clone();
             connection.set_on_tools_list_changed(move || {
-                let _ = tx.send(JsonRpcNotification {
-                    jsonrpc: "2.0".into(),
-                    method: "notifications/tools/list_changed".into(),
-                    params: None,
-                });
+                let _ = tx
+                    .send(JsonRpcServerNotification::tools_list_changed());
             });
             let tx = outbound.clone();
             connection.set_on_resources_list_changed(move || {
-                let _ = tx.send(JsonRpcNotification {
-                    jsonrpc: "2.0".into(),
-                    method: "notifications/resources/list_changed".into(),
-                    params: None,
-                });
+                let _ = tx.send(
+                    JsonRpcServerNotification::resources_list_changed(),
+                );
             });
         }
 
@@ -138,7 +133,7 @@ impl Session {
             connections,
             outbound,
             in_flight: DashMap::new(),
-            transient_headers: RwLock::new(IndexMap::new()),
+            transient_headers,
         }
     }
 
@@ -183,24 +178,24 @@ impl Session {
     /// Mint a [`CancellationToken`] for an inbound request id, store it,
     /// and hand back a clone. The handler `select!`s on the clone; the
     /// stored token is what `cancel_in_flight` fires.
-    pub fn register_in_flight(&self, id: &serde_json::Value) -> CancellationToken {
+    pub fn register_in_flight(&self, id: &RequestId) -> CancellationToken {
         let token = CancellationToken::new();
-        self.in_flight.insert(request_id_key(id), token.clone());
+        self.in_flight.insert(id.clone(), token.clone());
         token
     }
 
     /// Drop the in-flight token for `id`. Always paired with an earlier
     /// `register_in_flight` via a guard so we don't leak entries on the
     /// happy path.
-    pub fn deregister_in_flight(&self, id: &serde_json::Value) {
-        self.in_flight.remove(&request_id_key(id));
+    pub fn deregister_in_flight(&self, id: &RequestId) {
+        self.in_flight.remove(id);
     }
 
     /// Fire the cancellation token associated with `id`, if any. Returns
     /// `true` if a token was found and cancelled. Triggered by an inbound
     /// `notifications/cancelled` from the downstream client.
-    pub fn cancel_in_flight(&self, id: &serde_json::Value) -> bool {
-        match self.in_flight.get(&request_id_key(id)) {
+    pub fn cancel_in_flight(&self, id: &RequestId) -> bool {
+        match self.in_flight.get(id) {
             Some(entry) => {
                 entry.value().cancel();
                 true

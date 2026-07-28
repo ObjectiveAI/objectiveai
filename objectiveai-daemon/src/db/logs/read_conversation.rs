@@ -6,7 +6,7 @@
 //! emitting `{id, type}` parts for `agents logs read id` to resolve,
 //! each row's ACTUAL content is batch-fetched from its per-kind table
 //! and inlined into a typed SDK
-//! [`AgentInstanceEvent`](objectiveai_sdk::cli::agents_instances_listener::AgentInstanceEvent)
+//! [`AgentInstanceEvent`](objectiveai_sdk::daemon::agents_instances_listener::AgentInstanceEvent)
 //! — the same frame shape the live tee ships, so the SSE handler
 //! replays the snapshot and relays live frames through one type and
 //! clients converge the seam by part identity.
@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use objectiveai_sdk::cli::agents_instances_listener::{
+use objectiveai_sdk::daemon::agents_instances_listener::{
     AgentInstanceEvent, AssistantResponsePart, ClientNotificationPart, PartContent,
     RequestMessageUserPart, ToolResponsePart, VectorRequestChoicePart,
 };

@@ -102,7 +102,7 @@ pub async fn call_notifier<R: serde::de::DeserializeOwned>(
             "mcp notifier lookup requires the resident daemon",
         ));
     };
-    let Some(notifier) = hubs.mcp_notifiers.get(response_id).map(|n| n.clone()) else {
+    let Some(notifier) = hubs.mcp_notifiers.get(response_id).map(|n| n.1.clone()) else {
         return Err(std::io::Error::other(format!(
             "no mcp listener for response {response_id}"
         )));

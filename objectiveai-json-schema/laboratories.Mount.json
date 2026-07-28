@@ -1,0 +1,13 @@
+{
+  "title": "laboratories.Mount",
+  "description": "One host→container bind mount. CLI wire form is the docker-style\n`host=…,container=…` (both keys required).",
+  "type": "object",
+  "properties": {
+    "container": {
+      "type": "string"
+    },
+    "host": {
+      "type": "string"
+    }
+  }
+}

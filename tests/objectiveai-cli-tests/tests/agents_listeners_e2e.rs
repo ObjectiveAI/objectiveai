@@ -32,11 +32,10 @@ use objectiveai_sdk::cli::command::agents::tags::apply::{
 use objectiveai_sdk::cli::command::laboratories::attach::{
     Path as AttachPath, Request as AttachReq, Response as AttachResp,
 };
-use objectiveai_sdk::cli::agents_instances_list_listener::{
-    AgentStatus, AgentsInstancesListListener,
-};
-use objectiveai_sdk::cli::agents_instances_listener::{
-    AgentRecord, AssistantResponsePart, ConversationBlock, AgentsInstancesListener,
+use objectiveai_sdk::daemon::Client as DaemonClient;
+use objectiveai_sdk::daemon::agents_instances_list_listener::AgentStatus;
+use objectiveai_sdk::daemon::agents_instances_listener::{
+    AgentRecord, AssistantResponsePart, ConversationBlock,
 };
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
@@ -187,16 +186,26 @@ async fn agents_list_stream_activation_lifecycle() {
     let addr = cli_test_util::daemon_address(&executor, &state).await;
 
     let snapshots: Arc<Mutex<Vec<Vec<AgentStatus>>>> = Arc::new(Mutex::new(Vec::new()));
-    let recorder = Arc::clone(&snapshots);
-    let listener = AgentsInstancesListListener::new(format!(
-        "{addr}/agents/instances/list"
-    ))
-    .on_change(move |agents| {
-        recorder.lock().unwrap().push(agents.to_vec());
-    })
-    .connect()
-    .await
-    .expect("connect /agents/instances/list");
+    let listener = Arc::new(
+        DaemonClient::new(&addr)
+            .agents_instances_list_listener()
+            .await
+            .expect("connect /agents/instances/list"),
+    );
+    // Snapshot recorder: one push per change wake. The watch can
+    // coalesce back-to-back events, but the active window under test
+    // spans a whole mock run — far wider than the wake latency.
+    {
+        let listener = Arc::clone(&listener);
+        let recorder = Arc::clone(&snapshots);
+        let mut changes = listener.changes();
+        tokio::spawn(async move {
+            while changes.changed().await.is_ok() {
+                let agents = listener.agents().await;
+                recorder.lock().unwrap().push(agents);
+            }
+        });
+    }
 
     let tag = format!("listeners-agents-{}", nanos());
     let aih = spawn_via_tag(&executor, &tag, two_turn_mock()).await;
@@ -288,16 +297,27 @@ async fn agent_instance_stream_snapshot_and_live() {
     mark!("first turn spawned + settled");
 
     let records: Arc<Mutex<Vec<AgentRecord>>> = Arc::new(Mutex::new(Vec::new()));
-    let recorder = Arc::clone(&records);
-    let listener = AgentsInstancesListener::new(format!(
-        "{addr}/agents/instances/{aih}"
-    ))
-    .on_agent_change(move |record| {
-        recorder.lock().unwrap().push(record.clone());
-    })
-    .connect()
-    .await
-    .expect("connect /agents/instances/{aih}");
+    let listener = Arc::new(
+        DaemonClient::new(&addr)
+            .agents_instances_listener(&aih)
+            .await
+            .expect("connect /agents/instances/{aih}"),
+    );
+    // Record recorder: one push per change wake (see the list
+    // recorder's coalescing note — the active window under test spans
+    // the whole second turn).
+    {
+        let listener = Arc::clone(&listener);
+        let recorder = Arc::clone(&records);
+        let mut changes = listener.changes();
+        tokio::spawn(async move {
+            while changes.changed().await.is_ok() {
+                if let Some(record) = listener.agent().await {
+                    recorder.lock().unwrap().push(record);
+                }
+            }
+        });
+    }
     mark!("instance listener connected");
 
     // Snapshot replay: live marker, the user request, the scripted

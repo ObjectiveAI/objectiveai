@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.laboratories.kill.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "laboratories/kill/request_schema"
+  ]
+}

@@ -12,7 +12,8 @@
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::laboratories::create::{EnvVar, Kind, Mount};
+use objectiveai_sdk::cli::command::laboratories::create::Kind;
+use objectiveai_sdk::laboratories::{EnvVar, Mount};
 use objectiveai_sdk::cli::command::laboratories::list::{Request, ResponseItem};
 
 use crate::context::{GlobalContext, ScopedContext};
@@ -20,19 +21,17 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
+pub async fn execute(global: &GlobalContext, _scoped: &ScopedContext, request: Request) -> Result<ItemStream, Error> {
     // Only `Client` exists today; the match stays exhaustive so adding
     // `Server` later forces a decision here.
     match request.kind {
         Kind::Client => {}
     }
 
-    // Best-effort local host: a fresh machine's laboratories should
-    // list without a prior explicit spawn. `local: false` (or any
-    // spawn failure — no binary, cold podman error) is NOT a list
-    // error: the registry may still hold remote hosts.
-    let _ = super::ensure_local_host(global, scoped).await;
-
+    // `list` never spawns — it reflects whatever hosts have connected
+    // to the daemon registry (local host up via `laboratories spawn`,
+    // plus any remote hosts). An empty registry is an empty list, not
+    // an error.
     let labs = match global.resident_hubs() {
         Some(hubs) => hubs.laboratories.list().await,
         None => {
@@ -62,6 +61,14 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
                 cwd: lab.cwd,
                 created_at: lab.created_at,
                 agent_full_id: lab.agent_full_id,
+                plugin: lab.plugin.map(|p| {
+                    objectiveai_sdk::cli::command::laboratories::list::Plugin {
+                        owner: p.owner,
+                        name: p.name,
+                        version: p.version,
+                    }
+                }),
+                response_id: lab.response_id,
                 machine: Some(machine),
                 machine_state: Some(machine_state),
                 running: lab.running,

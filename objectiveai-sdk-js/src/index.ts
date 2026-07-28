@@ -3,6 +3,7 @@ export * from "./generatedIndex";
 
 // Hand-written modules
 export * from "./client";
+export * from "./viewer";
 export * from "./error";
 export * from "./stream";
 export * from "./isEmpty";

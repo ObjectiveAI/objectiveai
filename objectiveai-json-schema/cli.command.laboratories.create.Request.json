@@ -10,7 +10,7 @@
     "env": {
       "type": "array",
       "items": {
-        "$ref": "cli.command.laboratories.create.EnvVar"
+        "$ref": "laboratories.EnvVar"
       }
     },
     "id": {
@@ -75,7 +75,7 @@
     "mounts": {
       "type": "array",
       "items": {
-        "$ref": "cli.command.laboratories.create.Mount"
+        "$ref": "laboratories.Mount"
       }
     },
     "path_type": {

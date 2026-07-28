@@ -16,7 +16,9 @@ use axum::{
 };
 use futures::{StreamExt, stream};
 use objectiveai_sdk::mcp::{
-    JsonRpcError, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse,
+    CancelledNotificationParams, ClientRequestMethod, EmptyObject,
+    InitializeRequestParams, JsonRpcClientMessage, JsonRpcClientNotification,
+    JsonRpcError, JsonRpcRequest, JsonRpcResponse, RequestId,
     initialize_result::{
         Implementation, InitializeResult, ResourcesCapability, ServerCapabilities,
         ToolsCapability,
@@ -89,51 +91,81 @@ pub async fn handle_post(
         return resp;
     }
 
-    // Manual body parse so malformed JSON returns a JSON-RPC -32700
-    // envelope rather than axum's plain-text 400.
-    let body: serde_json::Value = match serde_json::from_slice(&body) {
-        Ok(v) => v,
-        Err(e) => return parse_error_response(format!("invalid JSON: {e}")),
-    };
-
-    // Notifications (no `id`) and responses get 202 Accepted with no body.
-    // notifications/cancelled is the one notification we actually act on:
-    // look up the in-flight token for params.requestId in the session
-    // (if any) and fire it.
-    if body.get("id").is_none() {
-        if let Ok(notification) =
-            serde_json::from_value::<JsonRpcNotification>(body)
-        {
-            if notification.method == "notifications/cancelled" {
-                handle_cancelled_notification(&state, &headers, &notification);
-            }
+    // ONE typed parse for the whole inbound message — the JSON-RPC kind
+    // discrimination ("does the frame carry an id") lives inside
+    // `JsonRpcClientMessage`'s deserializer, and the method → typed
+    // params lowering inside `ClientRequest` / `JsonRpcClientNotification`.
+    // Malformed JSON or a broken envelope returns a JSON-RPC -32700
+    // rather than axum's plain-text 400. Known methods with unusable
+    // params surface as `InvalidParams` (→ -32602 WITH the request id)
+    // and unknown methods as `Unknown` (→ -32601), so no valid frame
+    // ever loses its id to a parse failure.
+    let message: JsonRpcClientMessage = match serde_json::from_slice(&body) {
+        Ok(m) => m,
+        Err(e) => {
+            return parse_error_response(format!(
+                "invalid JSON-RPC message: {e}"
+            ));
         }
-        return StatusCode::ACCEPTED.into_response();
-    }
-
-    let request: JsonRpcRequest = match serde_json::from_value(body) {
-        Ok(r) => r,
-        Err(e) => return parse_error_response(format!("invalid JSON-RPC envelope: {e}")),
     };
 
-    let response = match request.method.as_str() {
-        "initialize" => handle_initialize(&state, &headers, request).await,
-        "ping" => handle_ping(request),
-        "tools/list" => handle_tools_list(&state.sessions, &headers, request).await,
-        "tools/call" => {
+    let request = match message {
+        // notifications/cancelled is the one notification we actually
+        // act on: look up the in-flight token for params.requestId in
+        // the session (if any) and fire it.
+        JsonRpcClientMessage::Notification(
+            JsonRpcClientNotification::Cancelled { params, .. },
+        ) => {
+            handle_cancelled_notification(&state, &headers, &params);
+            return StatusCode::ACCEPTED.into_response();
+        }
+        // Every other notification (initialized, unknown methods,
+        // unusable cancelled params) gets the spec-mandated 202.
+        JsonRpcClientMessage::Notification(_) => {
+            return StatusCode::ACCEPTED.into_response();
+        }
+        JsonRpcClientMessage::Request(request) => request,
+    };
+
+    match request {
+        JsonRpcRequest::Initialize { id, params, .. } => {
+            handle_initialize(&state, &headers, id, params).await
+        }
+        JsonRpcRequest::Ping { id, .. } => handle_ping(id),
+        // The typed params carry a pagination cursor, but the proxy's
+        // aggregated lists have never consulted it — preserved as-is.
+        JsonRpcRequest::ListTools { id, .. } => {
+            handle_tools_list(&state.sessions, &headers, id).await
+        }
+        JsonRpcRequest::CallTool { id, params, .. } => {
             handle_tools_call(
                 &state.sessions,
                 state.queue_delegate.as_ref(),
                 &headers,
-                request,
+                id,
+                params,
             )
             .await
         }
-        "resources/list" => handle_resources_list(&state.sessions, &headers, request).await,
-        "resources/read" => handle_resources_read(&state.sessions, &headers, request).await,
-        other => method_not_found_response(request.id, other),
-    };
-    response
+        JsonRpcRequest::ListResources { id, .. } => {
+            handle_resources_list(&state.sessions, &headers, id).await
+        }
+        JsonRpcRequest::ReadResource { id, params, .. } => {
+            handle_resources_read(&state.sessions, &headers, id, params).await
+        }
+        // Fallback: the method tells invalid-params (known marker)
+        // apart from method-not-found (`Other`) — see
+        // `ClientRequestMethod`.
+        JsonRpcRequest::Fallback { id, method, .. } => match method {
+            ClientRequestMethod::Other(other) => {
+                method_not_found_response(id, &other)
+            }
+            known => invalid_params_response(
+                id,
+                format!("{} params: missing or invalid", known.as_str()),
+            ),
+        },
+    }
 }
 
 /// Look up the in-flight token for `params.requestId` and fire it. Quietly
@@ -142,7 +174,7 @@ pub async fn handle_post(
 fn handle_cancelled_notification(
     state: &AppState,
     headers: &HeaderMap,
-    notification: &JsonRpcNotification,
+    params: &CancelledNotificationParams,
 ) {
     let response_id = match header_response_id(headers) {
         Some(s) => s,
@@ -152,18 +184,10 @@ fn handle_cancelled_notification(
         Some(s) => s,
         None => return,
     };
-    let request_id = match notification
-        .params
-        .as_ref()
-        .and_then(|p| p.get("requestId"))
-    {
-        Some(id) => id,
-        None => return,
-    };
-    let cancelled = session.cancel_in_flight(request_id);
+    let cancelled = session.cancel_in_flight(&params.request_id);
     tracing::debug!(
         response_id = %response_id,
-        request_id = %request_id,
+        request_id = %params.request_id,
         cancelled,
         "notifications/cancelled received",
     );
@@ -295,38 +319,27 @@ pub async fn handle_get(
 async fn handle_initialize(
     state: &AppState,
     headers: &HeaderMap,
-    request: JsonRpcRequest,
+    id: RequestId,
+    params: InitializeRequestParams,
 ) -> Response {
     // Validate the client's requested protocolVersion. We don't care
-    // about anything else in `params` (clientInfo / capabilities) — they
-    // don't change our routing or our advertised feature set.
-    match request.params.as_ref().and_then(|p| p.get("protocolVersion")) {
-        Some(v) => match v.as_str() {
-            Some(version) if ACCEPTED_PROTOCOL_VERSIONS.contains(&version) => {
-                // Accepted; the response will downgrade to PROTOCOL_VERSION
-                // and a spec-compliant client adopts it.
-            }
-            Some(other) => {
-                return invalid_request_response(
-                    request.id,
-                    format!(
-                        "unsupported protocolVersion {other:?}; this proxy accepts {ACCEPTED_PROTOCOL_VERSIONS:?}",
-                    ),
-                );
-            }
-            None => {
-                return invalid_params_response(
-                    request.id,
-                    "params.protocolVersion must be a string".into(),
-                );
-            }
-        },
-        None => {
-            return invalid_params_response(
-                request.id,
-                "params.protocolVersion is required".into(),
-            );
-        }
+    // about anything else in the params (clientInfo / capabilities) —
+    // they don't change our routing or our advertised feature set.
+    // (A missing/non-string protocolVersion never reaches here: it
+    // lands on `ClientRequest::InvalidParams` in the dispatcher →
+    // -32602, same as before.)
+    if !ACCEPTED_PROTOCOL_VERSIONS
+        .contains(&params.protocol_version.as_str())
+    {
+        // Accepted versions downgrade in the response to
+        // PROTOCOL_VERSION and a spec-compliant client adopts it.
+        return invalid_request_response(
+            id,
+            format!(
+                "unsupported protocolVersion {:?}; this proxy accepts {ACCEPTED_PROTOCOL_VERSIONS:?}",
+                params.protocol_version,
+            ),
+        );
     }
 
     // Routing keys off the objectiveai response id, NOT the inbound
@@ -356,7 +369,7 @@ async fn handle_initialize(
     // down, so the reuse path below wouldn't find it anyway; this also
     // avoids a wasted upstream connect.
     if state.dropper.as_ref().is_some_and(|d| d.is_banned(&response_id)) {
-        return invalid_request_response(request.id, "response id has been dropped".to_string());
+        return invalid_request_response(id, "response id has been dropped".to_string());
     }
 
     let mcp_session_id = uuid::Uuid::new_v4().to_string();
@@ -374,7 +387,7 @@ async fn handle_initialize(
         // session-global transient headers from THIS request's inbound
         // HeaderMap (full replace — missing keys drop from the bag).
         session.apply_transient_headers(headers).await;
-        return ok_response_resume_sse(request.id, mcp_session_id);
+        return ok_response_resume_sse(id, mcp_session_id);
     }
 
     // Mark the fresh connect in flight: client requests for this id
@@ -390,40 +403,42 @@ async fn handle_initialize(
     // upstreams are registered under the response id. The agent-identity
     // and response-routing headers ride on `Session::transient_headers`
     // (applied below).
-    let connections = match crate::upstream::connect_all_fresh(
+    let (connections, transient_headers) = match crate::upstream::connect_all_fresh(
         &state.client,
         state.reverse_channel.as_ref(),
         headers,
     ).await {
         Ok(conns) => conns,
         Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
-            return invalid_request_response(request.id, e.to_string());
+            return invalid_request_response(id, e.to_string());
         }
         Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
-            return internal_error_response(request.id, e.to_string());
+            return internal_error_response(id, e.to_string());
         }
         Err(e @ BadInit::UpstreamListFailed { .. }) => {
             // A post-connect tools/resources probe failed: the
             // upstream accepted initialize but can't serve. Same
             // outcome as a connect failure — the session is not viable.
-            return internal_error_response(request.id, e.to_string());
+            return internal_error_response(id, e.to_string());
         }
     };
-    state.sessions.add(response_id.clone(), connections);
+    state
+        .sessions
+        .add(response_id.clone(), connections, transient_headers);
     // Race guard: a `drop` may have banned this id while we were
     // connecting. We ban-then-check on the drop side and insert-then-
     // check here, so one side always tears the session down. Teardown is
     // idempotent.
     if state.dropper.as_ref().is_some_and(|d| d.is_banned(&response_id)) {
         crate::dropper::teardown(&response_id, &state.sessions, state.reverse_channel.as_ref()).await;
-        return invalid_request_response(request.id, "response id has been dropped".to_string());
+        return invalid_request_response(id, "response id has been dropped".to_string());
     }
     // Stamp the session-global transient headers extracted from the
     // inbound HeaderMap.
     if let Some(session) = state.sessions.get(&response_id) {
         session.apply_transient_headers(headers).await;
     }
-    ok_response_fresh_sse(request.id, mcp_session_id)
+    ok_response_fresh_sse(id, mcp_session_id)
 }
 
 /// Fresh-init `initialize` response: 200 OK + `Mcp-Session-Id`
@@ -438,7 +453,7 @@ async fn handle_initialize(
 /// bundled CLI from silently filtering every tool from this server
 /// out of the model's catalog.
 fn ok_response_fresh_sse(
-    request_id: serde_json::Value,
+    request_id: RequestId,
     session_id: String,
 ) -> Response {
     let result = InitializeResult {
@@ -450,14 +465,14 @@ fn ok_response_fresh_sse(
     };
     let body: JsonRpcResponse<InitializeResult> = JsonRpcResponse::Success {
         jsonrpc: "2.0".into(),
-        id: request_id,
+        id: request_id.clone(),
         result,
     };
     let payload = match serde_json::to_string(&body) {
         Ok(s) => s,
         Err(e) => {
             return internal_error_response(
-                serde_json::Value::Null,
+                request_id,
                 format!("failed to serialize InitializeResult: {e}"),
             );
         }
@@ -467,7 +482,7 @@ fn ok_response_fresh_sse(
         Ok(v) => v,
         Err(_) => {
             return internal_error_response(
-                serde_json::Value::Null,
+                request_id,
                 format!("session id is not a valid header value: {session_id}"),
             );
         }
@@ -514,7 +529,7 @@ fn ok_response_fresh_sse(
 /// `Mcp-Session-Id` is returned for MCP-spec compliance so 3rd-party
 /// clients (e.g. `claude_agent_sdk`'s bundled CLI) accept the response.
 fn ok_response_resume_sse(
-    request_id: serde_json::Value,
+    request_id: RequestId,
     session_id: String,
 ) -> Response {
     let priming = sse_stream::Sse::default()
@@ -531,14 +546,14 @@ fn ok_response_resume_sse(
     };
     let body: JsonRpcResponse<InitializeResult> = JsonRpcResponse::Success {
         jsonrpc: "2.0".into(),
-        id: request_id,
+        id: request_id.clone(),
         result,
     };
     let payload = match serde_json::to_string(&body) {
         Ok(s) => s,
         Err(e) => {
             return internal_error_response(
-                serde_json::Value::Null,
+                request_id,
                 format!("failed to serialize InitializeResult: {e}"),
             );
         }
@@ -549,7 +564,7 @@ fn ok_response_resume_sse(
         Ok(v) => v,
         Err(_) => {
             return internal_error_response(
-                serde_json::Value::Null,
+                request_id,
                 format!("session id is not a valid header value: {session_id}"),
             );
         }
@@ -577,11 +592,11 @@ fn ok_response_resume_sse(
     response
 }
 
-fn handle_ping(request: JsonRpcRequest) -> Response {
-    let body: JsonRpcResponse<serde_json::Value> = JsonRpcResponse::Success {
+fn handle_ping(id: RequestId) -> Response {
+    let body: JsonRpcResponse<EmptyObject> = JsonRpcResponse::Success {
         jsonrpc: "2.0".into(),
-        id: request.id,
-        result: serde_json::json!({}),
+        id,
+        result: EmptyObject {},
     };
     (StatusCode::OK, Json(body)).into_response()
 }
@@ -589,7 +604,7 @@ fn handle_ping(request: JsonRpcRequest) -> Response {
 async fn handle_tools_list(
     sessions: &SessionManager,
     headers: &HeaderMap,
-    request: JsonRpcRequest,
+    id: RequestId,
 ) -> Response {
     let response_id = match extract_response_id(headers) {
         Ok(id) => id,
@@ -613,12 +628,12 @@ async fn handle_tools_list(
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
-                id: request.id,
+                id,
                 result,
             };
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => internal_error_response(request.id, format!("list_tools: {e}")),
+        Err(e) => internal_error_response(id, format!("list_tools: {e}")),
     }
 }
 
@@ -626,7 +641,8 @@ async fn handle_tools_call(
     sessions: &SessionManager,
     queue_delegate: Option<&Arc<dyn crate::QueueDelegate>>,
     headers: &HeaderMap,
-    request: JsonRpcRequest,
+    id: RequestId,
+    params: CallToolRequestParams,
 ) -> Response {
     let response_id = match extract_response_id(headers) {
         Ok(id) => id,
@@ -639,29 +655,16 @@ async fn handle_tools_call(
         None => return unknown_session_response(),
     };
 
-    let params: CallToolRequestParams = match request.params.clone() {
-        Some(v) => match serde_json::from_value(v) {
-            Ok(p) => p,
-            Err(e) => {
-                return invalid_params_response(
-                    request.id,
-                    format!("tools/call params: {e}"),
-                );
-            }
-        },
-        None => return invalid_params_response(request.id, "missing params".into()),
-    };
-
-    let token = session.register_in_flight(&request.id);
+    let token = session.register_in_flight(&id);
     let _guard = InFlightGuard {
         session: Arc::clone(&session),
-        id: request.id.clone(),
+        id: id.clone(),
     };
 
     let tool_result = tokio::select! {
         biased;
         _ = token.cancelled() => {
-            return cancelled_response(request.id);
+            return cancelled_response(id);
         }
         result = session.call_tool(&params) => result,
     };
@@ -676,9 +679,9 @@ async fn handle_tools_call(
             // consumed rows would never reach the agent. Reading
             // sequentially after success guarantees every consumed
             // row gets surfaced.
-            let agent_arguments = session.transient_headers.read().await.clone();
+            let identity = session.transient_headers.read().await.clone();
             if let Some(crate::QueueRead { token, blocks }) =
-                maybe_read_blocks(queue_delegate, &agent_arguments).await
+                maybe_read_blocks(queue_delegate, &identity).await
             {
                 // Splice the queued rows ahead of the upstream's
                 // tool-result content, wrapped in the SDK-owned
@@ -738,16 +741,16 @@ async fn handle_tools_call(
             }
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
-                id: request.id,
+                id,
                 result,
             };
             (StatusCode::OK, Json(body)).into_response()
         }
         Err(CallToolError::ToolNotFound(name)) => {
-            method_not_found_response(request.id, &format!("tool: {name}"))
+            method_not_found_response(id, &format!("tool: {name}"))
         }
         Err(CallToolError::Upstream(e)) => {
-            internal_error_response(request.id, format!("upstream call_tool: {e}"))
+            internal_error_response(id, format!("upstream call_tool: {e}"))
         }
     }
 }
@@ -756,15 +759,15 @@ async fn handle_tools_call(
 /// installed, otherwise forwards to the trait method.
 async fn maybe_read_blocks(
     delegate: Option<&Arc<dyn crate::QueueDelegate>>,
-    agent_arguments: &indexmap::IndexMap<String, String>,
+    identity: &indexmap::IndexMap<String, String>,
 ) -> Option<crate::QueueRead> {
-    delegate?.read_pending_blocks(agent_arguments).await
+    delegate?.read_pending_blocks(identity).await
 }
 
 async fn handle_resources_list(
     sessions: &SessionManager,
     headers: &HeaderMap,
-    request: JsonRpcRequest,
+    id: RequestId,
 ) -> Response {
     let response_id = match extract_response_id(headers) {
         Ok(id) => id,
@@ -788,19 +791,20 @@ async fn handle_resources_list(
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
-                id: request.id,
+                id,
                 result,
             };
             (StatusCode::OK, Json(body)).into_response()
         }
-        Err(e) => internal_error_response(request.id, format!("list_resources: {e}")),
+        Err(e) => internal_error_response(id, format!("list_resources: {e}")),
     }
 }
 
 async fn handle_resources_read(
     sessions: &SessionManager,
     headers: &HeaderMap,
-    request: JsonRpcRequest,
+    id: RequestId,
+    params: ReadResourceRequestParams,
 ) -> Response {
     let response_id = match extract_response_id(headers) {
         Ok(id) => id,
@@ -813,29 +817,16 @@ async fn handle_resources_read(
         None => return unknown_session_response(),
     };
 
-    let params: ReadResourceRequestParams = match request.params.clone() {
-        Some(v) => match serde_json::from_value(v) {
-            Ok(p) => p,
-            Err(e) => {
-                return invalid_params_response(
-                    request.id,
-                    format!("resources/read params: {e}"),
-                );
-            }
-        },
-        None => return invalid_params_response(request.id, "missing params".into()),
-    };
-
-    let token = session.register_in_flight(&request.id);
+    let token = session.register_in_flight(&id);
     let _guard = InFlightGuard {
         session: Arc::clone(&session),
-        id: request.id.clone(),
+        id: id.clone(),
     };
 
     let result = tokio::select! {
         biased;
         _ = token.cancelled() => {
-            return cancelled_response(request.id);
+            return cancelled_response(id);
         }
         result = session.read_resource(&params.uri) => result,
     };
@@ -844,16 +835,16 @@ async fn handle_resources_read(
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
-                id: request.id,
+                id,
                 result,
             };
             (StatusCode::OK, Json(body)).into_response()
         }
         Err(ReadResourceError::ResourceNotFound(uri)) => {
-            invalid_params_response(request.id, format!("resource not found: {uri}"))
+            invalid_params_response(id, format!("resource not found: {uri}"))
         }
         Err(ReadResourceError::Upstream(e)) => {
-            internal_error_response(request.id, format!("upstream read_resource: {e}"))
+            internal_error_response(id, format!("upstream read_resource: {e}"))
         }
     }
 }
@@ -893,17 +884,17 @@ fn unknown_session_response() -> Response {
 
 /// Build a JSON-RPC `-32800 Request cancelled` error response, returned
 /// when an in-flight call is cancelled via `notifications/cancelled`.
-fn cancelled_response(id: serde_json::Value) -> Response {
-    json_rpc_error_response(StatusCode::OK, id, REQUEST_CANCELLED, "request cancelled".into())
+fn cancelled_response(id: RequestId) -> Response {
+    json_rpc_error_response(StatusCode::OK, Some(id), REQUEST_CANCELLED, "request cancelled".into())
 }
 
 /// RAII guard that removes the in-flight cancellation token when the
 /// handler future returns or is dropped (cancellation, panic, etc.).
-/// Owns its `id` clone so the handler can still move `request.id` into
+/// Owns its `id` clone so the handler can still move `id` into
 /// the response builders without borrow-conflicts.
 struct InFlightGuard {
     session: Arc<Session>,
-    id: serde_json::Value,
+    id: RequestId,
 }
 
 impl Drop for InFlightGuard {
@@ -979,9 +970,11 @@ fn server_info() -> Implementation {
     }
 }
 
+/// `id: None` serializes as an explicit `"id": null` — the JSON-RPC
+/// parse-error shape (no identifiable request to correlate to).
 fn json_rpc_error_response(
     status: StatusCode,
-    id: serde_json::Value,
+    id: Option<RequestId>,
     code: i64,
     message: String,
 ) -> Response {
@@ -999,30 +992,25 @@ fn json_rpc_error_response(
 
 
 fn parse_error_response(message: String) -> Response {
-    json_rpc_error_response(
-        StatusCode::BAD_REQUEST,
-        serde_json::Value::Null,
-        PARSE_ERROR,
-        message,
-    )
+    json_rpc_error_response(StatusCode::BAD_REQUEST, None, PARSE_ERROR, message)
 }
 
-fn invalid_request_response(id: serde_json::Value, message: String) -> Response {
-    json_rpc_error_response(StatusCode::OK, id, INVALID_REQUEST, message)
+fn invalid_request_response(id: RequestId, message: String) -> Response {
+    json_rpc_error_response(StatusCode::OK, Some(id), INVALID_REQUEST, message)
 }
 
-fn invalid_params_response(id: serde_json::Value, message: String) -> Response {
-    json_rpc_error_response(StatusCode::OK, id, INVALID_PARAMS, message)
+fn invalid_params_response(id: RequestId, message: String) -> Response {
+    json_rpc_error_response(StatusCode::OK, Some(id), INVALID_PARAMS, message)
 }
 
-fn internal_error_response(id: serde_json::Value, message: String) -> Response {
-    json_rpc_error_response(StatusCode::OK, id, INTERNAL_ERROR, message)
+fn internal_error_response(id: RequestId, message: String) -> Response {
+    json_rpc_error_response(StatusCode::OK, Some(id), INTERNAL_ERROR, message)
 }
 
-fn method_not_found_response(id: serde_json::Value, method: &str) -> Response {
+fn method_not_found_response(id: RequestId, method: &str) -> Response {
     json_rpc_error_response(
         StatusCode::OK,
-        id,
+        Some(id),
         METHOD_NOT_FOUND,
         format!("method not found: {method}"),
     )

@@ -3,7 +3,7 @@ use std::pin::Pin;
 use envconfig::Envconfig;
 use futures::Stream;
 use objectiveai_sdk::cli::command::{CommandRequest, ResponseItem, parse_request};
-use objectiveai_sdk::cli::broadcast_listener::ListenerEnd;
+use objectiveai_sdk::daemon::command_listener::ListenerEnd;
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -430,13 +430,17 @@ fn tee_context(scoped: &ScopedContext) -> serde_json::Value {
         // only source; wire claims are ignored), so /listen observers
         // can trust which installed plugin ran the command.
         ("plugin_owner", scoped.plugin_owner()),
-        ("plugin_repository", scoped.plugin_repository()),
+        ("plugin_name", scoped.plugin_name()),
         ("plugin_version", scoped.plugin_version()),
     ] {
         if let Some(val) = value {
             map.insert(key.to_string(), serde_json::Value::String(val.to_string()));
         }
     }
+    // Task-scheduler-fired marker: ALWAYS present, and a typed BOOL —
+    // the listener's `Frame` deserializes it as `bool`, so a string
+    // here would fail the whole frame and silently skip the run.
+    map.insert("task".to_string(), serde_json::Value::Bool(scoped.task()));
     serde_json::Value::Object(map)
 }
 

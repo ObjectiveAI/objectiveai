@@ -24,6 +24,14 @@ import { memo, useMemo } from "react";
  * parsed structure, not an escaped one-liner. That is a DISPLAY
  * transform: the shown text is no longer the literal outer document,
  * so copy affordances should copy the caller's original text.
+ *
+ * ESCAPED NEWLINES inside string tokens render as REAL line breaks
+ * ([`unescapeNewlines`]): the continuation sits at the line's own
+ * (key) indentation — 2ch SHALLOWER than a wrap's hang, which is
+ * what tells "the string contains a newline" apart from "this line
+ * wrapped". Escaped tabs (`\t`) render as 4 spaces. The quotes stay,
+ * and NO other escape is touched (`\"`, and literal `\\n` / `\\t`
+ * all render escaped).
  */
 
 /** How deep string-embedded JSON expansion recurses before giving up
@@ -86,6 +94,38 @@ function displayText(value: unknown): string {
   );
 }
 
+/** Replace, inside STRING tokens: the two-character `\n` escape with
+ * a real line break (continuation indented at the line's own (key)
+ * indentation) and the `\t` escape with 4 spaces. A character
+ * scanner, not a regex, because escape sequences must be consumed as
+ * units: `\\n` is a literal backslash followed by `n` — NOT a
+ * newline — and every other escape passes through untouched. Lines
+ * of pretty-printed JSON are self-contained (stringify never emits a
+ * raw newline inside a token), so scanning per line is sound. */
+function unescapeNewlines(text: string): string {
+  return text
+    .split("\n")
+    .map((line) => {
+      const indent = line.length - line.trimStart().length;
+      const brk = "\n" + " ".repeat(indent);
+      let out = "";
+      let inString = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (inString && c === "\\") {
+          const next = line[i + 1] ?? "";
+          out += next === "n" ? brk : next === "t" ? "    " : c + next;
+          i++;
+          continue;
+        }
+        if (c === '"') inString = !inString;
+        out += c;
+      }
+      return out;
+    })
+    .join("\n");
+}
+
 export const JsonBlock = memo(function JsonBlock({
   value,
   className,
@@ -98,7 +138,10 @@ export const JsonBlock = memo(function JsonBlock({
    * is baked in — the hanging indent's `ch` math needs it. */
   className?: string;
 }) {
-  const lines = useMemo(() => displayText(value).split("\n"), [value]);
+  const lines = useMemo(
+    () => unescapeNewlines(displayText(value)).split("\n"),
+    [value],
+  );
   return (
     <div className={cn("font-mono", className)}>
       {lines.map((line, i) => {

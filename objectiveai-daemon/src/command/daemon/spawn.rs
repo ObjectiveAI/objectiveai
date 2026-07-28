@@ -11,19 +11,16 @@
 //! singleton lock (publishing the client-connect `http://` URL as the lock
 //! content, like `objectiveai-api` publishes its `http://` URL), brings
 //! up the [`crate::http::daemon_stream`] hub (`/listen` broadcast SSE +
-//! `/execute` POST→SSE runner + fixed-name producer socket), then launches
-//! every `daemon: true` plugin via the SHARED plugin executor
-//! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
-//! plugin gets the full bidirectional protocol (it can execute nested
-//! commands, exactly like `plugins run` and the conduit's `mcp begin`).
-//! The plugins are leashed to this process; if any exits, the whole
-//! daemon exits (and the OS releases the lock).
+//! `/execute` POST→SSE runner + fixed-name producer socket), then stays
+//! resident holding the singleton lock until killed. (The former
+//! resident `daemon: true` plugin launcher is retired — plugins are
+//! ephemeral containers on laboratory hosts now, with no daemon-spawned
+//! processes of any kind.)
 
 use std::pin::Pin;
 
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use objectiveai_sdk::cli::command::daemon::spawn::{Request, ResponseItem};
-use objectiveai_sdk::cli::command::plugins::run::{Path as RunPath, Request as RunRequest};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -68,7 +65,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
             crate::spawn::apply_config_env(cmd, global, scoped);
             // The foreground daemon reads its bind config as bare
             // `ADDRESS`/`PORT`/`SECRET`; stamp them here (never for
-            // plugins/tools).
+            // plugins).
             crate::spawn::apply_daemon_env(cmd, global);
             // The resident daemon is a per-state singleton service, not
             // part of any agent's lineage. Since the producer tee makes
@@ -87,7 +84,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
                 "OBJECTIVEAI_RESPONSE_ID",
                 "OBJECTIVEAI_RESPONSE_IDS",
                 "OBJECTIVEAI_PLUGIN_OWNER",
-                "OBJECTIVEAI_PLUGIN_REPOSITORY",
+                "OBJECTIVEAI_PLUGIN_NAME",
                 "OBJECTIVEAI_PLUGIN_VERSION",
             ] {
                 cmd.env_remove(var);
@@ -233,10 +230,20 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     // single set is visible everywhere. `mcp_notifiers` replaces the
     // per-response mcp sockets.
     let mcp_notifiers = std::sync::Arc::new(dashmap::DashMap::new());
+    // `(response_id, lab_id) → wire McpKind` mirror behind the
+    // laboratory-WS list-changed relay; conduits' route tables are
+    // its sole writers.
+    let lab_mcp_kinds = std::sync::Arc::new(dashmap::DashMap::new());
     // The `/user` user-requests hub: pending outbound requests +
     // tracked per-connection delivery. Held here for the daemon's
     // life like every other hub.
-    let user = crate::http::user_routes::UserHub::new(global.clone());
+    // The `/channels` duplex-channels hub: live connection + offer
+    // coordination (the durable log lives in the DB).
+    let channels = crate::http::channel_routes::ChannelHub::new();
+    // The resident task scheduler: handle published on the hubs,
+    // driver spawned below (it re-arms from the DB and parks until
+    // notified).
+    let tasks = crate::command::tasks::scheduler::TaskScheduler::new();
     global.set_resident_hubs(crate::context::ResidentHubs {
         broadcast: tx.clone(),
         active: active.clone(),
@@ -244,8 +251,12 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         laboratories: laboratories.clone(),
         labs_hub: labs_hub.clone(),
         mcp_notifiers,
-        user: user.clone(),
+        lab_mcp_kinds,
+        channels: channels.clone(),
+        tasks: tasks.clone(),
+        development_plugins: Default::default(),
     });
+    tasks.spawn_driver(global.clone(), scoped.clone());
     crate::http::daemon_stream::serve_http(
         http_listener,
         tx.clone(),
@@ -255,7 +266,7 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         conversations.clone(),
         laboratories.clone(),
         labs_hub.clone(),
-        user,
+        channels,
     );
     // Best-effort: seed the registry with agents already holding a lock
     // when the daemon started (off the boot path — no DB round-trip block).
@@ -276,59 +287,18 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
     tokio::spawn(active.clone().watch_attachment_changes());
     tokio::spawn(active.clone().watch_active_laboratory_changes());
 
-    // Launch every daemon plugin under the SHARED plugin executor, run
-    // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed
-    // and drives the full nested-command protocol; we consume (drive) its
-    // stream below.
-    let manifests: Vec<crate::filesystem::plugins::Manifest> = scoped
-        .filesystem
-        .list_plugins(0, usize::MAX)
-        .await
-        .into_iter()
-        .filter(|m| m.daemon)
-        .collect();
-    let mut streams = Vec::new();
-    for manifest in manifests {
-        let request = RunRequest {
-            path_type: RunPath::PluginsRun,
-            owner: manifest.owner,
-            name: manifest.name,
-            version: manifest.version,
-            args: vec!["daemon".to_string(), "begin".to_string()],
-            base: Default::default(),
-        };
-        let stream = crate::command::plugins::run::execute(global, scoped, request).await?;
-        streams.push(stream);
-    }
-
     let stream = async_stream::stream! {
         // Hold the lock claim for the daemon's whole life: `LockClaim`
         // never releases on drop (the OS reclaims the handles on process
         // exit — exactly the liveness we want).
         let _claim = claim;
 
-        let mut drains = futures::stream::FuturesUnordered::new();
-        for plugin_stream in streams {
-            drains.push(async move {
-                let mut plugin_stream = plugin_stream;
-                // Draining the stream DRIVES the plugin's protocol —
-                // nested commands run as items are consumed. The stream
-                // ends only when the plugin exits.
-                while plugin_stream.next().await.is_some() {}
-            });
-        }
-
         // Ready: the launcher's handshake (and the lone item a direct
         // `daemon spawn --foreground` watcher would see).
         yield Ok::<ResponseItem, Error>(ResponseItem { ok: true });
 
-        if drains.is_empty() {
-            // No daemon plugins: stay resident so the singleton is held.
-            std::future::pending::<()>().await;
-        } else {
-            // Any plugin exiting ends the whole daemon.
-            let _ = drains.next().await;
-        }
+        // Stay resident so the singleton is held until killed.
+        std::future::pending::<()>().await;
     };
     Ok(Box::pin(stream))
 }

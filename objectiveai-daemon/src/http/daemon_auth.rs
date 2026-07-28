@@ -3,6 +3,8 @@
 //! - **HTTP routes** (everything except `/laboratory`): the
 //!   `X-OBJECTIVEAI-SIGNATURE` request header, checked by
 //!   [`authenticate_header`]. `401` on a missing/invalid signature.
+//!   The `/mcp` routes included — MCP clients configure the
+//!   `X-OBJECTIVEAI-SIGNATURE` header like any other consumer.
 //! - **The `/laboratory` WebSocket** (the daemon's ONE remaining WS —
 //!   the bidirectional host channel): a first-message text-frame
 //!   preamble, the SDK [`AuthEnvelope`] —
@@ -19,7 +21,7 @@
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
-use objectiveai_sdk::cli::command::command_executor::sse::AuthEnvelope;
+use objectiveai_sdk::daemon::AuthEnvelope;
 use subtle::ConstantTimeEq;
 
 /// Consume the connection's auth preamble: read frames until the

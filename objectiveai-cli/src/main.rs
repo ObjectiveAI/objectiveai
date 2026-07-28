@@ -4,7 +4,7 @@
 //! NOT run any command logic: it clap-parses argv into a `Request`
 //! locally, ensures the resident `objectiveai-daemon` is up, and ships
 //! the `Request` to the daemon's `/execute` route (POST) via the SDK
-//! [`SseCommandExecutor`]. The daemon runs it IN-PROCESS and streams the
+//! the daemon [`objectiveai_sdk::daemon::Client`]. The daemon runs it IN-PROCESS and streams the
 //! result back as SSE — one JSON line per item, exactly the stdout JSONL
 //! shapes the daemon itself would have written. We drain those lines to
 //! stdout verbatim.
@@ -32,10 +32,11 @@
 use std::path::PathBuf;
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::command_executor::sse;
+use objectiveai_sdk::identity::Identity;
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, ParseError, Request, SseCommandExecutor, parse_request,
+    CommandExecutor, ParseError, Request, parse_request,
 };
+use objectiveai_sdk::daemon::Client as DaemonClient;
 use tokio::io::AsyncWriteExt;
 
 /// The resident daemon's per-state singleton lock key. Must match
@@ -108,7 +109,7 @@ async fn run(args: Vec<String>) -> i32 {
     }
 
     // Ensure the daemon is up and build the HTTP executor + identity bag.
-    let (executor, agent_arguments) = match connect().await {
+    let (executor, identity) = match connect().await {
         Ok(pair) => pair,
         Err(message) => {
             write_error_line(&mut stdout, message, Some(true)).await;
@@ -121,7 +122,7 @@ async fn run(args: Vec<String>) -> i32 {
     // post-transform JSON alike), and the executor surfaces the daemon's
     // structured error lines as `Error::Cli`.
     match executor
-        .execute::<_, serde_json::Value>(request, Some(&agent_arguments))
+        .execute::<_, serde_json::Value>(request, Some(&identity))
         .await
     {
         Ok(mut stream) => {
@@ -236,10 +237,11 @@ async fn read_daemon_config(layout: &Layout) -> Result<Option<DaemonConfigSectio
         .map_err(|e| format!("parse {}: {e}", path.display()))
 }
 
-/// Build a `/execute` [`SseCommandExecutor`] for an already-known daemon
-/// `http://` URL (no spawn), presenting `signature` when given.
-fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
-    let executor = SseCommandExecutor::new(format!("{url}/execute"));
+/// Build a daemon [`Client`](DaemonClient) — the `/execute` executor
+/// — for an already-known daemon `http://` URL (no spawn), presenting
+/// `signature` when given.
+fn executor_for(url: &str, signature: Option<String>) -> DaemonClient {
+    let executor = DaemonClient::new(url);
     match signature {
         Some(signature) => executor.signature(signature),
         None => executor,
@@ -247,10 +249,10 @@ fn executor_for(url: &str, signature: Option<String>) -> SseCommandExecutor {
 }
 
 /// Ensure the right daemon is reachable and return a `/execute`
-/// [`SseCommandExecutor`] plus the per-request identity override to
+/// executor (the daemon [`Client`](DaemonClient)) plus the per-request identity override to
 /// send with every command. The selection ladder is documented on the
 /// module.
-async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
+async fn connect() -> Result<(DaemonClient, Identity), String> {
     // Rung 1 — env override: when `DAEMON_ADDRESS` is set, connect to
     // that daemon directly and NEVER spawn a local one; an explicit
     // per-invocation choice outranks the persisted config.
@@ -259,7 +261,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
     {
         return Ok((
             executor_for(&addr, daemon_signature_env()),
-            agent_arguments_from_env(),
+            identity_from_env(),
         ));
     }
 
@@ -273,7 +275,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
         && let Some(address) = section.address.as_deref().filter(|s| !s.is_empty())
     {
         let signature = section.signature.clone().filter(|s| !s.is_empty());
-        return Ok((executor_for(address, signature), agent_arguments_from_env()));
+        return Ok((executor_for(address, signature), identity_from_env()));
     }
 
     // Rung 3 — the local daemon. Idempotent: returns immediately if
@@ -311,7 +313,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
                 "OBJECTIVEAI_RESPONSE_ID",
                 "OBJECTIVEAI_RESPONSE_IDS",
                 "OBJECTIVEAI_PLUGIN_OWNER",
-                "OBJECTIVEAI_PLUGIN_REPOSITORY",
+                "OBJECTIVEAI_PLUGIN_NAME",
                 "OBJECTIVEAI_PLUGIN_VERSION",
             ] {
                 cmd.env_remove(var);
@@ -350,7 +352,7 @@ async fn connect() -> Result<(SseCommandExecutor, AgentArguments), String> {
             .map(derive_signature),
         None => daemon_signature_env(),
     };
-    Ok((executor_for(&url, signature), agent_arguments_from_env()))
+    Ok((executor_for(&url, signature), identity_from_env()))
 }
 
 /// `daemon kill` — client-side. Signal the daemon-lock owner(s) directly
@@ -383,9 +385,9 @@ async fn handle_daemon_kill(stdout: &mut tokio::io::Stdout) -> i32 {
 /// invocation. Every other unset field stays `None`, sent as no
 /// header, which the daemon DELETES on the run's config — never
 /// inherits.
-fn agent_arguments_from_env() -> AgentArguments {
+fn identity_from_env() -> Identity {
     let var = |key: &str| std::env::var(key).ok().filter(|s| !s.is_empty());
-    AgentArguments {
+    Identity {
         agent_instance_hierarchy: var("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY")
             .or_else(|| Some("cli".to_string())),
         agent_id: var("OBJECTIVEAI_AGENT_ID"),
@@ -397,8 +399,11 @@ fn agent_arguments_from_env() -> AgentArguments {
         // identity is unspoofable — only the daemon's own `plugins
         // run` may assert it, in-process. An env claim is ignored.
         plugin_owner: None,
-        plugin_repository: None,
+        plugin_name: None,
         plugin_version: None,
+        // Same discipline: only the daemon's task scheduler stamps
+        // this, in-process. An env claim is ignored.
+        task: false,
     }
 }
 
@@ -419,9 +424,12 @@ fn is_informational(e: &clap::Error) -> bool {
 /// structured error (`Error::Cli`) is reserialized verbatim — it is
 /// already the cli's `{"type":"error",...}` line shape. Transport /
 /// decode / empty failures become a fresh fatal error line.
-async fn write_execute_error(stdout: &mut tokio::io::Stdout, e: sse::Error) {
+async fn write_execute_error(
+    stdout: &mut tokio::io::Stdout,
+    e: objectiveai_sdk::daemon::ExecuteError,
+) {
     match e {
-        sse::Error::Cli(cli) => write_json_line(stdout, &cli).await,
+        objectiveai_sdk::daemon::ExecuteError::Cli(cli) => write_json_line(stdout, &cli).await,
         other => write_error_line(stdout, other.to_string(), Some(true)).await,
     }
 }

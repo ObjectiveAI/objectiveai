@@ -90,7 +90,7 @@ impl CommandRequest for Request {
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
@@ -99,19 +99,19 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
     > = match request {
         Request::List(req) => {
-            let value = list::execute(executor, req, agent_arguments).await?;
+            let value = list::execute(executor, req, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::List(value),
             )))
         }
         Request::ListRequestSchema(req) => {
-            let value = list::request_schema::execute(executor, req, agent_arguments).await?;
+            let value = list::request_schema::execute(executor, req, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::ListRequestSchema(value),
             )))
         }
         Request::ListResponseSchema(req) => {
-            let value = list::response_schema::execute(executor, req, agent_arguments).await?;
+            let value = list::response_schema::execute(executor, req, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::ListResponseSchema(value),
             )))
@@ -125,7 +125,7 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
     transform: crate::cli::command::Transform,
-    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+    identity: Option<&crate::identity::Identity>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
     E::Error,
@@ -134,17 +134,17 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
     > = match request {
         Request::List(req) => {
-            let value = list::execute_transform(executor, req, transform, agent_arguments).await?;
+            let value = list::execute_transform(executor, req, transform, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::ListRequestSchema(req) => {
             let value =
-                list::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                list::request_schema::execute_transform(executor, req, transform, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::ListResponseSchema(req) => {
             let value =
-                list::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                list::response_schema::execute_transform(executor, req, transform, identity).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };
@@ -152,8 +152,8 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 /// `/listen` mirror of [`Request`]: one variant per child, wrapping
-/// its `ListenerExecution`. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// its `ListenerExecution`. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     List(list::ListenerExecution),
     ListRequestSchema(list::request_schema::ListenerExecution),

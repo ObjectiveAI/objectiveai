@@ -72,10 +72,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<Response, E::Error> {
     request.base.clear_transform();
-    executor.execute_one(request, agent_arguments).await
+    executor.execute_one(request, identity).await
 }
 
 #[cfg(feature = "cli-executor")]
@@ -84,10 +84,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     transform: crate::cli::command::Transform,
 
-        agent_arguments: Option<&crate::cli::command::AgentArguments>,
+        identity: Option<&crate::identity::Identity>,
     ) -> Result<serde_json::Value, E::Error> {
     request.base.set_transform(transform);
-    executor.execute_one(request, agent_arguments).await
+    executor.execute_one(request, identity).await
 }
 
 #[cfg(feature = "mcp")]
@@ -103,11 +103,11 @@ pub mod response_schema;
 
 /// One `/listen` broadcast run of `api config backoff_max_elapsed_time_ms get`: the actual
 /// [`Request`], the producer's
-/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// unary response future. See [`crate::cli::broadcast_listener`].
-#[cfg(feature = "cli-listener")]
+/// [`Identity`](crate::identity::Identity), and the
+/// unary response future. See [`crate::daemon::command_listener`].
+#[cfg(all(feature = "cli", feature = "daemon"))]
 pub struct ListenerExecution {
     pub request: Request,
-    pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: crate::cli::broadcast_listener::UnaryResponse<Response>,
+    pub identity: crate::identity::Identity,
+    pub response: crate::daemon::command_listener::UnaryResponse<Response>,
 }

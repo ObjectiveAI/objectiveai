@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
+import { builtinTabModule, tabsOpen } from "../lib/tabs";
 import {
   agentsTagsApplyExecute,
   agentsTagsRemoveExecute,
@@ -13,6 +14,7 @@ import { reportError } from "../lib/errors";
 import { daemonExecutor } from "../lib/executor";
 import { LoadingDots } from "./LoadingDots";
 import { ContextMenu, ContextMenuItem } from "./shared/ContextMenu";
+import { JsonBlock } from "./shared/JsonBlock";
 import { OpenTab } from "./shared/OpenTab";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
@@ -179,10 +181,15 @@ export function HierarchyTree({
   );
 }
 
-/** Open (or focus) the agent's conversation WINDOW — a real Tauri
- * window on the `agent.html` entry, created by the Rust shell. */
+/** Open (or focus) the agent's conversation TAB — appended to this
+ * window's strip, or focused wherever it already lives (the shell
+ * dedupes by kind). */
 function openAgentWindow(hierarchy: string): void {
-  void tauriInvoke("open_agent_window", { aih: hierarchy });
+  void tabsOpen({
+    module: builtinTabModule("agent"),
+    title: hierarchy,
+    arguments: { aih: hierarchy },
+  });
 }
 
 /**
@@ -938,51 +945,70 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
     return <RemoteDefinition remote={agent} />;
   }
   return (
-    // A regular badge chip, just BIGGER: identical border, padding,
-    // and tint — the label meets the top-left exactly like every
-    // other badge, and the box simply extends to hold the JSON.
+    // The width-clamp sleeve: `w-0` makes the definition contribute
+    // NOTHING to the agent box's intrinsic width (the box sizes to
+    // its next-widest row instead), and `min-w-full` stretches the
+    // sleeve back to whatever width those rows resolved — so a long
+    // inline JSON wraps to the box, never widens it.
     <div
       className={cn(
+        "w-0",
+        "min-w-full",
         "flex",
         "flex-col",
         "items-start",
-        "self-start",
         "mt-1",
         "first:mt-0",
-        "rounded-sm",
-        "border",
-        "border-copper-mid/70",
-        // The label's tint clips to the border at the top-left.
-        "overflow-hidden",
-        "text-sm",
-        "text-copper-bright",
       )}
     >
-      <span
+      {/* A regular badge chip, just BIGGER: identical border,
+          padding, and tint — the label meets the top-left exactly
+          like every other badge, and the box extends to hold the
+          JSON, hugging it up to the sleeve's bound. */}
+      <div
         className={cn(
-          "px-1.5",
-          "py-px",
-          "text-xs",
-          "bg-copper-warm/10",
-          "rounded-br-sm",
+          "max-w-full",
+          "flex",
+          "flex-col",
+          "items-start",
+          "rounded-sm",
+          "border",
+          "border-copper-mid/70",
+          // The label's tint clips to the border at the top-left.
+          "overflow-hidden",
+          "text-sm",
+          "text-copper-bright",
         )}
       >
-        inline
-      </span>
-      <pre
-        data-agent-definition
-        className={cn(
-          "text-xs",
-          "text-[#c3bfbb]",
-          "text-left",
-          "whitespace-pre",
-          "leading-snug",
-          "px-1.5",
-          "py-1",
-        )}
-      >
-        {formatDefinition(agent)}
-      </pre>
+        <span
+          className={cn(
+            "px-1.5",
+            "py-px",
+            "text-xs",
+            "bg-copper-warm/10",
+            "rounded-br-sm",
+          )}
+        >
+          inline
+        </span>
+        {/* The shared wrap-safe renderer: wrapped continuations hang
+            at each line's own indentation instead of snapping back
+            to column zero (and string-embedded JSON expands, like
+            everywhere else). */}
+        <div data-agent-definition className={cn("max-w-full")}>
+          <JsonBlock
+            value={stripNulls(agent)}
+            className={cn(
+              "text-xs",
+              "text-[#c3bfbb]",
+              "text-left",
+              "leading-snug",
+              "px-1.5",
+              "py-1",
+            )}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -1240,13 +1266,14 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
   );
 }
 
-/** Pretty-print the definition, omitting every null-valued key (at
- * any depth) — nulls are wire noise, not information. */
-function formatDefinition(agent: unknown): string {
-  return JSON.stringify(
-    agent,
-    (_key, value: unknown) => (value === null ? undefined : value),
-    2,
+/** The definition with every null-valued key omitted (at any depth)
+ * — nulls are wire noise, not information. A VALUE transform so the
+ * shared [`JsonBlock`] owns the actual rendering. */
+function stripNulls(agent: unknown): unknown {
+  return JSON.parse(
+    JSON.stringify(agent, (_key, value: unknown) =>
+      value === null ? undefined : value,
+    ) ?? "null",
   );
 }
 
