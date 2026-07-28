@@ -23,9 +23,11 @@ use objectiveai_mcp_plugin_framework::rmcp;
 use objectiveai_mcp_plugin_framework::objectiveai_sdk;
 use futures::StreamExt;
 use objectiveai_mcp_plugin_framework::tools::Tools;
+use objectiveai_mcp_plugin_framework::{db, sqlx};
 use objectiveai_sdk::cli::command::agents::instances::get;
 use rmcp::handler::server::tool::ToolRoute;
 use rmcp::handler::server::wrapper::{Json, Parameters};
+use sqlx::Row as _;
 
 /// Must match `mcp.port` in `objectiveai.json`.
 const PORT: u16 = 8080;
@@ -45,6 +47,30 @@ const SWITCH_ARGUMENT: &str = "switch";
 
 const SWITCH_TOOL: &str = "scaffold_switch_deleteme";
 const SWITCHED_TOOL: &str = "scaffold_switched_deleteme";
+
+/// Created on first use rather than by a migration, because a plugin
+/// container is ephemeral and there is nowhere to run one.
+///
+/// The database is the DAEMON's, tunnelled in — not a private one — so
+/// a plugin shares it with ObjectiveAI's own tables and with every
+/// other plugin. Two habits follow, and both are in this statement: own
+/// a distinctly named table rather than writing into someone else's,
+/// and scope rows by the agent they belong to, since the next container
+/// over is a different agent looking at the same rows.
+const CREATE_NOTES: &str = "
+    CREATE TABLE IF NOT EXISTS scaffold_notes_deleteme (
+        agent_instance_hierarchy TEXT        NOT NULL,
+        note_key                 TEXT        NOT NULL,
+        note_value               TEXT        NOT NULL,
+        written_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (agent_instance_hierarchy, note_key)
+    )
+";
+
+/// Runs [`CREATE_NOTES`] once per process, however many tools race to
+/// use it — the same shape [`db::connect`] uses, and for the same
+/// reason: the work is idempotent but the round trip is not free.
+static NOTES_TABLE: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
 
 /// Which tools to actually serve.
 ///
@@ -88,6 +114,49 @@ fn served_routes(switched_on: bool) -> Vec<ToolRoute<Plugin>> {
         .collect()
 }
 
+/// The pool, with the table guaranteed to exist.
+///
+/// Note the queries are `sqlx::query`, not the `sqlx::query!` MACRO.
+/// The macro checks SQL against a live database AT COMPILE TIME, which
+/// would make this plugin unbuildable without one — and the database a
+/// plugin talks to does not exist until a host creates its container.
+async fn notes_pool() -> Result<db::Pool, rmcp::ErrorData> {
+    let pool = db::connect(Default::default())
+        .await
+        .map_err(|error| database_error("connect", &error))?;
+
+    NOTES_TABLE
+        .get_or_try_init(|| async {
+            sqlx::query(CREATE_NOTES).execute(&pool).await.map(|_| ())
+        })
+        .await
+        .map_err(|error| database_error("create the notes table", &error))?;
+
+    Ok(pool)
+}
+
+/// `source` chains are where the actual cause lives — sqlx's top-level
+/// `Display` is often just "error returned from database server". An
+/// agent gets one string, so it has to be the whole story.
+fn database_error(doing: &str, error: &dyn std::error::Error) -> rmcp::ErrorData {
+    let mut message = format!("{doing}: {error}");
+    let mut source = error.source();
+    while let Some(cause) = source {
+        message.push_str(&format!(": {cause}"));
+        source = cause.source();
+    }
+    rmcp::ErrorData::internal_error(message, None)
+}
+
+/// Which agent's notes these are. Rows are scoped by it, so two agents
+/// running this plugin never see each other's.
+fn notes_scope() -> &'static str {
+    objectiveai_mcp_plugin_framework::identity()
+        .agent_instance_hierarchy
+        .as_deref()
+        .unwrap_or("")
+}
+
 /// Whatever your tools need. Every tool receives `&Self`, so put
 /// clients, handles and configuration here. It is built once and
 /// shared by every call, so anything mutable needs its own interior
@@ -121,6 +190,33 @@ struct WhoAmI {
     /// means it cannot drift, and a field added upstream appears here
     /// for free.
     agent: get::ResponseItem,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct NoteWriteArgs {
+    /// What to file the note under. Writing the same key twice
+    /// replaces it.
+    key: String,
+    /// The note.
+    value: String,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct NoteReadArgs {
+    /// The key given to `scaffold_note_write_deleteme`.
+    key: String,
+}
+
+#[derive(serde::Serialize, schemars::JsonSchema)]
+struct Note {
+    key: String,
+    value: String,
+    /// RFC3339, and a `String` because it is cast to text in the
+    /// query. Decoding a `TIMESTAMPTZ` as a real time type needs
+    /// sqlx's `chrono` or `time` feature, which the framework does not
+    /// enable — so the cast is what keeps this working with the sqlx
+    /// you actually have.
+    written_at: String,
 }
 
 #[derive(serde::Serialize, schemars::JsonSchema)]
@@ -232,6 +328,84 @@ impl Plugin {
             plugin_name: identity.plugin_name.clone(),
             plugin_version: identity.plugin_version.clone(),
             agent,
+        }))
+    }
+
+    /// Writes a note to the plugin's database, replacing any note
+    /// already under that key.
+    #[rmcp::tool(
+        description = "Scaffold example, delete me. Stores a note under a key."
+    )]
+    async fn scaffold_note_write_deleteme(
+        &self,
+        Parameters(args): Parameters<NoteWriteArgs>,
+    ) -> Result<Json<Note>, rmcp::ErrorData> {
+        let pool = notes_pool().await?;
+
+        // Bound parameters, never formatted into the string. `$1` is
+        // sent to Postgres as DATA, so a note whose value is
+        // `'; DROP TABLE ...` is just an odd note.
+        let row = sqlx::query(
+            "
+            INSERT INTO scaffold_notes_deleteme
+                (agent_instance_hierarchy, note_key, note_value)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (agent_instance_hierarchy, note_key) DO UPDATE
+                SET note_value = EXCLUDED.note_value, written_at = now()
+            RETURNING note_value, written_at::text AS written_at
+            ",
+        )
+        .bind(notes_scope())
+        .bind(&args.key)
+        .bind(&args.value)
+        .fetch_one(&pool)
+        .await
+        .map_err(|error| database_error("write the note", &error))?;
+
+        Ok(Json(Note {
+            key: args.key,
+            value: row.get("note_value"),
+            written_at: row.get("written_at"),
+        }))
+    }
+
+    /// Reads back what `scaffold_note_write_deleteme` stored.
+    #[rmcp::tool(
+        description = "Scaffold example, delete me. Reads the note stored under a key."
+    )]
+    async fn scaffold_note_read_deleteme(
+        &self,
+        Parameters(args): Parameters<NoteReadArgs>,
+    ) -> Result<Json<Note>, rmcp::ErrorData> {
+        let pool = notes_pool().await?;
+
+        let row = sqlx::query(
+            "
+            SELECT note_value, written_at::text AS written_at
+            FROM scaffold_notes_deleteme
+            WHERE agent_instance_hierarchy = $1 AND note_key = $2
+            ",
+        )
+        .bind(notes_scope())
+        .bind(&args.key)
+        // `fetch_optional`, not `fetch_one`: no note under that key is
+        // an ordinary answer, and would otherwise arrive as
+        // `RowNotFound` dressed up as a database failure.
+        .fetch_optional(&pool)
+        .await
+        .map_err(|error| database_error("read the note", &error))?;
+
+        let Some(row) = row else {
+            return Err(rmcp::ErrorData::invalid_params(
+                format!("no note stored under {:?}", args.key),
+                None,
+            ));
+        };
+
+        Ok(Json(Note {
+            key: args.key,
+            value: row.get("note_value"),
+            written_at: row.get("written_at"),
         }))
     }
 

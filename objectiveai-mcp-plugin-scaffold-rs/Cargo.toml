@@ -28,7 +28,8 @@ futures = "0.3.33"
 # `main.rs`.
 schemars = "1.2.2"
 serde = { version = "1.0.228", features = ["derive"] }
-tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+# `sync` is for the `OnceCell` guarding the table creation.
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread", "sync"] }
 
 [profile.release]
 # Small, fast-enough image binary.

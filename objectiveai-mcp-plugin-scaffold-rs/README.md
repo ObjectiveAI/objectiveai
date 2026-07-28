@@ -38,11 +38,45 @@ async fn greet(&self, Parameters(args): Parameters<GreetArgs>) -> String {
 Put anything your tools share — clients, handles, configuration — on
 `Plugin`. Every tool receives it as `&self`.
 
-The four tools already in there are named `scaffold_*_deleteme`. The
+The six tools already in there are named `scaffold_*_deleteme`. The
 names are deliberately unmissable: they are there to be read once and
 removed, and an agent that can see a `..._deleteme` is looking at a
 plugin whose author never got to writing their own. Delete them as soon
 as you have one of your own.
+
+## Using the database
+
+Every plugin container gets a Postgres tunnelled in by the host, so a
+plugin never configures one — it asks:
+
+```rust
+let pool = db::connect(Default::default()).await?;
+```
+
+That connects at most once no matter how many tools call it, shares one
+attempt between overlapping callers, and does not cache a failure — a
+tunnel that was not up yet will not poison the process.
+
+`scaffold_note_write_deleteme` and `scaffold_note_read_deleteme` are a
+round trip through it. Three things in them are worth keeping when you
+delete the rest:
+
+- **The database is the daemon's, not yours alone.** You share it with
+  ObjectiveAI's own tables and with every other plugin. So own a
+  distinctly named table, and scope rows by
+  `identity().agent_instance_hierarchy` — the next container over is a
+  different agent reading the same table.
+- **`sqlx::query`, not the `sqlx::query!` macro.** The macro validates
+  SQL against a live database at COMPILE time, which would make your
+  plugin unbuildable without one. The database it will talk to does not
+  exist until a host creates its container.
+- **Cast timestamps to text in the query.** Decoding a `TIMESTAMPTZ`
+  into a real time type needs sqlx's `chrono` or `time` feature, which
+  the framework does not enable; `written_at::text` works with the sqlx
+  you have.
+
+The table is created on first use, guarded by a `OnceCell`. A plugin
+container is ephemeral and there is nowhere to run a migration.
 
 ## Tools that come and go
 
