@@ -38,7 +38,7 @@ async fn greet(&self, Parameters(args): Parameters<GreetArgs>) -> String {
 Put anything your tools share — clients, handles, configuration — on
 `Plugin`. Every tool receives it as `&self`.
 
-The six tools already in there are named `scaffold_*_deleteme`. The
+The seven tools already in there are named `scaffold_*_deleteme`. The
 names are deliberately unmissable: they are there to be read once and
 removed, and an agent that can see a `..._deleteme` is looking at a
 plugin whose author never got to writing their own. Delete them as soon
@@ -77,6 +77,45 @@ delete the rest:
 
 The table is created on first use, guarded by a `OnceCell`. A plugin
 container is ephemeral and there is nowhere to run a migration.
+
+## Asking a person something
+
+`scaffold_credential_call_deleteme` is the longest example, and the one
+worth reading if your plugin ever needs a human in the loop. It calls a
+URL with a credential, and gets the credential by asking — through a
+viewer channel — but only when it has to:
+
+1. Look in the database, scoped to this agent. If a credential is
+   there, skip to step 5. **This is what makes it conditional**: the
+   first call may wait on a person, and no later call does.
+2. `channels publish` offers a channel and BLOCKS until a viewer
+   accepts. Uncapped without a timeout, so it has one.
+3. `channels logs subscribe` waits for the reply. It wakes ONCE per
+   call — immediately if entries are already unread, otherwise when one
+   arrives — so this loops with a cursor rather than holding one long
+   stream. The channel's first entry is the offer itself, seeded at
+   accept, so the loop skips forward to the first `reply`.
+4. Entries are envelopes; the content is behind `channels logs open`.
+   Then the channel is closed, on the success and failure paths alike —
+   a channel left open is a user surface left waiting.
+5. Call the endpoint with the credential as `Authorization`, and return
+   the status and body.
+
+**Failures come back as a tool RESULT, not a protocol error**, carrying
+which step broke:
+
+```rust
+CallToolResult::structured_error(json!({ "step": "subscribe", "error": ... }))
+```
+
+That distinction is worth keeping. A protocol error means "this call
+was malformed". Everything above is the call working correctly and the
+world not cooperating — nobody accepted, the person cancelled, the
+endpoint rejected the credential — which is something an agent can
+reason about and retry. The HTTP status is reported rather than
+enforced for the same reason: a 401 is a real answer, and turning it
+into an error would hide the one result that says the credential has
+gone stale.
 
 ## Tools that come and go
 

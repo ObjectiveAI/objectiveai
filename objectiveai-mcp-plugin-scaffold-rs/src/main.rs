@@ -24,7 +24,9 @@ use objectiveai_mcp_plugin_framework::objectiveai_sdk;
 use futures::StreamExt;
 use objectiveai_mcp_plugin_framework::tools::Tools;
 use objectiveai_mcp_plugin_framework::{db, sqlx};
+use objectiveai_sdk::cli::command::RequestBase;
 use objectiveai_sdk::cli::command::agents::instances::get;
+use objectiveai_sdk::cli::command::channels;
 use rmcp::handler::server::tool::ToolRoute;
 use rmcp::handler::server::wrapper::{Json, Parameters};
 use sqlx::Row as _;
@@ -72,6 +74,35 @@ const CREATE_NOTES: &str = "
 /// reason: the work is idempotent but the round trip is not free.
 static NOTES_TABLE: tokio::sync::OnceCell<()> = tokio::sync::OnceCell::const_new();
 
+/// Where a credential obtained through a viewer channel is kept, so it
+/// is asked for once rather than once per call.
+const CREATE_CREDENTIALS: &str = "
+    CREATE TABLE IF NOT EXISTS scaffold_credentials_deleteme (
+        agent_instance_hierarchy TEXT        NOT NULL PRIMARY KEY,
+        credential               TEXT        NOT NULL,
+        obtained_at              TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+";
+
+static CREDENTIALS_TABLE: tokio::sync::OnceCell<()> =
+    tokio::sync::OnceCell::const_new();
+
+/// The channel's discriminator. A user surface decides from this
+/// whether an offer is one it knows how to answer, so it wants to name
+/// the EXCHANGE, not the plugin.
+const CREDENTIAL_CHANNEL_KEY: &str = "scaffold.credential";
+
+/// How long to wait for a viewer to accept the offer. `channels
+/// publish` blocks until one does, and is UNCAPPED without this — a
+/// plugin that omits it waits for a human forever.
+const ACCEPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// How long to wait, after acceptance, for the reply carrying the
+/// credential. Separate from [`ACCEPT_TIMEOUT`] because they are
+/// different waits: one is "is anyone there", the other is "has the
+/// person finished typing".
+const REPLY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
 /// Which tools to actually serve.
 ///
 /// `Plugin::tool_router()` declares every tool this plugin could ever
@@ -114,38 +145,275 @@ fn served_routes(switched_on: bool) -> Vec<ToolRoute<Plugin>> {
         .collect()
 }
 
-/// The pool, with the table guaranteed to exist.
+/// The pool, with `ddl` guaranteed to have run once.
 ///
 /// Note the queries are `sqlx::query`, not the `sqlx::query!` MACRO.
 /// The macro checks SQL against a live database AT COMPILE TIME, which
 /// would make this plugin unbuildable without one — and the database a
 /// plugin talks to does not exist until a host creates its container.
-async fn notes_pool() -> Result<db::Pool, rmcp::ErrorData> {
+async fn table_pool(
+    table: &'static tokio::sync::OnceCell<()>,
+    ddl: &'static str,
+) -> Result<db::Pool, String> {
     let pool = db::connect(Default::default())
         .await
-        .map_err(|error| database_error("connect", &error))?;
+        .map_err(|error| error_chain("connect to the database", &*error))?;
 
-    NOTES_TABLE
-        .get_or_try_init(|| async {
-            sqlx::query(CREATE_NOTES).execute(&pool).await.map(|_| ())
-        })
+    table
+        .get_or_try_init(|| async { sqlx::query(ddl).execute(&pool).await.map(|_| ()) })
         .await
-        .map_err(|error| database_error("create the notes table", &error))?;
+        .map_err(|error| error_chain("create the table", &error))?;
 
     Ok(pool)
 }
 
 /// `source` chains are where the actual cause lives — sqlx's top-level
-/// `Display` is often just "error returned from database server". An
-/// agent gets one string, so it has to be the whole story.
-fn database_error(doing: &str, error: &dyn std::error::Error) -> rmcp::ErrorData {
+/// `Display` is often just "error returned from database server", and
+/// the SDK's executor errors are the same shape. Whoever reads this
+/// gets one string, so it has to be the whole story.
+fn error_chain(doing: &str, error: &dyn std::error::Error) -> String {
     let mut message = format!("{doing}: {error}");
     let mut source = error.source();
     while let Some(cause) = source {
         message.push_str(&format!(": {cause}"));
         source = cause.source();
     }
-    rmcp::ErrorData::internal_error(message, None)
+    message
+}
+
+/// The same, as the protocol-level error the note tools return.
+async fn notes_pool() -> Result<db::Pool, rmcp::ErrorData> {
+    table_pool(&NOTES_TABLE, CREATE_NOTES)
+        .await
+        .map_err(|message| rmcp::ErrorData::internal_error(message, None))
+}
+
+/// A [`RequestBase`] carrying nothing but a wall-clock cap.
+fn capped(timeout: std::time::Duration) -> RequestBase {
+    RequestBase {
+        // Whole seconds, and never zero — zero is rejected at parse
+        // time, and rounding a sub-second remainder down to it would
+        // turn "almost out of time" into "invalid request".
+        timeout_seconds: Some(timeout.as_secs().max(1)),
+        ..Default::default()
+    }
+}
+
+/// Ask a user surface for a credential, over one channel, and close it.
+///
+/// The shape of the exchange, which is not obvious from the commands:
+///
+/// 1. `channels publish` offers the channel and BLOCKS until a
+///    `/channels` client accepts, returning the id and `S_pub`.
+/// 2. `channels logs subscribe` wakes ONCE per call — immediately if
+///    unread entries exist, otherwise when one arrives. So this loops,
+///    advancing a cursor, rather than holding one long stream.
+/// 3. Entries are ENVELOPES. The content lives behind `channels logs
+///    open`, which is why finding the reply and reading it are two
+///    round trips.
+/// 4. The channel is closed either way. A channel left open is a user
+///    surface left waiting on a plugin that has stopped caring.
+async fn request_credential(url: &str) -> Result<String, CredentialFailure> {
+    let executor = objectiveai_mcp_plugin_framework::command_executor();
+
+    let offer = channels::publish::execute(
+        &executor,
+        channels::publish::Request {
+            path_type: channels::publish::Path::ChannelsPublish,
+            key: CREDENTIAL_CHANNEL_KEY.to_string(),
+            // Opaque to the daemon — this is for whoever accepts, and
+            // naming the endpoint is the whole basis on which a person
+            // decides whether to hand over a credential.
+            details: serde_json::json!({ "url": url }),
+            message: format!("A plugin is asking for a credential for {url}."),
+            base: capped(ACCEPT_TIMEOUT),
+        },
+        None,
+    )
+    .await
+    .map_err(|error| failed("publish", error_chain("publish the channel", &error)))?;
+
+    let credential = collect_credential(&executor, &offer).await;
+
+    // Close on both paths. `S_pub` authorizes it, and a failure to
+    // close is not worth overwriting the real outcome with.
+    let _ = channels::close::execute(
+        &executor,
+        channels::close::Request {
+            path_type: channels::close::Path::ChannelsClose,
+            channel_id: offer.channel_id.clone(),
+            secret: offer.secret.clone(),
+            base: Default::default(),
+        },
+        None,
+    )
+    .await;
+
+    credential
+}
+
+/// Wait for the owner's reply on an accepted channel and read the
+/// credential out of it.
+async fn collect_credential(
+    executor: &objectiveai_mcp_plugin_framework::command_executor::Executor,
+    offer: &channels::publish::Response,
+) -> Result<String, CredentialFailure> {
+    let deadline = std::time::Instant::now() + REPLY_TIMEOUT;
+
+    // The channel's FIRST entry is the publish seed — the offer itself,
+    // which this plugin sent. Skipping to the first `Reply` is what
+    // "wait for an answer" actually means here.
+    let reply_id = 'wait: loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() {
+            return Err(failed("subscribe", "timed out waiting for a reply"));
+        }
+
+        let entries = channels::logs::subscribe::execute(
+            executor,
+            channels::logs::subscribe::Request {
+                path_type: channels::logs::subscribe::Path::ChannelsLogsSubscribe,
+                channel_id: offer.channel_id.clone(),
+                secret: offer.secret.clone(),
+                after_id: None,
+                limit: None,
+                base: capped(remaining),
+            },
+            None,
+        )
+        .await
+        .map_err(|error| failed("subscribe", error_chain("subscribe", &error)))?;
+
+        let mut entries = std::pin::pin!(entries);
+        let mut woke = false;
+
+        while let Some(entry) = entries.next().await {
+            woke = true;
+            match entry {
+                Ok(channels::logs::subscribe::ResponseItem::Item(
+                    channels::logs::list::ChannelLogEntry::Reply { details_id, .. },
+                )) => break 'wait details_id,
+                // The seed, or this plugin's own requests. Subscribe
+                // advances the watermark as it goes, so the next wake
+                // will not show them again.
+                Ok(channels::logs::subscribe::ResponseItem::Item(_)) => continue,
+                Ok(channels::logs::subscribe::ResponseItem::ChannelClosed(_)) => {
+                    return Err(failed(
+                        "subscribe",
+                        "the channel closed before a reply arrived",
+                    ));
+                }
+                Err(error) => {
+                    return Err(failed("subscribe", error_chain("subscribe", &error)));
+                }
+            }
+        }
+
+        // A wake with no entries at all is the timeout elapsing, not a
+        // reply worth looking for again.
+        if !woke {
+            return Err(failed("subscribe", "timed out waiting for a reply"));
+        }
+    };
+
+    let opened = channels::logs::open::execute(
+        executor,
+        channels::logs::open::Request {
+            path_type: channels::logs::open::Path::ChannelsLogsOpen,
+            channel_id: offer.channel_id.clone(),
+            secret: offer.secret.clone(),
+            entry_id: reply_id,
+            base: Default::default(),
+        },
+        None,
+    )
+    .await
+    .map_err(|error| failed("open", error_chain("open the reply", &error)))?;
+
+    let content = match opened {
+        channels::logs::open::Response::Entry { content, .. } => content,
+        channels::logs::open::Response::NotFound => {
+            return Err(failed("open", "the reply entry was gone"));
+        }
+    };
+
+    content
+        .get("credential")
+        .and_then(|value| value.as_str())
+        .filter(|credential| !credential.is_empty())
+        .map(str::to_string)
+        .ok_or_else(|| {
+            failed(
+                "credential",
+                "the reply carried no non-empty string `credential` field",
+            )
+        })
+}
+
+/// Look up, or obtain and store, then call.
+async fn credential_call(url: &str) -> Result<CredentialCall, CredentialFailure> {
+    let pool = table_pool(&CREDENTIALS_TABLE, CREATE_CREDENTIALS)
+        .await
+        .map_err(|message| failed("database", message))?;
+
+    let stored: Option<String> = sqlx::query(
+        "SELECT credential FROM scaffold_credentials_deleteme
+         WHERE agent_instance_hierarchy = $1",
+    )
+    .bind(notes_scope())
+    .fetch_optional(&pool)
+    .await
+    .map_err(|error| failed("database", error_chain("read the credential", &error)))?
+    .map(|row| row.get("credential"));
+
+    let (credential, credential_source) = match stored {
+        Some(credential) => (credential, "database"),
+        None => {
+            let credential = request_credential(url).await?;
+
+            // Stored only once it is in hand. Writing before the
+            // exchange completed would leave a half-credential behind
+            // for the next call to trust.
+            sqlx::query(
+                "INSERT INTO scaffold_credentials_deleteme
+                     (agent_instance_hierarchy, credential)
+                 VALUES ($1, $2)
+                 ON CONFLICT (agent_instance_hierarchy) DO UPDATE
+                     SET credential = EXCLUDED.credential, obtained_at = now()",
+            )
+            .bind(notes_scope())
+            .bind(&credential)
+            .execute(&pool)
+            .await
+            .map_err(|error| {
+                failed("store", error_chain("store the credential", &error))
+            })?;
+
+            (credential, "channel")
+        }
+    };
+
+    let response = reqwest::Client::new()
+        .get(url)
+        .header(reqwest::header::AUTHORIZATION, &credential)
+        .send()
+        .await
+        .map_err(|error| failed("request", error_chain("call the endpoint", &error)))?;
+
+    // The STATUS is reported, not enforced. A 401 is a real answer to
+    // "call this with my credential", and turning it into an error
+    // would hide the one result that says the credential is stale.
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|error| failed("request", error_chain("read the response", &error)))?;
+
+    Ok(CredentialCall {
+        credential_source: credential_source.to_string(),
+        status,
+        body,
+    })
 }
 
 /// Which agent's notes these are. Rows are scoped by it, so two agents
@@ -217,6 +485,43 @@ struct Note {
     /// enable — so the cast is what keeps this working with the sqlx
     /// you actually have.
     written_at: String,
+}
+
+#[derive(serde::Deserialize, schemars::JsonSchema)]
+struct CredentialCallArgs {
+    /// The endpoint to call. The credential is sent as its
+    /// `Authorization` header.
+    url: String,
+}
+
+#[derive(serde::Serialize, schemars::JsonSchema)]
+struct CredentialCall {
+    /// `"database"` when a stored credential was reused, `"channel"`
+    /// when one was asked for. Worth reporting: it is the difference
+    /// between a call that bothered a human and one that did not.
+    credential_source: String,
+    status: u16,
+    body: String,
+}
+
+/// Returned as a tool result with `is_error`, never as a protocol
+/// error, so `step` survives to whoever is reading. A protocol error
+/// is for "this call was malformed"; everything below is the call
+/// working correctly and the WORLD not cooperating, which an agent can
+/// reason about and retry.
+#[derive(serde::Serialize, schemars::JsonSchema)]
+struct CredentialFailure {
+    /// Where it broke: `database`, `publish`, `subscribe`, `open`,
+    /// `credential`, `store`, or `request`.
+    step: String,
+    error: String,
+}
+
+fn failed(step: &str, error: impl Into<String>) -> CredentialFailure {
+    CredentialFailure {
+        step: step.to_string(),
+        error: error.into(),
+    }
 }
 
 #[derive(serde::Serialize, schemars::JsonSchema)]
@@ -331,6 +636,37 @@ impl Plugin {
         }))
     }
 
+    /// Calls an endpoint with a credential, asking a person for that
+    /// credential exactly once.
+    ///
+    /// The stored credential is what makes this conditional: the
+    /// channel is only published when the database has nothing for
+    /// this agent, so the first call may wait on a human and every
+    /// call after it will not.
+    ///
+    /// Returns failures as a tool RESULT rather than a protocol error
+    /// — see [`CredentialFailure`].
+    #[rmcp::tool(
+        description = "Scaffold example, delete me. Calls a URL with a credential, \
+                       asking for one through a viewer channel if none is stored."
+    )]
+    async fn scaffold_credential_call_deleteme(
+        &self,
+        Parameters(args): Parameters<CredentialCallArgs>,
+    ) -> rmcp::model::CallToolResult {
+        match credential_call(&args.url).await {
+            Ok(call) => match serde_json::to_value(&call) {
+                Ok(value) => rmcp::model::CallToolResult::structured(value),
+                Err(error) => rmcp::model::CallToolResult::structured_error(
+                    serde_json::json!({ "step": "encode", "error": error.to_string() }),
+                ),
+            },
+            Err(failure) => rmcp::model::CallToolResult::structured_error(
+                serde_json::json!({ "step": failure.step, "error": failure.error }),
+            ),
+        }
+    }
+
     /// Writes a note to the plugin's database, replacing any note
     /// already under that key.
     #[rmcp::tool(
@@ -360,7 +696,9 @@ impl Plugin {
         .bind(&args.value)
         .fetch_one(&pool)
         .await
-        .map_err(|error| database_error("write the note", &error))?;
+        .map_err(|error| {
+            rmcp::ErrorData::internal_error(error_chain("write the note", &error), None)
+        })?;
 
         Ok(Json(Note {
             key: args.key,
@@ -393,7 +731,9 @@ impl Plugin {
         // `RowNotFound` dressed up as a database failure.
         .fetch_optional(&pool)
         .await
-        .map_err(|error| database_error("read the note", &error))?;
+        .map_err(|error| {
+            rmcp::ErrorData::internal_error(error_chain("read the note", &error), None)
+        })?;
 
         let Some(row) = row else {
             return Err(rmcp::ErrorData::invalid_params(
