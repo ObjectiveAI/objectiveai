@@ -89,12 +89,12 @@ viewer channel — but only when it has to:
    there, skip to step 5. **This is what makes it conditional**: the
    first call may wait on a person, and no later call does.
 2. `channels publish` offers a channel and BLOCKS until a viewer
-   accepts. Uncapped without a timeout, so it has one.
-3. `channels logs subscribe` waits for the reply. It wakes ONCE per
-   call — immediately if entries are already unread, otherwise when one
-   arrives — so this loops with a cursor rather than holding one long
-   stream. The channel's first entry is the offer itself, seeded at
-   accept, so the loop skips forward to the first `reply`.
+   accepts. Uncapped without a timeout, so it has one. Both waits use
+   the base `--timeout`, which the daemon turns into a whole-stream
+   deadline over any command — a plugin never needs its own clock.
+3. `channels logs subscribe` waits for the reply — one call, no
+   cursor. A publisher's reads are scoped to `reply` entries, so the
+   offer it just published never comes back as its own answer.
 4. Entries are envelopes; the content is behind `channels logs open`.
    Then the channel is closed, on the success and failure paths alike —
    a channel left open is a user surface left waiting.

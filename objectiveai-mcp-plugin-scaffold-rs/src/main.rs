@@ -101,6 +101,10 @@ const ACCEPT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
 /// credential. Separate from [`ACCEPT_TIMEOUT`] because they are
 /// different waits: one is "is anyone there", the other is "has the
 /// person finished typing".
+///
+/// Enforced by the daemon, not here: `timeout_seconds` becomes a
+/// whole-stream deadline over every command, anchored at first poll,
+/// which yields a `Timeout` error item and ends the stream.
 const REPLY_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
 
 /// Which tools to actually serve.
@@ -205,14 +209,17 @@ fn capped(timeout: std::time::Duration) -> RequestBase {
 ///
 /// 1. `channels publish` offers the channel and BLOCKS until a
 ///    `/channels` client accepts, returning the id and `S_pub`.
-/// 2. `channels logs subscribe` wakes ONCE per call — immediately if
-///    unread entries exist, otherwise when one arrives. So this loops,
-///    advancing a cursor, rather than holding one long stream.
+/// 2. `channels logs subscribe` waits for the owner's reply. One call
+///    suffices: a publisher's reads are scoped to `reply` entries, so
+///    the offer never comes back as its own answer.
 /// 3. Entries are ENVELOPES. The content lives behind `channels logs
 ///    open`, which is why finding the reply and reading it are two
 ///    round trips.
 /// 4. The channel is closed either way. A channel left open is a user
 ///    surface left waiting on a plugin that has stopped caring.
+///
+/// Both waits are bounded by the base `timeout_seconds`, which the
+/// daemon enforces for every command — no clock is kept here.
 async fn request_credential(url: &str) -> Result<String, CredentialFailure> {
     let executor = objectiveai_mcp_plugin_framework::command_executor();
 
@@ -258,61 +265,56 @@ async fn collect_credential(
     executor: &objectiveai_mcp_plugin_framework::command_executor::Executor,
     offer: &channels::publish::Response,
 ) -> Result<String, CredentialFailure> {
-    let deadline = std::time::Instant::now() + REPLY_TIMEOUT;
+    // ONE subscribe is enough, for a reason worth knowing: the daemon
+    // scopes each role to a direction, and a PUBLISHER reads only
+    // `reply` entries. The offer this plugin just published is an
+    // owner-side entry, so it is never handed back as if it were the
+    // answer — there is nothing to skip past and no cursor to carry.
+    //
+    // The timeout is the base cap, which the daemon applies to every
+    // command as a whole-stream deadline anchored at first poll. It
+    // arrives as a `Timeout` error item, so the `Err` arm below reports
+    // it; nothing here needs its own clock.
+    let entries = channels::logs::subscribe::execute(
+        executor,
+        channels::logs::subscribe::Request {
+            path_type: channels::logs::subscribe::Path::ChannelsLogsSubscribe,
+            channel_id: offer.channel_id.clone(),
+            secret: offer.secret.clone(),
+            after_id: None,
+            limit: None,
+            base: capped(REPLY_TIMEOUT),
+        },
+        None,
+    )
+    .await
+    .map_err(|error| failed("subscribe", error_chain("subscribe", &error)))?;
 
-    // The channel's FIRST entry is the publish seed — the offer itself,
-    // which this plugin sent. Skipping to the first `Reply` is what
-    // "wait for an answer" actually means here.
-    let reply_id = 'wait: loop {
-        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
-        if remaining.is_zero() {
-            return Err(failed("subscribe", "timed out waiting for a reply"));
-        }
-
-        let entries = channels::logs::subscribe::execute(
-            executor,
-            channels::logs::subscribe::Request {
-                path_type: channels::logs::subscribe::Path::ChannelsLogsSubscribe,
-                channel_id: offer.channel_id.clone(),
-                secret: offer.secret.clone(),
-                after_id: None,
-                limit: None,
-                base: capped(remaining),
-            },
-            None,
-        )
-        .await
-        .map_err(|error| failed("subscribe", error_chain("subscribe", &error)))?;
-
-        let mut entries = std::pin::pin!(entries);
-        let mut woke = false;
-
-        while let Some(entry) = entries.next().await {
-            woke = true;
-            match entry {
-                Ok(channels::logs::subscribe::ResponseItem::Item(
-                    channels::logs::list::ChannelLogEntry::Reply { details_id, .. },
-                )) => break 'wait details_id,
-                // The seed, or this plugin's own requests. Subscribe
-                // advances the watermark as it goes, so the next wake
-                // will not show them again.
-                Ok(channels::logs::subscribe::ResponseItem::Item(_)) => continue,
-                Ok(channels::logs::subscribe::ResponseItem::ChannelClosed(_)) => {
-                    return Err(failed(
-                        "subscribe",
-                        "the channel closed before a reply arrived",
-                    ));
-                }
-                Err(error) => {
-                    return Err(failed("subscribe", error_chain("subscribe", &error)));
-                }
+    let mut entries = std::pin::pin!(entries);
+    let reply_id = loop {
+        match entries.next().await {
+            Some(Ok(channels::logs::subscribe::ResponseItem::Item(
+                channels::logs::list::ChannelLogEntry::Reply { details_id, .. },
+            ))) => break details_id,
+            // Unreachable while a publisher reads only replies. Skipped
+            // rather than rejected so that widening the role's
+            // directions could never turn this into a hard failure.
+            Some(Ok(channels::logs::subscribe::ResponseItem::Item(_))) => continue,
+            Some(Ok(channels::logs::subscribe::ResponseItem::ChannelClosed(_))) => {
+                return Err(failed(
+                    "subscribe",
+                    "the channel closed before a reply arrived",
+                ));
             }
-        }
-
-        // A wake with no entries at all is the timeout elapsing, not a
-        // reply worth looking for again.
-        if !woke {
-            return Err(failed("subscribe", "timed out waiting for a reply"));
+            Some(Err(error)) => {
+                return Err(failed("subscribe", error_chain("subscribe", &error)));
+            }
+            None => {
+                return Err(failed(
+                    "subscribe",
+                    "the subscription ended before a reply arrived",
+                ));
+            }
         }
     };
 
