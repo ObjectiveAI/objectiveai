@@ -207,17 +207,47 @@ pub async fn image_tag(podman: &Podman, source: &str, target: &str) -> Result<()
     Ok(())
 }
 
-/// `podman build -f <containerfile> -t <tag> [--label k=v …] <context>`
-/// — the plugin-image build: the checkout root is the context, the
-/// manifest's containerfile the build file, and the labels carry the
-/// metadata the exists-fast-path reads back ([`image_label`]) without
-/// re-cloning.
+/// Volume options appended to every build-time `-v`.
+///
+/// `:z` (SHARED relabel) only where the build shares a kernel with
+/// this process. On a Linux host with SELinux enforcing, an unlabeled
+/// bind is unreadable to the build container and every cache write is
+/// denied; podman no-ops `z` where SELinux is off, so the Linux arm is
+/// safe on distributions without it. On Windows and macOS the build
+/// runs inside the podman machine and the directory arrives over
+/// virtiofs/9p/DrvFs, which cannot carry SELinux labels — relabeling
+/// there is a no-op at best and a build failure at worst.
+///
+/// Deliberately not `:Z` (a PRIVATE label, re-applied per build — two
+/// builds sharing one cache would relabel it out from under each
+/// other), not `:U` (recursively chowns the developer's own directory
+/// into the container's mapped uid), and never `:O` (an overlay that
+/// DISCARDS every write when the `RUN` ends, so the cache would never
+/// fill — the one option that sounds right and is exactly wrong).
+#[cfg(target_os = "linux")]
+const VOLUME_OPTIONS: &str = ":z";
+#[cfg(not(target_os = "linux"))]
+const VOLUME_OPTIONS: &str = "";
+
+/// `podman build -f <containerfile> -t <tag> [--label k=v …]
+/// [-v host:container …] <context>` — the plugin-image build: the
+/// checkout root is the context, the manifest's containerfile the
+/// build file, and the labels carry the metadata the exists-fast-path
+/// reads back ([`image_labels`]) without re-cloning.
+///
+/// `volumes` are BUILD-TIME binds — present only while `RUN`
+/// instructions execute and NEVER committed into the image (the mount
+/// point is not even present in the result). They carry a DEVELOPMENT
+/// plugin's caches, so anything the image must ship has to be copied
+/// out of a cache within the same `RUN`. Empty for every released
+/// plugin.
 pub async fn image_build(
     podman: &Podman,
     containerfile: &Path,
     context: &Path,
     tag: &str,
     labels: &[(String, String)],
+    volumes: &[Mount],
 ) -> Result<(), Error> {
     let exe = podman.executable().await?;
     let mut cmd = container_command(exe);
@@ -228,6 +258,12 @@ pub async fn image_build(
         .arg(tag);
     for (key, value) in labels {
         cmd.arg("--label").arg(format!("{key}={value}"));
+    }
+    for mount in volumes {
+        cmd.arg("-v").arg(format!(
+            "{}:{}{VOLUME_OPTIONS}",
+            mount.host, mount.container
+        ));
     }
     cmd.arg(context);
     let output = cmd
@@ -243,19 +279,22 @@ pub async fn image_build(
     Ok(())
 }
 
-/// Read one label off a local image (`podman image inspect --format`).
-/// `None` when the label is absent (or the image has no labels).
-pub async fn image_label(
+/// EVERY label on a local image, in one `podman image inspect`.
+///
+/// One read rather than one per key: the exists-fast-path now wants
+/// three labels, and three subprocesses to answer "can I reuse this
+/// image" would be three times the cost of the question. An image with
+/// no labels prints JSON `null`, which reads as an empty map.
+pub async fn image_labels(
     podman: &Podman,
     reference: &str,
-    key: &str,
-) -> Result<Option<String>, Error> {
+) -> Result<std::collections::BTreeMap<String, String>, Error> {
     let exe = podman.executable().await?;
     let output = container_command(exe)
         .arg("image")
         .arg("inspect")
         .arg("--format")
-        .arg(format!("{{{{ index .Labels \"{key}\" }}}}"))
+        .arg("{{ json .Labels }}")
         .arg(reference)
         .output()
         .await
@@ -266,11 +305,44 @@ pub async fn image_label(
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
-    let value = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if value.is_empty() || value == "<no value>" {
-        return Ok(None);
+    let value = String::from_utf8_lossy(&output.stdout);
+    let value = value.trim();
+    if value.is_empty() || value == "null" {
+        return Ok(std::collections::BTreeMap::new());
     }
-    Ok(Some(value))
+    serde_json::from_str(value)
+        .map_err(|e| Error(format!("podman image inspect {reference} labels: {e}")))
+}
+
+/// `podman rmi --ignore` — drop a local image tag, tolerating its
+/// absence.
+///
+/// Deliberately NOT `-f`, unlike [`image_remove`]. Forcing also
+/// removes every CONTAINER using the image, which for a plugin tag
+/// means killing live ephemeral plugin laboratories mid-completion,
+/// behind this host's own registry — dangling entries here and an MCP
+/// connection that dies for no visible reason there. A tag still in
+/// use should fail loudly instead: "that plugin is running right now"
+/// is the correct answer to a reset.
+///
+/// `--ignore` makes a reset of a never-built plugin a success rather
+/// than an error, with no exists-check to race.
+pub async fn image_remove_ignoring(podman: &Podman, reference: &str) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let output = container_command(exe)
+        .arg("rmi")
+        .arg("--ignore")
+        .arg(reference)
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman rmi: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman rmi {reference}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
 }
 
 /// A laboratory container as read back by [`list`], reconstructed from its

@@ -188,6 +188,14 @@ impl EphemeralLab {
                         .into(),
                 ))
             }
+            RequestPayload::PluginImageReset(_) => {
+                ResponsePayload::PluginImageReset(rpc_err(
+                    -32601,
+                    "ephemeral laboratory does not serve plugin image reset \
+                     (host-level op)"
+                        .into(),
+                ))
+            }
             RequestPayload::Delete(_) => ResponsePayload::Delete(rpc_err(
                 -32601,
                 "ephemeral laboratory does not serve delete (host-level op)".into(),

@@ -120,6 +120,16 @@ pub enum RequestPayload {
     /// (`oai-plugin-{owner}-{name}-{version}-{response_id}`).
     #[schemars(title = "PluginEphemeralCreate")]
     PluginEphemeralCreate(PluginEphemeralCreateRequest),
+    /// DEVELOPMENT mode: drop a plugin's local image so the next
+    /// [`RequestPayload::PluginEphemeralCreate`] has to rebuild it.
+    ///
+    /// Rebuilds are EXPLICIT — the image-exists fast path is kept for
+    /// registered plugins too — so this is the thing that makes an
+    /// edit take effect. Host-level: it addresses an IMAGE, never the
+    /// envelope's laboratory. Takes the same build lock the build
+    /// takes, so it can never land mid-build.
+    #[schemars(title = "PluginImageReset")]
+    PluginImageReset(PluginImageResetRequest),
     /// Delete a laboratory from this host (podman rm). Host-level.
     #[schemars(title = "Delete")]
     Delete(DeleteRequest),
@@ -194,6 +204,8 @@ pub enum ResponsePayload {
     AgentEphemeralCreate(JsonRpcResult<EphemeralCreated>),
     #[schemars(title = "PluginEphemeralCreate")]
     PluginEphemeralCreate(JsonRpcResult<EphemeralCreated>),
+    #[schemars(title = "PluginImageReset")]
+    PluginImageReset(JsonRpcResult<PluginImageResetResult>),
     #[schemars(title = "Delete")]
     Delete(JsonRpcResult<TransferAck>),
     #[schemars(title = "LocalTransfer")]
@@ -399,6 +411,55 @@ pub struct PluginEphemeralCreateRequest {
     pub db_password: String,
     /// The application database name.
     pub db_database: String,
+    /// DEVELOPMENT mode: an ABSOLUTE host directory that stands in for
+    /// the git checkout, from `development plugins mcp create`.
+    ///
+    /// `Some` ⇒ the host fetches nothing and deletes nothing (the tree
+    /// is the developer's), builds the image straight out of that
+    /// directory, and binds the manifest's `mcp.development.caches` as
+    /// build volumes. The daemon only forwards a registered plugin to
+    /// the LOCAL host, so this path is always one the host can see.
+    ///
+    /// Optional + defaulted so frames from daemons predating this
+    /// field still parse.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub development: Option<String>,
+}
+
+/// Parameters for [`RequestPayload::PluginImageReset`] — the
+/// coordinate trio, exactly as [`PluginEphemeralCreateRequest`] takes
+/// it.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginImageResetRequest")]
+pub struct PluginImageResetRequest {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
+    /// Also delete the plugin's development CACHE directories.
+    ///
+    /// OFF by default, and that default is the point: reset is the
+    /// per-edit verb, and the caches are the only reason the rebuild
+    /// it triggers is fast. Wiping them every time would leave no way
+    /// to ask for a fast rebuild. Turn it on for the rarer case — a
+    /// corrupted cache, a changed toolchain, disk pressure.
+    #[serde(default)]
+    pub caches: bool,
+}
+
+/// Successful payload for [`ResponsePayload::PluginImageReset`].
+///
+/// Both fields are informational. Resetting a plugin that was never
+/// built is a SUCCESS with `removed: false` — the point of the command
+/// is that the next run rebuilds, and that is already true.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "laboratories.daemon.PluginImageResetResult")]
+pub struct PluginImageResetResult {
+    /// Whether an image was actually removed.
+    pub removed: bool,
+    /// How many cache directories were deleted — always 0 unless
+    /// [`PluginImageResetRequest::caches`] was set.
+    pub caches_removed: u32,
 }
 
 /// Successful payload for BOTH ephemeral-create replies: the created
@@ -450,6 +511,17 @@ pub struct BuildCreated {
 /// it: the old route sniffed `"not found in"` out of an error string,
 /// which is exactly the kind of coupling this replaces.
 pub const BUILD_TAG_NOT_FOUND_CODE: i64 = -32004;
+
+/// The code [`RequestPayload::PluginEphemeralCreate`] answers with
+/// when a DEVELOPMENT registration's source is unusable — the
+/// directory is missing, is not a directory, holds no
+/// `objectiveai.json`, or its manifest does not validate.
+///
+/// Distinct from the generic internal code because it is not an
+/// internal fault: it is the developer's own registration, and the
+/// answer is "fix or remove it" rather than a 500. Same reasoning as
+/// [`BUILD_TAG_NOT_FOUND_CODE`] — a code, never a message substring.
+pub const PLUGIN_DEVELOPMENT_SOURCE_CODE: i64 = -32005;
 
 /// Parameters for [`RequestPayload::Delete`].
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

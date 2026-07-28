@@ -17,6 +17,10 @@ reqwest = { version = "0.12.28", default-features = false, features = ["charset"
 reqwest-eventsource = "0.6.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
+# Naming a development cache directory after the container path it
+# backs — see `plugin_image::cache_slug`.
+sha2 = "0.10.9"
+hex = "0.4.3"
 tar = "0.4.46"
 tokio = { version = "1.51.1", features = ["full"] }
 tokio-stream = { version = "0.1.18", features = ["sync"] }

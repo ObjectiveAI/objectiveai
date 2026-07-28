@@ -67,6 +67,9 @@ impl Manifest {
                     .to_string(),
             );
         }
+        if let Some(mcp) = &self.mcp {
+            mcp.validate()?;
+        }
         Ok(())
     }
 }
@@ -85,6 +88,116 @@ pub struct Mcp {
     /// The port the MCP server listens on inside the container —
     /// published to a random loopback host port at create. Never 0.
     pub port: u16,
+    /// Build settings that apply ONLY when this plugin is registered
+    /// for development (`development plugins mcp create`). Ignored
+    /// entirely for a released plugin — a production image never binds
+    /// a host directory, so nothing here can change what ships.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub development: Option<Development>,
+}
+
+impl Mcp {
+    /// Lexical checks only — no filesystem, because this also runs
+    /// wherever a manifest is merely parsed. The host still resolves
+    /// [`Mcp::containerfile`] against a real tree separately.
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(development) = &self.development {
+            development.validate()?;
+        }
+        Ok(())
+    }
+}
+
+/// What a plugin's build wants kept between DEVELOPMENT rebuilds.
+///
+/// Deliberately expressed as CONTAINER paths rather than anything
+/// language-specific: the same field serves `/build/target` and the
+/// cargo registry for Rust, `node_modules` for Node, `GOCACHE` for Go,
+/// the pip cache for Python. Only the plugin author knows their own
+/// image's layout.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "cli.plugins.Development")]
+pub struct Development {
+    /// Absolute container paths bound to persistent host directories
+    /// while `RUN` steps execute, so a rebuild reuses what the last
+    /// one produced.
+    ///
+    /// Two rules, both of which fail in ways that do not look like
+    /// what they are:
+    ///
+    /// - **Anything the image must SHIP has to be copied out of a
+    ///   cache within the same `RUN`.** A build mount exists only for
+    ///   the duration of the instruction and is never committed — the
+    ///   mount point is not even present in the finished image. Build
+    ///   into the cache, `cp` the product to a normal path, same
+    ///   `RUN`. Otherwise the build SUCCEEDS and the image is missing
+    ///   its binary.
+    /// - **Never name a directory holding programs the build needs.**
+    ///   Caching `/usr/local/cargo` hides `/usr/local/cargo/bin/cargo`
+    ///   behind an empty mount on the first build, and it dies with
+    ///   "cargo: not found". Name the subdirectories that actually
+    ///   accumulate — `registry`, `git`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(extend("omitempty" = true))]
+    pub caches: Vec<String>,
+}
+
+impl Development {
+    /// Absolute, forward-slashed, traversal-free, and distinct. A
+    /// relative path is meaningless to a bind mount, and two entries
+    /// naming one target would silently get one host directory each
+    /// with only one of them winning.
+    pub fn validate(&self) -> Result<(), String> {
+        for (index, cache) in self.caches.iter().enumerate() {
+            let at = format!("`mcp.development.caches[{index}]`");
+            if cache.is_empty() {
+                return Err(format!("plugin manifest: {at} is empty"));
+            }
+            if !cache.starts_with('/') {
+                return Err(format!(
+                    "plugin manifest: {at} must be an absolute container path \
+                     (starting with `/`), got {cache:?}"
+                ));
+            }
+            if cache.contains('\\') {
+                return Err(format!(
+                    "plugin manifest: {at} must use forward slashes — it names a \
+                     path INSIDE the container, got {cache:?}"
+                ));
+            }
+            if cache == "/" {
+                return Err(format!(
+                    "plugin manifest: {at} cannot be `/` — mounting the whole \
+                     root would hide the image"
+                ));
+            }
+            if cache
+                .trim_end_matches('/')
+                .split('/')
+                .skip(1)
+                .any(|part| part.is_empty() || part == "." || part == "..")
+            {
+                return Err(format!(
+                    "plugin manifest: {at} must not contain empty, `.` or `..` \
+                     components, got {cache:?}"
+                ));
+            }
+        }
+        // Compared after trimming a trailing slash: `/build/target` and
+        // `/build/target/` are one mount target, and podman would be
+        // handed two `-v` for it.
+        let mut seen = std::collections::BTreeSet::new();
+        for cache in &self.caches {
+            if !seen.insert(cache.trim_end_matches('/')) {
+                return Err(format!(
+                    "plugin manifest: `mcp.development.caches` names {cache:?} \
+                     more than once"
+                ));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// The viewer-extension half: an image the laboratory builds and never

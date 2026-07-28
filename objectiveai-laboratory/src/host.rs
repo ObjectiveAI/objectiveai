@@ -624,6 +624,13 @@ impl HostServer {
                     payload: ResponsePayload::PluginEphemeralCreate(result),
                 };
             }
+            RequestPayload::PluginImageReset(req) => {
+                let result = self.reset_plugin_image(req).await;
+                return ChannelResponse {
+                    id: request.id,
+                    payload: ResponsePayload::PluginImageReset(result),
+                };
+            }
             RequestPayload::Delete(req) => {
                 let result = self.delete_laboratory(&req.id).await;
                 return ChannelResponse {
@@ -1306,22 +1313,38 @@ impl HostServer {
         };
         let id = coords.ephemeral_laboratory_id(&req.response_id);
         let (_lock, _guard) = self.lock_lifecycle(&id).await;
-        let ensured =
-            match crate::plugin_image::ensure(&self.podman, &self.bin_dir, &coords).await
-            {
-                Ok(ensured) => ensured,
-                Err(message) => {
-                    return rpc_err(
-                        -32603,
-                        format!(
-                            "ensure plugin image {}/{}@{}: {message}",
-                            coords.owner,
-                            coords.name,
-                            coords.version,
-                        ),
-                    );
-                }
-            };
+        // DEVELOPMENT: the daemon only ever forwards a registered
+        // plugin to the LOCAL host, so this path is one this process
+        // can see. A bad registration is the developer's own mistake,
+        // not an internal fault — hence its own error code.
+        let development = req.development.as_ref().map(std::path::Path::new);
+        if let Some(dir) = development
+            && let Err(e) = crate::plugin_image::check_development_dir(dir).await
+        {
+            return rpc_err(
+                objectiveai_sdk::laboratories::daemon::PLUGIN_DEVELOPMENT_SOURCE_CODE,
+                e.0,
+            );
+        }
+        let ensured = match crate::plugin_image::ensure(
+            &self.podman,
+            &self.bin_dir,
+            &coords,
+            development,
+        )
+        .await
+        {
+            Ok(ensured) => ensured,
+            Err(message) => {
+                return rpc_err(
+                    -32603,
+                    format!(
+                        "ensure plugin image {}/{}@{}: {message}",
+                        coords.owner, coords.name, coords.version,
+                    ),
+                );
+            }
+        };
         // Stale duplicate: evaporate + recreate fresh (see the agent
         // twin for the rationale — LOCKED variant, entry stays).
         self.evaporate_locked(&id).await;
@@ -1689,6 +1712,46 @@ impl HostServer {
             .await;
     }
 
+    /// `PluginImageReset`: drop a development plugin's image so the
+    /// next create rebuilds it.
+    ///
+    /// COORDINATE-level, not laboratory-level — it addresses an IMAGE,
+    /// so unlike [`Self::delete_laboratory`] there is no lifecycle
+    /// lock, no `LabServer` to retire and no `laboratory_deleted`
+    /// broadcast. Serialization comes from the image's own bin lock,
+    /// taken inside `plugin_image::reset`, which is the same one the
+    /// build takes.
+    async fn reset_plugin_image(
+        &self,
+        req: &objectiveai_sdk::laboratories::daemon::PluginImageResetRequest,
+    ) -> JsonRpcResult<objectiveai_sdk::laboratories::daemon::PluginImageResetResult> {
+        let coords = match crate::plugin_image::PluginCoords::canonicalize(
+            &req.owner,
+            &req.name,
+            &req.version,
+        ) {
+            Ok(coords) => coords,
+            Err(message) => return rpc_err(-32602, message),
+        };
+        match crate::plugin_image::reset(
+            &self.podman,
+            &self.bin_dir,
+            &coords,
+            req.caches,
+        )
+        .await
+        {
+            Ok(result) => JsonRpcResult::Ok { result },
+            Err(message) => rpc_err(
+                -32603,
+                format!(
+                    "reset plugin image {}/{}@{}: {message}",
+                    coords.owner, coords.name, coords.version,
+                ),
+            ),
+        }
+    }
+
     /// `LaboratoryDelete`: retire the lab's server first (its MCP
     /// sessions die with it), force-remove the container (missing is
     /// not an error — podman's `rm -f` semantics), broadcast
@@ -1956,6 +2019,7 @@ fn reject(
         Req::PluginEphemeralCreate(_) => {
             Resp::PluginEphemeralCreate(rpc_err(code, message))
         }
+        Req::PluginImageReset(_) => Resp::PluginImageReset(rpc_err(code, message)),
         Req::Delete(_) => Resp::Delete(rpc_err(code, message)),
         Req::LocalTransfer(_) => Resp::LocalTransfer(rpc_err(code, message)),
         Req::BuildCreate(_) => Resp::BuildCreate(rpc_err(code, message)),

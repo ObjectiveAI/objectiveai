@@ -377,6 +377,8 @@ async fn run(
         &build.context,
         &image,
         &[],
+        // No build caches: the viewer half has no development mode yet.
+        &[],
     )
     .await
     .map_err(|e| BuildFailure::Failed(e.0))?;
