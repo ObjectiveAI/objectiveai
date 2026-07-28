@@ -38,12 +38,46 @@ async fn greet(&self, Parameters(args): Parameters<GreetArgs>) -> String {
 Put anything your tools share — clients, handles, configuration — on
 `Plugin`. Every tool receives it as `&self`.
 
-The two tools already in there are called
-`scaffold_greet_deleteme` and `scaffold_whoami_deleteme`. The names are
-deliberately unmissable: they are there to be read once and removed,
-and an agent that can see a `..._deleteme` is looking at a plugin whose
-author never got to writing their own. Delete them as soon as you have
-one tool of your own.
+The four tools already in there are named `scaffold_*_deleteme`. The
+names are deliberately unmissable: they are there to be read once and
+removed, and an agent that can see a `..._deleteme` is looking at a
+plugin whose author never got to writing their own. Delete them as soon
+as you have one of your own.
+
+## Tools that come and go
+
+A plugin does not have to serve the same tools for its whole life, or
+the same tools as the next copy of itself. `served_routes` in
+`src/main.rs` is the whole mechanism, and the two example tools past
+`greet` and `whoami` exist to demonstrate it:
+
+- **`scaffold_switch_deleteme` only exists if the agent asked for it.**
+  It is served only when `arguments()` contains a `switch` key. An
+  agent that declared no such argument never sees it, and nothing at
+  runtime can talk it into existing — arguments are stamped at
+  container create and never rewritten.
+- **`scaffold_switched_deleteme` starts off**, and appears when the
+  first tool is called. `Tools::replace` swaps the served set and sends
+  `notifications/tools/list_changed`, so a client that re-lists on that
+  notification sees the new set.
+
+Both are declared with `#[tool]` exactly like any other. "Conditional"
+is not a property of a tool — it is a property of the list you build:
+
+```rust
+fn served_routes(switched_on: bool) -> Vec<ToolRoute<Plugin>> {
+    let has_switch = arguments().contains_key(SWITCH_ARGUMENT);
+    Plugin::tool_router()
+        .into_iter()
+        .filter(|route| /* decide, by name */)
+        .collect()
+}
+```
+
+Filtering the full router rather than assembling routes by hand keeps
+the macros as the single declaration of what a tool IS. And the served
+list is the only state — asking `tools.routes()` what is currently
+served beats keeping a flag that can disagree with it.
 
 ## What you get for free
 

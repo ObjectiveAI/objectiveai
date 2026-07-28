@@ -11,6 +11,7 @@
 //! names — and the tools.
 
 use std::convert::Infallible;
+use std::sync::Arc;
 
 // Brings `rmcp` into scope under the name the `#[tool_router]` and
 // `#[tool]` macros expand to. Depending on `rmcp` separately would
@@ -21,7 +22,9 @@ use objectiveai_mcp_plugin_framework::rmcp;
 // generic over: a separately-resolved copy would be a different trait.
 use objectiveai_mcp_plugin_framework::objectiveai_sdk;
 use futures::StreamExt;
+use objectiveai_mcp_plugin_framework::tools::Tools;
 use objectiveai_sdk::cli::command::agents::instances::get;
+use rmcp::handler::server::tool::ToolRoute;
 use rmcp::handler::server::wrapper::{Json, Parameters};
 
 /// Must match `mcp.port` in `objectiveai.json`.
@@ -30,11 +33,62 @@ const PORT: u16 = 8080;
 const NAME: &str = "objectiveai-mcp-plugin-scaffold";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// The argument that gates the pair below. Declared by the AGENT, in
+/// its plugin entry — not by this process, and not changeable while it
+/// runs.
+const SWITCH_ARGUMENT: &str = "switch";
+
+const SWITCH_TOOL: &str = "scaffold_switch_deleteme";
+const SWITCHED_TOOL: &str = "scaffold_switched_deleteme";
+
+/// Which tools to actually serve.
+///
+/// `Plugin::tool_router()` declares every tool this plugin could ever
+/// have; this decides which of them exist right now. Two independent
+/// gates, and they are different in kind:
+///
+/// - the ARGUMENT gate is fixed for the process's life, because the
+///   host stamps the arguments at container create and nothing
+///   rewrites them. A plugin the agent did not ask to have a switch
+///   never serves one, and no call can change that.
+/// - the SWITCH gate moves at runtime, which is the whole point of
+///   [`Tools::replace`].
+///
+/// Filtering a full router by name, rather than assembling routes by
+/// hand, means the macros stay the single declaration of what a tool
+/// IS — this only decides whether it is currently served.
+fn served_routes(switched_on: bool) -> Vec<ToolRoute<Plugin>> {
+    // Presence, not truthiness: a bare `--switch` arrives as a `null`
+    // value, and a key present with no value is still the agent asking
+    // for it. See `arguments()` for why `null` and absent differ.
+    let has_switch = objectiveai_mcp_plugin_framework::arguments()
+        .contains_key(SWITCH_ARGUMENT);
+
+    Plugin::tool_router()
+        .into_iter()
+        .filter(|route| {
+            let name = route.attr.name.as_ref();
+            if name == SWITCH_TOOL {
+                has_switch
+            } else if name == SWITCHED_TOOL {
+                has_switch && switched_on
+            } else {
+                true
+            }
+        })
+        .collect()
+}
+
 /// Whatever your tools need. Every tool receives `&Self`, so put
 /// clients, handles and configuration here. It is built once and
 /// shared by every call, so anything mutable needs its own interior
 /// mutability.
-struct Plugin;
+struct Plugin {
+    /// The same `Tools` handed to `serve`, so a tool can change the
+    /// served set from inside a call. Not a cycle: `Tools` holds route
+    /// handlers, never a `Plugin`.
+    tools: Arc<Tools<Plugin>>,
+}
 
 #[derive(serde::Deserialize, schemars::JsonSchema)]
 struct GreetArgs {
@@ -58,6 +112,14 @@ struct WhoAmI {
     /// means it cannot drift, and a field added upstream appears here
     /// for free.
     agent: get::ResponseItem,
+}
+
+#[derive(serde::Serialize, schemars::JsonSchema)]
+struct Switched {
+    /// The tool that just appeared or disappeared.
+    tool: String,
+    /// Whether it is now being served.
+    enabled: bool,
 }
 
 /// Both tools are named to be impossible to ship by accident. An agent
@@ -163,22 +225,74 @@ impl Plugin {
             agent,
         }))
     }
+
+    /// Flips the second tool on or off, and the agent's tool list
+    /// changes underneath it.
+    ///
+    /// This tool ITSELF only exists when the agent declared the
+    /// `switch` argument — a plugin whose arguments did not ask for
+    /// the feature serves neither of the pair, and nothing here can
+    /// talk it into existing.
+    #[rmcp::tool(
+        description = "Scaffold example, delete me. Toggles whether a second tool is served."
+    )]
+    async fn scaffold_switch_deleteme(&self) -> Json<Switched> {
+        // The served list IS the state. Keeping a separate flag would
+        // create a second source of truth that could disagree with what
+        // is actually routed.
+        let currently_on = self
+            .tools
+            .routes()
+            .iter()
+            .any(|route| route.attr.name.as_ref() == SWITCHED_TOOL);
+        let enabled = !currently_on;
+
+        // Swaps the served set AND sends
+        // `notifications/tools/list_changed`, so a client that re-lists
+        // on the notification sees the new set — the store lands before
+        // the notification goes out.
+        self.tools.replace(served_routes(enabled));
+
+        Json(Switched {
+            tool: SWITCHED_TOOL.to_string(),
+            enabled,
+        })
+    }
+
+    /// Not served until `scaffold_switch_deleteme` switches it on, so
+    /// an agent that lists tools at startup will not see it at all.
+    ///
+    /// Note it is declared exactly like any other tool. "Conditional"
+    /// is not a property of the tool — it is a property of the route
+    /// list `served_routes` builds.
+    #[rmcp::tool(
+        description = "Scaffold example, delete me. Exists only while switched on."
+    )]
+    async fn scaffold_switched_deleteme(&self) -> String {
+        "I did not exist when you listed tools.".to_string()
+    }
 }
 
 #[tokio::main]
 async fn main() -> Result<Infallible, std::io::Error> {
-    // The tool set is swappable while serving: keep a clone of this
-    // and call `replace` to change what the agent can see, and the
-    // framework re-lists it for you. A plugin whose tools never change
-    // simply never calls it.
-    let tools =
-        objectiveai_mcp_plugin_framework::tools::Tools::new(Plugin::tool_router());
+    // The starting set: the argument gate has already been applied, and
+    // the switched tool starts off. A plugin whose tools never change
+    // can pass `Plugin::tool_router()` straight in and never think
+    // about this again.
+    let tools = Tools::new(served_routes(false));
+
+    // The plugin holds the same handle, so a tool can swap the set from
+    // inside a call. `serve` takes ownership of the state and the
+    // `Arc`, hence the clone.
+    let plugin = Plugin {
+        tools: Arc::clone(&tools),
+    };
 
     objectiveai_mcp_plugin_framework::serve::serve(
         objectiveai_mcp_plugin_framework::config::Config::new(PORT, NAME, VERSION)
             .with_description("Starting point for an ObjectiveAI MCP plugin.")
             .with_instructions("Replace this with what an agent should know."),
-        Plugin,
+        plugin,
         tools,
     )
     .await
