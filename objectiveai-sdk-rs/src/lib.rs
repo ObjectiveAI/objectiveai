@@ -98,6 +98,11 @@ pub mod process;
 #[cfg(feature = "subprocess-reaper")]
 pub mod subprocess_reaper;
 
+// The daemon → viewer stdin channel (development-plugin
+// registrations). Plain serde over pipes, no heavy deps — ungated,
+// like `binary_frame`.
+pub mod viewer_stdio;
+
 #[cfg(feature = "net")]
 pub mod net;
 

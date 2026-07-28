@@ -1967,6 +1967,60 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::development::plugins::mcp::reset::response_schema::ListenerExecution { request: parsed, identity, response };
             Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::ResetResponseSchema(execution)))), feed))
         }
+        "development/plugins/viewer/create" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::create::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::create::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::create::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::Create(execution)))), feed))
+        }
+        "development/plugins/viewer/create/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::create::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::create::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::create::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::CreateRequestSchema(execution)))), feed))
+        }
+        "development/plugins/viewer/create/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::create::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::create::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::create::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::CreateResponseSchema(execution)))), feed))
+        }
+        "development/plugins/viewer/list" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::list::Request>(request.get()).ok()?;
+            let (response, feed) = stream_feed::<crate::cli::command::development::plugins::viewer::list::ResponseItem>();
+            let execution = crate::cli::command::development::plugins::viewer::list::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::List(execution)))), feed))
+        }
+        "development/plugins/viewer/list/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::list::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::list::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::list::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::ListRequestSchema(execution)))), feed))
+        }
+        "development/plugins/viewer/list/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::list::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::list::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::list::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::ListResponseSchema(execution)))), feed))
+        }
+        "development/plugins/viewer/delete" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::delete::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::delete::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::delete::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::Delete(execution)))), feed))
+        }
+        "development/plugins/viewer/delete/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::delete::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::delete::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::delete::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::DeleteRequestSchema(execution)))), feed))
+        }
+        "development/plugins/viewer/delete/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::viewer::delete::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::viewer::delete::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::viewer::delete::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Viewer(crate::cli::command::development::plugins::viewer::ListenerExecution::DeleteResponseSchema(execution)))), feed))
+        }
         "channels/close" => {
             let parsed = serde_json::from_str::<crate::cli::command::channels::close::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::channels::close::Response>(path_type);
