@@ -6,6 +6,8 @@
 //! framework reads that context once, directly, rather than making
 //! every plugin rediscover it.
 
+pub mod command_executor;
+pub use command_executor::command_executor;
 pub mod config;
 pub mod db;
 mod environment;

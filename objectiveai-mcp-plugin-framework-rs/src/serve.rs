@@ -129,8 +129,17 @@ where
         http,
     );
 
-    // At the ROOT, because that is what the host dials.
-    let axum_router = axum::Router::new().fallback_service(service);
+    // At the ROOT, because that is what the host dials — with the
+    // command-response endpoint as a SIBLING route, which takes
+    // precedence over the fallback. That is the leg the host POSTs
+    // command results back on; without it every `cli_request` this
+    // plugin sends would be answered into a 404.
+    let axum_router = axum::Router::new()
+        .route(
+            crate::command_executor::COMMAND_PATH,
+            axum::routing::post(command_response),
+        )
+        .fallback_service(service);
     // `0.0.0.0`: see the module docs — loopback here is unreachable
     // through podman's port publish.
     let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, config.port));
@@ -141,6 +150,19 @@ where
     // Unreachable in practice: no shutdown signal is installed, so the
     // container's life is the server's.
     Err(std::io::Error::other("the listener stopped without an error"))
+}
+
+/// The host POSTs one of these per frame of a command exchange.
+///
+/// Answering `OK` unconditionally is deliberate: the only thing that
+/// can go wrong here is an id nobody is waiting for, which happens
+/// whenever a plugin abandons a run, and is not the host's problem to
+/// retry.
+async fn command_response(
+    axum::Json(frame): axum::Json<objectiveai_sdk::mcp::CliResponse>,
+) -> axum::http::StatusCode {
+    crate::command_executor::deliver(frame);
+    axum::http::StatusCode::OK
 }
 
 /// A [`ToolRouter`] over a route list.
@@ -183,10 +205,22 @@ impl<S: Send + Sync + 'static> ServerHandler for Handler<S> {
         // a tool that is gone.
         let mut tools = rmcp::model::ToolsCapability::default();
         tools.list_changed = Some(true);
-        let mut info = ServerInfo::default();
-        info.capabilities = rmcp::model::ServerCapabilities::builder()
+        let mut capabilities = rmcp::model::ServerCapabilities::builder()
             .enable_tools_with(tools)
             .build();
+        // The objectiveai command extension. The PRESENCE of the key
+        // is the capability — its value is reserved — and without it
+        // the host never fulfills a `cli_request`, so
+        // `command_executor` would hang on every call.
+        let mut experimental = std::collections::BTreeMap::new();
+        experimental.insert(
+            objectiveai_sdk::mcp::OBJECTIVEAI_CAPABILITY.to_string(),
+            serde_json::Map::new(),
+        );
+        capabilities.experimental = Some(experimental);
+
+        let mut info = ServerInfo::default();
+        info.capabilities = capabilities;
         info
     }
 
@@ -194,7 +228,11 @@ impl<S: Send + Sync + 'static> ServerHandler for Handler<S> {
         // The only way to reach the client later. Until this lands, a
         // `replace` still swaps the routes correctly — it just has
         // nobody to notify yet.
-        self.peer.store(Some(Arc::new(context.peer)));
+        self.peer.store(Some(Arc::new(context.peer.clone())));
+        // And the same peer is how `command_executor` pushes its
+        // `cli_request` frames. Executors taken before this point are
+        // parked waiting for exactly this.
+        crate::command_executor::set_peer(context.peer);
     }
 
     async fn list_tools(
