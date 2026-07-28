@@ -254,6 +254,7 @@ async fn execute_foreground(global: &GlobalContext, scoped: &ScopedContext) -> R
         lab_mcp_kinds,
         channels: channels.clone(),
         tasks: tasks.clone(),
+        development_plugins: Default::default(),
     });
     tasks.spawn_driver(global.clone(), scoped.clone());
     crate::http::daemon_stream::serve_http(

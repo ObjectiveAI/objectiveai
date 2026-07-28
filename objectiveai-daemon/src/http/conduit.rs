@@ -988,10 +988,36 @@ async fn run_ephemeral_create(
     // this task (shared `&` borrows of `global`/`hubs`), never a spawn.
     // The host is NEVER auto-spawned: no connected host is an error
     // (run `laboratories spawn` first).
+    // A plugin registered for DEVELOPMENT builds from a directory only
+    // this machine can see, so it is pinned to the local host — no load
+    // balancing, and no auto-spawn either: the developer brings the
+    // host up themselves.
+    let development = match mcp_kind {
+        McpKind::PluginLaboratory {
+            owner,
+            name,
+            version,
+        } => hubs.development_plugins.get(
+            &crate::command::development::registry::key(owner, name, version),
+        ),
+        _ => None,
+    };
     let host_pick = async {
-        hubs.laboratories.random_host().ok_or_else(|| {
-            "no laboratory host is connected — run `laboratories spawn` first".to_string()
-        })
+        match &development {
+            Some(_) => {
+                let (machine, machine_state) = global.local_host();
+                if hubs.laboratories.has_host(machine, machine_state) {
+                    Ok((machine.clone(), machine_state.clone()))
+                } else {
+                    Err("no laboratory host is running for this machine/state —                          run `laboratories spawn` first (this plugin is registered                          for development, so it only runs locally)"
+                        .to_string())
+                }
+            }
+            None => hubs.laboratories.random_host().ok_or_else(|| {
+                "no laboratory host is connected — run `laboratories spawn` first"
+                    .to_string()
+            }),
+        }
     };
     let cred_resolve = async {
         // Plugin only: mint-or-fetch + provision the Postgres
@@ -1037,6 +1063,9 @@ async fn run_ephemeral_create(
                     db_role: cred.role,
                     db_password: cred.password,
                     db_database: cred.database,
+                    development: development
+                        .as_ref()
+                        .map(|dir| dir.to_string_lossy().into_owned()),
                 },
             )
         }
@@ -2236,6 +2265,7 @@ fn from_host_payload(
         | H::AgentEphemeralCreate(_)
         | H::PluginEphemeralCreate(_)
         | H::Delete(_)
+        | H::PluginImageReset(_)
         | H::BuildCreate(_)
         | H::BuildRead(_)
         | H::BuildAbort(_) => shape.clone().error(

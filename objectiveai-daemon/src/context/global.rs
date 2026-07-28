@@ -77,6 +77,10 @@ pub(crate) struct ResidentHubs {
     /// The resident task scheduler's handle (durable rows live in
     /// `db::tasks`). `notify()` wakes the driver on schedule changes.
     pub tasks: crate::command::tasks::scheduler::TaskScheduler,
+    /// Plugins registered to build from a local directory instead of
+    /// their git tag. Purely in-process — see
+    /// `crate::command::development::registry`.
+    pub development_plugins: crate::command::development::registry::DevelopmentPlugins,
 }
 
 /// One leashed resident server — the map entry is METADATA ONLY. The
@@ -326,6 +330,9 @@ pub struct GlobalContext {
     /// boot (`execute_foreground`). `None` in any process that is not
     /// the resident daemon. Shared across clones (first set wins).
     resident_hubs: Arc<std::sync::OnceLock<ResidentHubs>>,
+    /// This daemon's own `(machine id, state)`, computed on first use.
+    /// See [`GlobalContext::local_host`].
+    local_host: Arc<std::sync::OnceLock<(String, String)>>,
     /// The persistent server subprocesses the resident daemon spawns —
     /// `db` / `api` / `mcp` / `viewer` / `laboratories` — metadata
     /// entries for the daemon's whole life (the
@@ -378,6 +385,7 @@ impl GlobalContext {
             python: Arc::new(OnceCell::new()),
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             resident_hubs: Arc::new(std::sync::OnceLock::new()),
+            local_host: Arc::new(std::sync::OnceLock::new()),
             resident_children: Arc::new(DashMap::new()),
             spawn_gates: Arc::new(DashMap::new()),
         }
@@ -580,6 +588,25 @@ impl GlobalContext {
     /// in-process replacement for the former unix sockets.
     pub(crate) fn resident_hubs(&self) -> Option<&ResidentHubs> {
         self.resident_hubs.get()
+    }
+
+    /// THIS daemon's own laboratory-host identity: `(machine id,
+    /// state)` — the pair a development-mode plugin is pinned to, since
+    /// it builds from a directory only this machine can see.
+    ///
+    /// Memoized: `machine_id` reads the OS (a registry read on Windows,
+    /// `ioreg` on macOS) and the answer cannot change while the process
+    /// lives. It is also the one identity that must NOT be recomputed
+    /// carelessly — when neither the OS id nor the persisted file is
+    /// readable it falls back to a fresh UUID per call, which would
+    /// make two calls disagree about which host is local.
+    pub(crate) fn local_host(&self) -> &(String, String) {
+        self.local_host.get_or_init(|| {
+            (
+                objectiveai_sdk::machine::machine_id(self.boot_filesystem().dir()),
+                self.boot_filesystem().state().to_string(),
+            )
+        })
     }
 
     /// The WASI python runtime, initialized on first use and

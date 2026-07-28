@@ -69,6 +69,8 @@ pub enum Error {
     Channel(String),
     #[error("task: {0}")]
     Task(String),
+    #[error("development: {0}")]
+    Development(String),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]
