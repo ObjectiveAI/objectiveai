@@ -9,7 +9,7 @@
 //!
 //! The dial list is DECLARATIVE: config is the desired state, and
 //! [`converge`] reconciles a LIVE host to it with one ack-gated
-//! [`objectiveai_sdk::laboratories::daemon::HostStdioCommand::SetAddresses`]
+//! [`objectiveai_sdk::child_stdio::ChildStdioCommand::SetAddresses`]
 //! (the host diffs — undesired connections torn down, new ones
 //! dialed, identical live ones untouched). No host running means
 //! nothing to reconcile: converge no-ops WITHOUT spawning or
@@ -94,22 +94,22 @@ pub(super) async fn converge(
     let _guard = gate.lock().await;
     // Host check FIRST — before building entries — so a hostless
     // converge has no side effects (no local-daemon ensure).
-    let Some(stdio) = global.lab_host_stdio() else {
+    let Some(stdio) = global.resident_child_stdio("laboratories") else {
         return Ok(None);
     };
     let entries = desired_entries(global, scoped).await?;
-    let command = objectiveai_sdk::laboratories::daemon::HostStdioCommand::SetAddresses {
+    let command = objectiveai_sdk::child_stdio::ChildStdioCommand::SetAddresses {
         addresses: entries
             .iter()
             .map(|(address, signature)| {
-                objectiveai_sdk::laboratories::daemon::DialEntry {
+                objectiveai_sdk::child_stdio::DialEntry {
                     address: address.clone(),
                     signature: signature.clone(),
                 }
             })
             .collect(),
     };
-    if stdio.send_host_stdio(&command).await.is_err() {
+    if stdio.send(&command).await.is_err() {
         // Broken channel = the host died between the liveness check
         // and the send. Not a command failure: config is the desired
         // state, and the next spawn converges from it.

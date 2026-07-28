@@ -288,6 +288,11 @@ pub fn serve(
             // stream for the viewer's whole life; the command-logs
             // tab is just a view over what it writes.
             crate::shell::spawn_command_listener(tauri_app.handle().clone());
+            // The stdin graceful-shutdown listener — how the spawning
+            // daemon (and ONLY it) kills this viewer: browsers flush
+            // to disk, then the app exits. Disarms harmlessly when
+            // stdin is absent/closed (parentless launch).
+            crate::shell::spawn_stdio_shutdown_listener(tauri_app.handle().clone());
             #[cfg(feature = "development")]
             {
                 use tauri::Manager as _;

@@ -104,6 +104,12 @@ pub mod net;
 
 pub mod binary_frame;
 
+// The daemon↔stdio-child control channel (laboratory host + viewer):
+// internal pipe types, plain serde, no schemas — ungated like
+// `binary_frame` so both child binaries and the daemon share one
+// vocabulary regardless of feature set.
+pub mod child_stdio;
+
 // `client_objectiveai_mcp` is the reverse-attach protocol's wire
 // envelope. The typed `server_request::Payload` and
 // `server_response::Payload` variants reference `mcp::tool::*` /

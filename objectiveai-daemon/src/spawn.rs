@@ -3,10 +3,12 @@
 //!
 //! Two spawn disciplines live here:
 //!
-//! - [`spawn_leashed_until_ready`] — the daemon's five persistent
-//!   servers (`db`/`api`/`mcp`/`viewer`/`laboratories`): OS-leashed
-//!   children that die with the daemon and announce readiness over a
-//!   stdout JSON handshake.
+//! - [`spawn_leashed_until_ready`] (and its
+//!   [`spawn_leashed_until_ready_with_stdio`] variant for the
+//!   stdio-speaking `viewer`/`laboratories`) — the daemon's five
+//!   persistent servers (`db`/`api`/`mcp`/`viewer`/`laboratories`):
+//!   OS-leashed children that die with the daemon and announce
+//!   readiness over a stdout JSON handshake.
 //! - [`spawn_until_lock_published`] — peer plugins-daemons only
 //!   (`daemon spawn`): deliberately DETACHED, because a daemon for
 //!   another state must outlive whichever daemon happened to spawn
@@ -89,12 +91,11 @@ pub async fn spawn_until_lock_published(
         })
 }
 
-/// Spawn one of the daemon's persistent servers (`db` / `api` / `mcp`
-/// / `viewer`) as an OS-LEASHED child and wait for its stdout
-/// readiness handshake ([`objectiveai_sdk::process::ServerReady`]).
-/// Returns the announced address (`None` for listener-less servers —
-/// the viewer). The laboratory host uses
-/// [`spawn_leashed_until_ready_with_stdio`] instead.
+/// Spawn one of the daemon's persistent servers (`db` / `api` /
+/// `mcp`) as an OS-LEASHED child and wait for its stdout readiness
+/// handshake ([`objectiveai_sdk::process::ServerReady`]). Returns the
+/// announced address. The stdio children (laboratory host, viewer)
+/// use [`spawn_leashed_until_ready_with_stdio`] instead.
 ///
 /// This replaced the lockfile-readiness spawn: the daemon is the sole
 /// spawner and OWNS the server's lifetime — the leash
@@ -129,49 +130,42 @@ pub async fn spawn_leashed_until_ready(
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, false, KillStyle::Process).await
+    spawn_leashed_inner(global, key, exe, configure, false).await
 }
 
-/// [`spawn_leashed_until_ready`] for a child that is the ROOT of a
-/// process tree — kills take the whole tree (see [`KillStyle::Tree`]).
-/// The dev-mode viewer (`pnpm exec tauri dev`) is the one user.
-pub async fn spawn_leashed_until_ready_tree(
-    global: &crate::context::GlobalContext,
-    key: &str,
-    exe: &Path,
-    configure: impl FnOnce(&mut Command),
-) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, false, KillStyle::Tree).await
-}
-
-/// [`spawn_leashed_until_ready`] for the laboratory host: stdin is
-/// PIPED (the host's stdin dial-list channel) and, after the ready
+/// [`spawn_leashed_until_ready`] for the STDIO children (the
+/// laboratory host and the viewer — installed binary and `pnpm exec
+/// tauri dev` tree alike): stdin is PIPED (the
+/// [`objectiveai_sdk::child_stdio`] control channel — the host's dial
+/// list, both children's graceful `Shutdown`) and, after the ready
 /// line, the pipe receiver goes to an ack ROUTER task (stdout lines
-/// parsing as [`objectiveai_sdk::laboratories::daemon::HostStdioAck`]
-/// are forwarded to the [`crate::context::LabHostStdio`] parked on the
-/// resident entry; everything else is discarded as before). Fresh or
-/// reused makes no difference to the caller — every `laboratories
-/// spawn` CONVERGES the dial list afterward (idempotent host-side
-/// diff).
+/// parsing as [`objectiveai_sdk::child_stdio::ChildStdioAck`] are
+/// forwarded to the [`crate::context::ChildStdio`] parked on the
+/// resident entry; everything else is discarded as before). The dev
+/// viewer's process tree needs nothing special: stdin/stdout INHERIT
+/// down `cmd → pnpm → node → cargo → viewer`, so the commands and
+/// acks flow through to the innermost binary, and its graceful exit
+/// unwinds the tree naturally. Fresh or reused makes no difference to
+/// the caller — every `laboratories spawn` CONVERGES the dial list
+/// afterward (idempotent host-side diff).
 pub async fn spawn_leashed_until_ready_with_stdio(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, true, KillStyle::Process).await
+    spawn_leashed_inner(global, key, exe, configure, true).await
 }
 
 /// The shared core of the two spawn entry points; `stdio` selects the
-/// laboratory host's piped-stdin + ack-router mode. Returns the ready
-/// address (a live resident child is reused, not respawned).
+/// piped-stdin + ack-router mode. Returns the ready address (a live
+/// resident child is reused, not respawned).
 async fn spawn_leashed_inner(
     global: &crate::context::GlobalContext,
     key: &str,
     exe: &Path,
     configure: impl FnOnce(&mut Command),
     stdio: bool,
-    kill_style: KillStyle,
 ) -> Result<Option<String>, crate::error::Error> {
     let gate = global.spawn_gate(key);
     let _guard = gate.lock().await;
@@ -285,8 +279,9 @@ async fn spawn_leashed_inner(
 
     let stdio_handle = if let Some(stdin) = stdin.take() {
         // Ack ROUTER, replacing the discard drain: stdout lines that
-        // parse as dial-list acks are forwarded to the LabHostStdio
-        // parked below; everything else (stderr, stray output) is
+        // parse as control-channel acks are forwarded to the
+        // ChildStdio parked below; everything else (stderr, stray
+        // output — a dev viewer's vite/cargo chatter included) is
         // consumed and discarded exactly as before, so the pipes stay
         // drained for the child's life.
         let (ack_tx, ack_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -294,10 +289,10 @@ async fn spawn_leashed_inner(
             while let Some(event) = events.recv().await {
                 if let crate::child_io::PipeEvent::Stdout(line) = event {
                     if let Some(ack) =
-                        objectiveai_sdk::laboratories::daemon::parse_host_stdio_ack(&line)
+                        objectiveai_sdk::child_stdio::parse_child_stdio_ack(&line)
                     {
                         if ack_tx.send(ack).is_err() {
-                            // LabHostStdio dropped (child retired) —
+                            // ChildStdio dropped (child retired) —
                             // degrade to a plain drain.
                             break;
                         }
@@ -306,7 +301,7 @@ async fn spawn_leashed_inner(
             }
             while events.recv().await.is_some() {}
         });
-        Some(std::sync::Arc::new(crate::context::LabHostStdio::new(
+        Some(std::sync::Arc::new(crate::context::ChildStdio::new(
             stdin, ack_rx,
         )))
     } else {
@@ -352,20 +347,10 @@ async fn spawn_leashed_inner(
                 _status = child.wait() => break,
                 req = kill_rx.recv(), if !kill_closed => match req {
                     Some(crate::context::KillRequest::Term) => {
-                        match kill_style {
-                            KillStyle::Process => {
-                                let _ = objectiveai_sdk::process::kill_pid(pid);
-                            }
-                            KillStyle::Tree => tree_kill(pid, false).await,
-                        }
+                        let _ = objectiveai_sdk::process::kill_pid(pid);
                     }
                     Some(crate::context::KillRequest::Kill) => {
-                        match kill_style {
-                            KillStyle::Process => {
-                                let _ = child.start_kill();
-                            }
-                            KillStyle::Tree => tree_kill(pid, true).await,
-                        }
+                        let _ = child.start_kill();
                     }
                     // Entry removed and every kill path done — just
                     // wait out the exit.
@@ -377,48 +362,6 @@ async fn spawn_leashed_inner(
         lifecycle_global.remove_resident_child_if(&lifecycle_key, generation);
     });
     Ok(address)
-}
-
-/// How a leashed child is killed.
-///
-/// `Process` is every native server binary: signal the ONE process the
-/// daemon spawned. `Tree` is for children that are the ROOT of a
-/// process tree (the dev viewer's `cmd → pnpm → node → cargo → vite →
-/// viewer` chain): terminating the root alone orphans the tree until
-/// the daemon dies (the daemon-wide job object reaps descendants only
-/// at daemon death), so both kill arms take the whole tree instead.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum KillStyle {
-    Process,
-    Tree,
-}
-
-/// Kill an entire process tree rooted at `pid`.
-///
-/// Windows: `taskkill /PID <pid> /T /F` — `/T` walks the child chain,
-/// `/F` because half the tree is console processes that ignore the
-/// polite close. Unix: signal the process GROUP (the tree spawn sets
-/// `process_group(0)`, so the group id IS the root pid).
-async fn tree_kill(pid: u32, force: bool) {
-    #[cfg(windows)]
-    {
-        let _ = force;
-        let mut cmd = tokio::process::Command::new("taskkill");
-        cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
-        objectiveai_sdk::process::no_window(&mut cmd);
-        if let Ok(mut child) = cmd.spawn() {
-            let _ = child.wait().await;
-        }
-    }
-    #[cfg(unix)]
-    {
-        let signal = if force { "-KILL" } else { "-TERM" };
-        let mut cmd = tokio::process::Command::new("kill");
-        cmd.args([signal, "--", &format!("-{pid}")]);
-        if let Ok(mut child) = cmd.spawn() {
-            let _ = child.wait().await;
-        }
-    }
 }
 
 /// Basename-or-path display name for spawn errors.

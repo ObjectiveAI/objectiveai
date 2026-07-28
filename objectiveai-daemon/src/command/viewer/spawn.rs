@@ -15,8 +15,15 @@
 //!
 //! Two spawn forms, chosen by the `development viewer` slot: the
 //! installed binary (default), or `pnpm exec tauri dev` in a source
-//! checkout (development) — a process TREE, spawned with tree-kill
-//! semantics.
+//! checkout (development). Both are STDIO spawns
+//! ([`crate::spawn::spawn_leashed_until_ready_with_stdio`]): the
+//! viewer listens on stdin for the graceful
+//! [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`] —
+//! the ONLY way `viewer kill` (and every respawn) takes it down, so
+//! browser tabs always persist to disk first. The dev form is a
+//! process tree, but stdin/stdout INHERIT down `cmd → pnpm → node →
+//! cargo → viewer`, so the same command reaches the innermost binary
+//! and its exit unwinds the tree naturally — no tree kill exists.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
@@ -128,9 +135,6 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
     // the child exit before the ready line, which the spawn machinery
     // reports as an error CARRYING THE BUILD OUTPUT — a failed start
     // is always the caller's error, never a silent hang.
-    //
-    // TREE spawn: cmd → pnpm → node → cargo → viewer is a process
-    // tree, so kills must take the whole tree (KillStyle::Tree).
     if let Some(dir) = global
         .resident_hubs()
         .and_then(|hubs| hubs.development_plugins.viewer_app.get())
@@ -162,12 +166,9 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
                 for entry in &development {
                     cmd.arg("--development-plugin").arg(entry);
                 }
-                // The tree is killed as a process GROUP; group id ==
-                // the root pid because the root starts its own group.
-                cmd.process_group(0);
             }))
         };
-        let _ = crate::spawn::spawn_leashed_until_ready_tree(
+        let _ = crate::spawn::spawn_leashed_until_ready_with_stdio(
             global,
             "viewer",
             std::path::Path::new(program),
@@ -181,7 +182,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
         return Ok("ready (development)".to_string());
     }
 
-    let _ = crate::spawn::spawn_leashed_until_ready(global, "viewer", &exe, |cmd| {
+    let _ = crate::spawn::spawn_leashed_until_ready_with_stdio(global, "viewer", &exe, |cmd| {
         // The viewer is a WINDOWED child (the release binary is
         // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
         // only a console-subsystem dev build's console). It is leashed
