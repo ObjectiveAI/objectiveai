@@ -95,7 +95,7 @@ impl JsonSchema for TaskOutput<'static> {
 impl<'a> super::ToStarlarkValue for TaskOutput<'a> {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         match self {
             TaskOutput::Owned(o) => o.to_starlark_value(heap),
@@ -163,7 +163,7 @@ pub enum TaskOutputOwned {
 impl ToStarlarkValue for TaskOutputOwned {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         match self {
             TaskOutputOwned::Scalar(d) => d.to_starlark_value(heap),
@@ -355,7 +355,7 @@ pub enum TaskOutputRef<'a> {
 impl<'a> ToStarlarkValue for TaskOutputRef<'a> {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         match self {
             TaskOutputRef::Scalar(d) => d.to_starlark_value(heap),

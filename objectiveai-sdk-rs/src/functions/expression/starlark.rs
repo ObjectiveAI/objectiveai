@@ -67,66 +67,66 @@ fn register_custom_functions(builder: &mut GlobalsBuilder) {
 
 /// Trait for direct conversion to Starlark values (bypassing serde_json).
 pub trait ToStarlarkValue {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v>;
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v>;
 }
 
 impl ToStarlarkValue for str {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc_str(self).to_value()
     }
 }
 
 impl ToStarlarkValue for String {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc_str(self).to_value()
     }
 }
 
 impl ToStarlarkValue for i32 {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc(*self as i64)
     }
 }
 
 impl ToStarlarkValue for i64 {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc(*self)
     }
 }
 
 impl ToStarlarkValue for u32 {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc(*self as i64)
     }
 }
 
 impl ToStarlarkValue for u64 {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc(*self as i64)
     }
 }
 
 impl ToStarlarkValue for f64 {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         heap.alloc(*self)
     }
 }
 
 impl ToStarlarkValue for bool {
-    fn to_starlark_value<'v>(&self, _heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, _heap: &Heap<'v>) -> StarlarkValue<'v> {
         StarlarkValue::new_bool(*self)
     }
 }
 
 impl ToStarlarkValue for rust_decimal::Decimal {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         use rust_decimal::prelude::ToPrimitive;
         heap.alloc(self.to_f64().unwrap_or(0.0))
     }
 }
 
 impl<T: ToStarlarkValue> ToStarlarkValue for Vec<T> {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         let items: Vec<StarlarkValue> =
             self.iter().map(|v| v.to_starlark_value(heap)).collect();
         heap.alloc(items)
@@ -134,7 +134,7 @@ impl<T: ToStarlarkValue> ToStarlarkValue for Vec<T> {
 }
 
 impl<T: ToStarlarkValue> ToStarlarkValue for [T] {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         let items: Vec<StarlarkValue> =
             self.iter().map(|v| v.to_starlark_value(heap)).collect();
         heap.alloc(items)
@@ -142,7 +142,7 @@ impl<T: ToStarlarkValue> ToStarlarkValue for [T] {
 }
 
 impl<T: ToStarlarkValue> ToStarlarkValue for Option<T> {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         match self {
             Some(v) => v.to_starlark_value(heap),
             None => StarlarkValue::new_none(),
@@ -151,7 +151,7 @@ impl<T: ToStarlarkValue> ToStarlarkValue for Option<T> {
 }
 
 impl<T: ToStarlarkValue> ToStarlarkValue for indexmap::IndexMap<String, T> {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         let pairs: Vec<(&str, StarlarkValue)> = self
             .iter()
             .map(|(k, v)| (k.as_str(), v.to_starlark_value(heap)))
@@ -161,7 +161,7 @@ impl<T: ToStarlarkValue> ToStarlarkValue for indexmap::IndexMap<String, T> {
 }
 
 impl ToStarlarkValue for serde_json::Value {
-    fn to_starlark_value<'v>(&self, heap: &'v Heap) -> StarlarkValue<'v> {
+    fn to_starlark_value<'v>(&self, heap: &Heap<'v>) -> StarlarkValue<'v> {
         match self {
             serde_json::Value::Null => StarlarkValue::new_none(),
             serde_json::Value::Bool(b) => b.to_starlark_value(heap),
@@ -435,53 +435,62 @@ pub(crate) fn with_eval_result<F, R>(
 where
     F: FnOnce(&StarlarkValue) -> Result<R, ExpressionError>,
 {
-    let module = Module::new();
-    {
-        let heap = module.heap();
-        match params {
-            super::Params::Owned(owned) => {
-                module.set("input", owned.input.to_starlark_value(heap));
-                module.set(
-                    "output",
-                    owned
-                        .output
-                        .as_ref()
-                        .map_or(StarlarkValue::new_none(), |o| {
+    // starlark 0.14 moved heap ownership out of `Module` and into a
+    // SCOPE, so the whole evaluation runs inside this closure.
+    // Nothing escapes it — `f` consumes the result while it is still
+    // live, which is the reason this function took a callback rather
+    // than returning the value in the first place.
+    Module::with_temp_heap(|module| {
+        {
+            // 0.14 hands back a `Heap<'v>` BY VALUE; the trait takes
+            // `&Heap<'v>`. Binding by reference extends the temporary
+            // to the end of this block.
+            let heap = &module.heap();
+            match params {
+                super::Params::Owned(owned) => {
+                    module.set("input", owned.input.to_starlark_value(heap));
+                    module.set(
+                        "output",
+                        owned
+                            .output
+                            .as_ref()
+                            .map_or(StarlarkValue::new_none(), |o| {
+                                o.to_starlark_value(heap)
+                            }),
+                    );
+                    module.set(
+                        "map",
+                        owned.map.map_or(StarlarkValue::new_none(), |m| {
+                            heap.alloc(m as i64)
+                        }),
+                    );
+                }
+                super::Params::Ref(r) => {
+                    module.set("input", r.input.to_starlark_value(heap));
+                    module.set(
+                        "output",
+                        r.output.as_ref().map_or(StarlarkValue::new_none(), |o| {
                             o.to_starlark_value(heap)
                         }),
-                );
-                module.set(
-                    "map",
-                    owned.map.map_or(StarlarkValue::new_none(), |m| {
-                        heap.alloc(m as i64)
-                    }),
-                );
-            }
-            super::Params::Ref(r) => {
-                module.set("input", r.input.to_starlark_value(heap));
-                module.set(
-                    "output",
-                    r.output.as_ref().map_or(StarlarkValue::new_none(), |o| {
-                        o.to_starlark_value(heap)
-                    }),
-                );
-                module.set(
-                    "map",
-                    r.map.map_or(StarlarkValue::new_none(), |m| {
-                        heap.alloc(m as i64)
-                    }),
-                );
+                    );
+                    module.set(
+                        "map",
+                        r.map.map_or(StarlarkValue::new_none(), |m| {
+                            heap.alloc(m as i64)
+                        }),
+                    );
+                }
             }
         }
-    }
-    let ast =
-        AstModule::parse("expression", code.to_string(), &Dialect::Extended)
-            .map_err(|e| ExpressionError::StarlarkParseError(e.to_string()))?;
-    let mut eval = Evaluator::new(&module);
-    let result = eval
-        .eval_module(ast, &STARLARK_GLOBALS)
-        .map_err(|e| ExpressionError::StarlarkEvalError(e.to_string()))?;
-    f(&result)
+        let ast =
+            AstModule::parse("expression", code.to_string(), &Dialect::Extended)
+                .map_err(|e| ExpressionError::StarlarkParseError(e.to_string()))?;
+        let mut eval = Evaluator::new(&module);
+        let result = eval
+            .eval_module(ast, &STARLARK_GLOBALS)
+            .map_err(|e| ExpressionError::StarlarkEvalError(e.to_string()))?;
+        f(&result)
+    })
 }
 
 fn svalue_to_one_or_many<T: FromStarlarkValue>(

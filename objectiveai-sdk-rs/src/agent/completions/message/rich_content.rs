@@ -640,7 +640,7 @@ impl RichContentPart {
 impl ToStarlarkValue for RichContentPart {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         match self {
             RichContentPart::Text { text } => heap.alloc(StarlarkAllocDict([
@@ -975,7 +975,7 @@ impl From<crate::mcp::tool::ImageContent> for ImageUrl {
 impl ToStarlarkValue for ImageUrl {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([
             ("url", self.url.to_starlark_value(heap)),
@@ -1059,7 +1059,7 @@ pub enum ImageUrlDetail {
 impl ToStarlarkValue for ImageUrlDetail {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         match self {
             ImageUrlDetail::Auto => "auto".to_starlark_value(heap),
@@ -1153,7 +1153,7 @@ impl From<crate::mcp::tool::AudioContent> for InputAudio {
 impl ToStarlarkValue for InputAudio {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([
             ("data", self.data.to_starlark_value(heap)),
@@ -1238,7 +1238,7 @@ impl VideoUrl {
 impl ToStarlarkValue for VideoUrl {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([(
             "url",
@@ -1362,7 +1362,7 @@ impl File {
 impl ToStarlarkValue for File {
     fn to_starlark_value<'v>(
         &self,
-        heap: &'v StarlarkHeap,
+        heap: &StarlarkHeap<'v>,
     ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([
             ("file_data", self.file_data.to_starlark_value(heap)),
