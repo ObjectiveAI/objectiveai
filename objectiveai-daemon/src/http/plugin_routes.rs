@@ -8,7 +8,9 @@
 //! host builds the PLUGIN'S OWN viewer Containerfile — the same
 //! `podman build` it already runs for the plugin's MCP image — which
 //! is why this machine needs no node, no pnpm, no esbuild, and why an
-//! author can reproduce a build with one `podman build`. Host
+//! author can reproduce a build with one `podman build`. (The one
+//! exception is `development viewer set` — running the viewer APP from
+//! source is a developer-machine feature and shells out to pnpm.) Host
 //! selection is the ordinary laboratory load balancer (a uniformly
 //! random connected host), the same one every ephemeral create rides.
 //!

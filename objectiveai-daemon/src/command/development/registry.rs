@@ -36,6 +36,9 @@ pub type PluginKey = (String, String, String);
 pub struct DevelopmentPlugins {
     pub mcp: HalfRegistry,
     pub viewer: HalfRegistry,
+    /// The viewer APP itself, run from source — a singleton, not a
+    /// per-plugin registration. See [`ViewerApp`].
+    pub viewer_app: ViewerApp,
 }
 
 impl DevelopmentPlugins {
@@ -94,5 +97,35 @@ impl HalfRegistry {
             .collect();
         all.sort_by(|a, b| a.0.cmp(&b.0));
         all
+    }
+}
+
+/// The viewer-app development slot: when set, `viewer spawn` runs
+/// `pnpm exec tauri dev` in this directory instead of the installed
+/// binary. A SINGLETON — there is one viewer — and in-memory like the
+/// plugin registrations: a source-checkout override must not survive
+/// the daemon that was told about it.
+#[derive(Clone, Default)]
+pub struct ViewerApp {
+    path: Arc<std::sync::RwLock<Option<PathBuf>>>,
+}
+
+impl ViewerApp {
+    /// Register a source directory, returning the one it displaced.
+    pub fn set(&self, path: PathBuf) -> Option<PathBuf> {
+        self.path
+            .write()
+            .expect("viewer app slot poisoned")
+            .replace(path)
+    }
+
+    /// The registered source directory, if any.
+    pub fn get(&self) -> Option<PathBuf> {
+        self.path.read().expect("viewer app slot poisoned").clone()
+    }
+
+    /// Drop the registration, returning what it held.
+    pub fn clear(&self) -> Option<PathBuf> {
+        self.path.write().expect("viewer app slot poisoned").take()
     }
 }

@@ -11,6 +11,7 @@
 use crate::cli::command::CommandRequest;
 
 pub mod plugins;
+pub mod viewer;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -19,18 +20,21 @@ pub enum Command {
         #[command(subcommand)]
         command: plugins::Command,
     },
+    /// Run the viewer app itself from source.
+    Viewer {
+        #[command(subcommand)]
+        command: viewer::Command,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.development.Request")]
 pub enum Request {
-    // NOTE: no variant-level `#[schemars(title)]`. Single-variant enum
-    // — schemars collapses it to the lone variant's schema and HOISTS
-    // that title over the type's `rename`, which the json-schema
-    // builder rejects as a title changing during normalization. Same
-    // reason as `agent.script.Script` / `ClientLaboratoryType`.
+    #[schemars(title = "Plugins")]
     Plugins(plugins::Request),
+    #[schemars(title = "Viewer")]
+    Viewer(viewer::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -42,6 +46,8 @@ pub enum Request {
 pub enum ResponseItem {
     #[schemars(title = "Plugins")]
     Plugins(plugins::ResponseItem),
+    #[schemars(title = "Viewer")]
+    Viewer(viewer::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -49,6 +55,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
             ResponseItem::Plugins(v) => v.into_mcp(),
+            ResponseItem::Viewer(v) => v.into_mcp(),
         }
     }
 }
@@ -60,6 +67,9 @@ impl TryFrom<Command> for Request {
             Command::Plugins { command } => {
                 Ok(Request::Plugins(plugins::Request::try_from(command)?))
             }
+            Command::Viewer { command } => {
+                Ok(Request::Viewer(viewer::Request::try_from(command)?))
+            }
         }
     }
 }
@@ -68,12 +78,14 @@ impl CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Plugins(inner) => inner.request_base(),
+            Request::Viewer(inner) => inner.request_base(),
         }
     }
 
     fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
         match self {
             Request::Plugins(inner) => inner.request_base_mut(),
+            Request::Viewer(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -94,6 +106,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
         Request::Plugins(req) => {
             let inner = plugins::execute(executor, req, identity).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
+        }
+        Request::Viewer(req) => {
+            let inner = viewer::execute(executor, req, identity).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
         }
     };
     Ok(stream)
@@ -116,6 +132,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             let inner = plugins::execute_transform(executor, req, transform, identity).await?;
             Box::pin(inner)
         }
+        Request::Viewer(req) => {
+            let inner = viewer::execute_transform(executor, req, transform, identity).await?;
+            Box::pin(inner)
+        }
     };
     Ok(stream)
 }
@@ -124,4 +144,5 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 #[cfg(all(feature = "cli", feature = "daemon"))]
 pub enum ListenerExecution {
     Plugins(plugins::ListenerExecution),
+    Viewer(viewer::ListenerExecution),
 }

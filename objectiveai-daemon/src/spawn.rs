@@ -129,7 +129,19 @@ pub async fn spawn_leashed_until_ready(
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, false).await
+    spawn_leashed_inner(global, key, exe, configure, false, KillStyle::Process).await
+}
+
+/// [`spawn_leashed_until_ready`] for a child that is the ROOT of a
+/// process tree — kills take the whole tree (see [`KillStyle::Tree`]).
+/// The dev-mode viewer (`pnpm exec tauri dev`) is the one user.
+pub async fn spawn_leashed_until_ready_tree(
+    global: &crate::context::GlobalContext,
+    key: &str,
+    exe: &Path,
+    configure: impl FnOnce(&mut Command),
+) -> Result<Option<String>, crate::error::Error> {
+    spawn_leashed_inner(global, key, exe, configure, false, KillStyle::Tree).await
 }
 
 /// [`spawn_leashed_until_ready`] for the laboratory host: stdin is
@@ -147,7 +159,7 @@ pub async fn spawn_leashed_until_ready_with_stdio(
     exe: &Path,
     configure: impl FnOnce(&mut Command),
 ) -> Result<Option<String>, crate::error::Error> {
-    spawn_leashed_inner(global, key, exe, configure, true).await
+    spawn_leashed_inner(global, key, exe, configure, true, KillStyle::Process).await
 }
 
 /// The shared core of the two spawn entry points; `stdio` selects the
@@ -159,6 +171,7 @@ async fn spawn_leashed_inner(
     exe: &Path,
     configure: impl FnOnce(&mut Command),
     stdio: bool,
+    kill_style: KillStyle,
 ) -> Result<Option<String>, crate::error::Error> {
     let gate = global.spawn_gate(key);
     let _guard = gate.lock().await;
@@ -203,25 +216,42 @@ async fn spawn_leashed_inner(
     let stderr = child.stderr.take().expect("stderr was piped");
     let mut events = crate::child_io::spawn_pipe_reader(stdout, stderr);
 
-    // Collected for the exited-before-ready error report only.
-    let mut seen_stdout: Vec<String> = Vec::new();
-    let mut seen_stderr: Vec<String> = Vec::new();
+    // Collected for the exited-before-ready error report only —
+    // RING-buffered: a failing `tauri dev` prints thousands of build
+    // lines, and the error wants the diagnostic tail, not a megabyte.
+    const SEEN_CAP: usize = 60;
+    fn push_capped(seen: &mut std::collections::VecDeque<String>, line: String) {
+        if seen.len() == SEEN_CAP {
+            seen.pop_front();
+        }
+        seen.push_back(line);
+    }
+    let mut seen_stdout: std::collections::VecDeque<String> =
+        std::collections::VecDeque::new();
+    let mut seen_stderr: std::collections::VecDeque<String> =
+        std::collections::VecDeque::new();
+    // Flipped when the pipe readers end while the child lives — a
+    // process tree makes that ordinary (grandchildren inherit the
+    // write ends and the readers can close first). Without the gate,
+    // recv() on a closed channel returns None instantly, forever, and
+    // the select would busy-spin until the child exits.
+    let mut events_closed = false;
     let address = loop {
         tokio::select! {
-            event = events.recv() => match event {
+            event = events.recv(), if !events_closed => match event {
                 Some(crate::child_io::PipeEvent::Stdout(line)) => {
                     if let Some(ready) = objectiveai_sdk::process::parse_ready(&line) {
                         break ready.address;
                     }
-                    seen_stdout.push(line);
+                    push_capped(&mut seen_stdout, line);
                 }
                 Some(crate::child_io::PipeEvent::Stderr(line)) => {
-                    seen_stderr.push(line);
+                    push_capped(&mut seen_stderr, line);
                 }
                 // EOFs / read errors without a ready line: keep
                 // waiting — the child-exit arm is the terminal signal.
                 Some(_) => {}
-                None => {}
+                None => events_closed = true,
             },
             status = child.wait() => {
                 // Exited before announcing readiness. Give the reader
@@ -232,10 +262,10 @@ async fn spawn_leashed_inner(
                 loop {
                     match tokio::time::timeout_at(deadline, events.recv()).await {
                         Ok(Some(crate::child_io::PipeEvent::Stdout(line))) => {
-                            seen_stdout.push(line);
+                            push_capped(&mut seen_stdout, line);
                         }
                         Ok(Some(crate::child_io::PipeEvent::Stderr(line))) => {
-                            seen_stderr.push(line);
+                            push_capped(&mut seen_stderr, line);
                         }
                         Ok(Some(_)) => {}
                         Ok(None) | Err(_) => break,
@@ -246,8 +276,8 @@ async fn spawn_leashed_inner(
                     status: status.map_err(|e| {
                         crate::error::Error::Spawn(name_of(exe), e)
                     })?,
-                    stdout: seen_stdout.join("\n"),
-                    stderr: seen_stderr.join("\n"),
+                    stdout: Vec::from(seen_stdout).join("\n"),
+                    stderr: Vec::from(seen_stderr).join("\n"),
                 });
             }
         }
@@ -322,10 +352,20 @@ async fn spawn_leashed_inner(
                 _status = child.wait() => break,
                 req = kill_rx.recv(), if !kill_closed => match req {
                     Some(crate::context::KillRequest::Term) => {
-                        let _ = objectiveai_sdk::process::kill_pid(pid);
+                        match kill_style {
+                            KillStyle::Process => {
+                                let _ = objectiveai_sdk::process::kill_pid(pid);
+                            }
+                            KillStyle::Tree => tree_kill(pid, false).await,
+                        }
                     }
                     Some(crate::context::KillRequest::Kill) => {
-                        let _ = child.start_kill();
+                        match kill_style {
+                            KillStyle::Process => {
+                                let _ = child.start_kill();
+                            }
+                            KillStyle::Tree => tree_kill(pid, true).await,
+                        }
                     }
                     // Entry removed and every kill path done — just
                     // wait out the exit.
@@ -337,6 +377,48 @@ async fn spawn_leashed_inner(
         lifecycle_global.remove_resident_child_if(&lifecycle_key, generation);
     });
     Ok(address)
+}
+
+/// How a leashed child is killed.
+///
+/// `Process` is every native server binary: signal the ONE process the
+/// daemon spawned. `Tree` is for children that are the ROOT of a
+/// process tree (the dev viewer's `cmd → pnpm → node → cargo → vite →
+/// viewer` chain): terminating the root alone orphans the tree until
+/// the daemon dies (the daemon-wide job object reaps descendants only
+/// at daemon death), so both kill arms take the whole tree instead.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum KillStyle {
+    Process,
+    Tree,
+}
+
+/// Kill an entire process tree rooted at `pid`.
+///
+/// Windows: `taskkill /PID <pid> /T /F` — `/T` walks the child chain,
+/// `/F` because half the tree is console processes that ignore the
+/// polite close. Unix: signal the process GROUP (the tree spawn sets
+/// `process_group(0)`, so the group id IS the root pid).
+async fn tree_kill(pid: u32, force: bool) {
+    #[cfg(windows)]
+    {
+        let _ = force;
+        let mut cmd = tokio::process::Command::new("taskkill");
+        cmd.args(["/PID", &pid.to_string(), "/T", "/F"]);
+        objectiveai_sdk::process::no_window(&mut cmd);
+        if let Ok(mut child) = cmd.spawn() {
+            let _ = child.wait().await;
+        }
+    }
+    #[cfg(unix)]
+    {
+        let signal = if force { "-KILL" } else { "-TERM" };
+        let mut cmd = tokio::process::Command::new("kill");
+        cmd.args([signal, "--", &format!("-{pid}")]);
+        if let Ok(mut child) = cmd.spawn() {
+            let _ = child.wait().await;
+        }
+    }
 }
 
 /// Basename-or-path display name for spawn errors.

@@ -9,13 +9,37 @@
 //! argv (`--development-plugin` entries, one per viewer development
 //! registration). Every mutation of either — `daemon config set`,
 //! `refresh-secret-signature-pair`, `development plugins viewer
-//! create`/`delete` — propagates through ONE mechanism:
-//! `respawn_running_viewer`. No live channel, nothing to converge.
+//! create`/`delete`, `development viewer set`/`delete` — propagates
+//! through ONE mechanism: `respawn_running_viewer`. No live channel,
+//! nothing to converge.
+//!
+//! Two spawn forms, chosen by the `development viewer` slot: the
+//! installed binary (default), or `pnpm exec tauri dev` in a source
+//! checkout (development) — a process TREE, spawned with tree-kill
+//! semantics.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
+
+/// Quote one token for a cmd.exe command line: wrap in double quotes
+/// when it contains whitespace (registration paths), doubling any
+/// embedded quote. The trio segments and flag names never need it.
+#[cfg(windows)]
+fn quote(token: &str) -> String {
+    if token.contains(char::is_whitespace) || token.contains('"') {
+        format!("\"{}\"", token.replace('"', "\"\""))
+    } else {
+        token.to_string()
+    }
+}
+
+/// Unix: tokens are passed as real argv, no quoting layer exists.
+#[cfg(unix)]
+fn quote(token: &str) -> String {
+    token.to_string()
+}
 
 /// The spawn flow itself. Idempotent and cheap when the viewer is
 /// already up: a try_read of the lock returns without spawning.
@@ -80,6 +104,83 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
                 .collect()
         })
         .unwrap_or_default();
+
+    let env = |cmd: &mut tokio::process::Command| {
+        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
+            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
+            .env("SUPPRESS_OUTPUT", "true")
+            .env("DAEMON_ADDRESS", &daemon_address);
+        if let Some(signature) = &daemon_signature {
+            cmd.env("DAEMON_SIGNATURE", signature);
+        }
+    };
+
+    // VIEWER DEVELOPMENT MODE (`development viewer set`): run the
+    // viewer FROM SOURCE — `pnpm exec tauri dev` in the registered
+    // directory — instead of the installed binary. Same leash key,
+    // same ready handshake (run.rs prints the ready line in every
+    // mode), same env handoff. The `development` cargo feature makes
+    // the source build parse the plugin argv, and tauri dev's `--`
+    // passthrough delivers it — and re-delivers it verbatim when
+    // tauri dev restarts the binary on its own Rust rebuilds.
+    //
+    // A source build that fails to start (cargo or vite error) makes
+    // the child exit before the ready line, which the spawn machinery
+    // reports as an error CARRYING THE BUILD OUTPUT — a failed start
+    // is always the caller's error, never a silent hang.
+    //
+    // TREE spawn: cmd → pnpm → node → cargo → viewer is a process
+    // tree, so kills must take the whole tree (KillStyle::Tree).
+    if let Some(dir) = global
+        .resident_hubs()
+        .and_then(|hubs| hubs.development_plugins.viewer_app.get())
+    {
+        let mut passthrough = String::new();
+        for entry in &development {
+            passthrough.push_str(&format!(" --development-plugin {}", quote(entry)));
+        }
+        #[cfg(windows)]
+        let (program, configure): (&str, Box<dyn FnOnce(&mut tokio::process::Command) + Send>) = {
+            // `pnpm` is a `.cmd` shim, which Rust will not spawn
+            // directly — go through cmd.exe, composing the ONE quoted
+            // line ourselves via raw_arg (std's auto-quoting and
+            // cmd.exe's re-parsing disagree; hand-quoting each token
+            // with spaces is the reliable intersection).
+            let line = format!(
+                "/C pnpm exec tauri dev --features development --{passthrough}"
+            );
+            ("cmd", Box::new(move |cmd: &mut tokio::process::Command| {
+                use std::os::windows::process::CommandExt as _;
+                cmd.raw_arg(line);
+            }))
+        };
+        #[cfg(unix)]
+        let (program, configure): (&str, Box<dyn FnOnce(&mut tokio::process::Command) + Send>) = {
+            let development = development.clone();
+            ("pnpm", Box::new(move |cmd: &mut tokio::process::Command| {
+                cmd.args(["exec", "tauri", "dev", "--features", "development", "--"]);
+                for entry in &development {
+                    cmd.arg("--development-plugin").arg(entry);
+                }
+                // The tree is killed as a process GROUP; group id ==
+                // the root pid because the root starts its own group.
+                cmd.process_group(0);
+            }))
+        };
+        let _ = crate::spawn::spawn_leashed_until_ready_tree(
+            global,
+            "viewer",
+            std::path::Path::new(program),
+            |cmd| {
+                configure(cmd);
+                cmd.current_dir(&dir);
+                env(cmd);
+            },
+        )
+        .await?;
+        return Ok("ready (development)".to_string());
+    }
+
     let _ = crate::spawn::spawn_leashed_until_ready(global, "viewer", &exe, |cmd| {
         // The viewer is a WINDOWED child (the release binary is
         // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
@@ -89,13 +190,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
         for entry in &development {
             cmd.arg("--development-plugin").arg(entry);
         }
-        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
-            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
-            .env("SUPPRESS_OUTPUT", "true")
-            .env("DAEMON_ADDRESS", &daemon_address);
-        if let Some(signature) = daemon_signature {
-            cmd.env("DAEMON_SIGNATURE", signature);
-        }
+        env(cmd);
     })
     .await?;
     Ok("ready".to_string())

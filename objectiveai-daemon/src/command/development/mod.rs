@@ -25,6 +25,10 @@ pub mod list;
 pub mod plugins;
 pub mod registry;
 pub mod reset;
+pub mod viewer;
+pub mod viewer_app_delete;
+pub mod viewer_app_get;
+pub mod viewer_app_set;
 pub mod viewer_create;
 pub mod viewer_delete;
 pub mod viewer_list;
@@ -41,6 +45,10 @@ pub async fn execute(
         Request::Plugins(req) => {
             let inner = plugins::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
+        }
+        Request::Viewer(req) => {
+            let inner = viewer::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
         }
     };
     Ok(stream)
