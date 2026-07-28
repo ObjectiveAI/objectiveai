@@ -2,6 +2,13 @@
   "description": "Starting point for an ObjectiveAI MCP plugin written in Rust.",
   "mcp": {
     "containerfile": "Containerfile",
-    "port": 8080
+    "port": 8080,
+    "development": {
+      "caches": [
+        "/build/target",
+        "/usr/local/cargo/registry",
+        "/usr/local/cargo/git"
+      ]
+    }
   }
 }

@@ -14,15 +14,31 @@ package, the binary, the `cp` in the `Containerfile`, and the `NAME`
 constant. Do it before anything else; a half-finished rename fails at
 runtime rather than at build time.
 
-Then run it:
+Then point ObjectiveAI at it:
 
 ```bash
-cargo run
+objectiveai laboratories spawn
+objectiveai development plugins mcp create \
+  --owner you --name my-plugin --version v0.1.0 \
+  --path /absolute/path/to/my-plugin
 ```
 
-The server starts on port `8080`. Nothing will call it — inside
-ObjectiveAI the laboratory host is the client and dials in — but a
-clean start means the build is good.
+Now an agent that declares `you/my-plugin@v0.1.0` gets THIS directory
+instead of the git tag — no pushing, no tagging. After each edit:
+
+```bash
+objectiveai development plugins mcp reset --owner you --name my-plugin --version v0.1.0
+```
+
+Rebuilds are explicit, so `reset` is what makes an edit take effect.
+It is fast because the `mcp.development.caches` in `objectiveai.json`
+keep the cargo registry and `target/` between builds; drop `--caches`
+into that command only when a cache is actually suspect.
+
+`cargo run` also works and is the quickest check that the thing
+compiles and binds. It just cannot tell you much: nothing dials it, and
+`identity()`, the database and the command executor are all empty
+outside a container.
 
 You can start adding tools by editing `src/main.rs`. Each `#[tool]`
 becomes a tool an agent can call, and its parameter struct becomes the
@@ -173,10 +189,11 @@ none of it is in your source:
 
 ## Shipping it
 
-Plugins are built from a git tag. Push one, then have an agent install
-and call it — that is the real test loop, and the only one where
-`identity()` is populated, since the host stamps it at container
-create.
+Plugins are built from a git tag. Push one, drop the development
+registration (`development plugins mcp delete`), and the next run
+fetches the tag instead — the image records which directory it was
+built from, so it rebuilds on its own rather than serving your
+uncommitted work under a released version.
 
 The port appears in three places — `objectiveai.json`, `PORT` in
 `src/main.rs`, and `EXPOSE` in the `Containerfile`. They have to agree;
