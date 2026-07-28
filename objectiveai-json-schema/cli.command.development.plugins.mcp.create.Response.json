@@ -1,0 +1,23 @@
+{
+  "title": "cli.command.development.plugins.mcp.create.Response",
+  "description": "The registration, echoed with the coordinates as the daemon\ncanonicalized them — which is what an agent's declaration will be\nmatched against, so it is worth seeing.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "replaced": {
+      "description": "Whether this REPLACED an existing registration for the same\ncoordinates. Worth reporting: re-registering a different\ndirectory is silent otherwise, and the image built from the old\none is still tagged until the next create rebuilds it.",
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

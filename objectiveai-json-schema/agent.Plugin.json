@@ -4,20 +4,11 @@
   "type": "object",
   "properties": {
     "arguments": {
-      "description": "Optional key→value arguments handed to the plugin's MCP server\nat startup. `Some(value)` ⇒ `--key value`; `None` ⇒ a bare\n`--key` flag. The plugin author decides how to interpret them.\n[`prepare`] normalizes (`Some(\"\") → None`), sorts the map by\nkey, and collapses an empty map to `None` so two equivalent\ndeclarations canonicalize to byte-identical JSON.",
+      "description": "Optional key→value arguments handed to the plugin's MCP server\nat startup. Values are free-form JSON: a string behaves as\n`--key value` and `null` as a bare `--key` flag, but an object,\nan array or a number is equally valid and the plugin author\ndecides how to interpret them.\n\n[`prepare`] normalizes (an empty STRING becomes `null`, so the\ntwo spellings of a valueless flag canonicalize together), sorts\nthe map by key AND every object key nested inside a value at\nany depth, and collapses an empty map to `None` — so two\nequivalent declarations serialize byte-identically, which is\nwhat makes an agent id content-addressable. Array element order\nis left alone: that is data, not spelling.",
       "anyOf": [
         {
           "type": "object",
-          "additionalProperties": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
+          "additionalProperties": true
         },
         {
           "type": "null"

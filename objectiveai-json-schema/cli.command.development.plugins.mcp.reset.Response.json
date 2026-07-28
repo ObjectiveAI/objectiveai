@@ -1,0 +1,26 @@
+{
+  "title": "cli.command.development.plugins.mcp.reset.Response",
+  "description": "What the host actually dropped.",
+  "type": "object",
+  "properties": {
+    "caches_removed": {
+      "description": "Cache directories deleted; always 0 without `--caches`.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    },
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "removed": {
+      "description": "Whether an image was removed. `false` for a plugin that was\nnever built is a SUCCESS — the point of the command is that the\nnext run rebuilds, and that is already true.",
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

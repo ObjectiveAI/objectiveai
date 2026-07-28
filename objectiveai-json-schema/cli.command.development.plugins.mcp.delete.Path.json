@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.plugins.mcp.delete.Path",
+  "type": "string",
+  "enum": [
+    "development/plugins/mcp/delete"
+  ]
+}

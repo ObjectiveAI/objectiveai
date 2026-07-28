@@ -58,6 +58,10 @@
       "$ref": "cli.command.channels.Request"
     },
     {
+      "title": "Development",
+      "$ref": "cli.command.development.Request"
+    },
+    {
       "title": "Tasks",
       "$ref": "cli.command.tasks.Request"
     },

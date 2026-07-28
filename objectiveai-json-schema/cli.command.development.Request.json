@@ -1,0 +1,4 @@
+{
+  "title": "cli.command.development.Request",
+  "$ref": "cli.command.development.plugins.Request"
+}

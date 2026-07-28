@@ -7,6 +7,18 @@
       "description": "Repo-relative path (forward slashes) to the Containerfile /\nDockerfile the image builds from. Its OWN DIRECTORY is the\nbuild context — so a Containerfile at `server/Containerfile`\nsees `server/` as its root and its `COPY` steps carry no\n`server/` prefix.",
       "type": "string"
     },
+    "development": {
+      "description": "Build settings that apply ONLY when this plugin is registered\nfor development (`development plugins mcp create`). Ignored\nentirely for a released plugin — a production image never binds\na host directory, so nothing here can change what ships.",
+      "anyOf": [
+        {
+          "$ref": "cli.plugins.Development"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "port": {
       "description": "The port the MCP server listens on inside the container —\npublished to a random loopback host port at create. Never 0.",
       "type": "integer",

@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.plugins.mcp.create.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "development/plugins/mcp/create/response_schema"
+  ]
+}

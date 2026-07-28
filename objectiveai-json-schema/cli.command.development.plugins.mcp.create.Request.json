@@ -1,0 +1,75 @@
+{
+  "title": "cli.command.development.plugins.mcp.create.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_tokens": {
+      "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "name": {
+      "description": "Repository segment, likewise lowercased.",
+      "type": "string"
+    },
+    "owner": {
+      "description": "GitHub `<owner>` segment, lowercased on arrival — the\ndeclaration layer lowercases it too, so the registration and an\nagent's `plugin` entry agree.",
+      "type": "string"
+    },
+    "path": {
+      "description": "ABSOLUTE path to the plugin's source directory: the one holding\n`objectiveai.json`. Absolute because the laboratory host\nresolves it, and its working directory is not yours.",
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.development.plugins.mcp.create.Path"
+    },
+    "python": {
+      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timeout_seconds": {
+      "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "version": {
+      "description": "Plugin version — matched byte-for-byte against what an agent\ndeclares. It is the git tag everywhere else, and stays\ncase-sensitive here even though nothing is fetched.",
+      "type": "string"
+    }
+  }
+}
