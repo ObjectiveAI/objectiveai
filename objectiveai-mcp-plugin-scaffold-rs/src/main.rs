@@ -37,18 +37,28 @@ struct GreetArgs {
     name: String,
 }
 
+/// Both tools are named to be impossible to ship by accident. An agent
+/// that can see `..._deleteme` is looking at a plugin whose author
+/// never got to the part where they wrote their own tools — which is
+/// worth finding out from the tool list rather than from the output.
+/// Delete them; they exist to be read once and removed.
 #[rmcp::tool_router]
 impl Plugin {
-    #[rmcp::tool(description = "Greet someone by name.")]
-    async fn greet(&self, Parameters(args): Parameters<GreetArgs>) -> String {
+    #[rmcp::tool(description = "Scaffold example, delete me. Greets someone by name.")]
+    async fn scaffold_greet_deleteme(
+        &self,
+        Parameters(args): Parameters<GreetArgs>,
+    ) -> String {
         format!("Hello, {}!", args.name)
     }
 
     /// Proves the ambient context is readable — the identity the host
     /// stamped on this container, and whatever the agent configured
     /// for this plugin.
-    #[rmcp::tool(description = "Report who this plugin is running as.")]
-    async fn whoami(&self) -> String {
+    #[rmcp::tool(
+        description = "Scaffold example, delete me. Reports who this plugin is running as."
+    )]
+    async fn scaffold_whoami_deleteme(&self) -> String {
         let identity = objectiveai_mcp_plugin_framework::identity();
         let plugin = identity.plugin_name.as_deref().unwrap_or("(not a plugin)");
         let arguments: Vec<&str> = objectiveai_mcp_plugin_framework::arguments()
@@ -71,7 +81,7 @@ async fn main() -> Result<Infallible, std::io::Error> {
     objectiveai_mcp_plugin_framework::serve::serve(
         objectiveai_mcp_plugin_framework::config::Config::new(PORT, NAME, VERSION)
             .with_description("Starting point for an ObjectiveAI MCP plugin.")
-            .with_instructions("Call greet to greet someone by name."),
+            .with_instructions("Replace this with what an agent should know."),
         Plugin,
         tools,
     )

@@ -29,7 +29,7 @@ becomes a tool an agent can call, and its parameter struct becomes the
 schema the agent sees:
 
 ```rust
-#[rmcp::tool(description = "Greet someone by name.")]
+#[rmcp::tool(description = "Greets someone by name.")]
 async fn greet(&self, Parameters(args): Parameters<GreetArgs>) -> String {
     format!("Hello, {}!", args.name)
 }
@@ -37,6 +37,13 @@ async fn greet(&self, Parameters(args): Parameters<GreetArgs>) -> String {
 
 Put anything your tools share — clients, handles, configuration — on
 `Plugin`. Every tool receives it as `&self`.
+
+The two tools already in there are called
+`scaffold_greet_deleteme` and `scaffold_whoami_deleteme`. The names are
+deliberately unmissable: they are there to be read once and removed,
+and an agent that can see a `..._deleteme` is looking at a plugin whose
+author never got to writing their own. Delete them as soon as you have
+one tool of your own.
 
 ## What you get for free
 
@@ -71,7 +78,7 @@ resolves differently on two days is not really a plugin build.
 
 Your plugin's name is not decoration. ObjectiveAI derives a routing
 prefix from it and prepends `<prefix>_` to every tool an agent sees, so
-`greet` shows up as `my-plugin_greet`. Two plugins sharing a name and
+`greet` would show up as `my-plugin_greet`. Two plugins sharing a name and
 version fall back to a positional index, which is legal and unreadable.
 Pick something distinctive.
 
