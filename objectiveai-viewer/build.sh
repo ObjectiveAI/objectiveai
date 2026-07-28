@@ -61,7 +61,15 @@ run() {
   #
   # --no-bundle skips the installer/msi/nsis generation (we just want the exe).
 
-  local tauri_args=("--no-bundle" "--target" "$TARGET")
+  # --features stdio: this script only ever builds the DAEMON-SPAWNED
+  # binary (install.sh from-source and the release zips both come
+  # through here), and that binary carries the daemon-owned stdin
+  # channel — development-plugin registrations in, acks out,
+  # EOF-after-first-frame as graceful shutdown. The dev viewer
+  # (`pnpm tauri dev`) never runs this script and stays featureless,
+  # which is the point: its stdin can be null, and a null stdin is an
+  # instant EOF.
+  local tauri_args=("--no-bundle" "--features" "stdio" "--target" "$TARGET")
   if [ "$PROFILE" = "release" ]; then
     :  # tauri build defaults to release
   else
