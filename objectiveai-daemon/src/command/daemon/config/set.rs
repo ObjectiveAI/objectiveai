@@ -40,7 +40,7 @@ pub async fn execute(global: &GlobalContext, scoped: &ScopedContext, request: Re
     // DAEMON_SIGNATURE comes from client_signature(), which derives
     // from the live secret this fold may have just re-pointed.
     global.apply_daemon_config_to_auth(config.daemon.as_ref());
-    crate::command::kill_helpers::respawn_viewer_after_config_change(
+    crate::command::kill_helpers::respawn_running_viewer(
         global,
         scoped,
         viewer_was_running,

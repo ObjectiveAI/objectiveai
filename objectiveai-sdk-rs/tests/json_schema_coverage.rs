@@ -46,10 +46,6 @@ fn is_skipped_module(relative: &str) -> bool {
         // daemon and its leashed children — never a published API
         // shape.
         || relative == "src/process.rs"
-        // Same doctrine as `laboratories/daemon/` (which holds the lab
-        // host's stdio twin): internal pipe types between the daemon
-        // and its viewer child, plain serde, never a published shape.
-        || relative == "src/viewer_stdio.rs"
 }
 
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {

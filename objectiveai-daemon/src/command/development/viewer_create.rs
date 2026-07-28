@@ -1,5 +1,12 @@
 //! `development plugins viewer create` — register a local directory
-//! for a plugin's VIEWER half, then tell the running viewer.
+//! for a plugin's VIEWER half, then bounce a running viewer onto it.
+//!
+//! The registrations ride the viewer's argv, frozen at spawn, so
+//! respawn IS the propagation: a running viewer is killed and
+//! respawned with the new list; an absent one is NOT spawned (a
+//! registration never turns into a surprise viewer launch) but picks
+//! the list up at its next spawn, which always reads the registry
+//! fresh.
 
 use objectiveai_sdk::cli::command::development::plugins::viewer::create::{Request, Response};
 
@@ -8,9 +15,12 @@ use crate::error::Error;
 
 pub async fn execute(
     global: &GlobalContext,
-    _scoped: &ScopedContext,
+    scoped: &ScopedContext,
     request: Request,
 ) -> Result<Response, Error> {
+    // Sampled BEFORE the mutation, like every viewer-bouncing
+    // mutation: only a viewer the user already had up gets bounced.
+    let viewer_was_running = global.server_child_alive("viewer");
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Development(
             "development plugins viewer create requires the resident daemon".to_string(),
@@ -49,10 +59,12 @@ pub async fn execute(
     let key = super::registry::key(&request.owner, &request.name, &request.version);
     let replaced = hubs.development_plugins.viewer.insert(key.clone(), path).is_some();
 
-    // Tell the running viewer, if any — soft, like the lab dial-list
-    // converge: a registration with no viewer up is valid, and the
-    // next `viewer spawn` seeds from the registry.
-    super::viewer_converge::viewer_converge(global).await?;
+    crate::command::kill_helpers::respawn_running_viewer(
+        global,
+        scoped,
+        viewer_was_running,
+    )
+    .await?;
 
     Ok(Response {
         owner: key.0,

@@ -3,11 +3,7 @@
 pub mod browser;
 mod dev;
 pub use dev::*;
-#[cfg(feature = "stdio")]
-mod dev_stdio;
-#[cfg(feature = "stdio")]
-pub use dev_stdio::*;
-#[cfg(feature = "stdio")]
+#[cfg(feature = "development")]
 pub mod devwatch;
 mod channels;
 pub use channels::*;

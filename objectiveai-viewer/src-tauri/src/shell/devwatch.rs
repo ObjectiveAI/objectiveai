@@ -25,19 +25,6 @@ use std::path::PathBuf;
 
 use tauri::Manager;
 
-/// What the resident watch task receives.
-pub enum DevWatchMsg {
-    /// The registry changed — drop every watcher and re-arm from
-    /// `DevPlugins::roots()`.
-    Rearm,
-    /// The filesystem reported a change under some registered root.
-    Changed(PathBuf),
-}
-
-/// The channel into the watch task, managed as state so the stdin
-/// loop can re-arm after a registry update.
-pub struct DevWatchTx(pub tokio::sync::mpsc::UnboundedSender<DevWatchMsg>);
-
 /// Monotonic cache-bust token for the reload events. Uniqueness is all
 /// that matters — the module map and link hrefs key on the URL string.
 static VERSION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -48,20 +35,15 @@ fn next_version() -> u64 {
 
 const DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(150);
 
-/// Spawn the resident watch task; returns nothing — the channel is
-/// managed on the app.
+/// Spawn the resident watch task. The registry is immutable for the
+/// process's life, so the watchers arm ONCE and there is nothing to
+/// re-arm — the channel carries only filesystem events.
 pub fn spawn_dev_watch(app: tauri::AppHandle) {
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<DevWatchMsg>();
-    app.manage(DevWatchTx(tx.clone()));
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<PathBuf>();
     tauri::async_runtime::spawn(async move {
-        // The live watchers, one per registered root. Dropping a
-        // watcher stops it; rebuilding wholesale on every re-arm keeps
-        // convergence trivial (registrations are few and re-arms
-        // rare).
-        // Held for Drop alone: a watcher watches until dropped, and
-        // re-arming replaces the whole vec. Never read — the
-        // underscore is for the lint.
-        let mut _watchers: Vec<notify::RecommendedWatcher> = Vec::new();
+        // Held for Drop alone: a watcher watches until dropped. Never
+        // read — the underscore is for the lint.
+        let _watchers = arm(&app, &tx);
         let mut pending: HashSet<PathBuf> = HashSet::new();
         loop {
             let msg = if pending.is_empty() {
@@ -79,10 +61,7 @@ pub fn spawn_dev_watch(app: tauri::AppHandle) {
                 }
             };
             match msg {
-                Some(DevWatchMsg::Rearm) => {
-                    _watchers = arm(&app, &tx);
-                }
-                Some(DevWatchMsg::Changed(path)) => {
+                Some(path) => {
                     pending.insert(path);
                 }
                 None => {
@@ -97,7 +76,7 @@ pub fn spawn_dev_watch(app: tauri::AppHandle) {
 /// Build one recursive watcher per registered root.
 fn arm(
     app: &tauri::AppHandle,
-    tx: &tokio::sync::mpsc::UnboundedSender<DevWatchMsg>,
+    tx: &tokio::sync::mpsc::UnboundedSender<PathBuf>,
 ) -> Vec<notify::RecommendedWatcher> {
     use notify::Watcher as _;
     let dev = app.state::<super::DevPlugins>();
@@ -108,7 +87,7 @@ fn arm(
             move |event: Result<notify::Event, notify::Error>| {
                 let Ok(event) = event else { return };
                 for path in event.paths {
-                    let _ = tx.send(DevWatchMsg::Changed(path));
+                    let _ = tx.send(path);
                 }
             },
         );

@@ -3,11 +3,14 @@
 //! no-op). The viewer is an SSE CLIENT of the daemon's broadcast (not
 //! a server), so its ready line carries no address.
 //!
-//! The viewer's whole daemon-facing config rides its env, frozen at
-//! spawn: `DAEMON_ADDRESS` (the daemon's LIVE published connect URL)
-//! and `DAEMON_SIGNATURE` (the daemon's client signature — what its
-//! auth actually validates). `daemon config set` respawns a running
-//! viewer after its write so a config change can reach these.
+//! The viewer's whole daemon-facing input is frozen at spawn — env
+//! (`DAEMON_ADDRESS`, the daemon's LIVE published connect URL;
+//! `DAEMON_SIGNATURE`, the client signature its auth validates) and
+//! argv (`--development-plugin` entries, one per viewer development
+//! registration). Every mutation of either — `daemon config set`,
+//! `refresh-secret-signature-pair`, `development plugins viewer
+//! create`/`delete` — propagates through ONE mechanism:
+//! `respawn_running_viewer`. No live channel, nothing to converge.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
@@ -53,39 +56,48 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
     // may know the signature without the secret). The daemon's own bind
     // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
     // distinct from these client-facing `DAEMON_` vars.
-    // STDIO child since viewer development mode: the daemon owns the
-    // viewer's stdin and pushes the development-registration list over
-    // it (`development/viewer_converge`). A viewer binary built
-    // without its `stdio` feature simply never reads the pipe — the
-    // converge's bounded ack wait and the kill path's bounded EOF
-    // grace both account for that.
-    let _ = crate::spawn::spawn_leashed_until_ready_with_stdio(
-        global,
-        "viewer",
-        &exe,
-        |cmd| {
-            // The viewer is a WINDOWED child (the release binary is
-            // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
-            // only a console-subsystem dev build's console). It is leashed
-            // like every other resident child: the viewer dies with the
-            // daemon BY DESIGN now.
-            cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
-                .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
-                .env("SUPPRESS_OUTPUT", "true")
-                .env("DAEMON_ADDRESS", &daemon_address);
-            if let Some(signature) = daemon_signature {
-                cmd.env("DAEMON_SIGNATURE", signature);
-            }
-        },
-    )
+    // The development-plugin registrations ride the ARGV, read fresh
+    // from the registry at every spawn — which is the entire
+    // propagation story: `development plugins viewer create`/`delete`
+    // respawn a running viewer, and an absent one picks the current
+    // set up here whenever it is next spawned. A viewer binary built
+    // without its `development` feature ignores argv entirely, which
+    // degrades to a viewer without dev mode, nothing worse.
+    let development: Vec<String> = global
+        .resident_hubs()
+        .map(|hubs| {
+            hubs.development_plugins
+                .viewer
+                .list()
+                .into_iter()
+                .map(|((owner, name, version), path)| {
+                    // `<owner>/<name>/<version>=<path>` — the trio's
+                    // charset excludes both separators, so the FIRST
+                    // `=` split viewer-side is unambiguous even for
+                    // paths containing one.
+                    format!("{owner}/{name}/{version}={}", path.display())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let _ = crate::spawn::spawn_leashed_until_ready(global, "viewer", &exe, |cmd| {
+        // The viewer is a WINDOWED child (the release binary is
+        // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
+        // only a console-subsystem dev build's console). It is leashed
+        // like every other resident child: the viewer dies with the
+        // daemon BY DESIGN now.
+        for entry in &development {
+            cmd.arg("--development-plugin").arg(entry);
+        }
+        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
+            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
+            .env("SUPPRESS_OUTPUT", "true")
+            .env("DAEMON_ADDRESS", &daemon_address);
+        if let Some(signature) = daemon_signature {
+            cmd.env("DAEMON_SIGNATURE", signature);
+        }
+    })
     .await?;
-    // SEED the development-registration list. Soft on every miss —
-    // including a stdio-less viewer binary timing out the ack — since
-    // a viewer without dev registrations is merely a viewer without
-    // dev mode. Seeding here (inside spawn) is what lets
-    // `respawn_viewer_after_config_change` stay untouched.
-    let _ = crate::command::development::viewer_converge::viewer_converge(global)
-        .await?;
     Ok("ready".to_string())
 }
 

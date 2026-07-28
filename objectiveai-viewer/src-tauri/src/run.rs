@@ -200,9 +200,20 @@ pub fn serve(
         .manage(crate::shell::ChannelRequests::new(plugins_root.clone()))
         // Development-registered plugins. ALWAYS managed (the
         // protocol/plugins/browser dev paths read it unconditionally);
-        // only ever non-empty in `stdio` builds, where the daemon
-        // pushes registrations over stdin.
-        .manage(crate::shell::DevPlugins::new());
+        // only ever non-empty in `development` builds, where the
+        // daemon passes the registration list as argv at spawn — and
+        // immutable for the process's life, since a registration
+        // change respawns the viewer.
+        .manage({
+            #[cfg(feature = "development")]
+            {
+                crate::shell::DevPlugins::new(crate::shell::DevPlugins::from_argv())
+            }
+            #[cfg(not(feature = "development"))]
+            {
+                crate::shell::DevPlugins::empty()
+            }
+        });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -277,16 +288,21 @@ pub fn serve(
             // stream for the viewer's whole life; the command-logs
             // tab is just a view over what it writes.
             crate::shell::spawn_command_listener(tauri_app.handle().clone());
-            #[cfg(feature = "stdio")]
+            #[cfg(feature = "development")]
             {
-                // Watcher first (it manages the re-arm channel the
-                // stdin loop pokes), then the stdin loop. Frames the
-                // daemon sent between the ready line and this point
-                // sat in the pipe buffer — nothing is lost.
-                crate::shell::devwatch::spawn_dev_watch(
-                    tauri_app.handle().clone(),
-                );
-                crate::shell::spawn_dev_stdin(tauri_app.handle().clone());
+                use tauri::Manager as _;
+                // The registry is final — arm the watcher once, and
+                // only when there is anything to watch.
+                if !tauri_app
+                    .handle()
+                    .state::<crate::shell::DevPlugins>()
+                    .roots()
+                    .is_empty()
+                {
+                    crate::shell::devwatch::spawn_dev_watch(
+                        tauri_app.handle().clone(),
+                    );
+                }
             }
             // Sweep the viewer's OWN temp partition (a hard-killed
             // predecessor's install scratch) — installs can't start

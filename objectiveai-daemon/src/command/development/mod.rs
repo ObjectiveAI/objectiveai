@@ -1,10 +1,12 @@
 //! `development` tier — daemon-side dispatch for development-mode
 //! plugin registrations.
 //!
-//! `create`/`list`/`delete` touch only the in-process [`registry`];
-//! `reset` is the one that leaves the daemon, forwarding to the LOCAL
-//! laboratory host. All four require the resident daemon, since the
-//! registry lives on its hubs and nowhere else.
+//! The mcp leaves touch only the in-process [`registry`] (plus
+//! `reset`, which forwards to the LOCAL laboratory host). The viewer
+//! leaves additionally RESPAWN a running viewer after a mutation: its
+//! registrations ride its argv, frozen at spawn, so a fresh spawn is
+//! the one propagation mechanism. Everything requires the resident
+//! daemon, since the registry lives on its hubs and nowhere else.
 
 use std::pin::Pin;
 
@@ -23,7 +25,6 @@ pub mod list;
 pub mod plugins;
 pub mod registry;
 pub mod reset;
-pub mod viewer_converge;
 pub mod viewer_create;
 pub mod viewer_delete;
 pub mod viewer_list;

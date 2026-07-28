@@ -109,7 +109,7 @@ pub(super) async fn converge(
             })
             .collect(),
     };
-    if stdio.send_stdio(&command).await.is_err() {
+    if stdio.send_host_stdio(&command).await.is_err() {
         // Broken channel = the host died between the liveness check
         // and the send. Not a command failure: config is the desired
         // state, and the next spawn converges from it.

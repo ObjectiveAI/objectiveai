@@ -80,36 +80,6 @@ pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
         return 0;
     }
     if snapshot.has_stdio {
-        if key == "viewer" {
-            // The viewer's EOF handling is a BUILD-TIME feature
-            // (`--features stdio`): a binary built without it never
-            // reads its pipe, so EOF alone would leave it running and
-            // this wait open forever. Bounded grace, then the signal
-            // path — the lab host keeps its unbounded contract below
-            // because its binary always implements EOF-exit.
-            if tokio::time::timeout(TERM_GRACE, dead_rx.changed())
-                .await
-                .is_ok()
-            {
-                return 1;
-            }
-            if snapshot
-                .kill_tx
-                .send(crate::context::KillRequest::Term)
-                .is_err()
-            {
-                return 1;
-            }
-            if tokio::time::timeout(TERM_GRACE, dead_rx.changed())
-                .await
-                .is_err()
-            {
-                let _ =
-                    snapshot.kill_tx.send(crate::context::KillRequest::Kill);
-                let _ = dead_rx.changed().await;
-            }
-            return 1;
-        }
         // Graceful EOF shutdown — wait, unbounded, for true exit. A
         // closed watch = the lifecycle task is gone = the child
         // exited.
@@ -194,19 +164,27 @@ pub async fn kill_api_after_config_change(global: &GlobalContext) {
     kill_resident_child(global, "api").await;
 }
 
-/// The viewer's respawn half of a `daemon config` mutation
-/// (`daemon config set`, `refresh-secret-signature-pair`): the
-/// viewer's whole daemon-facing config (`DAEMON_ADDRESS` /
-/// `DAEMON_SIGNATURE`) is frozen into its env at spawn, so a config
-/// change can only reach a RUNNING viewer through a fresh spawn.
-/// `viewer_was_running` is the caller's BEFORE-the-write sample of
+/// Bounce a RUNNING viewer so it picks up daemon-side state that is
+/// frozen at spawn.
+///
+/// The viewer's whole daemon-facing input is frozen at spawn: its env
+/// (`DAEMON_ADDRESS` / `DAEMON_SIGNATURE`, mutated by `daemon config
+/// set` and `refresh-secret-signature-pair`) and its argv (the
+/// development-plugin registrations, mutated by `development plugins
+/// viewer create`/`delete`). A change to either reaches a running
+/// viewer only through a fresh spawn — deliberately: one propagation
+/// mechanism, no live channel to keep consistent.
+///
+/// `viewer_was_running` is the caller's BEFORE-the-mutation sample of
 /// [`GlobalContext::server_child_alive`]`("viewer")` — only a viewer
 /// the user already had up gets bounced; a mutation never turns into
-/// a surprise viewer launch. The kill is best-effort (an unkillable
-/// viewer stays up on the old env and the spawn below reuses it); the
-/// respawn is FATAL — the write already landed, but the caller should
-/// hear that their viewer did not come back.
-pub async fn respawn_viewer_after_config_change(
+/// a surprise viewer launch (an absent viewer picks the new state up
+/// whenever it is next spawned, since spawn reads it fresh). The kill
+/// is best-effort (an unkillable viewer stays up on the old state and
+/// the spawn below reuses it); the respawn is FATAL — the mutation
+/// already landed, but the caller should hear that their viewer did
+/// not come back.
+pub async fn respawn_running_viewer(
     global: &GlobalContext,
     scoped: &crate::context::ScopedContext,
     viewer_was_running: bool,

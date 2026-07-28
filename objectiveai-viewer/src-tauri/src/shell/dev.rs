@@ -1,13 +1,26 @@
 //! Development-registered viewer plugins: live-served, watched,
 //! hot-reloaded.
 //!
-//! The registry mirrors the daemon's: canonical `(owner, name,
-//! version)` → the plugin's source directory. It arrives over stdin
-//! (`SetDevelopmentPlugins`, the full desired state each time) and is
-//! EMPTY in every viewer the daemon has nothing to tell — which is
+//! The registry is the daemon's, delivered as ARGV at spawn
+//! (`--development-plugin <owner>/<name>/<version>=<path>`, one per
+//! registration) and IMMUTABLE for this process's life — a
+//! registration change respawns the viewer, which is the entire
+//! propagation mechanism. The immutability is load-bearing for
+//! simplicity: no live channel, no converge, no re-arm; the plain map
+//! is read lock-free by every consumer.
+//!
+//! A registration REPLACES the installed plugin of the same
+//! (owner, name) in discovery, and the overlap is closed by GATES
+//! rather than precedence rules: while a plugin is in development
+//! mode, installing it and uninstalling it both error
+//! (`shell::install`), so the install tree cannot change under a
+//! registration and the registration cannot change without a respawn.
+//!
+//! EMPTY in every viewer spawned without registrations — which is
 //! what keeps the dev-aware code paths in `protocol`/`plugins`/
 //! `browser` unconditional: an empty registry is byte-for-byte
-//! today's behavior.
+//! today's behavior. Only the argv parsing and the directory watcher
+//! are feature-gated (`development`).
 //!
 //! Alongside the registry live the two attribution maps that make
 //! watching PER-COMPONENT rather than per-plugin:
@@ -40,73 +53,106 @@ pub fn dev_key(owner: &str, name: &str, version: &str) -> DevKey {
 
 #[derive(Default)]
 pub struct DevPlugins {
-    plugins: RwLock<HashMap<DevKey, PathBuf>>,
+    /// Immutable after construction — see the module doc.
+    plugins: HashMap<DevKey, PathBuf>,
     consumed: RwLock<HashMap<PathBuf, HashSet<u64>>>,
     scripts: RwLock<HashMap<u64, PathBuf>>,
 }
 
-// Half these methods have callers only in `stdio`-gated modules;
-// a featureless build still compiles them (the registry is managed
+// Some methods have callers only in `development`-gated modules; a
+// featureless build still compiles them all (the registry is managed
 // unconditionally) and must not warn for it.
-#[cfg_attr(not(feature = "stdio"), allow(dead_code))]
+#[cfg_attr(not(feature = "development"), allow(dead_code))]
 impl DevPlugins {
-    pub fn new() -> Self {
+    /// An empty registry — the featureless build's only constructor
+    /// (a `development` build always constructs from argv, even when
+    /// the argv holds no registrations).
+    #[cfg(not(feature = "development"))]
+    pub fn empty() -> Self {
         Self::default()
     }
 
-    /// Replace the registry wholesale (the wire is declarative),
-    /// returning every trio whose registration CHANGED — added,
-    /// removed, or re-pointed — so the caller can reload exactly those
-    /// plugins' open tabs. Attribution recorded under a changed trio's
-    /// old root is pruned; it will re-record on the next fetch.
-    pub fn set(
-        &self,
-        plugins: impl IntoIterator<Item = (DevKey, PathBuf)>,
-    ) -> Vec<DevKey> {
-        let new: HashMap<DevKey, PathBuf> = plugins.into_iter().collect();
-        let mut changed: Vec<DevKey> = Vec::new();
-        let mut stale_roots: Vec<PathBuf> = Vec::new();
-        {
-            let mut current = self.plugins.write().expect("dev registry poisoned");
-            for (key, path) in &*current {
-                if new.get(key) != Some(path) {
-                    changed.push(key.clone());
-                    stale_roots.push(path.clone());
+    /// The registry as parsed from argv, fixed for the process's life.
+    #[cfg(feature = "development")]
+    pub fn new(plugins: HashMap<DevKey, PathBuf>) -> Self {
+        Self {
+            plugins,
+            ..Self::default()
+        }
+    }
+
+    /// Parse the daemon-passed argv into a registry.
+    ///
+    /// Tolerant on purpose: a stray launch with unrecognized arguments
+    /// (or a malformed entry) degrades to an empty registry with a
+    /// stderr note, never a refused GUI start. (CEF helper processes
+    /// re-exec this binary with their own argv, but they bail out in
+    /// `main` before any of this runs.) The daemon-composed entries
+    /// are `<owner>/<name>/<version>=<path>`, split at the FIRST `=` —
+    /// the trio's charset excludes `=`, a path may not.
+    #[cfg(feature = "development")]
+    pub fn from_argv() -> HashMap<DevKey, PathBuf> {
+        use clap::Parser as _;
+
+        #[derive(clap::Parser)]
+        struct DevArgs {
+            #[arg(long = "development-plugin")]
+            development_plugin: Vec<String>,
+        }
+
+        let args = match DevArgs::try_parse() {
+            Ok(args) => args,
+            Err(e) => {
+                eprintln!("viewer: argv ignored: {e}");
+                return HashMap::new();
+            }
+        };
+        let mut plugins = HashMap::new();
+        for entry in args.development_plugin {
+            let parsed = entry.split_once('=').and_then(|(identity, path)| {
+                let segments: Vec<&str> = identity.split('/').collect();
+                match segments.as_slice() {
+                    [owner, name, version] => {
+                        Some((dev_key(owner, name, version), PathBuf::from(path)))
+                    }
+                    _ => None,
+                }
+            });
+            match parsed {
+                Some((key, path)) => {
+                    plugins.insert(key, path);
+                }
+                None => {
+                    eprintln!("viewer: malformed --development-plugin {entry:?}")
                 }
             }
-            for key in new.keys() {
-                if !current.contains_key(key) {
-                    changed.push(key.clone());
-                }
-            }
-            *current = new;
         }
-        if !stale_roots.is_empty() {
-            let mut consumed =
-                self.consumed.write().expect("dev attribution poisoned");
-            consumed
-                .retain(|file, _| !stale_roots.iter().any(|root| file.starts_with(root)));
-        }
-        changed.sort();
-        changed.dedup();
-        changed
+        plugins
     }
 
     /// The registered source directory for these coordinates, if any.
+    /// Lock-free — the map never changes.
     pub fn get(&self, owner: &str, name: &str, version: &str) -> Option<PathBuf> {
-        self.plugins
-            .read()
-            .expect("dev registry poisoned")
-            .get(&dev_key(owner, name, version))
-            .cloned()
+        self.plugins.get(&dev_key(owner, name, version)).cloned()
     }
 
-    /// Every registration — the watcher's arm list.
+    /// Whether ANY version of `(owner, name)` is registered — the
+    /// install/uninstall gate: a plugin in development mode may not be
+    /// installed or uninstalled, which is what keeps the replacement
+    /// story free of overlap windows.
+    pub fn is_dev_plugin(&self, owner: &str, name: &str) -> bool {
+        let owner = owner.trim().to_ascii_lowercase();
+        let name = name.trim().to_ascii_lowercase();
+        self.plugins
+            .keys()
+            .any(|(o, n, _)| *o == owner && *n == name)
+    }
+
+    /// Every registration — the watcher's arm list and the discovery
+    /// overlay's source.
     pub fn roots(&self) -> Vec<(DevKey, PathBuf)> {
         let mut all: Vec<(DevKey, PathBuf)> = self
             .plugins
-            .read()
-            .expect("dev registry poisoned")
             .iter()
             .map(|(key, path)| (key.clone(), path.clone()))
             .collect();

@@ -179,6 +179,10 @@ pub struct PluginVersionInfo {
     pub description: Option<String>,
     /// Whether the manifest declares a viewer extension.
     pub has_viewer: bool,
+    /// Whether this plugin (any version) is registered for
+    /// DEVELOPMENT. Install and uninstall are gated while it is —
+    /// the plugins tab greys those controls out from this flag.
+    pub development: bool,
 }
 
 /// Walk owner → name → version keeping EVERY version with a parseable
@@ -189,6 +193,7 @@ pub(crate) async fn list_all_versions(
     app: &tauri::AppHandle,
     plugins_root: &Path,
 ) -> Vec<PluginVersionInfo> {
+    let dev = app.state::<super::DevPlugins>();
     let mut out: Vec<(semver::Version, PluginVersionInfo)> = Vec::new();
     for (owner_raw, owner_dir) in subdirs(plugins_root).await {
         let owner = owner_raw.to_lowercase();
@@ -237,10 +242,40 @@ pub(crate) async fn list_all_versions(
                     version: version_raw,
                     description: manifest.description.clone(),
                     has_viewer: manifest.viewer.is_some(),
+                    development: dev.is_dev_plugin(&owner, &name),
                 };
                 out.push((version, info));
             }
         }
+    }
+    // A registered version with no installed copy would otherwise be
+    // invisible here while its tabs are open — append it, marked.
+    for ((owner, name, version_tag), root) in dev.roots() {
+        if out.iter().any(|(_, info)| {
+            info.owner == owner && info.name == name && info.version == version_tag
+        }) {
+            continue;
+        }
+        let Some(manifest) = super::dev::read_dev_manifest(&root).await else {
+            continue;
+        };
+        let Some(version) = version_tag
+            .strip_prefix('v')
+            .and_then(|body| semver::Version::parse(body).ok())
+        else {
+            continue;
+        };
+        out.push((
+            version,
+            PluginVersionInfo {
+                owner,
+                name,
+                version: version_tag,
+                description: manifest.description.clone(),
+                has_viewer: manifest.viewer.is_some(),
+                development: true,
+            },
+        ));
     }
     out.sort_by(|(va, a), (vb, b)| {
         (&a.owner, &a.name)

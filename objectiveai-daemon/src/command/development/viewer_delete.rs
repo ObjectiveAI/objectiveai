@@ -1,6 +1,7 @@
 //! `development plugins viewer delete` — drop a viewer development
-//! registration and tell the running viewer, which falls back to
-//! the installed copy.
+//! registration and bounce a running viewer, which comes back
+//! resolving the installed copy. Same respawn-is-propagation story as
+//! `viewer_create`.
 
 use objectiveai_sdk::cli::command::development::plugins::viewer::delete::{Request, Response};
 
@@ -9,9 +10,10 @@ use crate::error::Error;
 
 pub async fn execute(
     global: &GlobalContext,
-    _scoped: &ScopedContext,
+    scoped: &ScopedContext,
     request: Request,
 ) -> Result<Response, Error> {
+    let viewer_was_running = global.server_child_alive("viewer");
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Development(
             "development plugins viewer delete requires the resident daemon".to_string(),
@@ -23,8 +25,12 @@ pub async fn execute(
     // not to be in development mode, and it is not.
     let removed = hubs.development_plugins.viewer.remove(&key).is_some();
 
-    // Soft, same as create: nobody listening is a valid state.
-    super::viewer_converge::viewer_converge(global).await?;
+    crate::command::kill_helpers::respawn_running_viewer(
+        global,
+        scoped,
+        viewer_was_running,
+    )
+    .await?;
 
     Ok(Response {
         owner: key.0,

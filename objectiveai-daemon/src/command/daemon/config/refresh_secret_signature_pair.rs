@@ -12,7 +12,7 @@
 //!
 //! Like `daemon config set`, a viewer RUNNING at refresh time is
 //! respawned after the write (see
-//! [`crate::command::kill_helpers::respawn_viewer_after_config_change`]).
+//! [`crate::command::kill_helpers::respawn_running_viewer`]).
 
 use objectiveai_sdk::cli::command::daemon::config::refresh_secret_signature_pair::{
     Request, Response,
@@ -39,7 +39,7 @@ pub async fn execute(
     // present the signature of the pair just persisted (the written
     // section's address is None, so the fold always applies here).
     global.apply_daemon_config_to_auth(config.daemon.as_ref());
-    crate::command::kill_helpers::respawn_viewer_after_config_change(
+    crate::command::kill_helpers::respawn_running_viewer(
         global,
         scoped,
         viewer_was_running,
