@@ -1,6 +1,14 @@
 // Public directly rather than glob-re-exported: its verbs are `spawn`,
 // `close`, `live` — names that only read correctly qualified.
 pub mod browser;
+mod dev;
+pub use dev::*;
+#[cfg(feature = "stdio")]
+mod dev_stdio;
+#[cfg(feature = "stdio")]
+pub use dev_stdio::*;
+#[cfg(feature = "stdio")]
+pub mod devwatch;
 mod channels;
 pub use channels::*;
 mod command_logs;

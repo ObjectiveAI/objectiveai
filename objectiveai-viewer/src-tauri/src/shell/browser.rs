@@ -107,6 +107,7 @@ impl Browsers {
 /// an overlay and got a bare page would be very hard to debug.
 async fn resolve_script(
     app: &tauri::AppHandle,
+    tab: u64,
     identity: &str,
     script: &str,
 ) -> Result<String, String> {
@@ -117,9 +118,11 @@ async fn resolve_script(
         ));
     };
     let plugins_root = app.state::<super::PluginsDirs>().plugins_root();
-    let manifest = super::plugins::read_manifest(&plugins_root, owner, name, version)
-        .await
-        .ok_or_else(|| format!("no installed manifest for {identity}"))?;
+    // Dev-aware: a registered trio reads its LIVE manifest.
+    let manifest =
+        super::plugins::manifest_for(app, &plugins_root, owner, name, version)
+            .await
+            .ok_or_else(|| format!("no installed manifest for {identity}"))?;
     let module = manifest
         .viewer
         .as_ref()
@@ -132,17 +135,35 @@ async fn resolve_script(
     let relative = super::plugins::normalize(&module)
         .ok_or_else(|| format!("invalid script module {module:?}"))?;
 
-    let mut file = plugins_root
-        .join(owner.to_lowercase())
-        .join(name.to_lowercase())
-        .join(version)
-        .join(objectiveai_sdk::cli::plugins::VIEWER_DIR);
+    let dev = app.state::<super::DevPlugins>();
+    let mut file = match dev.get(owner, name, version) {
+        // DEVELOPMENT: the script body comes off the author's watch
+        // build. Snapshotted at spawn like production — which is
+        // exactly why the watcher CLOSES this browser when the file
+        // changes: an injected IIFE cannot be hot-swapped.
+        Some(root) => super::dev::dev_asset_root(&root).await.ok_or_else(|| {
+            format!(
+                "{identity} is registered for development but its manifest                  declares no `viewer.development.output`"
+            )
+        })?,
+        None => plugins_root
+            .join(owner.to_lowercase())
+            .join(name.to_lowercase())
+            .join(version)
+            .join(objectiveai_sdk::cli::plugins::VIEWER_DIR),
+    };
     for segment in relative.split('/').filter(|s| !s.is_empty()) {
         file = file.join(segment);
     }
-    tokio::fs::read_to_string(&file)
+    let body = tokio::fs::read_to_string(&file)
         .await
-        .map_err(|e| format!("read script {file:?}: {e}"))
+        .map_err(|e| format!("read script {file:?}: {e}"))?;
+    if dev.get(owner, name, version).is_some() {
+        // file → browser attribution, so a change to THIS file closes
+        // exactly this browser.
+        dev.record_script(tab, file);
+    }
+    Ok(body)
 }
 
 /// Create the Chromium surface for a browser tab, once.
@@ -188,7 +209,7 @@ pub async fn spawn(
     // Resolve the script BEFORE claiming anything: a bad script name is
     // a plain spawn error and should not leave a claimed profile behind.
     let script = match script {
-        Some(name) => match resolve_script(app, identity, name).await {
+        Some(name) => match resolve_script(app, tab, identity, name).await {
             Ok(script) => Some(script),
             Err(e) => {
                 unclaim().await;

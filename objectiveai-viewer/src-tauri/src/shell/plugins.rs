@@ -18,6 +18,7 @@
 use std::path::{Path, PathBuf};
 
 use objectiveai_sdk::cli::plugins::Manifest;
+use tauri::Manager as _;
 
 /// One installed plugin, at its selected (highest) version.
 pub struct InstalledPlugin {
@@ -121,6 +122,40 @@ pub async fn scan(app: &tauri::AppHandle, plugins_root: &Path) -> Vec<InstalledP
                 }
             }
         }
+    }
+    // DEVELOPMENT overlay: a registered trio appears (and, sharing an
+    // (owner, name), REPLACES the installed selection regardless of
+    // semver) with its LIVE manifest — a dev plugin needs no install
+    // to surface its tabs, and its manifest edits show up on the next
+    // rescan. A registration whose manifest is missing or has no
+    // viewer half contributes nothing, silently: the author may be
+    // mid-edit.
+    for ((owner, name, version_tag), root) in
+        app.state::<super::DevPlugins>().roots()
+    {
+        let Some(manifest) = super::dev::read_dev_manifest(&root).await else {
+            continue;
+        };
+        if manifest.viewer.is_none() {
+            continue;
+        }
+        let Some(version) = version_tag
+            .strip_prefix('v')
+            .and_then(|body| semver::Version::parse(body).ok())
+        else {
+            continue;
+        };
+        let version_tag = version_tag.clone();
+        selected.insert(
+            (owner.clone(), name.clone()),
+            InstalledPlugin {
+                owner,
+                name,
+                version,
+                version_tag,
+                manifest,
+            },
+        );
     }
     let mut plugins: Vec<InstalledPlugin> = selected.into_values().collect();
     plugins.sort_by(|a, b| (&a.owner, &a.name).cmp(&(&b.owner, &b.name)));
@@ -266,6 +301,24 @@ pub(crate) async fn read_manifest(
     Some(manifest)
 }
 
+/// [`read_manifest`], DEVELOPMENT-aware: a trio registered for
+/// development reads its LIVE manifest from the registered root
+/// instead of the install tree. The single manifest choke point for
+/// everything that has an [`tauri::AppHandle`] — protocol serving,
+/// channel-handler lookup, browser-script resolution.
+pub(crate) async fn manifest_for(
+    app: &tauri::AppHandle,
+    plugins_root: &Path,
+    owner: &str,
+    name: &str,
+    version: &str,
+) -> Option<Manifest> {
+    if let Some(root) = app.state::<super::DevPlugins>().get(owner, name, version) {
+        return super::dev::read_dev_manifest(&root).await;
+    }
+    read_manifest(plugins_root, owner, name, version).await
+}
+
 /// The manifest icon of ONE exact installed version, normalized
 /// root-relative — the channel-offer tab's icon lookup (on-demand: a
 /// plugin may carry an icon while declaring no tabs, so the
@@ -314,6 +367,7 @@ pub(crate) enum ChannelStatus {
 /// entry whose `channel_key` matches (manifest order; later
 /// duplicates are ignored).
 pub(crate) async fn channel_status(
+    app: &tauri::AppHandle,
     plugins_root: &Path,
     owner: &str,
     name: &str,
@@ -321,7 +375,7 @@ pub(crate) async fn channel_status(
     key: &str,
 ) -> ChannelStatus {
     use objectiveai_sdk::cli::plugins::ViewerTab;
-    let Some(manifest) = read_manifest(plugins_root, owner, name, version).await
+    let Some(manifest) = manifest_for(app, plugins_root, owner, name, version).await
     else {
         return ChannelStatus::NotInstalled;
     };

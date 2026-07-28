@@ -347,6 +347,9 @@ pub(crate) async fn close_tab(app: &tauri::AppHandle, tab_id: u64) {
     // Every removal path must reach the mailbox registry, or a peer
     // blocked on this tab waits forever.
     app.state::<super::TabMail>().closed(tab_id).await;
+    // Dev-mode bookkeeping: stale attribution is harmless, this just
+    // keeps the maps bounded.
+    app.state::<super::DevPlugins>().drop_tab(tab_id);
     // A browser tab's surface goes NOW — hidden synchronously, torn
     // down behind us. Awaiting the teardown here would hold the tab in
     // the strip for the length of a cookie flush, which reads as a

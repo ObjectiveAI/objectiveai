@@ -197,7 +197,12 @@ pub fn serve(
         .manage(command_log_sink)
         .manage(tab_inventory)
         .manage(plugins_dirs)
-        .manage(crate::shell::ChannelRequests::new(plugins_root.clone()));
+        .manage(crate::shell::ChannelRequests::new(plugins_root.clone()))
+        // Development-registered plugins. ALWAYS managed (the
+        // protocol/plugins/browser dev paths read it unconditionally);
+        // only ever non-empty in `stdio` builds, where the daemon
+        // pushes registrations over stdin.
+        .manage(crate::shell::DevPlugins::new());
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -272,6 +277,17 @@ pub fn serve(
             // stream for the viewer's whole life; the command-logs
             // tab is just a view over what it writes.
             crate::shell::spawn_command_listener(tauri_app.handle().clone());
+            #[cfg(feature = "stdio")]
+            {
+                // Watcher first (it manages the re-arm channel the
+                // stdin loop pokes), then the stdin loop. Frames the
+                // daemon sent between the ready line and this point
+                // sat in the pipe buffer — nothing is lost.
+                crate::shell::devwatch::spawn_dev_watch(
+                    tauri_app.handle().clone(),
+                );
+                crate::shell::spawn_dev_stdin(tauri_app.handle().clone());
+            }
             // Sweep the viewer's OWN temp partition (a hard-killed
             // predecessor's install scratch) — installs can't start
             // before a chrome webview can invoke, so nothing races.
