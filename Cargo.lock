@@ -4516,6 +4516,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-mcp-plugin-scaffold"
+version = "2.2.13"
+dependencies = [
+ "objectiveai-mcp-plugin-framework",
+ "schemars 1.2.2",
+ "serde",
+ "tokio",
+]
+
+[[package]]
 name = "objectiveai-mcp-proxy"
 version = "2.2.13"
 dependencies = [

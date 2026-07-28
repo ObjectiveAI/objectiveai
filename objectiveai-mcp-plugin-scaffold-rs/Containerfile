@@ -1,0 +1,27 @@
+# Build the MCP server, then ship it on a slim runtime.
+#
+# A containerfile's OWN DIRECTORY is the build context, so everything
+# COPYed below is relative to this file — no `mcp/` prefixes, wherever
+# in the repo this ends up living.
+#
+# No network calls at runtime: the host is the MCP client and dials
+# this server; this server only ever calls back along the same
+# connection.
+
+FROM rust:1-slim AS builder
+WORKDIR /build
+# Dependencies first, so editing a source file does not re-resolve
+# them. Keep `Cargo.lock` committed — `--locked` is what makes a
+# plugin build reproducible.
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+RUN cargo build --release --locked \
+    && cp target/release/objectiveai-mcp-plugin-scaffold /plugin
+
+FROM debian:stable-slim
+COPY --from=builder /plugin /usr/local/bin/plugin
+# Documents the manifest port. The host publishes it to a loopback
+# host port at container create; it must match `mcp.port` in
+# objectiveai.json and `PORT` in src/main.rs.
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/plugin"]

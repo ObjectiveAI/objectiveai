@@ -233,7 +233,7 @@ impl objectiveai_sdk::cli::command::CommandExecutor for Executor {
 /// stream. The channel closing also ends it, which is what a dropped
 /// connection looks like from here.
 fn stream<T>(
-    mut rx: mpsc::UnboundedReceiver<CliResponse>,
+    rx: mpsc::UnboundedReceiver<CliResponse>,
     registered: Registered,
 ) -> impl Stream<Item = Result<T, Error>> + Send
 where

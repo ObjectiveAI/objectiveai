@@ -224,6 +224,7 @@ CARGO_TOMLS=(
   objectiveai-laboratory/Cargo.toml
   objectiveai-mcp-laboratory/Cargo.toml
   objectiveai-mcp-plugin-framework-rs/Cargo.toml
+  objectiveai-mcp-plugin-scaffold-rs/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml

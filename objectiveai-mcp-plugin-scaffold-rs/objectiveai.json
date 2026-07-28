@@ -1,0 +1,7 @@
+{
+  "description": "Starting point for an ObjectiveAI MCP plugin written in Rust.",
+  "mcp": {
+    "containerfile": "Containerfile",
+    "port": 8080
+  }
+}

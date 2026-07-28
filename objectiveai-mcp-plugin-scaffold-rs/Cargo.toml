@@ -1,0 +1,33 @@
+[package]
+name = "objectiveai-mcp-plugin-scaffold"
+version = "2.2.13"
+edition = "2024"
+description = "Starting point for an ObjectiveAI MCP plugin written in Rust"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+# Plugins ship as container images built from a git tag, never as
+# crates.
+publish = false
+
+[[bin]]
+name = "objectiveai-mcp-plugin-scaffold"
+path = "src/main.rs"
+
+[dependencies]
+# Everything that is the same for every ObjectiveAI plugin. (The
+# `path` is the monorepo checkout, and `rename.sh` drops it — see
+# there for why.)
+objectiveai-mcp-plugin-framework = { version = "2.2.13", path = "../objectiveai-mcp-plugin-framework-rs" }
+# `rmcp` is deliberately NOT a direct dependency: the framework
+# re-exports the exact one it was built against, so the two can never
+# skew into a `ToolRouter<S>` that does not fit `serve`. The
+# `#[tool_router]`/`#[tool]` macros resolve through the `use` in
+# `main.rs`.
+schemars = "1.2.2"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.50.0", features = ["macros", "rt-multi-thread"] }
+
+[profile.release]
+# Small, fast-enough image binary.
+opt-level = "s"
+strip = true
