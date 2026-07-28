@@ -1895,6 +1895,78 @@ pub(crate) fn open_run(
             let execution = crate::cli::command::channels::publish::response_schema::ListenerExecution { request: parsed, identity, response };
             Some((crate::cli::command::ListenerExecution::Channels(crate::cli::command::channels::ListenerExecution::PublishResponseSchema(execution)), feed))
         }
+        "development/plugins/mcp/create" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::create::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::create::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::create::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::Create(execution)))), feed))
+        }
+        "development/plugins/mcp/create/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::create::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::create::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::create::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::CreateRequestSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/create/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::create::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::create::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::create::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::CreateResponseSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/list" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::list::Request>(request.get()).ok()?;
+            let (response, feed) = stream_feed::<crate::cli::command::development::plugins::mcp::list::ResponseItem>();
+            let execution = crate::cli::command::development::plugins::mcp::list::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::List(execution)))), feed))
+        }
+        "development/plugins/mcp/list/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::list::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::list::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::list::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::ListRequestSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/list/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::list::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::list::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::list::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::ListResponseSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/delete" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::delete::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::delete::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::delete::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::Delete(execution)))), feed))
+        }
+        "development/plugins/mcp/delete/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::delete::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::delete::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::delete::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::DeleteRequestSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/delete/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::delete::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::delete::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::delete::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::DeleteResponseSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/reset" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::reset::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::reset::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::reset::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::Reset(execution)))), feed))
+        }
+        "development/plugins/mcp/reset/request_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::reset::request_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::reset::request_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::reset::request_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::ResetRequestSchema(execution)))), feed))
+        }
+        "development/plugins/mcp/reset/response_schema" => {
+            let parsed = serde_json::from_str::<crate::cli::command::development::plugins::mcp::reset::response_schema::Request>(request.get()).ok()?;
+            let (response, feed) = unary_feed::<crate::cli::command::development::plugins::mcp::reset::response_schema::Response>(path_type);
+            let execution = crate::cli::command::development::plugins::mcp::reset::response_schema::ListenerExecution { request: parsed, identity, response };
+            Some((crate::cli::command::ListenerExecution::Development(crate::cli::command::development::ListenerExecution::Plugins(crate::cli::command::development::plugins::ListenerExecution::Mcp(crate::cli::command::development::plugins::mcp::ListenerExecution::ResetResponseSchema(execution)))), feed))
+        }
         "channels/close" => {
             let parsed = serde_json::from_str::<crate::cli::command::channels::close::Request>(request.get()).ok()?;
             let (response, feed) = unary_feed::<crate::cli::command::channels::close::Response>(path_type);

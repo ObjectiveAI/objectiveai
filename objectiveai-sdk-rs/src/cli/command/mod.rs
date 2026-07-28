@@ -46,6 +46,7 @@ pub mod api;
 pub mod channels;
 pub mod daemon;
 pub mod db;
+pub mod development;
 pub mod functions;
 pub mod laboratories;
 pub mod python;
