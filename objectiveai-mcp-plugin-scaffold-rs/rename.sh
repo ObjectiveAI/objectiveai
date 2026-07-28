@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 # Turn the scaffold into your plugin.
 #
-# Rewrites the base name everywhere it appears, and cuts the two ties
-# to the monorepo that would otherwise stop a copied-out plugin from
-# building at all:
-#
-#   - the framework dependency's `path`, which only resolves inside
-#     the monorepo — dropped, so cargo resolves it from crates.io;
-#   - the absent `[workspace]` table, without which cargo attaches the
-#     plugin to whatever parent workspace it finds itself inside.
+# Rewrites the base name in the four places it appears: the package
+# name, the binary name, the `cp` in the Containerfile that copies that
+# binary out, and the `NAME` constant the agent's tool prefix is
+# derived from.
 #
 # Usage:
 #   ./rename.sh my-plugin
@@ -59,40 +55,6 @@ echo "Renaming $OLD -> $NEW"
 rewrite "$HERE/Cargo.toml"
 rewrite "$HERE/Containerfile"
 rewrite "$HERE/src/main.rs"
-
-# Drop the monorepo path from the framework dependency. Left in place
-# it points at a directory that will not exist beside a copied-out
-# plugin, and cargo fails before it builds anything.
-tmp=$(mktemp)
-awk '
-  /^objectiveai-mcp-plugin-framework = / {
-    # Keep the version, drop the path.
-    sub(/, path = "[^"]*"/, "")
-    print
-    next
-  }
-  { print }
-' "$HERE/Cargo.toml" > "$tmp"
-mv "$tmp" "$HERE/Cargo.toml"
-echo "  Cargo.toml (dropped the monorepo path dependency)"
-
-# Stand alone. Without this, a plugin checked out inside another
-# repository is silently absorbed into that repository's workspace.
-if ! grep -q '^\[workspace\]' "$HERE/Cargo.toml"; then
-  tmp=$(mktemp)
-  awk '
-    /^\[\[bin\]\]/ && !done {
-      print "# Standalone: stops cargo attaching this to any parent"
-      print "# workspace it happens to find."
-      print "[workspace]"
-      print ""
-      done = 1
-    }
-    { print }
-  ' "$HERE/Cargo.toml" > "$tmp"
-  mv "$tmp" "$HERE/Cargo.toml"
-  echo "  Cargo.toml (added an empty [workspace])"
-fi
 
 echo
 echo "Done. Now:"

@@ -14,10 +14,8 @@ name = "objectiveai-mcp-plugin-scaffold"
 path = "src/main.rs"
 
 [dependencies]
-# Everything that is the same for every ObjectiveAI plugin. (The
-# `path` is the monorepo checkout, and `rename.sh` drops it — see
-# there for why.)
-objectiveai-mcp-plugin-framework = { version = "2.2.13", path = "../objectiveai-mcp-plugin-framework-rs" }
+# Everything that is the same for every ObjectiveAI plugin.
+objectiveai-mcp-plugin-framework = "2.2.13"
 # `rmcp` is deliberately NOT a direct dependency: the framework
 # re-exports the exact one it was built against, so the two can never
 # skew into a `ToolRouter<S>` that does not fit `serve`. The

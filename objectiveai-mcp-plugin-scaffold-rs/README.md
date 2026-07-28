@@ -9,11 +9,10 @@ First, give it a name:
 ./rename.sh my-plugin
 ```
 
-That rewrites the base name everywhere it appears — the package, the
-binary, the `Containerfile`, and the `NAME` constant — and cuts the two
-ties to the monorepo this was scaffolded from, so it builds anywhere.
-Do it before anything else; a half-finished rename fails at runtime
-rather than at build time.
+That rewrites the base name in the four places it appears — the
+package, the binary, the `cp` in the `Containerfile`, and the `NAME`
+constant. Do it before anything else; a half-finished rename fails at
+runtime rather than at build time.
 
 Then run it:
 

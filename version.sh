@@ -102,14 +102,18 @@ set_cargo_objectiveai_deps() {
     "version = \"$NEW_VERSION\""
 }
 
-# Bare-string `objectiveai-sdk = "X.Y.Z"` deps. Used in README install snippets
-# that demonstrate Cargo.toml entries to downstream users. Distinct from
-# `set_cargo_objectiveai_deps` which only handles the inline-table form
-# `objectiveai-sdk = { ..., version = "X.Y.Z", ... }`.
+# Bare-string `objectiveai-<crate> = "X.Y.Z"` deps. Two places use this form:
+# README install snippets demonstrating a Cargo.toml entry, and the plugin
+# scaffold, whose manifest has to be exactly what a standalone plugin needs
+# and so cannot carry the inline table's `path`. Distinct from
+# `set_cargo_objectiveai_deps`, which only handles the inline-table form
+# `objectiveai-sdk = { ..., version = "X.Y.Z", ... }` and would silently skip
+# a bare string, leaving the scaffold pinned to whatever version it was
+# written at.
 set_objectiveai_string_dep() {
   local file="$1"
   inline_substitute "$file" \
-    '^objectiveai-sdk[[:space:]]*=[[:space:]]*"[0-9]' \
+    '^objectiveai(-[a-zA-Z0-9_-]+)?[[:space:]]*=[[:space:]]*"[0-9]' \
     '"[0-9][0-9.]*"' \
     "\"$NEW_VERSION\""
 }
@@ -294,6 +298,9 @@ update() {
     cargo)
       set_toml_package_version "$file"
       set_cargo_objectiveai_deps "$file"
+      # Both forms: the inline table above, and the bare string the plugin
+      # scaffold uses.
+      set_objectiveai_string_dep "$file"
       ;;
     pypro)
       set_toml_package_version "$file"
