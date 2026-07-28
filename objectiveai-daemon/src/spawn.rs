@@ -136,7 +136,7 @@ pub async fn spawn_leashed_until_ready(
 /// PIPED (the host's stdin dial-list channel) and, after the ready
 /// line, the pipe receiver goes to an ack ROUTER task (stdout lines
 /// parsing as [`objectiveai_sdk::laboratories::daemon::HostStdioAck`]
-/// are forwarded to the [`crate::context::LabHostStdio`] parked on the
+/// are forwarded to the [`crate::context::ChildStdio`] parked on the
 /// resident entry; everything else is discarded as before). Fresh or
 /// reused makes no difference to the caller — every `laboratories
 /// spawn` CONVERGES the dial list afterward (idempotent host-side
@@ -255,7 +255,7 @@ async fn spawn_leashed_inner(
 
     let stdio_handle = if let Some(stdin) = stdin.take() {
         // Ack ROUTER, replacing the discard drain: stdout lines that
-        // parse as dial-list acks are forwarded to the LabHostStdio
+        // parse as dial-list acks are forwarded to the ChildStdio
         // parked below; everything else (stderr, stray output) is
         // consumed and discarded exactly as before, so the pipes stay
         // drained for the child's life.
@@ -267,7 +267,7 @@ async fn spawn_leashed_inner(
                         objectiveai_sdk::laboratories::daemon::parse_host_stdio_ack(&line)
                     {
                         if ack_tx.send(ack).is_err() {
-                            // LabHostStdio dropped (child retired) —
+                            // ChildStdio dropped (child retired) —
                             // degrade to a plain drain.
                             break;
                         }
@@ -276,7 +276,7 @@ async fn spawn_leashed_inner(
             }
             while events.recv().await.is_some() {}
         });
-        Some(std::sync::Arc::new(crate::context::LabHostStdio::new(
+        Some(std::sync::Arc::new(crate::context::ChildStdio::new(
             stdin, ack_rx,
         )))
     } else {

@@ -1,9 +1,9 @@
-//! `development plugins mcp list` — every development registration.
+//! `development plugins viewer list` — every viewer development registration.
 
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::cli::command::development::plugins::mcp::list::{
+use objectiveai_sdk::cli::command::development::plugins::viewer::list::{
     Request, ResponseItem,
 };
 
@@ -19,14 +19,14 @@ pub async fn execute(
 ) -> Result<ItemStream, Error> {
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Development(
-            "development plugins mcp list requires the resident daemon".to_string(),
+            "development plugins viewer list requires the resident daemon".to_string(),
         )
     })?;
 
     // Snapshot, not a live view: the registry is a `DashMap` and
     // holding iteration across the stream would pin its shards for as
     // long as the caller takes to read. There are never many of these.
-    let registrations = hubs.development_plugins.mcp.list();
+    let registrations = hubs.development_plugins.viewer.list();
 
     Ok(Box::pin(futures::stream::iter(registrations.into_iter().map(
         |((owner, name, version), path)| {
@@ -41,8 +41,8 @@ pub async fn execute(
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::development::plugins::mcp::list as sdk;
-    use objectiveai_sdk::cli::command::development::plugins::mcp::list::request_schema::{
+    use objectiveai_sdk::cli::command::development::plugins::viewer::list as sdk;
+    use objectiveai_sdk::cli::command::development::plugins::viewer::list::request_schema::{
         Request, Response,
     };
 
@@ -61,8 +61,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::development::plugins::mcp::list as sdk;
-    use objectiveai_sdk::cli::command::development::plugins::mcp::list::response_schema::{
+    use objectiveai_sdk::cli::command::development::plugins::viewer::list as sdk;
+    use objectiveai_sdk::cli::command::development::plugins::viewer::list::response_schema::{
         Request, Response,
     };
 

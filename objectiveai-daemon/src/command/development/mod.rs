@@ -23,6 +23,10 @@ pub mod list;
 pub mod plugins;
 pub mod registry;
 pub mod reset;
+pub mod viewer_converge;
+pub mod viewer_create;
+pub mod viewer_delete;
+pub mod viewer_list;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 

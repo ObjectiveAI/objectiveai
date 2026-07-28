@@ -80,6 +80,36 @@ pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
         return 0;
     }
     if snapshot.has_stdio {
+        if key == "viewer" {
+            // The viewer's EOF handling is a BUILD-TIME feature
+            // (`--features stdio`): a binary built without it never
+            // reads its pipe, so EOF alone would leave it running and
+            // this wait open forever. Bounded grace, then the signal
+            // path — the lab host keeps its unbounded contract below
+            // because its binary always implements EOF-exit.
+            if tokio::time::timeout(TERM_GRACE, dead_rx.changed())
+                .await
+                .is_ok()
+            {
+                return 1;
+            }
+            if snapshot
+                .kill_tx
+                .send(crate::context::KillRequest::Term)
+                .is_err()
+            {
+                return 1;
+            }
+            if tokio::time::timeout(TERM_GRACE, dead_rx.changed())
+                .await
+                .is_err()
+            {
+                let _ =
+                    snapshot.kill_tx.send(crate::context::KillRequest::Kill);
+                let _ = dead_rx.changed().await;
+            }
+            return 1;
+        }
         // Graceful EOF shutdown — wait, unbounded, for true exit. A
         // closed watch = the lifecycle task is gone = the child
         // exited.

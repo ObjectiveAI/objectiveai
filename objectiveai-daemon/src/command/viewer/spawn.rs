@@ -53,21 +53,39 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
     // may know the signature without the secret). The daemon's own bind
     // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
     // distinct from these client-facing `DAEMON_` vars.
-    let _ = crate::spawn::spawn_leashed_until_ready(global, "viewer", &exe, |cmd| {
-        // The viewer is a WINDOWED child (the release binary is
-        // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
-        // only a console-subsystem dev build's console). It is leashed
-        // like every other resident child: the viewer dies with the
-        // daemon BY DESIGN now.
-        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
-            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
-            .env("SUPPRESS_OUTPUT", "true")
-            .env("DAEMON_ADDRESS", &daemon_address);
-        if let Some(signature) = daemon_signature {
-            cmd.env("DAEMON_SIGNATURE", signature);
-        }
-    })
+    // STDIO child since viewer development mode: the daemon owns the
+    // viewer's stdin and pushes the development-registration list over
+    // it (`development/viewer_converge`). A viewer binary built
+    // without its `stdio` feature simply never reads the pipe — the
+    // converge's bounded ack wait and the kill path's bounded EOF
+    // grace both account for that.
+    let _ = crate::spawn::spawn_leashed_until_ready_with_stdio(
+        global,
+        "viewer",
+        &exe,
+        |cmd| {
+            // The viewer is a WINDOWED child (the release binary is
+            // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
+            // only a console-subsystem dev build's console). It is leashed
+            // like every other resident child: the viewer dies with the
+            // daemon BY DESIGN now.
+            cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
+                .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
+                .env("SUPPRESS_OUTPUT", "true")
+                .env("DAEMON_ADDRESS", &daemon_address);
+            if let Some(signature) = daemon_signature {
+                cmd.env("DAEMON_SIGNATURE", signature);
+            }
+        },
+    )
     .await?;
+    // SEED the development-registration list. Soft on every miss —
+    // including a stdio-less viewer binary timing out the ack — since
+    // a viewer without dev registrations is merely a viewer without
+    // dev mode. Seeding here (inside spawn) is what lets
+    // `respawn_viewer_after_config_change` stay untouched.
+    let _ = crate::command::development::viewer_converge::viewer_converge(global)
+        .await?;
     Ok("ready".to_string())
 }
 

@@ -26,9 +26,27 @@ use dashmap::DashMap;
 pub type PluginKey = (String, String, String);
 
 /// The cheap-clone registry handle held on
-/// [`crate::context::ResidentHubs`].
+/// [`crate::context::ResidentHubs`] — one half per manifest half,
+/// registered independently, exactly as the manifest splits them.
+///
+/// `mcp` registrations reroute the laboratory's plugin-image build to
+/// a local directory; `viewer` registrations reroute the viewer's
+/// `plugin://` serving to one, pushed to it over its stdin.
 #[derive(Clone, Default)]
 pub struct DevelopmentPlugins {
+    pub mcp: HalfRegistry,
+    pub viewer: HalfRegistry,
+}
+
+impl DevelopmentPlugins {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+/// One half's registrations: canonical trio → source directory.
+#[derive(Clone, Default)]
+pub struct HalfRegistry {
     plugins: Arc<DashMap<PluginKey, PathBuf>>,
 }
 
@@ -42,19 +60,15 @@ pub fn key(owner: &str, name: &str, version: &str) -> PluginKey {
     )
 }
 
-impl DevelopmentPlugins {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
+impl HalfRegistry {
     /// Register a directory, returning the path it displaced.
     ///
     /// Replacing is allowed and reported rather than refused: pointing
     /// a plugin at a different checkout mid-session is ordinary, and
-    /// making the caller delete first would only add a step. The
-    /// displaced directory's image stays tagged until something
-    /// rebuilds — which the next create does on its own, since the
-    /// image carries its source directory as a label.
+    /// making the caller delete first would only add a step. Whatever
+    /// was produced from the displaced directory self-corrects — the
+    /// mcp half's image carries its source directory as a label, and
+    /// the viewer half serves live with nothing cached.
     pub fn insert(&self, key: PluginKey, path: PathBuf) -> Option<PathBuf> {
         self.plugins.insert(key, path)
     }

@@ -1,7 +1,7 @@
-//! `development plugins mcp create` — register a local directory for a
-//! plugin's coordinates.
+//! `development plugins viewer create` — register a local directory
+//! for a plugin's VIEWER half, then tell the running viewer.
 
-use objectiveai_sdk::cli::command::development::plugins::mcp::create::{Request, Response};
+use objectiveai_sdk::cli::command::development::plugins::viewer::create::{Request, Response};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
@@ -13,7 +13,7 @@ pub async fn execute(
 ) -> Result<Response, Error> {
     let hubs = global.resident_hubs().ok_or_else(|| {
         Error::Development(
-            "development plugins mcp create requires the resident daemon".to_string(),
+            "development plugins viewer create requires the resident daemon".to_string(),
         )
     })?;
 
@@ -47,7 +47,12 @@ pub async fn execute(
     }
 
     let key = super::registry::key(&request.owner, &request.name, &request.version);
-    let replaced = hubs.development_plugins.mcp.insert(key.clone(), path).is_some();
+    let replaced = hubs.development_plugins.viewer.insert(key.clone(), path).is_some();
+
+    // Tell the running viewer, if any — soft, like the lab dial-list
+    // converge: a registration with no viewer up is valid, and the
+    // next `viewer spawn` seeds from the registry.
+    super::viewer_converge::viewer_converge(global).await?;
 
     Ok(Response {
         owner: key.0,
@@ -59,8 +64,8 @@ pub async fn execute(
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::development::plugins::mcp::create as sdk;
-    use objectiveai_sdk::cli::command::development::plugins::mcp::create::request_schema::{
+    use objectiveai_sdk::cli::command::development::plugins::viewer::create as sdk;
+    use objectiveai_sdk::cli::command::development::plugins::viewer::create::request_schema::{
         Request, Response,
     };
 
@@ -79,8 +84,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::development::plugins::mcp::create as sdk;
-    use objectiveai_sdk::cli::command::development::plugins::mcp::create::response_schema::{
+    use objectiveai_sdk::cli::command::development::plugins::viewer::create as sdk;
+    use objectiveai_sdk::cli::command::development::plugins::viewer::create::response_schema::{
         Request, Response,
     };
 

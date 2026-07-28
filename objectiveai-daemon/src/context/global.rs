@@ -109,7 +109,7 @@ pub(crate) struct ResidentChild {
     /// pid. A closed channel means the child already exited.
     pub(crate) kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
     pub(crate) address: Option<String>,
-    pub(crate) stdio: Option<Arc<LabHostStdio>>,
+    pub(crate) stdio: Option<Arc<ChildStdio>>,
     /// PUSH death signal: flips `false → true` when `child.wait()`
     /// completes in the lifecycle task — TRUE process exit (reaped),
     /// not a pipe-EOF proxy. Lets a waiter `changed().await` the
@@ -153,7 +153,7 @@ pub(crate) struct KillSnapshot {
 /// mutex over both halves serializes commands, so at most one is ever
 /// outstanding and correlation degenerates to "recv until the ack
 /// echoing this request's id" — no pending map.
-pub(crate) struct LabHostStdio {
+pub(crate) struct ChildStdio {
     io: tokio::sync::Mutex<(
         tokio::process::ChildStdin,
         tokio::sync::mpsc::UnboundedReceiver<
@@ -162,7 +162,7 @@ pub(crate) struct LabHostStdio {
     )>,
 }
 
-impl LabHostStdio {
+impl ChildStdio {
     pub(crate) fn new(
         stdin: tokio::process::ChildStdin,
         acks: tokio::sync::mpsc::UnboundedReceiver<
@@ -174,50 +174,80 @@ impl LabHostStdio {
         }
     }
 
-    /// Send one dial-list command (wrapped in a fresh random request
-    /// id) and await the ack echoing that id — the host applied the
-    /// mutation (NOT connectivity; dialing retries forever). NO
-    /// timeout by design: the host acks every parsed line, and a dead
-    /// host closes its pipes, which ends the ack stream and errors
-    /// here — so this waits exactly as long as the host is alive and
+    /// Send one command (wrapped in a fresh random request id) and
+    /// await the ack echoing that id — the child applied the mutation
+    /// (NOT its effect; the lab host's dialing retries forever). NO
+    /// timeout by design: the child acks every parsed line, and a dead
+    /// child closes its pipes, which ends the ack stream and errors
+    /// here — so this waits exactly as long as the child is alive and
     /// busy. Errors mean the channel is broken (write failed, ack
     /// stream closed).
-    pub(crate) async fn send_host_stdio(
+    ///
+    /// Generic over the command: both stdio vocabularies
+    /// (`HostStdioCommand`, `ViewerStdioCommand`) serialize to a
+    /// tagged JSON object, and both request envelopes are exactly that
+    /// object plus an `id` — so the envelope is assembled here by
+    /// insertion rather than through per-child request structs. Both
+    /// ack shapes are the same `{"id":…}`, which is why one ack type
+    /// serves every stdio child.
+    pub(crate) async fn send_stdio<C: serde::Serialize>(
         &self,
-        command: &objectiveai_sdk::laboratories::daemon::HostStdioCommand,
+        command: &C,
     ) -> Result<(), crate::error::Error> {
         use tokio::io::AsyncWriteExt;
-        let request = objectiveai_sdk::laboratories::daemon::HostStdioRequest {
-            id: uuid::Uuid::new_v4().to_string(),
-            command: command.clone(),
-        };
+        let id = uuid::Uuid::new_v4().to_string();
+        let mut value =
+            serde_json::to_value(command).expect("stdio command serializes");
+        value
+            .as_object_mut()
+            .expect("stdio commands serialize to tagged objects")
+            .insert("id".to_string(), serde_json::Value::String(id.clone()));
         let mut io = self.io.lock().await;
         let (stdin, acks) = &mut *io;
-        let mut line = serde_json::to_string(&request)
-            .expect("HostStdioRequest serializes");
+        let mut line =
+            serde_json::to_string(&value).expect("stdio envelope serializes");
         line.push('\n');
         stdin.write_all(line.as_bytes()).await.map_err(|e| {
             crate::error::Error::Laboratory(format!(
-                "laboratory host stdin write failed: {e}"
+                "stdio child stdin write failed: {e}"
             ))
         })?;
         stdin.flush().await.map_err(|e| {
             crate::error::Error::Laboratory(format!(
-                "laboratory host stdin flush failed: {e}"
+                "stdio child stdin flush failed: {e}"
             ))
         })?;
         loop {
             let ack = acks.recv().await.ok_or_else(|| {
                 crate::error::Error::Laboratory(
-                    "laboratory host stdio channel closed".to_string(),
+                    "stdio child channel closed".to_string(),
                 )
             })?;
             // A non-matching id is a stale ack from an abandoned
             // predecessor — skip it and keep reading.
-            if ack.id == request.id {
+            if ack.id == id {
                 return Ok(());
             }
         }
+    }
+
+    /// [`Self::send_stdio`] with a DEADLINE — for the viewer, whose
+    /// stdio handling is a build-time feature: a binary built without
+    /// it never reads its pipe and never acks, and an unbounded wait
+    /// against one would hang its caller forever. A timeout reports
+    /// the same way as a broken channel.
+    pub(crate) async fn send_stdio_bounded<C: serde::Serialize>(
+        &self,
+        command: &C,
+        deadline: std::time::Duration,
+    ) -> Result<(), crate::error::Error> {
+        tokio::time::timeout(deadline, self.send_stdio(command))
+            .await
+            .map_err(|_| {
+                crate::error::Error::Laboratory(
+                    "stdio child did not ack before the deadline".to_string(),
+                )
+            })?
     }
 }
 
@@ -478,7 +508,7 @@ impl GlobalContext {
         generation: u64,
         kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
         address: Option<String>,
-        stdio: Option<Arc<LabHostStdio>>,
+        stdio: Option<Arc<ChildStdio>>,
         dead_rx: tokio::sync::watch::Receiver<bool>,
     ) {
         self.resident_children.insert(
@@ -535,8 +565,19 @@ impl GlobalContext {
     /// Liveness is a pure read of the death watch (the lifecycle task
     /// removes dead entries eagerly; the borrow covers the removal
     /// in-flight window).
-    pub(crate) fn lab_host_stdio(&self) -> Option<Arc<LabHostStdio>> {
+    pub(crate) fn lab_host_stdio(&self) -> Option<Arc<ChildStdio>> {
         let entry = self.resident_children.get("laboratories")?;
+        if *entry.dead_rx.borrow() {
+            return None;
+        }
+        entry.stdio.clone()
+    }
+
+    /// The VIEWER's stdio channel, when a viewer child is live and was
+    /// spawned with a piped stdin. Same liveness discipline as
+    /// [`Self::lab_host_stdio`].
+    pub(crate) fn viewer_stdio(&self) -> Option<Arc<ChildStdio>> {
+        let entry = self.resident_children.get("viewer")?;
         if *entry.dead_rx.borrow() {
             return None;
         }
