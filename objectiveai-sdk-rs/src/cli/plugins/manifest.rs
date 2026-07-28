@@ -97,7 +97,7 @@ pub struct Mcp {
     /// a host directory, so nothing here can change what ships.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub development: Option<Development>,
+    pub development: Option<McpDevelopment>,
 }
 
 impl Mcp {
@@ -120,8 +120,8 @@ impl Mcp {
 /// the pip cache for Python. Only the plugin author knows their own
 /// image's layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "cli.plugins.Development")]
-pub struct Development {
+#[schemars(rename = "cli.plugins.McpDevelopment")]
+pub struct McpDevelopment {
     /// Absolute container paths bound to persistent host directories
     /// while `RUN` steps execute, so a rebuild reuses what the last
     /// one produced.
@@ -146,7 +146,7 @@ pub struct Development {
     pub caches: Vec<String>,
 }
 
-impl Development {
+impl McpDevelopment {
     /// Absolute, forward-slashed, traversal-free, and distinct. A
     /// relative path is meaningless to a bind mount, and two entries
     /// naming one target would silently get one host directory each

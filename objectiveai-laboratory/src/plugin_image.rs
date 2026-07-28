@@ -441,7 +441,7 @@ fn cache_slug(container_path: &str) -> String {
 async fn cache_mounts(
     bin_dir: &Path,
     coords: &PluginCoords,
-    development: Option<&objectiveai_sdk::cli::plugins::Development>,
+    development: Option<&objectiveai_sdk::cli::plugins::McpDevelopment>,
 ) -> Result<Vec<podman::laboratory::Mount>, String> {
     let Some(development) = development else {
         return Ok(Vec::new());
