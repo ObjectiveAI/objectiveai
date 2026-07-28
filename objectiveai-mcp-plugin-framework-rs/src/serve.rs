@@ -13,7 +13,7 @@
 //! let handle = tools.clone();
 //!
 //! // Never returns except to fail.
-//! serve::serve(Config::new(8080), State, tools).await
+//! serve::serve(Config::new(8080, "my-plugin", "0.1.0"), State, tools).await
 //! # }
 //! ```
 //!
@@ -108,6 +108,10 @@ where
     }
 
     let handler = Handler {
+        // Built ONCE: `get_info` runs per session and has nothing to
+        // decide, so recomputing it each time would only be a chance
+        // to disagree with itself.
+        info: Arc::new(server_info(&config)),
         state: Arc::new(state),
         router,
         peer,
@@ -152,6 +156,48 @@ where
     Err(std::io::Error::other("the listener stopped without an error"))
 }
 
+/// The `initialize` reply, from the plugin's [`Config`].
+///
+/// ObjectiveAI keeps this VERBATIM and reports it through
+/// `agents mcp servers list`, and the proxy derives its routing prefix
+/// from the name and version — so what goes in here is what an agent
+/// sees, not just documentation.
+fn server_info(config: &Config) -> ServerInfo {
+    // rmcp marks these `#[non_exhaustive]`, so assign rather than
+    // construct.
+    let mut implementation =
+        rmcp::model::Implementation::new(config.name.clone(), config.version.clone());
+    implementation.title = config.title.clone();
+    implementation.description = config.description.clone();
+    implementation.website_url = config.website_url.clone();
+    implementation.icons = config.icons.clone();
+
+    // `list_changed` advertised because the tool set really can
+    // change: a client that believed otherwise would go on calling a
+    // tool that is gone.
+    let mut tools = rmcp::model::ToolsCapability::default();
+    tools.list_changed = Some(true);
+    let mut capabilities = rmcp::model::ServerCapabilities::builder()
+        .enable_tools_with(tools)
+        .build();
+    // The objectiveai command extension. The PRESENCE of the key is
+    // the capability — its value is reserved — and without it the host
+    // never fulfills a `cli_request`, so `command_executor` would hang
+    // on every call.
+    let mut experimental = std::collections::BTreeMap::new();
+    experimental.insert(
+        objectiveai_sdk::mcp::OBJECTIVEAI_CAPABILITY.to_string(),
+        serde_json::Map::new(),
+    );
+    capabilities.experimental = Some(experimental);
+
+    let mut info = ServerInfo::default();
+    info.capabilities = capabilities;
+    info.server_info = implementation;
+    info.instructions = config.instructions.clone();
+    info
+}
+
 /// The host POSTs one of these per frame of a command exchange.
 ///
 /// Answering `OK` unconditionally is deliberate: the only thing that
@@ -183,6 +229,7 @@ fn build<S: Send + Sync + 'static>(routes: &[ToolRoute<S>]) -> ToolRouter<S> {
 /// Private because a plugin has no reason to hold one — `serve` builds
 /// it and owns it for the process's life.
 struct Handler<S> {
+    info: Arc<ServerInfo>,
     state: Arc<S>,
     router: Arc<ArcSwap<ToolRouter<S>>>,
     peer: Arc<ArcSwapOption<Peer<RoleServer>>>,
@@ -191,6 +238,7 @@ struct Handler<S> {
 impl<S> Clone for Handler<S> {
     fn clone(&self) -> Self {
         Self {
+            info: self.info.clone(),
             state: self.state.clone(),
             router: self.router.clone(),
             peer: self.peer.clone(),
@@ -200,28 +248,7 @@ impl<S> Clone for Handler<S> {
 
 impl<S: Send + Sync + 'static> ServerHandler for Handler<S> {
     fn get_info(&self) -> ServerInfo {
-        // `list_changed` advertised because the tool set really can
-        // change: a client that believed otherwise would go on calling
-        // a tool that is gone.
-        let mut tools = rmcp::model::ToolsCapability::default();
-        tools.list_changed = Some(true);
-        let mut capabilities = rmcp::model::ServerCapabilities::builder()
-            .enable_tools_with(tools)
-            .build();
-        // The objectiveai command extension. The PRESENCE of the key
-        // is the capability — its value is reserved — and without it
-        // the host never fulfills a `cli_request`, so
-        // `command_executor` would hang on every call.
-        let mut experimental = std::collections::BTreeMap::new();
-        experimental.insert(
-            objectiveai_sdk::mcp::OBJECTIVEAI_CAPABILITY.to_string(),
-            serde_json::Map::new(),
-        );
-        capabilities.experimental = Some(experimental);
-
-        let mut info = ServerInfo::default();
-        info.capabilities = capabilities;
-        info
+        (*self.info).clone()
     }
 
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
@@ -273,6 +300,35 @@ mod tests {
         ToolRoute::new_dyn(Tool::new(name, "", schema), |_context| {
             Box::pin(async { Ok(CallToolResult::success(vec![])) })
         })
+    }
+
+    /// The name and version reach the `initialize` reply, because the
+    /// proxy builds its routing prefix from them — a default here
+    /// would give every plugin the same agent-visible tool names.
+    #[test]
+    fn the_configured_identity_reaches_the_initialize_reply() {
+        let info = server_info(
+            &Config::new(1, "hello-channel", "0.1.6")
+                .with_title("Hello")
+                .with_instructions("Call greet."),
+        );
+        assert_eq!(info.server_info.name, "hello-channel");
+        assert_eq!(info.server_info.version, "0.1.6");
+        assert_eq!(info.server_info.title.as_deref(), Some("Hello"));
+        assert_eq!(info.instructions.as_deref(), Some("Call greet."));
+    }
+
+    /// Without the experimental key the host never fulfills a
+    /// `cli_request`, so every `command_executor` call would hang.
+    #[test]
+    fn the_objectiveai_capability_is_declared() {
+        let info = server_info(&Config::new(1, "n", "v"));
+        let experimental = info.capabilities.experimental.expect("declared");
+        assert!(experimental.contains_key(objectiveai_sdk::mcp::OBJECTIVEAI_CAPABILITY));
+        assert_eq!(
+            info.capabilities.tools.and_then(|t| t.list_changed),
+            Some(true),
+        );
     }
 
     /// A plugin bound to loopback is unreachable through podman's port
