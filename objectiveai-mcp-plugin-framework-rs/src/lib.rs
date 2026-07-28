@@ -15,8 +15,14 @@ pub use environment::*;
 pub mod serve;
 pub mod tools;
 
-/// Re-exported so a plugin uses the SAME `rmcp` and `sqlx` the router
-/// and pool came from. Depending on either separately risks two
-/// versions in one binary, where a `Pool` or a `ToolRouter` from here
-/// would not satisfy an API from there.
-pub use {rmcp, sqlx};
+/// Re-exported so a plugin uses the SAME `objectiveai_sdk`, `rmcp` and
+/// `sqlx` the executor, router and pool came from. Depending on any of
+/// them separately risks two versions in one binary, where a `Pool`, a
+/// `ToolRouter` or a `CommandExecutor` from here would not satisfy an
+/// API from there.
+///
+/// The SDK matters most: every `cli::command::*::execute` is generic
+/// over the `CommandExecutor` TRAIT, so a separately-resolved SDK
+/// makes [`command_executor`]'s return type implement a different
+/// trait of the same name, and the call simply will not compile.
+pub use {objectiveai_sdk, rmcp, sqlx};

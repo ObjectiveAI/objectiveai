@@ -14,8 +14,13 @@ name = "objectiveai-mcp-plugin-scaffold"
 path = "src/main.rs"
 
 [dependencies]
-# Everything that is the same for every ObjectiveAI plugin.
+# Everything that is the same for every ObjectiveAI plugin. It also
+# re-exports `objectiveai_sdk`, `rmcp` and `sqlx`, so none of those are
+# listed here — a second copy of any of them would be a different set
+# of traits and would not fit the APIs above.
 objectiveai-mcp-plugin-framework = "2.2.13"
+# Only to consume the response stream from a CLI command.
+futures = "0.3.33"
 # `rmcp` is deliberately NOT a direct dependency: the framework
 # re-exports the exact one it was built against, so the two can never
 # skew into a `ToolRouter<S>` that does not fit `serve`. The

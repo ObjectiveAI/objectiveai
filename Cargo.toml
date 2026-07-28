@@ -7,7 +7,6 @@ members = [
     "objectiveai-mcp-laboratory",
     "objectiveai-mcp-proxy",
     "objectiveai-mcp-plugin-framework-rs",
-    "objectiveai-mcp-plugin-scaffold-rs",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
     "objectiveai-sdk-rs-wasm-js",
@@ -29,21 +28,21 @@ members = [
     "tests/objectiveai-cli-tests",
 ]
 
-# Built only for wasm32-wasip1 by objectiveai-daemon/build.rs — excluded so the
-# host-target workspace build never tries to compile its wasm-only host import.
-exclude = ["objectiveai-rustpython-wasm"]
-
-# objectiveai-mcp-plugin-scaffold-rs is a template that gets COPIED OUT and
-# built on its own, so its manifest must be exactly what a standalone plugin
-# needs: a plain `objectiveai-mcp-plugin-framework = "x.y.z"`, no path to a
-# checkout that will not be there. Building it here would then want the
-# framework from crates.io at the version this branch is developing, which by
-# definition is not published yet. Redirecting the registry to the local
-# framework keeps the scaffold compiling on every workspace build — so it
-# cannot rot against a framework change — while leaving the copied folder
-# untouched, since nothing here travels with it.
-[patch.crates-io]
-objectiveai-mcp-plugin-framework = { path = "objectiveai-mcp-plugin-framework-rs" }
+exclude = [
+    # Built only for wasm32-wasip1 by objectiveai-daemon/build.rs — excluded so
+    # the host-target workspace build never tries to compile its wasm-only host
+    # import.
+    "objectiveai-rustpython-wasm",
+    # A template that gets COPIED OUT and built on its own, so its manifest is
+    # exactly what a standalone plugin needs — plain registry versions, no path
+    # to a checkout that will not be there. Which means it does not resolve
+    # here, since the crates it names are this branch's unpublished versions.
+    # Excluded rather than patched: a `[patch.crates-io]` redirecting those
+    # names at local checkouts would make it build, but only by making the
+    # in-repo copy resolve differently from the copy a user takes away — and
+    # the whole point of the folder is that it is naked.
+    "objectiveai-mcp-plugin-scaffold-rs",
+]
 
 [workspace.metadata.tools]
 wasm-pack = "0.14.0"
