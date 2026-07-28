@@ -22,6 +22,7 @@ type CliCommandRequest struct {
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
 	UpdateResponseSchema *CliCommandUpdateResponseSchemaRequest 
 	Channels *CliCommandChannelsRequest 
+	Development *CliCommandDevelopmentRequest 
 	Tasks *CliCommandTasksRequest 
 	Viewer *CliCommandViewerRequest 
 }
@@ -68,6 +69,9 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Channels != nil {
 		return json.Marshal(v.Channels)
+	}
+	if v.Development != nil {
+		return json.Marshal(v.Development)
 	}
 	if v.Tasks != nil {
 		return json.Marshal(v.Tasks)
@@ -234,6 +238,17 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandDevelopmentRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Development = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandTasksRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -274,6 +289,7 @@ func (v CliCommandRequest) Validate() error {
 	if v.UpdateRequestSchema != nil { count++ }
 	if v.UpdateResponseSchema != nil { count++ }
 	if v.Channels != nil { count++ }
+	if v.Development != nil { count++ }
 	if v.Tasks != nil { count++ }
 	if v.Viewer != nil { count++ }
 	if count != 1 {

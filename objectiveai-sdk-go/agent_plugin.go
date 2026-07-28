@@ -15,12 +15,19 @@ import (
 // identity triple for now.
 type AgentPlugin struct {
 	// Optional key→value arguments handed to the plugin's MCP server
-	// at startup. `Some(value)` ⇒ `--key value`; `None` ⇒ a bare
-	// `--key` flag. The plugin author decides how to interpret them.
-	// [`prepare`] normalizes (`Some("") → None`), sorts the map by
-	// key, and collapses an empty map to `None` so two equivalent
-	// declarations canonicalize to byte-identical JSON.
-	Arguments *OrderedMap[string, *string] `json:"arguments,omitempty"`
+	// at startup. Values are free-form JSON: a string behaves as
+	// `--key value` and `null` as a bare `--key` flag, but an object,
+	// an array or a number is equally valid and the plugin author
+	// decides how to interpret them.
+	//
+	// [`prepare`] normalizes (an empty STRING becomes `null`, so the
+	// two spellings of a valueless flag canonicalize together), sorts
+	// the map by key AND every object key nested inside a value at
+	// any depth, and collapses an empty map to `None` — so two
+	// equivalent declarations serialize byte-identically, which is
+	// what makes an agent id content-addressable. Array element order
+	// is left alone: that is data, not spelling.
+	Arguments *OrderedMap[string,JsonValue] `json:"arguments,omitempty"`
 	// Repository segment.
 	Name string `json:"name"`
 	// GitHub `<owner>` segment.

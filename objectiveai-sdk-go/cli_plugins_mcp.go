@@ -16,6 +16,11 @@ type CliPluginsMcp struct {
 	// sees `server/` as its root and its `COPY` steps carry no
 	// `server/` prefix.
 	Containerfile string `json:"containerfile"`
+	// Build settings that apply ONLY when this plugin is registered
+	// for development (`development plugins mcp create`). Ignored
+	// entirely for a released plugin — a production image never binds
+	// a host directory, so nothing here can change what ships.
+	Development *CliPluginsDevelopment `json:"development,omitempty"`
 	// The port the MCP server listens on inside the container —
 	// published to a random loopback host port at create. Never 0.
 	Port uint32 `json:"port" validate:"min=0,max=65535"`
