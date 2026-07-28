@@ -8,6 +8,7 @@ from objectiveai_sdk.cli.command.api.request import Request as CliCommandApiRequ
 from objectiveai_sdk.cli.command.channels.request import Request as CliCommandChannelsRequest
 from objectiveai_sdk.cli.command.daemon.request import Request as CliCommandDaemonRequest
 from objectiveai_sdk.cli.command.db.request import Request as CliCommandDbRequest
+from objectiveai_sdk.cli.command.development.request import Request as CliCommandDevelopmentRequest
 from objectiveai_sdk.cli.command.functions.request import Request as CliCommandFunctionsRequest
 from objectiveai_sdk.cli.command.laboratories.request import Request as CliCommandLaboratoriesRequest
 from objectiveai_sdk.cli.command.python.request import Request as CliCommandPythonRequest
@@ -105,6 +106,12 @@ class RequestChannels(RootModel):
     root: CliCommandChannelsRequest
 
 
+class RequestDevelopment(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Development'})
+
+    root: CliCommandDevelopmentRequest
+
+
 class RequestTasks(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Tasks'})
 
@@ -120,5 +127,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestLaboratories, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestChannels, RequestTasks, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestLaboratories, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestChannels, RequestDevelopment, RequestTasks, RequestViewer]
 
