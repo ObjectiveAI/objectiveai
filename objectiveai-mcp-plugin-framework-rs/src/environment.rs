@@ -30,21 +30,6 @@ use std::sync::OnceLock;
 use indexmap::IndexMap;
 use objectiveai_sdk::identity::Identity;
 
-/// The plugin's declared arguments, exactly as
-/// [`objectiveai_sdk::agent::Plugin::arguments`] declares them.
-///
-/// Values are free-form JSON. A string reads as `--key value` and
-/// `null` as a bare `--key`, but an object, array or number is equally
-/// valid — what they MEAN is the plugin author's to decide. A `null`
-/// is a key that is PRESENT without a value, which is not the same as
-/// the key being absent.
-///
-/// `IndexMap` because the order is canonical, not incidental: the API
-/// key-SORTS these (`agent::plugin::prepare`) so two equivalent
-/// declarations serialize byte-identically. Iterating gives them back
-/// in that sorted order.
-pub type Arguments = IndexMap<String, serde_json::Value>;
-
 /// Who this plugin is running as: agent coordinates, response routing,
 /// and the plugin trio naming which installed plugin this is.
 ///
@@ -56,14 +41,26 @@ pub fn identity() -> &'static Identity {
     IDENTITY.get_or_init(|| read_identity(env))
 }
 
-/// The arguments the agent declared for this plugin.
+/// The arguments the agent declared for this plugin, exactly as
+/// [`objectiveai_sdk::agent::Plugin::arguments`] declares them.
 ///
 /// Empty when it declared none — the same JSON that arrives as
 /// `X-OBJECTIVEAI-ARGUMENTS` on every MCP call, available here before
-/// the first call arrives. Already canonicalized upstream: key-sorted,
-/// and an empty-string value normalized to a bare flag.
-pub fn arguments() -> &'static Arguments {
-    static ARGUMENTS: OnceLock<Arguments> = OnceLock::new();
+/// the first call arrives.
+///
+/// Values are free-form JSON. A string reads as `--key value` and
+/// `null` as a bare `--key`, but an object, array or number is equally
+/// valid — what they MEAN is the plugin author's to decide. A `null`
+/// is a key PRESENT without a value, which is not the same as the key
+/// being absent.
+///
+/// An `IndexMap` because the order is canonical, not incidental: the
+/// API key-SORTS these (`agent::plugin::prepare`, which also
+/// normalizes an empty-string value to a bare flag) so two equivalent
+/// declarations serialize byte-identically. Iterating gives them back
+/// in that sorted order.
+pub fn arguments() -> &'static IndexMap<String, serde_json::Value> {
+    static ARGUMENTS: OnceLock<IndexMap<String, serde_json::Value>> = OnceLock::new();
     ARGUMENTS.get_or_init(|| read_arguments(env))
 }
 
@@ -122,7 +119,9 @@ fn read_identity(lookup: impl Fn(&str) -> Option<String>) -> Identity {
 /// this value is not the plugin's to validate: the API serialized it
 /// and the host copied it through untouched, so a parse failure is a
 /// bug upstream, not hostile input to defend against here.
-fn read_arguments(lookup: impl Fn(&str) -> Option<String>) -> Arguments {
+fn read_arguments(
+    lookup: impl Fn(&str) -> Option<String>,
+) -> IndexMap<String, serde_json::Value> {
     lookup("OBJECTIVEAI_ARGUMENTS")
         .and_then(|raw| serde_json::from_str(&raw).ok())
         .unwrap_or_default()
