@@ -20,7 +20,11 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.development.plugins.Request")]
 pub enum Request {
-    #[schemars(title = "Mcp")]
+    // NOTE: no variant-level `#[schemars(title)]`. Single-variant enum
+    // — schemars collapses it to the lone variant's schema and HOISTS
+    // that title over the type's `rename`, which the json-schema
+    // builder rejects as a title changing during normalization. Same
+    // reason as `agent.script.Script` / `ClientLaboratoryType`.
     Mcp(mcp::Request),
 }
 
