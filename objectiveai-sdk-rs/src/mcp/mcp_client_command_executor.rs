@@ -100,14 +100,26 @@ pub trait McpClientCommandExecutor: Send + Sync + 'static {
 /// - [`CliResponse::Done`] — ALWAYS the final frame of an exchange,
 ///   error or no. A run that fails to start still produces
 ///   `Ack`, `Error`, `Done`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, JsonSchema)]
+///
+/// `Deserialize` is HAND-WRITTEN below, deliberately: serde's
+/// internally-tagged derive buffers the whole frame through
+/// `Content` before it can read `type`, and that buffering destroys
+/// a [`RawValue`](serde_json::value::RawValue) — it travels as a
+/// private token, exactly like the `arbitrary_precision` number
+/// token, and neither survives being staged through serde's generic
+/// value. Reading the map directly keeps `item` raw and the wire
+/// byte-identical. Serialization is fine derived: field values go to
+/// the real serializer, where `RawValue` emits its bytes verbatim.
+#[derive(Debug, Clone, serde::Serialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "mcp.CliResponse")]
 pub enum CliResponse {
     Ack { id: String },
     Item {
         id: String,
-        /// One command-output item, carried as RAW JSON.
+        /// One command-output item, kept as the producer's literal
+        /// bytes and parsed exactly once, later, by whoever knows the
+        /// type.
         ///
         /// Deliberately NOT the typed
         /// [`ResponseItem`](crate::cli::command::ResponseItem) sum.
@@ -120,14 +132,93 @@ pub enum CliResponse {
         /// entry came back as "missing field `type`", because the
         /// variant that absorbed it did not carry the tag.
         ///
-        /// The producer serializes its typed item into this field, so
-        /// the WIRE IS UNCHANGED — only the lossy round trip through
-        /// the sum is gone. The receiver decodes straight into the
-        /// leaf type it named.
-        item: serde_json::Value,
+        /// Nor a [`serde_json::Value`], which would fix the routing
+        /// but keep a lossy hop: a DOM normalizes numbers through
+        /// `f64`/`u64` and re-serializes on the way out. The frame is
+        /// a PIPE — its job is `id`, order and terminality, not
+        /// understanding the payload — so it carries bytes, and the
+        /// terminal decoder sees exactly what the producer wrote.
+        ///
+        /// The wire is UNCHANGED either way.
+        #[schemars(with = "serde_json::Value")]
+        item: Box<serde_json::value::RawValue>,
     },
     Error { id: String, error: String },
     Done { id: String },
+}
+
+impl<'de> serde::Deserialize<'de> for CliResponse {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Self, D::Error> {
+        use serde::de::{self, MapAccess, Visitor};
+
+        struct FrameVisitor;
+
+        impl<'de> Visitor<'de> for FrameVisitor {
+            type Value = CliResponse;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("a cli response frame")
+            }
+
+            /// Read the map ONE FIELD AT A TIME, straight off the
+            /// deserializer. `item` is pulled as a `RawValue` here,
+            /// at the only moment its bytes are still available —
+            /// serde's own tagged-enum path would have staged the
+            /// whole frame through `Content` first and lost them.
+            ///
+            /// Fields are collected before dispatch because JSON
+            /// object order is not guaranteed: `type` may arrive
+            /// after the field it selects.
+            fn visit_map<A: MapAccess<'de>>(
+                self,
+                mut map: A,
+            ) -> Result<CliResponse, A::Error> {
+                let mut kind: Option<String> = None;
+                let mut id: Option<String> = None;
+                let mut item: Option<Box<serde_json::value::RawValue>> = None;
+                let mut error: Option<String> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "type" => kind = Some(map.next_value()?),
+                        "id" => id = Some(map.next_value()?),
+                        "item" => item = Some(map.next_value()?),
+                        "error" => error = Some(map.next_value()?),
+                        // Unknown keys are skipped, matching the
+                        // derive's default tolerance.
+                        _ => {
+                            map.next_value::<de::IgnoredAny>()?;
+                        }
+                    }
+                }
+
+                let kind = kind.ok_or_else(|| de::Error::missing_field("type"))?;
+                let id = || id.ok_or_else(|| de::Error::missing_field("id"));
+                match kind.as_str() {
+                    "ack" => Ok(CliResponse::Ack { id: id()? }),
+                    "item" => Ok(CliResponse::Item {
+                        id: id()?,
+                        item: item
+                            .ok_or_else(|| de::Error::missing_field("item"))?,
+                    }),
+                    "error" => Ok(CliResponse::Error {
+                        id: id()?,
+                        error: error
+                            .ok_or_else(|| de::Error::missing_field("error"))?,
+                    }),
+                    "done" => Ok(CliResponse::Done { id: id()? }),
+                    other => Err(de::Error::unknown_variant(
+                        other,
+                        &["ack", "item", "error", "done"],
+                    )),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(FrameVisitor)
+    }
 }
 
 /// Error of [`NotSupportedMcpClientCommandExecutor`] — this client
@@ -218,14 +309,14 @@ mod tests {
             serde_json::json!({"type": "done", "id": "7"}),
         );
 
-        // Item wraps a typed ResponseItem — spot-check the tag +
-        // passthrough with a Python value item (the simplest leaf:
-        // its ResponseItem variant is a bare JSON value).
+        // Item carries the payload's raw bytes — spot-check the tag
+        // and that the payload passes through untouched.
         let item = CliResponse::Item {
             id: "7".to_string(),
-            item: crate::cli::command::ResponseItem::Python(
-                serde_json::json!({"ok": true}),
-            ),
+            item: serde_json::value::to_raw_value(
+                &serde_json::json!({"ok": true}),
+            )
+            .unwrap(),
         };
         let value = serde_json::to_value(&item).unwrap();
         assert_eq!(value["type"], "item");

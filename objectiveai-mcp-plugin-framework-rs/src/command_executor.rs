@@ -249,7 +249,7 @@ where
                     // knows a slow run was picked up.
                     CliResponse::Ack { .. } => continue,
                     CliResponse::Item { item, .. } => {
-                        return Some((decode(item), (rx, registered)));
+                        return Some((decode(&item), (rx, registered)));
                     }
                     CliResponse::Error { error, .. } => {
                         return Some((Err(Error::Host(error)), (rx, registered)));
@@ -269,21 +269,27 @@ where
 
 /// One wire item, as the type the caller asked for.
 ///
-/// The frame hands over RAW JSON, so this decodes it ONCE, straight
-/// into the leaf the caller named. It used to arrive as the untagged
-/// `ResponseItem` sum and get re-encoded here — which meant the item
-/// was first parsed as whichever of the ~400 leaves matched it, and
-/// anything that guess did not model was lost before this ever ran
-/// (see [`objectiveai_sdk::mcp::CliResponse::Item`]). A CLI-reported
-/// failure rides the same shape, so it is decoded first.
-fn decode<T>(value: serde_json::Value) -> Result<T, Error>
+/// THIS is where the payload is finally parsed — the first and only
+/// place that knows what it should be, because `T` is the leaf the
+/// caller named. The frame carried the producer's literal bytes to
+/// get here untouched.
+///
+/// It used to arrive as the untagged `ResponseItem` sum, which meant
+/// the item was parsed as whichever of the ~400 leaves matched it
+/// first and re-encoded here; anything that guess did not model was
+/// already gone (see [`objectiveai_sdk::mcp::CliResponse::Item`]).
+/// A CLI-reported failure rides the same shape, so it is tried
+/// first.
+fn decode<T>(item: &serde_json::value::RawValue) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
-    if let Ok(error) = serde_json::from_value::<objectiveai_sdk::cli::Error>(value.clone()) {
+    if let Ok(error) =
+        serde_json::from_str::<objectiveai_sdk::cli::Error>(item.get())
+    {
         return Err(Error::Cli(error));
     }
-    serde_json::from_value(value).map_err(Error::Decode)
+    serde_json::from_str(item.get()).map_err(Error::Decode)
 }
 
 #[cfg(test)]
