@@ -354,39 +354,29 @@ async fn collect_credential(
 
 /// Look up, or obtain and store, then call.
 async fn credential_call(url: &str) -> Result<CredentialCall, CredentialFailure> {
-    // The cache is BEST EFFORT, deliberately. Reaching the database
-    // means reaching the laboratory host's tunnel out of this
-    // container, and a plugin that cannot do that must still be able
-    // to do its job — the human on the other end of the channel is
-    // the actual source of a credential, not the table. So a database
-    // failure costs the caching, is REPORTED in `database_error`, and
-    // stops nothing.
-    let pool = match table_pool(&CREDENTIALS_TABLE, CREATE_CREDENTIALS).await {
-        Ok(pool) => Some(pool),
-        Err(message) => {
-            return credential_from_channel(url, None, Some(message)).await;
-        }
-    };
-    let pool = pool.expect("Some on the Ok arm");
+    // A failed lookup is FATAL, and deliberately so. "The read
+    // errored" and "there is no stored credential" are the same
+    // silence from here, and guessing the second would bother a human
+    // for a credential that already exists — then overwrite the good
+    // one with whatever came back. Refusing costs a retry; guessing
+    // costs the stored credential.
+    let pool = table_pool(&CREDENTIALS_TABLE, CREATE_CREDENTIALS)
+        .await
+        .map_err(|message| failed("database", message))?;
 
-    let stored: Option<String> = match sqlx::query(
+    let stored: Option<String> = sqlx::query(
         "SELECT credential FROM scaffold_credentials_deleteme
          WHERE agent_instance_hierarchy = $1",
     )
     .bind(notes_scope())
     .fetch_optional(&pool)
     .await
-    {
-        Ok(row) => row.map(|row| row.get("credential")),
-        Err(error) => {
-            let message = error_chain("read the credential", &error);
-            return credential_from_channel(url, None, Some(message)).await;
-        }
-    };
+    .map_err(|error| failed("database", error_chain("read the credential", &error)))?
+    .map(|row| row.get("credential"));
 
     let (credential, credential_source) = match stored {
         Some(credential) => (credential, "database"),
-        None => return credential_from_channel(url, Some(pool), None).await,
+        None => return credential_from_channel(url, pool).await,
     };
 
     let response = reqwest::Client::new()
@@ -409,44 +399,33 @@ async fn credential_call(url: &str) -> Result<CredentialCall, CredentialFailure>
         credential_source: credential_source.to_string(),
         status,
         body,
-        database_error: None,
     })
 }
 
-/// Ask a human for the credential through the viewer channel, store it
-/// when there is a database to store it in, and make the call.
-///
-/// `pool` is `None` when the cache is unavailable — then `note` says
-/// why, and it rides out on the result. A store that fails is likewise
-/// non-fatal: the credential is already in hand, and losing the cache
-/// entry costs the next call a question, not this one its answer.
+/// Ask a human for the credential through the viewer channel, store
+/// it, and make the call. Reached only when the lookup SUCCEEDED and
+/// found nothing — see `credential_call`.
 async fn credential_from_channel(
     url: &str,
-    pool: Option<db::Pool>,
-    note: Option<String>,
+    pool: db::Pool,
 ) -> Result<CredentialCall, CredentialFailure> {
     let credential = request_credential(url).await?;
-    let mut database_error = note;
 
-    if let Some(pool) = pool {
-        // Stored only once it is in hand. Writing before the exchange
-        // completed would leave a half-credential behind for the next
-        // call to trust.
-        if let Err(error) = sqlx::query(
-            "INSERT INTO scaffold_credentials_deleteme
-                 (agent_instance_hierarchy, credential)
-             VALUES ($1, $2)
-             ON CONFLICT (agent_instance_hierarchy) DO UPDATE
-                 SET credential = EXCLUDED.credential, obtained_at = now()",
-        )
-        .bind(notes_scope())
-        .bind(&credential)
-        .execute(&pool)
-        .await
-        {
-            database_error = Some(error_chain("store the credential", &error));
-        }
-    }
+    // Stored only once it is in hand. Writing before the exchange
+    // completed would leave a half-credential behind for the next
+    // call to trust.
+    sqlx::query(
+        "INSERT INTO scaffold_credentials_deleteme
+             (agent_instance_hierarchy, credential)
+         VALUES ($1, $2)
+         ON CONFLICT (agent_instance_hierarchy) DO UPDATE
+             SET credential = EXCLUDED.credential, obtained_at = now()",
+    )
+    .bind(notes_scope())
+    .bind(&credential)
+    .execute(&pool)
+    .await
+    .map_err(|error| failed("store", error_chain("store the credential", &error)))?;
 
     let response = reqwest::Client::new()
         .get(url)
@@ -466,7 +445,6 @@ async fn credential_from_channel(
         credential_source: "channel".to_string(),
         status,
         body,
-        database_error,
     })
 }
 
@@ -556,16 +534,6 @@ struct CredentialCall {
     credential_source: String,
     status: u16,
     body: String,
-    /// Why the credential cache was skipped, when it was.
-    ///
-    /// The database is a CACHE here, and the human is the source of
-    /// truth — so a database that cannot be reached must not stop the
-    /// tool from asking. It does mean every call asks again, which is
-    /// worth saying out loud rather than leaving as a mystery, and
-    /// this is the field that says it. `None` on the happy path.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    database_error: Option<String>,
 }
 
 /// Returned as a tool result with `is_error`, never as a protocol
