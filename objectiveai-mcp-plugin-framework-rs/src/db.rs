@@ -71,6 +71,26 @@ pub enum Error {
     /// is down, the credentials are stale, or Postgres refused.
     #[error("connect to the plugin database")]
     Connect(#[source] sqlx::Error),
+    /// Nothing answered at the tunnel before the pool gave up.
+    ///
+    /// Split out from [`Error::Connect`] because sqlx reports it as a
+    /// bare "pool timed out while waiting for an open connection",
+    /// which describes the pool and says nothing about the four hops
+    /// underneath it — a plugin author reading that has no idea where
+    /// to look. Every byte of a plugin's Postgres traffic crosses
+    /// container -> laboratory host -> daemon -> Postgres, and the
+    /// FIRST hop is the one that breaks: it is the only leg that runs
+    /// inbound to the machine, so a host firewall silently swallows it
+    /// while every other part of the system keeps working.
+    #[error(
+        "connect to the plugin database: nothing answered at {address} within {timeout:?} — the first of its four hops (container, laboratory host, daemon, Postgres) is the only one running INBOUND to the host machine, which a host firewall silently blocks while every other part of the system keeps working"
+    )]
+    Unreachable {
+        /// Host and port the container dialed — the laboratory host's
+        /// per-plugin tunnel listener, not Postgres itself.
+        address: String,
+        timeout: std::time::Duration,
+    },
 }
 
 /// How the pool is built.
@@ -272,7 +292,30 @@ async fn connect_once(config: Config) -> Result<Pool, Arc<Error>> {
         .acquire_timeout(config.acquire_timeout)
         .connect(url)
         .await
-        .map_err(|e| Arc::new(Error::Connect(e)))
+        .map_err(|e| {
+            // `PoolTimedOut` means the pool never got a usable
+            // connection in the window — which here is almost always
+            // the tunnel, not Postgres. Name the hop.
+            Arc::new(match e {
+                sqlx::Error::PoolTimedOut => Error::Unreachable {
+                    address: tunnel_address(url),
+                    timeout: config.acquire_timeout,
+                },
+                other => Error::Connect(other),
+            })
+        })
+}
+
+/// `host:port` out of a Postgres URL, for diagnostics only — never
+/// the credentials, which are in the same string.
+fn tunnel_address(url: &str) -> String {
+    url.rsplit_once('@')
+        .map(|(_, after)| after)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or("the laboratory host")
+        .to_string()
 }
 
 #[cfg(test)]
