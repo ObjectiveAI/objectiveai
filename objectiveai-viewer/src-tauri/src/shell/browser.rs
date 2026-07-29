@@ -166,6 +166,38 @@ async fn resolve_script(
     Ok(body)
 }
 
+/// Prepend the bridge prelude to a resolved script: an IIFE that
+/// captures the renderer-registered native function
+/// ([`crate::cef::BRIDGE_FN`]) and this spawn's token in a CLOSURE —
+/// the page can call the genuine function but can never read the
+/// token — and exposes the public surface the plugin's script (and
+/// only sensibly the plugin's script) uses:
+/// `window.__objectiveai.send(payload) -> boolean`. `false` means the
+/// bridge is unavailable (no renderer registration), the payload did
+/// not serialize, or it blew the size cap; `true` means handed to CEF
+/// — delivery is fire-and-forget. The original bundle follows the
+/// prelude TOP-LEVEL (concatenated, not nested), so its own semantics
+/// are untouched.
+fn with_bridge_prelude(token: &str, body: &str) -> String {
+    let bridge_fn = crate::cef::BRIDGE_FN;
+    let cap = crate::cef::BRIDGE_PAYLOAD_CAP;
+    format!(
+        r#"(function () {{ "use strict";
+  var f = window.{bridge_fn}, t = "{token}";
+  Object.defineProperty(window, "__objectiveai", {{ value: Object.freeze({{
+    send: function (payload) {{
+      if (typeof f !== "function") return false;
+      var s;
+      try {{ s = JSON.stringify(payload === undefined ? null : payload); }} catch (e) {{ return false; }}
+      if (typeof s !== "string" || s.length > {cap}) return false;
+      return f(t, s) === true;
+    }}
+  }}), writable: false, configurable: false }});
+}})();
+{body}"#
+    )
+}
+
 /// Create the Chromium surface for a browser tab, once.
 ///
 /// `parent` is the hosting window's native handle and `bounds` its
@@ -208,15 +240,22 @@ pub async fn spawn(
 
     // Resolve the script BEFORE claiming anything: a bad script name is
     // a plain spawn error and should not leave a claimed profile behind.
-    let script = match script {
+    // A resolved script gets the bridge prelude prepended around a
+    // per-SPAWN token: every main-frame navigation re-injects the same
+    // wrapped text (same browser, same spawn — correct), and only
+    // messages echoing this token survive `ViewerClient`'s check.
+    let (script, token) = match script {
         Some(name) => match resolve_script(app, tab, identity, name).await {
-            Ok(script) => Some(script),
+            Ok(body) => {
+                let token = uuid::Uuid::new_v4().to_string();
+                (Some(with_bridge_prelude(&token, &body)), Some(token))
+            }
             Err(e) => {
                 unclaim().await;
                 return Err(e);
             }
         },
-        None => None,
+        None => (None, None),
     };
 
     // A `state` key means PERSIST — claim the profile. No key means the
@@ -244,6 +283,7 @@ pub async fn spawn(
         cache: profile.as_ref().map(|p| p.dir.clone()),
         url: url.clone(),
         script,
+        token,
         title: title.to_string(),
         app: app.clone(),
     });

@@ -381,8 +381,13 @@ pub struct Spawn {
     pub cache: Option<PathBuf>,
     pub url: String,
     /// JavaScript injected into every main-frame load — already
-    /// resolved from the plugin's manifest and read off disk.
+    /// resolved from the plugin's manifest, read off disk, and wrapped
+    /// with the bridge prelude (`shell::browser` owns the wrapping).
     pub script: Option<String>,
+    /// The bridge token minted for this spawn — present iff a script
+    /// was injected. `ViewerClient` drops any bridge message that does
+    /// not echo it (see [`super::bridge`]).
+    pub token: Option<String>,
     /// The tab's title, which is what its console output is SOURCED as
     /// in the viewer's log inbox — matching how a content webview
     /// reports under its own tab title.
@@ -447,6 +452,7 @@ pub fn create_browser(spawn: Spawn) -> Result<(), String> {
         spawn.tab,
         flushed,
         spawn.script,
+        spawn.token,
         spawn.app,
         spawn.title,
     );
@@ -937,6 +943,7 @@ wrap_client! {
         tab: u64,
         flushed: Arc<AtomicBool>,
         script: Option<String>,
+        token: Option<String>,
         app: tauri::AppHandle,
         title: String,
     }
@@ -957,6 +964,84 @@ wrap_client! {
         fn display_handler(&self) -> Option<DisplayHandler> {
             Some(PageLogs::new(self.app.clone(), self.title.clone()))
         }
+
+        /// The browser-process half of the script bridge (see
+        /// [`super::bridge`]): token-check a renderer's bridge message
+        /// and route its payload into the spawning tab's mailbox,
+        /// where the plugin tab's ordinary `subscribeViewerTab(key)`
+        /// drains it. Every bridge-named message is CONSUMED (return
+        /// 1) whether or not it delivers — there is no other receiver.
+        fn on_process_message_received(
+            &self,
+            _browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
+            source_process: ProcessId,
+            message: Option<&mut ProcessMessage>,
+        ) -> ::std::os::raw::c_int {
+            if source_process != ProcessId::RENDERER {
+                return 0;
+            }
+            let Some(message) = message else { return 0 };
+            if CefString::from(&message.name()).to_string() != super::bridge::BRIDGE_MESSAGE {
+                return 0;
+            }
+            // Ours from here on.
+            let Some(frame) = frame else { return 1 };
+            if frame.is_main() != 1 {
+                return 1;
+            }
+            // No token = no script was injected = nothing could
+            // legitimately send; a mismatch is the page probing with a
+            // guessed token. Both drop SILENTLY — a foreign page must
+            // not be able to spam the viewer log.
+            let Some(token) = self.token.as_ref() else { return 1 };
+            let Some(args) = message.argument_list() else { return 1 };
+            if CefString::from(&args.string(0)).to_string() != *token {
+                return 1;
+            }
+            let json = CefString::from(&args.string(1)).to_string();
+            if json.len() > super::bridge::BRIDGE_PAYLOAD_CAP {
+                return 1;
+            }
+            // Token holders are the plugin's own script: malformed
+            // JSON is a plugin bug and gets a warn, unlike the silent
+            // drops above.
+            let value: serde_json::Value = match serde_json::from_str(&json) {
+                Ok(value) => value,
+                Err(e) => {
+                    let (app, title) = (self.app.clone(), self.title.clone());
+                    tauri::async_runtime::spawn(async move {
+                        crate::shell::report_as(
+                            &app,
+                            title,
+                            "warn",
+                            format!("bridge message dropped: invalid JSON: {e}"),
+                            None,
+                        )
+                        .await;
+                    });
+                    return 1;
+                }
+            };
+            // This callback runs on CEF's UI thread — hand off, never
+            // block.
+            let (app, tab, title) = (self.app.clone(), self.tab, self.title.clone());
+            tauri::async_runtime::spawn(async move {
+                use tauri::Manager as _;
+                let mail = app.state::<crate::shell::TabMail>();
+                if let Err(e) = mail.send_from_child_tab(tab, value).await {
+                    crate::shell::report_as(
+                        &app,
+                        title,
+                        "warn",
+                        format!("bridge message dropped: {e}"),
+                        None,
+                    )
+                    .await;
+                }
+            });
+            1
+        }
     }
 }
 
@@ -964,6 +1049,14 @@ wrap_app! {
     pub struct ViewerApp {}
 
     impl App {
+        /// The renderer-side bridge registrar (see [`super::bridge`]).
+        /// CEF queries this only in RENDERER processes; the browser
+        /// process and the other helper types construct it and never
+        /// call it — harmless.
+        fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+            Some(super::bridge::RendererBridge::new())
+        }
+
         /// Chromium's command line, before it is acted on — where the
         /// GPU is turned OFF.
         ///

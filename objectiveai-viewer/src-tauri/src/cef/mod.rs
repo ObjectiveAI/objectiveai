@@ -1,3 +1,5 @@
+mod bridge;
+pub use bridge::*;
 mod install;
 pub use install::*;
 mod log;
