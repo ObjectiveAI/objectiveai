@@ -143,6 +143,12 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
         for entry in &development {
             passthrough.push_str(&format!(" --development-plugin {}", quote(entry)));
         }
+        // TWO `--` separators, and they are not decoration: `tauri
+        // dev` reads the args after the FIRST as the RUNNER's (cargo
+        // run's) and only those after a SECOND as the application's.
+        // With one separator cargo is handed `--development-plugin`
+        // and exits with "unexpected argument" before the viewer is
+        // ever built.
         #[cfg(windows)]
         let (program, configure): (&str, Box<dyn FnOnce(&mut tokio::process::Command) + Send>) = {
             // `pnpm` is a `.cmd` shim, which Rust will not spawn
@@ -151,7 +157,7 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
             // cmd.exe's re-parsing disagree; hand-quoting each token
             // with spaces is the reliable intersection).
             let line = format!(
-                "/C pnpm exec tauri dev --features development --{passthrough}"
+                "/C pnpm exec tauri dev --features development -- --{passthrough}"
             );
             ("cmd", Box::new(move |cmd: &mut tokio::process::Command| {
                 use std::os::windows::process::CommandExt as _;
@@ -162,7 +168,9 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
         let (program, configure): (&str, Box<dyn FnOnce(&mut tokio::process::Command) + Send>) = {
             let development = development.clone();
             ("pnpm", Box::new(move |cmd: &mut tokio::process::Command| {
-                cmd.args(["exec", "tauri", "dev", "--features", "development", "--"]);
+                cmd.args([
+                    "exec", "tauri", "dev", "--features", "development", "--", "--",
+                ]);
                 for entry in &development {
                     cmd.arg("--development-plugin").arg(entry);
                 }
