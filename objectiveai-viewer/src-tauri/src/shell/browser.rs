@@ -166,35 +166,125 @@ async fn resolve_script(
     Ok(body)
 }
 
-/// Prepend the bridge prelude to a resolved script: an IIFE that
-/// captures the renderer-registered native function
-/// ([`crate::cef::BRIDGE_FN`]) and this spawn's token in a CLOSURE —
-/// the page can call the genuine function but can never read the
-/// token — and exposes the public surface the plugin's script (and
-/// only sensibly the plugin's script) uses:
-/// `window.__objectiveai.send(payload) -> boolean`. `false` means the
-/// bridge is unavailable (no renderer registration), the payload did
-/// not serialize, or it blew the size cap; `true` means handed to CEF
-/// — delivery is fire-and-forget. The original bundle follows the
-/// prelude TOP-LEVEL (concatenated, not nested), so its own semantics
-/// are untouched.
+/// Wrap a resolved script in the bridge prelude: ONE closure holding
+/// the renderer-registered native function
+/// ([`crate::cef::BRIDGE_FN`]), this spawn's token, and the plugin's
+/// bundle itself. The surface the bundle uses — the CHILD-SIDE
+/// mailbox toward its spawning tab, and NOTHING else —
+/// `__objectiveai.send(payload) -> boolean`,
+/// `__objectiveai.subscribe(timeoutMs?) -> Promise<unknown[]>`,
+/// `__objectiveai.list(pending?) -> Promise<unknown[]>` — is a LOCAL
+/// binding the bundle sees lexically; NOTHING invokable is placed on
+/// `window` except the pinned token-gated `__objectiveai_deliver`
+/// return path, so the page has no reference path to the lanes at all
+/// (closure variables are unreadable from outside — a language
+/// guarantee, not obfuscation). The page can call the two pinned
+/// endpoints directly, but without the 128-bit per-spawn token every
+/// call is dropped.
+///
+/// Hardening details, deliberate:
+/// - The prelude runs at load-start, BEFORE any page script, and
+///   captures its intrinsics (`JSON.stringify`, `Promise`,
+///   `Object.create/keys/freeze/defineProperty`, `Array.isArray`)
+///   pristine — a page that later poisons globals cannot forge frames
+///   under our token or intercept the machinery. (A payload the
+///   script builds FROM page data is page-influenced by definition —
+///   the parent tab must treat every bridge message as untrusted
+///   input regardless.)
+/// - Inbound values are deep-rebuilt onto NULL prototypes before the
+///   script sees them, so absent-property reads never fire
+///   page-planted `Object.prototype` accessors (mail exfiltration).
+/// - `send` returns `false` when the bridge is unavailable, the
+///   payload did not serialize, or it blew the size cap; `true` means
+///   handed to CEF — fire-and-forget. `subscribe`/`list` reject on a
+///   dead bridge and mirror `tabs_parent_subscribe`/`tabs_parent_list`
+///   semantics otherwise.
+/// - The bundle's top-level `var`s become closure-scoped — invisible
+///   to the page, which is strictly better isolation than the classic
+///   top-level evaluation.
 fn with_bridge_prelude(token: &str, body: &str) -> String {
     let bridge_fn = crate::cef::BRIDGE_FN;
     let cap = crate::cef::BRIDGE_PAYLOAD_CAP;
     format!(
         r#"(function () {{ "use strict";
   var f = window.{bridge_fn}, t = "{token}";
-  Object.defineProperty(window, "__objectiveai", {{ value: Object.freeze({{
-    send: function (payload) {{
-      if (typeof f !== "function") return false;
-      var s;
-      try {{ s = JSON.stringify(payload === undefined ? null : payload); }} catch (e) {{ return false; }}
-      if (typeof s !== "string" || s.length > {cap}) return false;
-      return f(t, s) === true;
+  var stringify = JSON.stringify;
+  var P = Promise;
+  var E = Error;
+  var createNull = Object.create;
+  var keys = Object.keys;
+  var isArray = Array.isArray;
+  var defineProperty = Object.defineProperty;
+  var freeze = Object.freeze;
+  var waiting = createNull(null);
+  var next = 1;
+  // Deep rebuild onto NULL prototypes with the pristine intrinsics
+  // captured above: inbound values handed to the plugin script never
+  // consult Object.prototype, so a page's later prototype pollution
+  // can neither observe absent-property reads nor plant methods on
+  // data crossing the bridge.
+  function rebuild(v) {{
+    if (isArray(v)) {{
+      var a = [];
+      for (var i = 0; i < v.length; i++) {{ a[i] = rebuild(v[i]); }}
+      return a;
     }}
-  }}), writable: false, configurable: false }});
-}})();
-{body}"#
+    if (v !== null && typeof v === "object") {{
+      var o = createNull(null);
+      var ks = keys(v);
+      for (var j = 0; j < ks.length; j++) {{ o[ks[j]] = rebuild(v[ks[j]]); }}
+      return o;
+    }}
+    return v;
+  }}
+  function post(frame) {{
+    if (typeof f !== "function") return false;
+    var s;
+    try {{ s = stringify(frame); }} catch (e) {{ return false; }}
+    if (typeof s !== "string" || s.length > {cap}) return false;
+    return f(t, s) === true;
+  }}
+  function request(frame) {{
+    return new P(function (res, rej) {{
+      var id = next++;
+      frame.id = id;
+      waiting[id] = {{ res: res, rej: rej }};
+      if (!post(frame)) {{
+        delete waiting[id];
+        rej(new E("objectiveai bridge unavailable"));
+      }}
+    }});
+  }}
+  defineProperty(window, "__objectiveai_deliver", {{
+    value: function (token, id, value, isErr) {{
+      if (token !== t) return;
+      var w = waiting[id];
+      if (!w) return;
+      delete waiting[id];
+      if (isErr) {{ w.rej(new E("" + value)); }} else {{ w.res(rebuild(value)); }}
+    }},
+    writable: false, configurable: false, enumerable: false
+  }});
+  var __objectiveai = freeze({{
+    send: function (payload) {{
+      return post({{ op: "send", payload: payload === undefined ? null : payload }});
+    }},
+    subscribe: function (timeoutMs) {{
+      return request(
+        timeoutMs === undefined
+          ? {{ op: "subscribe" }}
+          : {{ op: "subscribe", timeout_ms: timeoutMs }}
+      );
+    }},
+    list: function (pending) {{
+      return request({{ op: "list", pending: pending === true }});
+    }}
+  }});
+  void __objectiveai;
+  // ---- plugin script (inside the SAME closure: it sees
+  // `__objectiveai` lexically; the page never can) ----
+{body}
+}})();"#
     )
 }
 

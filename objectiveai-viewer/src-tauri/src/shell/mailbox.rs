@@ -213,6 +213,33 @@ impl TabMail {
         Ok(())
     }
 
+    /// [`Self::subscribe`] as the child `child` — the bridge twin of
+    /// `tabs_parent_subscribe`, for a browser tab's injected script
+    /// (which has no webview to invoke from).
+    pub async fn subscribe_from_child_tab(
+        &self,
+        child: u64,
+        timeout: Option<std::time::Duration>,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let id = self.child_key(child).await.ok_or_else(|| {
+            "no mailbox — the browser tab was opened without a `key`".to_string()
+        })?;
+        self.subscribe(&id, Side::Child, timeout).await
+    }
+
+    /// [`Self::list`] as the child `child` — the bridge twin of
+    /// `tabs_parent_list`.
+    pub async fn list_from_child_tab(
+        &self,
+        child: u64,
+        pending: bool,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let id = self.child_key(child).await.ok_or_else(|| {
+            "no mailbox — the browser tab was opened without a `key`".to_string()
+        })?;
+        self.list(&id, Side::Child, pending).await
+    }
+
     /// Which tab is bound at `id`, if one is still live there.
     ///
     /// The mailbox outlives its tabs, so this answers `None` for a

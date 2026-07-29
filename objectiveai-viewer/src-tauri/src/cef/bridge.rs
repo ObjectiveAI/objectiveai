@@ -1,8 +1,11 @@
 //! The script→viewer IPC bridge, renderer-process side.
 //!
 //! An injected browser-tab script has no Tauri IPC, no `plugin://`
-//! origin, and no SDK — it is a classic script in a FOREIGN page. This
-//! module gives it one narrow, token-guarded lane back to the viewer:
+//! origin, and no SDK — it is a classic script in a FOREIGN page. Its
+//! WHOLE capability surface, by design, is the child-side mailbox
+//! toward its spawning tab (`send`/`subscribe`/`list` — exactly what
+//! a keyed child tab can do, parent-directed only); this module is
+//! the token-guarded lane that carries it:
 //!
 //! 1. [`RendererBridge`] registers a native function
 //!    ([`BRIDGE_FN`], `__objectiveai_ipc`) on every browser-tab main
