@@ -324,3 +324,50 @@ fn all_fields_opt_null() {
     let a: All = serde_json::from_str(json).unwrap();
     assert_eq!(a.opt, None);
 }
+
+// ---- arbitrary_precision wire form ----
+
+/// Regression: with serde_json's `arbitrary_precision` on (starlark
+/// pulls it in and cargo unifies features workspace-wide), every
+/// number reaching `deserialize_any` arrives as a one-entry map keyed
+/// by serde_json's private token. Before `NumericDecimalVisitor`
+/// grew a `visit_map`, this broke EVERY payload carrying a `Decimal`
+/// — including the usage trailer on every agent completion chunk,
+/// where the untagged `MessageChunk` masked it as "data did not match
+/// any variant".
+#[test]
+fn decimals_survive_arbitrary_precision() {
+    let json = r#"{"bare": 1.5, "opt": 2.5, "vec": [3.25, 4], "vecs": [[5.125], [6, 7]]}"#;
+    let a: All = serde_json::from_str(json).unwrap();
+    assert_eq!(a.bare, Decimal::try_from(1.5).unwrap());
+    assert_eq!(a.opt, Some(Decimal::try_from(2.5).unwrap()));
+    assert_eq!(a.vec, vec![Decimal::try_from(3.25).unwrap(), Decimal::from(4)]);
+    assert_eq!(a.vecs.len(), 2);
+}
+
+/// The literal is parsed EXACTLY under `arbitrary_precision` — no
+/// round trip through binary floating point.
+#[test]
+fn decimal_keeps_full_precision() {
+    #[derive(Deserialize)]
+    struct S {
+        #[serde(deserialize_with = "crate::serde_util::decimal")]
+        v: Decimal,
+    }
+    let s: S = serde_json::from_str(r#"{"v": 0.1234567890123456789}"#).unwrap();
+    // f64 cannot hold this; the arbitrary-precision path can.
+    assert!(s.v.to_string().starts_with("0.12345678901234567"));
+}
+
+/// A map that is NOT serde_json's number token is still a type error,
+/// so untagged enums keep falling through to their other variants.
+#[test]
+fn foreign_map_is_still_rejected() {
+    #[derive(Deserialize)]
+    struct S {
+        #[serde(deserialize_with = "crate::serde_util::decimal")]
+        #[allow(dead_code)]
+        v: Decimal,
+    }
+    assert!(serde_json::from_str::<S>(r#"{"v": {"nope": "1"}}"#).is_err());
+}
