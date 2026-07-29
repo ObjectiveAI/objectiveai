@@ -17,6 +17,7 @@
 //! <bin_dir>/objectiveai-claude-agent-sdk-runner{.exe}
 //! <bin_dir>/objectiveai-codex-sdk-runner{.exe}
 //! <bin_dir>/objectiveai-mcp-laboratory   (always musl-linux; no .exe)
+//! <bin_dir>/objectiveai-db-proxy         (always musl-linux; no .exe)
 //! ```
 //!
 //! Flow:
@@ -317,6 +318,7 @@ fn looks_like_dev_tree(current_exe: &Path) -> bool {
     current_exe.components().any(|c| {
         let s = c.as_os_str();
         s == "target"
+            || s == "target-objectiveai-db-proxy"
             || s == "target-objectiveai-mcp-laboratory"
             || s == "target-objectiveai-mcp-proxy"
             || s == "target-objectiveai-viewer"

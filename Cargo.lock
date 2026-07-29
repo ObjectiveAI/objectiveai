@@ -4430,6 +4430,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-db-proxy"
+version = "2.2.13"
+dependencies = [
+ "axum",
+ "dashmap",
+ "dotenv",
+ "envconfig",
+ "futures",
+ "objectiveai-sdk",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "objectiveai-json-schema-builder"
 version = "2.2.13"
 dependencies = [
