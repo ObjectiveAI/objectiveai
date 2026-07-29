@@ -16,7 +16,7 @@ WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 RUN cargo build --release --locked \
-    && cp target/release/objectiveai-mcp-plugin-scaffold /plugin
+    && cp target/release/objectiveai-plugin-scaffold /plugin
 
 FROM debian:stable-slim
 COPY --from=builder /plugin /usr/local/bin/plugin

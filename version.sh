@@ -118,6 +118,14 @@ set_objectiveai_string_dep() {
     "\"$NEW_VERSION\""
 }
 
+# The JS plugin scaffold pins the npm-published SDK as a plain
+# "@objectiveai/sdk": "X.Y.Z" dependency — the same standalone-template
+# story as the Rust scaffold's bare registry string dep.
+set_package_json_objectiveai_dep() {
+  local file="$1"
+  inline_substitute "$file"     '^[[:space:]]*"@objectiveai/sdk":[[:space:]]*"[0-9]'     '"[0-9][0-9.]*"'     "\"$NEW_VERSION\""
+}
+
 # Root "version": "..." in a package.json. Relies on the standard layout
 # where "version" is the first occurrence in the file (right after "name").
 set_package_json_version() {
@@ -248,6 +256,12 @@ PACKAGE_JSONS=(
   objectiveai-viewer/package.json
 )
 
+# package.jsons that ALSO pin the published SDK (the viewer plugin
+# scaffold — a standalone template, not a workspace member).
+SCAFFOLD_PACKAGE_JSONS=(
+  objectiveai-viewer-plugin-scaffold/package.json
+)
+
 CSPROJS=(
   objectiveai-dotnet/ObjectiveAI/ObjectiveAI.csproj
 )
@@ -309,6 +323,10 @@ update() {
     pkg)
       set_package_json_version "$file"
       ;;
+    pkgscaffold)
+      set_package_json_version "$file"
+      set_package_json_objectiveai_dep "$file"
+      ;;
     pkg+)
       ensure_package_json_version "$file"
       ;;
@@ -338,6 +356,7 @@ echo "Setting version to $NEW_VERSION"
 for rel in "${CARGO_TOMLS[@]}";           do update cargo  "$rel"; done
 for rel in "${PYPROJECT_TOMLS[@]}";        do update pypro  "$rel"; done
 for rel in "${PACKAGE_JSONS[@]}";          do update pkg    "$rel"; done
+for rel in "${SCAFFOLD_PACKAGE_JSONS[@]}"; do update pkgscaffold "$rel"; done
 for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
 for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
 for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done

@@ -1,5 +1,5 @@
 This is an [ObjectiveAI](https://objectiveai.dev) MCP plugin, scaffolded
-from `objectiveai-mcp-plugin-scaffold-rs`.
+from `objectiveai-plugin-scaffold-rs`.
 
 ## Getting Started
 

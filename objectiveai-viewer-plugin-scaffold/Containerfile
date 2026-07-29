@@ -1,0 +1,23 @@
+# Build the VIEWER extension. Declared by `viewer.containerfile` in
+# objectiveai.json; the laboratory host builds it with THIS FILE'S OWN
+# DIRECTORY as the context, copies `viewer.output` (/dist) out of the
+# built image, discards container and image, and packs the contents as
+# the installed `viewer/` directory. The image is never STARTED — all
+# work happens in RUN steps.
+#
+# Reproduce a build exactly as the host does:
+#
+#   podman build -t scaffold-viewer .
+#   podman create --name sv scaffold-viewer && podman cp sv:/dist/. out/
+#   podman rm sv && podman rmi scaffold-viewer
+
+FROM docker.io/library/node:22-alpine
+
+RUN corepack enable
+
+WORKDIR /build
+COPY package.json ./
+RUN pnpm install --ignore-workspace --no-frozen-lockfile
+COPY . ./
+
+RUN node build.mjs && cp -r /build/dist /dist

@@ -34,7 +34,7 @@ use sqlx::Row as _;
 /// Must match `mcp.port` in `objectiveai.json`.
 const PORT: u16 = 8080;
 /// The routing prefix ObjectiveAI derives — see the module docs.
-const NAME: &str = "objectiveai-mcp-plugin-scaffold";
+const NAME: &str = "objectiveai-plugin-scaffold";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The argument that gates the pair below. Declared by the AGENT, in

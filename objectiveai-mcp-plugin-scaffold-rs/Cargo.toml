@@ -1,5 +1,5 @@
 [package]
-name = "objectiveai-mcp-plugin-scaffold"
+name = "objectiveai-plugin-scaffold"
 version = "2.2.13"
 edition = "2024"
 description = "Starting point for an ObjectiveAI MCP plugin written in Rust"
@@ -10,7 +10,7 @@ repository = "https://github.com/ObjectiveAI/objectiveai"
 publish = false
 
 [[bin]]
-name = "objectiveai-mcp-plugin-scaffold"
+name = "objectiveai-plugin-scaffold"
 path = "src/main.rs"
 
 [dependencies]

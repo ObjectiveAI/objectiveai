@@ -1,0 +1,25 @@
+{
+  "name": "objectiveai-plugin-scaffold",
+  "private": true,
+  "version": "2.2.13",
+  "description": "Starting point for an ObjectiveAI viewer plugin. Register this directory with `development plugins viewer create` under the SAME owner/name/version as the MCP half (the Rust scaffold) — identity lives in the registration, never in this file.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@objectiveai/sdk": "2.2.13",
+    "@tauri-apps/api": "^2.10.1",
+    "canvas-confetti": "^1.9.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "esbuild": "^0.25.10",
+    "typescript": "^5.8.3"
+  }
+}
