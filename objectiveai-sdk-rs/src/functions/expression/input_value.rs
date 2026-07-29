@@ -51,7 +51,7 @@ pub enum InputValue {
 impl super::ToStarlarkValue for InputValue {
     fn to_starlark_value<'v>(
         &self,
-        heap: &StarlarkHeap<'v>,
+        heap: &'v StarlarkHeap,
     ) -> StarlarkValue<'v> {
         match self {
             InputValue::String(s) => s.to_starlark_value(heap),

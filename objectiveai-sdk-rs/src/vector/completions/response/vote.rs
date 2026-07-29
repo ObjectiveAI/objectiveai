@@ -79,7 +79,7 @@ pub struct Vote {
 impl ToStarlarkValue for Vote {
     fn to_starlark_value<'v>(
         &self,
-        heap: &StarlarkHeap<'v>,
+        heap: &'v StarlarkHeap,
     ) -> StarlarkValue<'v> {
         heap.alloc(StarlarkAllocDict([
             ("agent_full_id", self.agent_full_id.to_starlark_value(heap)),
