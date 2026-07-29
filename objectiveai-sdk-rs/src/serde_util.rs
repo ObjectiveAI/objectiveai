@@ -30,37 +30,6 @@ impl<'de> Visitor<'de> for NumericDecimalVisitor {
     fn visit_f64<E: de::Error>(self, v: f64) -> Result<Decimal, E> {
         Decimal::try_from(v).map_err(de::Error::custom)
     }
-
-    /// The `arbitrary_precision` wire form.
-    ///
-    /// With serde_json's `arbitrary_precision` feature ON — and it is
-    /// on for this whole workspace, because `starlark` depends on it
-    /// and cargo unifies features — EVERY number that reaches
-    /// `deserialize_any` arrives as a one-entry MAP keyed by
-    /// serde_json's private token, whose value is the number's
-    /// literal text (`serde_json::de`'s `ParserNumber::String` arm).
-    /// Typed requests (`deserialize_u64` and friends) are unaffected,
-    /// which is why only the `Decimal` fields — the sole users of
-    /// `deserialize_any` here — ever saw it.
-    ///
-    /// Without this arm every payload carrying a `Decimal` fails to
-    /// deserialize, and inside an untagged enum the real cause is
-    /// masked as "data did not match any variant". Parsing the
-    /// literal is also STRICTLY better than the `f64` path: no
-    /// binary-float rounding on the way in.
-    fn visit_map<A>(self, mut map: A) -> Result<Decimal, A::Error>
-    where
-        A: de::MapAccess<'de>,
-    {
-        /// `serde_json::number::TOKEN` — private there, mirrored here.
-        const TOKEN: &str = "$serde_json::private::Number";
-        let key: Option<String> = map.next_key()?;
-        if key.as_deref() != Some(TOKEN) {
-            return Err(de::Error::invalid_type(de::Unexpected::Map, &self));
-        }
-        let raw: String = map.next_value()?;
-        raw.parse::<Decimal>().map_err(de::Error::custom)
-    }
 }
 
 /// Deserializes a `Decimal` from numeric JSON values only (rejects strings).
