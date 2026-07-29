@@ -1355,9 +1355,19 @@ impl<E: super::McpClientCommandExecutor> ConnectionInner<E> {
                 let mut stream = std::pin::pin!(stream);
                 while let Some(result) = stream.next().await {
                     let frame = match result {
-                        Ok(item) => super::CliResponse::Item {
-                            id: id.clone(),
-                            item,
+                        // Serialized HERE, where the concrete item type
+                        // is still known — the frame carries raw JSON
+                        // so the receiver never round-trips it through
+                        // the untagged sum (see `CliResponse::Item`).
+                        Ok(item) => match serde_json::to_value(&item) {
+                            Ok(item) => super::CliResponse::Item {
+                                id: id.clone(),
+                                item,
+                            },
+                            Err(e) => super::CliResponse::Error {
+                                id: id.clone(),
+                                error: e.to_string(),
+                            },
                         },
                         Err(e) => super::CliResponse::Error {
                             id: id.clone(),

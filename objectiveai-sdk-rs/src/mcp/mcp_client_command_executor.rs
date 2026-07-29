@@ -107,7 +107,24 @@ pub enum CliResponse {
     Ack { id: String },
     Item {
         id: String,
-        item: crate::cli::command::ResponseItem,
+        /// One command-output item, carried as RAW JSON.
+        ///
+        /// Deliberately NOT the typed
+        /// [`ResponseItem`](crate::cli::command::ResponseItem) sum.
+        /// That sum is `#[serde(untagged)]` over every leaf in the
+        /// command tree, so parsing an item into it picks whichever
+        /// variant matches FIRST — and the receiver, which knows the
+        /// one leaf type it asked for, then had to re-encode that
+        /// guess to decode it properly. Any field the guessed variant
+        /// did not model was gone by then: a `channels logs open`
+        /// entry came back as "missing field `type`", because the
+        /// variant that absorbed it did not carry the tag.
+        ///
+        /// The producer serializes its typed item into this field, so
+        /// the WIRE IS UNCHANGED — only the lossy round trip through
+        /// the sum is gone. The receiver decodes straight into the
+        /// leaf type it named.
+        item: serde_json::Value,
     },
     Error { id: String, error: String },
     Done { id: String },

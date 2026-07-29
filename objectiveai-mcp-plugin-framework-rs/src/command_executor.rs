@@ -269,16 +269,17 @@ where
 
 /// One wire item, as the type the caller asked for.
 ///
-/// Routed through `serde_json::Value` because the wire carries the
-/// `ResponseItem` SUM while a caller names a leaf: re-encoding and
-/// re-parsing is what bridges the two, and it is the same JSON either
-/// way. A CLI-reported failure rides the same shape, so it is decoded
-/// first.
-fn decode<T>(item: objectiveai_sdk::cli::command::ResponseItem) -> Result<T, Error>
+/// The frame hands over RAW JSON, so this decodes it ONCE, straight
+/// into the leaf the caller named. It used to arrive as the untagged
+/// `ResponseItem` sum and get re-encoded here — which meant the item
+/// was first parsed as whichever of the ~400 leaves matched it, and
+/// anything that guess did not model was lost before this ever ran
+/// (see [`objectiveai_sdk::mcp::CliResponse::Item`]). A CLI-reported
+/// failure rides the same shape, so it is decoded first.
+fn decode<T>(value: serde_json::Value) -> Result<T, Error>
 where
     T: serde::de::DeserializeOwned,
 {
-    let value = serde_json::to_value(item).map_err(Error::Encode)?;
     if let Ok(error) = serde_json::from_value::<objectiveai_sdk::cli::Error>(value.clone()) {
         return Err(Error::Cli(error));
     }
