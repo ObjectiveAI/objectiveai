@@ -5,7 +5,7 @@ import { PrefixedUuidSchema } from "../prefixedUuid";
 
 export const AuthListApiKeyItemSchema = z.object({
   api_key: PrefixedUuidSchema.describe("The API key itself."),
-  cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The total cost incurred by this API key."),
+  cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The total cost incurred by this API key."),
   created: z.string().datetime({ offset: true }).describe("The timestamp when the API key was created (RFC 3339 format)."),
   description: z.string().nullable().describe("The user-provided description of the API key, or `None` if not provided.").optional(),
   disabled: z.string().datetime({ offset: true }).nullable().describe("The timestamp when the API key was disabled, or `None` if it is active.").optional(),

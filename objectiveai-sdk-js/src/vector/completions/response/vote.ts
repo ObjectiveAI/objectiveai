@@ -10,7 +10,7 @@ export const VectorCompletionsResponseVoteSchema = z.object({
   prompt_id: z.string().describe("Content hash of the request messages (for caching/deduplication)."),
   responses_ids: z.array(z.string()).describe("Content hashes of each response option in the request."),
   swarm_index: z.number().int().min(0).max(18446744073709552000).describe("Index of the agent configuration within the swarm."),
-  vote: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0."),
-  weight: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The weight applied to this vote when computing final scores."),
+  vote: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0."),
+  weight: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The weight applied to this vote when computing final scores."),
 }).describe("A single LLM's vote in a vector completion.\n\nEach LLM in the swarm produces a vote indicating which response(s) it\nselected. Votes are weighted according to the profile and combined to\nproduce the final scores.\n\n# Vote Format\n\nThe `vote` field is a vector of decimals corresponding to the responses\nin the request. Typically one element is 1.0 and the rest are 0.0 (discrete\nselection), but when `top_logprobs` is used, votes may be probability\ndistributions.").meta({ title: "vector.completions.response.Vote" });
 export type VectorCompletionsResponseVote = z.infer<typeof VectorCompletionsResponseVoteSchema>;

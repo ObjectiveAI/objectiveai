@@ -7,15 +7,15 @@ type AgentCompletionsRequestProvider struct {
 	// Whether to allow providers to collect data.
 	DataCollection *AgentCompletionsRequestProviderDataCollection `json:"data_collection,omitempty"`
 	// Hard maximum latency requirement (seconds).
-	MaxLatency *float64 `json:"max_latency,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	MaxLatency *float64 `json:"max_latency,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	// Maximum price constraints.
 	MaxPrice *AgentCompletionsRequestProviderMaxPrice `json:"max_price,omitempty"`
 	// Hard minimum throughput requirement (tokens/second).
-	MinThroughput *float64 `json:"min_throughput,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	MinThroughput *float64 `json:"min_throughput,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	// Preferred maximum latency (seconds).
-	PreferredMaxLatency *float64 `json:"preferred_max_latency,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	PreferredMaxLatency *float64 `json:"preferred_max_latency,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	// Preferred minimum throughput (tokens/second).
-	PreferredMinThroughput *float64 `json:"preferred_min_throughput,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	PreferredMinThroughput *float64 `json:"preferred_min_throughput,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	// How to sort/prioritize providers.
 	Sort *AgentCompletionsRequestProviderSort `json:"sort,omitempty"`
 	// Whether to use zero data retention providers only.

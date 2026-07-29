@@ -6,6 +6,6 @@ import { McpSharedRoleSchema } from "./role";
 export const McpSharedAnnotationsSchema = z.object({
   audience: z.array(McpSharedRoleSchema).nullable().describe("Intended audience(s) for the content.").meta({ omitempty: true }).optional(),
   lastModified: z.string().nullable().describe("ISO 8601 timestamp for the most recent modification.").meta({ omitempty: true }).optional(),
-  priority: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Importance hint, from 0 (least) to 1 (most).").meta({ omitempty: true }).optional(),
+  priority: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Importance hint, from 0 (least) to 1 (most).").meta({ omitempty: true }).optional(),
 }).describe("Optional annotations providing clients additional context about content.").meta({ title: "mcp.shared.Annotations" });
 export type McpSharedAnnotations = z.infer<typeof McpSharedAnnotationsSchema>;

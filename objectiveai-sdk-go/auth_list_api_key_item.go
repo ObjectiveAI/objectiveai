@@ -16,7 +16,7 @@ type AuthListApiKeyItem struct {
 	// The API key itself.
 	APIKey PrefixedUuid `json:"api_key"`
 	// The total cost incurred by this API key.
-	Cost float64 `json:"cost" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Cost float64 `json:"cost" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
 	// The timestamp when the API key was created (RFC 3339 format).
 	Created time.Time `json:"created"`
 	// The user-provided description of the API key, or `None` if not provided.

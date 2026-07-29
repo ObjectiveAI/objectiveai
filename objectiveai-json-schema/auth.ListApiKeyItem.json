@@ -10,8 +10,8 @@
     "cost": {
       "description": "The total cost incurred by this API key.",
       "type": "number",
-      "minimum": -3.4028234663852886e+38,
-      "maximum": 3.4028234663852886e+38
+      "minimum": -3.4028235e+38,
+      "maximum": 3.4028235e+38
     },
     "created": {
       "description": "The timestamp when the API key was created (RFC 3339 format).",

@@ -12,9 +12,9 @@ type FunctionsExpressionNumberInputSchema struct {
 	// Human-readable description of the number.
 	Description *string `json:"description,omitempty"`
 	// Maximum allowed value (inclusive).
-	Maximum *float64 `json:"maximum,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Maximum *float64 `json:"maximum,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	// Minimum allowed value (inclusive).
-	Minimum *float64 `json:"minimum,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Minimum *float64 `json:"minimum,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	Type FunctionsExpressionNumberInputSchemaType `json:"type"`
 }
 

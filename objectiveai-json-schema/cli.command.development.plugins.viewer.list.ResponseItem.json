@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.development.plugins.viewer.list.ResponseItem",
+  "description": "One registration: the canonical coordinates an agent's declaration\nis matched against, and the directory its assets are served from.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

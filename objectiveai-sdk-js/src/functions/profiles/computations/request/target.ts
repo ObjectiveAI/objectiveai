@@ -4,10 +4,10 @@ import { z } from "zod";
 
 export const FunctionsProfilesComputationsRequestTargetSchema = z.union([z.object({
   type: z.literal("scalar"),
-  value: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38),
+  value: z.number().min(-3.4028235e+38).max(3.4028235e+38),
 }).meta({"variantTitle":"Scalar"}), z.object({
   type: z.literal("vector"),
-  value: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)),
+  value: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)),
 }).meta({"variantTitle":"Vector"}), z.object({
   type: z.literal("vector_winner"),
   value: z.number().int().min(0).max(4294967295),

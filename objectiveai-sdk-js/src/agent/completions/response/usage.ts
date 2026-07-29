@@ -9,11 +9,11 @@ import { AgentCompletionsResponseUpstreamDurationMsSchema } from "./upstreamDura
 export const AgentCompletionsResponseUsageSchema = z.object({
   completion_tokens: z.number().int().min(0).max(18446744073709552000).describe("Total tokens generated across all assistant responses."),
   completion_tokens_details: AgentCompletionsResponseCompletionTokensDetailsSchema.nullable().describe("Breakdown of completion tokens (reasoning, audio, etc.) if available.").meta({ omitempty: true }).optional(),
-  cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Cost charged by ObjectiveAI for this request."),
+  cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("Cost charged by ObjectiveAI for this request."),
   cost_details: AgentCompletionsResponseCostDetailsSchema.nullable().describe("Breakdown of upstream and upstream_upstream costs if available.").meta({ omitempty: true }).optional(),
   prompt_tokens: z.number().int().min(0).max(18446744073709552000).describe("Total prompt tokens across all assistant responses."),
   prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Breakdown of prompt tokens (cached, audio, etc.) if available.").meta({ omitempty: true }).optional(),
-  total_cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key)."),
+  total_cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key)."),
   total_tokens: z.number().int().min(0).max(18446744073709552000).describe("Sum of completion and prompt tokens."),
   upstream_duration_ms: AgentCompletionsResponseUpstreamDurationMsSchema.default({}).describe("Wall-clock milliseconds spent inside each upstream client,\nsummed across turns, fallbacks, and parallel agents."),
 }).describe("Aggregated token and cost usage for an agent completion.\n\nThis is the \"primary\" usage type that aggregates across all upstream\nassistant responses within a single agent completion.").meta({ title: "agent.completions.response.Usage" });

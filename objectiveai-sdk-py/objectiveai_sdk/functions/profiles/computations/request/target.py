@@ -9,14 +9,14 @@ class TargetScalar(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Scalar'})
 
     type_: Literal['scalar'] = Field(..., alias='type')
-    value: float = Field(..., ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
+    value: float = Field(..., ge=-3.4028235e+38, le=3.4028235e+38)
 
 
 class TargetVector(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Vector'})
 
     type_: Literal['vector'] = Field(..., alias='type')
-    value: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]]
+    value: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]]
 
 
 class TargetVectorWinner(BaseModel):

@@ -11,10 +11,10 @@ export const VectorCompletionsResponseStreamingVectorCompletionChunkSchema = z.o
   created: z.number().int().min(0).max(18446744073709552000).describe("Unix timestamp when the completion was created."),
   id: z.string().describe("Unique identifier for this vector completion."),
   object: VectorCompletionsResponseStreamingObjectSchema.describe("Object type identifier (`\"vector.completion.chunk\"`)."),
-  scores: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("Current weighted scores. Updated as new votes arrive."),
+  scores: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("Current weighted scores. Updated as new votes arrive."),
   swarm: z.string().describe("ID of the swarm used for this completion."),
   usage: AgentCompletionsResponseUsageSchema.nullable().describe("Aggregated usage statistics. Typically present only in the final chunk.").meta({ omitempty: true }).optional(),
   votes: z.array(VectorCompletionsResponseVoteSchema).describe("Votes received so far. New votes are appended in subsequent chunks."),
-  weights: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("Current weight distribution across responses. Updated as new votes arrive."),
+  weights: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("Current weight distribution across responses. Updated as new votes arrive."),
 }).describe("A chunk in a streaming vector completion response.\n\nEach chunk contains incremental updates to the completion. Use the\n[`push`](Self::push) method to accumulate chunks into a complete response.").meta({ title: "vector.completions.response.streaming.VectorCompletionChunk" });
 export type VectorCompletionsResponseStreamingVectorCompletionChunk = z.infer<typeof VectorCompletionsResponseStreamingVectorCompletionChunkSchema>;

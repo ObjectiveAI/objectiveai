@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.plugins.viewer.delete.Path",
+  "type": "string",
+  "enum": [
+    "development/plugins/viewer/delete"
+  ]
+}

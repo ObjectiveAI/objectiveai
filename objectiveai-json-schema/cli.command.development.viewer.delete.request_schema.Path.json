@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.viewer.delete.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "development/viewer/delete/request_schema"
+  ]
+}

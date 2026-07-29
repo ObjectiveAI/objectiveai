@@ -1,0 +1,11 @@
+{
+  "title": "cli.plugins.ViewerDevelopment",
+  "description": "Where a DEVELOPMENT-registered viewer plugin's built assets live on\nthe author's own disk.\n\n[`Viewer::output`] names a directory INSIDE the built image, which\nmeans nothing outside a container build. This is its on-disk\nstand-in: the repo-relative directory the author's own watch build\n(`vite build --watch`, esbuild `--watch`, anything) writes into.\nWhen the plugin is registered for development the viewer serves\n`plugin://` straight from here — no container, no install — so\nevery save lands on screen.\n\nThe one contract that does NOT relax: the build must still leave\n`react`, `react-dom`, `react/jsx-runtime` and `react-dom/client`\nEXTERNAL. Development mode changes where files come from, never\nwhat a valid bundle is.",
+  "type": "object",
+  "properties": {
+    "output": {
+      "description": "Repo-relative path (forward slashes) to the directory holding\nthe watch build's output — the development twin of\n[`Viewer::output`]. Paths in `tabs`/`scripts`/`styles` resolve\nagainst its contents, exactly as they resolve against the\ninstalled `viewer/` directory in production.",
+      "type": "string"
+    }
+  }
+}

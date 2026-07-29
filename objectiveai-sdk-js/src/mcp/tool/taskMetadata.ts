@@ -3,6 +3,6 @@
 import { z } from "zod";
 
 export const McpToolTaskMetadataSchema = z.object({
-  ttl: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Time-to-live for the task, in seconds.").meta({ omitempty: true }).optional(),
+  ttl: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Time-to-live for the task, in seconds.").meta({ omitempty: true }).optional(),
 }).describe("Metadata for a long-running task.").meta({ title: "mcp.tool.TaskMetadata" });
 export type McpToolTaskMetadata = z.infer<typeof McpToolTaskMetadataSchema>;

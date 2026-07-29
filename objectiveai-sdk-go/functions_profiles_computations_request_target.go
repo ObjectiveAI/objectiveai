@@ -9,7 +9,7 @@ import (
 
 type FunctionsProfilesComputationsRequestTargetScalar struct {
 	Type string `json:"type" validate:"oneof=scalar"`
-	Value float64 `json:"value" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Value float64 `json:"value" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
 }
 
 func (v *FunctionsProfilesComputationsRequestTargetScalar) UnmarshalJSON(data []byte) error {
@@ -34,7 +34,7 @@ func (FunctionsProfilesComputationsRequestTargetScalar) SchemaVariantTitle() str
 
 type FunctionsProfilesComputationsRequestTargetVector struct {
 	Type string `json:"type" validate:"oneof=vector"`
-	Value []float64 `json:"value" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Value []float64 `json:"value" validate:"dive,min=-3.4028235e+38,max=3.4028235e+38"`
 }
 
 func (v *FunctionsProfilesComputationsRequestTargetVector) UnmarshalJSON(data []byte) error {

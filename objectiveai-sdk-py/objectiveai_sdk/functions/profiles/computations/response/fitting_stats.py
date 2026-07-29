@@ -9,7 +9,7 @@ class FittingStats(BaseModel):
 
     errors: int = Field(..., ge=0, le=4294967295)
     executions: int = Field(..., ge=0, le=4294967295)
-    loss: float = Field(..., ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
+    loss: float = Field(..., ge=-3.4028235e+38, le=3.4028235e+38)
     rounds: int = Field(..., ge=0, le=4294967295)
     starts: int = Field(..., ge=0, le=4294967295)
 

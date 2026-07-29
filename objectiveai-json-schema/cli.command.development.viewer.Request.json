@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.development.viewer.Request",
+  "anyOf": [
+    {
+      "title": "Set",
+      "$ref": "cli.command.development.viewer.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.development.viewer.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.development.viewer.set.response_schema.Request"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.development.viewer.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.development.viewer.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.development.viewer.get.response_schema.Request"
+    },
+    {
+      "title": "Delete",
+      "$ref": "cli.command.development.viewer.delete.Request"
+    },
+    {
+      "title": "DeleteRequestSchema",
+      "$ref": "cli.command.development.viewer.delete.request_schema.Request"
+    },
+    {
+      "title": "DeleteResponseSchema",
+      "$ref": "cli.command.development.viewer.delete.response_schema.Request"
+    }
+  ]
+}

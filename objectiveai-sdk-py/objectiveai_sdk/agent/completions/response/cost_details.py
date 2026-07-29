@@ -8,6 +8,6 @@ class CostDetails(BaseModel):
     """Detailed cost breakdown."""
     model_config = ConfigDict(title='agent.completions.response.CostDetails')
 
-    upstream_inference_cost: float = Field(..., description='Cost charged by the immediate upstream (e.g., OpenRouter).', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
-    upstream_upstream_inference_cost: float = Field(..., description="Cost charged by the upstream's upstream (e.g., the actual model provider).", ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
+    upstream_inference_cost: float = Field(..., description='Cost charged by the immediate upstream (e.g., OpenRouter).', ge=-3.4028235e+38, le=3.4028235e+38)
+    upstream_upstream_inference_cost: float = Field(..., description="Cost charged by the upstream's upstream (e.g., the actual model provider).", ge=-3.4028235e+38, le=3.4028235e+38)
 

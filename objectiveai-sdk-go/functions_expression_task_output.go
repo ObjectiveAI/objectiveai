@@ -47,11 +47,11 @@ func (FunctionsExpressionTaskOutputErr) SchemaVariantTitle() string { return "Er
 // Owned task output variants.
 type FunctionsExpressionTaskOutput struct {
 	// A single scalar score.
-	Scalar *FunctionsExpressionTaskOutputScalar `validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Scalar *FunctionsExpressionTaskOutputScalar `validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
 	// A vector of scores.
-	Vector *FunctionsExpressionTaskOutputVector `validate:"omitempty,dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Vector *FunctionsExpressionTaskOutputVector `validate:"omitempty,dive,min=-3.4028235e+38,max=3.4028235e+38"`
 	// Multiple vectors of scores (from mapped tasks).
-	Vectors *FunctionsExpressionTaskOutputVectors `validate:"omitempty,dive,dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+	Vectors *FunctionsExpressionTaskOutputVectors `validate:"omitempty,dive,dive,min=-3.4028235e+38,max=3.4028235e+38"`
 	// An error occurred during execution.
 	Err *FunctionsExpressionTaskOutputErr `outerObject:"true"`
 }

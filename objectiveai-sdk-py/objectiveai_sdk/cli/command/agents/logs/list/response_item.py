@@ -67,7 +67,7 @@ no `read id` needed."""
     agent_instance_hierarchy: str
     response_id: str
     type_: Literal['vector_response_vote'] = Field(..., alias='type')
-    vote: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]]
+    vote: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]]
 
 
 class ResponseItemClientNotification(BaseModel):

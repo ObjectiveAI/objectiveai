@@ -7,11 +7,11 @@ import { AgentCompletionsRequestProviderSortSchema } from "./providerSort";
 
 export const AgentCompletionsRequestProviderSchema = z.object({
   data_collection: AgentCompletionsRequestProviderDataCollectionSchema.nullable().describe("Whether to allow providers to collect data.").meta({ omitempty: true }).optional(),
-  max_latency: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Hard maximum latency requirement (seconds).").meta({ omitempty: true }).optional(),
+  max_latency: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Hard maximum latency requirement (seconds).").meta({ omitempty: true }).optional(),
   max_price: AgentCompletionsRequestProviderMaxPriceSchema.nullable().describe("Maximum price constraints.").meta({ omitempty: true }).optional(),
-  min_throughput: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Hard minimum throughput requirement (tokens/second).").meta({ omitempty: true }).optional(),
-  preferred_max_latency: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Preferred maximum latency (seconds).").meta({ omitempty: true }).optional(),
-  preferred_min_throughput: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Preferred minimum throughput (tokens/second).").meta({ omitempty: true }).optional(),
+  min_throughput: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Hard minimum throughput requirement (tokens/second).").meta({ omitempty: true }).optional(),
+  preferred_max_latency: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Preferred maximum latency (seconds).").meta({ omitempty: true }).optional(),
+  preferred_min_throughput: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Preferred minimum throughput (tokens/second).").meta({ omitempty: true }).optional(),
   sort: AgentCompletionsRequestProviderSortSchema.nullable().describe("How to sort/prioritize providers.").meta({ omitempty: true }).optional(),
   zdr: z.boolean().nullable().describe("Whether to use zero data retention providers only.").meta({ omitempty: true }).optional(),
 }).describe("Provider routing and selection preferences.").meta({ title: "agent.completions.request.Provider" });

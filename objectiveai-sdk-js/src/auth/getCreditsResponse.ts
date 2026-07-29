@@ -3,8 +3,8 @@
 import { z } from "zod";
 
 export const AuthGetCreditsResponseSchema = z.object({
-  credits: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The current available credit balance."),
-  total_credits_purchased: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The total amount of credits ever purchased."),
-  total_credits_used: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The total amount of credits consumed by API usage."),
+  credits: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The current available credit balance."),
+  total_credits_purchased: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The total amount of credits ever purchased."),
+  total_credits_used: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The total amount of credits consumed by API usage."),
 }).describe("Response containing the user's credit balance information.\n\nCredits are the billing unit for ObjectiveAI. This response provides\na complete view of the user's credit status.").meta({ title: "auth.GetCreditsResponse" });
 export type AuthGetCreditsResponse = z.infer<typeof AuthGetCreditsResponseSchema>;

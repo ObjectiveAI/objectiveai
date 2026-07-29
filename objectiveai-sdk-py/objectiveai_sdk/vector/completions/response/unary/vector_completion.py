@@ -20,9 +20,9 @@ agent completions that produced those votes."""
     created: int = Field(..., description='Unix timestamp when the completion was created.', ge=0, le=18446744073709551615)
     id: str = Field(..., description='Unique identifier for this vector completion.')
     object: Object = Field(..., description='Object type identifier (`"vector.completion"`).')
-    scores: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description='Final weighted scores for each response option. Sums to 1.')
+    scores: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(..., description='Final weighted scores for each response option. Sums to 1.')
     swarm: str = Field(..., description='ID of the swarm used for this completion.')
     usage: Usage = Field(..., description='Aggregated token and cost usage across all completions.')
     votes: list[Vote] = Field(..., description='Individual votes from each agent, showing their selections.')
-    weights: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description="Total weight allocated to each response option. Same length as `scores`.\nFor discrete votes, an LLM's full weight goes to its selected response.\nFor probabilistic votes, the weight is divided according to the distribution.")
+    weights: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(..., description="Total weight allocated to each response option. Same length as `scores`.\nFor discrete votes, an LLM's full weight goes to its selected response.\nFor probabilistic votes, the weight is divided according to the distribution.")
 

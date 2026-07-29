@@ -10,21 +10,21 @@ class TaskOutputScalar(RootModel):
     """A single scalar score."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Scalar'})
 
-    root: Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]
+    root: Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]
 
 
 class TaskOutputVector(RootModel):
     """A vector of scores."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Vector'})
 
-    root: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]]
+    root: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]]
 
 
 class TaskOutputVectors(RootModel):
     """Multiple vectors of scores (from mapped tasks)."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Vectors'})
 
-    root: list[list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]]]
+    root: list[list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]]]
 
 
 class TaskOutputErr(BaseModel):

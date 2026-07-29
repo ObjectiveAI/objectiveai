@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.cli.plugins.viewer_development import ViewerDevelopment
 from objectiveai_sdk.cli.plugins.viewer_script import ViewerScript
 from objectiveai_sdk.cli.plugins.viewer_tab import ViewerTab
 
@@ -22,6 +23,7 @@ dies on the first hook."""
     model_config = ConfigDict(title='cli.plugins.Viewer')
 
     containerfile: str = Field(..., description='Repo-relative path (forward slashes) to the Containerfile that\nBUILDS the extension. Its OWN DIRECTORY is the build context —\nsee [`Mcp::containerfile`].')
+    development: Optional[ViewerDevelopment] = Field(None, description="Settings that apply ONLY when this plugin's viewer half is\nregistered for development (`development plugins viewer\ncreate`). Ignored entirely for a released plugin — production\nserving never reads the author's disk.", json_schema_extra={'omitempty': True})
     icon: Optional[str] = Field(None, description='The identity icon, shown beside the identity in the tab strip.', json_schema_extra={'omitempty': True})
     output: str = Field(..., description="Absolute path INSIDE the built image whose CONTENTS are the\nbuilt assets. They are copied out to become the installed\n[`VIEWER_DIR`], so every path below is relative to THIS\ndirectory's contents: an `output` of `/dist` holding `home.js`\nis named `./home.js`. Plugins never produce an archive; the\nhost packs one.")
     scripts: Optional[list[ViewerScript]] = Field(None, description='Scripts the plugin can inject into a browser tab it spawns.', json_schema_extra={'omitempty': True})

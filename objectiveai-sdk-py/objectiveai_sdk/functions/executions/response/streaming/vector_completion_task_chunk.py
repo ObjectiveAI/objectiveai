@@ -27,11 +27,11 @@ Each chunk contains incremental updates to the completion. Use the
     object: Object = Field(..., description='Object type identifier (`"vector.completion.chunk"`).')
     request_choices: Optional[list[RichContent]] = Field(None, description='The response options (choices) voted on for this\nvector-completion task. Populated ONLY on the FIRST chunk of the\ntask; [`push`](Self::push) keeps the first value.', json_schema_extra={'omitempty': True})
     request_messages: Optional[list[Message]] = Field(None, description='The messages dispatched for this vector-completion task.\nPopulated ONLY on the FIRST chunk of the task; [`push`](Self::push)\nkeeps the first value.', json_schema_extra={'omitempty': True})
-    scores: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description='Current weighted scores. Updated as new votes arrive.')
+    scores: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(..., description='Current weighted scores. Updated as new votes arrive.')
     swarm: str = Field(..., description='ID of the swarm used for this completion.')
     task_index: int = Field(..., ge=0, le=18446744073709551615)
     task_path: list[Annotated[int, Field(ge=0, le=18446744073709551615)]]
     usage: Optional[Usage] = Field(None, description='Aggregated usage statistics. Typically present only in the final chunk.', json_schema_extra={'omitempty': True})
     votes: list[Vote] = Field(..., description='Votes received so far. New votes are appended in subsequent chunks.')
-    weights: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description='Current weight distribution across responses. Updated as new votes arrive.')
+    weights: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(..., description='Current weight distribution across responses. Updated as new votes arrive.')
 

@@ -9,5 +9,5 @@ class TaskMetadata(BaseModel):
     """Metadata for a long-running task."""
     model_config = ConfigDict(title='mcp.tool.TaskMetadata')
 
-    ttl: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Time-to-live for the task, in seconds.', json_schema_extra={'omitempty': True})
+    ttl: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Time-to-live for the task, in seconds.', json_schema_extra={'omitempty': True})
 
