@@ -26,7 +26,7 @@ nothing external, CSS inlined as text.
 
 Exactly the child-side mailbox toward its spawning tab, nothing else:
 `__objectiveai.send / subscribe / list` (a closure-local binding the page
-can never reach — see `src/overlay.ts`). No Tauri IPC, no SDK: the page
+can never reach — see `src/capture.ts`). No Tauri IPC, no SDK: the page
 shares the JS world, so anything more would be hijackable. The spawning
 TAB is the trusted brain and must treat bridge messages as untrusted.
 

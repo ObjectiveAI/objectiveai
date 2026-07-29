@@ -16,7 +16,7 @@
       }
     ],
     "scripts": [
-      { "name": "scaffold-overlay-deleteme", "module": "./overlay.js" }
+      { "name": "scaffold-capture-deleteme", "module": "./capture.js" }
     ],
     "development": { "output": "dist" }
   }

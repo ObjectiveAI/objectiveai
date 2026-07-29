@@ -6,7 +6,7 @@
 //   React instance (served through an import map; a bundle carrying
 //   its own copy dies on the first hook). Everything else — the SDK,
 //   canvas-confetti, @tauri-apps/api — bundles IN.
-// - SCRIPTS (`overlay.ts`): a CLASSIC script injected into a page
+// - SCRIPTS (`capture.ts`): a CLASSIC script injected into a page
 //   this plugin does not own — `iife`, nothing external, CSS inlined
 //   as text for CSSOM (no URL it could fetch is reachable there).
 //
@@ -43,11 +43,11 @@ const tabs = {
 };
 
 const scripts = {
-  entryPoints: ["src/overlay.ts"],
+  entryPoints: ["src/capture.ts"],
   bundle: true,
   format: "iife",
   platform: "browser",
-  outfile: "dist/overlay.js",
+  outfile: "dist/capture.js",
   loader: { ".css": "text" },
 };
 

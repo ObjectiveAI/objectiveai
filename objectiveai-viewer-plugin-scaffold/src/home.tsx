@@ -5,19 +5,50 @@
  *
  * The wave button deliberately depends on `canvas-confetti` — a
  * package the HOST viewer does not ship — so working confetti proves
- * plugin viewer dependencies resolve from the plugin's OWN tree. The
- * browser button exercises the injected script and the mailbox
- * bridge (see `credential.tsx` for the full round trip).
+ * plugin viewer dependencies resolve from the plugin's OWN tree.
+ *
+ * The browser button is the bridge demo without a channel in the way:
+ * it spawns a browser tab with the capture script injected and prints
+ * whatever that script sends back. The credential handler
+ * (`credential.tsx`) is the same mechanism wired to a real channel.
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import confetti from "canvas-confetti";
-import { openViewerTab } from "@objectiveai/sdk";
+import { openViewerTab, subscribeViewerTab } from "@objectiveai/sdk";
 import { transport } from "./transport";
+
+const BROWSER_KEY = "scaffold-browser-deleteme";
+const FORM_URL = "https://httpbin.org/forms/post";
 
 export default function ScaffoldHome() {
   const [waves, setWaves] = useState(0);
+  const [received, setReceived] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const watching = useRef(false);
+
+  const openBrowser = async () => {
+    const t = await transport();
+    await openViewerTab(t, {
+      title: "capture demo",
+      url: FORM_URL,
+      key: BROWSER_KEY,
+      script: "scaffold-capture-deleteme",
+    });
+    // One drain loop for the tab's life — the mailbox is keyed by
+    // (this tab, BROWSER_KEY), so re-opening rejoins the same one.
+    if (watching.current) return;
+    watching.current = true;
+    for (;;) {
+      const messages = await subscribeViewerTab(t, BROWSER_KEY, 60_000);
+      if (messages.length > 0) {
+        setReceived((prior) => [
+          ...prior,
+          ...messages.map((m) => JSON.stringify(m)),
+        ]);
+      }
+    }
+  };
 
   return (
     <div className="scaffold-home">
@@ -27,7 +58,7 @@ export default function ScaffoldHome() {
         The viewer half of the ObjectiveAI plugin scaffold. Its channel
         handler answers the Rust scaffold&apos;s{" "}
         <code>scaffold.credential</code> requests; the{" "}
-        <code>scaffold-overlay-deleteme</code> script rides along in
+        <code>scaffold-capture-deleteme</code> script rides along in
         browser tabs it spawns.
       </p>
       <button
@@ -43,18 +74,14 @@ export default function ScaffoldHome() {
         type="button"
         onClick={() => {
           setError(null);
-          void (async () => {
-            await openViewerTab(await transport(), {
-              title: "browser (scaffold)",
-              url: "https://example.com/",
-              key: "scaffold-browser-deleteme",
-              script: "scaffold-overlay-deleteme",
-            });
-          })().catch((e: unknown) => setError(String(e)));
+          void openBrowser().catch((e: unknown) => setError(String(e)));
         }}
       >
-        open browser with overlay
+        open a browser tab with the capture script
       </button>
+      {received.length > 0 && (
+        <pre>{received.join("\n")}</pre>
+      )}
       {error !== null && <pre>{error}</pre>}
     </div>
   );

@@ -3,36 +3,45 @@
  * Rust scaffold's `scaffold_credential_call_deleteme` tool. When a
  * human Accepts that channel request, the viewer opens THIS component
  * as a tab; its `arguments` are `{ request, response }`: the
- * published offer (the URL wanting a credential rides
+ * published offer (the endpoint wanting a credential rides
  * `request.details.url`) and the accept's response body —
  * `{ secret }`, the owner capability this handler presents on every
  * `channels/*` command it runs.
  *
- * Two ways to a credential, both replying
- * `{ "credential": "<value>" }` over the channel log (exactly the
- * shape the Rust tool reads):
+ * The whole flow is automatic and self-terminating:
  *
- * - type it into the form, or
- * - open the SITE in a browser tab with the scaffold's overlay script
- *   injected: the script's in-page form sends the value over the
- *   mailbox bridge, and this tab receives it on the same
- *   `subscribeViewerTab` lane any child tab would use. Bridge
- *   messages originate in a page this plugin does NOT own — they are
- *   UNTRUSTED input, which is why the value lands in the form for
- *   the human to confirm rather than auto-replying.
+ * 1. On mount it IMMEDIATELY spawns a browser tab on a public form
+ *    page with the scaffold's capture script injected.
+ * 2. It waits on that child's mailbox. The script's button sends
+ *    `{ credential: <typed value> }`.
+ * 3. Bridge messages come from a page this plugin does NOT own, so
+ *    they are UNTRUSTED: the message must BE that shape and the
+ *    string must be non-empty, or it is ignored and the wait
+ *    continues.
+ * 4. A valid one is written back over the channel with
+ *    `channels logs reply` — the `{ "credential": "..." }` content
+ *    the Rust tool reads.
+ * 5. On a confirmed write it closes the browser tab and then itself.
+ *    Nothing is left behind for the user to clean up.
  */
 
-import { useRef, useState } from "react";
-import confetti from "canvas-confetti";
+import { useEffect, useRef, useState } from "react";
 import {
   Client,
   channelsLogsReplyExecute,
+  closeViewerTab,
   openViewerTab,
   subscribeViewerTab,
 } from "@objectiveai/sdk";
 import { transport } from "./transport";
 
-const BROWSER_KEY = "scaffold-credential-browser-deleteme";
+/** The mailbox name for the browser child — the only address this
+ * tab can reach it (or close it) by. */
+const BROWSER_KEY = "scaffold-browser-deleteme";
+
+/** A public HTML form, the canonical one for exactly this purpose.
+ * The capture script harvests its first field. */
+const FORM_URL = "https://httpbin.org/forms/post";
 
 interface Offer {
   channel_id?: string;
@@ -46,102 +55,94 @@ interface HandlerArguments {
   response?: { secret?: string };
 }
 
+/** The one shape this handler accepts off the bridge: an object with
+ * a non-empty string `credential`. Anything else is page noise. */
+function credentialOf(message: unknown): string | null {
+  if (typeof message !== "object" || message === null) return null;
+  const value = (message as { credential?: unknown }).credential;
+  return typeof value === "string" && value.length >= 1 ? value : null;
+}
+
 export default function CredentialHandler({
   arguments: args,
 }: {
   arguments?: unknown;
 }) {
   const { request, response } = (args ?? {}) as HandlerArguments;
-  const url = request?.details?.url ?? "";
-  const [credential, setCredential] = useState("");
-  const [phase, setPhase] = useState<"idle" | "replied">("idle");
+  const [status, setStatus] = useState("opening the browser tab…");
   const [error, setError] = useState<string | null>(null);
-  const watching = useRef(false);
+  // React may mount an effect twice in development; the flow spawns a
+  // browser and writes to a channel, so it runs exactly once.
+  const started = useRef(false);
 
-  const reply = async () => {
-    setError(null);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+
     const channelId = request?.channel_id;
     const secret = response?.secret;
     if (channelId === undefined || secret === undefined) {
-      setError("no channel to reply on (opened outside an accept?)");
+      setError("no channel to reply on — opened outside an accept?");
       return;
     }
-    const result = await channelsLogsReplyExecute(
-      Client.viewer(await transport()),
-      {
+
+    void (async () => {
+      const t = await transport();
+      // Immediately, with no gesture: the browser tab IS this
+      // handler's UI.
+      await openViewerTab(t, {
+        title: "capture a credential",
+        url: FORM_URL,
+        key: BROWSER_KEY,
+        script: "scaffold-capture-deleteme",
+      });
+      setStatus("waiting for the value from the browser tab…");
+
+      // Drain until something valid arrives. A subscribe returns as
+      // soon as anything is pending and stops blocking once the child
+      // closes, so the loop is driven by our own condition.
+      let credential: string | null = null;
+      while (credential === null) {
+        const messages = await subscribeViewerTab(t, BROWSER_KEY, 60_000);
+        for (const message of messages) {
+          const found = credentialOf(message);
+          if (found !== null) {
+            credential = found;
+            break;
+          }
+        }
+      }
+
+      setStatus("writing the credential to the channel…");
+      const result = await channelsLogsReplyExecute(Client.viewer(t), {
         channel_id: channelId,
         secret,
         content: { credential },
-      },
-    );
-    if ("error" in result) {
-      setError(JSON.stringify(result.error));
-      return;
-    }
-    setPhase("replied");
-    void confetti({ particleCount: 120, spread: 75, origin: { y: 0.7 } });
-  };
-
-  const openSite = async () => {
-    setError(null);
-    const t = await transport();
-    await openViewerTab(t, {
-      title: url,
-      url,
-      key: BROWSER_KEY,
-      script: "scaffold-overlay-deleteme",
-    });
-    if (watching.current) return;
-    watching.current = true;
-    // Drain the browser child's mailbox until a credential arrives —
-    // the overlay's `__objectiveai.send({ credential })` lands here.
-    for (;;) {
-      const messages = await subscribeViewerTab(t, BROWSER_KEY, 60_000);
-      const found = messages.find(
-        (m): m is { credential: string } =>
-          typeof (m as { credential?: unknown })?.credential === "string",
-      );
-      if (found) {
-        setCredential(found.credential);
-        watching.current = false;
+      });
+      if (result.type === "error") {
+        setError(`reply failed: ${JSON.stringify(result.message)}`);
         return;
       }
-    }
-  };
+      if (result.type === "channel_closed") {
+        setError("the channel closed before the credential could be written");
+        return;
+      }
+
+      // Written and acknowledged — take both tabs down. The child
+      // first: closing self ends this component.
+      setStatus("done");
+      await closeViewerTab(t, { key: BROWSER_KEY });
+      await closeViewerTab(t);
+    })().catch((e: unknown) => setError(String(e)));
+  }, [request, response]);
 
   return (
     <div className="scaffold-credential">
       <div className="glyph">🔐</div>
-      <h1>
-        {phase === "replied" ? "credential sent" : "credential requested"}
-      </h1>
+      <h1>{error === null ? status : "credential capture failed"}</h1>
       {request?.message !== undefined && <p>{request.message}</p>}
-      <code>{url}</code>
-      {phase === "idle" && (
-        <>
-          <input
-            type="password"
-            placeholder="paste or capture a credential"
-            value={credential}
-            onChange={(e) => setCredential(e.target.value)}
-          />
-          <div className="row">
-            <button
-              type="button"
-              disabled={credential.length === 0}
-              onClick={() => void reply().catch((e) => setError(String(e)))}
-            >
-              send credential
-            </button>
-            <button
-              type="button"
-              disabled={url.length === 0}
-              onClick={() => void openSite().catch((e) => setError(String(e)))}
-            >
-              open the site
-            </button>
-          </div>
-        </>
+      {request?.details?.url !== undefined && (
+        <code>{request.details.url}</code>
       )}
       {error !== null && <pre>{error}</pre>}
     </div>
