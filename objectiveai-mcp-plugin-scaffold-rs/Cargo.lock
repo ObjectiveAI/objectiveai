@@ -1876,7 +1876,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-plugin-framework"
-version = "2.2.13"
+version = "2.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ae8612136a1b9ecc04f897f7eb63484f8bc5e0b77868c2693e2c449866dca48"
 dependencies = [
@@ -1898,7 +1898,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-plugin-scaffold"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "futures",
  "objectiveai-mcp-plugin-framework",
@@ -1911,7 +1911,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.2.13"
+version = "2.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd431cf97085424d11f90b202d60d1791995c70acfa6ae37b24e91ffa509932d"
 dependencies = [
@@ -1957,7 +1957,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.2.13"
+version = "2.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfd8f0f85c0f61b28b7f406dfc2eefd3b6e3ba1304054378b1d3c36aca2fe08f"
 

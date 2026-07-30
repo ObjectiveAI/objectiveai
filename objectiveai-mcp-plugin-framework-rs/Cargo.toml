@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp-plugin-framework"
-version = "2.2.13"
+version = "2.2.14"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "Plugin framework for ObjectiveAI MCP plugins"
@@ -18,7 +18,7 @@ axum = "0.8.9"
 dashmap = "6.2.1"
 futures = { version = "0.3.33", default-features = false, features = ["std"] }
 indexmap = { version = "2.14.0", features = ["serde"] }
-objectiveai-sdk = { version = "2.2.13", path = "../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor"] }
+objectiveai-sdk = { version = "2.2.14", path = "../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor"] }
 rmcp = { version = "2.2.0", features = ["transport-streamable-http-server"] }
 schemars = "1.2.2"
 serde = "1.0.229"

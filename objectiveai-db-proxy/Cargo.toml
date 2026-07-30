@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-db-proxy"
-version = "2.2.13"
+version = "2.2.14"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "Postgres-over-WebSocket conduit for ObjectiveAI plugin containers"
@@ -22,7 +22,7 @@ publish = true
 axum = { version = "0.8.9", features = ["ws"] }
 dashmap = "6.1.0"
 futures = "0.3.32"
-objectiveai-sdk = { version = "2.2.13", path = "../objectiveai-sdk-rs", default-features = false, features = ["net"] }
+objectiveai-sdk = { version = "2.2.14", path = "../objectiveai-sdk-rs", default-features = false, features = ["net"] }
 tokio = { version = "1.50.0", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
