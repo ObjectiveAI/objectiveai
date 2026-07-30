@@ -35,6 +35,7 @@
 
 mod channel;
 mod cleaner;
+mod db_proxy;
 mod ephemeral;
 mod filetree;
 mod host;

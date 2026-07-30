@@ -8,9 +8,12 @@
 //! laboratory MCP server listens on the fixed port [`LAB_PORT`]; that port is
 //! published to a random `127.0.0.1` host port the caller looks up here.
 //!
-//! [`create`] is the container's source of truth — `podman create` → `podman
-//! cp` (inject the lab MCP binary) → `podman start`. [`host_port`] then resolves
-//! the published host port for the conduit to dial.
+//! [`create`] is the container's source of truth — `podman create` →
+//! [`copy_in_executable`] (inject the lab MCP binary) → `podman start`.
+//! [`host_port`] then resolves the published host port for the conduit
+//! to dial. [`create_plugin`] is the plugin variant: the image's own
+//! entrypoint serves the MCP, and what gets injected instead is the
+//! [`DB_PROXY_BINARY`] that gives the plugin its database.
 
 use std::path::Path;
 
@@ -20,6 +23,26 @@ use super::setup::MACHINE_NAME;
 
 /// Fixed port the laboratory MCP server listens on inside its container.
 pub const LAB_PORT: u16 = 14978;
+
+/// Fixed port the injected `objectiveai-db-proxy` serves Postgres
+/// clients on, inside a PLUGIN container — the port
+/// `OBJECTIVEAI_POSTGRES_URL` names, on loopback.
+///
+/// Fixed rather than assigned, and that is the load-bearing part: the
+/// connection string is stamped into the container's environment at
+/// create time, before the proxy process exists, which is what lets a
+/// plugin know nothing about any of this.
+pub const DB_PROXY_PG_PORT: u16 = 14979;
+
+/// Fixed port the injected `objectiveai-db-proxy` accepts THIS host's
+/// conduit socket on; published to a random `127.0.0.1` host port that
+/// [`host_port`] resolves.
+pub const DB_PROXY_WS_PORT: u16 = 14980;
+
+/// The container path both injected binaries are copied to, and the
+/// name a `podman exec` refers to them by.
+pub const DB_PROXY_BINARY: &str = "objectiveai-db-proxy";
+const LAB_BINARY: &str = "objectiveai-mcp-laboratory";
 
 /// Per-state container name for a laboratory id.
 pub fn container_name(state: &str, id: &str) -> String {
@@ -40,6 +63,127 @@ fn container_command(exe: &Path) -> tokio::process::Command {
     }
     objectiveai_sdk::process::no_window(&mut cmd);
     cmd
+}
+
+/// Copy a host file into a container as `/<name>`, mode 0755.
+///
+/// Streams a ONE-ENTRY TAR to `podman cp - <container>:/` instead of
+/// copying the file directly, because a direct copy carries the host's
+/// mode — and a musl binary staged out of a release zip on Windows or
+/// macOS has no Unix execute bit at all, so the container refuses to
+/// exec it ("exists but it is not executable"). A tar entry states its
+/// own mode, which makes injection independent of the host filesystem
+/// AND of the image having a shell to chmod with. The latter matters
+/// for plugin images: they are author-supplied, their entrypoint is
+/// theirs, and one built `FROM scratch` has no `/bin/sh` to run a
+/// wrapper in.
+///
+/// Works on a container that is created but not yet started, which is
+/// what every caller here needs.
+async fn copy_in_executable(
+    podman: &Podman,
+    container: &str,
+    source: &Path,
+    name: &str,
+) -> Result<(), Error> {
+    use tokio::io::AsyncWriteExt as _;
+
+    let exe = podman.executable().await?;
+    let bytes = tokio::fs::read(source)
+        .await
+        .map_err(|e| Error(format!("read {}: {e}", source.display())))?;
+
+    let archive = {
+        let mut archive = tar::Builder::new(Vec::new());
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(tar::EntryType::Regular);
+        header.set_size(bytes.len() as u64);
+        // THE POINT of going through tar at all. uid/gid stay 0, so the
+        // file is root-owned and world-executable — which is what lets
+        // an image running as a non-root user still exec it.
+        header.set_mode(0o755);
+        // A RELATIVE entry path, extracted at `/` — so the file lands
+        // at `/<name>` however podman resolves the destination.
+        // `append_data` sets the path and the checksum itself, in that
+        // order, so neither is this function's business.
+        archive
+            .append_data(&mut header, name, bytes.as_slice())
+            .and_then(|()| archive.into_inner())
+            .map_err(|e| Error(format!("pack {name}: {e}")))?
+    };
+
+    let mut cmd = container_command(exe);
+    let mut child = cmd
+        .arg("cp")
+        .arg("-")
+        .arg(format!("{container}:/"))
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| Error(format!("spawn podman cp: {e}")))?;
+    // The write is NOT the error to report if it fails. A podman that
+    // rejected the arguments outright is already exiting, so the write
+    // fails with a broken pipe — and podman's own stderr says why, while
+    // the pipe error says nothing. So keep the write result and let the
+    // exit status speak first.
+    let written = match child.stdin.take() {
+        Some(mut stdin) => {
+            let written = stdin.write_all(&archive).await;
+            // Dropping the handle closes the pipe, which is what tells
+            // podman the archive is complete.
+            drop(stdin);
+            written
+        }
+        None => Ok(()),
+    };
+    let output = child
+        .wait_with_output()
+        .await
+        .map_err(|e| Error(format!("await podman cp: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman cp {name} into {container}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    written.map_err(|e| Error(format!("write {name} tar to podman cp: {e}")))?;
+    Ok(())
+}
+
+/// Start a process inside an ALREADY-RUNNING container and detach from
+/// it (`podman exec -d`), with `env` stamped on that process alone.
+///
+/// Used to start the injected db proxy without touching the image's
+/// entrypoint: the plugin's own server stays PID 1, and the env this
+/// carries never reaches it.
+pub async fn exec_detached(
+    podman: &Podman,
+    state: &str,
+    id: &str,
+    binary: &str,
+    env: &[(String, String)],
+) -> Result<(), Error> {
+    let exe = podman.executable().await?;
+    let name = container_name(state, id);
+    let mut cmd = container_command(exe);
+    cmd.arg("exec").arg("-d");
+    for (k, v) in env {
+        cmd.arg("-e").arg(format!("{k}={v}"));
+    }
+    let output = cmd
+        .arg(&name)
+        .arg(format!("/{binary}"))
+        .output()
+        .await
+        .map_err(|e| Error(format!("spawn podman exec: {e}")))?;
+    if !output.status.success() {
+        return Err(Error(format!(
+            "podman exec {binary} in {name}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    Ok(())
 }
 
 /// One host→container bind mount for `podman create -v host:container`.
@@ -703,18 +847,15 @@ async fn create_injected_container(
     create_cmd
         .arg("--label")
         .arg(format!("objectiveai.laboratory={label_json}"))
-        // Entrypoint is a shell wrapper that `chmod +x`es the injected binary
-        // before exec'ing it. `podman cp` (below) preserves the *host* file
-        // mode, and on Windows/macOS the bundled musl binary arrives without a
-        // Unix execute bit — so a bare `--entrypoint /objectiveai-mcp-laboratory`
-        // fails at start with "exists but it is not executable". The chmod is
-        // idempotent and runs on every start; `exec` keeps the MCP as PID 1 so
-        // container lifetime == MCP lifetime. A laboratory image always has a
-        // shell (its raison d'être is running the Bash tool).
+        // The injected binary IS the entrypoint, directly: container
+        // lifetime == MCP lifetime, with no shell in between. This used
+        // to be a `sh -c "chmod +x … && exec …"` wrapper, because
+        // `podman cp` carried the host's file mode and a musl binary
+        // staged on Windows/macOS arrived without an execute bit — but
+        // [`copy_in_executable`] states the mode in the tar it streams,
+        // so there is nothing left to chmod and no shell to need.
         .arg("--entrypoint")
-        .arg(
-            r#"["/bin/sh","-c","chmod +x /objectiveai-mcp-laboratory && exec /objectiveai-mcp-laboratory"]"#,
-        )
+        .arg(format!(r#"["/{LAB_BINARY}"]"#))
         .arg(podman_image);
     let output = create_cmd
         .output()
@@ -727,22 +868,10 @@ async fn create_injected_container(
         )));
     }
 
-    // 2. podman cp — inject the caller-supplied musl MCP binary (the CLI
-    // passes its staged `objectiveai-mcp-laboratory`; other hosts pass
-    // their own copy — no `.exe`, ever).
-    let output = container_command(exe)
-        .arg("cp")
-        .arg(laboratory_binary)
-        .arg(format!("{name}:/objectiveai-mcp-laboratory"))
-        .output()
-        .await
-        .map_err(|e| Error(format!("spawn podman cp: {e}")))?;
-    if !output.status.success() {
-        return Err(Error(format!(
-            "podman cp into {name}: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
+    // 2. Inject the caller-supplied musl MCP binary (the CLI passes its
+    // staged `objectiveai-mcp-laboratory`; other hosts pass their own
+    // copy — no `.exe`, ever), executable on arrival.
+    copy_in_executable(podman, &name, laboratory_binary, LAB_BINARY).await?;
 
     // NOTE: the container is created but NOT started here — starting it (which
     // runs the injected entrypoint on PORT=14978) is done elsewhere (see
@@ -753,15 +882,26 @@ async fn create_injected_container(
 /// Create an EPHEMERAL PLUGIN laboratory container (created, NOT
 /// started — the ephemeral flow starts it immediately after).
 ///
-/// Deliberately minimal next to [`create`]: the image's OWN entrypoint
-/// runs the plugin's MCP server — NO `objectiveai-mcp-laboratory`
-/// injection, NO `--entrypoint` override, and no env beyond the
-/// AGENT-IDENTITY set (the author declared the listen port in the
-/// plugin manifest, so there is nothing to force). The manifest port is published to a random loopback host
-/// port ([`host_port`] resolves it with `plugin.port` as the internal
-/// port), and the `objectiveai.laboratory` label records the localhost
-/// image reference, the [`PluginLabel`], and the completion's
-/// response id (`Some` ⇔ ephemeral — the boot sweep removes it).
+/// Still minimal next to [`create`]: the image's OWN entrypoint runs the
+/// plugin's MCP server — NO `objectiveai-mcp-laboratory` injection, NO
+/// `--entrypoint` override, and no env beyond the AGENT-IDENTITY set
+/// (the author declared the listen port in the plugin manifest, so
+/// there is nothing to force). The manifest port is published to a
+/// random loopback host port ([`host_port`] resolves it with
+/// `plugin.port` as the internal port), and the
+/// `objectiveai.laboratory` label records the localhost image
+/// reference, the [`PluginLabel`], and the completion's response id
+/// (`Some` ⇔ ephemeral — the boot sweep removes it).
+///
+/// What it DOES inject is [`DB_PROXY_BINARY`], plus a publish of
+/// [`DB_PROXY_WS_PORT`] for the host to dial. That is the plugin
+/// database: the proxy serves Postgres on loopback
+/// ([`DB_PROXY_PG_PORT`]) inside the container, so the URL stamped into
+/// `identity_env` names an ordinary local server and the plugin needs to
+/// know nothing about the relay behind it. Copied but NOT started —
+/// [`exec_detached`] starts it once the container is running, which is
+/// what keeps the plugin's own server as PID 1.
+#[allow(clippy::too_many_arguments)]
 pub async fn create_plugin(
     podman: &Podman,
     state: &str,
@@ -770,6 +910,7 @@ pub async fn create_plugin(
     plugin: &PluginLabel,
     response_id: &str,
     identity_env: &[(String, String)],
+    db_proxy_binary: &Path,
 ) -> Result<(), Error> {
     let exe = podman.executable().await?;
     let name = container_name(state, id);
@@ -794,11 +935,12 @@ pub async fn create_plugin(
         .arg(&name)
         .arg("-p")
         .arg(format!("127.0.0.1::{}/tcp", plugin.port))
-        // Make `host.containers.internal` resolve to the host so the
-        // plugin can reach this host's Postgres tunnel listener
-        // (`OBJECTIVEAI_POSTGRES_URL`).
-        .arg("--add-host")
-        .arg("host.containers.internal:host-gateway");
+        // The injected db proxy's conduit port, published so THIS host
+        // can dial in to it. Nothing dials out: a container cannot
+        // reach the machine hosting it, which is the whole reason the
+        // proxy exists.
+        .arg("-p")
+        .arg(format!("127.0.0.1::{DB_PROXY_WS_PORT}/tcp"));
     // The AGENT-IDENTITY environment (plus `OBJECTIVEAI_POSTGRES_URL`)
     // — the env a plugin container gets (the completion it serves is
     // static for the container's whole life; everything else the
@@ -819,6 +961,11 @@ pub async fn create_plugin(
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
+    // Inject the db proxy — the ONE thing this host puts inside a
+    // plugin container. It is not started here: `podman exec -d` starts
+    // it after `start`, so the image's own entrypoint remains PID 1
+    // (see [`exec_detached`]).
+    copy_in_executable(podman, &name, db_proxy_binary, DB_PROXY_BINARY).await?;
     Ok(())
 }
 
