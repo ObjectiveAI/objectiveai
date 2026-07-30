@@ -9,9 +9,9 @@
 //!
 //! **The dial list rides STDIN, not argv — and it is DECLARATIVE.**
 //! The host is born with ZERO daemon connections. The daemon writes
-//! one [`objectiveai_sdk::laboratories::daemon::HostStdioRequest`]
-//! JSON object per stdin line, each a `set_addresses` carrying the
-//! ENTIRE desired dial list; the host CONVERGES to it — undesired
+//! one [`objectiveai_sdk::child_stdio::ChildStdioRequest`] JSON
+//! object per stdin line: a `set_addresses` carries the ENTIRE
+//! desired dial list and the host CONVERGES to it — undesired
 //! connections cancelled cooperatively (through the same detach path
 //! a natural disconnect takes), new addresses dialed
 //! (`<address>/laboratory`, HostIdentify first, authorize second),
@@ -19,9 +19,11 @@
 //! ones left untouched — and answers with one ack line on stdout,
 //! echoing the request's daemon-generated id for correlation. The
 //! host never holds two connections to one address; an empty list
-//! just idles. Stdin EOF means the daemon dropped the pipe (kill
-//! under way / daemon death) — treated as a graceful-shutdown
-//! request.
+//! just idles. A `shutdown` is `laboratories kill`'s graceful
+//! teardown: acked, then the host exits through the same
+//! stop-started-containers path. Stdin EOF (the daemon dropped the
+//! pipe — entry retired / daemon death) remains the shutdown
+//! backstop.
 //!
 //! Argv is layout-only (`--objectiveai-dir`, `--objectiveai-state`,
 //! `--suppress-output`) — this binary reads NO environment variables,
@@ -33,6 +35,7 @@
 
 mod channel;
 mod cleaner;
+mod db_proxy;
 mod ephemeral;
 mod filetree;
 mod host;
@@ -51,9 +54,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use objectiveai_sdk::laboratories::daemon::{
-    HostStdioAck, HostStdioCommand, Identify, IdentifyMount, IdentifyPlugin,
-};
+use objectiveai_sdk::child_stdio::{ChildStdioAck, ChildStdioCommand};
+use objectiveai_sdk::laboratories::daemon::{Identify, IdentifyMount, IdentifyPlugin};
 
 #[derive(Parser)]
 #[command(name = "objectiveai-laboratory", version)]
@@ -196,16 +198,20 @@ fn spawn_connection(
     }
 }
 
-/// The stdin command loop — the host's whole dial-list authority. One
-/// [`objectiveai_sdk::laboratories::daemon::HostStdioRequest`] JSON
-/// object per line, each carrying the ENTIRE desired dial list
-/// (`SetAddresses`); the host CONVERGES to it and acks on stdout with
-/// the request's id echoed. Unparseable lines are ignored (nothing to
-/// correlate an ack to). The `connections` map is keyed by address —
-/// the uniqueness guarantee: the host never holds two connections to
-/// one address (a changed entry tears the old connection down,
-/// awaiting its full teardown, BEFORE dialing anew). Returns on stdin
-/// EOF.
+/// The stdin command loop — the host's whole dial-list authority AND
+/// its graceful-shutdown listener. One
+/// [`objectiveai_sdk::child_stdio::ChildStdioRequest`] JSON object per
+/// line: a `SetAddresses` carries the ENTIRE desired dial list and
+/// the host CONVERGES to it; a `Shutdown` ends the loop. Every parsed
+/// request is acked on stdout with its id echoed (`Shutdown`
+/// included — the ack means "teardown begun", and the daemon then
+/// waits on true process exit). Unparseable lines are ignored
+/// (nothing to correlate an ack to). The `connections` map is keyed
+/// by address — the uniqueness guarantee: the host never holds two
+/// connections to one address (a changed entry tears the old
+/// connection down, awaiting its full teardown, BEFORE dialing anew).
+/// Returns on `Shutdown` or stdin EOF — either way the caller runs
+/// the same stop-started-containers teardown.
 ///
 /// The converge diff, per desired entry:
 /// - live connection, SAME signature, task still running → untouched
@@ -227,12 +233,13 @@ async fn stdin_loop(
     let mut lines = tokio::io::BufReader::new(tokio::io::stdin()).lines();
     while let Ok(Some(line)) = lines.next_line().await {
         let Some(request) =
-            objectiveai_sdk::laboratories::daemon::parse_host_stdio_request(&line)
+            objectiveai_sdk::child_stdio::parse_child_stdio_request(&line)
         else {
             continue;
         };
+        let mut shutdown = false;
         match request.command {
-            HostStdioCommand::SetAddresses { addresses } => {
+            ChildStdioCommand::SetAddresses { addresses } => {
                 // Desired set: first-seen order (dial order is
                 // cosmetic — every connection dials independently),
                 // last entry wins on duplicate addresses.
@@ -283,10 +290,17 @@ async fn stdin_loop(
                     );
                 }
             }
+            // The graceful kill: ack below (teardown begun), then
+            // return — the caller runs the same
+            // stop-started-containers path stdin EOF takes.
+            ChildStdioCommand::Shutdown => shutdown = true,
         }
-        objectiveai_sdk::laboratories::daemon::print_host_stdio_ack(&HostStdioAck {
+        objectiveai_sdk::child_stdio::print_child_stdio_ack(&ChildStdioAck {
             id: request.id,
         });
+        if shutdown {
+            return;
+        }
     }
 }
 

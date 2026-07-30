@@ -1,0 +1,23 @@
+{
+  "description": "Starting point for an ObjectiveAI viewer plugin: a home tab, a channel-request handler, and a browser-tab script wired to the mailbox bridge.",
+  "viewer": {
+    "containerfile": "Containerfile",
+    "output": "/dist",
+    "tabs": [
+      {
+        "title": "scaffold home",
+        "module": "./home.js",
+        "styles": ["./home.css"]
+      },
+      {
+        "channel_key": "scaffold.credential",
+        "module": "./credential.js",
+        "styles": ["./credential.css"]
+      }
+    ],
+    "scripts": [
+      { "name": "scaffold-capture-deleteme", "module": "./capture.js" }
+    ],
+    "development": { "output": "dist" }
+  }
+}

@@ -19,6 +19,9 @@ export interface PluginVersionInfo {
   description?: string;
   /** Whether the manifest declares a viewer extension. */
   hasViewer: boolean;
+  /** Whether this plugin (any version) is registered for development.
+   * Install and uninstall are gated while it is. */
+  development: boolean;
 }
 
 export function pluginsList(): Promise<PluginVersionInfo[] | undefined> {

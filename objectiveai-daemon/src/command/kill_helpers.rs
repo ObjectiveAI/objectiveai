@@ -14,12 +14,14 @@
 //! task — there are no server lockfiles to resolve pids through
 //! anymore, and no legacy lock-owner sweep either). Killing one means
 //! removing its map entry (generation-guarded) and driving the
-//! child-appropriate shutdown via its lifecycle task: the stdio child
-//! (laboratory host) dies GRACEFULLY by the stdin EOF the removal
-//! itself causes; everything else gets SIGTERM (the viewer tears down
-//! its windows; Windows gets `TerminateProcess`, its only option), a
-//! bounded wait, then SIGKILL. See [`kill_resident_child`]. For db,
-//! killing the supervisor takes the postmaster with it (job object /
+//! child-appropriate shutdown: the stdio children (laboratory host,
+//! viewer) die GRACEFULLY, always — an acked
+//! [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`] over
+//! their stdin control channel, then an UNBOUNDED wait for true exit;
+//! everything else gets SIGTERM via its lifecycle task (Windows gets
+//! `TerminateProcess`, its only option), a bounded wait, then
+//! SIGKILL. See [`kill_resident_child`]. For db, killing the
+//! supervisor takes the postmaster with it (job object /
 //! `PR_SET_PDEATHSIG`).
 //!
 //! Scope is inherently THIS daemon: other states' servers belong to
@@ -29,26 +31,34 @@ use crate::context::GlobalContext;
 use crate::error::Error;
 
 /// How long the signal path's SIGTERM gets before the SIGKILL
-/// escalation. (Signal-killed children only — the stdio child's
-/// graceful EOF shutdown is unbounded by design.)
+/// escalation. (Signal-killed children only — the stdio children's
+/// graceful Shutdown-command teardown is unbounded by design.)
 const TERM_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// THE kill for a resident `key` child — kill semantics are declared
 /// by the child's own shape, not chosen per call site:
 ///
-/// - **stdio child** (the laboratory host — it holds a
-///   [`crate::context::LabHostStdio`]): GRACEFUL, always. Removing the
-///   map entry drops the stdio Arc, closing the host's stdin — EOF is
-///   its shutdown signal (`server.stop_started`: regular containers
-///   stopped, ephemerals evaporated). NO signal first (on Windows
-///   `TerminateProcess` is a hard, ungraceful kill that would race the
-///   EOF), NO hard-kill fallback, UNBOUNDED wait: `stop_started` is
-///   itself bounded by `podman stop` (SIGTERM→SIGKILL on podman's own
-///   grace), and a cold podman machine legitimately takes minutes. A
-///   genuinely wedged host holds this future open; the operator falls
-///   back to killing the daemon (the OS leash takes the host with it).
-/// - **everything else** (db / api / mcp / viewer): signal path —
-///   `Term` (SIGTERM; handlers run / `TerminateProcess`), a bounded
+/// - **stdio child** (laboratory host, viewer — it holds a
+///   [`crate::context::ChildStdio`]): GRACEFUL, always. An acked
+///   [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`] is
+///   sent over the control channel, and the child flushes its durable
+///   state before exiting — the host stops its started containers
+///   (`server.stop_started`: regular containers stopped, ephemerals
+///   evaporated), the viewer closes every browser tab (profiles
+///   persisted to disk). NO signal, EVER (on Windows
+///   `TerminateProcess` is a hard, ungraceful kill), NO hard-kill
+///   fallback, UNBOUNDED wait: container stops are bounded by `podman
+///   stop`'s own grace but a cold podman machine legitimately takes
+///   minutes, and browser flushes are bounded by the CEF close
+///   timeout. A genuinely wedged child holds this future open; the
+///   operator falls back to killing the daemon (the OS leash takes
+///   the child — the dev viewer's whole `cmd → pnpm → cargo` tree
+///   included — with it). Dropping the channel afterward closes the
+///   child's stdin: the host's EOF shutdown backstop (redundant by
+///   then); the viewer ignores EOF by design (a parentless viewer is
+///   a first-class launch mode).
+/// - **everything else** (db / api / mcp): signal path — `Term`
+///   (SIGTERM; handlers run / `TerminateProcess`), a bounded
 ///   [`TERM_GRACE`] wait, then `Kill` (SIGKILL) and an unbounded wait
 ///   (SIGKILL always lands; the exit is only an OS-reap away).
 ///
@@ -65,23 +75,30 @@ const TERM_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
 /// respawn's successor is never touched): concurrent spawns see the
 /// key as absent immediately — a dying old-config server can never be
 /// "reused" during its own teardown, which is what keeps the api/db
-/// config brackets airtight.
+/// config brackets airtight. The stdio Shutdown rides the SNAPSHOT's
+/// channel clone, so the removal never races the send.
 pub async fn kill_resident_child(global: &GlobalContext, key: &str) -> usize {
     let Some(snapshot) = global.resident_child_kill_snapshot(key) else {
         return 0;
     };
     let mut dead_rx = snapshot.dead_rx;
-    // Remove OUR entry first — for the stdio child this IS the kill
-    // signal (stdin EOF once in-flight `lab_host_stdio` borrowers drop
-    // their clones — the host is alive and acking, so that's bounded).
     global.remove_resident_child_if(key, snapshot.generation);
     if *dead_rx.borrow() {
         // Already exited (the removal above was just cleanup).
         return 0;
     }
-    if snapshot.has_stdio {
-        // Graceful EOF shutdown — wait, unbounded, for true exit. A
-        // closed watch = the lifecycle task is gone = the child
+    if let Some(stdio) = snapshot.stdio {
+        // Graceful Shutdown command — acked (teardown begun), then
+        // wait, unbounded, for true exit. A send error means the
+        // channel is broken — the child is already dying, so just
+        // wait it out. Dropping our clone afterward releases stdin
+        // (EOF once in-flight converge borrowers drop theirs — the
+        // host's shutdown backstop).
+        let _ = stdio
+            .send(&objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown)
+            .await;
+        drop(stdio);
+        // A closed watch = the lifecycle task is gone = the child
         // exited.
         let _ = dead_rx.changed().await;
         return 1;
@@ -164,19 +181,28 @@ pub async fn kill_api_after_config_change(global: &GlobalContext) {
     kill_resident_child(global, "api").await;
 }
 
-/// The viewer's respawn half of a `daemon config` mutation
-/// (`daemon config set`, `refresh-secret-signature-pair`): the
-/// viewer's whole daemon-facing config (`DAEMON_ADDRESS` /
-/// `DAEMON_SIGNATURE`) is frozen into its env at spawn, so a config
-/// change can only reach a RUNNING viewer through a fresh spawn.
-/// `viewer_was_running` is the caller's BEFORE-the-write sample of
+/// Bounce a RUNNING viewer so it picks up daemon-side state that is
+/// frozen at spawn.
+///
+/// The viewer's whole daemon-facing input is frozen at spawn: its env
+/// (`DAEMON_ADDRESS` / `DAEMON_SIGNATURE`, mutated by `daemon config
+/// set` and `refresh-secret-signature-pair`) and its argv (the
+/// development-plugin registrations, mutated by `development plugins
+/// viewer create`/`delete`). A change to either reaches a running
+/// viewer only through a fresh spawn — deliberately: one propagation
+/// mechanism, no live channel to keep consistent.
+///
+/// `viewer_was_running` is the caller's BEFORE-the-mutation sample of
 /// [`GlobalContext::server_child_alive`]`("viewer")` — only a viewer
 /// the user already had up gets bounced; a mutation never turns into
-/// a surprise viewer launch. The kill is best-effort (an unkillable
-/// viewer stays up on the old env and the spawn below reuses it); the
-/// respawn is FATAL — the write already landed, but the caller should
-/// hear that their viewer did not come back.
-pub async fn respawn_viewer_after_config_change(
+/// a surprise viewer launch (an absent viewer picks the new state up
+/// whenever it is next spawned, since spawn reads it fresh). The kill
+/// is the SAME graceful stdio Shutdown as `viewer kill` — browser
+/// tabs persist to disk before the old viewer exits, and the wait is
+/// unbounded (no force path). The respawn is FATAL — the mutation
+/// already landed, but the caller should hear that their viewer did
+/// not come back.
+pub async fn respawn_running_viewer(
     global: &GlobalContext,
     scoped: &crate::context::ScopedContext,
     viewer_was_running: bool,

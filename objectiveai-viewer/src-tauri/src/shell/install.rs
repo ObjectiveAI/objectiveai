@@ -169,6 +169,21 @@ pub(crate) async fn install(
     }
     let owner = owner.to_lowercase();
     let name = name.to_lowercase();
+    // DEVELOPMENT gate: while a plugin is registered for development
+    // the install tree may not change under it — the dev registration
+    // REPLACES it in discovery, and blocking the write here (rather
+    // than resolving precedence at read time) is what keeps that
+    // replacement free of overlap windows. The registry is immutable
+    // per viewer process, so this check cannot race a registration
+    // change: changing one respawns the viewer.
+    if app
+        .state::<super::DevPlugins>()
+        .is_dev_plugin(&owner, &name)
+    {
+        return Err(format!(
+            "{owner}/{name} is registered for development — remove the              registration (`development plugins viewer delete`) before              installing"
+        ));
+    }
     // The version IS the git tag, byte-for-byte, Go-modules style —
     // the same rule the SDK enforces on agent plugin declarations
     // (`agent::plugin::Plugin::validate`). Nothing rewrites it.
@@ -250,6 +265,17 @@ pub(crate) async fn uninstall(
     }
     let owner = owner.to_lowercase();
     let name = name.to_lowercase();
+    // DEVELOPMENT gate, mirror of install's: the installed copy is
+    // what the plugin falls back to when its registration is deleted,
+    // and it may not vanish while the registration exists.
+    if app
+        .state::<super::DevPlugins>()
+        .is_dev_plugin(&owner, &name)
+    {
+        return Err(format!(
+            "{owner}/{name} is registered for development — remove the registration (`development plugins viewer delete`) before uninstalling"
+        ));
+    }
     let identity = format!("{owner}/{name}@{version}");
     let name_dir = dirs.plugins_root().join(&owner).join(&name);
     let dest = name_dir.join(version);

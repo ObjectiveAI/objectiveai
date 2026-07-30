@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.development.viewer.delete.Response",
+  "description": "Whether a registration was actually removed.",
+  "type": "object",
+  "properties": {
+    "removed": {
+      "type": "boolean"
+    }
+  }
+}

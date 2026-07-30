@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.development.plugins.viewer.create.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "development/plugins/viewer/create/request_schema"
+  ]
+}

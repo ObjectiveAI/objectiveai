@@ -186,6 +186,60 @@ impl TabMail {
         self.inner.lock().await.by_child.get(&child).cloned()
     }
 
+    /// Queue one value on the child→parent lane ON BEHALF of a child
+    /// tab that cannot invoke — the CEF script bridge's entry point
+    /// (`cef::runtime`'s `ViewerClient`): a browser tab has no
+    /// webview, so `tabs_parent_send` can never fire for it, but its
+    /// injected script's messages should land exactly where a child
+    /// tab's would. Errors when the browser was opened without a
+    /// `key` (no mailbox to land in) — the caller logs-and-drops.
+    pub async fn send_from_child_tab(
+        &self,
+        child: u64,
+        value: serde_json::Value,
+    ) -> Result<(), String> {
+        let mut inner = self.inner.lock().await;
+        let Some(id) = inner.by_child.get(&child).cloned() else {
+            return Err(
+                "no mailbox — the browser tab was opened without a `key`".to_string()
+            );
+        };
+        let mailbox = inner
+            .boxes
+            .get_mut(&id)
+            .ok_or_else(|| format!("no tab mailbox for key {:?}", id.1))?;
+        mailbox.write_lane(Side::Child).push(value);
+        mailbox.wake.notify_waiters();
+        Ok(())
+    }
+
+    /// [`Self::subscribe`] as the child `child` — the bridge twin of
+    /// `tabs_parent_subscribe`, for a browser tab's injected script
+    /// (which has no webview to invoke from).
+    pub async fn subscribe_from_child_tab(
+        &self,
+        child: u64,
+        timeout: Option<std::time::Duration>,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let id = self.child_key(child).await.ok_or_else(|| {
+            "no mailbox — the browser tab was opened without a `key`".to_string()
+        })?;
+        self.subscribe(&id, Side::Child, timeout).await
+    }
+
+    /// [`Self::list`] as the child `child` — the bridge twin of
+    /// `tabs_parent_list`.
+    pub async fn list_from_child_tab(
+        &self,
+        child: u64,
+        pending: bool,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        let id = self.child_key(child).await.ok_or_else(|| {
+            "no mailbox — the browser tab was opened without a `key`".to_string()
+        })?;
+        self.list(&id, Side::Child, pending).await
+    }
+
     /// Which tab is bound at `id`, if one is still live there.
     ///
     /// The mailbox outlives its tabs, so this answers `None` for a

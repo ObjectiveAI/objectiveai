@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.cli.plugins.development import Development
+from objectiveai_sdk.cli.plugins.mcp_development import McpDevelopment
 
 
 class Mcp(BaseModel):
@@ -12,6 +12,7 @@ serving MCP on a loopback-published port."""
     model_config = ConfigDict(title='cli.plugins.Mcp')
 
     containerfile: str = Field(..., description='Repo-relative path (forward slashes) to the Containerfile /\nDockerfile the image builds from. Its OWN DIRECTORY is the\nbuild context — so a Containerfile at `server/Containerfile`\nsees `server/` as its root and its `COPY` steps carry no\n`server/` prefix.')
-    development: Optional[Development] = Field(None, description='Build settings that apply ONLY when this plugin is registered\nfor development (`development plugins mcp create`). Ignored\nentirely for a released plugin — a production image never binds\na host directory, so nothing here can change what ships.', json_schema_extra={'omitempty': True})
+    development: Optional[McpDevelopment] = Field(None, description='Build settings that apply ONLY when this plugin is registered\nfor development (`development plugins mcp create`). Ignored\nentirely for a released plugin — a production image never binds\na host directory, so nothing here can change what ships.', json_schema_extra={'omitempty': True})
     port: int = Field(..., description='The port the MCP server listens on inside the container —\npublished to a random loopback host port at create. Never 0.', ge=0, le=65535)
+    postgres: bool = Field(..., description="Whether this plugin uses the plugin database. REQUIRED, and the\nwhole database chain hangs off it: only when true does the\nlaboratory host inject the db proxy into the container, publish\nits conduit port, dial it, and stamp `OBJECTIVEAI_POSTGRES_URL`\ninto the environment. False means no database — the plugin\nframework's `db::connect` reports exactly that.")
 

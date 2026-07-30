@@ -61,7 +61,13 @@ run() {
   #
   # --no-bundle skips the installer/msi/nsis generation (we just want the exe).
 
-  local tauri_args=("--no-bundle" "--target" "$TARGET")
+  # --features development: this script only ever builds the
+  # DAEMON-SPAWNED binary (install.sh from-source and the release zips
+  # both come through here), and that binary parses the
+  # `--development-plugin` registrations the daemon passes at spawn and
+  # watches the registered directories for hot reload. The dev viewer
+  # (`pnpm tauri dev`) never runs this script and stays featureless.
+  local tauri_args=("--no-bundle" "--features" "development" "--target" "$TARGET")
   if [ "$PROFILE" = "release" ]; then
     :  # tauri build defaults to release
   else

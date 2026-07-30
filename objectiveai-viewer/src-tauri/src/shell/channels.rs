@@ -162,6 +162,7 @@ async fn accept_flow(
     // stale-state races — still distinct in the log.
     let state = app.state::<ChannelRequests>();
     let handler = match super::plugins::channel_status(
+        app,
         &state.plugins_root,
         owner,
         name,
@@ -279,6 +280,7 @@ pub async fn channel_request_status(
     let state = app.state::<ChannelRequests>();
     Ok(
         match super::plugins::channel_status(
+            &app,
             &state.plugins_root,
             owner,
             name,
@@ -354,6 +356,7 @@ async fn install_flow(
     // tab shows.
     if !matches!(
         super::plugins::channel_status(
+            app,
             &state.plugins_root,
             owner,
             name,

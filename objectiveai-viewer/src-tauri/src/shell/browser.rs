@@ -107,6 +107,7 @@ impl Browsers {
 /// an overlay and got a bare page would be very hard to debug.
 async fn resolve_script(
     app: &tauri::AppHandle,
+    tab: u64,
     identity: &str,
     script: &str,
 ) -> Result<String, String> {
@@ -117,9 +118,11 @@ async fn resolve_script(
         ));
     };
     let plugins_root = app.state::<super::PluginsDirs>().plugins_root();
-    let manifest = super::plugins::read_manifest(&plugins_root, owner, name, version)
-        .await
-        .ok_or_else(|| format!("no installed manifest for {identity}"))?;
+    // Dev-aware: a registered trio reads its LIVE manifest.
+    let manifest =
+        super::plugins::manifest_for(app, &plugins_root, owner, name, version)
+            .await
+            .ok_or_else(|| format!("no installed manifest for {identity}"))?;
     let module = manifest
         .viewer
         .as_ref()
@@ -132,17 +135,157 @@ async fn resolve_script(
     let relative = super::plugins::normalize(&module)
         .ok_or_else(|| format!("invalid script module {module:?}"))?;
 
-    let mut file = plugins_root
-        .join(owner.to_lowercase())
-        .join(name.to_lowercase())
-        .join(version)
-        .join(objectiveai_sdk::cli::plugins::VIEWER_DIR);
+    let dev = app.state::<super::DevPlugins>();
+    let mut file = match dev.get(owner, name, version) {
+        // DEVELOPMENT: the script body comes off the author's watch
+        // build. Snapshotted at spawn like production — which is
+        // exactly why the watcher CLOSES this browser when the file
+        // changes: an injected IIFE cannot be hot-swapped.
+        Some(root) => super::dev::dev_asset_root(&root).await.ok_or_else(|| {
+            format!(
+                "{identity} is registered for development but its manifest                  declares no `viewer.development.output`"
+            )
+        })?,
+        None => plugins_root
+            .join(owner.to_lowercase())
+            .join(name.to_lowercase())
+            .join(version)
+            .join(objectiveai_sdk::cli::plugins::VIEWER_DIR),
+    };
     for segment in relative.split('/').filter(|s| !s.is_empty()) {
         file = file.join(segment);
     }
-    tokio::fs::read_to_string(&file)
+    let body = tokio::fs::read_to_string(&file)
         .await
-        .map_err(|e| format!("read script {file:?}: {e}"))
+        .map_err(|e| format!("read script {file:?}: {e}"))?;
+    if dev.get(owner, name, version).is_some() {
+        // file → browser attribution, so a change to THIS file closes
+        // exactly this browser.
+        dev.record_script(tab, file);
+    }
+    Ok(body)
+}
+
+/// Wrap a resolved script in the bridge prelude: ONE closure holding
+/// the renderer-registered native function
+/// ([`crate::cef::BRIDGE_FN`]), this spawn's token, and the plugin's
+/// bundle itself. The surface the bundle uses — the CHILD-SIDE
+/// mailbox toward its spawning tab, and NOTHING else —
+/// `__objectiveai.send(payload) -> boolean`,
+/// `__objectiveai.subscribe(timeoutMs?) -> Promise<unknown[]>`,
+/// `__objectiveai.list(pending?) -> Promise<unknown[]>` — is a LOCAL
+/// binding the bundle sees lexically; NOTHING invokable is placed on
+/// `window` except the pinned token-gated `__objectiveai_deliver`
+/// return path, so the page has no reference path to the lanes at all
+/// (closure variables are unreadable from outside — a language
+/// guarantee, not obfuscation). The page can call the two pinned
+/// endpoints directly, but without the 128-bit per-spawn token every
+/// call is dropped.
+///
+/// Hardening details, deliberate:
+/// - The prelude runs at load-start, BEFORE any page script, and
+///   captures its intrinsics (`JSON.stringify`, `Promise`,
+///   `Object.create/keys/freeze/defineProperty`, `Array.isArray`)
+///   pristine — a page that later poisons globals cannot forge frames
+///   under our token or intercept the machinery. (A payload the
+///   script builds FROM page data is page-influenced by definition —
+///   the parent tab must treat every bridge message as untrusted
+///   input regardless.)
+/// - Inbound values are deep-rebuilt onto NULL prototypes before the
+///   script sees them, so absent-property reads never fire
+///   page-planted `Object.prototype` accessors (mail exfiltration).
+/// - `send` returns `false` when the bridge is unavailable, the
+///   payload did not serialize, or it blew the size cap; `true` means
+///   handed to CEF — fire-and-forget. `subscribe`/`list` reject on a
+///   dead bridge and mirror `tabs_parent_subscribe`/`tabs_parent_list`
+///   semantics otherwise.
+/// - The bundle's top-level `var`s become closure-scoped — invisible
+///   to the page, which is strictly better isolation than the classic
+///   top-level evaluation.
+fn with_bridge_prelude(token: &str, body: &str) -> String {
+    let bridge_fn = crate::cef::BRIDGE_FN;
+    let cap = crate::cef::BRIDGE_PAYLOAD_CAP;
+    format!(
+        r#"(function () {{ "use strict";
+  var f = window.{bridge_fn}, t = "{token}";
+  var stringify = JSON.stringify;
+  var P = Promise;
+  var E = Error;
+  var createNull = Object.create;
+  var keys = Object.keys;
+  var isArray = Array.isArray;
+  var defineProperty = Object.defineProperty;
+  var freeze = Object.freeze;
+  var waiting = createNull(null);
+  var next = 1;
+  // Deep rebuild onto NULL prototypes with the pristine intrinsics
+  // captured above: inbound values handed to the plugin script never
+  // consult Object.prototype, so a page's later prototype pollution
+  // can neither observe absent-property reads nor plant methods on
+  // data crossing the bridge.
+  function rebuild(v) {{
+    if (isArray(v)) {{
+      var a = [];
+      for (var i = 0; i < v.length; i++) {{ a[i] = rebuild(v[i]); }}
+      return a;
+    }}
+    if (v !== null && typeof v === "object") {{
+      var o = createNull(null);
+      var ks = keys(v);
+      for (var j = 0; j < ks.length; j++) {{ o[ks[j]] = rebuild(v[ks[j]]); }}
+      return o;
+    }}
+    return v;
+  }}
+  function post(frame) {{
+    if (typeof f !== "function") return false;
+    var s;
+    try {{ s = stringify(frame); }} catch (e) {{ return false; }}
+    if (typeof s !== "string" || s.length > {cap}) return false;
+    return f(t, s) === true;
+  }}
+  function request(frame) {{
+    return new P(function (res, rej) {{
+      var id = next++;
+      frame.id = id;
+      waiting[id] = {{ res: res, rej: rej }};
+      if (!post(frame)) {{
+        delete waiting[id];
+        rej(new E("objectiveai bridge unavailable"));
+      }}
+    }});
+  }}
+  defineProperty(window, "__objectiveai_deliver", {{
+    value: function (token, id, value, isErr) {{
+      if (token !== t) return;
+      var w = waiting[id];
+      if (!w) return;
+      delete waiting[id];
+      if (isErr) {{ w.rej(new E("" + value)); }} else {{ w.res(rebuild(value)); }}
+    }},
+    writable: false, configurable: false, enumerable: false
+  }});
+  var __objectiveai = freeze({{
+    send: function (payload) {{
+      return post({{ op: "send", payload: payload === undefined ? null : payload }});
+    }},
+    subscribe: function (timeoutMs) {{
+      return request(
+        timeoutMs === undefined
+          ? {{ op: "subscribe" }}
+          : {{ op: "subscribe", timeout_ms: timeoutMs }}
+      );
+    }},
+    list: function (pending) {{
+      return request({{ op: "list", pending: pending === true }});
+    }}
+  }});
+  void __objectiveai;
+  // ---- plugin script (inside the SAME closure: it sees
+  // `__objectiveai` lexically; the page never can) ----
+{body}
+}})();"#
+    )
 }
 
 /// Create the Chromium surface for a browser tab, once.
@@ -187,15 +330,22 @@ pub async fn spawn(
 
     // Resolve the script BEFORE claiming anything: a bad script name is
     // a plain spawn error and should not leave a claimed profile behind.
-    let script = match script {
-        Some(name) => match resolve_script(app, identity, name).await {
-            Ok(script) => Some(script),
+    // A resolved script gets the bridge prelude prepended around a
+    // per-SPAWN token: every main-frame navigation re-injects the same
+    // wrapped text (same browser, same spawn — correct), and only
+    // messages echoing this token survive `ViewerClient`'s check.
+    let (script, token) = match script {
+        Some(name) => match resolve_script(app, tab, identity, name).await {
+            Ok(body) => {
+                let token = uuid::Uuid::new_v4().to_string();
+                (Some(with_bridge_prelude(&token, &body)), Some(token))
+            }
             Err(e) => {
                 unclaim().await;
                 return Err(e);
             }
         },
-        None => None,
+        None => (None, None),
     };
 
     // A `state` key means PERSIST — claim the profile. No key means the
@@ -223,6 +373,7 @@ pub async fn spawn(
         cache: profile.as_ref().map(|p| p.dir.clone()),
         url: url.clone(),
         script,
+        token,
         title: title.to_string(),
         app: app.clone(),
     });

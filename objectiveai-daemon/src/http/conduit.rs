@@ -997,7 +997,7 @@ async fn run_ephemeral_create(
             owner,
             name,
             version,
-        } => hubs.development_plugins.get(
+        } => hubs.development_plugins.mcp.get(
             &crate::command::development::registry::key(owner, name, version),
         ),
         _ => None,

@@ -3,10 +3,12 @@
 //!
 //! Two spawn disciplines live here:
 //!
-//! - [`spawn_leashed_until_ready`] — the daemon's five persistent
-//!   servers (`db`/`api`/`mcp`/`viewer`/`laboratories`): OS-leashed
-//!   children that die with the daemon and announce readiness over a
-//!   stdout JSON handshake.
+//! - [`spawn_leashed_until_ready`] (and its
+//!   [`spawn_leashed_until_ready_with_stdio`] variant for the
+//!   stdio-speaking `viewer`/`laboratories`) — the daemon's five
+//!   persistent servers (`db`/`api`/`mcp`/`viewer`/`laboratories`):
+//!   OS-leashed children that die with the daemon and announce
+//!   readiness over a stdout JSON handshake.
 //! - [`spawn_until_lock_published`] — peer plugins-daemons only
 //!   (`daemon spawn`): deliberately DETACHED, because a daemon for
 //!   another state must outlive whichever daemon happened to spawn
@@ -89,12 +91,11 @@ pub async fn spawn_until_lock_published(
         })
 }
 
-/// Spawn one of the daemon's persistent servers (`db` / `api` / `mcp`
-/// / `viewer`) as an OS-LEASHED child and wait for its stdout
-/// readiness handshake ([`objectiveai_sdk::process::ServerReady`]).
-/// Returns the announced address (`None` for listener-less servers —
-/// the viewer). The laboratory host uses
-/// [`spawn_leashed_until_ready_with_stdio`] instead.
+/// Spawn one of the daemon's persistent servers (`db` / `api` /
+/// `mcp`) as an OS-LEASHED child and wait for its stdout readiness
+/// handshake ([`objectiveai_sdk::process::ServerReady`]). Returns the
+/// announced address. The stdio children (laboratory host, viewer)
+/// use [`spawn_leashed_until_ready_with_stdio`] instead.
 ///
 /// This replaced the lockfile-readiness spawn: the daemon is the sole
 /// spawner and OWNS the server's lifetime — the leash
@@ -132,15 +133,21 @@ pub async fn spawn_leashed_until_ready(
     spawn_leashed_inner(global, key, exe, configure, false).await
 }
 
-/// [`spawn_leashed_until_ready`] for the laboratory host: stdin is
-/// PIPED (the host's stdin dial-list channel) and, after the ready
+/// [`spawn_leashed_until_ready`] for the STDIO children (the
+/// laboratory host and the viewer — installed binary and `pnpm exec
+/// tauri dev` tree alike): stdin is PIPED (the
+/// [`objectiveai_sdk::child_stdio`] control channel — the host's dial
+/// list, both children's graceful `Shutdown`) and, after the ready
 /// line, the pipe receiver goes to an ack ROUTER task (stdout lines
-/// parsing as [`objectiveai_sdk::laboratories::daemon::HostStdioAck`]
-/// are forwarded to the [`crate::context::LabHostStdio`] parked on the
-/// resident entry; everything else is discarded as before). Fresh or
-/// reused makes no difference to the caller — every `laboratories
-/// spawn` CONVERGES the dial list afterward (idempotent host-side
-/// diff).
+/// parsing as [`objectiveai_sdk::child_stdio::ChildStdioAck`] are
+/// forwarded to the [`crate::context::ChildStdio`] parked on the
+/// resident entry; everything else is discarded as before). The dev
+/// viewer's process tree needs nothing special: stdin/stdout INHERIT
+/// down `cmd → pnpm → node → cargo → viewer`, so the commands and
+/// acks flow through to the innermost binary, and its graceful exit
+/// unwinds the tree naturally. Fresh or reused makes no difference to
+/// the caller — every `laboratories spawn` CONVERGES the dial list
+/// afterward (idempotent host-side diff).
 pub async fn spawn_leashed_until_ready_with_stdio(
     global: &crate::context::GlobalContext,
     key: &str,
@@ -151,8 +158,8 @@ pub async fn spawn_leashed_until_ready_with_stdio(
 }
 
 /// The shared core of the two spawn entry points; `stdio` selects the
-/// laboratory host's piped-stdin + ack-router mode. Returns the ready
-/// address (a live resident child is reused, not respawned).
+/// piped-stdin + ack-router mode. Returns the ready address (a live
+/// resident child is reused, not respawned).
 async fn spawn_leashed_inner(
     global: &crate::context::GlobalContext,
     key: &str,
@@ -203,25 +210,42 @@ async fn spawn_leashed_inner(
     let stderr = child.stderr.take().expect("stderr was piped");
     let mut events = crate::child_io::spawn_pipe_reader(stdout, stderr);
 
-    // Collected for the exited-before-ready error report only.
-    let mut seen_stdout: Vec<String> = Vec::new();
-    let mut seen_stderr: Vec<String> = Vec::new();
+    // Collected for the exited-before-ready error report only —
+    // RING-buffered: a failing `tauri dev` prints thousands of build
+    // lines, and the error wants the diagnostic tail, not a megabyte.
+    const SEEN_CAP: usize = 60;
+    fn push_capped(seen: &mut std::collections::VecDeque<String>, line: String) {
+        if seen.len() == SEEN_CAP {
+            seen.pop_front();
+        }
+        seen.push_back(line);
+    }
+    let mut seen_stdout: std::collections::VecDeque<String> =
+        std::collections::VecDeque::new();
+    let mut seen_stderr: std::collections::VecDeque<String> =
+        std::collections::VecDeque::new();
+    // Flipped when the pipe readers end while the child lives — a
+    // process tree makes that ordinary (grandchildren inherit the
+    // write ends and the readers can close first). Without the gate,
+    // recv() on a closed channel returns None instantly, forever, and
+    // the select would busy-spin until the child exits.
+    let mut events_closed = false;
     let address = loop {
         tokio::select! {
-            event = events.recv() => match event {
+            event = events.recv(), if !events_closed => match event {
                 Some(crate::child_io::PipeEvent::Stdout(line)) => {
                     if let Some(ready) = objectiveai_sdk::process::parse_ready(&line) {
                         break ready.address;
                     }
-                    seen_stdout.push(line);
+                    push_capped(&mut seen_stdout, line);
                 }
                 Some(crate::child_io::PipeEvent::Stderr(line)) => {
-                    seen_stderr.push(line);
+                    push_capped(&mut seen_stderr, line);
                 }
                 // EOFs / read errors without a ready line: keep
                 // waiting — the child-exit arm is the terminal signal.
                 Some(_) => {}
-                None => {}
+                None => events_closed = true,
             },
             status = child.wait() => {
                 // Exited before announcing readiness. Give the reader
@@ -232,10 +256,10 @@ async fn spawn_leashed_inner(
                 loop {
                     match tokio::time::timeout_at(deadline, events.recv()).await {
                         Ok(Some(crate::child_io::PipeEvent::Stdout(line))) => {
-                            seen_stdout.push(line);
+                            push_capped(&mut seen_stdout, line);
                         }
                         Ok(Some(crate::child_io::PipeEvent::Stderr(line))) => {
-                            seen_stderr.push(line);
+                            push_capped(&mut seen_stderr, line);
                         }
                         Ok(Some(_)) => {}
                         Ok(None) | Err(_) => break,
@@ -246,8 +270,8 @@ async fn spawn_leashed_inner(
                     status: status.map_err(|e| {
                         crate::error::Error::Spawn(name_of(exe), e)
                     })?,
-                    stdout: seen_stdout.join("\n"),
-                    stderr: seen_stderr.join("\n"),
+                    stdout: Vec::from(seen_stdout).join("\n"),
+                    stderr: Vec::from(seen_stderr).join("\n"),
                 });
             }
         }
@@ -255,8 +279,9 @@ async fn spawn_leashed_inner(
 
     let stdio_handle = if let Some(stdin) = stdin.take() {
         // Ack ROUTER, replacing the discard drain: stdout lines that
-        // parse as dial-list acks are forwarded to the LabHostStdio
-        // parked below; everything else (stderr, stray output) is
+        // parse as control-channel acks are forwarded to the
+        // ChildStdio parked below; everything else (stderr, stray
+        // output — a dev viewer's vite/cargo chatter included) is
         // consumed and discarded exactly as before, so the pipes stay
         // drained for the child's life.
         let (ack_tx, ack_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -264,10 +289,10 @@ async fn spawn_leashed_inner(
             while let Some(event) = events.recv().await {
                 if let crate::child_io::PipeEvent::Stdout(line) = event {
                     if let Some(ack) =
-                        objectiveai_sdk::laboratories::daemon::parse_host_stdio_ack(&line)
+                        objectiveai_sdk::child_stdio::parse_child_stdio_ack(&line)
                     {
                         if ack_tx.send(ack).is_err() {
-                            // LabHostStdio dropped (child retired) —
+                            // ChildStdio dropped (child retired) —
                             // degrade to a plain drain.
                             break;
                         }
@@ -276,7 +301,7 @@ async fn spawn_leashed_inner(
             }
             while events.recv().await.is_some() {}
         });
-        Some(std::sync::Arc::new(crate::context::LabHostStdio::new(
+        Some(std::sync::Arc::new(crate::context::ChildStdio::new(
             stdin, ack_rx,
         )))
     } else {

@@ -11,7 +11,7 @@
 
 set -euo pipefail
 
-OLD="objectiveai-mcp-plugin-scaffold"
+OLD="objectiveai-plugin-scaffold"
 NEW="${1:-}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 

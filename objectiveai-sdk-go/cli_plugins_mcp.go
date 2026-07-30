@@ -20,10 +20,17 @@ type CliPluginsMcp struct {
 	// for development (`development plugins mcp create`). Ignored
 	// entirely for a released plugin — a production image never binds
 	// a host directory, so nothing here can change what ships.
-	Development *CliPluginsDevelopment `json:"development,omitempty"`
+	Development *CliPluginsMcpDevelopment `json:"development,omitempty"`
 	// The port the MCP server listens on inside the container —
 	// published to a random loopback host port at create. Never 0.
 	Port uint32 `json:"port" validate:"min=0,max=65535"`
+	// Whether this plugin uses the plugin database. REQUIRED, and the
+	// whole database chain hangs off it: only when true does the
+	// laboratory host inject the db proxy into the container, publish
+	// its conduit port, dial it, and stamp `OBJECTIVEAI_POSTGRES_URL`
+	// into the environment. False means no database — the plugin
+	// framework's `db::connect` reports exactly that.
+	Postgres bool `json:"postgres"`
 }
 
 func (CliPluginsMcp) SchemaTitle() string { return "cli.plugins.Mcp" }
@@ -36,7 +43,7 @@ func (v *CliPluginsMcp) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"containerfile", "port"} {
+	for _, key := range []string{"containerfile", "port", "postgres"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliPluginsMcp: missing required field %q", key)
 		}

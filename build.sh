@@ -26,7 +26,7 @@
 #   artifacts (pnpm workspace link for js, module graph for go, the py venv for
 #   py). Ordered after the SDK build; under --no-sdk it runs against the
 #   existing artifacts. Skipped by --no-test-integration.
-# Final: wait for phase 1, then package the HOST platform's 8 binaries into
+# Final: wait for phase 1, then package the HOST platform's 9 binaries into
 #        the same per-platform zip the release ships
 #        (objectiveai-<version>-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
 #        so the installer / `objectiveai update` can use it locally. Host
@@ -233,6 +233,20 @@ if [ "$NO_ZIP" != "1" ]; then
     LAB_PID=$!
   fi
 
+  # objectiveai-db-proxy: the other musl-linux binary copied into lab
+  # containers — a Postgres-over-WebSocket conduit, so a plugin inside a
+  # container reaches the database through a plain connection string
+  # instead of a network leg that does not exist. Same two cases, same
+  # pre-placed-binary detection as the laboratory above.
+  DB_PROXY_DIR="$REPO_ROOT/objectiveai-db-proxy/embed/${LAB_ARCH}-unknown-linux-musl/$LAB_PROFILE"
+  DB_PROXY_PID=""
+  if [ -f "$DB_PROXY_DIR/objectiveai-db-proxy" ] && [ ! -f "$DB_PROXY_DIR/.fingerprint" ]; then
+    echo "build.sh: using pre-placed objectiveai-db-proxy binary (no rebuild)."
+  else
+    bash "$REPO_ROOT/objectiveai-db-proxy/build.sh" $PROFILE_FLAG &
+    DB_PROXY_PID=$!
+  fi
+
   # The integration-test fixture crates (plugins + tools under tests/)
   # co-build with the product binaries — discovered by glob over their
   # Cargo.toml names. They are NOT staged into the zip (test inputs, not
@@ -380,7 +394,7 @@ fi
 # Skipped under --no-zip (phase 1 never launched).
 if [ "$NO_ZIP" != "1" ]; then
   FAILED=false
-  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID $LAB_PID; do
+  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID $LAB_PID $DB_PROXY_PID; do
     if ! wait "$pid"; then
       FAILED=true
     fi
@@ -391,7 +405,7 @@ if [ "$NO_ZIP" != "1" ]; then
   fi
 fi
 
-# ── Package the host's 8 binaries into <dir>/bin/<release-asset>.zip ─────
+# ── Package the host's 9 binaries into <dir>/bin/<release-asset>.zip ─────
 # Bundles the freshly-built binaries into the same per-platform zip the
 # GitHub Release ships (objectiveai-<version>-<os>-<arch>.zip) and drops
 # it in <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can
@@ -483,6 +497,15 @@ package_host_zip() {
     echo "package: missing $src" >&2; rm -rf "$stage"; return 1
   fi
   cp "$src" "$stage/objectiveai-mcp-laboratory"
+
+  # objectiveai-db-proxy — likewise a musl-linux binary that runs inside
+  # containers rather than on the host, arch-matched and guaranteed by
+  # phase 1, so a missing one is a hard error too.
+  src="$REPO_ROOT/objectiveai-db-proxy/embed/$lab_triple/$profile/objectiveai-db-proxy"
+  if [ ! -f "$src" ]; then
+    echo "package: missing $src" >&2; rm -rf "$stage"; return 1
+  fi
+  cp "$src" "$stage/objectiveai-db-proxy"
 
   # Build the zip to a temp path, then move into place (no partial asset).
   local out="$bin_dir/$asset" tmp="$bin_dir/$asset.partial.$$"

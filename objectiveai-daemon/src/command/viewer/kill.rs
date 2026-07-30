@@ -1,5 +1,12 @@
-//! `viewer kill` — terminate this daemon's resident viewer child.
-//! Idempotent: a count of zero is not an error.
+//! `viewer kill` — GRACEFULLY terminate this daemon's resident viewer
+//! child. [`kill_resident_child`] recognizes the viewer by its stdio
+//! channel and sends the acked
+//! [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`] over
+//! its stdin, then waits (unbounded — no force path) for true exit:
+//! the viewer closes every browser tab (persisting its profile to
+//! disk) before exiting — and in development mode the graceful exit
+//! of the innermost binary unwinds the whole `pnpm exec tauri dev`
+//! tree. Idempotent: a count of zero is not an error.
 
 use objectiveai_sdk::cli::command::viewer::kill::{Request, Response};
 

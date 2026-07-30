@@ -66,25 +66,60 @@ function loadStylesheet(href: string): Promise<void> {
   });
 }
 
+/* Development hot-swap: replace every stylesheet link with a
+ * cache-busted copy, in place. Insert-new-then-remove-old (no flash of
+ * unstyled content), and deliberately NOT the boot failure path — a
+ * failed swap keeps the old link and logs, where the boot path would
+ * blank the tab. */
+function swapStylesheets(version: number): void {
+  const links = Array.from(
+    document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'),
+  );
+  for (const link of links) {
+    const base = link.href.split("?")[0];
+    const fresh = document.createElement("link");
+    fresh.rel = "stylesheet";
+    fresh.href = `${base}?v=${version}`;
+    const drop = () => link.remove();
+    fresh.addEventListener("load", drop, { once: true });
+    fresh.addEventListener(
+      "error",
+      () => {
+        console.error(`dev: stylesheet swap failed: ${fresh.href}`);
+        fresh.remove();
+      },
+      { once: true },
+    );
+    link.after(fresh);
+  }
+}
+
 function TabRoot() {
   // The descriptor + the component it named, loaded once — kinds are
-  // immutable, so this is the whole registry dependency.
+  // immutable, so this is the whole registry dependency. (Development
+  // mode re-runs the load with a cache-busting token; see the
+  // dev://module-changed listener below.)
   const [loaded, setLoaded] = useState<{
     Component: React.ComponentType<TabComponentProps>;
     arguments: unknown;
   } | null>(null);
   useEffect(() => {
     let disposed = false;
-    void (async () => {
+    /* The load body, callable: once at mount (bust = null), and again
+     * per dev://module-changed with a version token. The token lands
+     * in the module URL's query, which is what defeats the ES module
+     * map — it memoizes per exact URL string, forever. */
+    const load = async (bust: number | null) => {
       const descriptor = await tabSelf();
       if (!descriptor || disposed) return;
       // A plugin module lives under its own origin (the plugin://
       // protocol); root modules — and the root-template case flagged
       // by rootModule — resolve against the app origin as-is.
-      const moduleUrl =
+      const baseUrl =
         descriptor.identity === ROOT_IDENTITY || descriptor.rootModule
           ? descriptor.module
           : pluginAssetUrl(descriptor.identity, descriptor.module);
+      const moduleUrl = bust === null ? baseUrl : `${baseUrl}?v=${bust}`;
       // The module and every declared stylesheet load CONCURRENTLY,
       // and the component renders only once all of them have — so
       // there is no flash of unstyled content, and the styles cost no
@@ -103,9 +138,40 @@ function TabRoot() {
         Component: component as React.ComponentType<TabComponentProps>,
         arguments: descriptor.arguments,
       });
+    };
+    let unlistenModule: (() => void) | undefined;
+    let unlistenStyles: (() => void) | undefined;
+    void (async () => {
+      // Development listeners FIRST (webview-scoped, like ui://changed
+      // — a plain listen would receive every other tab's events too),
+      // then the initial load: a change landing mid-boot re-runs the
+      // load rather than being lost.
+      if (isTauri()) {
+        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        unlistenModule = await getCurrentWebview().listen<number>(
+          "dev://module-changed",
+          (e) => {
+            // Component remount, document intact: the transport and
+            // mailbox subscriptions survive; component state resets.
+            void load(e.payload);
+          },
+        );
+        unlistenStyles = await getCurrentWebview().listen<number>(
+          "dev://styles-changed",
+          (e) => swapStylesheets(e.payload),
+        );
+        if (disposed) {
+          unlistenModule?.();
+          unlistenStyles?.();
+          return;
+        }
+      }
+      await load(null);
     })();
     return () => {
       disposed = true;
+      unlistenModule?.();
+      unlistenStyles?.();
     };
   }, []);
 

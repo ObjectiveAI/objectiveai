@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk"
-version = "2.2.13"
+version = "2.2.14"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI SDK, definitions, and utilities"
@@ -43,7 +43,7 @@ machine = ["dep:hostname", "dep:windows-sys"]
 subprocess-reaper = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
-objectiveai-sdk-macros = { version = "2.2.13", path = "../objectiveai-sdk-rs-macros" }
+objectiveai-sdk-macros = { version = "2.2.14", path = "../objectiveai-sdk-rs-macros" }
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
@@ -77,6 +77,29 @@ regex = { version = "1.11", optional = true }
 rmcp = { version = "1.7", default-features = false, optional = true }
 serde_path_to_error = { version = "0.1.20" }
 starlark = { version = "0.13.0" }
+# NOT a dependency we use — an EXACT-version constraint we publish, and it
+# is load-bearing twice over.
+#
+# `starlark 0.13` must stay: 0.14 depends on `serde_json` with
+# `arbitrary_precision`, which cargo unifies across the whole graph. That
+# feature makes serde_json hand every non-integer number to `deserialize_any`
+# as a private one-entry MAP instead of a number, and serde's untagged /
+# flatten / internally-tagged buffering asks exactly that untyped question —
+# so every float in those containers (agent `temperature`, every `Decimal` in
+# a usage trailer) becomes an "invalid type: map" that untagged reports as
+# the useless "data did not match any variant". It broke EVERY agent run.
+#
+# But `starlark 0.13` only compiles against `allocative <= 0.3.4`: 0.3.5
+# moved to a newer hashbrown and dropped the impls `starlark_map 0.13`
+# derives `Allocative` over. A caret requirement floats to 0.3.6 and dies
+# ~15 minutes into a build, inside a crate the author never named.
+#
+# A lockfile pin fixes only OUR builds; an exact requirement HERE travels
+# with the published crate, so anyone depending on `objectiveai-sdk`
+# resolves 0.3.4 too. Drop this the day starlark makes
+# `arbitrary_precision` optional (or `starlark_map` moves to the new
+# hashbrown) — not before.
+allocative = { version = "=0.3.4" }
 anyhow = { version = "1.0.102" }
 rand = { version = "0.9.2" }
 schemars = { version = "1.2.1", features = ["indexmap2", "chrono04", "uuid1"] }

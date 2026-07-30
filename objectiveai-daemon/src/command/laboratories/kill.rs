@@ -1,10 +1,12 @@
 //! `laboratories kill` — GRACEFULLY terminate this daemon's resident
 //! laboratory-host child. [`kill_resident_child`] recognizes the host
-//! by its stdio channel: removing the map entry closes the host's
-//! stdin, and that EOF is its shutdown signal — it stops every
-//! regular container it serves and evaporates every ephemeral before
-//! exiting. Idempotent: no running host is a count of zero, not an
-//! error.
+//! by its stdio channel and sends the acked
+//! [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`] over
+//! its stdin, then waits (unbounded — no force path) for true exit:
+//! the host stops every regular container it serves and evaporates
+//! every ephemeral before exiting. Stdin EOF (the channel drop that
+//! follows) remains the host's shutdown backstop. Idempotent: no
+//! running host is a count of zero, not an error.
 
 use objectiveai_sdk::cli::command::laboratories::kill::{Request, Response};
 

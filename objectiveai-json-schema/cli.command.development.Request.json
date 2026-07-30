@@ -1,4 +1,13 @@
 {
   "title": "cli.command.development.Request",
-  "$ref": "cli.command.development.plugins.Request"
+  "anyOf": [
+    {
+      "title": "Plugins",
+      "$ref": "cli.command.development.plugins.Request"
+    },
+    {
+      "title": "Viewer",
+      "$ref": "cli.command.development.viewer.Request"
+    }
+  ]
 }

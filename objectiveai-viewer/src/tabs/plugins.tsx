@@ -217,9 +217,19 @@ export default function PluginsTab() {
                   (no viewer extension)
                 </span>
               )}
+              {row.development && (
+                <span className={cn("text-[11px]", "text-copper-bright")}>
+                  (development)
+                </span>
+              )}
               <span className={cn("flex-1")} />
               <button
-                disabled={uninstalling !== null}
+                disabled={uninstalling !== null || row.development}
+                title={
+                  row.development
+                    ? "in development mode — remove the registration first"
+                    : undefined
+                }
                 onClick={() => uninstall(row)}
                 className={cn(
                   "px-3",
@@ -233,7 +243,7 @@ export default function PluginsTab() {
                   "tracking-wider",
                   busy
                     ? cn("opacity-50", "cursor-wait")
-                    : uninstalling !== null
+                    : uninstalling !== null || row.development
                       ? cn("opacity-40")
                       : cn(
                           "cursor-pointer",

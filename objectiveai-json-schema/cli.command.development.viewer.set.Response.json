@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.development.viewer.set.Response",
+  "description": "The registration, echoed.",
+  "type": "object",
+  "properties": {
+    "path": {
+      "type": "string"
+    },
+    "replaced": {
+      "description": "Whether this replaced a previous registration.",
+      "type": "boolean"
+    }
+  }
+}

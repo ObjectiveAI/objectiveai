@@ -42,10 +42,11 @@ fn is_skipped_module(relative: &str) -> bool {
         || relative.starts_with("src/client_objectiveai_mcp/")
         || relative.starts_with("src/laboratories/daemon/")
         // Subprocess plumbing: the stdout readiness handshake
-        // (`ServerReady`) is an internal spawn contract between the
-        // daemon and its leashed children — never a published API
-        // shape.
+        // (`ServerReady`) and the daemon↔child stdin control channel
+        // are internal spawn contracts between the daemon and its
+        // leashed children — never published API shapes.
         || relative == "src/process.rs"
+        || relative == "src/child_stdio.rs"
 }
 
 fn has_derive(attrs: &[syn::Attribute], trait_name: &str) -> bool {

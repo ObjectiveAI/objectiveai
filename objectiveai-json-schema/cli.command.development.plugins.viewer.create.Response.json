@@ -1,0 +1,23 @@
+{
+  "title": "cli.command.development.plugins.viewer.create.Response",
+  "description": "The registration, echoed with the coordinates as the daemon\ncanonicalized them — which is what an agent's declaration will be\nmatched against, so it is worth seeing.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "replaced": {
+      "description": "Whether this REPLACED an existing registration for the same\ncoordinates. Worth reporting: re-registering a different\ndirectory is silent otherwise — open tabs re-resolve to the new\none on their next reload.",
+      "type": "boolean"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

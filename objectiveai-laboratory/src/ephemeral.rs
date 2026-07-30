@@ -61,17 +61,19 @@ pub struct EphemeralLab {
     transient: Option<Arc<tokio::sync::RwLock<IndexMap<String, String>>>>,
     /// Parked transfer halves — alive exactly as long as the lab.
     pub transfers: crate::transfer::Transfers,
-    /// Plugin ephemerals only: the per-plugin Postgres tunnel proxy.
-    /// `None` for agent ephemerals. Dropping it (or sending its
-    /// cancel) tears down the listener + every live stream.
+    /// Plugin ephemerals only: the per-plugin Postgres conduit. `None`
+    /// for agent ephemerals. Dropping it (or sending its cancel) tears
+    /// down the dialed socket + every live stream.
     pub pg: Option<PgProxy>,
 }
 
-/// A plugin ephemeral's Postgres tunnel proxy: the host TCP port the
-/// container dials (`OBJECTIVEAI_POSTGRES_URL`) plus the ONE cancel
-/// governing its accept task and every per-connection pump.
+/// A plugin ephemeral's Postgres conduit: the ONE cancel governing the
+/// socket the host keeps dialed to the container's injected db proxy,
+/// its dial loop, and every per-stream pump under it.
+///
+/// No port — the host dials the container, and the port it dials is
+/// resolved from podman at create rather than owned here.
 pub struct PgProxy {
-    pub port: u16,
     pub cancel: tokio::sync::watch::Sender<bool>,
 }
 

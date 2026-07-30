@@ -23,6 +23,11 @@ type CliPluginsViewer struct {
 	// BUILDS the extension. Its OWN DIRECTORY is the build context —
 	// see [`Mcp::containerfile`].
 	Containerfile string `json:"containerfile"`
+	// Settings that apply ONLY when this plugin's viewer half is
+	// registered for development (`development plugins viewer
+	// create`). Ignored entirely for a released plugin — production
+	// serving never reads the author's disk.
+	Development *CliPluginsViewerDevelopment `json:"development,omitempty"`
 	// The identity icon, shown beside the identity in the tab strip.
 	Icon *string `json:"icon,omitempty"`
 	// Absolute path INSIDE the built image whose CONTENTS are the

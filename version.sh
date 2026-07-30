@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # version.sh — set the version of every ObjectiveAI package (and inter-package
 # dependency reference) to a single value. Touches Rust crates, Python
-# packages, JS packages, .NET csproj, and the runner subpackages. Skips
-# lockfiles (Cargo.lock, pnpm-lock.yaml) — those regenerate on next build.
+# packages, JS packages, .NET csproj, and the runner subpackages.
+#
+# Lockfiles: the workspace Cargo.lock is refreshed with `cargo update -w`
+# at the end, and pnpm-lock.yaml regenerates on the next install. The
+# plugin scaffold's COMMITTED Cargo.lock is rewritten textually, because
+# it sits outside the workspace and pins published crates that do not
+# exist until this release ships (see
+# set_cargo_lock_objectiveai_versions).
 #
 # Usage:
 #   bash version.sh <new-version>
@@ -118,6 +124,44 @@ set_objectiveai_string_dep() {
     "\"$NEW_VERSION\""
 }
 
+# A COMMITTED Cargo.lock that `cargo update -w` can never reach: the
+# plugin scaffold is excluded from the workspace on purpose, so the
+# workspace refresh at the end of this script does not see it, and
+# `cargo update` inside it cannot help either — it names published
+# ObjectiveAI crates at the NEW version, which are not on crates.io
+# until this release publishes them.
+#
+# So rewrite it textually, the same way the manifests are: every
+# `version` line inside a `[[package]]` block whose `name` is an
+# ObjectiveAI crate. Leaving it stale is not cosmetic — the scaffold's
+# Containerfile builds `--locked`, so a lockfile disagreeing with its
+# manifest fails the build outright.
+set_cargo_lock_objectiveai_versions() {
+  local file="$1" tmp
+  tmp="$(mktemp 2>/dev/null || mktemp -t objectiveai-version)"
+  awk -v new="$NEW_VERSION" '
+    /^name = "/ {
+      name = $0
+      sub(/^name = "/, "", name)
+      sub(/"[[:space:]]*$/, "", name)
+    }
+    /^version = "/ && name ~ /^objectiveai(-|$)/ {
+      print "version = \"" new "\""
+      next
+    }
+    { print }
+  ' "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
+# The JS plugin scaffold pins the npm-published SDK as a plain
+# "@objectiveai/sdk": "X.Y.Z" dependency — the same standalone-template
+# story as the Rust scaffold's bare registry string dep.
+set_package_json_objectiveai_dep() {
+  local file="$1"
+  inline_substitute "$file"     '^[[:space:]]*"@objectiveai/sdk":[[:space:]]*"[0-9]'     '"[0-9][0-9.]*"'     "\"$NEW_VERSION\""
+}
+
 # Root "version": "..." in a package.json. Relies on the standard layout
 # where "version" is the first occurrence in the file (right after "name").
 set_package_json_version() {
@@ -224,6 +268,7 @@ CARGO_TOMLS=(
   objectiveai-cli/Cargo.toml
   objectiveai-daemon/Cargo.toml
   objectiveai-db/Cargo.toml
+  objectiveai-db-proxy/Cargo.toml
   objectiveai-json-schema/builder/Cargo.toml
   objectiveai-laboratory/Cargo.toml
   objectiveai-mcp-laboratory/Cargo.toml
@@ -238,6 +283,12 @@ CARGO_TOMLS=(
   objectiveai-viewer/src-tauri/Cargo.toml
 )
 
+# Committed lockfiles the workspace refresh cannot reach (see
+# set_cargo_lock_objectiveai_versions).
+CARGO_LOCKS=(
+  objectiveai-mcp-plugin-scaffold-rs/Cargo.lock
+)
+
 PYPROJECT_TOMLS=(
   objectiveai-sdk-py/pyproject.toml
   objectiveai-cocoindex/pyproject.toml
@@ -246,6 +297,12 @@ PYPROJECT_TOMLS=(
 PACKAGE_JSONS=(
   objectiveai-sdk-js/package.json
   objectiveai-viewer/package.json
+)
+
+# package.jsons that ALSO pin the published SDK (the viewer plugin
+# scaffold — a standalone template, not a workspace member).
+SCAFFOLD_PACKAGE_JSONS=(
+  objectiveai-viewer-plugin-scaffold/package.json
 )
 
 CSPROJS=(
@@ -309,8 +366,15 @@ update() {
     pkg)
       set_package_json_version "$file"
       ;;
+    pkgscaffold)
+      set_package_json_version "$file"
+      set_package_json_objectiveai_dep "$file"
+      ;;
     pkg+)
       ensure_package_json_version "$file"
+      ;;
+    cargolock)
+      set_cargo_lock_objectiveai_versions "$file"
       ;;
     csproj)
       set_csproj_version "$file"
@@ -336,8 +400,10 @@ update() {
 echo "Setting version to $NEW_VERSION"
 
 for rel in "${CARGO_TOMLS[@]}";           do update cargo  "$rel"; done
+for rel in "${CARGO_LOCKS[@]}";              do update cargolock "$rel"; done
 for rel in "${PYPROJECT_TOMLS[@]}";        do update pypro  "$rel"; done
 for rel in "${PACKAGE_JSONS[@]}";          do update pkg    "$rel"; done
+for rel in "${SCAFFOLD_PACKAGE_JSONS[@]}"; do update pkgscaffold "$rel"; done
 for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
 for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
 for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done

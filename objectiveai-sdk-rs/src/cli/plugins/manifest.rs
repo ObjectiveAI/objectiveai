@@ -70,6 +70,9 @@ impl Manifest {
         if let Some(mcp) = &self.mcp {
             mcp.validate()?;
         }
+        if let Some(viewer) = &self.viewer {
+            viewer.validate()?;
+        }
         Ok(())
     }
 }
@@ -88,13 +91,20 @@ pub struct Mcp {
     /// The port the MCP server listens on inside the container —
     /// published to a random loopback host port at create. Never 0.
     pub port: u16,
+    /// Whether this plugin uses the plugin database. REQUIRED, and the
+    /// whole database chain hangs off it: only when true does the
+    /// laboratory host inject the db proxy into the container, publish
+    /// its conduit port, dial it, and stamp `OBJECTIVEAI_POSTGRES_URL`
+    /// into the environment. False means no database — the plugin
+    /// framework's `db::connect` reports exactly that.
+    pub postgres: bool,
     /// Build settings that apply ONLY when this plugin is registered
     /// for development (`development plugins mcp create`). Ignored
     /// entirely for a released plugin — a production image never binds
     /// a host directory, so nothing here can change what ships.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub development: Option<Development>,
+    pub development: Option<McpDevelopment>,
 }
 
 impl Mcp {
@@ -117,8 +127,8 @@ impl Mcp {
 /// the pip cache for Python. Only the plugin author knows their own
 /// image's layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "cli.plugins.Development")]
-pub struct Development {
+#[schemars(rename = "cli.plugins.McpDevelopment")]
+pub struct McpDevelopment {
     /// Absolute container paths bound to persistent host directories
     /// while `RUN` steps execute, so a rebuild reuses what the last
     /// one produced.
@@ -143,7 +153,7 @@ pub struct Development {
     pub caches: Vec<String>,
 }
 
-impl Development {
+impl McpDevelopment {
     /// Absolute, forward-slashed, traversal-free, and distinct. A
     /// relative path is meaningless to a bind mount, and two entries
     /// naming one target would silently get one host directory each
@@ -244,6 +254,86 @@ pub struct Viewer {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub scripts: Option<Vec<ViewerScript>>,
+    /// Settings that apply ONLY when this plugin's viewer half is
+    /// registered for development (`development plugins viewer
+    /// create`). Ignored entirely for a released plugin — production
+    /// serving never reads the author's disk.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub development: Option<ViewerDevelopment>,
+}
+
+impl Viewer {
+    /// Lexical checks only — no filesystem. See [`Mcp::validate`] for
+    /// the split.
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(development) = &self.development {
+            development.validate()?;
+        }
+        Ok(())
+    }
+}
+
+/// Where a DEVELOPMENT-registered viewer plugin's built assets live on
+/// the author's own disk.
+///
+/// [`Viewer::output`] names a directory INSIDE the built image, which
+/// means nothing outside a container build. This is its on-disk
+/// stand-in: the repo-relative directory the author's own watch build
+/// (`vite build --watch`, esbuild `--watch`, anything) writes into.
+/// When the plugin is registered for development the viewer serves
+/// `plugin://` straight from here — no container, no install — so
+/// every save lands on screen.
+///
+/// The one contract that does NOT relax: the build must still leave
+/// `react`, `react-dom`, `react/jsx-runtime` and `react-dom/client`
+/// EXTERNAL. Development mode changes where files come from, never
+/// what a valid bundle is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "cli.plugins.ViewerDevelopment")]
+pub struct ViewerDevelopment {
+    /// Repo-relative path (forward slashes) to the directory holding
+    /// the watch build's output — the development twin of
+    /// [`Viewer::output`]. Paths in `tabs`/`scripts`/`styles` resolve
+    /// against its contents, exactly as they resolve against the
+    /// installed `viewer/` directory in production.
+    pub output: String,
+}
+
+impl ViewerDevelopment {
+    /// Repo-relative, forward-slashed, traversal-free.
+    pub fn validate(&self) -> Result<(), String> {
+        let at = "`viewer.development.output`";
+        if self.output.is_empty() {
+            return Err(format!("plugin manifest: {at} is empty"));
+        }
+        if self.output.starts_with('/') {
+            return Err(format!(
+                "plugin manifest: {at} must be repo-relative (no leading `/`), \
+                 got {:?}",
+                self.output
+            ));
+        }
+        if self.output.contains('\\') {
+            return Err(format!(
+                "plugin manifest: {at} must use forward slashes, got {:?}",
+                self.output
+            ));
+        }
+        if self
+            .output
+            .trim_end_matches('/')
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+        {
+            return Err(format!(
+                "plugin manifest: {at} must not contain empty, `.` or `..` \
+                 components, got {:?}",
+                self.output
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// One injectable script: a self-contained bundle evaluated inside a

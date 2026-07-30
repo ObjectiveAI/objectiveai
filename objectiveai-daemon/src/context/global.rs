@@ -91,10 +91,12 @@ pub(crate) struct ResidentHubs {
 /// successor). The OS leash + `kill_on_drop` are independent of where
 /// the `Child` handle lives ([`objectiveai_sdk::subprocess_reaper`]).
 ///
-/// The laboratory host additionally carries its stdio dial-list
-/// channel — dropped with the entry on every kill path, which closes
-/// the child's stdin (EOF = the host's graceful-shutdown signal,
-/// container-stop included, even on Windows).
+/// The stdio children (laboratory host, viewer) additionally carry
+/// their stdin control channel ([`ChildStdio`]) — the kill path sends
+/// [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`]
+/// through it, and dropping the entry closes the child's stdin (EOF:
+/// the host's shutdown backstop; ignored by the viewer, whose
+/// shutdown is command-only).
 pub(crate) struct ResidentChild {
     /// Process-unique spawn generation — the identity guard for
     /// removal: `remove_if(|rc| rc.generation == g)` removes exactly
@@ -109,7 +111,7 @@ pub(crate) struct ResidentChild {
     /// pid. A closed channel means the child already exited.
     pub(crate) kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
     pub(crate) address: Option<String>,
-    pub(crate) stdio: Option<Arc<LabHostStdio>>,
+    pub(crate) stdio: Option<Arc<ChildStdio>>,
     /// PUSH death signal: flips `false → true` when `child.wait()`
     /// completes in the lifecycle task — TRUE process exit (reaped),
     /// not a pipe-EOF proxy. Lets a waiter `changed().await` the
@@ -145,28 +147,32 @@ pub(crate) struct KillSnapshot {
     pub(crate) generation: u64,
     pub(crate) kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
     pub(crate) dead_rx: tokio::sync::watch::Receiver<bool>,
-    pub(crate) has_stdio: bool,
+    /// The stdio child's control channel — its presence selects the
+    /// graceful `Shutdown`-command kill path, and the kill sends
+    /// through this very clone (the map entry is removed first).
+    pub(crate) stdio: Option<Arc<ChildStdio>>,
 }
 
-/// The laboratory host's stdin/stdout dial-list channel (see
-/// [`objectiveai_sdk::laboratories::daemon::HostStdioRequest`]). ONE
-/// mutex over both halves serializes commands, so at most one is ever
-/// outstanding and correlation degenerates to "recv until the ack
-/// echoing this request's id" — no pending map.
-pub(crate) struct LabHostStdio {
+/// A stdio child's stdin/stdout control channel (see
+/// [`objectiveai_sdk::child_stdio::ChildStdioRequest`]) — the
+/// laboratory host's dial list and both stdio children's graceful
+/// `Shutdown`. ONE mutex over both halves serializes commands, so at
+/// most one is ever outstanding and correlation degenerates to "recv
+/// until the ack echoing this request's id" — no pending map.
+pub(crate) struct ChildStdio {
     io: tokio::sync::Mutex<(
         tokio::process::ChildStdin,
         tokio::sync::mpsc::UnboundedReceiver<
-            objectiveai_sdk::laboratories::daemon::HostStdioAck,
+            objectiveai_sdk::child_stdio::ChildStdioAck,
         >,
     )>,
 }
 
-impl LabHostStdio {
+impl ChildStdio {
     pub(crate) fn new(
         stdin: tokio::process::ChildStdin,
         acks: tokio::sync::mpsc::UnboundedReceiver<
-            objectiveai_sdk::laboratories::daemon::HostStdioAck,
+            objectiveai_sdk::child_stdio::ChildStdioAck,
         >,
     ) -> Self {
         Self {
@@ -174,42 +180,42 @@ impl LabHostStdio {
         }
     }
 
-    /// Send one dial-list command (wrapped in a fresh random request
-    /// id) and await the ack echoing that id — the host applied the
-    /// mutation (NOT connectivity; dialing retries forever). NO
-    /// timeout by design: the host acks every parsed line, and a dead
-    /// host closes its pipes, which ends the ack stream and errors
-    /// here — so this waits exactly as long as the host is alive and
-    /// busy. Errors mean the channel is broken (write failed, ack
-    /// stream closed).
-    pub(crate) async fn send_host_stdio(
+    /// Send one command (wrapped in a fresh random request id) and
+    /// await the ack echoing that id — the child applied the mutation
+    /// (dial list converged / shutdown begun; NOT connectivity or
+    /// exit — those are observed elsewhere). NO timeout by design:
+    /// the child acks every parsed line, and a dead child closes its
+    /// pipes, which ends the ack stream and errors here — so this
+    /// waits exactly as long as the child is alive and busy. Errors
+    /// mean the channel is broken (write failed, ack stream closed).
+    pub(crate) async fn send(
         &self,
-        command: &objectiveai_sdk::laboratories::daemon::HostStdioCommand,
+        command: &objectiveai_sdk::child_stdio::ChildStdioCommand,
     ) -> Result<(), crate::error::Error> {
         use tokio::io::AsyncWriteExt;
-        let request = objectiveai_sdk::laboratories::daemon::HostStdioRequest {
+        let request = objectiveai_sdk::child_stdio::ChildStdioRequest {
             id: uuid::Uuid::new_v4().to_string(),
             command: command.clone(),
         };
         let mut io = self.io.lock().await;
         let (stdin, acks) = &mut *io;
         let mut line = serde_json::to_string(&request)
-            .expect("HostStdioRequest serializes");
+            .expect("ChildStdioRequest serializes");
         line.push('\n');
         stdin.write_all(line.as_bytes()).await.map_err(|e| {
             crate::error::Error::Laboratory(format!(
-                "laboratory host stdin write failed: {e}"
+                "stdio child stdin write failed: {e}"
             ))
         })?;
         stdin.flush().await.map_err(|e| {
             crate::error::Error::Laboratory(format!(
-                "laboratory host stdin flush failed: {e}"
+                "stdio child stdin flush failed: {e}"
             ))
         })?;
         loop {
             let ack = acks.recv().await.ok_or_else(|| {
                 crate::error::Error::Laboratory(
-                    "laboratory host stdio channel closed".to_string(),
+                    "stdio child control channel closed".to_string(),
                 )
             })?;
             // A non-matching id is a stale ack from an abandoned
@@ -465,7 +471,7 @@ impl GlobalContext {
     }
 
     /// Park a freshly-spawned leashed server child's metadata (+ its
-    /// readiness address, + the laboratory host's stdio channel) for
+    /// readiness address, + a stdio child's control channel) for
     /// the daemon's life. Only the spawn path calls this, under the
     /// key's spawn gate, after confirming no live child — so a live
     /// server is never displaced. The `Child` itself goes to the
@@ -478,7 +484,7 @@ impl GlobalContext {
         generation: u64,
         kill_tx: tokio::sync::mpsc::UnboundedSender<KillRequest>,
         address: Option<String>,
-        stdio: Option<Arc<LabHostStdio>>,
+        stdio: Option<Arc<ChildStdio>>,
         dead_rx: tokio::sync::watch::Receiver<bool>,
     ) {
         self.resident_children.insert(
@@ -525,18 +531,20 @@ impl GlobalContext {
             generation: rc.generation,
             kill_tx: rc.kill_tx.clone(),
             dead_rx: rc.dead_rx.clone(),
-            has_stdio: rc.stdio.is_some(),
+            stdio: rc.stdio.clone(),
         })
     }
 
-    /// The LIVE laboratory host's stdio dial-list channel. `None` when
-    /// no host child is running — callers then fall back to write-only
-    /// config semantics; the next spawn converges from config.
-    /// Liveness is a pure read of the death watch (the lifecycle task
-    /// removes dead entries eagerly; the borrow covers the removal
-    /// in-flight window).
-    pub(crate) fn lab_host_stdio(&self) -> Option<Arc<LabHostStdio>> {
-        let entry = self.resident_children.get("laboratories")?;
+    /// The LIVE resident `key` child's stdio control channel
+    /// (`"laboratories"` for the host's dial-list converge; the kill
+    /// path reads its channel off [`KillSnapshot`] instead). `None`
+    /// when no such child is running — dial-list callers then fall
+    /// back to write-only config semantics; the next spawn converges
+    /// from config. Liveness is a pure read of the death watch (the
+    /// lifecycle task removes dead entries eagerly; the borrow covers
+    /// the removal in-flight window).
+    pub(crate) fn resident_child_stdio(&self, key: &str) -> Option<Arc<ChildStdio>> {
+        let entry = self.resident_children.get(key)?;
         if *entry.dead_rx.borrow() {
             return None;
         }

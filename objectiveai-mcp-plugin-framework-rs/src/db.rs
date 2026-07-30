@@ -1,10 +1,13 @@
 //! The plugin's database.
 //!
-//! Every plugin container gets its own Postgres, tunnelled in by the
-//! laboratory host: the host binds a listener, hands the daemon's
-//! role, password and database through, and stamps the assembled URL
-//! as `OBJECTIVEAI_POSTGRES_URL` at create time. A plugin therefore
-//! never configures a database — it asks for one.
+//! A plugin whose manifest OPTS IN (`mcp.postgres: true` in
+//! `objectiveai.json`) gets its own Postgres, relayed by the
+//! laboratory host: the host injects a proxy that serves Postgres on
+//! the container's loopback, dials in to relay it, and stamps the
+//! assembled URL — the daemon's role, password and database at that
+//! loopback address — as `OBJECTIVEAI_POSTGRES_URL` at create time. A
+//! plugin therefore never configures a database — it asks for one,
+//! and a plugin that did not opt in is told so ([`Error::NoDatabase`]).
 //!
 //! ```no_run
 //! # use std::sync::Arc;
@@ -30,7 +33,7 @@
 //!   receives its outcome, success or failure alike. Only one
 //!   connection attempt is ever in flight.
 //! - **Failure is not cached.** Once a failed attempt finishes, the
-//!   slot is cleared and the next call starts fresh. A tunnel that was
+//!   slot is cleared and the next call starts fresh. A proxy that was
 //!   not up yet does not poison the process.
 //!
 //! Sharing an outcome means cloning it, so the error is an
@@ -60,17 +63,44 @@ pub type Pool = sqlx::PgPool;
 pub enum Error {
     /// No `OBJECTIVEAI_POSTGRES_URL` in the environment.
     ///
-    /// Not a misconfiguration a plugin can fix: the laboratory host
-    /// stamps this variable on every plugin container it creates, so
-    /// its absence means this process is not running as one.
+    /// The laboratory host sets that variable ONLY for plugins whose
+    /// manifest opts in to the database — so either this plugin's
+    /// `objectiveai.json` does not set `mcp.postgres` to `true`, or
+    /// the process is not running as a plugin container at all. The
+    /// distinct variant is deliberate: a plugin (or the framework's
+    /// caller) can match on it and answer "this plugin has no
+    /// database" instead of retrying a connection that can never
+    /// exist.
     #[error(
-        "no database: OBJECTIVEAI_POSTGRES_URL is unset, which means this process is not running as a plugin container"
+        "no database: OBJECTIVEAI_POSTGRES_URL is unset — the plugin's manifest must opt in with `mcp.postgres: true` in objectiveai.json (or this process is not running as a plugin container)"
     )]
     NoDatabase,
-    /// The URL was there and the connection still failed — the tunnel
+    /// The URL was there and the connection still failed — the proxy
     /// is down, the credentials are stale, or Postgres refused.
     #[error("connect to the plugin database")]
     Connect(#[source] sqlx::Error),
+    /// Nothing answered at the database address before the pool gave
+    /// up.
+    ///
+    /// Split out from [`Error::Connect`] because sqlx reports it as a
+    /// bare "pool timed out while waiting for an open connection",
+    /// which describes the pool and says nothing about the relay
+    /// underneath it. The address is the in-container db proxy on
+    /// loopback; a plugin's Postgres traffic crosses proxy →
+    /// laboratory host (which dials IN to the container) → daemon →
+    /// Postgres. A timeout here usually means the proxy is not
+    /// running, or the laboratory host never attached its conduit
+    /// socket — the proxy holds accepted clients until a host
+    /// attaches, so an unattached conduit reads as exactly this.
+    #[error(
+        "connect to the plugin database: nothing answered at {address} within {timeout:?} — the in-container db proxy is not running, or the laboratory host never attached its conduit socket to relay it"
+    )]
+    Unreachable {
+        /// Host and port the plugin dialed — the injected db proxy on
+        /// the container's loopback, not Postgres itself.
+        address: String,
+        timeout: std::time::Duration,
+    },
 }
 
 /// How the pool is built.
@@ -160,7 +190,7 @@ struct Attempt {
 /// different configs from different call sites is not meaningful, and
 /// whoever connects first decides.
 ///
-/// Connects EAGERLY, so a bad tunnel or stale credentials surface here
+/// Connects EAGERLY, so a dead proxy or stale credentials surface here
 /// rather than at the first query somewhere deep in a tool call.
 pub async fn connect(config: Config) -> Result<Pool, Arc<Error>> {
     coalesce(|| connect_once(config).boxed()).await
@@ -272,7 +302,30 @@ async fn connect_once(config: Config) -> Result<Pool, Arc<Error>> {
         .acquire_timeout(config.acquire_timeout)
         .connect(url)
         .await
-        .map_err(|e| Arc::new(Error::Connect(e)))
+        .map_err(|e| {
+            // `PoolTimedOut` means the pool never got a usable
+            // connection in the window — which here is almost always
+            // the proxy or its relay, not Postgres. Name the hop.
+            Arc::new(match e {
+                sqlx::Error::PoolTimedOut => Error::Unreachable {
+                    address: proxy_address(url),
+                    timeout: config.acquire_timeout,
+                },
+                other => Error::Connect(other),
+            })
+        })
+}
+
+/// `host:port` out of a Postgres URL, for diagnostics only — never
+/// the credentials, which are in the same string.
+fn proxy_address(url: &str) -> String {
+    url.rsplit_once('@')
+        .map(|(_, after)| after)
+        .unwrap_or(url)
+        .split('/')
+        .next()
+        .unwrap_or("the db proxy")
+        .to_string()
 }
 
 #[cfg(test)]
@@ -308,8 +361,9 @@ mod tests {
     }
 
     /// The missing-URL case has to be a named error a caller can match
-    /// on, not an opaque connection failure — it means "not running as
-    /// a plugin", which is a different problem with a different fix.
+    /// on, not an opaque connection failure — it means "this plugin
+    /// did not opt in to postgres" (or is not running as a plugin at
+    /// all), which is a different problem with a different fix.
     #[tokio::test]
     async fn no_url_is_its_own_error() {
         let _serial = exclusive();
@@ -321,7 +375,7 @@ mod tests {
     }
 
     /// Failure is not cached: each later call starts over. A plugin
-    /// that raced the tunnel coming up must be able to recover, which
+    /// that raced the proxy coming up must be able to recover, which
     /// a remembered error would prevent forever.
     #[tokio::test]
     async fn a_failed_attempt_leaves_no_trace() {

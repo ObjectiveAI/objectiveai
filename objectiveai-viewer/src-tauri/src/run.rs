@@ -197,7 +197,23 @@ pub fn serve(
         .manage(command_log_sink)
         .manage(tab_inventory)
         .manage(plugins_dirs)
-        .manage(crate::shell::ChannelRequests::new(plugins_root.clone()));
+        .manage(crate::shell::ChannelRequests::new(plugins_root.clone()))
+        // Development-registered plugins. ALWAYS managed (the
+        // protocol/plugins/browser dev paths read it unconditionally);
+        // only ever non-empty in `development` builds, where the
+        // daemon passes the registration list as argv at spawn — and
+        // immutable for the process's life, since a registration
+        // change respawns the viewer.
+        .manage({
+            #[cfg(feature = "development")]
+            {
+                crate::shell::DevPlugins::new(crate::shell::DevPlugins::from_argv())
+            }
+            #[cfg(not(feature = "development"))]
+            {
+                crate::shell::DevPlugins::empty()
+            }
+        });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         open_agent_remote,
@@ -272,6 +288,27 @@ pub fn serve(
             // stream for the viewer's whole life; the command-logs
             // tab is just a view over what it writes.
             crate::shell::spawn_command_listener(tauri_app.handle().clone());
+            // The stdin graceful-shutdown listener — how the spawning
+            // daemon (and ONLY it) kills this viewer: browsers flush
+            // to disk, then the app exits. Disarms harmlessly when
+            // stdin is absent/closed (parentless launch).
+            crate::shell::spawn_stdio_shutdown_listener(tauri_app.handle().clone());
+            #[cfg(feature = "development")]
+            {
+                use tauri::Manager as _;
+                // The registry is final — arm the watcher once, and
+                // only when there is anything to watch.
+                if !tauri_app
+                    .handle()
+                    .state::<crate::shell::DevPlugins>()
+                    .roots()
+                    .is_empty()
+                {
+                    crate::shell::devwatch::spawn_dev_watch(
+                        tauri_app.handle().clone(),
+                    );
+                }
+            }
             // Sweep the viewer's OWN temp partition (a hard-killed
             // predecessor's install scratch) — installs can't start
             // before a chrome webview can invoke, so nothing races.

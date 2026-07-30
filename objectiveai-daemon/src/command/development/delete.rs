@@ -19,7 +19,7 @@ pub async fn execute(
     let key = super::registry::key(&request.owner, &request.name, &request.version);
     // Removing nothing is a success: the caller asked for this plugin
     // not to be in development mode, and it is not.
-    let removed = hubs.development_plugins.remove(&key).is_some();
+    let removed = hubs.development_plugins.mcp.remove(&key).is_some();
 
     Ok(Response {
         owner: key.0,

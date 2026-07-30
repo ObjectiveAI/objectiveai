@@ -52,148 +52,237 @@ use crate::server::LabServer;
 /// dropping a session) don't thrash podman start/stop.
 const STOP_GRACE: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// The DNS alias a plugin container uses to reach THIS host's Postgres
-/// tunnel listener. `host.containers.internal` is podman's standard
-/// container→host name (provisioned by `--add-host=…:host-gateway` on
-/// the container); it maps back to the host on both podman-machine
-/// (gvproxy, mac/win) and native rootless (pasta, Linux).
-const POSTGRES_HOST_ALIAS: &str = "host.containers.internal";
+/// How long to wait before redialing a plugin container's db proxy.
+/// The container may still be starting the proxy, or it just went away;
+/// either way this is a short retry, not a spin.
+const DB_PROXY_REDIAL: std::time::Duration = std::time::Duration::from_millis(250);
 
-/// The address the host binds its per-plugin Postgres tunnel listeners
-/// on. `0.0.0.0` is reachable from every container network; the port
-/// is otherwise guarded only by Postgres-native auth (the per-plugin
-/// compartment credential, injected into just that one container).
-const POSTGRES_BIND_ADDR: &str = "0.0.0.0";
-
-/// Max raw Postgres bytes per tunnel frame — bounds per-frame wire
-/// time on the shared `/laboratory` WS (mirrors the daemon's cap).
-const PG_CHUNK: usize = 64 * 1024;
-
-/// Stand up a plugin ephemeral's Postgres tunnel proxy over an
-/// already-bound `listener`: an accept loop that, per inbound
-/// container connection, mints a `stream_id`, tells the owning daemon
-/// to `Open` the stream, and pipes raw bytes both ways
-/// (container→`PostgresData`→daemon and back). ONE `watch` cancel
-/// governs the accept loop and every per-connection pump. Returns the
-/// [`PgProxy`] (port + cancel) for the [`crate::ephemeral::EphemeralLab`].
-fn spawn_pg_proxy(
-    listener: tokio::net::TcpListener,
+/// Stand up a plugin ephemeral's Postgres conduit: keep a WebSocket to
+/// the container's injected `objectiveai-db-proxy` and relay it to the
+/// owning daemon.
+///
+/// The host DIALS IN rather than listening. A container cannot reach the
+/// machine hosting it — that leg is inbound, and podman's
+/// `host.containers.internal` points at an address the WSL provider
+/// never answers on — while host→container works already, since it is
+/// how the MCP endpoint is reached. So the proxy serves the socket and
+/// this dials it, on the port podman publishes.
+///
+/// TRANSLATION is all this does. The proxy speaks a compact
+/// `[tag][id: u32]` framing ([`crate::db_proxy`]); the daemon speaks
+/// `HostPostgres` / `PostgresData` keyed by a string `stream_id`. Both
+/// carry opaque Postgres bytes, so every payload crosses byte for byte
+/// and nothing here parses one. The rules, exhaustively:
+///
+/// - proxy `Open{id}` → mint a `stream_id`, register the container-write
+///   sender, and tell the daemon to dial its Postgres.
+/// - proxy `Data{id}` → `PostgresData` on the lane.
+/// - proxy `Close{id}` → drop the registration, `HostPostgres::Close` to
+///   the daemon, forget the id.
+/// - daemon `PostgresData` → routed by `channel.rs` into the sender
+///   registered above, whose pump re-frames it for the proxy.
+/// - daemon close → `channel.rs` drops that sender, so the pump ends and
+///   emits a `Close` frame, which shuts the client socket in-container.
+/// - socket death → every stream it carried gets `HostPostgres::Close`,
+///   because nothing else would reap the daemon's backends, and a
+///   daemon-side connection attached to a dead stream would never be
+///   released.
+///
+/// CONCURRENCY. Postgres pools open many connections at once and they
+/// must run in parallel over the one socket:
+/// - every send is an UNBOUNDED channel send, so no stream ever waits on
+///   another's progress;
+/// - the read loop only routes — it never awaits I/O — so a slow stream
+///   cannot stall the socket;
+/// - ONE writer task owns the sink, so frames interleave rather than
+///   queueing behind whichever stream reached it first.
+///
+/// ONE `watch` cancel governs the dial loop and every task under it.
+fn spawn_pg_conduit(
+    ws_port: u16,
     channel: u64,
     bridge: Arc<crate::host_command::CommandBridge>,
 ) -> crate::ephemeral::PgProxy {
+    let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+    tokio::spawn(pg_dial_loop(
+        format!("ws://127.0.0.1:{ws_port}/"),
+        channel,
+        bridge,
+        cancel_rx,
+    ));
+    crate::ephemeral::PgProxy { cancel: cancel_tx }
+}
+
+/// Keep a conduit socket to the container for as long as the lab lives.
+///
+/// Redials on any drop: the proxy accepts a fresh socket without
+/// complaint, so a blip costs the in-flight streams (sqlx's pool
+/// reconnects) rather than the plugin's database.
+async fn pg_dial_loop(
+    url: String,
+    channel: u64,
+    bridge: Arc<crate::host_command::CommandBridge>,
+    mut cancel: tokio::sync::watch::Receiver<bool>,
+) {
+    loop {
+        if *cancel.borrow() {
+            return;
+        }
+        let connect = tokio::select! {
+            _ = cancel.changed() => return,
+            connect = tokio_tungstenite::connect_async(&url) => connect,
+        };
+        if let Ok((ws, _)) = connect {
+            if let tokio_tungstenite::MaybeTlsStream::Plain(tcp) = ws.get_ref() {
+                objectiveai_sdk::net::set_tcp_keepalive(tcp);
+            }
+            pg_relay(ws, channel, Arc::clone(&bridge), cancel.clone()).await;
+        }
+        tokio::select! {
+            _ = cancel.changed() => return,
+            _ = tokio::time::sleep(DB_PROXY_REDIAL) => {}
+        }
+    }
+}
+
+/// Relay one conduit socket until it breaks.
+async fn pg_relay(
+    ws: tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    >,
+    channel: u64,
+    bridge: Arc<crate::host_command::CommandBridge>,
+    mut cancel: tokio::sync::watch::Receiver<bool>,
+) {
+    use crate::db_proxy::Frame;
     use crate::host_command::LaneFrame;
+    use futures::{SinkExt as _, StreamExt as _};
     use objectiveai_sdk::binary_frame::WireFrame;
     use objectiveai_sdk::laboratories::daemon::{HostPostgres, PostgresData};
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio_tungstenite::tungstenite::Message;
 
-    let port = listener.local_addr().map(|a| a.port()).unwrap_or(0);
-    let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+    let Some(lane) = bridge.outbound.get(&channel).map(|t| t.clone()) else {
+        return;
+    };
+    let (mut sink, mut stream) = ws.split();
 
-    let accept_cancel = cancel_rx.clone();
-    tokio::spawn(async move {
-        let mut accept_cancel = accept_cancel;
-        loop {
-            let conn = tokio::select! {
-                _ = accept_cancel.changed() => break,
-                accepted = listener.accept() => match accepted {
-                    Ok((conn, _)) => conn,
-                    Err(_) => break,
-                },
-            };
-            let _ = conn.set_nodelay(true);
-            objectiveai_sdk::net::set_tcp_keepalive(&conn);
-            let stream_id = uuid::Uuid::new_v4().to_string();
-            let (write_tx, mut write_rx) =
-                tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
-            bridge.register_postgres(stream_id.clone(), channel, write_tx);
-            // Tell the daemon to dial its Postgres and attach this
-            // stream. Channel gone → clean up and keep accepting.
-            let Some(lane) =
-                bridge.outbound.get(&channel).map(|t| t.clone())
-            else {
-                bridge.remove_postgres(&stream_id);
-                continue;
-            };
-            let open = HostPostgres::Open {
-                stream_id: stream_id.clone(),
-            };
-            let open_ok = serde_json::to_string(&open)
-                .ok()
-                .and_then(|f| lane.send(LaneFrame::Text(f)).ok())
-                .is_some();
-            if !open_ok {
-                bridge.remove_postgres(&stream_id);
-                continue;
-            }
-            let (mut rd, mut wr) = conn.into_split();
-
-            // Container → daemon (PostgresData frames).
-            {
-                let lane = lane.clone();
-                let bridge = Arc::clone(&bridge);
-                let stream_id = stream_id.clone();
-                let mut cancel = cancel_rx.clone();
-                tokio::spawn(async move {
-                    let mut buf = vec![0u8; PG_CHUNK];
-                    loop {
-                        let n = tokio::select! {
-                            _ = cancel.changed() => break,
-                            r = rd.read(&mut buf) => match r {
-                                Ok(0) | Err(_) => break,
-                                Ok(n) => n,
-                            },
-                        };
-                        let data = PostgresData {
-                            stream_id: stream_id.clone(),
-                            bytes: buf[..n].to_vec(),
-                        };
-                        match data.to_wire() {
-                            Ok(WireFrame::Binary(f)) => {
-                                if lane.send(LaneFrame::Binary(f)).is_err() {
-                                    break;
-                                }
-                            }
-                            _ => break,
-                        }
-                    }
-                    // Container EOF/error/cancel: tell the daemon and
-                    // forget the stream.
-                    if let Ok(f) = serde_json::to_string(&HostPostgres::Close {
-                        stream_id: stream_id.clone(),
-                    }) {
-                        let _ = lane.send(LaneFrame::Text(f));
-                    }
-                    bridge.remove_postgres(&stream_id);
-                });
-            }
-
-            // Daemon → container (drained from the bridge write sender).
-            {
-                let mut cancel = cancel_rx.clone();
-                tokio::spawn(async move {
-                    loop {
-                        tokio::select! {
-                            _ = cancel.changed() => break,
-                            bytes = write_rx.recv() => match bytes {
-                                Some(bytes) => {
-                                    if wr.write_all(&bytes).await.is_err() {
-                                        break;
-                                    }
-                                }
-                                None => break, // stream removed
-                            },
-                        }
-                    }
-                    let _ = wr.shutdown().await;
-                });
+    // ONE writer owns the sink; every stream's pump feeds it.
+    let (out_tx, mut out_rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+    let writer = tokio::spawn(async move {
+        while let Some(bytes) = out_rx.recv().await {
+            if sink.send(Message::Binary(bytes)).await.is_err() {
+                break;
             }
         }
     });
 
-    crate::ephemeral::PgProxy {
-        port,
-        cancel: cancel_tx,
+    // Streams opened on THIS socket, so they can be torn down with it.
+    let mut opened: std::collections::HashMap<u32, String> =
+        std::collections::HashMap::new();
+
+    loop {
+        let message = tokio::select! {
+            _ = cancel.changed() => break,
+            message = stream.next() => match message {
+                Some(Ok(message)) => message,
+                _ => break,
+            },
+        };
+        // Binary is the only shape the format uses; pings are answered
+        // by tungstenite itself.
+        let Message::Binary(bytes) = message else {
+            if matches!(message, Message::Close(_)) {
+                break;
+            }
+            continue;
+        };
+        // Forward-compat: a frame this build cannot read names nothing
+        // it could route.
+        let Some(frame) = Frame::decode(&bytes) else {
+            continue;
+        };
+        match frame {
+            Frame::Open { id } => {
+                let stream_id = uuid::Uuid::new_v4().to_string();
+                // The pump that re-frames daemon bytes for this stream.
+                // Registered BEFORE the `Open` goes out, so the
+                // daemon's first reply cannot arrive with nowhere to go.
+                let (write_tx, mut write_rx) =
+                    tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+                bridge.register_postgres(stream_id.clone(), channel, write_tx);
+                {
+                    let out_tx = out_tx.clone();
+                    tokio::spawn(async move {
+                        while let Some(bytes) = write_rx.recv().await {
+                            if out_tx
+                                .send(crate::db_proxy::encode_data(id, &bytes))
+                                .is_err()
+                            {
+                                return;
+                            }
+                        }
+                        // The sender was dropped — a daemon-side close,
+                        // or this socket's teardown. Either way the
+                        // proxy has to shut its client socket, since
+                        // nothing else will tell it to.
+                        let _ = out_tx.send(crate::db_proxy::encode_close(id));
+                    });
+                }
+                let open = HostPostgres::Open {
+                    stream_id: stream_id.clone(),
+                };
+                let sent = serde_json::to_string(&open)
+                    .ok()
+                    .and_then(|frame| lane.send(LaneFrame::Text(frame)).ok())
+                    .is_some();
+                if !sent {
+                    bridge.remove_postgres(&stream_id);
+                    break;
+                }
+                opened.insert(id, stream_id);
+            }
+            Frame::Data { id, bytes } => {
+                // Data for a stream we never opened (or already closed)
+                // has no `stream_id` to travel under.
+                let Some(stream_id) = opened.get(&id) else {
+                    continue;
+                };
+                let data = PostgresData {
+                    stream_id: stream_id.clone(),
+                    bytes,
+                };
+                match data.to_wire() {
+                    Ok(WireFrame::Binary(frame)) => {
+                        if lane.send(LaneFrame::Binary(frame)).is_err() {
+                            break;
+                        }
+                    }
+                    _ => break,
+                }
+            }
+            Frame::Close { id } => {
+                if let Some(stream_id) = opened.remove(&id) {
+                    bridge.remove_postgres(&stream_id);
+                    if let Ok(frame) =
+                        serde_json::to_string(&HostPostgres::Close { stream_id })
+                    {
+                        let _ = lane.send(LaneFrame::Text(frame));
+                    }
+                }
+            }
+        }
     }
+
+    // The socket is gone. Tell the daemon every stream it carried is
+    // over — nothing else will, and a daemon-side Postgres connection
+    // left attached to a dead stream would never be reaped.
+    for (_, stream_id) in opened {
+        bridge.remove_postgres(&stream_id);
+        if let Ok(frame) = serde_json::to_string(&HostPostgres::Close { stream_id }) {
+            let _ = lane.send(LaneFrame::Text(frame));
+        }
+    }
+    writer.abort();
 }
 
 /// The machine-wide server: lazy per-laboratory [`LabServer`]s plus
@@ -202,8 +291,9 @@ fn spawn_pg_proxy(
 pub struct HostServer {
     podman: podman::Podman,
     state: String,
-    /// `<objectiveai_dir>/bin` — where the injected
-    /// `objectiveai-mcp-laboratory` binary lives (create needs it).
+    /// `<objectiveai_dir>/bin` — where the injected binaries live
+    /// (create needs them): `objectiveai-mcp-laboratory` for regular
+    /// and agent laboratories, `objectiveai-db-proxy` for plugin ones.
     bin_dir: PathBuf,
     machine: MachineIdentity,
     /// Per-laboratory servers. The cell initializes ONCE on the first
@@ -946,26 +1036,33 @@ impl HostServer {
             // lab publishes the fixed LAB_PORT and gets the filetree
             // pump (plugin containers run the image's own entrypoint —
             // no injected MCP, no /filetree surface).
-            let plugin = match podman::laboratory::list(&self.podman, &self.state).await
-            {
-                Ok(labs) => labs
-                    .into_iter()
-                    .find(|lab| lab.id == id)
-                    .and_then(|lab| lab.plugin),
-                Err(_) => None,
+            // The record and the port table together: `host_ports`
+            // returns every mapping, so it does not need to be told which
+            // internal port to ask about, which is what makes it
+            // independent of the record and lets both podman calls run at
+            // once instead of one behind the other.
+            let (listed, ports) = tokio::join!(
+                podman::laboratory::list(&self.podman, &self.state),
+                podman::laboratory::host_ports(&self.podman, &self.state, id),
+            );
+            let lab = listed
+                .ok()
+                .and_then(|labs| labs.into_iter().find(|lab| lab.id == id));
+            // Mounts are kept, not just the plugin: the filetree pump
+            // below needs them, and this is the read that has them.
+            let (plugin, mounts) = match lab {
+                Some(lab) => (lab.plugin, lab.mounts),
+                None => (None, Vec::new()),
             };
             let internal_port = plugin
                 .as_ref()
                 .map(|p| p.port)
                 .unwrap_or(podman::laboratory::LAB_PORT);
-            match podman::laboratory::host_port(
-                &self.podman,
-                &self.state,
-                id,
-                internal_port,
-            )
-            .await
-            {
+            match ports.and_then(|ports| {
+                ports.get(&internal_port).copied().ok_or_else(|| {
+                    podman::Error(format!("no mapping for {internal_port}/tcp"))
+                })
+            }) {
                 Ok(port) => {
                     let base_url = format!("http://127.0.0.1:{port}");
                     let seed = plugin.map(|p| crate::server::PluginSeed {
@@ -977,7 +1074,7 @@ impl HostServer {
                         },
                     });
                     if seed.is_none() {
-                        self.spawn_filetree_pump(id, &base_url).await;
+                        self.spawn_filetree_pump(id, &base_url, &mounts).await;
                     }
                     Ok(Arc::new(LabServer::new(
                         id.to_string(),
@@ -1006,34 +1103,39 @@ impl HostServer {
     /// workspace; podman's record is the source of truth — an empty or
     /// unreadable cwd falls back to the endpoint's default). Replaces —
     /// and aborts — any predecessor for the id (delete + recreate).
-    async fn spawn_filetree_pump(self: &Arc<Self>, id: &str, base_url: &str) {
-        // The lab's mounts, from the container label (survives host
-        // restarts — podman's record is the source of truth). Strict
-        // order, each step before the next: (1) attach the watches
-        // (subscriptions + walks, NO delivery notifiers yet), (2)
-        // register the lab's SOURCE SET, (3) spawn the delivery
+    /// `mounts` comes from the caller's own read of podman's record
+    /// (the container label — the source of truth, surviving host
+    /// restarts). Passed in rather than read here because every caller
+    /// has already listed the container for its own reasons, and a
+    /// second `podman ps` for the same record is a whole process launch
+    /// spent re-learning what the caller knows.
+    async fn spawn_filetree_pump(
+        self: &Arc<Self>,
+        id: &str,
+        base_url: &str,
+        mounts: &[podman::laboratory::Mount],
+    ) {
+        // Strict order, each step before the next: (1) attach the
+        // watches (subscriptions + walks, NO delivery notifiers yet),
+        // (2) register the lab's SOURCE SET, (3) spawn the delivery
         // notifiers, (4) spawn the container pump — so no source can
         // deliver before its registration exists, and the tree cannot
         // complete before every source is declared. Container paths
         // are POSIX strings — split on '/', never host Path semantics.
         let mut sources: Vec<(Vec<String>, Arc<crate::mount_watch::MountWatch>)> = Vec::new();
-        if let Ok(labs) = podman::laboratory::list(&self.podman, &self.state).await
-            && let Some(lab) = labs.into_iter().find(|l| l.id == id)
-        {
-            for mount in &lab.mounts {
-                let mountpoint: Vec<String> = mount
-                    .container
-                    .split('/')
-                    .filter(|c| !c.is_empty())
-                    .map(String::from)
-                    .collect();
-                if let Some(watch) = self
-                    .mounts
-                    .attach(self, id, &mount.host, mountpoint.clone())
-                    .await
-                {
-                    sources.push((mountpoint, watch));
-                }
+        for mount in mounts {
+            let mountpoint: Vec<String> = mount
+                .container
+                .split('/')
+                .filter(|c| !c.is_empty())
+                .map(String::from)
+                .collect();
+            if let Some(watch) = self
+                .mounts
+                .attach(self, id, &mount.host, mountpoint.clone())
+                .await
+            {
+                sources.push((mountpoint, watch));
             }
         }
         self.register_lab_tree(id, sources.clone()).await;
@@ -1284,7 +1386,7 @@ impl HostServer {
             podman::laboratory::LAB_PORT,
             None,
             true,
-            None, // agent ephemerals get no Postgres tunnel
+            false, // agent ephemerals get no database, so no proxy
         )
         .await
     }
@@ -1357,33 +1459,17 @@ impl HostServer {
             name: coords.name.clone(),
             version: coords.version.clone(),
             port: ensured.port,
+            postgres: ensured.postgres,
             sha: ensured.sha,
-        };
-        // Bind the per-plugin Postgres tunnel listener BEFORE create —
-        // its port feeds `OBJECTIVEAI_POSTGRES_URL`. A bind failure
-        // fails the create (the DB is mandatory for plugins).
-        let pg_listener = match tokio::net::TcpListener::bind((
-            POSTGRES_BIND_ADDR,
-            0,
-        ))
-        .await
-        {
-            Ok(listener) => listener,
-            Err(e) => {
-                return rpc_err(-32603, format!("bind plugin pg listener: {e}"));
-            }
-        };
-        let pg_port = match pg_listener.local_addr() {
-            Ok(addr) => addr.port(),
-            Err(e) => return rpc_err(-32603, format!("pg listener addr: {e}")),
         };
         // Identity env: the six agent values from the request headers,
         // PLUS the plugin trio from the CANONICAL coordinates — this
         // authenticated create is the trio's authority (wire-parsed
         // bags always null it) — PLUS the plugin's own declared
-        // arguments and the Postgres URL the container dials
-        // (role/password/database from the daemon; address is THIS
-        // host's tunnel listener).
+        // arguments and, when the manifest opted in to postgres, the
+        // URL the container dials (role/password/database from the
+        // daemon; the address is the injected db proxy, on loopback
+        // INSIDE the container).
         let identity_env = {
             let mut args =
                 objectiveai_sdk::identity::Identity::from_transient_headers(
@@ -1410,24 +1496,38 @@ impl HostServer {
             {
                 env.push(("OBJECTIVEAI_ARGUMENTS".to_string(), arguments));
             }
-            let enc = |s: &str| {
-                percent_encoding::utf8_percent_encode(
-                    s,
-                    percent_encoding::NON_ALPHANUMERIC,
-                )
-                .to_string()
-            };
-            env.push((
-                "OBJECTIVEAI_POSTGRES_URL".to_string(),
-                format!(
-                    "postgres://{}:{}@{}:{}/{}",
-                    enc(&req.db_role),
-                    enc(&req.db_password),
-                    POSTGRES_HOST_ALIAS,
-                    pg_port,
-                    enc(&req.db_database),
-                ),
-            ));
+            // An ordinary local Postgres server, as far as the plugin is
+            // concerned — which is the entire point of the proxy. The
+            // port is FIXED, so this URL can be stamped here, before
+            // anything is running to be asked about it.
+            //
+            // ONLY for a plugin whose manifest opted in (`mcp.postgres`).
+            // The variable's very absence is the framework's signal —
+            // its `db::connect` reports "the manifest did not opt in" —
+            // so an opted-out container must not receive it. The daemon
+            // still mints and sends the credential trio unconditionally
+            // (compartment provisioning is its side and it never reads
+            // manifests); the host simply declines to hand credentials
+            // to a container with nothing to dial.
+            if ensured.postgres {
+                let enc = |s: &str| {
+                    percent_encoding::utf8_percent_encode(
+                        s,
+                        percent_encoding::NON_ALPHANUMERIC,
+                    )
+                    .to_string()
+                };
+                env.push((
+                    "OBJECTIVEAI_POSTGRES_URL".to_string(),
+                    format!(
+                        "postgres://{}:{}@127.0.0.1:{}/{}",
+                        enc(&req.db_role),
+                        enc(&req.db_password),
+                        podman::laboratory::DB_PROXY_PG_PORT,
+                        enc(&req.db_database),
+                    ),
+                ));
+            }
             env
         };
         if let Err(e) = podman::laboratory::create_plugin(
@@ -1438,6 +1538,7 @@ impl HostServer {
             &label,
             &req.response_id,
             &identity_env,
+            &self.bin_dir.join(podman::laboratory::DB_PROXY_BINARY),
         )
         .await
         {
@@ -1456,7 +1557,9 @@ impl HostServer {
             ensured.port,
             Some(plugin),
             false,
-            Some(pg_listener),
+            // The whole downstream chain — the proxy exec, the conduit
+            // port lookup, the dial — hangs off the manifest's opt-in.
+            ensured.postgres,
         )
         .await
     }
@@ -1479,7 +1582,7 @@ impl HostServer {
         internal_port: u16,
         plugin: Option<objectiveai_sdk::mcp::server::Plugin>,
         filetree: bool,
-        pg_listener: Option<tokio::net::TcpListener>,
+        db_proxy: bool,
     ) -> JsonRpcResult<EphemeralCreated> {
         let fail = |message: String| async move {
             let _ = podman::laboratory::remove(&self.podman, &self.state, id).await;
@@ -1488,18 +1591,64 @@ impl HostServer {
         if let Err(e) = podman::laboratory::start(&self.podman, &self.state, id).await {
             return fail(format!("start ephemeral '{id}': {e}")).await;
         }
-        let port = match podman::laboratory::host_port(
-            &self.podman,
-            &self.state,
-            id,
-            internal_port,
-        )
-        .await
-        {
-            Ok(port) => port,
-            Err(e) => return fail(format!("ephemeral '{id}' port: {e}")).await,
+        // The container's published ports, and the proxy started, in one
+        // round trip. `host_ports` returns the whole table, so the MCP
+        // port and the proxy's come from a single `podman port`; the exec
+        // is independent of both, since the proxy needs nothing passed to
+        // it, so it goes alongside rather than after.
+        //
+        // The proxy is started BEFORE the MCP connect so it is attaching
+        // while MCP initializes. A failure fails the create, like every
+        // step past start — a plugin whose manifest opted in
+        // (`mcp.postgres`, which is what `db_proxy` carries) is owed its
+        // database. But the DIAL is not gated: the proxy holds an
+        // accepted client until a host attaches, so a plugin that
+        // connects first simply waits in its `connect` instead of
+        // failing. There is no race to gate.
+        let (ports, ()) = match tokio::try_join!(
+            async {
+                podman::laboratory::host_ports(&self.podman, &self.state, id)
+                    .await
+                    .map_err(|e| format!("ephemeral '{id}' ports: {e}"))
+            },
+            async {
+                if !db_proxy {
+                    return Ok(());
+                }
+                podman::laboratory::start_db_proxy(&self.podman, &self.state, id)
+                    .await
+                    .map_err(|e| format!("start db proxy in ephemeral '{id}': {e}"))
+            },
+        ) {
+            Ok(both) => both,
+            Err(message) => return fail(message).await,
+        };
+        let Some(port) = ports.get(&internal_port).copied() else {
+            return fail(format!(
+                "ephemeral '{id}': no published port for {internal_port}/tcp"
+            ))
+            .await;
         };
         let base_url = format!("http://127.0.0.1:{port}");
+        let pg = if db_proxy {
+            match ports
+                .get(&podman::laboratory::DB_PROXY_WS_PORT)
+                .copied()
+            {
+                Some(ws_port) => {
+                    Some(spawn_pg_conduit(ws_port, channel, Arc::clone(&self.bridge)))
+                }
+                None => {
+                    return fail(format!(
+                        "ephemeral '{id}': no published port for the db proxy ({}/tcp)",
+                        podman::laboratory::DB_PROXY_WS_PORT
+                    ))
+                    .await;
+                }
+            }
+        } else {
+            None
+        };
         // THE connection — same executor construction as
         // LabServer::initialize: plugin ephemerals get the real
         // command-forwarder reading the live header bag, agent
@@ -1527,18 +1676,29 @@ impl HostServer {
                 None,
             ),
         };
-        let connection = match crate::upstream::lab_mcp_client()
-            .with_executor(executor)
-            .connect(
+        // THE connection, and podman's record of the container, at the
+        // same time. The record is keyed by id and carries nothing the
+        // connection produces, while the two cost quite different things
+        // — an HTTP initialize round trip against a process launch — so
+        // there is no reason for either to wait on the other. ONE read
+        // serves both consumers below: the filetree pump's mounts and the
+        // `Identify` echo.
+        let client = crate::upstream::lab_mcp_client().with_executor(executor);
+        let (connected, listed) = tokio::join!(
+            client.connect(
                 format!("{base_url}/"),
                 None,
                 Some(crate::upstream::sanitize_connect_headers(headers)),
-            )
-            .await
-        {
+            ),
+            podman::laboratory::list(&self.podman, &self.state),
+        );
+        let connection = match connected {
             Ok(connection) => connection,
             Err(e) => return fail(format!("connect ephemeral '{id}': {e}")).await,
         };
+        let lab = listed
+            .ok()
+            .and_then(|labs| labs.into_iter().find(|lab| lab.id == id));
         // First hop of the list-changed relay — installed while we
         // still hold the connection, before `EphemeralLab::new`
         // consumes it. Captures only a sender + frame string
@@ -1556,49 +1716,40 @@ impl HostServer {
         // /filetree like any regular lab (observation only, never
         // lifetime demand).
         if filetree {
-            self.spawn_filetree_pump(id, &base_url).await;
+            let mounts = lab.as_ref().map(|lab| lab.mounts.as_slice()).unwrap_or(&[]);
+            self.spawn_filetree_pump(id, &base_url, mounts).await;
         }
         // Echo podman's own record (it carries `created_at` +
         // `response_id`); fall back to a minimal identity if the
         // read-back races something.
-        let identify = match podman::laboratory::list(&self.podman, &self.state).await {
-            Ok(labs) => labs
-                .into_iter()
-                .find(|lab| lab.id == id)
-                .map(crate::identify_from_info),
-            Err(_) => None,
-        }
-        .map(|mut identify| {
-            // The container was started microseconds ago; the ps
-            // read-back may race the state flip.
-            identify.running = true;
-            identify
-        })
-        .unwrap_or_else(|| Identify {
-            id: id.to_string(),
-            image: objectiveai_sdk::laboratories::LaboratoryImage::Registry(
-                objectiveai_sdk::laboratories::RegistryLaboratoryImage {
-                    registry: "localhost".to_string(),
-                    name: "objectiveai-ephemeral".to_string(),
-                    pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
-                        "unknown".to_string(),
-                    ),
-                },
-            ),
-            mounts: Vec::new(),
-            env: Vec::new(),
-            cwd: "/".to_string(),
-            created_at: None,
-            agent_full_id: None,
-            plugin: None,
-            response_id: Some(response_id.to_string()),
-            running: true,
-        });
-        // Spawn the per-plugin Postgres tunnel accept loop (plugin
-        // ephemerals only). The listener was bound at create; its
-        // cancel lives on the lab and fires at evaporate.
-        let pg = pg_listener
-            .map(|listener| spawn_pg_proxy(listener, channel, Arc::clone(&self.bridge)));
+        let identify = lab
+            .map(|lab| {
+                let mut identify = crate::identify_from_info(lab);
+                // The container was started microseconds ago; the ps
+                // read-back may race the state flip.
+                identify.running = true;
+                identify
+            })
+            .unwrap_or_else(|| Identify {
+                id: id.to_string(),
+                image: objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+                    objectiveai_sdk::laboratories::RegistryLaboratoryImage {
+                        registry: "localhost".to_string(),
+                        name: "objectiveai-ephemeral".to_string(),
+                        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                            "unknown".to_string(),
+                        ),
+                    },
+                ),
+                mounts: Vec::new(),
+                env: Vec::new(),
+                cwd: "/".to_string(),
+                created_at: None,
+                agent_full_id: None,
+                plugin: None,
+                response_id: Some(response_id.to_string()),
+                running: true,
+            });
         let lab = Arc::new(crate::ephemeral::EphemeralLab::new(
             response_id.to_string(),
             channel,
@@ -1953,21 +2104,26 @@ impl HostServer {
             .iter()
             .map(|entry| entry.key().clone())
             .collect();
-        futures::future::join_all(
-            ephemeral_ids.iter().map(|id| self.evaporate(id)),
-        )
-        .await;
         let ids: Vec<String> = self
             .labs
             .iter()
             .filter(|entry| entry.value().get().is_some())
             .map(|entry| entry.key().clone())
             .collect();
-        let results = futures::future::join_all(
-            ids.iter()
-                .map(|id| podman::laboratory::stop(&self.podman, &self.state, id)),
-        )
-        .await;
+        // ONE join across both kinds. The sets are disjoint — an id is
+        // an ephemeral or a regular lab, never both — and an evaporate
+        // shares nothing with a stop but podman itself, so shutdown
+        // waits for the slowest container rather than the slowest
+        // ephemeral plus the slowest regular lab.
+        let (_, results) = tokio::join!(
+            futures::future::join_all(
+                ephemeral_ids.iter().map(|id| self.evaporate(id)),
+            ),
+            futures::future::join_all(
+                ids.iter()
+                    .map(|id| podman::laboratory::stop(&self.podman, &self.state, id)),
+            ),
+        );
         for (id, result) in ids.iter().zip(results) {
             if let Err(e) = result {
                 eprintln!("stop laboratory '{id}': {e}");

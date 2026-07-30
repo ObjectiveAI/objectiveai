@@ -22,6 +22,7 @@ fn safe_segment(segment: &str) -> bool {
 fn response(
     status: u16,
     mime: Option<&str>,
+    no_store: bool,
     body: Vec<u8>,
 ) -> tauri::http::Response<Vec<u8>> {
     let mut builder = tauri::http::Response::builder()
@@ -33,14 +34,26 @@ fn response(
     if let Some(mime) = mime {
         builder = builder.header("Content-Type", mime);
     }
+    if no_store {
+        // Development serving: the file changes under the URL, and any
+        // HTTP-layer caching would quietly defeat the hot-reload loop.
+        // (The ES module map still memoizes per URL — that is what the
+        // `?v=` cache-busting on the JS side is for.)
+        builder = builder.header("Cache-Control", "no-store");
+    }
     builder.body(body).expect("static response headers")
 }
 
 /// Resolve + read one plugin asset. `None` = 404: unknown plugin,
 /// no viewer extension, invalid path shape, or missing file alike.
+///
+/// `tab` is the requesting content webview's tab id, when the request
+/// came from one — dev-mode attribution ("which tabs consumed this
+/// file") records against it.
 async fn serve(
     app: &tauri::AppHandle,
     path: &str,
+    tab: Option<u64>,
 ) -> Option<tauri::http::Response<Vec<u8>>> {
     let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
     // owner / name / version / at least one asset segment.
@@ -48,6 +61,27 @@ async fn serve(
         return None;
     }
     let (owner, name, version) = (segments[0], segments[1], segments[2]);
+
+    // DEVELOPMENT override: a registered trio serves LIVE from the
+    // author's directory — the manifest read fresh from its root, the
+    // assets from `viewer.development.output` — and never touches the
+    // install tree. An empty registry (every non-development viewer)
+    // makes this a single map miss.
+    let dev = app.state::<super::DevPlugins>();
+    if let Some(root) = dev.get(owner, name, version) {
+        let asset_root = super::dev::dev_asset_root(&root).await?;
+        let mut file = asset_root;
+        for segment in &segments[3..] {
+            file = file.join(segment);
+        }
+        let bytes = tokio::fs::read(&file).await.ok()?;
+        if let Some(tab) = tab {
+            dev.record_consumed(file.clone(), tab);
+        }
+        let mime = mime_guess::from_path(&file).first_or_octet_stream();
+        return Some(response(200, Some(mime.essence_str()), true, bytes));
+    }
+
     let dirs = app.state::<super::PluginsDirs>();
     let manifest =
         super::plugins::read_manifest(&dirs.plugins_root(), owner, name, version)
@@ -69,7 +103,7 @@ async fn serve(
     }
     let bytes = tokio::fs::read(&file).await.ok()?;
     let mime = mime_guess::from_path(&file).first_or_octet_stream();
-    Some(response(200, Some(mime.essence_str()), bytes))
+    Some(response(200, Some(mime.essence_str()), false, bytes))
 }
 
 /// The Builder-registered handler — asynchronous so the disk reads
@@ -81,11 +115,14 @@ pub fn handle_plugin_protocol(
     responder: tauri::UriSchemeResponder,
 ) {
     let app = ctx.app_handle().clone();
+    // The requesting webview — a `tab-<id>` label for content
+    // webviews, which is the only shape attribution cares about.
+    let tab = super::native::tab_id(ctx.webview_label());
     let path = request.uri().path().to_string();
     tauri::async_runtime::spawn(async move {
-        let resp = serve(&app, &path)
+        let resp = serve(&app, &path, tab)
             .await
-            .unwrap_or_else(|| response(404, None, Vec::new()));
+            .unwrap_or_else(|| response(404, None, false, Vec::new()));
         responder.respond(resp);
     });
 }

@@ -156,6 +156,53 @@ jobs:
           path: objectiveai-mcp-laboratory/embed/aarch64-unknown-linux-musl/release/objectiveai-mcp-laboratory
           if-no-files-found: error
 
+  # ── objectiveai-db-proxy: the other two musl-linux binaries ──────────────
+  # A Postgres-over-WebSocket conduit copied into laboratory containers, so
+  # it is a musl-linux build for exactly the same reasons as the laboratory
+  # above, ships in every platform zip under the fixed name
+  # `objectiveai-db-proxy`, and is split per-arch so neither arch's zips
+  # gate on the other's runners.
+
+  db-proxy-x86_64:
+    name: db-proxy musl (x86_64)
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add x86_64-unknown-linux-musl
+      # Pure-Rust crate (no ring/openssl/aws-lc/rustls in its dep closure —
+      # the reason its WebSocket server is axum's `ws` feature rather than a
+      # TLS-enabled tokio-tungstenite), so rustup's self-contained musl std
+      # suffices — no musl-tools / cmake.
+      - name: Build musl binary
+        shell: bash
+        run: bash objectiveai-db-proxy/build.sh --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-proxy-x86_64
+          path: objectiveai-db-proxy/embed/x86_64-unknown-linux-musl/release/objectiveai-db-proxy
+          if-no-files-found: error
+
+  db-proxy-aarch64:
+    name: db-proxy musl (aarch64)
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-unknown-linux-musl
+      - name: Build musl binary
+        shell: bash
+        run: bash objectiveai-db-proxy/build.sh --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-proxy-aarch64
+          path: objectiveai-db-proxy/embed/aarch64-unknown-linux-musl/release/objectiveai-db-proxy
+          if-no-files-found: error
+
   # ── Binary zips (5 platforms; build.sh --release --no-sdk --no-test-integration) ──
   # Split into binaries-x86_64 (linux/macos/windows) and binaries-aarch64
   # (linux/macos) so each depends only on its arch's laboratory job. The steps
@@ -168,7 +215,7 @@ jobs:
 
   binaries-x86_64:
     name: zip (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release, laboratory-x86_64]
+    needs: [check-version, create-release, laboratory-x86_64, db-proxy-x86_64]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ${{ matrix.runs-on }}
     env:
@@ -200,6 +247,22 @@ jobs:
           cp "lab-dl/objectiveai-mcp-laboratory" "$dest/objectiveai-mcp-laboratory"
           chmod +x "$dest/objectiveai-mcp-laboratory"
           test -f "$dest/objectiveai-mcp-laboratory"
+      - name: Download db-proxy musl binary
+        uses: actions/download-artifact@v4
+        with:
+          name: db-proxy-${{ matrix.arch }}
+          path: dbproxy-dl
+      - name: Place db-proxy binary into embed/
+        shell: bash
+        # Same pre-placement contract as the laboratory binary above: present
+        # without a .fingerprint means build.sh packages it as-is and never
+        # attempts a musl compile on a mac/windows runner.
+        run: |
+          dest="objectiveai-db-proxy/embed/${{ matrix.triple }}/release"
+          mkdir -p "$dest"
+          cp "dbproxy-dl/objectiveai-db-proxy" "$dest/objectiveai-db-proxy"
+          chmod +x "$dest/objectiveai-db-proxy"
+          test -f "$dest/objectiveai-db-proxy"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -250,7 +313,7 @@ jobs:
 
   binaries-aarch64:
     name: zip (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release, laboratory-aarch64]
+    needs: [check-version, create-release, laboratory-aarch64, db-proxy-aarch64]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ${{ matrix.runs-on }}
     env:
@@ -281,6 +344,22 @@ jobs:
           cp "lab-dl/objectiveai-mcp-laboratory" "$dest/objectiveai-mcp-laboratory"
           chmod +x "$dest/objectiveai-mcp-laboratory"
           test -f "$dest/objectiveai-mcp-laboratory"
+      - name: Download db-proxy musl binary
+        uses: actions/download-artifact@v4
+        with:
+          name: db-proxy-${{ matrix.arch }}
+          path: dbproxy-dl
+      - name: Place db-proxy binary into embed/
+        shell: bash
+        # Same pre-placement contract as the laboratory binary above: present
+        # without a .fingerprint means build.sh packages it as-is and never
+        # attempts a musl compile on a mac/windows runner.
+        run: |
+          dest="objectiveai-db-proxy/embed/${{ matrix.triple }}/release"
+          mkdir -p "$dest"
+          cp "dbproxy-dl/objectiveai-db-proxy" "$dest/objectiveai-db-proxy"
+          chmod +x "$dest/objectiveai-db-proxy"
+          test -f "$dest/objectiveai-db-proxy"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -374,6 +453,7 @@ jobs:
           # path deps don't resolve from the published tarball alone.
           publish_crate objectiveai-mcp-proxy --no-verify
           publish_crate objectiveai-mcp-laboratory
+          publish_crate objectiveai-db-proxy
           # Depends on nothing in-repo, so it neither waits nor is
           # waited on — order among these three is free.
           publish_crate objectiveai-mcp-plugin-framework

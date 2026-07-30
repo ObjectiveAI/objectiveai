@@ -4252,7 +4252,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4318,7 +4318,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "clap",
  "dirs",
@@ -4356,7 +4356,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-daemon"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "async-stream",
  "axum",
@@ -4421,7 +4421,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-db"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "clap",
  "objectiveai-sdk",
@@ -4430,8 +4430,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-db-proxy"
+version = "2.2.14"
+dependencies = [
+ "axum",
+ "dashmap",
+ "futures",
+ "objectiveai-sdk",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "objectiveai-sdk",
  "schemars 1.2.2",
@@ -4440,7 +4453,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-laboratory"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "chrono",
  "clap",
@@ -4468,7 +4481,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-laboratory"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "anyhow",
  "axum",
@@ -4499,7 +4512,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-plugin-framework"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "arc-swap",
  "axum",
@@ -4519,7 +4532,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "anyhow",
  "axum",
@@ -4544,8 +4557,9 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
+ "allocative",
  "anyhow",
  "arbitrary",
  "backoff",
@@ -4600,7 +4614,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-cffi"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4612,11 +4626,11 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.2.13"
+version = "2.2.14"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4630,7 +4644,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-wasm-js"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "arbitrary",
  "getrandom 0.4.2",
@@ -4653,12 +4667,13 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-viewer"
-version = "2.2.13"
+version = "2.2.14"
 dependencies = [
  "base64 0.22.1",
  "cef",
  "cef-dll-sys",
  "chrono",
+ "clap",
  "dirs",
  "dotenv",
  "download-cef",
@@ -4667,6 +4682,7 @@ dependencies = [
  "flate2",
  "futures",
  "mime_guess",
+ "notify",
  "objectiveai-sdk",
  "open",
  "reqwest 0.12.28",

@@ -3,6 +3,7 @@
   "mcp": {
     "containerfile": "Containerfile",
     "port": 8080,
+    "postgres": true,
     "development": {
       "caches": [
         "/build/target",

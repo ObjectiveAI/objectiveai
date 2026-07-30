@@ -34,7 +34,7 @@ use sqlx::Row as _;
 /// Must match `mcp.port` in `objectiveai.json`.
 const PORT: u16 = 8080;
 /// The routing prefix ObjectiveAI derives — see the module docs.
-const NAME: &str = "objectiveai-mcp-plugin-scaffold";
+const NAME: &str = "objectiveai-plugin-scaffold";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The argument that gates the pair below. Declared by the AGENT, in
@@ -354,6 +354,12 @@ async fn collect_credential(
 
 /// Look up, or obtain and store, then call.
 async fn credential_call(url: &str) -> Result<CredentialCall, CredentialFailure> {
+    // A failed lookup is FATAL, and deliberately so. "The read
+    // errored" and "there is no stored credential" are the same
+    // silence from here, and guessing the second would bother a human
+    // for a credential that already exists — then overwrite the good
+    // one with whatever came back. Refusing costs a retry; guessing
+    // costs the stored credential.
     let pool = table_pool(&CREDENTIALS_TABLE, CREATE_CREDENTIALS)
         .await
         .map_err(|message| failed("database", message))?;
@@ -370,29 +376,7 @@ async fn credential_call(url: &str) -> Result<CredentialCall, CredentialFailure>
 
     let (credential, credential_source) = match stored {
         Some(credential) => (credential, "database"),
-        None => {
-            let credential = request_credential(url).await?;
-
-            // Stored only once it is in hand. Writing before the
-            // exchange completed would leave a half-credential behind
-            // for the next call to trust.
-            sqlx::query(
-                "INSERT INTO scaffold_credentials_deleteme
-                     (agent_instance_hierarchy, credential)
-                 VALUES ($1, $2)
-                 ON CONFLICT (agent_instance_hierarchy) DO UPDATE
-                     SET credential = EXCLUDED.credential, obtained_at = now()",
-            )
-            .bind(notes_scope())
-            .bind(&credential)
-            .execute(&pool)
-            .await
-            .map_err(|error| {
-                failed("store", error_chain("store the credential", &error))
-            })?;
-
-            (credential, "channel")
-        }
+        None => return credential_from_channel(url, pool).await,
     };
 
     let response = reqwest::Client::new()
@@ -413,6 +397,52 @@ async fn credential_call(url: &str) -> Result<CredentialCall, CredentialFailure>
 
     Ok(CredentialCall {
         credential_source: credential_source.to_string(),
+        status,
+        body,
+    })
+}
+
+/// Ask a human for the credential through the viewer channel, store
+/// it, and make the call. Reached only when the lookup SUCCEEDED and
+/// found nothing — see `credential_call`.
+async fn credential_from_channel(
+    url: &str,
+    pool: db::Pool,
+) -> Result<CredentialCall, CredentialFailure> {
+    let credential = request_credential(url).await?;
+
+    // Stored only once it is in hand. Writing before the exchange
+    // completed would leave a half-credential behind for the next
+    // call to trust.
+    sqlx::query(
+        "INSERT INTO scaffold_credentials_deleteme
+             (agent_instance_hierarchy, credential)
+         VALUES ($1, $2)
+         ON CONFLICT (agent_instance_hierarchy) DO UPDATE
+             SET credential = EXCLUDED.credential, obtained_at = now()",
+    )
+    .bind(notes_scope())
+    .bind(&credential)
+    .execute(&pool)
+    .await
+    .map_err(|error| failed("store", error_chain("store the credential", &error)))?;
+
+    let response = reqwest::Client::new()
+        .get(url)
+        .header(reqwest::header::AUTHORIZATION, &credential)
+        .send()
+        .await
+        .map_err(|error| failed("request", error_chain("call the endpoint", &error)))?;
+
+    // The STATUS is reported, not enforced — see `credential_call`.
+    let status = response.status().as_u16();
+    let body = response
+        .text()
+        .await
+        .map_err(|error| failed("request", error_chain("read the response", &error)))?;
+
+    Ok(CredentialCall {
+        credential_source: "channel".to_string(),
         status,
         body,
     })

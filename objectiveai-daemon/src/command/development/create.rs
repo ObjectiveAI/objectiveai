@@ -47,7 +47,7 @@ pub async fn execute(
     }
 
     let key = super::registry::key(&request.owner, &request.name, &request.version);
-    let replaced = hubs.development_plugins.insert(key.clone(), path).is_some();
+    let replaced = hubs.development_plugins.mcp.insert(key.clone(), path).is_some();
 
     Ok(Response {
         owner: key.0,

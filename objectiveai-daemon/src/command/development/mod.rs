@@ -1,10 +1,12 @@
 //! `development` tier — daemon-side dispatch for development-mode
 //! plugin registrations.
 //!
-//! `create`/`list`/`delete` touch only the in-process [`registry`];
-//! `reset` is the one that leaves the daemon, forwarding to the LOCAL
-//! laboratory host. All four require the resident daemon, since the
-//! registry lives on its hubs and nowhere else.
+//! The mcp leaves touch only the in-process [`registry`] (plus
+//! `reset`, which forwards to the LOCAL laboratory host). The viewer
+//! leaves additionally RESPAWN a running viewer after a mutation: its
+//! registrations ride its argv, frozen at spawn, so a fresh spawn is
+//! the one propagation mechanism. Everything requires the resident
+//! daemon, since the registry lives on its hubs and nowhere else.
 
 use std::pin::Pin;
 
@@ -23,6 +25,13 @@ pub mod list;
 pub mod plugins;
 pub mod registry;
 pub mod reset;
+pub mod viewer;
+pub mod viewer_app_delete;
+pub mod viewer_app_get;
+pub mod viewer_app_set;
+pub mod viewer_create;
+pub mod viewer_delete;
+pub mod viewer_list;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -36,6 +45,10 @@ pub async fn execute(
         Request::Plugins(req) => {
             let inner = plugins::execute(global, scoped, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
+        }
+        Request::Viewer(req) => {
+            let inner = viewer::execute(global, scoped, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Viewer)))
         }
     };
     Ok(stream)

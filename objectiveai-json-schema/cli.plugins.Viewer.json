@@ -7,6 +7,18 @@
       "description": "Repo-relative path (forward slashes) to the Containerfile that\nBUILDS the extension. Its OWN DIRECTORY is the build context —\nsee [`Mcp::containerfile`].",
       "type": "string"
     },
+    "development": {
+      "description": "Settings that apply ONLY when this plugin's viewer half is\nregistered for development (`development plugins viewer\ncreate`). Ignored entirely for a released plugin — production\nserving never reads the author's disk.",
+      "anyOf": [
+        {
+          "$ref": "cli.plugins.ViewerDevelopment"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "icon": {
       "description": "The identity icon, shown beside the identity in the tab strip.",
       "anyOf": [

@@ -3,16 +3,50 @@
 //! no-op). The viewer is an SSE CLIENT of the daemon's broadcast (not
 //! a server), so its ready line carries no address.
 //!
-//! The viewer's whole daemon-facing config rides its env, frozen at
-//! spawn: `DAEMON_ADDRESS` (the daemon's LIVE published connect URL)
-//! and `DAEMON_SIGNATURE` (the daemon's client signature — what its
-//! auth actually validates). `daemon config set` respawns a running
-//! viewer after its write so a config change can reach these.
+//! The viewer's whole daemon-facing input is frozen at spawn — env
+//! (`DAEMON_ADDRESS`, the daemon's LIVE published connect URL;
+//! `DAEMON_SIGNATURE`, the client signature its auth validates) and
+//! argv (`--development-plugin` entries, one per viewer development
+//! registration). Every mutation of either — `daemon config set`,
+//! `refresh-secret-signature-pair`, `development plugins viewer
+//! create`/`delete`, `development viewer set`/`delete` — propagates
+//! through ONE mechanism: `respawn_running_viewer`. No live channel,
+//! nothing to converge.
+//!
+//! Two spawn forms, chosen by the `development viewer` slot: the
+//! installed binary (default), or `pnpm exec tauri dev` in a source
+//! checkout (development). Both are STDIO spawns
+//! ([`crate::spawn::spawn_leashed_until_ready_with_stdio`]): the
+//! viewer listens on stdin for the graceful
+//! [`objectiveai_sdk::child_stdio::ChildStdioCommand::Shutdown`] —
+//! the ONLY way `viewer kill` (and every respawn) takes it down, so
+//! browser tabs always persist to disk first. The dev form is a
+//! process tree, but stdin/stdout INHERIT down `cmd → pnpm → node →
+//! cargo → viewer`, so the same command reaches the innermost binary
+//! and its exit unwinds the tree naturally — no tree kill exists.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
 use crate::context::{GlobalContext, ScopedContext};
 use crate::error::Error;
+
+/// Quote one token for a cmd.exe command line: wrap in double quotes
+/// when it contains whitespace (registration paths), doubling any
+/// embedded quote. The trio segments and flag names never need it.
+#[cfg(windows)]
+fn quote(token: &str) -> String {
+    if token.contains(char::is_whitespace) || token.contains('"') {
+        format!("\"{}\"", token.replace('"', "\"\""))
+    } else {
+        token.to_string()
+    }
+}
+
+/// Unix: tokens are passed as real argv, no quoting layer exists.
+#[cfg(unix)]
+fn quote(token: &str) -> String {
+    token.to_string()
+}
 
 /// The spawn flow itself. Idempotent and cheap when the viewer is
 /// already up: a try_read of the lock returns without spawning.
@@ -53,19 +87,119 @@ pub async fn spawn(global: &GlobalContext, scoped: &ScopedContext) -> Result<Str
     // may know the signature without the secret). The daemon's own bind
     // config lives in the bare `ADDRESS`/`PORT`/`SECRET` namespace,
     // distinct from these client-facing `DAEMON_` vars.
-    let _ = crate::spawn::spawn_leashed_until_ready(global, "viewer", &exe, |cmd| {
+    // The development-plugin registrations ride the ARGV, read fresh
+    // from the registry at every spawn — which is the entire
+    // propagation story: `development plugins viewer create`/`delete`
+    // respawn a running viewer, and an absent one picks the current
+    // set up here whenever it is next spawned. A viewer binary built
+    // without its `development` feature ignores argv entirely, which
+    // degrades to a viewer without dev mode, nothing worse.
+    let development: Vec<String> = global
+        .resident_hubs()
+        .map(|hubs| {
+            hubs.development_plugins
+                .viewer
+                .list()
+                .into_iter()
+                .map(|((owner, name, version), path)| {
+                    // `<owner>/<name>/<version>=<path>` — the trio's
+                    // charset excludes both separators, so the FIRST
+                    // `=` split viewer-side is unambiguous even for
+                    // paths containing one.
+                    format!("{owner}/{name}/{version}={}", path.display())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let env = |cmd: &mut tokio::process::Command| {
+        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
+            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
+            .env("SUPPRESS_OUTPUT", "true")
+            .env("DAEMON_ADDRESS", &daemon_address);
+        if let Some(signature) = &daemon_signature {
+            cmd.env("DAEMON_SIGNATURE", signature);
+        }
+    };
+
+    // VIEWER DEVELOPMENT MODE (`development viewer set`): run the
+    // viewer FROM SOURCE — `pnpm exec tauri dev` in the registered
+    // directory — instead of the installed binary. Same leash key,
+    // same ready handshake (run.rs prints the ready line in every
+    // mode), same env handoff. The `development` cargo feature makes
+    // the source build parse the plugin argv, and tauri dev's `--`
+    // passthrough delivers it — and re-delivers it verbatim when
+    // tauri dev restarts the binary on its own Rust rebuilds.
+    //
+    // A source build that fails to start (cargo or vite error) makes
+    // the child exit before the ready line, which the spawn machinery
+    // reports as an error CARRYING THE BUILD OUTPUT — a failed start
+    // is always the caller's error, never a silent hang.
+    if let Some(dir) = global
+        .resident_hubs()
+        .and_then(|hubs| hubs.development_plugins.viewer_app.get())
+    {
+        let mut passthrough = String::new();
+        for entry in &development {
+            passthrough.push_str(&format!(" --development-plugin {}", quote(entry)));
+        }
+        // TWO `--` separators, and they are not decoration: `tauri
+        // dev` reads the args after the FIRST as the RUNNER's (cargo
+        // run's) and only those after a SECOND as the application's.
+        // With one separator cargo is handed `--development-plugin`
+        // and exits with "unexpected argument" before the viewer is
+        // ever built.
+        #[cfg(windows)]
+        let (program, configure): (&str, Box<dyn FnOnce(&mut tokio::process::Command) + Send>) = {
+            // `pnpm` is a `.cmd` shim, which Rust will not spawn
+            // directly — go through cmd.exe, composing the ONE quoted
+            // line ourselves via raw_arg (std's auto-quoting and
+            // cmd.exe's re-parsing disagree; hand-quoting each token
+            // with spaces is the reliable intersection).
+            let line = format!(
+                "/C pnpm exec tauri dev --features development -- --{passthrough}"
+            );
+            ("cmd", Box::new(move |cmd: &mut tokio::process::Command| {
+                use std::os::windows::process::CommandExt as _;
+                cmd.raw_arg(line);
+            }))
+        };
+        #[cfg(unix)]
+        let (program, configure): (&str, Box<dyn FnOnce(&mut tokio::process::Command) + Send>) = {
+            let development = development.clone();
+            ("pnpm", Box::new(move |cmd: &mut tokio::process::Command| {
+                cmd.args([
+                    "exec", "tauri", "dev", "--features", "development", "--", "--",
+                ]);
+                for entry in &development {
+                    cmd.arg("--development-plugin").arg(entry);
+                }
+            }))
+        };
+        let _ = crate::spawn::spawn_leashed_until_ready_with_stdio(
+            global,
+            "viewer",
+            std::path::Path::new(program),
+            |cmd| {
+                configure(cmd);
+                cmd.current_dir(&dir);
+                env(cmd);
+            },
+        )
+        .await?;
+        return Ok("ready (development)".to_string());
+    }
+
+    let _ = crate::spawn::spawn_leashed_until_ready_with_stdio(global, "viewer", &exe, |cmd| {
         // The viewer is a WINDOWED child (the release binary is
         // GUI-subsystem, so CREATE_NO_WINDOW never hides its window,
         // only a console-subsystem dev build's console). It is leashed
         // like every other resident child: the viewer dies with the
         // daemon BY DESIGN now.
-        cmd.env("OBJECTIVEAI_DIR", scoped.filesystem.dir())
-            .env("OBJECTIVEAI_STATE", scoped.filesystem.state())
-            .env("SUPPRESS_OUTPUT", "true")
-            .env("DAEMON_ADDRESS", &daemon_address);
-        if let Some(signature) = daemon_signature {
-            cmd.env("DAEMON_SIGNATURE", signature);
+        for entry in &development {
+            cmd.arg("--development-plugin").arg(entry);
         }
+        env(cmd);
     })
     .await?;
     Ok("ready".to_string())

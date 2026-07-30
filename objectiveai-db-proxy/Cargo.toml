@@ -1,0 +1,28 @@
+[package]
+name = "objectiveai-db-proxy"
+version = "2.2.14"
+edition = "2024"
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
+description = "Postgres-over-WebSocket conduit for ObjectiveAI plugin containers"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objectiveai.dev"
+documentation = "https://docs.rs/objectiveai-db-proxy"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "postgres"]
+publish = true
+
+# The dependency set is deliberately thin, and one choice is load-bearing:
+# the WebSocket server is axum's `ws` feature (tokio-tungstenite 0.29 under
+# the hood) rather than tokio-tungstenite directly, because that build
+# carries no rustls/ring. CI cross-compiles this crate to musl with nothing
+# but rustup's musl std — no musl-tools, no cmake — which only works while
+# the dependency closure stays free of ring/openssl/aws-lc/rustls.
+[dependencies]
+axum = { version = "0.8.9", features = ["ws"] }
+dashmap = "6.1.0"
+futures = "0.3.32"
+objectiveai-sdk = { version = "2.2.14", path = "../objectiveai-sdk-rs", default-features = false, features = ["net"] }
+tokio = { version = "1.50.0", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }

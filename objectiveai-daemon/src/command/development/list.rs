@@ -26,7 +26,7 @@ pub async fn execute(
     // Snapshot, not a live view: the registry is a `DashMap` and
     // holding iteration across the stream would pin its shards for as
     // long as the caller takes to read. There are never many of these.
-    let registrations = hubs.development_plugins.list();
+    let registrations = hubs.development_plugins.mcp.list();
 
     Ok(Box::pin(futures::stream::iter(registrations.into_iter().map(
         |((owner, name, version), path)| {

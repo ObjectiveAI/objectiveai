@@ -126,6 +126,38 @@ fn browser(id: u64) -> Option<Browser> {
     browsers().lock().ok()?.get(&id).map(|e| e.browser.clone())
 }
 
+wrap_task! {
+    struct DeliverTask {
+        tab: u64,
+        code: String,
+    }
+
+    impl Task {
+        fn execute(&self) {
+            let Some(browser) = browser(self.tab) else { return };
+            let Some(frame) = browser.main_frame() else { return };
+            let code = CefString::from(self.code.as_str());
+            let url = CefString::from("objectiveai://bridge-deliver.js");
+            frame.execute_java_script(Some(&code), Some(&url), 0);
+        }
+    }
+}
+
+/// Evaluate `code` in tab `tab`'s main frame — the bridge's
+/// browser→page delivery lane (subscribe/list results into the
+/// prelude's pinned, token-gated `__objectiveai_deliver`). Frame
+/// methods must run on CEF's UI thread, so this POSTS a task there;
+/// a gone browser or un-postable task just drops the delivery (the
+/// page's promise stays pending — its world is being torn down
+/// anyway).
+pub(crate) fn deliver_to_page(tab: u64, code: String) {
+    let Some(runner) = task_runner_get_for_thread(ThreadId::UI) else {
+        return;
+    };
+    let mut task = DeliverTask::new(tab, code);
+    let _ = runner.post_task(Some(&mut task));
+}
+
 /// The title of the ONE browser tab, if exactly one is live or being
 /// created.
 ///
@@ -381,8 +413,13 @@ pub struct Spawn {
     pub cache: Option<PathBuf>,
     pub url: String,
     /// JavaScript injected into every main-frame load — already
-    /// resolved from the plugin's manifest and read off disk.
+    /// resolved from the plugin's manifest, read off disk, and wrapped
+    /// with the bridge prelude (`shell::browser` owns the wrapping).
     pub script: Option<String>,
+    /// The bridge token minted for this spawn — present iff a script
+    /// was injected. `ViewerClient` drops any bridge message that does
+    /// not echo it (see [`super::bridge`]).
+    pub token: Option<String>,
     /// The tab's title, which is what its console output is SOURCED as
     /// in the viewer's log inbox — matching how a content webview
     /// reports under its own tab title.
@@ -447,6 +484,7 @@ pub fn create_browser(spawn: Spawn) -> Result<(), String> {
         spawn.tab,
         flushed,
         spawn.script,
+        spawn.token,
         spawn.app,
         spawn.title,
     );
@@ -937,6 +975,7 @@ wrap_client! {
         tab: u64,
         flushed: Arc<AtomicBool>,
         script: Option<String>,
+        token: Option<String>,
         app: tauri::AppHandle,
         title: String,
     }
@@ -957,6 +996,130 @@ wrap_client! {
         fn display_handler(&self) -> Option<DisplayHandler> {
             Some(PageLogs::new(self.app.clone(), self.title.clone()))
         }
+
+        /// The browser-process half of the script bridge (see
+        /// [`super::bridge`]): token-check a renderer's bridge frame
+        /// and execute its op — the CHILD-SIDE mailbox surface, and
+        /// nothing else. `send` pushes onto the spawning tab's
+        /// child→parent lane; `subscribe`/`list` read the
+        /// parent→child lane and deliver the result back into the
+        /// page via [`deliver_to_page`] (correlated by the frame's
+        /// `id`, token re-presented). Every bridge-named message is
+        /// CONSUMED (return 1) whether or not it delivers — there is
+        /// no other receiver.
+        fn on_process_message_received(
+            &self,
+            _browser: Option<&mut Browser>,
+            frame: Option<&mut Frame>,
+            source_process: ProcessId,
+            message: Option<&mut ProcessMessage>,
+        ) -> ::std::os::raw::c_int {
+            if source_process != ProcessId::RENDERER {
+                return 0;
+            }
+            let Some(message) = message else { return 0 };
+            if CefString::from(&message.name()).to_string() != super::bridge::BRIDGE_MESSAGE {
+                return 0;
+            }
+            // Ours from here on.
+            let Some(frame) = frame else { return 1 };
+            if frame.is_main() != 1 {
+                return 1;
+            }
+            // No token = no script was injected = nothing could
+            // legitimately send; a mismatch is the page probing with a
+            // guessed token. Both drop SILENTLY — a foreign page must
+            // not be able to spam the viewer log.
+            let Some(token) = self.token.as_ref() else { return 1 };
+            let Some(args) = message.argument_list() else { return 1 };
+            if CefString::from(&args.string(0)).to_string() != *token {
+                return 1;
+            }
+            let json = CefString::from(&args.string(1)).to_string();
+            if json.len() > super::bridge::BRIDGE_PAYLOAD_CAP {
+                return 1;
+            }
+            // Token holders are the plugin's own script: malformed
+            // frames are a plugin bug and get a warn, unlike the
+            // silent drops above.
+            let warn = |message: String| {
+                let (app, title) = (self.app.clone(), self.title.clone());
+                tauri::async_runtime::spawn(async move {
+                    crate::shell::report_as(&app, title, "warn", message, None).await;
+                });
+            };
+            let value: serde_json::Value = match serde_json::from_str(&json) {
+                Ok(value) => value,
+                Err(e) => {
+                    warn(format!("bridge frame dropped: invalid JSON: {e}"));
+                    return 1;
+                }
+            };
+            let op = value.get("op").and_then(|op| op.as_str()).unwrap_or_default();
+            // This callback runs on CEF's UI thread — hand off, never
+            // block (a subscribe PARKS until mail arrives).
+            let (app, tab, title) = (self.app.clone(), self.tab, self.title.clone());
+            match op {
+                "send" => {
+                    let payload =
+                        value.get("payload").cloned().unwrap_or(serde_json::Value::Null);
+                    tauri::async_runtime::spawn(async move {
+                        use tauri::Manager as _;
+                        let mail = app.state::<crate::shell::TabMail>();
+                        if let Err(e) = mail.send_from_child_tab(tab, payload).await {
+                            crate::shell::report_as(
+                                &app,
+                                title,
+                                "warn",
+                                format!("bridge send dropped: {e}"),
+                                None,
+                            )
+                            .await;
+                        }
+                    });
+                }
+                "subscribe" | "list" => {
+                    // Correlated request — the result (or error) goes
+                    // back into the page under the same token.
+                    let Some(id) = value.get("id").and_then(|id| id.as_u64()) else {
+                        warn(format!("bridge {op} dropped: no id"));
+                        return 1;
+                    };
+                    let token = token.clone();
+                    let subscribe = op == "subscribe";
+                    let timeout = value
+                        .get("timeout_ms")
+                        .and_then(|t| t.as_u64())
+                        .map(std::time::Duration::from_millis);
+                    let pending =
+                        value.get("pending").and_then(|p| p.as_bool()).unwrap_or(false);
+                    tauri::async_runtime::spawn(async move {
+                        use tauri::Manager as _;
+                        let mail = app.state::<crate::shell::TabMail>();
+                        let result = if subscribe {
+                            mail.subscribe_from_child_tab(tab, timeout).await
+                        } else {
+                            mail.list_from_child_tab(tab, pending).await
+                        };
+                        let (value, is_err) = match &result {
+                            Ok(values) => (serde_json::json!(values), false),
+                            Err(e) => (serde_json::json!(e), true),
+                        };
+                        // Both embed as JS literals (serde_json output
+                        // is valid JS expression syntax); the token
+                        // rides as a string literal the pinned deliver
+                        // fn checks.
+                        let code = format!(
+                            "window.__objectiveai_deliver && window.__objectiveai_deliver({}, {id}, {value}, {is_err});",
+                            serde_json::json!(token),
+                        );
+                        crate::cef::deliver_to_page(tab, code);
+                    });
+                }
+                other => warn(format!("bridge frame dropped: unknown op {other:?}")),
+            }
+            1
+        }
     }
 }
 
@@ -964,6 +1127,14 @@ wrap_app! {
     pub struct ViewerApp {}
 
     impl App {
+        /// The renderer-side bridge registrar (see [`super::bridge`]).
+        /// CEF queries this only in RENDERER processes; the browser
+        /// process and the other helper types construct it and never
+        /// call it — harmless.
+        fn render_process_handler(&self) -> Option<RenderProcessHandler> {
+            Some(super::bridge::RendererBridge::new())
+        }
+
         /// Chromium's command line, before it is acted on — where the
         /// GPU is turned OFF.
         ///
