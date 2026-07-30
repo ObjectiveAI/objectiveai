@@ -10,12 +10,20 @@
 
 FROM rust:1-slim AS builder
 WORKDIR /build
-# Dependencies first, so editing a source file does not re-resolve
-# them. Keep `Cargo.lock` committed — `--locked` is what makes a
-# plugin build reproducible.
-COPY Cargo.toml Cargo.lock ./
+# Dependencies first, so editing a source file does not re-resolve them.
+#
+# `Cargo.lock*` is a GLOB, and deliberately: the scaffold ships no
+# lockfile — it is a template, and a lock pinned to whatever the
+# template was written against is stale the moment anything moves. Your
+# plugin is a binary, so commit YOUR lock once you have built; the glob
+# picks it up with no edit here, and matches nothing until then (COPY
+# needs only one source to match, which `Cargo.toml` always does).
+#
+# No `--locked` for the same reason: it fails outright when there is no
+# lockfile. Cargo still honours one when it is there.
+COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
-RUN cargo build --release --locked \
+RUN cargo build --release \
     && cp target/release/objectiveai-plugin-scaffold /plugin
 
 FROM debian:stable-slim

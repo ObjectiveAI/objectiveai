@@ -135,9 +135,9 @@ rm -f mcp/rename.sh viewer/rename.sh
 
 # ── Rename ──────────────────────────────────────────────────────────────
 # awk into a temp file, not `sed -i`: GNU and BSD disagree on `-i`, and
-# this has to run on both. `Cargo.lock` is in the list because the image
-# builds `--locked` — a lockfile still naming the placeholder fails the
-# build with a message about nothing you touched.
+# this has to run on both. No `Cargo.lock` in the list — the scaffold
+# ships none; the author commits theirs after the first build, by which
+# time the name is already right.
 rename_in() {
   local file="$1" tmp
   [ -f "$file" ] || return 0
@@ -152,7 +152,6 @@ for file in \
   objectiveai.json \
   README.md \
   mcp/Cargo.toml \
-  mcp/Cargo.lock \
   mcp/Containerfile \
   mcp/src/main.rs \
   mcp/README.md \

@@ -222,8 +222,11 @@ The port appears in three places — `mcp.port` in the root
 the host publishes whichever one the manifest names, so a mismatch
 looks like a dead plugin rather than a misconfigured one.
 
-Commit `Cargo.lock`. The image builds `--locked`, because a plugin that
-resolves differently on two days is not really a plugin build.
+Commit `Cargo.lock` — yours, once you have built. The scaffold ships
+none, because a lockfile pinned to whatever the template was written
+against is stale the moment anything moves. Your plugin is a binary, so
+it wants one; the `Containerfile` copies it through a glob and picks it
+up with no edit.
 
 ## A note on the name
 
