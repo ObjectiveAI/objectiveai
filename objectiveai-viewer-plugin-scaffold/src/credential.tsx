@@ -10,8 +10,8 @@
  *
  * The whole flow is automatic and self-terminating:
  *
- * 1. On mount it IMMEDIATELY spawns a browser tab on a public form
- *    page with the scaffold's capture script injected.
+ * 1. On mount it IMMEDIATELY spawns a browser tab on a public paste
+ *    form with the scaffold's capture script injected.
  * 2. It waits on that child's mailbox. The script's button sends
  *    `{ credential: <typed value> }`.
  * 3. Bridge messages come from a page this plugin does NOT own, so
@@ -39,9 +39,12 @@ import { transport } from "./transport";
  * tab can reach it (or close it) by. */
 const BROWSER_KEY = "scaffold-browser-deleteme";
 
-/** A public HTML form, the canonical one for exactly this purpose.
- * The capture script harvests its first field. */
-const FORM_URL = "https://httpbin.org/forms/post";
+/** Pastebin's new-paste page: a public form with exactly ONE body
+ * field, which is what makes the capture script's target unambiguous —
+ * it harvests `#postform-text` by name rather than guessing at "the
+ * first field" on a page with several. Nothing is ever submitted; the
+ * page is only somewhere for a human to type. */
+const FORM_URL = "https://pastebin.com/";
 
 interface Offer {
   channel_id?: string;

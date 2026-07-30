@@ -5,10 +5,10 @@
  * (`openViewerTab({ url, key, script })`).
  *
  * This one is written for the page the credential handler opens:
- * `https://httpbin.org/forms/post`, the canonical public HTML form.
- * It paints a panel with ONE button that reads whatever is typed in
- * the form's first field and sends it to the SPAWNING TAB, which
- * validates it and writes it back over the channel.
+ * `https://pastebin.com/`, whose new-paste form has exactly ONE body
+ * field. It paints a panel with ONE button that reads whatever is
+ * typed there and sends it to the SPAWNING TAB, which validates it and
+ * writes it back over the channel.
  *
  * A script's ENTIRE capability surface is `__objectiveai` — a
  * closure-local binding the viewer's injection wrapper provides (the
@@ -38,16 +38,22 @@ declare const __objectiveai: {
 
 import css from "./capture.css";
 
-/** The field this script harvests: httpbin's form names its first
- * text input `custname`. The fallback keeps the script useful when
- * pointed at any other page — the first typable input wins. */
-function field(): HTMLInputElement | null {
-  const named = document.querySelector<HTMLInputElement>(
-    'input[name="custname"]',
+/** The field this script harvests.
+ *
+ * Pastebin's new-paste page carries exactly one paste body, and it is
+ * a TEXTAREA: `#postform-text`, `name="PostForm[text]"`. Naming it
+ * outright is the point of choosing this page — "the first typable
+ * field" is a guess on any page that has several, and guessing wrong
+ * silently sends the wrong string.
+ *
+ * The fallback keeps the script useful pointed anywhere else. */
+function field(): HTMLTextAreaElement | HTMLInputElement | null {
+  const paste = document.querySelector<HTMLTextAreaElement>(
+    'textarea#postform-text, textarea[name="PostForm[text]"]',
   );
-  if (named) return named;
-  return document.querySelector<HTMLInputElement>(
-    'input[type="text"], input[type="password"], input[type="search"], input:not([type])',
+  if (paste) return paste;
+  return document.querySelector<HTMLTextAreaElement | HTMLInputElement>(
+    'textarea, input[type="text"], input[type="password"], input[type="search"], input:not([type])',
   );
 }
 
@@ -63,7 +69,7 @@ panel.className = "panel";
 
 const label = document.createElement("div");
 label.className = "label";
-label.textContent = "ObjectiveAI: type a value, then send it back";
+label.textContent = "ObjectiveAI: type a value into the paste, then send it back";
 
 const button = document.createElement("button");
 button.textContent = "send to ObjectiveAI";

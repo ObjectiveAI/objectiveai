@@ -19,7 +19,10 @@ import { openViewerTab, subscribeViewerTab } from "@objectiveai/sdk";
 import { transport } from "./transport";
 
 const BROWSER_KEY = "scaffold-browser-deleteme";
-const FORM_URL = "https://httpbin.org/forms/post";
+/** Same page as the credential handler, so the one capture script has
+ * one target: pastebin's new paste, whose single body field it names
+ * outright. */
+const FORM_URL = "https://pastebin.com/";
 
 export default function ScaffoldHome() {
   const [waves, setWaves] = useState(0);
