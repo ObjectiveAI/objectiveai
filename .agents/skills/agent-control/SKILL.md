@@ -5,10 +5,37 @@ description: Drive and inspect ObjectiveAI agents from the CLI — spawn, messag
 
 # Controlling agents
 
+## Terms — instance vs. hierarchy
+
+Two different things, and conflating them is the single most expensive
+mistake here:
+
+- **instance** — the agent's own identity. ONE segment, no slashes:
+  `3Bk4hBIOrMDdNaDL3atd1b-F1LTN4MMGSB1wpHXF`. This is what
+  `--agent-instance` and `--target instance=` want.
+- **agent instance hierarchy (AIH)** — the FULL joined lineage:
+  every ancestor plus the instance, slash-separated:
+  `cli/daemon/3Bk4hBIOrMDdNaDL3atd1b-F1LTN4MMGSB1wpHXF`. This is what
+  log rows report in their `agent_instance_hierarchy` field.
+
+`agents tags apply` shows the decomposition outright, which makes it a
+good way to confirm a split:
+
+```json
+{"agent_instance": "54qv…-0exi…",
+ "parent_agent_instance_hierarchy": "cli/daemon",
+ "agent_instance_hierarchy": "cli/daemon/54qv…-0exi…"}
+```
+
+**Most commands take the INSTANCE ALONE, never the joined hierarchy.**
+Ancestors go separately in `parent=`, and the CLI prepends its own AIH
+to whatever you pass there — so `parent=daemon` resolves to
+`cli/daemon` above.
+
 ## Run the command directly. Do NOT redirect to a file.
 
-`agents spawn` and `agents message` print **one short line** — an agent
-instance hierarchy in quotes, nothing else. Backgrounding them to a log
+`agents spawn` and `agents message` print **one short line** — a
+parent-relative path in quotes, nothing else. Backgrounding them to a log
 file and then reading the file back costs a spawn, a poll, a read, and
 usually a couple of retries: **strictly more tokens than just running
 the command and reading its output.**
@@ -35,10 +62,9 @@ usually seconds.
 This is the payoff, and the target syntax is the one thing that
 reliably wastes time.
 
-**A spawn prints `daemon/<agent>-<response>`. That whole string is the
-agent instance hierarchy, and it is NOT what `--target instance=` takes.
-Split it: the last segment is the INSTANCE, everything before it is the
-PARENT.**
+**A spawn prints a PATH — `daemon/<instance>` — not an instance. Split
+it: the last segment is the INSTANCE, everything before it is the
+PARENT. Passing the joined string as `instance=` is the mistake.**
 
 ```bash
 # spawn printed: "daemon/3Bk4hBIOrMDdNaDL3atd1b-F1LTN4MMGSB1wpHXF"
@@ -85,15 +111,16 @@ included. Piping `logs list` through a tiny filter to print
 
 ## Finding an agent you lost the id for
 
-- **`agents tags apply --name <tag> --agent-instance <aih>`** binds a
-  name to an instance and — usefully — echoes back the resolved
-  `parent_agent_instance_hierarchy` and full `agent_instance_hierarchy`,
-  which is a quick way to confirm the parent/instance split.
+- **`agents tags apply --name <tag> --agent-instance <instance>`** binds
+  a name to an instance and — usefully — echoes back the resolved
+  `agent_instance`, `parent_agent_instance_hierarchy` and full
+  `agent_instance_hierarchy`. That decomposition is the quickest way to
+  confirm a split when a lookup is coming back empty.
 - **`agents tags lookup --tag <tag>`** resolves it back.
 - **`agents instances list --target me`** lists the direct children of
-  the caller. **`--target instance=<aih>`** lists a specific node's
-  children.
-- **`agents instances get --target instance=<aih>`** returns per-agent
+  the caller. **`--target instance=<instance>[,parent=<ancestors>]`**
+  lists a specific node's children.
+- **`agents instances get --target instance=<instance>`** returns per-agent
   aggregates AND the agent's full definition — handy for confirming
   which agent actually ran. Note it answers for a nonexistent id too
   (with no `agent` field), so presence of the definition is the real
@@ -101,9 +128,10 @@ included. Piping `logs list` through a tiny filter to print
 
 ## Lifecycle
 
-- **`agents wait --agent-instance <aih> --active|--inactive`** blocks
-  until the agent is up / done. `--inactive` returning `"Ok"` means it
-  has finished and released its lock.
+- **`agents wait --agent-instance <instance> --active|--inactive`**
+  blocks until the agent is up / done. Beware `--inactive` as an
+  existence check: a nonexistent agent is trivially inactive, so `"Ok"`
+  proves nothing about resolution on its own.
 - **`agents message`** delivers to a running agent, or resumes a
   dormant one via continuation. Same rule as spawn: run it directly.
 - **`agents enqueue`** parks a message without spawning or racing
