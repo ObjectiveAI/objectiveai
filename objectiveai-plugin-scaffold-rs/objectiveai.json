@@ -1,0 +1,35 @@
+{
+  "description": "An ObjectiveAI plugin: a Rust MCP server and a viewer extension.",
+  "mcp": {
+    "containerfile": "mcp/Containerfile",
+    "port": 8080,
+    "postgres": true,
+    "development": {
+      "caches": [
+        "/build/target",
+        "/usr/local/cargo/registry",
+        "/usr/local/cargo/git"
+      ]
+    }
+  },
+  "viewer": {
+    "containerfile": "viewer/Containerfile",
+    "output": "/dist",
+    "tabs": [
+      {
+        "title": "scaffold home",
+        "module": "./home.js",
+        "styles": ["./home.css"]
+      },
+      {
+        "channel_key": "scaffold.credential",
+        "module": "./credential.js",
+        "styles": ["./credential.css"]
+      }
+    ],
+    "scripts": [
+      { "name": "scaffold-capture-deleteme", "module": "./capture.js" }
+    ],
+    "development": { "output": "viewer/dist" }
+  }
+}

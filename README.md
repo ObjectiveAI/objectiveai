@@ -347,12 +347,12 @@ All binaries land in `~/.objectiveai/bin/` and are added to `PATH`. The CLI (`ob
 
 ### `objectiveai` (CLI)
 
-The primary user-facing binary. Built with `clap` derive macros and emits newline-delimited JSON (NDJSON) on stdout. Top-level command groups: `agents`, `swarms`, `vector`, `plugins`, `logs`, `instructions`, `schemas`, `api`, `viewer`.
+The primary user-facing binary. Built with `clap` derive macros and emits newline-delimited JSON (NDJSON) on stdout. Top-level command groups: `agents`, `swarms`, `functions`, `laboratories`, `channels`, `tasks`, `development`, `daemon`, `db`, `api`, `viewer`, `python`, `update`.
 
 ```bash
 objectiveai agents list
 objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'
-objectiveai plugins install github --owner ObjectiveAI --repository my-plugin
+objectiveai laboratories spawn
 ```
 
 The default build embeds the Tauri viewer as a sidecar: running a streaming command opens a live viewer window backed by an in-process HTTP server. Pass `--no-viewer` at install time for a smaller build without the embedded viewer. JSON schemas for every public type are accessible at `objectiveai schemas list` / `objectiveai schemas output <name>`.
@@ -417,7 +417,17 @@ Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64 (A
 
 ## Plugins
 
-A plugin is a binary that adds new top-level subcommands to the ObjectiveAI CLI, optionally paired with a viewer UI tab. Plugins are described by an `objectiveai.json` manifest at the repository root. The CLI dispatches any unknown top-level subcommand to the matching installed plugin binary, communicating over a JSONL protocol on stdout. The viewer surfaces plugins with a declared UI source as sandboxed iframe tabs, isolated from the host DOM.
+A plugin extends ObjectiveAI with tools an agent can call, and optionally with UI in the viewer. It is a **container**: an MCP server built from a `Containerfile` in your repository, run as an ephemeral laboratory container for the completion that uses it. A plugin may also ship a **viewer half** — tabs, channel-request handlers, and scripts injected into browser tabs — from the same repository, under the same identity.
+
+Both halves are declared by one `objectiveai.json` at the repository root.
+
+An agent uses a plugin by declaring its coordinates:
+
+```json
+{ "plugins": [{ "owner": "you", "name": "my-plugin", "version": "v0.1.0" }] }
+```
+
+The laboratory host fetches that GitHub repository at the `v`-prefixed tag, builds the image, and starts a container per completion. Its tools reach the agent prefixed with the MCP server's name — a tool called `greet` arrives as `my-plugin_greet`.
 
 ### First-party plugins
 
@@ -428,80 +438,82 @@ Built and maintained by ObjectiveAI:
 - **[arcanum](https://github.com/ObjectiveAI/arcanum)** — skills for agents. Lets agents load skills and governs which agents may use which skills.
 - **[quas-wex-exort](https://github.com/ObjectiveAI/quas-wex-exort)** — programmatic invocation of MCP tools and the ObjectiveAI CLI from within an agent, including running them as **background tasks** (create / list / wait / cancel) and batched multi-calls.
 
-### Installing a plugin
+### Scaffolding a new plugin
 
-Install from a public GitHub repository:
-
-```bash
-# From the ObjectiveAI org (default whitelist — no extra flags needed).
-objectiveai plugins install github --owner ObjectiveAI --repository my-plugin
-
-# Pin to a specific commit.
-objectiveai plugins install github --owner ObjectiveAI --repository my-plugin --commit-sha <sha>
-
-# Third-party repository — requires explicit opt-in.
-objectiveai plugins install github --owner third-party --repository my-plugin --allow-untrusted
-
-# Replace an existing install (binary, viewer bundle, and manifest are rewritten).
-objectiveai plugins install github --owner ObjectiveAI --repository my-plugin --upgrade
-```
-
-To print layout and manifest conventions for placing a plugin by hand in `~/.objectiveai/plugins/`:
+`scaffold.sh` lays down a complete plugin — both halves, one manifest — into the directory you run it from. The plugin's **name is the directory's name**, so that is the only thing you choose up front:
 
 ```bash
-objectiveai plugins install filesystem
+mkdir my-plugin && cd my-plugin
+curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/scaffold.sh | bash -s -- rust
 ```
 
-### Plugin manifest
+You get:
 
-`objectiveai.json` at the repository root declares the plugin's metadata, platform binaries, and optional viewer source. All fields except `description` and `version` are optional.
+```text
+my-plugin/
+├── objectiveai.json   # the manifest — both halves, at the root
+├── README.md
+├── mcp/               # the MCP server (Rust): the tools an agent calls
+├── viewer/            # tabs, channel handlers, browser scripts
+└── .agents/skills/    # skills for a coding agent working on the plugin
+```
+
+The name is written into the Cargo package, the binary, the lockfile, the `Containerfile`, the MCP server's `NAME` constant, and `package.json`. `rust` (or `rs`) is currently the only MCP language.
+
+Then register **the root** — one directory, both halves — and start the viewer's watch build:
+
+```bash
+objectiveai laboratories spawn                       # once per machine; never auto-started
+
+objectiveai development plugins mcp create \
+  --owner you --name my-plugin --version v0.1.0 --path "$PWD"
+objectiveai development plugins viewer create \
+  --owner you --name my-plugin --version v0.1.0 --path "$PWD"
+
+cd viewer && pnpm install && pnpm run dev
+```
+
+An agent declaring `you/my-plugin@v0.1.0` now gets your working tree instead of a git tag. After editing the MCP half, `development plugins mcp reset …` — a registered plugin still takes the image-exists fast path, so without it the old image keeps serving. The viewer half needs no reset: the watch build writes, and the viewer reloads open tabs.
+
+To release, tag `vX.Y.Z`, push, and delete the registrations.
+
+### The manifest
+
+`objectiveai.json` at the repository root. At least one of `mcp` / `viewer` must be present; a plugin may ship either or both.
 
 | Field | Type | Notes |
 |---|---|---|
-| `description` | string | Required. One-line summary shown in listings. |
-| `version` | string | Required. Used to construct release-asset URLs (`releases/download/v<version>/<asset>`). |
-| `author` / `homepage` / `license` | string | Optional metadata. |
-| `binaries` | object | Map of `<os>_<arch>` → release-asset filename. Supported keys: `linux_x86_64`, `linux_aarch64`, `windows_x86_64`, `windows_aarch64`, `macos_x86_64`, `macos_aarch64`. Declare only platforms you ship. |
-| `viewer_zip` | string | Release-asset filename for the UI bundle (a zip with `index.html` at root). Mutually exclusive with `viewer_url`. |
-| `viewer_url` | string | Remote URL loaded as the iframe `src` verbatim. Must be `https://` or `http://localhost`. Mutually exclusive with `viewer_zip`. |
-| `mobile_ready` | bool | Opt-in for iOS/Android viewer builds. Defaults to false. |
-
-Example:
+| `description` | string | One-line summary. |
+| `mcp.containerfile` | string | Repo-relative path (forward slashes). **The file's own directory is the build context**, so `mcp/Containerfile` sees `mcp/` as its root. |
+| `mcp.port` | number | The port the server listens on inside the container. Must match `PORT` in the server and `EXPOSE` in the `Containerfile`. |
+| `mcp.postgres` | bool | Required. Opts the plugin in to its own database; only then is `OBJECTIVEAI_POSTGRES_URL` set in the container. |
+| `mcp.development.caches` | string[] | CONTAINER paths kept between development rebuilds (e.g. `/build/target`). Ignored for a released plugin. |
+| `viewer.containerfile` | string | As above; its own directory is the build context. |
+| `viewer.output` | string | Absolute path INSIDE the built image whose contents are the built assets. |
+| `viewer.tabs` | array | `{ title, module, styles }` for a normal tab, or `{ channel_key, module, styles }` for a channel-request handler. `module`/`styles` are relative to the built output. |
+| `viewer.scripts` | array | `{ name, module }` — classic scripts a tab can inject into a browser tab it spawns. |
+| `viewer.development.output` | string | HOST path, relative to the REGISTERED directory, where the watch build writes (`viewer/dist` in the scaffolded layout). |
 
 ```json
 {
-  "description": "Run wave-physics simulations from the CLI.",
-  "version": "1.0.0",
-  "author": "Example Corp",
-  "license": "MIT",
-  "binaries": {
-    "linux_x86_64":   "sim-linux-x86_64",
-    "windows_x86_64": "sim-windows-x86_64.exe",
-    "macos_aarch64":  "sim-macos-aarch64"
+  "description": "An ObjectiveAI plugin: a Rust MCP server and a viewer extension.",
+  "mcp": {
+    "containerfile": "mcp/Containerfile",
+    "port": 8080,
+    "postgres": true,
+    "development": { "caches": ["/build/target", "/usr/local/cargo/registry"] }
   },
-  "viewer_zip": "sim-viewer.zip"
+  "viewer": {
+    "containerfile": "viewer/Containerfile",
+    "output": "/dist",
+    "tabs": [{ "title": "home", "module": "./home.js", "styles": ["./home.css"] }],
+    "scripts": [{ "name": "capture", "module": "./capture.js" }],
+    "development": { "output": "viewer/dist" }
+  }
 }
 ```
 
-### Building a plugin
-
-A plugin binary reads its arguments from `argv` and writes JSONL to stdout. Each line must be one of three shapes:
-
-```jsonc
-{"type": "notification", "key": "value"}        // data to forward to the caller
-{"type": "error", "level": "warn", "fatal": false, "message": "..."}
-{"type": "command", "command": "agents list"}    // spawn a CLI command, fire-and-forget
-```
-
-The host parses stdout line-by-line; unparseable lines are forwarded as string notifications rather than dropped.
-
-For the viewer, produce a static `dist/` with `index.html` at the root, zip it, and reference it in `viewer_zip`. For remote-hosted UIs, use `viewer_url`. The viewer posts events to the iframe via `postMessage`.
-
-To iterate locally: place the binary at `~/.objectiveai/plugins/<name>/plugin[.exe]` and the manifest at `~/.objectiveai/plugins/<name>.json`, then invoke `objectiveai <name> <args>`. The `objectiveai-cli/test-fixtures/hello-plugin/` fixture is the minimal example — a single `main.rs` that reads `argv[1]` and emits one notification line.
-
-For distribution, cut a GitHub release tagged `v<version>`, upload binaries and the viewer zip as release assets named exactly as declared in the manifest, then install with `plugins install github`.
-
-Full reference: [PLUGINS.md](PLUGINS.md).
+Identity is **not** in the manifest: owner, name and version come from the repository and its tag on release, and from the explicit `--owner/--name/--version` of a development registration otherwise.
 
 ## Web app & ecosystem
 
@@ -550,7 +562,14 @@ objectiveai/
 │
 ├── # MCP integration
 │   ├── objectiveai-mcp-proxy/                 # MCP proxy — multiplexes tool calls
-│   └── objectiveai-mcp-laboratory/            # MCP filesystem helpers
+│   ├── objectiveai-mcp-laboratory/            # MCP filesystem helpers
+│   ├── objectiveai-mcp-plugin-framework-rs/   # Rust framework for writing plugin MCP servers
+│   └── objectiveai-db-proxy/                  # Postgres-over-WebSocket conduit injected into plugin containers
+│
+├── # Plugin scaffolds (what scaffold.sh assembles)
+│   ├── objectiveai-plugin-scaffold-rs/        # the shared root: one manifest covering both halves
+│   ├── objectiveai-mcp-plugin-scaffold-rs/    # the MCP half (Rust)
+│   └── objectiveai-viewer-plugin-scaffold/    # the viewer half (tabs, handlers, scripts)
 │
 ├── # Runners
 │   ├── objectiveai-claude-agent-sdk-runner/   # Concurrent Claude Agent SDK runner
@@ -565,6 +584,8 @@ objectiveai/
 └── # Other
     ├── examples/                              # Usage examples
     ├── bin/                                   # Vendored build tool binaries
+    ├── .agents/skills/                        # Skills for coding agents working in this repo
+    ├── scaffold.sh                            # Scaffold a new plugin into the current directory
     └── *.sh                                   # Root scripts: build, install, publish, version
 ```
 

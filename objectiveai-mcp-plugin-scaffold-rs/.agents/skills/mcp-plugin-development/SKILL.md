@@ -1,9 +1,9 @@
 ---
-name: plugin-development
-description: Develop an ObjectiveAI MCP plugin against a real laboratory host — register the local directory so an agent builds from it instead of a git tag, run the plugin's tools for real, and rebuild after each edit. Use when writing or debugging a plugin's tools, when an edit does not seem to have taken effect, or when preparing a plugin for release.
+name: mcp-plugin-development
+description: Develop an ObjectiveAI MCP plugin against a real laboratory host — register the plugin root so an agent builds from the working tree instead of a git tag, run the plugin's tools for real, and rebuild after each edit. Use when writing or debugging a plugin's tools, when an edit does not seem to have taken effect, or when preparing a plugin for release.
 ---
 
-# Developing this plugin
+# Developing the MCP half
 
 `cargo run` compiles and binds a port. It cannot tell you anything else:
 nothing dials the server, and `identity()`, `db::connect()` and
@@ -11,29 +11,45 @@ nothing dials the server, and `identity()`, `db::connect()` and
 only way to exercise a plugin is to have an agent call it.
 
 Development mode makes that loop fast by pointing the plugin's
-coordinates at THIS directory, so the laboratory host builds from the
-working tree instead of fetching a git tag.
+coordinates at the working tree, so the laboratory host builds from it
+instead of fetching a git tag.
+
+## Which directory to register
+
+**The one holding `objectiveai.json` — the PLUGIN ROOT.** Two layouts
+put that in different places:
+
+- this half standing alone → the root is this directory;
+- a full plugin (`mcp/` + `viewer/` under one root, what `scaffold.sh`
+  produces) → the root is the PARENT, and both halves register that
+  same path.
+
+The manifest's `mcp.containerfile` is resolved relative to the root, and
+the build CONTEXT is that file's own directory — so `mcp/Containerfile`
+sees `mcp/` as its root and its `COPY` steps carry no `mcp/` prefix
+either way. Paths below are written relative to this half; prefix them
+with `mcp/` when reading from a full plugin's root.
 
 ## The loop
 
 Read the coordinates first — they must match what an agent declares,
 byte for byte:
 
-- **name** — `[package] name` in `Cargo.toml`
-- **version** — `[package] version`, `v`-prefixed when declared (`0.1.0`
-  in Cargo.toml is `v0.1.0` to an agent)
+- **name** — the plugin's name, and the repository it publishes as
+- **version** — `v`-prefixed when declared (`0.1.0` in `Cargo.toml` is
+  `v0.1.0` to an agent)
 - **owner** — the GitHub owner the plugin will be published under. It is
-  not recorded anywhere in this directory; ask if it is not obvious.
+  not recorded anywhere in the tree; ask if it is not obvious.
 
 ```bash
 # Once per machine. Development plugins ALWAYS run on the local host,
 # and it is never auto-spawned.
 objectiveai laboratories spawn
 
-# Once per daemon lifetime.
+# Once per daemon lifetime. --path is the PLUGIN ROOT (see above).
 objectiveai development plugins mcp create \
   --owner OWNER --name NAME --version vX.Y.Z \
-  --path /absolute/path/to/this/directory
+  --path /absolute/path/to/the/plugin/root
 ```
 
 Then have an agent that declares the plugin call one of its tools. The
@@ -62,8 +78,12 @@ code you already deleted, you skipped the reset.
   reinstall drops them, and the plugin silently goes back to fetching
   its git tag. Re-run `create`. Check with
   `development plugins mcp list`.
-- **`--path` must be absolute.** A relative path is rejected: the
-  laboratory host resolves it, and its working directory is not yours.
+- **`--path` must be absolute, and must be the PLUGIN ROOT.** A
+  relative path is rejected outright (the laboratory host resolves it,
+  and its working directory is not yours). Pointing at a half's own
+  directory in a full-plugin layout fails differently and more
+  confusingly: `objectiveai.json` is not there, so the build reports
+  `plugin declares no MCP server`.
 - **The version is exact.** `v0.1.0` and `0.1.0` are different keys, and
   a mismatch is silent — the plugin just builds from GitHub as though
   nothing were registered. This is the most common reason a registration
@@ -71,12 +91,12 @@ code you already deleted, you skipped the reset.
 - **No local host is an error, not a spawn.** If `laboratories spawn`
   has not been run for this machine and state, the call fails rather
   than starting one.
-- **The port appears three times** — `mcp.port` in `objectiveai.json`,
-  `PORT` in `src/main.rs`, and `EXPOSE` in the `Containerfile`. They must
-  agree; a mismatch looks like a dead plugin rather than a misconfigured
-  one.
+- **The port appears three times** — `mcp.port` in the root
+  `objectiveai.json`, `PORT` in `src/main.rs`, and `EXPOSE` in the
+  `Containerfile`. They must agree; a mismatch looks like a dead plugin
+  rather than a misconfigured one.
 - **The database is an opt-in** — `mcp.postgres` is a REQUIRED boolean
-  in `objectiveai.json`. Only `true` gets the container a database (and
+  in the root `objectiveai.json`. Only `true` gets the container a database (and
   the `OBJECTIVEAI_POSTGRES_URL` the framework reads); with `false`,
   `db::connect` fails with `NoDatabase` naming the missing opt-in.
   Changing it rebuilds the image (it is stamped on the image, like the
@@ -84,7 +104,7 @@ code you already deleted, you skipped the reset.
 
 ## Build caches
 
-`mcp.development.caches` in `objectiveai.json` lists CONTAINER paths
+`mcp.development.caches` in the root `objectiveai.json` lists CONTAINER paths
 kept between rebuilds. They are bound in only in development mode and
 ignored entirely for a released plugin.
 
@@ -113,7 +133,8 @@ which is the thing development mode exists to avoid.
 - `plugin development directory ...` — the registered path is gone, is
   not a directory, or is not absolute. Re-register.
 - `plugin declares no MCP server` — `objectiveai.json` has no `mcp`
-  block, or is not where the registration points.
+  block, or is not where the registration points. In a full-plugin
+  layout this usually means `--path` named a half instead of the root.
 - A tool that is absent from the agent's tool list — the plugin serves a
   tool set decided at startup; see `served_routes` in `src/main.rs`.
 

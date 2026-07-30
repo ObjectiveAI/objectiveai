@@ -1,18 +1,35 @@
-This is an [ObjectiveAI](https://objectiveai.dev) MCP plugin, scaffolded
-from `objectiveai-plugin-scaffold-rs`.
+This is an [ObjectiveAI](https://objectiveai.dev) MCP plugin — the
+server half.
+
+## Where the plugin root is
+
+Everything below registers **the directory holding
+`objectiveai.json`**, which is either:
+
+- **this directory**, when this half stands alone; or
+- **the parent**, when this is the `mcp/` half of a full plugin (what
+  the root `scaffold.sh` produces, laying down `mcp/` + `viewer/` under
+  one manifest). Both halves then register that same path.
+
+The manifest's `mcp.containerfile` is resolved from the root, and a
+containerfile's own directory is its build CONTEXT — so this half's
+`Containerfile` sees this directory either way, and its `COPY` steps
+never carry an `mcp/` prefix.
 
 ## Getting Started
 
-First, give it a name:
+If you scaffolded with `scaffold.sh`, the name is already yours — taken
+from the directory you ran it in — and you can skip to registering.
+Otherwise give it one first:
 
 ```bash
 ./rename.sh my-plugin
 ```
 
-That rewrites the base name in the four places it appears — the
-package, the binary, the `cp` in the `Containerfile`, and the `NAME`
-constant. Do it before anything else; a half-finished rename fails at
-runtime rather than at build time.
+That rewrites the base name where it appears — the package, the binary,
+the `cp` in the `Containerfile`, and the `NAME` constant. Do it before
+anything else; a half-finished rename fails at runtime rather than at
+build time.
 
 Then point ObjectiveAI at it:
 
@@ -20,11 +37,11 @@ Then point ObjectiveAI at it:
 objectiveai laboratories spawn
 objectiveai development plugins mcp create \
   --owner you --name my-plugin --version v0.1.0 \
-  --path /absolute/path/to/my-plugin
+  --path /absolute/path/to/the/plugin/root
 ```
 
-Now an agent that declares `you/my-plugin@v0.1.0` gets THIS directory
-instead of the git tag — no pushing, no tagging. After each edit:
+Now an agent that declares `you/my-plugin@v0.1.0` gets THIS working
+tree instead of the git tag — no pushing, no tagging. After each edit:
 
 ```bash
 objectiveai development plugins mcp reset --owner you --name my-plugin --version v0.1.0
@@ -199,8 +216,9 @@ fetches the tag instead — the image records which directory it was
 built from, so it rebuilds on its own rather than serving your
 uncommitted work under a released version.
 
-The port appears in three places — `objectiveai.json`, `PORT` in
-`src/main.rs`, and `EXPOSE` in the `Containerfile`. They have to agree;
+The port appears in three places — `mcp.port` in the root
+`objectiveai.json`, `PORT` in `src/main.rs`, and `EXPOSE` in the
+`Containerfile`. They have to agree;
 the host publishes whichever one the manifest names, so a mismatch
 looks like a dead plugin rather than a misconfigured one.
 
