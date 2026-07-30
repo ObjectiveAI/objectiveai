@@ -9,9 +9,10 @@
 //! published to a random `127.0.0.1` host port the caller looks up here.
 //!
 //! [`create`] is the container's source of truth — `podman create` →
-//! [`copy_in_executable`] (inject the lab MCP binary) → `podman start`.
-//! [`host_port`] then resolves the published host port for the conduit
-//! to dial. [`create_plugin`] is the plugin variant: the image's own
+//! [`pack_executable`] + [`copy_in_archive`] (inject the lab MCP
+//! binary) → `podman start`.
+//! [`host_ports`] then resolves the published host ports for the
+//! conduit to dial. [`create_plugin`] is the plugin variant: the image's own
 //! entrypoint serves the MCP, and what gets injected instead is the
 //! [`DB_PROXY_BINARY`] that gives the plugin its database.
 
@@ -904,7 +905,7 @@ async fn create_injected_container(
 /// `--entrypoint` override, and no env beyond the AGENT-IDENTITY set
 /// (the author declared the listen port in the plugin manifest, so
 /// there is nothing to force). The manifest port is published to a
-/// random loopback host port ([`host_port`] resolves it with
+/// random loopback host port ([`host_ports`] resolves it with
 /// `plugin.port` as the internal port), and the
 /// `objectiveai.laboratory` label records the localhost image
 /// reference, the [`PluginLabel`], and the completion's response id
@@ -1210,25 +1211,6 @@ pub async fn host_ports(
             Some((internal, host))
         })
         .collect())
-}
-
-/// The `127.0.0.1` host port one internal port is published on.
-pub async fn host_port(
-    podman: &Podman,
-    state: &str,
-    id: &str,
-    internal_port: u16,
-) -> Result<u16, Error> {
-    host_ports(podman, state, id)
-        .await?
-        .get(&internal_port)
-        .copied()
-        .ok_or_else(|| {
-            Error(format!(
-                "podman port {}: no mapping for {internal_port}/tcp",
-                container_name(state, id)
-            ))
-        })
 }
 
 

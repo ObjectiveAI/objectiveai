@@ -1036,26 +1036,33 @@ impl HostServer {
             // lab publishes the fixed LAB_PORT and gets the filetree
             // pump (plugin containers run the image's own entrypoint —
             // no injected MCP, no /filetree surface).
-            let plugin = match podman::laboratory::list(&self.podman, &self.state).await
-            {
-                Ok(labs) => labs
-                    .into_iter()
-                    .find(|lab| lab.id == id)
-                    .and_then(|lab| lab.plugin),
-                Err(_) => None,
+            // The record and the port table together: `host_ports`
+            // returns every mapping, so it does not need to be told which
+            // internal port to ask about, which is what makes it
+            // independent of the record and lets both podman calls run at
+            // once instead of one behind the other.
+            let (listed, ports) = tokio::join!(
+                podman::laboratory::list(&self.podman, &self.state),
+                podman::laboratory::host_ports(&self.podman, &self.state, id),
+            );
+            let lab = listed
+                .ok()
+                .and_then(|labs| labs.into_iter().find(|lab| lab.id == id));
+            // Mounts are kept, not just the plugin: the filetree pump
+            // below needs them, and this is the read that has them.
+            let (plugin, mounts) = match lab {
+                Some(lab) => (lab.plugin, lab.mounts),
+                None => (None, Vec::new()),
             };
             let internal_port = plugin
                 .as_ref()
                 .map(|p| p.port)
                 .unwrap_or(podman::laboratory::LAB_PORT);
-            match podman::laboratory::host_port(
-                &self.podman,
-                &self.state,
-                id,
-                internal_port,
-            )
-            .await
-            {
+            match ports.and_then(|ports| {
+                ports.get(&internal_port).copied().ok_or_else(|| {
+                    podman::Error(format!("no mapping for {internal_port}/tcp"))
+                })
+            }) {
                 Ok(port) => {
                     let base_url = format!("http://127.0.0.1:{port}");
                     let seed = plugin.map(|p| crate::server::PluginSeed {
@@ -1067,7 +1074,7 @@ impl HostServer {
                         },
                     });
                     if seed.is_none() {
-                        self.spawn_filetree_pump(id, &base_url).await;
+                        self.spawn_filetree_pump(id, &base_url, &mounts).await;
                     }
                     Ok(Arc::new(LabServer::new(
                         id.to_string(),
@@ -1096,34 +1103,39 @@ impl HostServer {
     /// workspace; podman's record is the source of truth — an empty or
     /// unreadable cwd falls back to the endpoint's default). Replaces —
     /// and aborts — any predecessor for the id (delete + recreate).
-    async fn spawn_filetree_pump(self: &Arc<Self>, id: &str, base_url: &str) {
-        // The lab's mounts, from the container label (survives host
-        // restarts — podman's record is the source of truth). Strict
-        // order, each step before the next: (1) attach the watches
-        // (subscriptions + walks, NO delivery notifiers yet), (2)
-        // register the lab's SOURCE SET, (3) spawn the delivery
+    /// `mounts` comes from the caller's own read of podman's record
+    /// (the container label — the source of truth, surviving host
+    /// restarts). Passed in rather than read here because every caller
+    /// has already listed the container for its own reasons, and a
+    /// second `podman ps` for the same record is a whole process launch
+    /// spent re-learning what the caller knows.
+    async fn spawn_filetree_pump(
+        self: &Arc<Self>,
+        id: &str,
+        base_url: &str,
+        mounts: &[podman::laboratory::Mount],
+    ) {
+        // Strict order, each step before the next: (1) attach the
+        // watches (subscriptions + walks, NO delivery notifiers yet),
+        // (2) register the lab's SOURCE SET, (3) spawn the delivery
         // notifiers, (4) spawn the container pump — so no source can
         // deliver before its registration exists, and the tree cannot
         // complete before every source is declared. Container paths
         // are POSIX strings — split on '/', never host Path semantics.
         let mut sources: Vec<(Vec<String>, Arc<crate::mount_watch::MountWatch>)> = Vec::new();
-        if let Ok(labs) = podman::laboratory::list(&self.podman, &self.state).await
-            && let Some(lab) = labs.into_iter().find(|l| l.id == id)
-        {
-            for mount in &lab.mounts {
-                let mountpoint: Vec<String> = mount
-                    .container
-                    .split('/')
-                    .filter(|c| !c.is_empty())
-                    .map(String::from)
-                    .collect();
-                if let Some(watch) = self
-                    .mounts
-                    .attach(self, id, &mount.host, mountpoint.clone())
-                    .await
-                {
-                    sources.push((mountpoint, watch));
-                }
+        for mount in mounts {
+            let mountpoint: Vec<String> = mount
+                .container
+                .split('/')
+                .filter(|c| !c.is_empty())
+                .map(String::from)
+                .collect();
+            if let Some(watch) = self
+                .mounts
+                .attach(self, id, &mount.host, mountpoint.clone())
+                .await
+            {
+                sources.push((mountpoint, watch));
             }
         }
         self.register_lab_tree(id, sources.clone()).await;
@@ -1647,18 +1659,29 @@ impl HostServer {
                 None,
             ),
         };
-        let connection = match crate::upstream::lab_mcp_client()
-            .with_executor(executor)
-            .connect(
+        // THE connection, and podman's record of the container, at the
+        // same time. The record is keyed by id and carries nothing the
+        // connection produces, while the two cost quite different things
+        // — an HTTP initialize round trip against a process launch — so
+        // there is no reason for either to wait on the other. ONE read
+        // serves both consumers below: the filetree pump's mounts and the
+        // `Identify` echo.
+        let client = crate::upstream::lab_mcp_client().with_executor(executor);
+        let (connected, listed) = tokio::join!(
+            client.connect(
                 format!("{base_url}/"),
                 None,
                 Some(crate::upstream::sanitize_connect_headers(headers)),
-            )
-            .await
-        {
+            ),
+            podman::laboratory::list(&self.podman, &self.state),
+        );
+        let connection = match connected {
             Ok(connection) => connection,
             Err(e) => return fail(format!("connect ephemeral '{id}': {e}")).await,
         };
+        let lab = listed
+            .ok()
+            .and_then(|labs| labs.into_iter().find(|lab| lab.id == id));
         // First hop of the list-changed relay — installed while we
         // still hold the connection, before `EphemeralLab::new`
         // consumes it. Captures only a sender + frame string
@@ -1676,44 +1699,40 @@ impl HostServer {
         // /filetree like any regular lab (observation only, never
         // lifetime demand).
         if filetree {
-            self.spawn_filetree_pump(id, &base_url).await;
+            let mounts = lab.as_ref().map(|lab| lab.mounts.as_slice()).unwrap_or(&[]);
+            self.spawn_filetree_pump(id, &base_url, mounts).await;
         }
         // Echo podman's own record (it carries `created_at` +
         // `response_id`); fall back to a minimal identity if the
         // read-back races something.
-        let identify = match podman::laboratory::list(&self.podman, &self.state).await {
-            Ok(labs) => labs
-                .into_iter()
-                .find(|lab| lab.id == id)
-                .map(crate::identify_from_info),
-            Err(_) => None,
-        }
-        .map(|mut identify| {
-            // The container was started microseconds ago; the ps
-            // read-back may race the state flip.
-            identify.running = true;
-            identify
-        })
-        .unwrap_or_else(|| Identify {
-            id: id.to_string(),
-            image: objectiveai_sdk::laboratories::LaboratoryImage::Registry(
-                objectiveai_sdk::laboratories::RegistryLaboratoryImage {
-                    registry: "localhost".to_string(),
-                    name: "objectiveai-ephemeral".to_string(),
-                    pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
-                        "unknown".to_string(),
-                    ),
-                },
-            ),
-            mounts: Vec::new(),
-            env: Vec::new(),
-            cwd: "/".to_string(),
-            created_at: None,
-            agent_full_id: None,
-            plugin: None,
-            response_id: Some(response_id.to_string()),
-            running: true,
-        });
+        let identify = lab
+            .map(|lab| {
+                let mut identify = crate::identify_from_info(lab);
+                // The container was started microseconds ago; the ps
+                // read-back may race the state flip.
+                identify.running = true;
+                identify
+            })
+            .unwrap_or_else(|| Identify {
+                id: id.to_string(),
+                image: objectiveai_sdk::laboratories::LaboratoryImage::Registry(
+                    objectiveai_sdk::laboratories::RegistryLaboratoryImage {
+                        registry: "localhost".to_string(),
+                        name: "objectiveai-ephemeral".to_string(),
+                        pin: objectiveai_sdk::laboratories::LaboratoryImagePin::Tag(
+                            "unknown".to_string(),
+                        ),
+                    },
+                ),
+                mounts: Vec::new(),
+                env: Vec::new(),
+                cwd: "/".to_string(),
+                created_at: None,
+                agent_full_id: None,
+                plugin: None,
+                response_id: Some(response_id.to_string()),
+                running: true,
+            });
         let lab = Arc::new(crate::ephemeral::EphemeralLab::new(
             response_id.to_string(),
             channel,

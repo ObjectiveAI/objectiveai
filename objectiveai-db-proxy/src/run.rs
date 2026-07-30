@@ -228,7 +228,13 @@ async fn client(stream: tokio::net::TcpStream, conduit: Arc<Conduit>) {
     let _ = host
         .tx
         .send(axum::extract::ws::Message::Binary(frame::encode_close(id)));
-    let _ = writer.await;
+    // NOT awaited, deliberately. The pump has everything it needs to
+    // finish on its own — drain, then shut the socket down — and waiting
+    // would mean blocking on a client that has stopped reading, since a
+    // full receive window parks `write_all` indefinitely. Nothing here
+    // depends on that teardown having happened, and the stream is already
+    // deregistered, so nothing can route to it either.
+    drop(writer);
 }
 
 async fn upgrade(
