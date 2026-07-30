@@ -54,31 +54,57 @@ VIEWER_SCAFFOLD="objectiveai-viewer-plugin-scaffold"
 # to `-`. A directory name that would be mangled is refused here rather
 # than silently normalized into something the author did not choose.
 NAME="$(basename "$PWD")"
-echo "$NAME" | grep -Eq '^[a-z0-9][a-z0-9-]*$' \
-  || die "directory name '$NAME' cannot be a plugin name.
+# bash's own matcher rather than `echo | grep -q`: under `pipefail` a
+# `grep -q` that exits the moment it matches can leave `echo` killed by
+# SIGPIPE, failing a pipeline that actually SUCCEEDED.
+if [[ ! "$NAME" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+  die "directory name '$NAME' cannot be a plugin name.
   Allowed: lowercase letters, digits and dashes, starting with a letter
   or digit. Rename the directory and run this again."
-[ "$NAME" = "$PLACEHOLDER" ] && die "pick a directory name of your own, not '$PLACEHOLDER'"
+fi
+if [ "$NAME" = "$PLACEHOLDER" ]; then
+  die "pick a directory name of your own, not '$PLACEHOLDER'"
+fi
 
 # ── Refuse to clobber ───────────────────────────────────────────────────
 for existing in objectiveai.json mcp viewer; do
-  [ -e "$existing" ] && die "'$existing' already exists here — refusing to overwrite.
+  if [ -e "$existing" ]; then
+    die "'$existing' already exists here — refusing to overwrite.
   Run this in an empty directory."
+  fi
 done
 
 # ── Fetch ───────────────────────────────────────────────────────────────
 # The scaffolds are subdirectories of the monorepo, not standalone repos,
 # so this is ONE sparse clone rather than three: blobless, depth 1, and
 # checking out only the four paths that matter.
-TMP="$(mktemp -d)"
+# BSD `mktemp` (macOS) historically wants a template where GNU is happy
+# without one, so ask the portable way second.
+TMP="$(mktemp -d 2>/dev/null || mktemp -d -t objectiveai-scaffold)"
 trap 'rm -rf "$TMP"' EXIT
 
 echo "scaffold: fetching $REF from $REPO"
-git clone --quiet --depth 1 --filter=blob:none --sparse --branch "$REF" \
-  "$REPO" "$TMP/src" || die "clone failed"
-git -C "$TMP/src" sparse-checkout set --no-cone \
-  "/$ROOT_SCAFFOLD/" "/$MCP_SCAFFOLD/" "/$VIEWER_SCAFFOLD/" "/.agents/" \
-  >/dev/null || die "sparse-checkout failed"
+command -v git >/dev/null || die "git is required"
+
+# Preferred: a blobless, single-commit, sparse clone — this repository is
+# large and only four directories are wanted. Needs git 2.25+, so fall
+# back to a plain shallow clone rather than failing on an older one.
+#
+# CONE mode (plain directory names, no leading slashes) is not a style
+# choice: a `--no-cone` pattern like `/dir/` is rewritten by MSYS path
+# conversion under Git Bash into `C:/Program Files/Git/dir/`, and the
+# checkout then comes out silently EMPTY.
+if git clone --quiet --depth 1 --filter=blob:none --sparse \
+     --branch "$REF" "$REPO" "$TMP/src" 2>/dev/null \
+   && git -C "$TMP/src" sparse-checkout set \
+        "$ROOT_SCAFFOLD" "$MCP_SCAFFOLD" "$VIEWER_SCAFFOLD" ".agents" \
+        >/dev/null 2>&1; then
+  :
+else
+  rm -rf "$TMP/src"
+  git clone --quiet --depth 1 --branch "$REF" "$REPO" "$TMP/src" \
+    || die "could not clone $REPO at '$REF'"
+fi
 
 for required in "$ROOT_SCAFFOLD" "$MCP_SCAFFOLD" "$VIEWER_SCAFFOLD" ".agents"; do
   [ -d "$TMP/src/$required" ] || die "$REF has no '$required' — wrong ref?"
@@ -115,7 +141,7 @@ rm -f mcp/rename.sh viewer/rename.sh
 rename_in() {
   local file="$1" tmp
   [ -f "$file" ] || return 0
-  tmp="$(mktemp)"
+  tmp="$(mktemp 2>/dev/null || mktemp -t objectiveai-scaffold)"
   awk -v old="$PLACEHOLDER" -v new="$NAME" '{ gsub(old, new); print }' \
     "$file" > "$tmp"
   mv "$tmp" "$file"
@@ -132,7 +158,8 @@ for file in \
   mcp/README.md \
   viewer/package.json \
   viewer/src/home.tsx \
-  viewer/README.md
+  viewer/README.md \
+  .agents/skills/*/SKILL.md
 do
   rename_in "$file"
 done
