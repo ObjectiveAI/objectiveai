@@ -1,37 +1,64 @@
-//! Config and the two listeners.
-//!
-//! Mirrors the `objectiveai-mcp-laboratory` `run.rs` shape so other
-//! crates can `use objectiveai_db_proxy::{ConfigBuilder, run}` and
-//! spawn the proxy in-process without going through the binary.
+//! The two listeners.
 //!
 //! There are two sockets, and which way each one faces is the point:
 //!
-//! | role             | default bind         | protocol  |
+//! | role             | bind                 | protocol  |
 //! |------------------|----------------------|-----------|
 //! | Postgres clients | `127.0.0.1:14979`    | raw TCP   |
 //! | laboratory host  | `0.0.0.0:14980`      | WebSocket |
 //!
+//! ALL FOUR VALUES ARE HARDCODED, and there is no configuration of any
+//! kind — no env, no arguments, no `.env`. That is a deliberate
+//! narrowing, not laziness.
+//!
+//! This binary is copied into a container somebody else built and
+//! started with `podman exec`, which inherits that image's environment.
+//! While these were read from env under generic names, an image
+//! declaring `ENV ADDRESS=127.0.0.1` or `ENV PORT=8080` for its OWN
+//! server — an entirely ordinary thing to do — silently reconfigured
+//! the proxy, and binding the conduit port to loopback makes it
+//! unreachable through a published port, so the plugin's database hung
+//! with nothing to say why. Hardcoding removes that whole class of
+//! failure instead of defending against it: there is nothing for an
+//! image to collide with, and nothing the launcher has to remember to
+//! pass.
+//!
 //! The Postgres side is loopback because nothing outside the container
-//! has any business reaching it, and its port is FIXED because that is
-//! what lets a connection string be stamped into container env before
-//! this process exists — which is the whole reason a plugin can stay
-//! ignorant of the mechanism. Inside a container's own network
-//! namespace there is no contention to randomize away from.
+//! has any business reaching it, and fixed because that is what lets a
+//! connection string be stamped into container env before this process
+//! exists — the whole reason a plugin can stay ignorant of the
+//! mechanism. Inside a container's own network namespace there is no
+//! contention to randomize away from.
 //!
-//! The host side binds `0.0.0.0` because a published container port
-//! does not reach a loopback-bound listener.
+//! The host side binds `0.0.0.0` because a published container port does
+//! not reach a loopback-bound listener.
 //!
-//! Neither default collides with anything already in these containers:
-//! `14978` is the laboratory MCP server's port.
+//! Neither port collides with anything already in these containers:
+//! `14978` is the laboratory MCP server's. The laboratory host declares
+//! the same two numbers independently, exactly as it declares the frame
+//! format — the two halves agree by contract, not by configuration.
 
 use std::sync::Arc;
 
-use envconfig::Envconfig;
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::sync::mpsc;
 
 use crate::conduit::Conduit;
 use crate::frame::{self, Frame};
+
+/// Where Postgres clients connect. Loopback: in-container only.
+pub const POSTGRES_ADDRESS: &str = "127.0.0.1";
+
+/// The port Postgres clients connect to — what the launcher names in
+/// `OBJECTIVEAI_POSTGRES_URL`.
+pub const POSTGRES_PORT: u16 = 14979;
+
+/// Where the laboratory host dials in. `0.0.0.0`, because a published
+/// container port does not reach a loopback-bound listener.
+pub const HOST_ADDRESS: &str = "0.0.0.0";
+
+/// The port the laboratory host dials, published out of the container.
+pub const HOST_PORT: u16 = 14980;
 
 /// How much is read from a client socket at a time.
 ///
@@ -40,89 +67,6 @@ use crate::frame::{self, Frame};
 /// reassemble from a byte stream exactly as they would from a socket.
 const READ_CHUNK: usize = 16 * 1024;
 
-#[derive(Envconfig)]
-struct EnvConfigBuilder {
-    #[envconfig(from = "POSTGRES_ADDRESS")]
-    postgres_address: Option<String>,
-    #[envconfig(from = "POSTGRES_PORT")]
-    postgres_port: Option<u16>,
-    #[envconfig(from = "ADDRESS")]
-    address: Option<String>,
-    #[envconfig(from = "PORT")]
-    port: Option<u16>,
-    #[envconfig(from = "SUPPRESS_OUTPUT")]
-    suppress_output: Option<String>,
-}
-
-impl EnvConfigBuilder {
-    fn build(self) -> ConfigBuilder {
-        ConfigBuilder {
-            postgres_address: self.postgres_address,
-            postgres_port: self.postgres_port,
-            address: self.address,
-            port: self.port,
-            suppress_output: self.suppress_output.map(|v| {
-                matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
-            }),
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct ConfigBuilder {
-    pub postgres_address: Option<String>,
-    pub postgres_port: Option<u16>,
-    pub address: Option<String>,
-    pub port: Option<u16>,
-    pub suppress_output: Option<bool>,
-}
-
-impl Envconfig for ConfigBuilder {
-    #[allow(deprecated)]
-    fn init() -> Result<Self, envconfig::Error> {
-        EnvConfigBuilder::init().map(|e| e.build())
-    }
-
-    fn init_from_env() -> Result<Self, envconfig::Error> {
-        EnvConfigBuilder::init_from_env().map(|e| e.build())
-    }
-
-    fn init_from_hashmap(
-        hashmap: &std::collections::HashMap<String, String>,
-    ) -> Result<Self, envconfig::Error> {
-        EnvConfigBuilder::init_from_hashmap(hashmap).map(|e| e.build())
-    }
-}
-
-impl ConfigBuilder {
-    pub fn build(self) -> Config {
-        Config {
-            postgres_address: self
-                .postgres_address
-                .unwrap_or_else(|| "127.0.0.1".to_string()),
-            postgres_port: self.postgres_port.unwrap_or(14979),
-            address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
-            port: self.port.unwrap_or(14980),
-            suppress_output: self.suppress_output.unwrap_or(false),
-        }
-    }
-}
-
-pub struct Config {
-    /// Where Postgres clients connect (env `POSTGRES_ADDRESS`).
-    pub postgres_address: String,
-    /// The port Postgres clients connect to (env `POSTGRES_PORT`). The
-    /// launcher stamps a connection string naming this port into the
-    /// container's environment, so it has to be known in advance.
-    pub postgres_port: u16,
-    /// Where the laboratory host dials in (env `ADDRESS`).
-    pub address: String,
-    /// The port the laboratory host dials (env `PORT`), published out
-    /// of the container by the launcher.
-    pub port: u16,
-    pub suppress_output: bool,
-}
-
 pub struct Servers {
     pub conduit: Arc<Conduit>,
     pub postgres: tokio::net::TcpListener,
@@ -130,15 +74,7 @@ pub struct Servers {
     pub router: axum::Router,
 }
 
-pub async fn setup(config: Config) -> std::io::Result<Servers> {
-    let Config {
-        postgres_address,
-        postgres_port,
-        address,
-        port,
-        suppress_output: _,
-    } = config;
-
+pub async fn setup() -> std::io::Result<Servers> {
     let conduit = Conduit::new();
 
     // A single route at the root: the port is dedicated to this and
@@ -153,8 +89,8 @@ pub async fn setup(config: Config) -> std::io::Result<Servers> {
     // half a conduit is useless, so the first bind to fail is the whole
     // setup's error.
     let (postgres, host) = tokio::try_join!(
-        tokio::net::TcpListener::bind(format!("{postgres_address}:{postgres_port}")),
-        tokio::net::TcpListener::bind(format!("{address}:{port}")),
+        tokio::net::TcpListener::bind((POSTGRES_ADDRESS, POSTGRES_PORT)),
+        tokio::net::TcpListener::bind((HOST_ADDRESS, HOST_PORT)),
     )?;
 
     Ok(Servers {
@@ -189,16 +125,13 @@ pub async fn serve(servers: Servers) -> std::io::Result<()> {
     }
 }
 
-pub async fn run(config: Config) -> std::io::Result<()> {
-    let suppress_output = config.suppress_output;
-    let servers = setup(config).await?;
-    if !suppress_output {
-        tracing::info!(
-            postgres = %servers.postgres.local_addr()?,
-            host = %servers.host.local_addr()?,
-            "listening",
-        );
-    }
+pub async fn run() -> std::io::Result<()> {
+    let servers = setup().await?;
+    tracing::info!(
+        postgres = %servers.postgres.local_addr()?,
+        host = %servers.host.local_addr()?,
+        "listening",
+    );
     serve(servers).await
 }
 

@@ -13,9 +13,12 @@
 //! framework or not — needs to know none of this. It sees a Postgres
 //! server on localhost.
 //!
-//! Other crates can `use objectiveai_db_proxy::{ConfigBuilder, run}`
-//! and spawn the proxy in-process; the binary at `main.rs` is a thin
-//! wrapper that reads [`Config`] from the environment and calls [`run`].
+//! There is NO configuration: the addresses and ports are hardcoded
+//! ([`POSTGRES_PORT`], [`HOST_PORT`]), because a binary that gets
+//! `podman exec`'d into an image somebody else built should not be
+//! reconfigurable by that image's environment. [`run`] therefore takes
+//! nothing, and the binary at `main.rs` only sets up logging and calls
+//! it.
 
 mod conduit;
 mod frame;

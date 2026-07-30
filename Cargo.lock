@@ -4435,8 +4435,6 @@ version = "2.2.13"
 dependencies = [
  "axum",
  "dashmap",
- "dotenv",
- "envconfig",
  "futures",
  "objectiveai-sdk",
  "tokio",

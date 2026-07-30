@@ -36,44 +36,19 @@ pub const DB_PROXY_PG_PORT: u16 = 14979;
 
 /// Fixed port the injected `objectiveai-db-proxy` accepts THIS host's
 /// conduit socket on; published to a random `127.0.0.1` host port that
-/// [`host_port`] resolves.
+/// [`host_ports`] resolves.
+///
+/// Both `DB_PROXY_*` ports are THIS SIDE'S COPY of a number the proxy
+/// hardcodes, exactly as [`crate::db_proxy`] is this side's copy of the
+/// frame format. The two halves agree by contract: nothing is passed
+/// between them, so there is no configuration to get wrong and no
+/// environment in the plugin's image that could interfere.
 pub const DB_PROXY_WS_PORT: u16 = 14980;
 
 /// The container path both injected binaries are copied to, and the
 /// name a `podman exec` refers to them by.
 pub const DB_PROXY_BINARY: &str = "objectiveai-db-proxy";
 const LAB_BINARY: &str = "objectiveai-mcp-laboratory";
-
-/// The COMPLETE environment for the injected db proxy.
-///
-/// Complete deliberately, and this is a correctness requirement rather
-/// than tidiness. The proxy reads GENERIC names — `ADDRESS`, `PORT`,
-/// `POSTGRES_ADDRESS`, `POSTGRES_PORT` — and it is exec'd inside an
-/// image somebody else built, whose own `ENV` a `podman exec` inherits.
-/// A plugin server image declaring `ENV ADDRESS=127.0.0.1` or
-/// `ENV PORT=8080` for its own server is an entirely ordinary thing to
-/// do; inheriting either would break the conduit (a loopback-bound
-/// listener is not reachable through a published port) and leave the
-/// plugin's database hanging with nothing to say why. The same goes for
-/// a `.env` file in the image's WORKDIR, which the proxy's `dotenv`
-/// call would otherwise read — it cannot override a value already in
-/// the environment, and every value is here.
-///
-/// So: state everything the proxy consults, and nothing about the image
-/// can reach it.
-pub fn db_proxy_env() -> Vec<(String, String)> {
-    vec![
-        // `0.0.0.0` because a published container port does not reach a
-        // loopback-bound listener.
-        ("ADDRESS".to_string(), "0.0.0.0".to_string()),
-        ("PORT".to_string(), DB_PROXY_WS_PORT.to_string()),
-        // Loopback, equally deliberately: nothing outside the container
-        // has any business reaching the Postgres side.
-        ("POSTGRES_ADDRESS".to_string(), "127.0.0.1".to_string()),
-        ("POSTGRES_PORT".to_string(), DB_PROXY_PG_PORT.to_string()),
-        ("SUPPRESS_OUTPUT".to_string(), "0".to_string()),
-    ]
-}
 
 /// Per-state container name for a laboratory id.
 pub fn container_name(state: &str, id: &str) -> String {
@@ -189,35 +164,35 @@ async fn copy_in_archive(
     Ok(())
 }
 
-/// Start a process inside an ALREADY-RUNNING container and detach from
-/// it (`podman exec -d`), with `env` stamped on that process alone.
+/// Start the injected db proxy inside an ALREADY-RUNNING container and
+/// detach from it (`podman exec -d`).
 ///
-/// Used to start the injected db proxy without touching the image's
-/// entrypoint: the plugin's own server stays PID 1, and the env this
-/// carries never reaches it.
-pub async fn exec_detached(
-    podman: &Podman,
-    state: &str,
-    id: &str,
-    binary: &str,
-    env: &[(String, String)],
-) -> Result<(), Error> {
+/// `exec` rather than an entrypoint because the image's entrypoint
+/// belongs to the plugin: its server stays PID 1 and its container
+/// config is untouched.
+///
+/// NOTHING IS PASSED — no arguments, no env. The proxy hardcodes its
+/// addresses and ports ([`DB_PROXY_PG_PORT`], [`DB_PROXY_WS_PORT`] are
+/// this side's copies of them), which is what keeps this call from
+/// having to reason about the image it is exec'ing into. It used to
+/// stamp the ports, and that was a hazard rather than a service: the
+/// proxy read them from generic env names, `podman exec` inherits the
+/// image's environment, and an image setting `ADDRESS` or `PORT` for its
+/// own server would silently reconfigure the proxy.
+pub async fn start_db_proxy(podman: &Podman, state: &str, id: &str) -> Result<(), Error> {
     let exe = podman.executable().await?;
     let name = container_name(state, id);
-    let mut cmd = container_command(exe);
-    cmd.arg("exec").arg("-d");
-    for (k, v) in env {
-        cmd.arg("-e").arg(format!("{k}={v}"));
-    }
-    let output = cmd
+    let output = container_command(exe)
+        .arg("exec")
+        .arg("-d")
         .arg(&name)
-        .arg(format!("/{binary}"))
+        .arg(format!("/{DB_PROXY_BINARY}"))
         .output()
         .await
         .map_err(|e| Error(format!("spawn podman exec: {e}")))?;
     if !output.status.success() {
         return Err(Error(format!(
-            "podman exec {binary} in {name}: {}",
+            "podman exec {DB_PROXY_BINARY} in {name}: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
@@ -1192,18 +1167,30 @@ pub async fn remove(podman: &Podman, state: &str, id: &str) -> Result<(), Error>
     Ok(())
 }
 
-pub async fn host_port(
+/// EVERY `127.0.0.1` host port the container publishes, keyed by the
+/// internal port it maps to.
+///
+/// One `podman port <name>` for the whole table rather than one per port
+/// asked about. A plugin container publishes two — its MCP server's and
+/// the db proxy's — and both are wanted at the same moment, so asking
+/// once is a whole process launch and machine round trip cheaper than
+/// asking twice.
+///
+/// Output lines look like `14978/tcp -> 127.0.0.1:49160`. Lines that do
+/// not parse are skipped rather than fatal: this reads a human-oriented
+/// CLI format, and an entry shaped differently (IPv6, a protocol we did
+/// not publish) is not a reason to fail a lookup for the ports that did
+/// parse.
+pub async fn host_ports(
     podman: &Podman,
     state: &str,
     id: &str,
-    internal_port: u16,
-) -> Result<u16, Error> {
+) -> Result<std::collections::HashMap<u16, u16>, Error> {
     let exe = podman.executable().await?;
     let name = container_name(state, id);
     let output = container_command(exe)
         .arg("port")
         .arg(&name)
-        .arg(format!("{internal_port}/tcp"))
         .output()
         .await
         .map_err(|e| Error(format!("spawn podman port: {e}")))?;
@@ -1213,22 +1200,35 @@ pub async fn host_port(
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
-    // Output is one or more lines like `127.0.0.1:49160`; take the first
-    // non-empty line and the port after the last ':'.
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let line = stdout
+    Ok(stdout
         .lines()
-        .map(str::trim)
-        .find(|l| !l.is_empty())
+        .filter_map(|line| {
+            let (internal, host) = line.split_once("->")?;
+            let internal = internal.trim().split_once('/')?.0.parse::<u16>().ok()?;
+            let host = host.trim().rsplit_once(':')?.1.parse::<u16>().ok()?;
+            Some((internal, host))
+        })
+        .collect())
+}
+
+/// The `127.0.0.1` host port one internal port is published on.
+pub async fn host_port(
+    podman: &Podman,
+    state: &str,
+    id: &str,
+    internal_port: u16,
+) -> Result<u16, Error> {
+    host_ports(podman, state, id)
+        .await?
+        .get(&internal_port)
+        .copied()
         .ok_or_else(|| {
-            Error(format!("podman port {name}: no mapping for {internal_port}/tcp"))
-        })?;
-    let port_str = line.rsplit_once(':').map(|(_, p)| p).unwrap_or(line);
-    port_str.parse::<u16>().map_err(|e| {
-        Error(format!(
-            "podman port {name}: unparseable host port {port_str:?}: {e}"
-        ))
-    })
+            Error(format!(
+                "podman port {}: no mapping for {internal_port}/tcp",
+                container_name(state, id)
+            ))
+        })
 }
 
 

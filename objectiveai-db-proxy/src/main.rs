@@ -1,5 +1,3 @@
-use envconfig::Envconfig;
-
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt()
@@ -11,10 +9,9 @@ async fn main() -> std::io::Result<()> {
         .with_ansi(false)
         .init();
 
-    let _ = dotenv::dotenv();
-    let config = objectiveai_db_proxy::ConfigBuilder::init_from_env()
-        .unwrap_or_default()
-        .build();
-
-    objectiveai_db_proxy::run(config).await
+    // No configuration to read — not from arguments, not from the
+    // environment, not from a `.env`. See `run.rs` for why a binary that
+    // gets `podman exec`'d into somebody else's image deliberately has
+    // no knobs.
+    objectiveai_db_proxy::run().await
 }
