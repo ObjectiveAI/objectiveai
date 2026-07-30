@@ -61,6 +61,10 @@ impl Conduit {
             next_id: AtomicU32::new(1),
             next_epoch: AtomicU64::new(1),
             streams: DashMap::new(),
+            // Sender only — readers subscribe on demand, so there are
+            // usually NO receivers, which is why every write to this
+            // cell has to be one that stores unconditionally. See
+            // [`attach`](Self::attach).
             host: watch::channel(None).0,
         })
     }
@@ -112,9 +116,22 @@ impl Conduit {
 
     /// Attach a relay, returning its epoch. Newest wins: a host that
     /// redials after a blip supersedes whatever was here.
+    ///
+    /// `send_replace`, NOT `send`, and that is the whole correctness of
+    /// this function. `send` reports "no receivers" as an error AND
+    /// DISCARDS THE VALUE — and no receiver exists at the moment that
+    /// matters most, because [`Conduit::new`] keeps only the sender and
+    /// every reader subscribes on demand. The normal cold start is
+    /// exactly that case: the host dials in and attaches before any
+    /// Postgres client has arrived to subscribe, so with `send` the
+    /// relay was stored nowhere, [`host`](Self::host) then saw `None`
+    /// forever, and every client parked until its pool timed out. A
+    /// relay that has attached must be visible to clients that arrive
+    /// afterwards, so the write cannot be conditional on someone
+    /// already watching.
     pub fn attach(&self, tx: mpsc::UnboundedSender<Message>) -> u64 {
         let epoch = self.next_epoch.fetch_add(1, Ordering::Relaxed);
-        let _ = self.host.send(Some(Host { epoch, tx }));
+        self.host.send_replace(Some(Host { epoch, tx }));
         epoch
     }
 
@@ -122,6 +139,9 @@ impl Conduit {
     pub fn detach(&self, epoch: u64) {
         // Clear the cell only if this relay still occupies it — a
         // newer socket that already superseded us stays attached.
+        // `send_if_modified` writes through whether or not anyone is
+        // watching (unlike `send` — see [`attach`](Self::attach)), so a
+        // detach with no clients around still clears the cell.
         self.host.send_if_modified(|slot| {
             if slot.as_ref().is_some_and(|host| host.epoch == epoch) {
                 *slot = None;
