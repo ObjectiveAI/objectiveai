@@ -45,7 +45,7 @@ class InputValueNumber(RootModel):
     """A floating-point number."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Number'})
 
-    root: Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]
+    root: Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]
 
 
 class InputValueBoolean(RootModel):

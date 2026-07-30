@@ -9,13 +9,13 @@ import { AgentCompletionsResponseUpstreamDurationMsSchema } from "./upstreamDura
 export const AgentCompletionsResponseUpstreamUsageSchema = z.object({
   completion_tokens: z.number().int().min(0).max(18446744073709552000).describe("Number of tokens in the completion."),
   completion_tokens_details: AgentCompletionsResponseCompletionTokensDetailsSchema.nullable().describe("Detailed breakdown of completion tokens.").meta({ omitempty: true }).optional(),
-  cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The cost charged by ObjectiveAI for this request."),
+  cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The cost charged by ObjectiveAI for this request."),
   cost_details: AgentCompletionsResponseCostDetailsSchema.nullable().describe("Detailed cost breakdown.").meta({ omitempty: true }).optional(),
-  cost_multiplier: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The multiplier applied to compute ObjectiveAI's charge."),
+  cost_multiplier: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The multiplier applied to compute ObjectiveAI's charge."),
   is_byok: z.boolean().describe("Whether this request used Bring Your Own Key (BYOK)."),
   prompt_tokens: z.number().int().min(0).max(18446744073709552000).describe("Number of tokens in the prompt."),
   prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Detailed breakdown of prompt tokens.").meta({ omitempty: true }).optional(),
-  total_cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged."),
+  total_cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged."),
   total_tokens: z.number().int().min(0).max(18446744073709552000).describe("Total tokens (prompt + completion)."),
   upstream_duration_ms: AgentCompletionsResponseUpstreamDurationMsSchema.default({}).describe("Wall-clock milliseconds this upstream spent producing the\nresponse, measured create→finish by the upstream client itself\nand stamped on its own field of the terminal usage chunk."),
 }).describe("Token usage and cost information from an upstream provider.\n\nThis is the per-assistant-response usage yielded by upstream clients.\nIt includes upstream-specific fields like `cost_multiplier` and `is_byok`.").meta({ title: "agent.completions.response.UpstreamUsage" });

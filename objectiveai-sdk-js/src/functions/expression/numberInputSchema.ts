@@ -5,8 +5,8 @@ import { FunctionsExpressionNumberInputSchemaTypeSchema } from "./numberInputSch
 
 export const FunctionsExpressionNumberInputSchemaSchema = z.object({
   description: z.string().nullable().describe("Human-readable description of the number.").meta({ omitempty: true }).optional(),
-  maximum: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Maximum allowed value (inclusive).").meta({ omitempty: true }).optional(),
-  minimum: z.number().min(-3.4028235e+38).max(3.4028235e+38).nullable().describe("Minimum allowed value (inclusive).").meta({ omitempty: true }).optional(),
+  maximum: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Maximum allowed value (inclusive).").meta({ omitempty: true }).optional(),
+  minimum: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Minimum allowed value (inclusive).").meta({ omitempty: true }).optional(),
   type: FunctionsExpressionNumberInputSchemaTypeSchema,
 }).describe("Schema for a floating-point number input.").meta({ title: "functions.expression.NumberInputSchema" });
 export type FunctionsExpressionNumberInputSchema = z.infer<typeof FunctionsExpressionNumberInputSchemaSchema>;

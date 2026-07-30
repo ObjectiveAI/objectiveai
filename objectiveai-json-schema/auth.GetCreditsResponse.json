@@ -6,20 +6,20 @@
     "credits": {
       "description": "The current available credit balance.",
       "type": "number",
-      "minimum": -3.4028235e+38,
-      "maximum": 3.4028235e+38
+      "minimum": -3.4028234663852886e+38,
+      "maximum": 3.4028234663852886e+38
     },
     "total_credits_purchased": {
       "description": "The total amount of credits ever purchased.",
       "type": "number",
-      "minimum": -3.4028235e+38,
-      "maximum": 3.4028235e+38
+      "minimum": -3.4028234663852886e+38,
+      "maximum": 3.4028234663852886e+38
     },
     "total_credits_used": {
       "description": "The total amount of credits consumed by API usage.",
       "type": "number",
-      "minimum": -3.4028235e+38,
-      "maximum": 3.4028235e+38
+      "minimum": -3.4028234663852886e+38,
+      "maximum": 3.4028234663852886e+38
     }
   }
 }

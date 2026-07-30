@@ -11,7 +11,7 @@ Credits are the billing unit for ObjectiveAI. This response provides
 a complete view of the user's credit status."""
     model_config = ConfigDict(title='auth.GetCreditsResponse')
 
-    credits: float = Field(..., description='The current available credit balance.', ge=-3.4028235e+38, le=3.4028235e+38)
-    total_credits_purchased: float = Field(..., description='The total amount of credits ever purchased.', ge=-3.4028235e+38, le=3.4028235e+38)
-    total_credits_used: float = Field(..., description='The total amount of credits consumed by API usage.', ge=-3.4028235e+38, le=3.4028235e+38)
+    credits: float = Field(..., description='The current available credit balance.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
+    total_credits_purchased: float = Field(..., description='The total amount of credits ever purchased.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
+    total_credits_used: float = Field(..., description='The total amount of credits consumed by API usage.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
 

@@ -13,11 +13,11 @@ import (
 // a complete view of the user's credit status.
 type AuthGetCreditsResponse struct {
 	// The current available credit balance.
-	Credits float64 `json:"credits" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	Credits float64 `json:"credits" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// The total amount of credits ever purchased.
-	TotalCreditsPurchased float64 `json:"total_credits_purchased" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	TotalCreditsPurchased float64 `json:"total_credits_purchased" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// The total amount of credits consumed by API usage.
-	TotalCreditsUsed float64 `json:"total_credits_used" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	TotalCreditsUsed float64 `json:"total_credits_used" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (AuthGetCreditsResponse) SchemaTitle() string { return "auth.GetCreditsResponse" }

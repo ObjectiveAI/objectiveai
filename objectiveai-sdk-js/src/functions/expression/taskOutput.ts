@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { JsonValueSchema } from "../../jsonValue";
 
-export const FunctionsExpressionTaskOutputSchema = z.union([z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("A single scalar score.").meta({"variantTitle":"Scalar"}), z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("A vector of scores.").meta({"variantTitle":"Vector"}), z.array(z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38))).describe("Multiple vectors of scores (from mapped tasks).").meta({"variantTitle":"Vectors"}), z.object({
+export const FunctionsExpressionTaskOutputSchema = z.union([z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("A single scalar score.").meta({"variantTitle":"Scalar"}), z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("A vector of scores.").meta({"variantTitle":"Vector"}), z.array(z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38))).describe("Multiple vectors of scores (from mapped tasks).").meta({"variantTitle":"Vectors"}), z.object({
   error: JsonValueSchema,
 }).describe("An error occurred during execution.").meta({"variantTitle":"Err"})]).describe("Owned task output variants.").meta({ title: "functions.expression.TaskOutput" });
 export type FunctionsExpressionTaskOutput = z.infer<typeof FunctionsExpressionTaskOutputSchema>;

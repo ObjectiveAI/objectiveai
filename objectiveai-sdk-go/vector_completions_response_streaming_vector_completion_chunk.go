@@ -21,7 +21,7 @@ type VectorCompletionsResponseStreamingVectorCompletionChunk struct {
 	// Object type identifier (`"vector.completion.chunk"`).
 	Object VectorCompletionsResponseStreamingObject `json:"object"`
 	// Current weighted scores. Updated as new votes arrive.
-	Scores []float64 `json:"scores" validate:"dive,min=-3.4028235e+38,max=3.4028235e+38"`
+	Scores []float64 `json:"scores" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// ID of the swarm used for this completion.
 	Swarm string `json:"swarm"`
 	// Aggregated usage statistics. Typically present only in the final chunk.
@@ -29,7 +29,7 @@ type VectorCompletionsResponseStreamingVectorCompletionChunk struct {
 	// Votes received so far. New votes are appended in subsequent chunks.
 	Votes []VectorCompletionsResponseVote `json:"votes"`
 	// Current weight distribution across responses. Updated as new votes arrive.
-	Weights []float64 `json:"weights" validate:"dive,min=-3.4028235e+38,max=3.4028235e+38"`
+	Weights []float64 `json:"weights" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (VectorCompletionsResponseStreamingVectorCompletionChunk) SchemaTitle() string { return "vector.completions.response.streaming.VectorCompletionChunk" }

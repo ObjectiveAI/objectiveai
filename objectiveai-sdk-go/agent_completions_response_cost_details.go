@@ -10,9 +10,9 @@ import (
 // Detailed cost breakdown.
 type AgentCompletionsResponseCostDetails struct {
 	// Cost charged by the immediate upstream (e.g., OpenRouter).
-	UpstreamInferenceCost float64 `json:"upstream_inference_cost" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	UpstreamInferenceCost float64 `json:"upstream_inference_cost" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Cost charged by the upstream's upstream (e.g., the actual model provider).
-	UpstreamUpstreamInferenceCost float64 `json:"upstream_upstream_inference_cost" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	UpstreamUpstreamInferenceCost float64 `json:"upstream_upstream_inference_cost" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (AgentCompletionsResponseCostDetails) SchemaTitle() string { return "agent.completions.response.CostDetails" }

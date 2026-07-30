@@ -139,7 +139,7 @@ type DaemonAgentsInstancesListenerAgentInstanceEventVectorResponseVote struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	ResponseID string `json:"response_id"`
 	Type string `json:"type" validate:"oneof=vector_response_vote"`
-	Vote []float64 `json:"vote" validate:"dive,min=-3.4028235e+38,max=3.4028235e+38"`
+	Vote []float64 `json:"vote" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (v *DaemonAgentsInstancesListenerAgentInstanceEventVectorResponseVote) UnmarshalJSON(data []byte) error {

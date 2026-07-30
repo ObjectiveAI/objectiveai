@@ -10,7 +10,7 @@ class WeightsWeights(RootModel):
     """Simple vector of decimal weights."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Weights'})
 
-    root: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]]
+    root: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]]
 
 
 class WeightsEntries(RootModel):

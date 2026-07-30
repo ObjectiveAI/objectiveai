@@ -11,7 +11,7 @@ class NumberInputSchema(BaseModel):
     model_config = ConfigDict(title='functions.expression.NumberInputSchema')
 
     description: Optional[str] = Field(None, description='Human-readable description of the number.', json_schema_extra={'omitempty': True})
-    maximum: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Maximum allowed value (inclusive).', json_schema_extra={'omitempty': True})
-    minimum: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Minimum allowed value (inclusive).', json_schema_extra={'omitempty': True})
+    maximum: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Maximum allowed value (inclusive).', json_schema_extra={'omitempty': True})
+    minimum: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Minimum allowed value (inclusive).', json_schema_extra={'omitempty': True})
     type_: NumberInputSchemaType = Field(..., alias='type')
 

@@ -21,7 +21,7 @@ func (WeightsEntries) SchemaVariantTitle() string { return "Entries" }
 // - `Entries(Vec<WeightsEntry>)` - weights with optional per-agent `invert`
 type Weights struct {
 	// Simple vector of decimal weights.
-	Weights *WeightsWeights `validate:"omitempty,dive,min=-3.4028235e+38,max=3.4028235e+38"`
+	Weights *WeightsWeights `validate:"omitempty,dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Vector of entries with optional invert flags.
 	Entries *WeightsEntries 
 }

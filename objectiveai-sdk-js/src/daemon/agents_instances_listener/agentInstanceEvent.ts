@@ -43,7 +43,7 @@ export const DaemonAgentsInstancesListenerAgentInstanceEventSchema = z.union([z.
   agent_instance_hierarchy: z.string(),
   response_id: z.string(),
   type: z.literal("vector_response_vote"),
-  vote: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)),
+  vote: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)),
 }).describe("A complete `VectorResponseVote` block (single-row).").meta({"variantTitle":"VectorResponseVote"}), z.object({
   agent_instance_hierarchy: z.string(),
   key: z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.").meta({ omitempty: true }).optional(),

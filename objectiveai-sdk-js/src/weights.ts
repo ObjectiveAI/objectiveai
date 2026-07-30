@@ -3,5 +3,5 @@
 import { z } from "zod";
 import { WeightsEntrySchema } from "./weightsEntry";
 
-export const WeightsSchema = z.union([z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("Simple vector of decimal weights.").meta({"variantTitle":"Weights"}), z.array(WeightsEntrySchema).describe("Vector of entries with optional invert flags.").meta({"variantTitle":"Entries"})]).describe("Weights for a swarm's agents.\n\n- `Weights(Vec<Decimal>)` - simple representation (no inversion)\n- `Entries(Vec<WeightsEntry>)` - weights with optional per-agent `invert`").meta({ title: "Weights" });
+export const WeightsSchema = z.union([z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("Simple vector of decimal weights.").meta({"variantTitle":"Weights"}), z.array(WeightsEntrySchema).describe("Vector of entries with optional invert flags.").meta({"variantTitle":"Entries"})]).describe("Weights for a swarm's agents.\n\n- `Weights(Vec<Decimal>)` - simple representation (no inversion)\n- `Entries(Vec<WeightsEntry>)` - weights with optional per-agent `invert`").meta({ title: "Weights" });
 export type Weights = z.infer<typeof WeightsSchema>;

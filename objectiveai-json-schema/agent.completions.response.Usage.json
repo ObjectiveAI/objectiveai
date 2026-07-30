@@ -24,8 +24,8 @@
     "cost": {
       "description": "Cost charged by ObjectiveAI for this request.",
       "type": "number",
-      "minimum": -3.4028235e+38,
-      "maximum": 3.4028235e+38
+      "minimum": -3.4028234663852886e+38,
+      "maximum": 3.4028234663852886e+38
     },
     "cost_details": {
       "description": "Breakdown of upstream and upstream_upstream costs if available.",
@@ -60,8 +60,8 @@
     "total_cost": {
       "description": "Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key).",
       "type": "number",
-      "minimum": -3.4028235e+38,
-      "maximum": 3.4028235e+38
+      "minimum": -3.4028234663852886e+38,
+      "maximum": 3.4028234663852886e+38
     },
     "total_tokens": {
       "description": "Sum of completion and prompt tokens.",

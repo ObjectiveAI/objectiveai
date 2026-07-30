@@ -17,7 +17,7 @@ type AgentCompletionsResponseUsage struct {
 	// Breakdown of completion tokens (reasoning, audio, etc.) if available.
 	CompletionTokensDetails *AgentCompletionsResponseCompletionTokensDetails `json:"completion_tokens_details,omitempty"`
 	// Cost charged by ObjectiveAI for this request.
-	Cost float64 `json:"cost" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	Cost float64 `json:"cost" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Breakdown of upstream and upstream_upstream costs if available.
 	CostDetails *AgentCompletionsResponseCostDetails `json:"cost_details,omitempty"`
 	// Total prompt tokens across all assistant responses.
@@ -26,7 +26,7 @@ type AgentCompletionsResponseUsage struct {
 	PromptTokensDetails *AgentCompletionsResponsePromptTokensDetails `json:"prompt_tokens_details,omitempty"`
 	// Total cost including upstream provider charges. Only differs from `cost`
 	// when using BYOK (Bring Your Own Key).
-	TotalCost float64 `json:"total_cost" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	TotalCost float64 `json:"total_cost" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Sum of completion and prompt tokens.
 	TotalTokens uint64 `json:"total_tokens" validate:"min=0,max=18446744073709551615"`
 	// Wall-clock milliseconds spent inside each upstream client,

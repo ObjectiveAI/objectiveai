@@ -60,7 +60,7 @@ type FunctionsExpressionInputValue struct {
 	// An integer value.
 	Integer *FunctionsExpressionInputValueInteger `validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	// A floating-point number.
-	Number *FunctionsExpressionInputValueNumber `validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Number *FunctionsExpressionInputValueNumber `validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// A boolean value.
 	Boolean *FunctionsExpressionInputValueBoolean 
 }

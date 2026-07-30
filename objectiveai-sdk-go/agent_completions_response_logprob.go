@@ -12,7 +12,7 @@ type AgentCompletionsResponseLogprob struct {
 	// The raw bytes of the token.
 	Bytes *[]uint32 `json:"bytes" validate:"omitempty,dive,min=0,max=255"`
 	// The log probability of this token.
-	Logprob float64 `json:"logprob" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	Logprob float64 `json:"logprob" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// The token string.
 	Token string `json:"token"`
 	// The top alternative tokens and their log probabilities.

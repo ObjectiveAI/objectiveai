@@ -5,7 +5,7 @@ import { z } from "zod";
 export const FunctionsProfilesComputationsResponseFittingStatsSchema = z.object({
   errors: z.number().int().min(0).max(4294967295),
   executions: z.number().int().min(0).max(4294967295),
-  loss: z.number().min(-3.4028235e+38).max(3.4028235e+38),
+  loss: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38),
   rounds: z.number().int().min(0).max(4294967295),
   starts: z.number().int().min(0).max(4294967295),
 }).meta({ title: "functions.profiles.computations.response.FittingStats" });

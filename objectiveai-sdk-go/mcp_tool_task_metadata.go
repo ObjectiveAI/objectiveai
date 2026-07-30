@@ -5,7 +5,7 @@ package objectiveai
 // Metadata for a long-running task.
 type McpToolTaskMetadata struct {
 	// Time-to-live for the task, in seconds.
-	Ttl *float64 `json:"ttl,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Ttl *float64 `json:"ttl,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (McpToolTaskMetadata) SchemaTitle() string { return "mcp.tool.TaskMetadata" }

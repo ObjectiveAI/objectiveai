@@ -18,13 +18,13 @@ It includes upstream-specific fields like `cost_multiplier` and `is_byok`."""
 
     completion_tokens: int = Field(..., description='Number of tokens in the completion.', ge=0, le=18446744073709551615)
     completion_tokens_details: Optional[CompletionTokensDetails] = Field(None, description='Detailed breakdown of completion tokens.', json_schema_extra={'omitempty': True})
-    cost: float = Field(..., description='The cost charged by ObjectiveAI for this request.', ge=-3.4028235e+38, le=3.4028235e+38)
+    cost: float = Field(..., description='The cost charged by ObjectiveAI for this request.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     cost_details: Optional[CostDetails] = Field(None, description='Detailed cost breakdown.', json_schema_extra={'omitempty': True})
-    cost_multiplier: float = Field(..., description="The multiplier applied to compute ObjectiveAI's charge.", ge=-3.4028235e+38, le=3.4028235e+38)
+    cost_multiplier: float = Field(..., description="The multiplier applied to compute ObjectiveAI's charge.", ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     is_byok: bool = Field(..., description='Whether this request used Bring Your Own Key (BYOK).')
     prompt_tokens: int = Field(..., description='Number of tokens in the prompt.', ge=0, le=18446744073709551615)
     prompt_tokens_details: Optional[PromptTokensDetails] = Field(None, description='Detailed breakdown of prompt tokens.', json_schema_extra={'omitempty': True})
-    total_cost: float = Field(..., description="Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged.", ge=-3.4028235e+38, le=3.4028235e+38)
+    total_cost: float = Field(..., description="Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged.", ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     total_tokens: int = Field(..., description='Total tokens (prompt + completion).', ge=0, le=18446744073709551615)
     upstream_duration_ms: UpstreamDurationMs = Field({}, description='Wall-clock milliseconds this upstream spent producing the\nresponse, measured create→finish by the upstream client itself\nand stamped on its own field of the terminal usage chunk.')
 

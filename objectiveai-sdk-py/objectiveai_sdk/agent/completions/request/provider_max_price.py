@@ -9,9 +9,9 @@ class ProviderMaxPrice(BaseModel):
     """Maximum price constraints per token type."""
     model_config = ConfigDict(title='agent.completions.request.ProviderMaxPrice')
 
-    audio: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Maximum price per audio second.', json_schema_extra={'omitempty': True})
-    completion: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Maximum price per completion token.', json_schema_extra={'omitempty': True})
-    image: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Maximum price per image.', json_schema_extra={'omitempty': True})
-    prompt: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Maximum price per prompt token.', json_schema_extra={'omitempty': True})
-    request: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Maximum price per request.', json_schema_extra={'omitempty': True})
+    audio: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Maximum price per audio second.', json_schema_extra={'omitempty': True})
+    completion: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Maximum price per completion token.', json_schema_extra={'omitempty': True})
+    image: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Maximum price per image.', json_schema_extra={'omitempty': True})
+    prompt: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Maximum price per prompt token.', json_schema_extra={'omitempty': True})
+    request: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Maximum price per request.', json_schema_extra={'omitempty': True})
 

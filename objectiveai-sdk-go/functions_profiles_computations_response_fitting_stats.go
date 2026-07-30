@@ -10,7 +10,7 @@ import (
 type FunctionsProfilesComputationsResponseFittingStats struct {
 	Errors uint32 `json:"errors" validate:"min=0,max=4294967295"`
 	Executions uint32 `json:"executions" validate:"min=0,max=4294967295"`
-	Loss float64 `json:"loss" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	Loss float64 `json:"loss" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	Rounds uint32 `json:"rounds" validate:"min=0,max=4294967295"`
 	Starts uint32 `json:"starts" validate:"min=0,max=4294967295"`
 }

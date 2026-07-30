@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 export const AgentCompletionsResponseCostDetailsSchema = z.object({
-  upstream_inference_cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("Cost charged by the immediate upstream (e.g., OpenRouter)."),
-  upstream_upstream_inference_cost: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("Cost charged by the upstream's upstream (e.g., the actual model provider)."),
+  upstream_inference_cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Cost charged by the immediate upstream (e.g., OpenRouter)."),
+  upstream_upstream_inference_cost: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("Cost charged by the upstream's upstream (e.g., the actual model provider)."),
 }).describe("Detailed cost breakdown.").meta({ title: "agent.completions.response.CostDetails" });
 export type AgentCompletionsResponseCostDetails = z.infer<typeof AgentCompletionsResponseCostDetailsSchema>;

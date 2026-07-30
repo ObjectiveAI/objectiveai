@@ -4,6 +4,6 @@ import { z } from "zod";
 
 export const WeightsEntrySchema = z.object({
   invert: z.boolean().nullable().describe("If true, invert this agent's vote distribution before combining.\n\nWhen omitted or false, the vote distribution is used as-is.").meta({ omitempty: true }).optional(),
-  weight: z.number().min(-3.4028235e+38).max(3.4028235e+38).describe("The weight for this agent in the swarm. Must be in [0, 1]."),
+  weight: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).describe("The weight for this agent in the swarm. Must be in [0, 1]."),
 }).describe("An entry in weights with an explicit weight and optional invert flag.").meta({ title: "WeightsEntry" });
 export type WeightsEntry = z.infer<typeof WeightsEntrySchema>;

@@ -5,15 +5,15 @@ package objectiveai
 // Maximum price constraints per token type.
 type AgentCompletionsRequestProviderMaxPrice struct {
 	// Maximum price per audio second.
-	Audio *float64 `json:"audio,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Audio *float64 `json:"audio,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Maximum price per completion token.
-	Completion *float64 `json:"completion,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Completion *float64 `json:"completion,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Maximum price per image.
-	Image *float64 `json:"image,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Image *float64 `json:"image,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Maximum price per prompt token.
-	Prompt *float64 `json:"prompt,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Prompt *float64 `json:"prompt,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Maximum price per request.
-	Request *float64 `json:"request,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Request *float64 `json:"request,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (AgentCompletionsRequestProviderMaxPrice) SchemaTitle() string { return "agent.completions.request.ProviderMaxPrice" }

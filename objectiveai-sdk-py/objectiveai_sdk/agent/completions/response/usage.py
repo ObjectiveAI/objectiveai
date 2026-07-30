@@ -18,11 +18,11 @@ assistant responses within a single agent completion."""
 
     completion_tokens: int = Field(..., description='Total tokens generated across all assistant responses.', ge=0, le=18446744073709551615)
     completion_tokens_details: Optional[CompletionTokensDetails] = Field(None, description='Breakdown of completion tokens (reasoning, audio, etc.) if available.', json_schema_extra={'omitempty': True})
-    cost: float = Field(..., description='Cost charged by ObjectiveAI for this request.', ge=-3.4028235e+38, le=3.4028235e+38)
+    cost: float = Field(..., description='Cost charged by ObjectiveAI for this request.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     cost_details: Optional[CostDetails] = Field(None, description='Breakdown of upstream and upstream_upstream costs if available.', json_schema_extra={'omitempty': True})
     prompt_tokens: int = Field(..., description='Total prompt tokens across all assistant responses.', ge=0, le=18446744073709551615)
     prompt_tokens_details: Optional[PromptTokensDetails] = Field(None, description='Breakdown of prompt tokens (cached, audio, etc.) if available.', json_schema_extra={'omitempty': True})
-    total_cost: float = Field(..., description='Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key).', ge=-3.4028235e+38, le=3.4028235e+38)
+    total_cost: float = Field(..., description='Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key).', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     total_tokens: int = Field(..., description='Sum of completion and prompt tokens.', ge=0, le=18446744073709551615)
     upstream_duration_ms: UpstreamDurationMs = Field({}, description='Wall-clock milliseconds spent inside each upstream client,\nsummed across turns, fallbacks, and parallel agents.')
 

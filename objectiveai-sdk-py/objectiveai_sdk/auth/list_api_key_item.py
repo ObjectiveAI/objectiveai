@@ -15,7 +15,7 @@ the total cost incurred by requests using this key."""
     model_config = ConfigDict(title='auth.ListApiKeyItem')
 
     api_key: PrefixedUuid = Field(..., description='The API key itself.')
-    cost: float = Field(..., description='The total cost incurred by this API key.', ge=-3.4028235e+38, le=3.4028235e+38)
+    cost: float = Field(..., description='The total cost incurred by this API key.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     created: datetime = Field(..., description='The timestamp when the API key was created (RFC 3339 format).')
     description: Optional[str] = Field(None, description='The user-provided description of the API key, or `None` if not provided.')
     disabled: Optional[datetime] = Field(None, description='The timestamp when the API key was disabled, or `None` if it is active.')

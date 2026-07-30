@@ -12,5 +12,5 @@ class Annotations(BaseModel):
 
     audience: Optional[list[Role]] = Field(None, description='Intended audience(s) for the content.', json_schema_extra={'omitempty': True})
     last_modified: Optional[str] = Field(None, alias='lastModified', description='ISO 8601 timestamp for the most recent modification.', json_schema_extra={'omitempty': True})
-    priority: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Importance hint, from 0 (least) to 1 (most).', json_schema_extra={'omitempty': True})
+    priority: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Importance hint, from 0 (least) to 1 (most).', json_schema_extra={'omitempty': True})
 

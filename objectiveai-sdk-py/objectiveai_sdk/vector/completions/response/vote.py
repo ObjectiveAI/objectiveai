@@ -27,6 +27,6 @@ distributions."""
     prompt_id: str = Field(..., description='Content hash of the request messages (for caching/deduplication).')
     responses_ids: list[str] = Field(..., description='Content hashes of each response option in the request.')
     swarm_index: int = Field(..., description='Index of the agent configuration within the swarm.', ge=0, le=18446744073709551615)
-    vote: list[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(..., description='The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0.')
-    weight: float = Field(..., description='The weight applied to this vote when computing final scores.', ge=-3.4028235e+38, le=3.4028235e+38)
+    vote: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description='The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0.')
+    weight: float = Field(..., description='The weight applied to this vote when computing final scores.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
 

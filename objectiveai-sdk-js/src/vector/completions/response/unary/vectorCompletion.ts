@@ -11,10 +11,10 @@ export const VectorCompletionsResponseUnaryVectorCompletionSchema = z.object({
   created: z.number().int().min(0).max(18446744073709552000).describe("Unix timestamp when the completion was created."),
   id: z.string().describe("Unique identifier for this vector completion."),
   object: VectorCompletionsResponseUnaryObjectSchema.describe("Object type identifier (`\"vector.completion\"`)."),
-  scores: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("Final weighted scores for each response option. Sums to 1."),
+  scores: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("Final weighted scores for each response option. Sums to 1."),
   swarm: z.string().describe("ID of the swarm used for this completion."),
   usage: AgentCompletionsResponseUsageSchema.describe("Aggregated token and cost usage across all completions."),
   votes: z.array(VectorCompletionsResponseVoteSchema).describe("Individual votes from each agent, showing their selections."),
-  weights: z.array(z.number().min(-3.4028235e+38).max(3.4028235e+38)).describe("Total weight allocated to each response option. Same length as `scores`.\nFor discrete votes, an LLM's full weight goes to its selected response.\nFor probabilistic votes, the weight is divided according to the distribution."),
+  weights: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)).describe("Total weight allocated to each response option. Same length as `scores`.\nFor discrete votes, an LLM's full weight goes to its selected response.\nFor probabilistic votes, the weight is divided according to the distribution."),
 }).describe("A complete vector completion response (non-streaming).\n\nContains the final scores, all votes from the swarm, and the underlying\nagent completions that produced those votes.").meta({ title: "vector.completions.response.unary.VectorCompletion" });
 export type VectorCompletionsResponseUnaryVectorCompletion = z.infer<typeof VectorCompletionsResponseUnaryVectorCompletionSchema>;

@@ -13,11 +13,11 @@ class Provider(BaseModel):
     model_config = ConfigDict(title='agent.completions.request.Provider')
 
     data_collection: Optional[ProviderDataCollection] = Field(None, description='Whether to allow providers to collect data.', json_schema_extra={'omitempty': True})
-    max_latency: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Hard maximum latency requirement (seconds).', json_schema_extra={'omitempty': True})
+    max_latency: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Hard maximum latency requirement (seconds).', json_schema_extra={'omitempty': True})
     max_price: Optional[ProviderMaxPrice] = Field(None, description='Maximum price constraints.', json_schema_extra={'omitempty': True})
-    min_throughput: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Hard minimum throughput requirement (tokens/second).', json_schema_extra={'omitempty': True})
-    preferred_max_latency: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Preferred maximum latency (seconds).', json_schema_extra={'omitempty': True})
-    preferred_min_throughput: Optional[Annotated[float, Field(ge=-3.4028235e+38, le=3.4028235e+38)]] = Field(None, description='Preferred minimum throughput (tokens/second).', json_schema_extra={'omitempty': True})
+    min_throughput: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Hard minimum throughput requirement (tokens/second).', json_schema_extra={'omitempty': True})
+    preferred_max_latency: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Preferred maximum latency (seconds).', json_schema_extra={'omitempty': True})
+    preferred_min_throughput: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Preferred minimum throughput (tokens/second).', json_schema_extra={'omitempty': True})
     sort: Optional[ProviderSort] = Field(None, description='How to sort/prioritize providers.', json_schema_extra={'omitempty': True})
     zdr: Optional[bool] = Field(None, description='Whether to use zero data retention providers only.', json_schema_extra={'omitempty': True})
 

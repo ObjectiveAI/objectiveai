@@ -30,7 +30,7 @@ type FunctionsExecutionsResponseUnaryVectorCompletionTask struct {
 	// carried from the task's first streaming chunk.
 	RequestMessages []AgentCompletionsMessageMessage `json:"request_messages"`
 	// Final weighted scores for each response option. Sums to 1.
-	Scores []float64 `json:"scores" validate:"dive,min=-3.4028235e+38,max=3.4028235e+38"`
+	Scores []float64 `json:"scores" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// ID of the swarm used for this completion.
 	Swarm string `json:"swarm"`
 	TaskIndex uint64 `json:"task_index" validate:"min=0,max=18446744073709551615"`
@@ -42,7 +42,7 @@ type FunctionsExecutionsResponseUnaryVectorCompletionTask struct {
 	// Total weight allocated to each response option. Same length as `scores`.
 	// For discrete votes, an LLM's full weight goes to its selected response.
 	// For probabilistic votes, the weight is divided according to the distribution.
-	Weights []float64 `json:"weights" validate:"dive,min=-3.4028235e+38,max=3.4028235e+38"`
+	Weights []float64 `json:"weights" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (FunctionsExecutionsResponseUnaryVectorCompletionTask) SchemaTitle() string { return "functions.executions.response.unary.VectorCompletionTask" }

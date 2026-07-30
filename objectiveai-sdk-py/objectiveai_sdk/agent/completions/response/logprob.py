@@ -11,7 +11,7 @@ class Logprob(BaseModel):
     model_config = ConfigDict(title='agent.completions.response.Logprob')
 
     bytes: Optional[list[Annotated[int, Field(ge=0, le=255)]]] = Field(None, description='The raw bytes of the token.')
-    logprob: float = Field(..., description='The log probability of this token.', ge=-3.4028235e+38, le=3.4028235e+38)
+    logprob: float = Field(..., description='The log probability of this token.', ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)
     token: str = Field(..., description='The token string.')
     top_logprobs: list[TopLogprob] = Field(..., description='The top alternative tokens and their log probabilities.')
 

@@ -128815,6 +128815,7 @@ declare const CliPluginsManifestSchema: z.ZodObject<{
             caches: z.ZodArray<z.ZodString>;
         }, z.core.$strip>>>;
         port: z.ZodNumber;
+        postgres: z.ZodBoolean;
     }, z.core.$strip>>>;
     viewer: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         containerfile: z.ZodString;
@@ -128848,6 +128849,7 @@ declare const CliPluginsMcpSchema: z.ZodObject<{
         caches: z.ZodArray<z.ZodString>;
     }, z.core.$strip>>>;
     port: z.ZodNumber;
+    postgres: z.ZodBoolean;
 }, z.core.$strip>;
 type CliPluginsMcp = z.infer<typeof CliPluginsMcpSchema>;
 

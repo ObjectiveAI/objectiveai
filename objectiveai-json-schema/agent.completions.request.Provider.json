@@ -20,8 +20,8 @@
       "anyOf": [
         {
           "type": "number",
-          "minimum": -3.4028235e+38,
-          "maximum": 3.4028235e+38
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38
         },
         {
           "type": "null"
@@ -46,8 +46,8 @@
       "anyOf": [
         {
           "type": "number",
-          "minimum": -3.4028235e+38,
-          "maximum": 3.4028235e+38
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38
         },
         {
           "type": "null"
@@ -60,8 +60,8 @@
       "anyOf": [
         {
           "type": "number",
-          "minimum": -3.4028235e+38,
-          "maximum": 3.4028235e+38
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38
         },
         {
           "type": "null"
@@ -74,8 +74,8 @@
       "anyOf": [
         {
           "type": "number",
-          "minimum": -3.4028235e+38,
-          "maximum": 3.4028235e+38
+          "minimum": -3.4028234663852886e+38,
+          "maximum": 3.4028234663852886e+38
         },
         {
           "type": "null"

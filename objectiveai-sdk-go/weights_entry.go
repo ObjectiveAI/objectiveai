@@ -14,7 +14,7 @@ type WeightsEntry struct {
 	// When omitted or false, the vote distribution is used as-is.
 	Invert *bool `json:"invert,omitempty"`
 	// The weight for this agent in the swarm. Must be in [0, 1].
-	Weight float64 `json:"weight" validate:"min=-3.4028235e+38,max=3.4028235e+38"`
+	Weight float64 `json:"weight" validate:"min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (WeightsEntry) SchemaTitle() string { return "WeightsEntry" }

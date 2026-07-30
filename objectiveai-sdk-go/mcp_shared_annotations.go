@@ -9,7 +9,7 @@ type McpSharedAnnotations struct {
 	// ISO 8601 timestamp for the most recent modification.
 	LastModified *string `json:"lastModified,omitempty"`
 	// Importance hint, from 0 (least) to 1 (most).
-	Priority *float64 `json:"priority,omitempty" validate:"omitempty,min=-3.4028235e+38,max=3.4028235e+38"`
+	Priority *float64 `json:"priority,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 }
 
 func (McpSharedAnnotations) SchemaTitle() string { return "mcp.shared.Annotations" }
