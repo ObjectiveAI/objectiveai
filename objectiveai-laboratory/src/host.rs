@@ -2087,21 +2087,26 @@ impl HostServer {
             .iter()
             .map(|entry| entry.key().clone())
             .collect();
-        futures::future::join_all(
-            ephemeral_ids.iter().map(|id| self.evaporate(id)),
-        )
-        .await;
         let ids: Vec<String> = self
             .labs
             .iter()
             .filter(|entry| entry.value().get().is_some())
             .map(|entry| entry.key().clone())
             .collect();
-        let results = futures::future::join_all(
-            ids.iter()
-                .map(|id| podman::laboratory::stop(&self.podman, &self.state, id)),
-        )
-        .await;
+        // ONE join across both kinds. The sets are disjoint — an id is
+        // an ephemeral or a regular lab, never both — and an evaporate
+        // shares nothing with a stop but podman itself, so shutdown
+        // waits for the slowest container rather than the slowest
+        // ephemeral plus the slowest regular lab.
+        let (_, results) = tokio::join!(
+            futures::future::join_all(
+                ephemeral_ids.iter().map(|id| self.evaporate(id)),
+            ),
+            futures::future::join_all(
+                ids.iter()
+                    .map(|id| podman::laboratory::stop(&self.podman, &self.state, id)),
+            ),
+        );
         for (id, result) in ids.iter().zip(results) {
             if let Err(e) = result {
                 eprintln!("stop laboratory '{id}': {e}");
