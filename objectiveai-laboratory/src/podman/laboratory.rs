@@ -44,6 +44,37 @@ pub const DB_PROXY_WS_PORT: u16 = 14980;
 pub const DB_PROXY_BINARY: &str = "objectiveai-db-proxy";
 const LAB_BINARY: &str = "objectiveai-mcp-laboratory";
 
+/// The COMPLETE environment for the injected db proxy.
+///
+/// Complete deliberately, and this is a correctness requirement rather
+/// than tidiness. The proxy reads GENERIC names — `ADDRESS`, `PORT`,
+/// `POSTGRES_ADDRESS`, `POSTGRES_PORT` — and it is exec'd inside an
+/// image somebody else built, whose own `ENV` a `podman exec` inherits.
+/// A plugin server image declaring `ENV ADDRESS=127.0.0.1` or
+/// `ENV PORT=8080` for its own server is an entirely ordinary thing to
+/// do; inheriting either would break the conduit (a loopback-bound
+/// listener is not reachable through a published port) and leave the
+/// plugin's database hanging with nothing to say why. The same goes for
+/// a `.env` file in the image's WORKDIR, which the proxy's `dotenv`
+/// call would otherwise read — it cannot override a value already in
+/// the environment, and every value is here.
+///
+/// So: state everything the proxy consults, and nothing about the image
+/// can reach it.
+pub fn db_proxy_env() -> Vec<(String, String)> {
+    vec![
+        // `0.0.0.0` because a published container port does not reach a
+        // loopback-bound listener.
+        ("ADDRESS".to_string(), "0.0.0.0".to_string()),
+        ("PORT".to_string(), DB_PROXY_WS_PORT.to_string()),
+        // Loopback, equally deliberately: nothing outside the container
+        // has any business reaching the Postgres side.
+        ("POSTGRES_ADDRESS".to_string(), "127.0.0.1".to_string()),
+        ("POSTGRES_PORT".to_string(), DB_PROXY_PG_PORT.to_string()),
+        ("SUPPRESS_OUTPUT".to_string(), "0".to_string()),
+    ]
+}
+
 /// Per-state container name for a laboratory id.
 pub fn container_name(state: &str, id: &str) -> String {
     format!("objectiveai-laboratory-{state}-{id}")
@@ -65,53 +96,60 @@ fn container_command(exe: &Path) -> tokio::process::Command {
     cmd
 }
 
-/// Copy a host file into a container as `/<name>`, mode 0755.
+/// Pack a host file as the ONE-ENTRY TAR [`copy_in_archive`] streams,
+/// with mode 0755 stated in the header.
 ///
-/// Streams a ONE-ENTRY TAR to `podman cp - <container>:/` instead of
-/// copying the file directly, because a direct copy carries the host's
-/// mode — and a musl binary staged out of a release zip on Windows or
-/// macOS has no Unix execute bit at all, so the container refuses to
-/// exec it ("exists but it is not executable"). A tar entry states its
-/// own mode, which makes injection independent of the host filesystem
-/// AND of the image having a shell to chmod with. The latter matters
-/// for plugin images: they are author-supplied, their entrypoint is
-/// theirs, and one built `FROM scratch` has no `/bin/sh` to run a
-/// wrapper in.
+/// Split from the copy so a caller can pack WHILE podman creates the
+/// container: the archive depends on neither the container nor podman,
+/// and the binary being read is ~200MB in a debug build. Sequencing them
+/// would pay for both in a row for no reason.
+///
+/// A tar rather than a plain `podman cp` of the file because a direct
+/// copy carries the host's mode — and a musl binary staged out of a
+/// release zip on Windows or macOS has no Unix execute bit at all, so
+/// the container refuses to exec it ("exists but it is not
+/// executable"). A tar entry states its own mode, which makes injection
+/// independent of the host filesystem AND of the image having a shell to
+/// chmod with. That last part matters for plugin images: they are
+/// author-supplied, their entrypoint is theirs, and one built
+/// `FROM scratch` has no `/bin/sh` to run a wrapper in.
+async fn pack_executable(source: &Path, name: &str) -> Result<Vec<u8>, Error> {
+    let bytes = tokio::fs::read(source)
+        .await
+        .map_err(|e| Error(format!("read {}: {e}", source.display())))?;
+
+    let mut archive = tar::Builder::new(Vec::new());
+    let mut header = tar::Header::new_gnu();
+    header.set_entry_type(tar::EntryType::Regular);
+    header.set_size(bytes.len() as u64);
+    // THE POINT of going through tar at all. uid/gid stay 0, so the file
+    // is root-owned and world-executable — which is what lets an image
+    // running as a non-root user still exec it.
+    header.set_mode(0o755);
+    // A RELATIVE entry path, extracted at `/` — so the file lands at
+    // `/<name>` however podman resolves the destination. `append_data`
+    // sets the path and the checksum itself, in that order, so neither is
+    // this function's business.
+    archive
+        .append_data(&mut header, name, bytes.as_slice())
+        .and_then(|()| archive.into_inner())
+        .map_err(|e| Error(format!("pack {name}: {e}")))
+}
+
+/// Stream a [`pack_executable`] archive into a container, landing its
+/// entry at `/<name>`.
 ///
 /// Works on a container that is created but not yet started, which is
 /// what every caller here needs.
-async fn copy_in_executable(
+async fn copy_in_archive(
     podman: &Podman,
     container: &str,
-    source: &Path,
+    archive: Vec<u8>,
     name: &str,
 ) -> Result<(), Error> {
     use tokio::io::AsyncWriteExt as _;
 
     let exe = podman.executable().await?;
-    let bytes = tokio::fs::read(source)
-        .await
-        .map_err(|e| Error(format!("read {}: {e}", source.display())))?;
-
-    let archive = {
-        let mut archive = tar::Builder::new(Vec::new());
-        let mut header = tar::Header::new_gnu();
-        header.set_entry_type(tar::EntryType::Regular);
-        header.set_size(bytes.len() as u64);
-        // THE POINT of going through tar at all. uid/gid stay 0, so the
-        // file is root-owned and world-executable — which is what lets
-        // an image running as a non-root user still exec it.
-        header.set_mode(0o755);
-        // A RELATIVE entry path, extracted at `/` — so the file lands
-        // at `/<name>` however podman resolves the destination.
-        // `append_data` sets the path and the checksum itself, in that
-        // order, so neither is this function's business.
-        archive
-            .append_data(&mut header, name, bytes.as_slice())
-            .and_then(|()| archive.into_inner())
-            .map_err(|e| Error(format!("pack {name}: {e}")))?
-    };
-
     let mut cmd = container_command(exe);
     let mut child = cmd
         .arg("cp")
@@ -852,15 +890,21 @@ async fn create_injected_container(
         // to be a `sh -c "chmod +x … && exec …"` wrapper, because
         // `podman cp` carried the host's file mode and a musl binary
         // staged on Windows/macOS arrived without an execute bit — but
-        // [`copy_in_executable`] states the mode in the tar it streams,
-        // so there is nothing left to chmod and no shell to need.
+        // [`pack_executable`] states the mode in the tar it streams, so
+        // there is nothing left to chmod and no shell to need.
         .arg("--entrypoint")
         .arg(format!(r#"["/{LAB_BINARY}"]"#))
         .arg(podman_image);
-    let output = create_cmd
-        .output()
-        .await
-        .map_err(|e| Error(format!("spawn podman create: {e}")))?;
+    // 2. The container, and the archive to put in it. The pack reads the
+    // musl binary off disk and touches nothing podman owns, so it runs
+    // alongside the create rather than behind it. (The CLI passes its
+    // staged `objectiveai-mcp-laboratory`; other hosts pass their own
+    // copy — no `.exe`, ever.)
+    let (created, archive) = tokio::join!(
+        create_cmd.output(),
+        pack_executable(laboratory_binary, LAB_BINARY),
+    );
+    let output = created.map_err(|e| Error(format!("spawn podman create: {e}")))?;
     if !output.status.success() {
         return Err(Error(format!(
             "podman create {name}: {}",
@@ -868,10 +912,8 @@ async fn create_injected_container(
         )));
     }
 
-    // 2. Inject the caller-supplied musl MCP binary (the CLI passes its
-    // staged `objectiveai-mcp-laboratory`; other hosts pass their own
-    // copy — no `.exe`, ever), executable on arrival.
-    copy_in_executable(podman, &name, laboratory_binary, LAB_BINARY).await?;
+    // 3. Inject it, executable on arrival.
+    copy_in_archive(podman, &name, archive?, LAB_BINARY).await?;
 
     // NOTE: the container is created but NOT started here — starting it (which
     // runs the injected entrypoint on PORT=14978) is done elsewhere (see
@@ -948,13 +990,18 @@ pub async fn create_plugin(
     for (k, v) in identity_env {
         create_cmd.arg("-e").arg(format!("{k}={v}"));
     }
-    let output = create_cmd
+    create_cmd
         .arg("--label")
         .arg(format!("objectiveai.laboratory={label_json}"))
-        .arg(registry_reference(image))
-        .output()
-        .await
-        .map_err(|e| Error(format!("spawn podman create: {e}")))?;
+        .arg(registry_reference(image));
+    // The container, and the archive to put in it. The pack only reads
+    // the binary off disk, so it runs alongside the create instead of
+    // behind it.
+    let (created, archive) = tokio::join!(
+        create_cmd.output(),
+        pack_executable(db_proxy_binary, DB_PROXY_BINARY),
+    );
+    let output = created.map_err(|e| Error(format!("spawn podman create: {e}")))?;
     if !output.status.success() {
         return Err(Error(format!(
             "podman create {name}: {}",
@@ -965,7 +1012,7 @@ pub async fn create_plugin(
     // plugin container. It is not started here: `podman exec -d` starts
     // it after `start`, so the image's own entrypoint remains PID 1
     // (see [`exec_detached`]).
-    copy_in_executable(podman, &name, db_proxy_binary, DB_PROXY_BINARY).await?;
+    copy_in_archive(podman, &name, archive?, DB_PROXY_BINARY).await?;
     Ok(())
 }
 

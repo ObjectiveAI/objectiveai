@@ -1564,69 +1564,68 @@ impl HostServer {
         if let Err(e) = podman::laboratory::start(&self.podman, &self.state, id).await {
             return fail(format!("start ephemeral '{id}': {e}")).await;
         }
-        let port = match podman::laboratory::host_port(
-            &self.podman,
-            &self.state,
-            id,
-            internal_port,
-        )
-        .await
-        {
-            Ok(port) => port,
-            Err(e) => return fail(format!("ephemeral '{id}' port: {e}")).await,
-        };
-        let base_url = format!("http://127.0.0.1:{port}");
-        // Start the injected db proxy and dial it (plugin ephemerals
-        // only) BEFORE the MCP connect, so it is attaching while MCP
-        // initializes. `exec -d` rather than an entrypoint, so the
-        // plugin's own server stays PID 1; the ports ride the exec
-        // rather than the container env, because `PORT` in the container
-        // belongs to the plugin's own server.
+        // Everything the container needs asked for AT ONCE. Past `start`
+        // these are independent — the MCP port lookup, and for a plugin
+        // the proxy's port lookup plus the exec that starts it, which
+        // reads no port because the in-container ones are constants.
+        // Each is its own podman process, and on a podman-machine host
+        // that is a process launch plus a socket round trip apiece, so
+        // running them in a line would be three of those where one will
+        // do.
         //
-        // A failure here fails the create, like every other step past
-        // start — the database is mandatory for a plugin. But the DIAL
-        // is not gated: the proxy holds an accepted client until a host
+        // The db proxy is started BEFORE the MCP connect so it is
+        // attaching while MCP initializes. `exec -d` rather than an
+        // entrypoint, so the plugin's own server stays PID 1; the ports
+        // ride the exec rather than the container env, because `PORT`
+        // in the container belongs to the plugin's own server.
+        //
+        // A failure fails the create, like every other step past start —
+        // the database is mandatory for a plugin. But the DIAL is not
+        // gated: the proxy holds an accepted client until a host
         // attaches, so a plugin that connects first simply waits in its
         // `connect` instead of failing, and there is no race to wait on
         // here.
-        let pg = if db_proxy {
-            let ws_port = match podman::laboratory::host_port(
-                &self.podman,
-                &self.state,
-                id,
-                podman::laboratory::DB_PROXY_WS_PORT,
-            )
-            .await
-            {
-                Ok(port) => port,
-                Err(e) => {
-                    return fail(format!("ephemeral '{id}' db proxy port: {e}")).await;
-                }
-            };
-            if let Err(e) = podman::laboratory::exec_detached(
-                &self.podman,
-                &self.state,
-                id,
-                podman::laboratory::DB_PROXY_BINARY,
-                &[
-                    (
-                        "PORT".to_string(),
-                        podman::laboratory::DB_PROXY_WS_PORT.to_string(),
-                    ),
-                    (
-                        "POSTGRES_PORT".to_string(),
-                        podman::laboratory::DB_PROXY_PG_PORT.to_string(),
-                    ),
-                ],
-            )
-            .await
-            {
-                return fail(format!("start db proxy in ephemeral '{id}': {e}")).await;
-            }
-            Some(spawn_pg_conduit(ws_port, channel, Arc::clone(&self.bridge)))
-        } else {
-            None
+        let mcp_port = async {
+            podman::laboratory::host_port(&self.podman, &self.state, id, internal_port)
+                .await
+                .map_err(|e| format!("ephemeral '{id}' port: {e}"))
         };
+        let db_proxy_port = async {
+            if !db_proxy {
+                return Ok(None);
+            }
+            let (ws_port, ()) = tokio::try_join!(
+                async {
+                    podman::laboratory::host_port(
+                        &self.podman,
+                        &self.state,
+                        id,
+                        podman::laboratory::DB_PROXY_WS_PORT,
+                    )
+                    .await
+                    .map_err(|e| format!("ephemeral '{id}' db proxy port: {e}"))
+                },
+                async {
+                    podman::laboratory::exec_detached(
+                        &self.podman,
+                        &self.state,
+                        id,
+                        podman::laboratory::DB_PROXY_BINARY,
+                        &podman::laboratory::db_proxy_env(),
+                    )
+                    .await
+                    .map_err(|e| format!("start db proxy in ephemeral '{id}': {e}"))
+                },
+            )?;
+            Ok(Some(ws_port))
+        };
+        let (port, ws_port) = match tokio::try_join!(mcp_port, db_proxy_port) {
+            Ok(ports) => ports,
+            Err(message) => return fail(message).await,
+        };
+        let base_url = format!("http://127.0.0.1:{port}");
+        let pg = ws_port
+            .map(|ws_port| spawn_pg_conduit(ws_port, channel, Arc::clone(&self.bridge)));
         // THE connection — same executor construction as
         // LabServer::initialize: plugin ephemerals get the real
         // command-forwarder reading the live header bag, agent

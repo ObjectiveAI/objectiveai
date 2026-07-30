@@ -148,8 +148,14 @@ pub async fn setup(config: Config) -> std::io::Result<Servers> {
         .route("/", axum::routing::any(upgrade))
         .with_state(Arc::clone(&conduit));
 
-    let postgres = tokio::net::TcpListener::bind(format!("{postgres_address}:{postgres_port}")).await?;
-    let host = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
+    // Two independent binds, so they go together rather than one after
+    // the other. `try_join!` also gives the failure semantics this wants:
+    // half a conduit is useless, so the first bind to fail is the whole
+    // setup's error.
+    let (postgres, host) = tokio::try_join!(
+        tokio::net::TcpListener::bind(format!("{postgres_address}:{postgres_port}")),
+        tokio::net::TcpListener::bind(format!("{address}:{port}")),
+    )?;
 
     Ok(Servers {
         conduit,
