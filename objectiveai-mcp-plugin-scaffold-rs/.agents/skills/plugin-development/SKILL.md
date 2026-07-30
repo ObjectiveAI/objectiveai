@@ -75,6 +75,12 @@ code you already deleted, you skipped the reset.
   `PORT` in `src/main.rs`, and `EXPOSE` in the `Containerfile`. They must
   agree; a mismatch looks like a dead plugin rather than a misconfigured
   one.
+- **The database is an opt-in** — `mcp.postgres` is a REQUIRED boolean
+  in `objectiveai.json`. Only `true` gets the container a database (and
+  the `OBJECTIVEAI_POSTGRES_URL` the framework reads); with `false`,
+  `db::connect` fails with `NoDatabase` naming the missing opt-in.
+  Changing it rebuilds the image (it is stamped on the image, like the
+  port).
 
 ## Build caches
 

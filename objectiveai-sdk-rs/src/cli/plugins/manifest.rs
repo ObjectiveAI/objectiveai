@@ -91,6 +91,13 @@ pub struct Mcp {
     /// The port the MCP server listens on inside the container —
     /// published to a random loopback host port at create. Never 0.
     pub port: u16,
+    /// Whether this plugin uses the plugin database. REQUIRED, and the
+    /// whole database chain hangs off it: only when true does the
+    /// laboratory host inject the db proxy into the container, publish
+    /// its conduit port, dial it, and stamp `OBJECTIVEAI_POSTGRES_URL`
+    /// into the environment. False means no database — the plugin
+    /// framework's `db::connect` reports exactly that.
+    pub postgres: bool,
     /// Build settings that apply ONLY when this plugin is registered
     /// for development (`development plugins mcp create`). Ignored
     /// entirely for a released plugin — a production image never binds

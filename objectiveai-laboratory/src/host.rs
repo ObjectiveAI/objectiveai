@@ -1459,15 +1459,17 @@ impl HostServer {
             name: coords.name.clone(),
             version: coords.version.clone(),
             port: ensured.port,
+            postgres: ensured.postgres,
             sha: ensured.sha,
         };
         // Identity env: the six agent values from the request headers,
         // PLUS the plugin trio from the CANONICAL coordinates — this
         // authenticated create is the trio's authority (wire-parsed
         // bags always null it) — PLUS the plugin's own declared
-        // arguments and the Postgres URL the container dials
-        // (role/password/database from the daemon; the address is the
-        // injected db proxy, on loopback INSIDE the container).
+        // arguments and, when the manifest opted in to postgres, the
+        // URL the container dials (role/password/database from the
+        // daemon; the address is the injected db proxy, on loopback
+        // INSIDE the container).
         let identity_env = {
             let mut args =
                 objectiveai_sdk::identity::Identity::from_transient_headers(
@@ -1494,27 +1496,38 @@ impl HostServer {
             {
                 env.push(("OBJECTIVEAI_ARGUMENTS".to_string(), arguments));
             }
-            let enc = |s: &str| {
-                percent_encoding::utf8_percent_encode(
-                    s,
-                    percent_encoding::NON_ALPHANUMERIC,
-                )
-                .to_string()
-            };
             // An ordinary local Postgres server, as far as the plugin is
             // concerned — which is the entire point of the proxy. The
             // port is FIXED, so this URL can be stamped here, before
             // anything is running to be asked about it.
-            env.push((
-                "OBJECTIVEAI_POSTGRES_URL".to_string(),
-                format!(
-                    "postgres://{}:{}@127.0.0.1:{}/{}",
-                    enc(&req.db_role),
-                    enc(&req.db_password),
-                    podman::laboratory::DB_PROXY_PG_PORT,
-                    enc(&req.db_database),
-                ),
-            ));
+            //
+            // ONLY for a plugin whose manifest opted in (`mcp.postgres`).
+            // The variable's very absence is the framework's signal —
+            // its `db::connect` reports "the manifest did not opt in" —
+            // so an opted-out container must not receive it. The daemon
+            // still mints and sends the credential trio unconditionally
+            // (compartment provisioning is its side and it never reads
+            // manifests); the host simply declines to hand credentials
+            // to a container with nothing to dial.
+            if ensured.postgres {
+                let enc = |s: &str| {
+                    percent_encoding::utf8_percent_encode(
+                        s,
+                        percent_encoding::NON_ALPHANUMERIC,
+                    )
+                    .to_string()
+                };
+                env.push((
+                    "OBJECTIVEAI_POSTGRES_URL".to_string(),
+                    format!(
+                        "postgres://{}:{}@127.0.0.1:{}/{}",
+                        enc(&req.db_role),
+                        enc(&req.db_password),
+                        podman::laboratory::DB_PROXY_PG_PORT,
+                        enc(&req.db_database),
+                    ),
+                ));
+            }
             env
         };
         if let Err(e) = podman::laboratory::create_plugin(
@@ -1544,7 +1557,9 @@ impl HostServer {
             ensured.port,
             Some(plugin),
             false,
-            true,
+            // The whole downstream chain — the proxy exec, the conduit
+            // port lookup, the dial — hangs off the manifest's opt-in.
+            ensured.postgres,
         )
         .await
     }
@@ -1584,10 +1599,12 @@ impl HostServer {
         //
         // The proxy is started BEFORE the MCP connect so it is attaching
         // while MCP initializes. A failure fails the create, like every
-        // step past start — the database is mandatory for a plugin. But
-        // the DIAL is not gated: the proxy holds an accepted client until
-        // a host attaches, so a plugin that connects first simply waits
-        // in its `connect` instead of failing. There is no race to gate.
+        // step past start — a plugin whose manifest opted in
+        // (`mcp.postgres`, which is what `db_proxy` carries) is owed its
+        // database. But the DIAL is not gated: the proxy holds an
+        // accepted client until a host attaches, so a plugin that
+        // connects first simply waits in its `connect` instead of
+        // failing. There is no race to gate.
         let (ports, ()) = match tokio::try_join!(
             async {
                 podman::laboratory::host_ports(&self.podman, &self.state, id)

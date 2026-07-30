@@ -543,6 +543,13 @@ pub struct PluginLabel {
     pub name: String,
     pub version: String,
     pub port: u16,
+    /// The manifest's `mcp.postgres` opt-in, off the image label at
+    /// create. Gates the db-proxy publish + injection here and the
+    /// exec/dial in `finish_ephemeral`. Deliberately NOT
+    /// `serde(default)`: a pre-opt-in container label fails to parse
+    /// and `list` skips the container as not-a-laboratory — the fix is
+    /// manual (remove it), never a guessed value.
+    pub postgres: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sha: Option<String>,
 }
@@ -911,14 +918,17 @@ async fn create_injected_container(
 /// reference, the [`PluginLabel`], and the completion's response id
 /// (`Some` ⇔ ephemeral — the boot sweep removes it).
 ///
-/// What it DOES inject is [`DB_PROXY_BINARY`], plus a publish of
+/// What it MAY inject — governed by `plugin.postgres`, the manifest's
+/// `mcp.postgres` opt-in — is [`DB_PROXY_BINARY`], plus a publish of
 /// [`DB_PROXY_WS_PORT`] for the host to dial. That is the plugin
 /// database: the proxy serves Postgres on loopback
 /// ([`DB_PROXY_PG_PORT`]) inside the container, so the URL stamped into
 /// `identity_env` names an ordinary local server and the plugin needs to
 /// know nothing about the relay behind it. Copied but NOT started —
-/// [`exec_detached`] starts it once the container is running, which is
-/// what keeps the plugin's own server as PID 1.
+/// [`start_db_proxy`] starts it once the container is running, which is
+/// what keeps the plugin's own server as PID 1. An opted-out plugin's
+/// container gets none of it: one published port, no injected binary,
+/// and (the host's side of the bargain) no `OBJECTIVEAI_POSTGRES_URL`.
 #[allow(clippy::too_many_arguments)]
 pub async fn create_plugin(
     podman: &Podman,
@@ -952,17 +962,22 @@ pub async fn create_plugin(
         .arg("--name")
         .arg(&name)
         .arg("-p")
-        .arg(format!("127.0.0.1::{}/tcp", plugin.port))
-        // The injected db proxy's conduit port, published so THIS host
-        // can dial in to it. Nothing dials out: a container cannot
-        // reach the machine hosting it, which is the whole reason the
-        // proxy exists.
-        .arg("-p")
-        .arg(format!("127.0.0.1::{DB_PROXY_WS_PORT}/tcp"));
-    // The AGENT-IDENTITY environment (plus `OBJECTIVEAI_POSTGRES_URL`)
-    // — the env a plugin container gets (the completion it serves is
-    // static for the container's whole life; everything else the
-    // plugin needs rides headers).
+        .arg(format!("127.0.0.1::{}/tcp", plugin.port));
+    // The db proxy, only for plugins whose manifest opted in
+    // (`mcp.postgres`): its conduit port, published so THIS host can
+    // dial in to it — nothing dials out; a container cannot reach the
+    // machine hosting it, which is the whole reason the proxy exists.
+    // An opted-out plugin's container carries no trace of the chain:
+    // no second published port, and below, no injected binary.
+    if plugin.postgres {
+        create_cmd
+            .arg("-p")
+            .arg(format!("127.0.0.1::{DB_PROXY_WS_PORT}/tcp"));
+    }
+    // The AGENT-IDENTITY environment (plus `OBJECTIVEAI_POSTGRES_URL`
+    // when the plugin opted in) — the env a plugin container gets (the
+    // completion it serves is static for the container's whole life;
+    // everything else the plugin needs rides headers).
     for (k, v) in identity_env {
         create_cmd.arg("-e").arg(format!("{k}={v}"));
     }
@@ -972,11 +987,15 @@ pub async fn create_plugin(
         .arg(registry_reference(image));
     // The container, and the archive to put in it. The pack only reads
     // the binary off disk, so it runs alongside the create instead of
-    // behind it.
-    let (created, archive) = tokio::join!(
-        create_cmd.output(),
-        pack_executable(db_proxy_binary, DB_PROXY_BINARY),
-    );
+    // behind it; for an opted-out plugin the arm is a no-op and the
+    // create effectively runs alone.
+    let (created, archive) = tokio::join!(create_cmd.output(), async {
+        if plugin.postgres {
+            pack_executable(db_proxy_binary, DB_PROXY_BINARY).await.map(Some)
+        } else {
+            Ok(None)
+        }
+    });
     let output = created.map_err(|e| Error(format!("spawn podman create: {e}")))?;
     if !output.status.success() {
         return Err(Error(format!(
@@ -987,8 +1006,10 @@ pub async fn create_plugin(
     // Inject the db proxy — the ONE thing this host puts inside a
     // plugin container. It is not started here: `podman exec -d` starts
     // it after `start`, so the image's own entrypoint remains PID 1
-    // (see [`exec_detached`]).
-    copy_in_archive(podman, &name, archive?, DB_PROXY_BINARY).await?;
+    // (see [`start_db_proxy`]).
+    if let Some(archive) = archive? {
+        copy_in_archive(podman, &name, archive, DB_PROXY_BINARY).await?;
+    }
     Ok(())
 }
 

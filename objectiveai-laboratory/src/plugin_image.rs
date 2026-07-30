@@ -14,6 +14,12 @@ use crate::podman::{self, Podman};
 
 /// Image label carrying the plugin's container-internal MCP port.
 const PORT_LABEL: &str = "objectiveai.plugin.port";
+/// Image label carrying the manifest's `mcp.postgres` opt-in
+/// (`"true"`/`"false"`). The whole db-proxy chain — injection, port
+/// publish, host dial, `OBJECTIVEAI_POSTGRES_URL` — hangs off it, and
+/// it rides the image exactly as the port does so the fast path never
+/// re-reads a manifest.
+const POSTGRES_LABEL: &str = "objectiveai.plugin.postgres";
 /// Image label carrying the git commit SHA the image built from.
 const SHA_LABEL: &str = "objectiveai.plugin.sha";
 /// Image label carrying the DEVELOPMENT source directory an image was
@@ -152,6 +158,10 @@ impl PluginCoords {
 /// time, from the image labels on the fast path) and the commit SHA.
 pub struct EnsuredPluginImage {
     pub port: u16,
+    /// The manifest's `mcp.postgres` opt-in, off [`POSTGRES_LABEL`] on
+    /// the fast path. Decides whether the container gets the db proxy
+    /// at all.
+    pub postgres: bool,
     pub sha: Option<String>,
 }
 
@@ -285,7 +295,10 @@ async fn build(
     )
     .await?;
 
-    let mut labels = vec![(PORT_LABEL.to_string(), mcp.port.to_string())];
+    let mut labels = vec![
+        (PORT_LABEL.to_string(), mcp.port.to_string()),
+        (POSTGRES_LABEL.to_string(), mcp.postgres.to_string()),
+    ];
     let mut volumes = Vec::new();
     match development {
         Some(dir) => {
@@ -322,6 +335,7 @@ async fn build(
 
     Ok(EnsuredPluginImage {
         port: mcp.port,
+        postgres: mcp.postgres,
         sha: commit_sha.map(str::to_string),
     })
 }
@@ -375,8 +389,20 @@ async fn reusable(
     if port == 0 {
         return Err(format!("image {reference} {PORT_LABEL} label is 0"));
     }
+    // Required for the same reason as the port, with the same remedy
+    // (rebuild — `development plugins mcp reset` for a dev image): an
+    // image without it predates the opt-in or was not built by this
+    // flow, and guessing whether a plugin gets a database is worse
+    // than refusing.
+    let postgres = labels
+        .get(POSTGRES_LABEL)
+        .ok_or_else(|| format!("image {reference} is missing the {POSTGRES_LABEL} label"))?;
+    let postgres: bool = postgres
+        .parse()
+        .map_err(|e| format!("image {reference} {POSTGRES_LABEL} label: {e}"))?;
     Ok(Some(EnsuredPluginImage {
         port,
+        postgres,
         sha: labels.get(SHA_LABEL).cloned(),
     }))
 }

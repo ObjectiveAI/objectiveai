@@ -62,8 +62,10 @@ as you have one of your own.
 
 ## Using the database
 
-Every plugin container gets a Postgres tunnelled in by the host, so a
-plugin never configures one — it asks:
+The database is an OPT-IN: `"postgres": true` in the manifest's `mcp`
+block (this scaffold opts in). Only then does the host give the
+container a Postgres — relayed through a proxy on the container's own
+loopback — so a plugin never configures one, it asks:
 
 ```rust
 let pool = db::connect(Default::default()).await?;
@@ -71,7 +73,9 @@ let pool = db::connect(Default::default()).await?;
 
 That connects at most once no matter how many tools call it, shares one
 attempt between overlapping callers, and does not cache a failure — a
-tunnel that was not up yet will not poison the process.
+proxy that was not up yet will not poison the process. A plugin whose
+manifest says `"postgres": false` gets a distinct `db::Error::NoDatabase`
+from `connect`, naming the opt-in it is missing.
 
 `scaffold_note_write_deleteme` and `scaffold_note_read_deleteme` are a
 round trip through it. Three things in them are worth keeping when you
