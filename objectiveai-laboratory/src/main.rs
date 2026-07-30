@@ -340,36 +340,43 @@ async fn main() {
     // the cleaner's module docs). The sweep runs CONCURRENTLY with the
     // stdin loop — podman may be cold (minutes), and the daemon's
     // dial-list acks must not wait on it.
+    //
+    // A SPAWNED task, deliberately, because shutdown must not depend on
+    // it in either direction. It once rode the select arm below as
+    // `join!(sweep-then-pend-forever, stdin_loop)` — which meant the
+    // arm could NEVER complete, `stop_started` was unreachable, the
+    // process never exited, and the daemon's acked-Shutdown wait (which
+    // is unbounded on purpose) hung forever with it. As its own task,
+    // the stdin loop returning is sufficient to shut down, and a sweep
+    // still mid-work is neither waited on nor cancelled — whatever it
+    // has not finished by process exit, the next host's boot sweep
+    // redoes. Dropping `swept_tx` with a finished task is harmless:
+    // the dial gate's `wait_for` tests the value before the closed
+    // check, so a completed sweep still opens the gate.
     let (swept_tx, swept_rx) = tokio::sync::watch::channel(false);
-    let sweep = {
+    {
         let bin_dir = bin_dir.clone();
         let state = args.objectiveai_state.clone();
-        async move {
+        tokio::spawn(async move {
             cleaner::sweep(bin_dir, state).await;
             let _ = swept_tx.send(true);
-            // Pend forever: this future rides a `join` with the
-            // endless stdin loop, whose completion (EOF) is the arm's
-            // real signal.
-            std::future::pending::<()>().await;
-        }
-    };
+        });
+    }
 
     // ── Serve until killed ───────────────────────────────────────
     // The stdin loop owns the dial list — one reconnect-forever
     // channel task per added address, all sharing the one host
     // server. Zero addresses just idles (the loop keeps waiting on
-    // stdin). On graceful shutdown — signal OR stdin EOF — every
-    // container the host started is STOPPED (never removed): they and
-    // their filesystems survive for the next host to `start` again. A
-    // hard kill skips this — the next host's sweep stops them
-    // instead. The channel tasks are left to die with the process;
-    // their sockets drop with it.
+    // stdin). On graceful shutdown — signal, stdin EOF, or an acked
+    // stdio Shutdown — every container the host started is STOPPED
+    // (never removed): they and their filesystems survive for the next
+    // host to `start` again. A hard kill skips this — the next host's
+    // sweep stops them instead. The channel tasks are left to die with
+    // the process; their sockets drop with it.
     tokio::select! {
-        _ = async {
-            tokio::join!(sweep, stdin_loop(Arc::clone(&server), args.suppress_output, swept_rx))
-        } => {
+        _ = stdin_loop(Arc::clone(&server), args.suppress_output, swept_rx) => {
             if !args.suppress_output {
-                eprintln!("stdin closed: stopping started laboratories");
+                eprintln!("stdin ended (EOF or Shutdown): stopping started laboratories");
             }
         }
         _ = shutdown_signal() => {
