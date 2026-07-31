@@ -50,9 +50,6 @@ pub const PODMAN_VERSION_WINDOWS_ARM64: &str = "5.8.4"; // containers/podman
 const VFKIT_VERSION: &str = "0.6.1"; // crc-org/vfkit
 const GVPROXY_VERSION: &str = "0.8.9"; // containers/gvisor-tap-vsock
 
-/// Download timeout for the (tens-of-MB) podman archive.
-const DOWNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
-
 #[derive(Clone, Copy)]
 enum ArchiveKind {
     Zip,
@@ -398,6 +395,11 @@ async fn download_to(url: &str, dst: &Path) -> Result<(), Error> {
     use futures::StreamExt as _;
     use tokio::io::AsyncWriteExt as _;
 
+    // NO timeout, deliberately. This is a tens-of-MB archive over
+    // whatever link the user has, and a deadline here is a guess about
+    // their bandwidth — one that turns a slow but healthy download into
+    // a failed install. A dead connection surfaces as a transport
+    // error; a slow one is allowed to finish.
     let client = reqwest::Client::new();
     let resp = client
         .get(url)
@@ -405,7 +407,6 @@ async fn download_to(url: &str, dst: &Path) -> Result<(), Error> {
             "User-Agent",
             format!("objectiveai/{}", env!("CARGO_PKG_VERSION")),
         )
-        .timeout(DOWNLOAD_TIMEOUT)
         .send()
         .await
         .map_err(|e| Error(format!("http: {e}")))?;

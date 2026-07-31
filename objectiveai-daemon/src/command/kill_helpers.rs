@@ -1,4 +1,4 @@
-//! Shared kill logic for the `{mcp,viewer,laboratories} kill`
+//! Shared kill logic for the `{viewer,laboratories} kill`
 //! commands, `update`'s pre-install teardown, and the `{api,db}`
 //! config mutation handlers' kill-on-config-change
 //! ([`kill_api_before_config_change`] /
@@ -57,7 +57,7 @@ const TERM_GRACE: std::time::Duration = std::time::Duration::from_secs(5);
 ///   child's stdin: the host's EOF shutdown backstop (redundant by
 ///   then); the viewer ignores EOF by design (a parentless viewer is
 ///   a first-class launch mode).
-/// - **everything else** (db / api / mcp): signal path — `Term`
+/// - **everything else** (db / api): signal path — `Term`
 ///   (SIGTERM; handlers run / `TerminateProcess`), a bounded
 ///   [`TERM_GRACE`] wait, then `Kill` (SIGKILL) and an unbounded wait
 ///   (SIGKILL always lands; the exit is only an OS-reap away).
