@@ -55,6 +55,20 @@ export default defineConfig(async () => ({
   // default — everything must be listed.
   build: {
     rollupOptions: {
+      // Every `tabs/*` and `host/*` entry exists to be IMPORTED at
+      // runtime — the tab bootstrap dynamic-imports the former and the
+      // `tab.html` import map resolves the latter — and BOTH of those
+      // import paths are invisible to the bundler (`@vite-ignore`, and
+      // an import map is not a module graph edge). An app build
+      // therefore sees entries whose exports nobody uses and strips
+      // their signatures, leaving modules that export NOTHING.
+      //
+      // The failure is silent in both directions: a stripped tab
+      // module makes `tab.tsx`'s `module[export ?? "default"]` come
+      // back undefined and render null, and a stripped host shim makes
+      // every plugin bundle die at link time on
+      // `Importing binding name 'jsxs' is not found`.
+      preserveEntrySignatures: "strict",
       input: {
         index: "index.html",
         status: "status.html",
@@ -63,6 +77,7 @@ export default defineConfig(async () => ({
         "tabs/laboratories": "src/tabs/laboratories.tsx",
         "tabs/viewer-logs": "src/tabs/viewer-logs.tsx",
         "tabs/command-logs": "src/tabs/command-logs.tsx",
+        "tabs/plugins": "src/tabs/plugins.tsx",
         "tabs/agent": "src/tabs/agent.tsx",
         "tabs/laboratory": "src/tabs/laboratory.tsx",
         "tabs/command-log": "src/tabs/command-log.tsx",

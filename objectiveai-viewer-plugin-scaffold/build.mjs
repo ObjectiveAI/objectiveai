@@ -37,6 +37,7 @@ const tabs = {
     // unresolved rather than bundling for node.
     "child_process",
     "os",
+    "path",
     "readline",
     "node:*",
   ],
