@@ -77,6 +77,7 @@ export default defineConfig(async () => ({
         "tabs/laboratories": "src/tabs/laboratories.tsx",
         "tabs/viewer-logs": "src/tabs/viewer-logs.tsx",
         "tabs/command-logs": "src/tabs/command-logs.tsx",
+        "tabs/plugins": "src/tabs/plugins.tsx",
         "tabs/agent": "src/tabs/agent.tsx",
         "tabs/laboratory": "src/tabs/laboratory.tsx",
         "tabs/command-log": "src/tabs/command-log.tsx",
