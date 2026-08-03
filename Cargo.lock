@@ -4556,6 +4556,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-provider-sdk"
+version = "2.2.15"
+dependencies = [
+ "schemars 1.2.2",
+ "serde",
+]
+
+[[package]]
 name = "objectiveai-sdk"
 version = "2.2.15"
 dependencies = [

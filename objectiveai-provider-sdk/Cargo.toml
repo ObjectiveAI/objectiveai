@@ -1,0 +1,17 @@
+[package]
+name = "objectiveai-provider-sdk"
+version = "2.2.15"
+edition = "2024"
+authors = ["ObjectiveAI <admin@objectiveai.dev>"]
+description = "Wire types for the ObjectiveAI provider API — the normative artifact of the provider specification"
+license = "MIT"
+repository = "https://github.com/ObjectiveAI/objectiveai"
+homepage = "https://objectiveai.dev"
+documentation = "https://docs.rs/objectiveai-provider-sdk"
+readme = "README.md"
+keywords = ["llm", "ai", "swarm", "provider"]
+publish = true
+
+[dependencies]
+schemars = "1.2.2"
+serde = { version = "1.0.229", features = ["derive"] }
