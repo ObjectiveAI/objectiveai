@@ -7,9 +7,9 @@
 //! it does not define the messages. Where the two disagree, this crate
 //! is correct and the prose is a bug.
 //!
-//! The JSON Schema corpus is generated from these types, and the
-//! per-language SDKs are generated from that. Nothing downstream is
-//! hand-authored, so nothing downstream can drift.
+//! The JSON Schema corpus is generated from these types, so the
+//! machine-readable half of the specification is never hand-authored
+//! and cannot drift from what the protocol actually is.
 //!
 //! # Scope
 //!
@@ -31,4 +31,6 @@
 //!
 //! # Status
 //!
-//! Empty by design. The types land as the provider API is defined.
+//! Under construction. The types land as the provider API is defined.
+
+pub mod filetree;
