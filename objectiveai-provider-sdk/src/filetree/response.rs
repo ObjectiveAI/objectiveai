@@ -22,9 +22,8 @@ use serde::{Deserialize, Serialize};
 /// symlink is the link ITSELF and is never followed, so a dangling or
 /// looping link is a leaf rather than an error or an infinite tree.
 ///
-/// Every variant carries `name` (the basename — never a path),
-/// `created_at`, `modified_at`, and the reserved
-/// `created_by`/`modified_by`.
+/// Every variant carries `name` — the basename, never a path — plus
+/// `created_at` and `modified_at`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "filetree.Node")]
@@ -46,14 +45,6 @@ pub enum Node {
         /// could not be read.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         modified_at: Option<i64>,
-        /// The agent that created this entry, when known. Reserved for
-        /// attribution; providers that do not track it omit it.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        created_by: Option<String>,
-        /// The agent that last modified this entry, when known.
-        /// Reserved for attribution.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        modified_by: Option<String>,
     },
     /// A directory, carrying its entries.
     #[schemars(title = "Directory")]
@@ -69,13 +60,6 @@ pub enum Node {
         /// tracks entry add/remove, not changes within its children.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         modified_at: Option<i64>,
-        /// The agent that created this entry, when known. Reserved.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        created_by: Option<String>,
-        /// The agent that last modified this entry, when known.
-        /// Reserved.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        modified_by: Option<String>,
         /// This directory's entries. An empty directory carries an
         /// empty list — this field is never absent, so a consumer never
         /// has to distinguish "no children" from "children unknown".
@@ -86,11 +70,17 @@ pub enum Node {
     Symlink {
         /// Basename of this link.
         name: String,
-        /// The link's target exactly as stored: possibly relative,
-        /// possibly dangling, never resolved. `None` only when reading
-        /// the link itself failed.
+        /// The link's target exactly as stored: a single opaque string,
+        /// possibly relative, possibly dangling, never resolved. `None`
+        /// only when reading the link itself failed.
+        ///
+        /// Note this is NOT the component vector that
+        /// [`Event::Upserted`] and [`Event::Removed`] call `path` —
+        /// those address a node within the tree, whereas this is a
+        /// literal filesystem string that may point anywhere, including
+        /// outside the watched root.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        target: Option<String>,
+        path: Option<String>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -98,13 +88,6 @@ pub enum Node {
         /// Last-modified time (unix seconds).
         #[serde(default, skip_serializing_if = "Option::is_none")]
         modified_at: Option<i64>,
-        /// The agent that created this entry, when known. Reserved.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        created_by: Option<String>,
-        /// The agent that last modified this entry, when known.
-        /// Reserved.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        modified_by: Option<String>,
     },
 }
 
