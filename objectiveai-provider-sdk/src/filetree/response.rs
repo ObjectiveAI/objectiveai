@@ -70,17 +70,21 @@ pub enum Node {
     Symlink {
         /// Basename of this link.
         name: String,
-        /// The link's target exactly as stored: a single opaque string,
-        /// possibly relative, possibly dangling, never resolved. `None`
-        /// only when reading the link itself failed.
+        /// The link's target as path components, exactly as stored:
+        /// never resolved, never followed. `.` and `..` appear as
+        /// literal components — this is what the link says, not where
+        /// it lands. `None` only when reading the link itself failed.
         ///
-        /// Note this is NOT the component vector that
-        /// [`Event::Upserted`] and [`Event::Removed`] call `path` —
-        /// those address a node within the tree, whereas this is a
-        /// literal filesystem string that may point anywhere, including
-        /// outside the watched root.
+        /// Unlike the component vectors that [`Event::Upserted`] and
+        /// [`Event::Removed`] call `path`, this one does not address a
+        /// node within the tree. A link may point anywhere, including
+        /// outside the watched root or at nothing at all, so these
+        /// components are not resolvable against the snapshot.
+        ///
+        /// Absolute and relative targets are not distinguished: both
+        /// arrive as a bare component list.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        path: Option<String>,
+        path: Option<Vec<String>>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
