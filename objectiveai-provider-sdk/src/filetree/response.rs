@@ -73,7 +73,14 @@ pub enum Node {
         /// The link's target as path components, exactly as stored:
         /// never resolved, never followed. `.` and `..` appear as
         /// literal components — this is what the link says, not where
-        /// it lands. `None` only when reading the link itself failed.
+        /// it lands.
+        ///
+        /// Always present. A link whose contents could not be read is
+        /// not a symlink node with a missing target; it is a failure,
+        /// and is reported as one. Note this is unrelated to DANGLING:
+        /// a link pointing at nothing still reports its components
+        /// perfectly well, because reading a link never touches its
+        /// target.
         ///
         /// Unlike the component vectors that [`Event::Upserted`] and
         /// [`Event::Removed`] call `path`, this one does not address a
@@ -83,8 +90,7 @@ pub enum Node {
         ///
         /// Absolute and relative targets are not distinguished: both
         /// arrive as a bare component list.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        path: Option<Vec<String>>,
+        path: Vec<String>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
         #[serde(default, skip_serializing_if = "Option::is_none")]
