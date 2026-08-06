@@ -42,6 +42,47 @@ export PATH="$HOME/.objectiveai/bin:$PATH"
 
 Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, Windows x86_64. See [Binaries & self-hosting](#binaries--self-hosting) for install flags and per-binary detail.
 
+## Scaffolding a plugin
+
+`scaffold.sh` lays down a complete plugin — both halves, one manifest — into the directory you run it from. The plugin's **name is the directory's name**, so that is the only thing you choose up front:
+
+```bash
+mkdir my-plugin && cd my-plugin
+curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/scaffold.sh | bash -s -- rust
+```
+
+You get:
+
+```text
+my-plugin/
+├── objectiveai.json   # the manifest — both halves, at the root
+├── README.md
+├── mcp/               # the MCP server (Rust): the tools an agent calls
+├── viewer/            # tabs, channel handlers, browser scripts
+└── .agents/skills/    # skills for a coding agent working on the plugin
+```
+
+The name is written into the Cargo package, the binary, the lockfile, the `Containerfile`, the MCP server's `NAME` constant, and `package.json`. `rust` (or `rs`) is currently the only MCP language.
+
+Then register **the root** — one directory, both halves — and start the viewer's watch build:
+
+```bash
+objectiveai laboratories spawn                       # once per machine; never auto-started
+
+objectiveai development plugins mcp create \
+  --owner you --name my-plugin --version v0.1.0 --path "$PWD"
+objectiveai development plugins viewer create \
+  --owner you --name my-plugin --version v0.1.0 --path "$PWD"
+
+cd viewer && pnpm install && pnpm run dev
+```
+
+An agent declaring `you/my-plugin@v0.1.0` now gets your working tree instead of a git tag. After editing the MCP half, `development plugins mcp reset …` — a registered plugin still takes the image-exists fast path, so without it the old image keeps serving. The viewer half needs no reset: the watch build writes, and the viewer reloads open tabs.
+
+To release, tag `vX.Y.Z`, push, and delete the registrations.
+
+See [Plugins](#plugins) for what a plugin is, the manifest reference, and the first-party ones.
+
 ---
 
 ## What ObjectiveAI is
@@ -343,45 +384,6 @@ Built and maintained by ObjectiveAI:
 - **[mundus-animarum](https://github.com/ObjectiveAI/mundus-animarum)** — persistent, self-authored "souls" for agents. A key/value store keyed by an agent's content-addressed ID, with cross-agent lookups, subscriptions, and change notifications; every instance of the same agent definition shares one soul, which the agent can rewrite over time.
 - **[arcanum](https://github.com/ObjectiveAI/arcanum)** — skills for agents. Lets agents load skills and governs which agents may use which skills.
 - **[quas-wex-exort](https://github.com/ObjectiveAI/quas-wex-exort)** — programmatic invocation of MCP tools and the ObjectiveAI CLI from within an agent, including running them as **background tasks** (create / list / wait / cancel) and batched multi-calls.
-
-### Scaffolding a new plugin
-
-`scaffold.sh` lays down a complete plugin — both halves, one manifest — into the directory you run it from. The plugin's **name is the directory's name**, so that is the only thing you choose up front:
-
-```bash
-mkdir my-plugin && cd my-plugin
-curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/scaffold.sh | bash -s -- rust
-```
-
-You get:
-
-```text
-my-plugin/
-├── objectiveai.json   # the manifest — both halves, at the root
-├── README.md
-├── mcp/               # the MCP server (Rust): the tools an agent calls
-├── viewer/            # tabs, channel handlers, browser scripts
-└── .agents/skills/    # skills for a coding agent working on the plugin
-```
-
-The name is written into the Cargo package, the binary, the lockfile, the `Containerfile`, the MCP server's `NAME` constant, and `package.json`. `rust` (or `rs`) is currently the only MCP language.
-
-Then register **the root** — one directory, both halves — and start the viewer's watch build:
-
-```bash
-objectiveai laboratories spawn                       # once per machine; never auto-started
-
-objectiveai development plugins mcp create \
-  --owner you --name my-plugin --version v0.1.0 --path "$PWD"
-objectiveai development plugins viewer create \
-  --owner you --name my-plugin --version v0.1.0 --path "$PWD"
-
-cd viewer && pnpm install && pnpm run dev
-```
-
-An agent declaring `you/my-plugin@v0.1.0` now gets your working tree instead of a git tag. After editing the MCP half, `development plugins mcp reset …` — a registered plugin still takes the image-exists fast path, so without it the old image keeps serving. The viewer half needs no reset: the watch build writes, and the viewer reloads open tabs.
-
-To release, tag `vX.Y.Z`, push, and delete the registrations.
 
 ### The manifest
 
