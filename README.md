@@ -24,7 +24,7 @@ export PATH="$HOME/.objectiveai/bin:$PATH"
 | `objectiveai-api` | API server | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 | `objectiveai-viewer` | Standalone Tauri desktop app | [latest](https://github.com/ObjectiveAI/objectiveai/releases/latest) |
 
-Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, Windows x86_64. See [Binaries & self-hosting](#binaries--self-hosting) for install flags and per-binary detail.
+Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, Windows x86_64. See [Binaries & self-hosting](#binaries--self-hosting) for per-binary detail.
 
 ## Scaffolding a plugin
 
@@ -215,28 +215,6 @@ Three crates make up the MCP surface:
 - **`objectiveai-mcp-proxy`** — a multiplexing sidecar of `objectiveai-api`. Terminates an MCP client connection and forwards tool calls to an upstream MCP server or to ObjectiveAI-native tools. Embedded inside `objectiveai-api` at runtime.
 - **`objectiveai-mcp-laboratory`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls.
 
-### Install flags
-
-Pass flags to `bash -s --` after the installer URL:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash -s -- --no-viewer
-```
-
-| Flag | Effect |
-|---|---|
-| `--no-viewer` | Skips the standalone `objectiveai-viewer`; installs the CLI variant without an embedded Tauri viewer (smaller binary). |
-| `--no-api` | Skips `objectiveai-api`. |
-| `--cli-only` | Equivalent to `--no-viewer --no-api`. Only `objectiveai` is installed. |
-
-Flags compose freely.
-
-### Self-host vs hosted
-
-The hosted API at `https://api.objectiveai.dev` requires no setup and is the default for the CLI. Run your own `objectiveai-api` when you need total control over data routing — for example, to point agents at private upstream providers not available on OpenRouter, to meet on-prem or air-gapped requirements, or to run the full execution pipeline locally without network egress. Configure the CLI to point at your instance with `objectiveai api mode set local` and `objectiveai api local address set http://localhost:5000`.
-
-Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64 (Apple Silicon), Windows x86_64.
-
 ## Plugins
 
 A plugin extends ObjectiveAI with tools an agent can call, and optionally with UI in the viewer. It is a **container**: an MCP server built from a `Containerfile` in your repository, run as an ephemeral laboratory container for the completion that uses it. A plugin may also ship a **viewer half** — tabs, channel-request handlers, and scripts injected into browser tabs — from the same repository, under the same identity.
@@ -297,119 +275,6 @@ Built and maintained by ObjectiveAI:
 ```
 
 Identity is **not** in the manifest: owner, name and version come from the repository and its tag on release, and from the explicit `--owner/--name/--version` of a development registration otherwise.
-
-## Web app & ecosystem
-
-### Web app
-
-[objectiveai.dev](https://objectiveai.dev) is the production web interface, built with Next.js (App Router). The app provides browsing and detail views for Agents, and lets you run one and watch its output stream back. A `/demo` route renders live component prototypes.
-
-### Examples
-
-The [`examples/`](examples/) directory collects real software built on top of ObjectiveAI, with links to full source repositories.
-
-**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and ranking pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines two primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite) and *PsyOps* (ranking jobs that pull tagged posts and run them through ObjectiveAI). A pilot study ranked tweets from a set of public startup-founder accounts along an *unsettlingness* axis; published artifacts are content-addressed and reproducible.
-
-### Ecosystem
-
-- **`objectiveai-claude-agent-sdk-runner`** — a long-lived Python stdio NDJSON server that runs concurrent Claude Agent SDK sessions on behalf of `objectiveai-api`. The Rust API caller spawns and multiplexes requests over a single stdin/stdout pair using a semaphore-backed FIFO queue; each request carries a string `id` for demultiplexing events from N concurrent streams.
-- **`objectiveai-codex-sdk-runner`** — same architecture as the Claude runner but targets the OpenAI Codex SDK. Authentication is inherited from `~/.codex/auth.json`; the runner shells out to the `codex` binary and streams `ThreadEvent` objects back to the Rust caller.
-- **`objectiveai-github-discord-notifier`** — a Python FastAPI webhook server (Docker-deployable) that validates GitHub webhook signatures and forwards pull-request and issue events to a configured Discord channel.
-- **`objectiveai-json-schema`** — generated JSON Schema files for every public serializable type in the Rust SDK, named using dot-separated module paths. Several hundred schemas cover agents, completions, CLI output, MCP types, and more. These files drive code generation for the Go SDK and .NET SDK and can be used by any downstream tooling that needs machine-readable type definitions.
-
-## Repository structure
-
-A single git repository contains the SDK core, server, clients, integrations, and tools.
-
-```text
-objectiveai/
-│
-├── # SDK core (Rust)
-│   ├── objectiveai-sdk-rs/                    # Rust SDK — types, validation, compilation
-│   ├── objectiveai-sdk-rs-macros/             # Procedural macros for the Rust SDK
-│   ├── objectiveai-sdk-rs-cffi/               # C FFI bindings (expose SDK to C/C++)
-│   ├── objectiveai-sdk-rs-pyo3/               # PyO3 bindings (Rust extension for Python)
-│   └── objectiveai-sdk-rs-wasm-js/            # WASM bindings for browser / Node.js
-│
-├── # SDKs (other languages)
-│   ├── objectiveai-sdk-js/                    # TypeScript/JavaScript SDK (npm)
-│   ├── objectiveai-sdk-py/                    # Python SDK (PyPI)
-│   ├── objectiveai-sdk-go/                    # Go SDK
-│   └── objectiveai-dotnet/                    # .NET SDK (NuGet: ObjectiveAI)
-│
-├── # Server & binaries
-│   ├── objectiveai-api/                       # API server (self-hostable or importable)
-│   ├── objectiveai-cli/                       # Command-line interface
-│   ├── objectiveai-viewer/                    # Desktop viewer app (Tauri)
-│   └── objectiveai-mcp/                       # retired standalone MCP server (folded into the daemon, #276)
-│
-├── # MCP integration
-│   ├── objectiveai-mcp-proxy/                 # MCP proxy — multiplexes tool calls
-│   ├── objectiveai-mcp-laboratory/            # MCP filesystem helpers
-│   ├── objectiveai-mcp-plugin-framework-rs/   # Rust framework for writing plugin MCP servers
-│   └── objectiveai-db-proxy/                  # Postgres-over-WebSocket conduit injected into plugin containers
-│
-├── # Plugin scaffolds (what scaffold.sh assembles)
-│   ├── objectiveai-plugin-scaffold-rs/        # the shared root: one manifest covering both halves
-│   ├── objectiveai-mcp-plugin-scaffold-rs/    # the MCP half (Rust)
-│   └── objectiveai-viewer-plugin-scaffold/    # the viewer half (tabs, handlers, scripts)
-│
-├── # Runners
-│   ├── objectiveai-claude-agent-sdk-runner/   # Concurrent Claude Agent SDK runner
-│   └── objectiveai-codex-sdk-runner/          # Concurrent OpenAI Codex SDK runner
-│
-├── # Web & tools
-│   ├── objectiveai-web/                       # Next.js production web interface
-│   ├── objectiveai-cocoindex/                 # CocoIndex integration (Python)
-│   ├── objectiveai-github-discord-notifier/   # GitHub webhook → Discord notifier
-│   └── objectiveai-json-schema/               # Generated JSON Schema files
-│
-└── # Other
-    ├── examples/                              # Usage examples
-    ├── bin/                                   # Vendored build tool binaries
-    ├── .agents/skills/                        # Skills for coding agents working in this repo
-    ├── scaffold.sh                            # Scaffold a new plugin into the current directory
-    └── *.sh                                   # Root scripts: build, install, publish, version
-```
-
-## Contributing & development
-
-### Prerequisites
-
-- **Rust** — stable toolchain via [rustup](https://rustup.rs/). No pinned `rust-toolchain.toml`; use the current stable release. `wasm-pack` and `maturin` are installed automatically into `./bin/` by `build.sh` (its first step).
-- **Node.js + pnpm 10.25.0** — the workspace `packageManager` field pins this version. Install pnpm via `corepack enable` or `npm i -g pnpm@10.25.0`.
-- **Python** — required for `objectiveai-sdk-py` (PyO3/maturin extension build) and the Claude/Codex agent-SDK runners (PyInstaller).
-
-### Build
-
-```bash
-pnpm install                 # JS workspace dependencies
-cargo build --release        # Rust crates
-bash build.sh                # full monorepo build in dependency order
-                             # (first installs pinned build tools into ./bin/)
-```
-
-`build.sh` generates JSON schemas, compiles WASM and CFFI bindings, builds all language SDKs (.NET, Go, Python, JS), and produces viewer artifacts.
-
-### Test
-
-```bash
-bash test.sh                 # all suites in parallel (spawns a local API server)
-cargo test                   # Rust workspace tests
-pnpm test                    # JS/TS tests
-```
-
-`test.sh` exports `OBJECTIVEAI_TEST_PORT` and runs per-package `test.sh` scripts concurrently across `objectiveai-sdk-rs`, `objectiveai-api`, `objectiveai-json-schema`, `objectiveai-cli`, `objectiveai-mcp-proxy`, `objectiveai-sdk-js`, `objectiveai-sdk-py`, `objectiveai-sdk-go`, and `objectiveai-viewer`. Tests must not hit the production API — use the local server, mocks, or fixtures.
-
-### Conventions
-
-- **Package manager:** use `pnpm`, never `npm`. Filter to a single workspace package with `pnpm --filter <package-name> run <script>`.
-- **No type re-exports in Rust.** When an import path is wrong, fix it at the call site. Never add re-export aliases or shim `pub use` entries to paper over a broken import.
-- **`mod.rs` discipline.** `mod.rs` files contain only module declarations and re-export globs — no functions, structs, enums, traits, or impls. Every entry must be either `pub mod foo;` or `mod foo; pub use foo::*;`.
-- **No network-hitting tests.** Tests must not contact the production API. Mock responses or use local fixtures.
-- **Test failures are not pre-existing issues.** Every failure must be investigated and fixed; never dismiss one to move on.
-- **Single shared version.** All packages share one version number. Bump atomically across Cargo.toml, package.json, pyproject.toml, .csproj, and all inter-package dependency references with `bash version.sh <new-version>`.
-- **Publishing.** The `Release` GitHub Actions workflow fires on every push to main, gated on the `objectiveai-cli` version: if the GitHub Release `v<version>` doesn't exist yet, it rolls out everything for that version, all-or-nothing — the six per-platform binary zips (each built by `build.sh --release --no-sdk`) plus the language SDKs published sequentially (rust → python → javascript → golang). The SDK jobs ship already-committed artifacts (no codegen, no wasm build), so commit fresh generated artifacts (via `build.sh`) before bumping the version.
 
 ## License
 
