@@ -7,9 +7,9 @@
 //! it does not define the messages. Where the two disagree, this crate
 //! is correct and the prose is a bug.
 //!
-//! The JSON Schema corpus is generated from these types, so the
-//! machine-readable half of the specification is never hand-authored
-//! and cannot drift from what the protocol actually is.
+//! These definitions are the specification's machine-readable half.
+//! Nothing describing the protocol is hand-authored alongside them, so
+//! nothing can drift from what the protocol actually is.
 //!
 //! # Scope
 //!

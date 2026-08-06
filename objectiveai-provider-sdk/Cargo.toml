@@ -13,5 +13,4 @@ keywords = ["llm", "ai", "swarm", "provider"]
 publish = true
 
 [dependencies]
-schemars = "1.2.2"
 serde = { version = "1.0.229", features = ["derive"] }

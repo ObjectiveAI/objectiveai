@@ -12,8 +12,21 @@
 //! this file defines is the vocabulary: what a node is, and what an
 //! event is.
 
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+/// The filetree's root.
+///
+/// The root is not a [`Node`] and never appears in the tree: a
+/// snapshot carries the root's ENTRIES, and every path is expressed
+/// relative to the root rather than including it. So the root has no
+/// name, and cannot be the subject of a delta.
+///
+/// It carries nothing today. It exists so that root-level information
+/// has somewhere to live when there is any — a node's metadata rides
+/// on its node, and the root, having no node, currently has nowhere
+/// to put its own.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Root;
 
 /// One node of the filesystem tree, discriminated by `type`.
 ///
@@ -24,12 +37,10 @@ use serde::{Deserialize, Serialize};
 ///
 /// Every variant carries `name` — the basename, never a path — plus
 /// `created_at` and `modified_at`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "filetree.Node")]
 pub enum Node {
     /// A regular file.
-    #[schemars(title = "File")]
     File {
         /// Basename of this file.
         name: String,
@@ -47,10 +58,9 @@ pub enum Node {
         modified_at: Option<i64>,
     },
     /// A directory, carrying its entries.
-    #[schemars(title = "Directory")]
     Directory {
         /// Basename of this directory. The watched root has no node of
-        /// its own — it is represented by the snapshot's child list.
+        /// its own — see [`Root`].
         name: String,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
@@ -66,17 +76,16 @@ pub enum Node {
         children: Vec<Node>,
     },
     /// A symbolic link — the link itself, never its target.
-    #[schemars(title = "Symlink")]
     Symlink {
         /// Basename of this link.
         name: String,
         /// The link's target, as path components ALWAYS RELATIVE TO
         /// THE FILETREE ROOT — the same frame of reference as the
-        /// `path` carried by [`Event::Upserted`] and
-        /// [`Event::Removed`]. Every path in this API means the same
-        /// thing, so a consumer walks a link's target down from the
-        /// snapshot's child list exactly as it walks an event path,
-        /// with no separate rule for links.
+        /// `path` carried by [`Event::Inserted`], [`Event::Modified`],
+        /// [`Event::Moved`] and [`Event::Removed`]. Every path in this
+        /// API means the same thing, so a consumer walks a link's
+        /// target down from the snapshot's child list exactly as it
+        /// walks an event path, with no separate rule for links.
         ///
         /// Addressable is not the same as resolved: the link is still
         /// never followed, and the components may name a node that
@@ -128,16 +137,13 @@ pub enum Node {
 /// Every `path` in every variant is a component vector relative to the
 /// filetree root — one meaning of "path" throughout, matching
 /// [`Node::Symlink`]'s.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "filetree.Event")]
 pub enum Event {
-    /// The whole tree: the watched root's entries, recursively.
-    #[schemars(title = "Snapshot")]
+    /// The whole tree: the root's entries, recursively.
     Snapshot {
-        /// The watched root's entries. The root's own identity is
-        /// implicit — the caller asked for a path and knows what it
-        /// asked for.
+        /// The root's entries. The root itself is not among them and
+        /// is not described — see [`Root`].
         children: Vec<Node>,
     },
     /// A node came into existence at a path that held nothing.
@@ -145,7 +151,6 @@ pub enum Event {
     /// Also how a node that was moved in from OUTSIDE the filetree
     /// arrives: from this tree's point of view nothing was relocated,
     /// something simply appeared.
-    #[schemars(title = "Inserted")]
     Inserted {
         /// Where the node appeared. The last element equals `node`'s
         /// `name`.
@@ -159,7 +164,6 @@ pub enum Event {
         node: Node,
     },
     /// A node that already existed changed, staying where it was.
-    #[schemars(title = "Modified")]
     Modified {
         /// The node's path, unchanged by this event. The last element
         /// equals `node`'s `name`.
@@ -189,7 +193,6 @@ pub enum Event {
     /// A node moved OUT of the filetree is not this — it is
     /// [`Removed`](Event::Removed), since there is no destination
     /// inside the tree to name.
-    #[schemars(title = "Moved")]
     Moved {
         /// Where the node was, before this event.
         path: Vec<String>,
@@ -201,7 +204,6 @@ pub enum Event {
     /// it — no per-descendant removals follow.
     ///
     /// Also how a node moved OUT of the filetree is reported.
-    #[schemars(title = "Removed")]
     Removed {
         /// The vanished node's path.
         path: Vec<String>,
