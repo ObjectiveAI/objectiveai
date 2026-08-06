@@ -14,19 +14,25 @@
 
 use serde::{Deserialize, Serialize};
 
-/// The filetree's root.
+/// The filetree's root — the whole tree, as the root's entries.
 ///
-/// The root is not a [`Node`] and never appears in the tree: a
-/// snapshot carries the root's ENTRIES, and every path is expressed
-/// relative to the root rather than including it. So the root has no
-/// name, and cannot be the subject of a delta.
+/// The root is deliberately NOT a [`Node`]. A node is something the
+/// tree contains, addressable by a path and subject to deltas; the
+/// root is the thing doing the containing. It has no name, no
+/// metadata, and no path — every path in this API is expressed
+/// relative to it rather than including it, so there is no path that
+/// names it and no delta that can be about it.
 ///
-/// It carries nothing today. It exists so that root-level information
-/// has somewhere to live when there is any — a node's metadata rides
-/// on its node, and the root, having no node, currently has nowhere
-/// to put its own.
+/// This is also the shape a consumer materializes: applying deltas
+/// means editing these `children`, so what a consumer holds and what
+/// a snapshot delivers are the same type.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Root;
+pub struct Root {
+    /// The root's entries, recursively. An empty root carries an empty
+    /// list — never absent, for the same reason a directory's
+    /// `children` is never absent.
+    pub children: Vec<Node>,
+}
 
 /// One node of the filesystem tree, discriminated by `type`.
 ///
