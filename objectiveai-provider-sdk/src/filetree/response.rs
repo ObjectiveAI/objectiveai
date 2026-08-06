@@ -23,16 +23,21 @@ use serde::{Deserialize, Serialize};
 /// relative to it rather than including it, so there is no path that
 /// names it and no delta that can be about it.
 ///
+/// A newtype rather than a named field, so the root IS its entries:
+/// serde treats it transparently and it goes on the wire as a bare
+/// list, with no wrapper object naming a field that could only ever
+/// hold one thing.
+///
 /// This is also the shape a consumer materializes: applying deltas
-/// means editing these `children`, so what a consumer holds and what
-/// a snapshot delivers are the same type.
+/// means editing this list, so what a consumer holds and what a
+/// snapshot delivers are the same type.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Root {
-    /// The root's entries, recursively. An empty root carries an empty
-    /// list — never absent, for the same reason a directory's
-    /// `children` is never absent.
-    pub children: Vec<Node>,
-}
+pub struct Root(
+    /// The root's entries, recursively. An empty root is an empty list
+    /// — never absent, for the same reason a directory's `children` is
+    /// never absent.
+    pub Vec<Node>,
+);
 
 /// One node of the filesystem tree, discriminated by `type`.
 ///
