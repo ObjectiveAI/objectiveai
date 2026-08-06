@@ -70,26 +70,24 @@ pub enum Node {
     Symlink {
         /// Basename of this link.
         name: String,
-        /// The link's target as path components, exactly as stored:
-        /// never resolved, never followed. `.` and `..` appear as
-        /// literal components — this is what the link says, not where
-        /// it lands.
+        /// The link's target, as path components ALWAYS RELATIVE TO
+        /// THE FILETREE ROOT — the same frame of reference as the
+        /// `path` carried by [`Event::Upserted`] and
+        /// [`Event::Removed`]. Every path in this API means the same
+        /// thing, so a consumer walks a link's target down from the
+        /// snapshot's child list exactly as it walks an event path,
+        /// with no separate rule for links.
+        ///
+        /// Addressable is not the same as resolved: the link is still
+        /// never followed, and the components may name a node that
+        /// does not exist — an ordinary dangling link.
         ///
         /// Always present. A link whose contents could not be read is
         /// not a symlink node with a missing target; it is a failure,
-        /// and is reported as one. Note this is unrelated to DANGLING:
-        /// a link pointing at nothing still reports its components
+        /// and is reported as one. That is unrelated to dangling: a
+        /// link pointing at nothing still reports its components
         /// perfectly well, because reading a link never touches its
         /// target.
-        ///
-        /// Unlike the component vectors that [`Event::Upserted`] and
-        /// [`Event::Removed`] call `path`, this one does not address a
-        /// node within the tree. A link may point anywhere, including
-        /// outside the watched root or at nothing at all, so these
-        /// components are not resolvable against the snapshot.
-        ///
-        /// Absolute and relative targets are not distinguished: both
-        /// arrive as a bare component list.
         path: Vec<String>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
