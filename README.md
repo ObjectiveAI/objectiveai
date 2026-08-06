@@ -2,32 +2,16 @@
 
 **The Swarm Harness.**
 
-Define an agent once — model, prompts, tools, MCP servers — then spawn it to do work, or hand it a Docker sandbox to act in. From the CLI, the SDKs, or your own agent.
+Define an agent once — model, prompts, tools, MCP servers — then spawn it to do work, or hand it a Docker sandbox to act in. From the CLI or your own agent.
 
 [Website](https://objectiveai.dev) · [Discord](https://discord.gg/gbNFHensby) · [GitHub](https://github.com/ObjectiveAI/objectiveai)
 
 [![Release](https://img.shields.io/github/v/release/ObjectiveAI/objectiveai?label=release&color=blue)](https://github.com/ObjectiveAI/objectiveai/releases/latest)
-[![Crates.io](https://img.shields.io/crates/v/objectiveai-sdk?label=crates.io%20%2F%20objectiveai-sdk)](https://crates.io/crates/objectiveai-sdk)
-[![npm](https://img.shields.io/npm/v/@objectiveai/sdk?label=npm%20%2F%20%40objectiveai%2Fsdk)](https://www.npmjs.com/package/@objectiveai/sdk)
-[![PyPI](https://img.shields.io/pypi/v/objectiveai-sdk?label=pypi%20%2F%20objectiveai-sdk)](https://pypi.org/project/objectiveai-sdk/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-## Packages
-
-SDKs published to language-native registries. Pick the one for your stack:
-
-| Language | Package | Install |
-|---|---|---|
-| Rust | [`objectiveai-sdk`](https://crates.io/crates/objectiveai-sdk) | `cargo add objectiveai-sdk` |
-| TypeScript | [`@objectiveai/sdk`](https://www.npmjs.com/package/@objectiveai/sdk) | `npm i @objectiveai/sdk` |
-| Python | [`objectiveai-sdk`](https://pypi.org/project/objectiveai-sdk/) | `pip install objectiveai-sdk` |
-| Go | [`objectiveai-sdk-go`](https://pkg.go.dev/github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go) | `go get github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go` |
-
-Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-laboratory`](https://crates.io/crates/objectiveai-mcp-laboratory), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros).
 
 ## Binaries
 
-Install all four prebuilt binaries with one command:
+Install the prebuilt binaries with one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
@@ -87,11 +71,11 @@ See [Plugins](#plugins) for what a plugin is, the manifest reference, and the fi
 
 ## What ObjectiveAI is
 
-ObjectiveAI is a harness for defining and running agents — distributed across the CLI, the API, the SDKs, the MCP server, and your own agents. You define an **Agent** once — model, prompts, decoding parameters, output mode, tools, MCP servers — and then run it: spawn it to do work, or hand it a Docker sandbox to act in.
+ObjectiveAI is a harness for defining and running agents — distributed across the CLI, the API, the MCP server, and your own agents. You define an **Agent** once — model, prompts, decoding parameters, output mode, tools, MCP servers — and then run it: spawn it to do work, or hand it a Docker sandbox to act in.
 
 Agents are content-addressed, Git-hosted resources. The same `agent.json` that powers your CLI invocation tonight is the one your colleague pins by commit SHA next month.
 
-The mechanism is the **Agent**: a reusable, composable, version-tracked configuration of a model. Everything else (the CLI, the API, the web app, the MCP server, the SDKs in five languages) exists to drive agents in the ways that matter.
+The mechanism is the **Agent**: a reusable, composable, version-tracked configuration of a model. Everything else (the CLI, the API, the web app, the MCP server) exists to drive agents in the ways that matter.
 
 ### Why this system
 
@@ -100,7 +84,6 @@ Reusability. Content-addressing throughout:
 - **Reusable.** An Agent is a 22-character ID — define one once and reference it from anywhere. Run it for action or for sandboxed work without re-defining anything.
 - **Reproducible.** Every resource reference is `(owner, repo, commit)`. Pin a commit SHA, get the exact same agent your run used six months ago.
 - **Composable.** Agents call other agents. The CLI dispatches plugins as unknown subcommands. The viewer surfaces plugin UIs as sandboxed iframe tabs.
-- **Polyglot.** Rust, TypeScript, Python, Go, and (in-progress) .NET SDKs share the same generated JSON Schema corpus. Field names and shapes are identical across languages.
 
 ## Quick start
 
@@ -125,23 +108,7 @@ objectiveai agents spawn \
   --inline '[{"role":"user","content":"Write a haiku about ocean waves."}]'
 ```
 
-Pin a `commit=<sha>` segment to lock in a specific version of any remote resource. See [Core primitives](#core-primitives) for a full explanation of Agents and agent completions, and [SDKs](#sdks) for Python, Rust, Go, and .NET patterns including streaming.
-
-### SDK — TypeScript
-
-```typescript
-import { ObjectiveAI, agentsCompletionsCreateAgentCompletion } from "@objectiveai/sdk";
-
-const client = new ObjectiveAI({ authorization: process.env.OBJECTIVEAI_AUTHORIZATION });
-
-const result = await agentsCompletionsCreateAgentCompletion(client, {
-  agent: { remote: "github", owner: "your-org", repository: "writer-agent" },
-  messages: [{ role: "user", content: "Write a haiku about ocean waves." }],
-  stream: false,
-});
-
-console.log(result);
-```
+Pin a `commit=<sha>` segment to lock in a specific version of any remote resource. See [Core primitives](#core-primitives) for a full explanation of Agents and agent completions.
 
 ## Core primitives
 
@@ -183,105 +150,13 @@ The Agent is supplied by remote reference. Messages can include images, audio, a
 }
 ```
 
-CLI: `objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'`. SDK: `agentsCompletionsCreateAgentCompletion` (JS) / `create_agent_completion` (Python) / `agent::completions::http::create_agent_completion` (Rust). Executions stream typed chunks over Server-Sent Events.
+CLI: `objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'`. Executions stream typed chunks over Server-Sent Events.
 
 ### Resource resolution
 
 Resources are referenced by `(owner, repository, commit)` triple. Content-addressing plus commit pinning makes any execution reproducible from its request alone.
 
 Remote references resolve lazily: the retrieval system fetches and caches each resource exactly once, deduplicating by triple. All fetches are content-verified — a cached resource is never re-fetched if the commit SHA matches.
-
-## SDKs
-
-Every SDK exposes **Agent Completions** — spawn a single Agent to do work, with tools, MCP, and multi-turn loops — with streaming via Server-Sent Events. The API emits incremental chunks; each SDK merges them into an accumulating object using an immutable merge system (TypeScript), a mutable push system (Python, Rust, Go), or equivalent. Types are generated from a shared JSON Schema corpus derived from the Rust SDK, so field names and shapes are identical across languages.
-
-### Languages
-
-| Language | Package | Install | Runtime targets |
-|---|---|---|---|
-| Rust | `objectiveai-sdk` on crates.io | `cargo add objectiveai-sdk` | Any (async via `reqwest` + `tokio`) |
-| TypeScript | `@objectiveai/sdk` on npm | `npm i @objectiveai/sdk` | Node.js, Deno, browser (CJS + ESM) |
-| Python | `objectiveai-sdk` on PyPI | `pip install objectiveai-sdk` | CPython 3.10+ (includes PyO3 extension) |
-| Go | `github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go` | `go get github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go` | Go 1.26+ |
-| .NET | `ObjectiveAI` (NuGet — in progress) | not yet published | net10.0 |
-
-### Streaming examples
-
-The base URL defaults to `https://api.objectiveai.dev` in all SDKs. Auth is passed as `OBJECTIVEAI_AUTHORIZATION` (env var) or via the client constructor. Each example spawns an agent with `stream: true` and consumes the streamed chunks.
-
-#### TypeScript
-
-```typescript
-import { ObjectiveAI, agentsCompletionsCreateAgentCompletion } from "@objectiveai/sdk";
-
-const client = new ObjectiveAI({ authorization: process.env.OBJECTIVEAI_AUTHORIZATION });
-
-const stream = await agentsCompletionsCreateAgentCompletion(client, {
-  stream: true,
-  agent: { remote: "github", owner: "your-org", repository: "writer-agent" },
-  messages: [{ role: "user", content: "Write a haiku about ocean waves." }],
-});
-
-for await (const chunk of stream) {
-  process.stdout.write(JSON.stringify(chunk) + "\n");
-}
-```
-
-#### Python
-
-```python
-import asyncio, os
-from objectiveai_sdk.client import ObjectiveAI
-from objectiveai_sdk.agent.completions.http import create_agent_completion
-
-async def main() -> None:
-    client = ObjectiveAI(authorization=os.environ.get("OBJECTIVEAI_AUTHORIZATION"))
-    params = {
-        "stream": True,
-        "agent": {"remote": "github", "owner": "your-org", "repository": "writer-agent"},
-        "messages": [{"role": "user", "content": "Write a haiku about ocean waves."}],
-    }
-    stream = await create_agent_completion(client, params)
-    acc = None
-    async for chunk in stream:
-        if acc is None:
-            acc = chunk
-        else:
-            acc.push(chunk)
-    print("output:", acc)
-
-asyncio.run(main())
-```
-
-#### Rust
-
-```rust
-use futures::StreamExt;
-use objectiveai_sdk::{HttpClient, agent::completions};
-
-#[tokio::main]
-async fn main() -> Result<(), objectiveai_sdk::HttpError> {
-    let client = HttpClient::builder()
-        .authorization(std::env::var("OBJECTIVEAI_AUTHORIZATION").ok())
-        .build();
-
-    let mut stream = completions::http::create_agent_completion_streaming(
-        &client,
-        completions::request::params(/* agent: remote ref, messages */),
-    ).await?;
-
-    while let Some(Ok(chunk)) = stream.next().await {
-        println!("{chunk:?}");
-    }
-    Ok(())
-}
-```
-
-### Go and .NET
-
-The Go SDK is fully auto-generated from the JSON Schema corpus. Types are strict-validated on unmarshal. The client exposes generic helpers `PostUnary[T]` / `PostStreaming[T]` / `GetUnary[T]` / `DeleteUnary[T]`; endpoint functions wrap these. A wazero-hosted WASM binary (compiled from the Rust core) provides chunk-to-unary conversion and merge verification without CGO.
-
-The .NET SDK (`ObjectiveAI`, targeting net10.0) is in active development. The NuGet publish workflow is not yet wired up, so it must be built from source for now.
 
 ## Binaries & self-hosting
 
@@ -358,7 +233,7 @@ Flags compose freely.
 
 ### Self-host vs hosted
 
-The hosted API at `https://api.objectiveai.dev` requires no setup and is the default for the CLI and all SDKs. Run your own `objectiveai-api` when you need total control over data routing — for example, to point agents at private upstream providers not available on OpenRouter, to meet on-prem or air-gapped requirements, or to run the full execution pipeline locally without network egress. Configure the CLI to point at your instance with `objectiveai api mode set local` and `objectiveai api local address set http://localhost:5000`.
+The hosted API at `https://api.objectiveai.dev` requires no setup and is the default for the CLI. Run your own `objectiveai-api` when you need total control over data routing — for example, to point agents at private upstream providers not available on OpenRouter, to meet on-prem or air-gapped requirements, or to run the full execution pipeline locally without network egress. Configure the CLI to point at your instance with `objectiveai api mode set local` and `objectiveai api local address set http://localhost:5000`.
 
 Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64 (Apple Silicon), Windows x86_64.
 
