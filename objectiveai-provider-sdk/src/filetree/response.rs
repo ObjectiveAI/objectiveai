@@ -115,10 +115,15 @@ pub enum Node {
 /// use for it may treat the two identically, and doing so is what
 /// keeps the fold tolerant of replay and reordering.
 ///
-/// Every delta carries the node's complete new value rather than a
+/// A delta that carries a node carries its COMPLETE value, never a
 /// patch against a value the consumer is assumed to hold. That is what
 /// makes replaying an already-applied event harmless, and therefore
 /// what makes at-least-once delivery safe.
+///
+/// [`Moved`](Event::Moved) is the one variant that reads the tree
+/// rather than overwriting part of it, so it is the one place replay
+/// is not free: re-applying a move is harmless while its source path
+/// stays empty, but not if something has since taken that path.
 ///
 /// Every `path` in every variant is a component vector relative to the
 /// filetree root — one meaning of "path" throughout, matching
@@ -167,6 +172,20 @@ pub enum Event {
     /// A node changed location. Its identity is preserved: this is one
     /// node relocating, not one vanishing and another appearing.
     ///
+    /// Carries no node, because a relocation produces none. Renaming
+    /// touches directory entries, not data, so the moved node's
+    /// `modified_at`, `created_at` and `size` are all exactly what the
+    /// consumer already holds. The only field a move can change is
+    /// `name`, and that is the last component of `new_path`. A node
+    /// payload here would be, for a directory, an entire re-transmitted
+    /// subtree conveying nothing.
+    ///
+    /// It follows that a move never carries a modification. A rename
+    /// ONTO an existing name — the atomic write-then-rename that
+    /// editors and package managers perform — is a different inode
+    /// taking over a name, and is reported as the two events it
+    /// actually is.
+    ///
     /// A node moved OUT of the filetree is not this — it is
     /// [`Removed`](Event::Removed), since there is no destination
     /// inside the tree to name.
@@ -174,13 +193,9 @@ pub enum Event {
     Moved {
         /// Where the node was, before this event.
         path: Vec<String>,
-        /// Where the node is now. The last element equals `node`'s
-        /// `name` — a move that renames changes the basename, and the
-        /// node reflects that.
+        /// Where the node is now. Its last component is the node's
+        /// name, which a move that renames will have changed.
         new_path: Vec<String>,
-        /// The node's complete value at its new location. A directory
-        /// carries its whole subtree.
-        node: Node,
     },
     /// A node ceased to exist. A directory takes its whole subtree with
     /// it — no per-descendant removals follow.
