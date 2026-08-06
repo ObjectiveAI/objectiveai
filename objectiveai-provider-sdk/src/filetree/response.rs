@@ -1,9 +1,9 @@
 //! Filetree response data.
 //!
 //! A filetree response is a **stream**: one [`Event::Snapshot`]
-//! carrying the whole tree, then one [`Event::Upserted`] or
-//! [`Event::Removed`] per change, for as long as the caller watches.
-//! There is no polling and no second full send — the snapshot
+//! carrying the whole tree, then one delta per change — inserted,
+//! modified, moved, or removed — for as long as the caller watches.
+//! There is no polling and no second full send: the snapshot
 //! establishes the tree, and every later event names one node.
 //!
 //! The rules governing that sequence — snapshot first, exactly once,
@@ -101,15 +101,28 @@ pub enum Node {
 
 /// One event on a filetree stream, discriminated by `type`.
 ///
-/// [`Snapshot`](Event::Snapshot) establishes the tree.
-/// [`Upserted`](Event::Upserted) and [`Removed`](Event::Removed) each
-/// name exactly one node by its path.
+/// [`Snapshot`](Event::Snapshot) establishes the tree. Every other
+/// variant names exactly one node and says what became of it: it
+/// appeared ([`Inserted`](Event::Inserted)), changed in place
+/// ([`Modified`](Event::Modified)), changed location
+/// ([`Moved`](Event::Moved)), or ceased to exist
+/// ([`Removed`](Event::Removed)).
 ///
-/// Both delta variants are **idempotent**: applying one twice leaves
-/// the tree as it was after the first. That is what makes at-least-once
-/// delivery safe, and it is why an upsert carries the node's full new
-/// value rather than a patch against a value the consumer is assumed to
-/// hold.
+/// Insertion and modification are distinguished because a consumer
+/// usually wants to treat them differently — a newly appeared file is
+/// not the same news as an existing one being written to. The
+/// distinction is INFORMATION, not a constraint: a consumer with no
+/// use for it may treat the two identically, and doing so is what
+/// keeps the fold tolerant of replay and reordering.
+///
+/// Every delta carries the node's complete new value rather than a
+/// patch against a value the consumer is assumed to hold. That is what
+/// makes replaying an already-applied event harmless, and therefore
+/// what makes at-least-once delivery safe.
+///
+/// Every `path` in every variant is a component vector relative to the
+/// filetree root — one meaning of "path" throughout, matching
+/// [`Node::Symlink`]'s.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "filetree.Event")]
@@ -122,26 +135,60 @@ pub enum Event {
         /// asked for.
         children: Vec<Node>,
     },
-    /// A node came into existence, or its value changed.
-    #[schemars(title = "Upserted")]
-    Upserted {
-        /// The node's full path relative to the watched root, as
-        /// components. The last element equals `node`'s `name`.
+    /// A node came into existence at a path that held nothing.
+    ///
+    /// Also how a node that was moved in from OUTSIDE the filetree
+    /// arrives: from this tree's point of view nothing was relocated,
+    /// something simply appeared.
+    #[schemars(title = "Inserted")]
+    Inserted {
+        /// Where the node appeared. The last element equals `node`'s
+        /// `name`.
         ///
         /// Components rather than a joined string: a path is a
         /// sequence, and joining it would invent a separator that then
         /// has to be escaped out of names that contain it.
         path: Vec<String>,
-        /// The node's complete new value. A directory carries its whole
-        /// subtree, so an upsert replaces rather than merges.
+        /// The node's complete value. A directory carries its whole
+        /// subtree.
+        node: Node,
+    },
+    /// A node that already existed changed, staying where it was.
+    #[schemars(title = "Modified")]
+    Modified {
+        /// The node's path, unchanged by this event. The last element
+        /// equals `node`'s `name`.
+        path: Vec<String>,
+        /// The node's complete new value, replacing the old one. A
+        /// directory carries its whole subtree, so this replaces rather
+        /// than merges.
+        node: Node,
+    },
+    /// A node changed location. Its identity is preserved: this is one
+    /// node relocating, not one vanishing and another appearing.
+    ///
+    /// A node moved OUT of the filetree is not this — it is
+    /// [`Removed`](Event::Removed), since there is no destination
+    /// inside the tree to name.
+    #[schemars(title = "Moved")]
+    Moved {
+        /// Where the node was, before this event.
+        path: Vec<String>,
+        /// Where the node is now. The last element equals `node`'s
+        /// `name` — a move that renames changes the basename, and the
+        /// node reflects that.
+        new_path: Vec<String>,
+        /// The node's complete value at its new location. A directory
+        /// carries its whole subtree.
         node: Node,
     },
     /// A node ceased to exist. A directory takes its whole subtree with
     /// it — no per-descendant removals follow.
+    ///
+    /// Also how a node moved OUT of the filetree is reported.
     #[schemars(title = "Removed")]
     Removed {
-        /// The vanished node's full path relative to the watched root,
-        /// as components.
+        /// The vanished node's path.
         path: Vec<String>,
     },
 }
