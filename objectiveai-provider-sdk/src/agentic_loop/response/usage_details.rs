@@ -1,4 +1,8 @@
-//! Token and cost breakdowns carried by [`Usage`](super::Usage).
+//! Token and cost breakdowns.
+//!
+//! Currently carried by nothing — [`Usage`](super::Usage) was reduced
+//! to its four additive fields. Kept for when the breakdowns are
+//! wanted back.
 
 use serde::{Deserialize, Serialize};
 
