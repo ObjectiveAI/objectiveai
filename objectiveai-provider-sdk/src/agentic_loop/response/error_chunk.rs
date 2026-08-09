@@ -1,5 +1,6 @@
 //! The error chunk.
 
+use rmcp::model::MetaObject;
 use serde::{Deserialize, Serialize};
 
 /// A failure.
@@ -19,6 +20,14 @@ pub struct ErrorChunk {
     /// flattening one into a string would discard the structure a
     /// caller needs to act on it.
     pub message: serde_json::Value,
+    /// Arbitrary protocol-level metadata, MCP's `_meta` extension bag.
+    ///
+    /// Same key and same type as the chunks that flatten rmcp types
+    /// carry, so a trace id attached to a content chunk can be
+    /// attached here too — these three are ours rather than MCP's, but
+    /// that is no reason for them to be the one place a trace stops.
+    #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
+    pub meta: Option<MetaObject>,
 }
 
 /// [`ErrorChunk`]'s discriminator.
