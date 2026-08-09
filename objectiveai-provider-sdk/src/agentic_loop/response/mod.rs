@@ -11,6 +11,10 @@
 
 mod chunk;
 mod continuation_chunk;
+mod error_chunk;
+mod usage_chunk;
 
 pub use chunk::*;
 pub use continuation_chunk::*;
+pub use error_chunk::*;
+pub use usage_chunk::*;
