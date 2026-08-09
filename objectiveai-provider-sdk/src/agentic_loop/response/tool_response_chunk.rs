@@ -1,28 +1,32 @@
 //! The tool response chunk.
 
+use rmcp::model::CallToolResult;
 use serde::{Deserialize, Serialize};
-
-use super::Content;
 
 /// The result of one tool call.
 ///
 /// Arrives whole, unlike the assistant chunks: a tool either returned
 /// or it did not, so there is nothing to stream in pieces.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// The result is MCP's own [`CallToolResult`], flattened, so what an
+/// MCP server returned passes through verbatim — content blocks,
+/// structured content, `isError` and `_meta` included — rather than
+/// being re-encoded into a shape of ours that would lose some of it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolResponseChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
     pub r#type: ToolResponseChunkType,
-    /// The call this answers. The ONLY link back to it — results may
-    /// arrive in a different order than the calls were made, so
-    /// position in the stream proves nothing.
-    pub tool_call_id: String,
-    /// What the tool returned. Full [`Content`], not text, so a tool
-    /// can hand back images and files rather than a description of
-    /// them.
-    pub content: Content,
-    /// Vendor metadata, passed through untouched.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<serde_json::Value>,
+    /// The call this answers.
+    ///
+    /// Ours, not MCP's: a [`CallToolResult`] carries no id at all,
+    /// because in MCP it is the payload of a JSON-RPC response and the
+    /// request id does the correlating from the envelope. A stream has
+    /// no envelope, and results may arrive in a different order than
+    /// the calls were made, so the link has to be here.
+    pub id: String,
+    /// The result itself.
+    #[serde(flatten)]
+    pub inner: CallToolResult,
 }
 
 /// [`ToolResponseChunk`]'s discriminator.
