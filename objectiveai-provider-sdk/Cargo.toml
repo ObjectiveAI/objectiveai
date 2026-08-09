@@ -13,7 +13,7 @@ keywords = ["llm", "ai", "swarm", "provider"]
 publish = true
 
 [dependencies]
-rmcp = "3.1.2"
+rmcp = { version = "3.1.2", default-features = false }
 rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
