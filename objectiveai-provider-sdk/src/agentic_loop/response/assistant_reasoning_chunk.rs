@@ -3,6 +3,8 @@
 use rmcp::model::TextContent;
 use serde::{Deserialize, Serialize};
 
+use super::Logprob;
+
 /// The model's reasoning.
 ///
 /// A DELTA, like [`AssistantTextContentChunk`](super::AssistantTextContentChunk):
@@ -21,6 +23,14 @@ use serde::{Deserialize, Serialize};
 pub struct AssistantReasoningChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
     pub r#type: AssistantReasoningChunkType,
+    /// Per-token log probabilities for this fragment, when requested.
+    ///
+    /// Scoped to THIS chunk's tokens, not the turn's — each delta
+    /// carries the probabilities for the text it delivers, so a caller
+    /// that concatenates the text can concatenate these alongside it
+    /// and keep them aligned.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<Vec<Logprob>>,
     /// The reasoning itself.
     #[serde(flatten)]
     pub inner: TextContent,

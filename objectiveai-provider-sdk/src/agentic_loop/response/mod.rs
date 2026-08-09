@@ -18,6 +18,7 @@ mod assistant_tool_call_chunk;
 mod chunk;
 mod continuation_chunk;
 mod error_chunk;
+mod logprobs;
 mod tool_response_chunk;
 mod usage_chunk;
 
@@ -30,5 +31,6 @@ pub use assistant_tool_call_chunk::*;
 pub use chunk::*;
 pub use continuation_chunk::*;
 pub use error_chunk::*;
+pub use logprobs::*;
 pub use tool_response_chunk::*;
 pub use usage_chunk::*;
