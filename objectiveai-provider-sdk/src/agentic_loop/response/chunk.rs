@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AssistantAudioContentChunk, AssistantImageContentChunk,
+    AssistantReasoningChunk, AssistantRefusalChunk,
     AssistantTextContentChunk, ContinuationChunk, ErrorChunk,
     ToolResponseChunk, UsageChunk,
 };
@@ -33,10 +34,12 @@ pub enum AgenticLoopChunk {
     AssistantImageContent(AssistantImageContentChunk),
     /// Audio from the model. See [`AssistantAudioContentChunk`].
     AssistantAudioContent(AssistantAudioContentChunk),
-    // Pending, each awaiting its payload type:
-    //   AssistantReasoning
+    /// The model's reasoning. See [`AssistantReasoningChunk`].
+    AssistantReasoning(AssistantReasoningChunk),
+    // Pending, awaiting its payload type:
     //   AssistantToolCall
-    //   AssistantRefusal
+    /// The model declining. See [`AssistantRefusalChunk`].
+    AssistantRefusal(AssistantRefusalChunk),
     /// A tool's result. See [`ToolResponseChunk`].
     ToolResponse(ToolResponseChunk),
     /// Token usage so far. See [`UsageChunk`].

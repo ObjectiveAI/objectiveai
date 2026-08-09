@@ -11,6 +11,8 @@
 
 mod assistant_audio_content_chunk;
 mod assistant_image_content_chunk;
+mod assistant_reasoning_chunk;
+mod assistant_refusal_chunk;
 mod assistant_text_content_chunk;
 mod chunk;
 mod continuation_chunk;
@@ -20,6 +22,8 @@ mod usage_chunk;
 
 pub use assistant_audio_content_chunk::*;
 pub use assistant_image_content_chunk::*;
+pub use assistant_reasoning_chunk::*;
+pub use assistant_refusal_chunk::*;
 pub use assistant_text_content_chunk::*;
 pub use chunk::*;
 pub use continuation_chunk::*;
