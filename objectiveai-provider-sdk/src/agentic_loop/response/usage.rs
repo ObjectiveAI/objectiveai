@@ -1,8 +1,8 @@
-//! Token and cost usage.
+//! Token usage.
 
 use serde::{Deserialize, Serialize};
 
-/// Token and cost usage.
+/// Token usage.
 ///
 /// One type at both scales: a single turn reports its own, and the
 /// loop reports the sum of them across turns, tool rounds and
@@ -19,8 +19,6 @@ pub struct Usage {
     pub prompt_tokens: u64,
     /// The two above, summed.
     pub total_tokens: u64,
-    /// What was charged.
-    pub cost: rust_decimal::Decimal,
 }
 
 impl Usage {
@@ -29,7 +27,6 @@ impl Usage {
         self.completion_tokens > 0
             || self.prompt_tokens > 0
             || self.total_tokens > 0
-            || self.cost > rust_decimal::Decimal::ZERO
     }
 
     /// Sum another usage into this one.
@@ -37,6 +34,5 @@ impl Usage {
         self.completion_tokens += other.completion_tokens;
         self.prompt_tokens += other.prompt_tokens;
         self.total_tokens += other.total_tokens;
-        self.cost += other.cost;
     }
 }
