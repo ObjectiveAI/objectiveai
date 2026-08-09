@@ -24,9 +24,7 @@ mod role;
 mod tool_call;
 mod tool_response;
 mod upstream;
-mod upstream_duration_ms;
 mod usage;
-mod usage_details;
 pub mod util;
 
 pub use assistant_response_chunk::*;
@@ -41,6 +39,4 @@ pub use role::*;
 pub use tool_call::*;
 pub use tool_response::*;
 pub use upstream::*;
-pub use upstream_duration_ms::*;
 pub use usage::*;
-pub use usage_details::*;
