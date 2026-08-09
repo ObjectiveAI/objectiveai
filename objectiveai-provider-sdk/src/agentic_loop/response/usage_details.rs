@@ -1,5 +1,4 @@
-//! Token and cost breakdowns, shared by [`Usage`](super::Usage) and
-//! [`UpstreamUsage`](super::UpstreamUsage).
+//! Token and cost breakdowns carried by [`Usage`](super::Usage).
 
 use serde::{Deserialize, Serialize};
 

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AssistantRole, AssistantToolCallDelta, FinishReason, Logprobs, RichContent,
-    UpstreamUsage, util,
+    Usage, util,
 };
 
 /// One assistant turn, delivered as a run of deltas.
@@ -53,9 +53,9 @@ pub struct AssistantResponseChunk {
     /// Which provider served the model.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
-    /// This turn's own usage.
+    /// This turn's own usage, unaggregated.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub usage: Option<UpstreamUsage>,
+    pub usage: Option<Usage>,
 }
 
 impl AssistantResponseChunk {
