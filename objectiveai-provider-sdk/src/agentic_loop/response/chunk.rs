@@ -2,7 +2,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{ContinuationChunk, ErrorChunk, ToolResponseChunk, UsageChunk};
+use super::{
+    AssistantAudioContentChunk, AssistantImageContentChunk,
+    AssistantTextContentChunk, ContinuationChunk, ErrorChunk,
+    ToolResponseChunk, UsageChunk,
+};
 
 /// One chunk of a streaming agentic loop.
 ///
@@ -23,8 +27,13 @@ use super::{ContinuationChunk, ErrorChunk, ToolResponseChunk, UsageChunk};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgenticLoopChunk {
+    /// Text from the model. See [`AssistantTextContentChunk`].
+    AssistantTextContent(AssistantTextContentChunk),
+    /// An image from the model. See [`AssistantImageContentChunk`].
+    AssistantImageContent(AssistantImageContentChunk),
+    /// Audio from the model. See [`AssistantAudioContentChunk`].
+    AssistantAudioContent(AssistantAudioContentChunk),
     // Pending, each awaiting its payload type:
-    //   AssistantContent
     //   AssistantReasoning
     //   AssistantToolCall
     //   AssistantRefusal

@@ -9,6 +9,9 @@
 //! agent-completions types, kept alongside as the reference this
 //! replaces rather than as something to migrate wholesale.
 
+mod assistant_audio_content_chunk;
+mod assistant_image_content_chunk;
+mod assistant_text_content_chunk;
 mod chunk;
 mod content;
 mod continuation_chunk;
@@ -16,6 +19,9 @@ mod error_chunk;
 mod tool_response_chunk;
 mod usage_chunk;
 
+pub use assistant_audio_content_chunk::*;
+pub use assistant_image_content_chunk::*;
+pub use assistant_text_content_chunk::*;
 pub use chunk::*;
 pub use content::*;
 pub use continuation_chunk::*;
