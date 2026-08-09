@@ -29,14 +29,14 @@ use super::{
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AgenticLoopChunk {
+    /// The model's reasoning. See [`AssistantReasoningChunk`].
+    AssistantReasoning(AssistantReasoningChunk),
     /// Text from the model. See [`AssistantTextContentChunk`].
     AssistantTextContent(AssistantTextContentChunk),
     /// An image from the model. See [`AssistantImageContentChunk`].
     AssistantImageContent(AssistantImageContentChunk),
     /// Audio from the model. See [`AssistantAudioContentChunk`].
     AssistantAudioContent(AssistantAudioContentChunk),
-    /// The model's reasoning. See [`AssistantReasoningChunk`].
-    AssistantReasoning(AssistantReasoningChunk),
     /// The model calling a tool. See [`AssistantToolCallChunk`].
     AssistantToolCall(AssistantToolCallChunk),
     /// The model declining. See [`AssistantRefusalChunk`].
