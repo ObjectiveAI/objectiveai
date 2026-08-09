@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{MessageChunk, Object, RemotePath, ResponseError, Upstream, Usage};
+use super::{MessageChunk, RemotePath, ResponseError, Upstream, Usage};
 
 /// One chunk of a streaming agentic loop.
 ///
@@ -36,8 +36,6 @@ pub struct AgenticLoopChunk {
     pub created: u64,
     /// The messages this chunk carries or extends.
     pub messages: Vec<MessageChunk>,
-    /// Always [`Object::AgenticLoopChunk`].
-    pub object: Object,
     /// Aggregate usage. Terminal chunk only — a loop's totals are not
     /// final until it is.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -58,7 +56,7 @@ impl AgenticLoopChunk {
     /// Accumulate another chunk into this one.
     ///
     /// Only the fields that vary are folded. The identity fields —
-    /// `id`, the three agent ids, `created`, `object`, `upstream` —
+    /// `id`, the three agent ids, `created` and `upstream` —
     /// are constant across a loop's chunks, so re-assigning them would
     /// be work that can only introduce a discrepancy.
     ///
