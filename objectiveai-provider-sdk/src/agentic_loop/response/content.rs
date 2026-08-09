@@ -17,6 +17,40 @@ pub enum Content {
     Parts(Vec<ContentPart>),
 }
 
+impl Content {
+    /// Accumulate a streamed delta into this content.
+    ///
+    /// Text absorbs text by concatenation — a delta is a fragment, so
+    /// fragments join rather than replace.
+    ///
+    /// Mixing the two forms PROMOTES to parts rather than discarding
+    /// either side. A turn that begins as text and later attaches an
+    /// image is one message, not two, and there is no arrangement of
+    /// `Text` that can hold the image — so the only way to keep both
+    /// is to become `Parts`.
+    pub fn push(&mut self, other: &Content) {
+        match (&mut *self, other) {
+            (Content::Text(this), Content::Text(that)) => {
+                this.push_str(that);
+            }
+            (Content::Text(this), Content::Parts(those)) => {
+                let mut parts = Vec::with_capacity(1 + those.len());
+                parts.push(ContentPart::Text {
+                    text: std::mem::take(this),
+                });
+                parts.extend(those.iter().cloned());
+                *self = Content::Parts(parts);
+            }
+            (Content::Parts(these), Content::Text(that)) => {
+                these.push(ContentPart::Text { text: that.clone() });
+            }
+            (Content::Parts(these), Content::Parts(those)) => {
+                these.extend(those.iter().cloned());
+            }
+        }
+    }
+}
+
 /// One part of multi-part content.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
