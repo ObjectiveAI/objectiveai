@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{ContinuationChunk, ErrorChunk, UsageChunk};
+use super::{ContinuationChunk, ErrorChunk, ToolResponseChunk, UsageChunk};
 
 /// One chunk of a streaming agentic loop.
 ///
@@ -28,7 +28,8 @@ pub enum AgenticLoopChunk {
     //   AssistantReasoning
     //   AssistantToolCall
     //   AssistantRefusal
-    //   ToolResponse
+    /// A tool's result. See [`ToolResponseChunk`].
+    ToolResponse(ToolResponseChunk),
     /// Token usage so far. See [`UsageChunk`].
     Usage(UsageChunk),
     /// A failure. See [`ErrorChunk`].

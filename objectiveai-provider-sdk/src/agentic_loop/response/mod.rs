@@ -10,11 +10,15 @@
 //! replaces rather than as something to migrate wholesale.
 
 mod chunk;
+mod content;
 mod continuation_chunk;
 mod error_chunk;
+mod tool_response_chunk;
 mod usage_chunk;
 
 pub use chunk::*;
+pub use content::*;
 pub use continuation_chunk::*;
 pub use error_chunk::*;
+pub use tool_response_chunk::*;
 pub use usage_chunk::*;
