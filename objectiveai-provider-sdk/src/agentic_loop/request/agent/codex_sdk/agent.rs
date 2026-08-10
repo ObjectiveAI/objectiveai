@@ -16,9 +16,8 @@ pub struct Agent {
     pub effort: Option<Effort>,
     /// Whether the model may search the web.
     ///
-    /// A capability, not a tool on
-    /// [`AgenticLoopRequest::tools`](super::super::super::AgenticLoopRequest::tools):
-    /// the SDK performs the search itself rather than calling back out.
+    /// A capability of the upstream rather than a tool: the SDK
+    /// performs the search itself rather than calling back out.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub web_search_enabled: Option<bool>,
 }

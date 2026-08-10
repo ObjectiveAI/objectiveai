@@ -8,9 +8,8 @@
 //! of the call itself, which only the upstream can interpret.
 //!
 //! Provisioning is likewise absent. MCP servers, laboratories and
-//! plugins decide what an agent CAN reach; by request time the tools
-//! are resolved and sit on
-//! [`AgenticLoopRequest::tools`](super::AgenticLoopRequest::tools).
+//! plugins decide what an agent CAN reach, which is settled before a
+//! request is built rather than declared inside one.
 
 pub mod claude_agent_sdk;
 pub mod codex_sdk;
