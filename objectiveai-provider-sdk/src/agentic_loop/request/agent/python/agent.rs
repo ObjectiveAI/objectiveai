@@ -3,7 +3,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::Upstream;
+use super::{Upstream, Version};
 
 /// An agent that runs Python instead of calling a model.
 ///
@@ -22,9 +22,7 @@ pub struct Agent {
     /// code means.
     pub python: String,
     /// Third-party packages the source needs: distribution name to
-    /// version SPECIFIER, not version. The value carries its own
-    /// operator — `">=2.31.0"`, `"==2.31.0"`, `"~=2.31"` — and an
-    /// empty value means any version.
+    /// version constraint.
     ///
     /// Precision is the author's statement of intent, exactly as it is
     /// for [`model`](super::super::openrouter::Agent::model) one
@@ -39,9 +37,12 @@ pub struct Agent {
     /// other. Ordered, so the same set always serializes identically
     /// instead of shuffling between runs.
     ///
-    /// The cost of the map is that a package cannot be listed twice
-    /// under different environment markers — a marker rides in the
-    /// value, and there is only one value per name.
+    /// One constraint per package, which is what the shape costs.
+    /// A compound range (`>= 2, < 3`) and an environment marker
+    /// (`; python_version < "3.11"`) are both unrepresentable — the
+    /// first needs two constraints for one name, the second needs a
+    /// place to put the marker. Both are legal in a `requirements.txt`
+    /// and neither survives here.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
-    pub requirements: IndexMap<String, String>,
+    pub requirements: IndexMap<String, Version>,
 }
