@@ -1,6 +1,5 @@
 //! The agentic loop request.
 
-use rmcp::model::{MetaObject, Tool};
 use serde::{Deserialize, Serialize};
 
 use super::{Agent, Message};
@@ -9,10 +8,9 @@ use super::{Agent, Message};
 ///
 /// One shape for both. A resume is this same request with
 /// [`continuation`](Self::continuation) set — not a second request
-/// type — because everything else still applies: the tool set can
-/// change between turns, the agent's parameters can change, and a
-/// resume that could not express those would force a caller to start
-/// over to alter either.
+/// type — because everything else still applies: the agent's
+/// parameters can change between turns, and a resume that could not
+/// express that would force a caller to start over to alter them.
 ///
 /// **Everything here is post-transform.** An agent as authored can
 /// carry a system prompt, prefix and suffix messages, a personality;
@@ -38,14 +36,6 @@ pub struct AgenticLoopRequest {
     /// state instead; what it must not do is require the caller to
     /// have kept a separate record of what was already sent.
     pub messages: Vec<Message>,
-    /// The tools the model may call.
-    ///
-    /// Already resolved — this is the tool list, not the MCP servers
-    /// to go and ask. MCP's [`Tool`], so a list obtained from a server
-    /// passes straight through without re-encoding a JSON Schema that
-    /// was already one.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tools: Vec<Tool>,
     /// Resume a loop, using the token from its
     /// [`ContinuationChunk`](crate::agentic_loop::response::ContinuationChunk).
     ///
@@ -53,29 +43,4 @@ pub struct AgenticLoopRequest {
     /// nothing into its contents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub continuation: Option<String>,
-    /// How many model turns the loop may take before stopping.
-    ///
-    /// The one bound a single completion never needed. An agentic loop
-    /// calls tools and calls the model again with the results, which
-    /// terminates only when the model decides to stop — so without a
-    /// ceiling, a model that keeps calling tools runs until something
-    /// external kills it. `None` leaves the ceiling to the provider,
-    /// which must have one.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_turns: Option<u32>,
-    /// Seed for the sampler, where the upstream supports one.
-    ///
-    /// On the request rather than the agent because it is a property
-    /// of this run, not of the agent — the same agent seeded
-    /// differently is the same agent. A hint, never a guarantee: no
-    /// provider promises a seed reproduces an output across model or
-    /// backend changes.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub seed: Option<i64>,
-    /// Arbitrary protocol-level metadata, MCP's `_meta` extension bag.
-    ///
-    /// The same bag every response chunk carries — a `traceparent` set
-    /// here is where a trace through the loop begins.
-    #[serde(rename = "_meta", default, skip_serializing_if = "Option::is_none")]
-    pub meta: Option<MetaObject>,
 }
