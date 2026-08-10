@@ -1,4 +1,4 @@
-//! Script upstream marker.
+//! Python upstream marker.
 
 use serde::{Deserialize, Serialize};
 
@@ -12,5 +12,5 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Upstream {
     #[default]
-    Script,
+    Python,
 }

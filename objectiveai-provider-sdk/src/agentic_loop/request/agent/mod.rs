@@ -15,7 +15,7 @@
 pub mod claude_agent_sdk;
 pub mod codex_sdk;
 pub mod openrouter;
-pub mod script;
+pub mod python;
 
 mod agent;
 

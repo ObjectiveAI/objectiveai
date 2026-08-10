@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 ///
 /// One variant per upstream because the parameter sets genuinely do
 /// not overlap: `logit_bias` means nothing to the Claude Agent SDK,
-/// `thinking` means nothing to OpenRouter. A union of every provider's
+/// `thinking` means nothing to OpenRouter, and a Python agent has
+/// no sampling parameters at all. A union of every provider's
 /// knobs would be a struct where most fields are always absent, and
 /// would leave a provider to discover at runtime that it was handed
 /// something it cannot honour.
@@ -24,6 +25,6 @@ pub enum Agent {
     ClaudeAgentSdk(super::claude_agent_sdk::Agent),
     /// See [`codex_sdk::Agent`](super::codex_sdk::Agent).
     CodexSdk(super::codex_sdk::Agent),
-    /// See [`script::Agent`](super::script::Agent).
-    Script(super::script::Agent),
+    /// See [`python::Agent`](super::python::Agent).
+    Python(super::python::Agent),
 }
