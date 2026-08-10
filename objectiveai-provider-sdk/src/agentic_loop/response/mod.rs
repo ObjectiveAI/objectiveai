@@ -5,9 +5,9 @@
 //! result, usage, an error, or the continuation — rather than a
 //! partially-filled record of everything that could have happened.
 //!
-//! [`response_old`](super::response_old) holds the mirror of the
-//! agent-completions types, kept alongside as the reference this
-//! replaces rather than as something to migrate wholesale.
+//! Content, tool calls and tool results are MCP's own types, flattened
+//! — one content vocabulary across the whole loop, so what a model
+//! produces and what a tool returns need no translation between them.
 
 mod assistant_audio_content_chunk;
 mod assistant_image_content_chunk;

@@ -3,4 +3,3 @@
 //! Scaffolding. The types land as the loop is defined.
 
 pub mod response;
-pub mod response_old;
