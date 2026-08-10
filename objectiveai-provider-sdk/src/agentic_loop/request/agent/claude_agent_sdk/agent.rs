@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effort, OutputMode, Upstream};
+use super::{Effort, Upstream};
 
 /// An agent running against the Claude Agent SDK.
 ///
@@ -15,8 +15,6 @@ pub struct Agent {
     pub upstream: Upstream,
     /// The model to run.
     pub model: String,
-    /// How output is constrained.
-    pub output_mode: OutputMode,
     /// Whether to think before answering.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub thinking: Option<bool>,

@@ -4,8 +4,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ContextCompression, OutputMode, Provider, Reasoning, Stop, Upstream,
-    Verbosity,
+    ContextCompression, Provider, Reasoning, Stop, Upstream, Verbosity,
 };
 
 /// An agent running against OpenRouter.
@@ -18,8 +17,6 @@ pub struct Agent {
     pub upstream: Upstream,
     /// The model to route to, in OpenRouter's `vendor/name` form.
     pub model: String,
-    /// How output is constrained.
-    pub output_mode: OutputMode,
     /// Ask for reasoning to be produced by prompting, on models with
     /// no native reasoning mode.
     #[serde(default, skip_serializing_if = "Option::is_none")]

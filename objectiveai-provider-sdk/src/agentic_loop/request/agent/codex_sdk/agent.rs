@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Effort, OutputMode, Upstream};
+use super::{Effort, Upstream};
 
 /// An agent running against the Codex SDK.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
@@ -11,8 +11,6 @@ pub struct Agent {
     pub upstream: Upstream,
     /// The model to run.
     pub model: String,
-    /// How output is constrained.
-    pub output_mode: OutputMode,
     /// How much effort to spend reasoning.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,

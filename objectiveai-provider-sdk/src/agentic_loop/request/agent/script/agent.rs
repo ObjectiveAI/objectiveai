@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{OutputMode, Script, Upstream};
+use super::{Script, Upstream};
 
 /// An agent that runs code instead of calling a model.
 ///
@@ -13,8 +13,6 @@ use super::{OutputMode, Script, Upstream};
 pub struct Agent {
     /// The discriminator. Always `script`.
     pub upstream: Upstream,
-    /// How output is constrained.
-    pub output_mode: OutputMode,
     /// The code to run.
     pub script: Script,
 }
