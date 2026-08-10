@@ -1,8 +1,9 @@
 //! The agentic loop request.
 
+use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
-use super::{Agent, Message};
+use super::Agent;
 
 /// What a caller hands a provider to start or resume a loop.
 ///
@@ -16,9 +17,8 @@ use super::{Agent, Message};
 /// carry a system prompt, prefix and suffix messages, a personality;
 /// those shape a request before a provider sees it, and by the time
 /// one of these is built they have already been applied.
-/// [`messages`](Self::messages) is the result, not the ingredients, so
-/// a provider never rewrites a conversation — it sends what it was
-/// given.
+/// [`prompt`](Self::prompt) is the result, not the ingredients, so a
+/// provider never rewrites what it was given.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgenticLoopRequest {
     /// What to run, and how to sample it.
@@ -29,13 +29,17 @@ pub struct AgenticLoopRequest {
     /// `thinking` is meaningless to OpenRouter, and a Python agent
     /// samples nothing at all.
     pub agent: Agent,
-    /// The conversation, oldest first.
+    /// The input for this turn.
     ///
-    /// On a resume this is the conversation as the caller now holds
-    /// it, not only what is new. The provider is free to trust its own
-    /// state instead; what it must not do is require the caller to
-    /// have kept a separate record of what was already sent.
-    pub messages: Vec<Message>,
+    /// A prompt, not a conversation. What came before lives in
+    /// [`continuation`](Self::continuation), which is the provider's
+    /// own state — so a caller sends what is NEW and never
+    /// reconstructs a history it would have to keep a parallel record
+    /// of.
+    ///
+    /// Content blocks rather than a message, because the role is
+    /// implied: a caller can only ever speak as itself.
+    pub prompt: Vec<ContentBlock>,
     /// Resume a loop, using the token from its
     /// [`ContinuationChunk`](crate::agentic_loop::response::ContinuationChunk).
     ///
