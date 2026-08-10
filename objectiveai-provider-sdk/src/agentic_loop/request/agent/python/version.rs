@@ -29,9 +29,14 @@ pub struct Version {
 
 /// How a [`Version`] compares, as PEP 440 defines them.
 ///
-/// A closed set — PEP 440 specifies exactly these eight — so it is an
-/// enum rather than a string, and an operator no resolver understands
-/// fails to deserialize instead of failing later.
+/// A closed set, so it is an enum rather than a string: an operator no
+/// resolver understands fails to deserialize instead of failing later.
+///
+/// Seven of PEP 440's eight. `===`, arbitrary equality, is omitted —
+/// it exists for versions that are not PEP 440 versions, and PyPI
+/// enforces PEP 440 on upload, so nothing reachable from the default
+/// index can need it. It belongs with an index field, if one ever
+/// lands.
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
 )]
@@ -61,9 +66,4 @@ pub enum VersionOperator {
     /// component: `~= 2.31.0` allows `2.31.4` and refuses `2.32.0`.
     #[serde(rename = "~=")]
     Compatible,
-    /// `===` — arbitrary equality: string comparison, no version
-    /// semantics at all. PEP 440 discourages it, and it exists for
-    /// versions that are not PEP 440 versions.
-    #[serde(rename = "===")]
-    Arbitrary,
 }
