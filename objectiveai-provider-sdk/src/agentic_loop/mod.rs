@@ -1,5 +1,7 @@
 //! The agentic loop — a provider driving an agent through its turns.
 //!
-//! Scaffolding. The types land as the loop is defined.
+//! A caller sends a [`request`] and receives a stream of
+//! [`response`] chunks.
 
+pub mod request;
 pub mod response;
