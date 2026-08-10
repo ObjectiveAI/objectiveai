@@ -3,23 +3,34 @@
 use rmcp::model::{MetaObject, Tool};
 use serde::{Deserialize, Serialize};
 
-use super::Message;
+use super::{Agent, Message};
 
 /// What a caller hands a provider to start or resume a loop.
 ///
 /// One shape for both. A resume is this same request with
 /// [`continuation`](Self::continuation) set — not a second request
 /// type — because everything else still applies: the tool set can
-/// change between turns, the sampling parameters can change, and a
+/// change between turns, the agent's parameters can change, and a
 /// resume that could not express those would force a caller to start
 /// over to alter either.
+///
+/// **Everything here is post-transform.** An agent as authored can
+/// carry a system prompt, prefix and suffix messages, a personality;
+/// those shape a request before a provider sees it, and by the time
+/// one of these is built they have already been applied.
+/// [`messages`](Self::messages) is the result, not the ingredients, so
+/// a provider never rewrites a conversation — it sends what it was
+/// given.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgenticLoopRequest {
-    /// The model to run.
+    /// What to run, and how to sample it.
     ///
-    /// A provider fronts many models, so this is not implied by which
-    /// provider was asked.
-    pub model: String,
+    /// The model and every decoding parameter live here rather than on
+    /// the request, because which parameters exist DEPENDS on the
+    /// upstream — `logit_bias` is meaningless to the Claude Agent SDK,
+    /// `thinking` is meaningless to OpenRouter, and a script agent
+    /// samples nothing at all.
+    pub agent: Agent,
     /// The conversation, oldest first.
     ///
     /// On a resume this is the conversation as the caller now holds
@@ -29,9 +40,10 @@ pub struct AgenticLoopRequest {
     pub messages: Vec<Message>,
     /// The tools the model may call.
     ///
-    /// MCP's [`Tool`], so a tool list obtained from an MCP server
-    /// passes straight through — no re-encoding of a JSON Schema that
-    /// was already a JSON Schema.
+    /// Already resolved — this is the tool list, not the MCP servers
+    /// to go and ask. MCP's [`Tool`], so a list obtained from a server
+    /// passes straight through without re-encoding a JSON Schema that
+    /// was already one.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tools: Vec<Tool>,
     /// Resume a loop, using the token from its
@@ -51,40 +63,15 @@ pub struct AgenticLoopRequest {
     /// which must have one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_turns: Option<u32>,
-    /// Cap on tokens generated per turn.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<u64>,
-    /// Sampling temperature.
+    /// Seed for the sampler, where the upstream supports one.
     ///
-    /// A decimal rather than a float, for the reason
-    /// [`Logprob::logprob`](crate::agentic_loop::response::Logprob::logprob)
-    /// is: these round-trip through JSON, and a temperature that comes
-    /// back as `0.7000000000000001` is a different request than the
-    /// one that was sent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<rust_decimal::Decimal>,
-    /// Nucleus sampling threshold.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<rust_decimal::Decimal>,
-    /// Sequences that end a turn when generated.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub stop: Vec<String>,
-    /// Seed for the sampler, where the provider supports one.
-    ///
-    /// A hint, never a guarantee — no provider promises that the same
-    /// seed reproduces the same output across model or backend
-    /// changes.
+    /// On the request rather than the agent because it is a property
+    /// of this run, not of the agent — the same agent seeded
+    /// differently is the same agent. A hint, never a guarantee: no
+    /// provider promises a seed reproduces an output across model or
+    /// backend changes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub seed: Option<i64>,
-    /// Ask for log probabilities, with this many alternatives per
-    /// token.
-    ///
-    /// `None` means do not report them; `Some(0)` means report the
-    /// chosen token's probability and no alternatives. One field
-    /// rather than a bool plus a count, so "logprobs off but
-    /// alternatives requested" cannot be expressed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub top_logprobs: Option<u8>,
     /// Arbitrary protocol-level metadata, MCP's `_meta` extension bag.
     ///
     /// The same bag every response chunk carries — a `traceparent` set

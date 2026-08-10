@@ -4559,6 +4559,7 @@ dependencies = [
 name = "objectiveai-provider-sdk"
 version = "2.2.15"
 dependencies = [
+ "indexmap 2.14.0",
  "rmcp 3.1.2",
  "rust_decimal",
  "serde",
