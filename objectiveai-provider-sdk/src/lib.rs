@@ -35,3 +35,4 @@
 
 pub mod agentic_loop;
 pub mod filetree;
+pub mod images;
