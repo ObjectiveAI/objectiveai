@@ -19,17 +19,17 @@ pub enum ClientFrame<'a> {
     /// begun.
     Ack {
         /// The scope the server minted.
-        scope: u64,
+        scope: u32,
         /// The channel of the server request being answered.
-        channel: u64,
+        channel: u32,
     },
     /// Type `1`. One piece of the answer. There may be any number,
     /// including none.
     Body {
         /// The scope the server minted.
-        scope: u64,
+        scope: u32,
         /// The channel of the server request being answered.
-        channel: u64,
+        channel: u32,
         /// The body bytes.
         payload: &'a [u8],
     },
@@ -37,9 +37,9 @@ pub enum ClientFrame<'a> {
     /// Nothing follows on it.
     Finish {
         /// The scope the server minted.
-        scope: u64,
+        scope: u32,
         /// The channel of the server request being answered.
-        channel: u64,
+        channel: u32,
     },
     /// Type `3`. A new request, opening a scope.
     ///
@@ -53,13 +53,8 @@ pub enum ClientFrame<'a> {
 }
 
 impl<'a> ClientFrame<'a> {
-    /// Decode one frame. The payload borrows from `bytes`.
-    ///
-    /// `bytes` is the WebSocket message's binary payload. Nothing here
-    /// names a WebSocket type: `axum`'s `Message::Binary` and
-    /// tungstenite's both carry `Bytes`, which derefs to `&[u8]`, so
-    /// this takes the one thing they agree on and the SDK depends on
-    /// neither.
+    /// Decode one frame from a WebSocket message's binary payload.
+    /// The payload borrows from `bytes`.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
@@ -80,7 +75,7 @@ impl<'a> ClientFrame<'a> {
     ///
     /// The one place the mapping lives, so the length and the writer
     /// cannot disagree about it.
-    fn parts(&self) -> (u8, u64, u64, &'a [u8]) {
+    fn parts(&self) -> (u8, u32, u32, &'a [u8]) {
         match *self {
             ClientFrame::Ack { scope, channel } => (0, scope, channel, &[]),
             ClientFrame::Body {

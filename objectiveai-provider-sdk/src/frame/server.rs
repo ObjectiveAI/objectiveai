@@ -21,13 +21,13 @@ pub enum ServerFrame<'a> {
     /// place the scope comes from.
     Ack {
         /// The newly minted scope.
-        scope: u64,
+        scope: u32,
     },
     /// Type `1` on channel `0`. One piece of the answer to the
     /// client's request.
     Body {
         /// The scope.
-        scope: u64,
+        scope: u32,
         /// The body bytes.
         payload: &'a [u8],
     },
@@ -35,7 +35,7 @@ pub enum ServerFrame<'a> {
     /// follows, on any channel.
     Finish {
         /// The scope.
-        scope: u64,
+        scope: u32,
     },
     /// Type `3` or above: a request to the client, opening a channel.
     ///
@@ -43,11 +43,11 @@ pub enum ServerFrame<'a> {
     /// and finish.
     Request {
         /// The scope this happens inside.
-        scope: u64,
+        scope: u32,
         /// A channel unique within the scope, minted here. Every
         /// server request gets its own, so several can be outstanding
         /// at once without their answers being confusable.
-        channel: u64,
+        channel: u32,
         /// Which kind of request. `3` or above; what each value means
         /// belongs to the protocol being carried, not to this layer.
         r#type: u8,
@@ -85,7 +85,7 @@ impl<'a> ServerFrame<'a> {
     ///
     /// The one place the mapping lives, so the length and the writer
     /// cannot disagree about it.
-    fn parts(&self) -> (u8, u64, u64, &'a [u8]) {
+    fn parts(&self) -> (u8, u32, u32, &'a [u8]) {
         match *self {
             ServerFrame::Ack { scope } => (0, scope, 0, &[]),
             ServerFrame::Body { scope, payload } => (1, scope, 0, payload),

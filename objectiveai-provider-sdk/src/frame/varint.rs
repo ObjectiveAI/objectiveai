@@ -3,7 +3,7 @@
 use super::FrameError;
 
 /// Append `value`.
-pub(super) fn write(mut value: u64, out: &mut Vec<u8>) {
+pub(super) fn write(mut value: u32, out: &mut Vec<u8>) {
     while value >= 0x80 {
         out.push((value as u8) | 0x80);
         value >>= 7;
@@ -12,7 +12,7 @@ pub(super) fn write(mut value: u64, out: &mut Vec<u8>) {
 }
 
 /// How many bytes [`write`] will emit for `value`.
-pub(super) fn len(mut value: u64) -> usize {
+pub(super) fn len(mut value: u32) -> usize {
     let mut len = 1;
     while value >= 0x80 {
         value >>= 7;
@@ -22,14 +22,14 @@ pub(super) fn len(mut value: u64) -> usize {
 }
 
 /// Read one varint, returning it and how many bytes it took.
-pub(super) fn read(bytes: &[u8]) -> Result<(u64, usize), FrameError> {
-    let mut value: u64 = 0;
+pub(super) fn read(bytes: &[u8]) -> Result<(u32, usize), FrameError> {
+    let mut value: u32 = 0;
     let mut shift: u32 = 0;
     for (i, &byte) in bytes.iter().enumerate() {
-        let part = u64::from(byte & 0x7F);
-        // Order matters: the shift itself is undefined past 63, so the
+        let part = u32::from(byte & 0x7F);
+        // Order matters: the shift itself is undefined past 31, so the
         // width check has to short-circuit before the round-trip test.
-        if shift >= 64 || (part << shift) >> shift != part {
+        if shift >= 32 || (part << shift) >> shift != part {
             return Err(FrameError::Overflow);
         }
         value |= part << shift;

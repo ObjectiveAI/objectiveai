@@ -11,6 +11,28 @@
 //! No length prefix — WebSocket already delimits messages, so carrying
 //! one would be paying twice for the same fact.
 //!
+//! `scope` and `channel` are `u32`, varint-encoded, so a young
+//! connection spends three bytes on a header and only pays for digits
+//! it is actually using.
+//!
+//! # No WebSocket dependency
+//!
+//! Decoding takes `&[u8]` and encoding gives `Vec<u8>`, and nothing
+//! here names a WebSocket type. There is no single type to name: axum
+//! defines its own `Message` rather than re-exporting tungstenite's,
+//! and pins a tungstenite version of its own besides — so naming
+//! either would serve one library at one version and exclude the rest,
+//! including the ones this repo already uses.
+//!
+//! Every `Message::Binary` carries `bytes::Bytes`, which derefs to
+//! `&[u8]`. That is the one thing they all agree on, so it is what
+//! this takes:
+//!
+//! ```ignore
+//! Message::Binary(b) => ClientFrame::decode(&b)?
+//! socket.send(Message::Binary(frame.encode().into())).await
+//! ```
+//!
 //! # Scopes and channels
 //!
 //! A **scope** is one client request and everything that follows from

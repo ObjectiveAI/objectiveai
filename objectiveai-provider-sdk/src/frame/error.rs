@@ -5,7 +5,7 @@
 pub enum FrameError {
     /// The bytes ended inside the header.
     Truncated,
-    /// A varint ran past 64 bits.
+    /// A varint ran past 32 bits.
     Overflow,
     /// A `type` no frame in this direction can have.
     ///
@@ -24,7 +24,7 @@ impl std::fmt::Display for FrameError {
                 f.write_str("frame ended inside its header")
             }
             FrameError::Overflow => {
-                f.write_str("frame varint exceeded 64 bits")
+                f.write_str("frame varint exceeded 32 bits")
             }
             FrameError::UnknownType(byte) => {
                 write!(f, "unknown client frame type {byte}")
@@ -42,7 +42,7 @@ impl std::error::Error for FrameError {}
 /// sent it, and only the MEANING of `type` differs.
 pub(super) fn split_header(
     bytes: &[u8],
-) -> Result<(u8, u64, u64, &[u8]), FrameError> {
+) -> Result<(u8, u32, u32, &[u8]), FrameError> {
     let (&r#type, rest) = bytes.split_first().ok_or(FrameError::Truncated)?;
     let (scope, n) = super::varint::read(rest)?;
     let rest = &rest[n..];
@@ -53,8 +53,8 @@ pub(super) fn split_header(
 /// Write a header. Counterpart of [`split_header`].
 pub(super) fn write_header(
     r#type: u8,
-    scope: u64,
-    channel: u64,
+    scope: u32,
+    channel: u32,
     out: &mut Vec<u8>,
 ) {
     out.push(r#type);
@@ -63,6 +63,6 @@ pub(super) fn write_header(
 }
 
 /// How many bytes a header occupies.
-pub(super) fn header_len(scope: u64, channel: u64) -> usize {
+pub(super) fn header_len(scope: u32, channel: u32) -> usize {
     1 + super::varint::len(scope) + super::varint::len(channel)
 }
