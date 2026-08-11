@@ -41,7 +41,7 @@ pub struct AgenticLoopRequest {
     /// implied: a caller can only ever speak as itself.
     pub prompt: Vec<ContentBlock>,
     /// Resume a loop, using the token from its
-    /// [`ContinuationChunk`](crate::agentic_loop::response::ContinuationChunk).
+    /// [`ContinuationChunk`](crate::client::agentic_loop::response::ContinuationChunk).
     ///
     /// Opaque: a caller stores it and hands it back, and should read
     /// nothing into its contents.
