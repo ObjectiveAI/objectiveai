@@ -5,8 +5,4 @@
 //! image has nothing to quote, so a caller asking only about terms
 //! would still need the availability answer to read them.
 
-mod request;
-mod response;
-
-pub use request::*;
-pub use response::*;
+pub mod client;

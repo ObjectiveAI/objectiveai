@@ -33,4 +33,6 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
-pub mod client;
+pub mod agentic_loop;
+pub mod filetree;
+pub mod images;
