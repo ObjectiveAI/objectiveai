@@ -56,14 +56,3 @@ pub(super) fn split_header(
     Ok((r#type, scope, channel, &bytes[HEADER_LEN..]))
 }
 
-/// Write a header. Counterpart of [`split_header`].
-pub(super) fn write_header(
-    r#type: u8,
-    scope: u32,
-    channel: u32,
-    out: &mut Vec<u8>,
-) {
-    out.push(r#type);
-    out.extend_from_slice(&scope.to_be_bytes());
-    out.extend_from_slice(&channel.to_be_bytes());
-}

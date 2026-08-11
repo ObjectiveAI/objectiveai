@@ -20,8 +20,7 @@
 //!
 //! # No WebSocket dependency
 //!
-//! Decoding takes `&[u8]` and encoding gives `Vec<u8>`, and nothing
-//! here names a WebSocket type. There is no single type to name: axum
+//! Decoding takes `&[u8]`, and nothing here names a WebSocket type. There is no single type to name: axum
 //! defines its own `Message` rather than re-exporting tungstenite's,
 //! and pins a tungstenite version of its own besides — so naming
 //! either would serve one library at one version and exclude the rest,
@@ -33,7 +32,6 @@
 //!
 //! ```ignore
 //! Message::Binary(b) => ClientFrame::decode(&b)?
-//! socket.send(Message::Binary(frame.encode().into())).await
 //! ```
 //!
 //! # Scopes and channels
@@ -78,4 +76,4 @@ pub mod server;
 mod error;
 
 pub use error::{FrameError, HEADER_LEN};
-use error::{split_header, write_header};
+use error::split_header;
