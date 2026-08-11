@@ -4,6 +4,8 @@
 //! request the server made inside one. It never opens a channel and
 //! never sends a request of its own beyond the first.
 
+use super::FrameError;
+
 /// A frame sent by a client.
 ///
 /// The variants carry only what they can have, so the states that do
@@ -48,4 +50,71 @@ pub enum ClientFrame<'a> {
         /// The request bytes.
         payload: &'a [u8],
     },
+}
+
+impl<'a> ClientFrame<'a> {
+    /// Decode one frame. The payload borrows from `bytes`.
+    ///
+    /// `bytes` is the WebSocket message's binary payload. Nothing here
+    /// names a WebSocket type: `axum`'s `Message::Binary` and
+    /// tungstenite's both carry `Bytes`, which derefs to `&[u8]`, so
+    /// this takes the one thing they agree on and the SDK depends on
+    /// neither.
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
+        let (r#type, scope, channel, payload) = super::split_header(bytes)?;
+        Ok(match r#type {
+            0 => ClientFrame::Ack { scope, channel },
+            1 => ClientFrame::Body {
+                scope,
+                channel,
+                payload,
+            },
+            2 => ClientFrame::Finish { scope, channel },
+            3 => ClientFrame::Request { payload },
+            other => return Err(FrameError::UnknownType(other)),
+        })
+    }
+
+    /// `(type, scope, channel, payload)` — the wire header this frame
+    /// carries, and its bytes.
+    ///
+    /// The one place the mapping lives, so the length and the writer
+    /// cannot disagree about it.
+    fn parts(&self) -> (u8, u64, u64, &'a [u8]) {
+        match *self {
+            ClientFrame::Ack { scope, channel } => (0, scope, channel, &[]),
+            ClientFrame::Body {
+                scope,
+                channel,
+                payload,
+            } => (1, scope, channel, payload),
+            ClientFrame::Finish { scope, channel } => (2, scope, channel, &[]),
+            // A request predates its scope, so both header fields go
+            // out as zero and are ignored coming back.
+            ClientFrame::Request { payload } => (3, 0, 0, payload),
+        }
+    }
+
+    /// Exactly how many bytes [`Self::encode_into`] will write, so a
+    /// caller can size a buffer once and never grow it.
+    pub fn encoded_len(&self) -> usize {
+        let (_, scope, channel, payload) = self.parts();
+        super::header_len(scope, channel) + payload.len()
+    }
+
+    /// Append the encoded frame to `out`.
+    pub fn encode_into(&self, out: &mut Vec<u8>) {
+        let (r#type, scope, channel, payload) = self.parts();
+        out.reserve(super::header_len(scope, channel) + payload.len());
+        super::write_header(r#type, scope, channel, out);
+        out.extend_from_slice(payload);
+    }
+
+    /// Encode into a freshly allocated buffer sized exactly. Hand it
+    /// to a WebSocket binary message.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(self.encoded_len());
+        self.encode_into(&mut out);
+        out
+    }
 }

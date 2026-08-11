@@ -49,3 +49,9 @@
 
 pub mod client;
 pub mod server;
+
+mod error;
+mod varint;
+
+pub use error::FrameError;
+use error::{header_len, split_header, write_header};

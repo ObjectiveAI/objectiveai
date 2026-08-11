@@ -5,6 +5,8 @@
 //! the scope the client's request opened — a server never initiates
 //! one.
 
+use super::FrameError;
+
 /// A frame sent by a server.
 ///
 /// [`Ack`](Self::Ack), [`Body`](Self::Body) and
@@ -52,4 +54,71 @@ pub enum ServerFrame<'a> {
         /// The request bytes.
         payload: &'a [u8],
     },
+}
+
+impl<'a> ServerFrame<'a> {
+    /// Decode one frame. The payload borrows from `bytes`.
+    ///
+    /// Never returns [`FrameError::UnknownType`]: every value above
+    /// `2` is a request whose meaning belongs to the protocol being
+    /// carried, so an unfamiliar one is a request from a newer peer
+    /// rather than a malformed frame.
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
+        let (r#type, scope, channel, payload) = super::split_header(bytes)?;
+        Ok(match r#type {
+            // Channel is meaningless on a reply — it is always `0` —
+            // so a non-zero one is ignored rather than rejected.
+            0 => ServerFrame::Ack { scope },
+            1 => ServerFrame::Body { scope, payload },
+            2 => ServerFrame::Finish { scope },
+            r#type => ServerFrame::Request {
+                scope,
+                channel,
+                r#type,
+                payload,
+            },
+        })
+    }
+
+    /// `(type, scope, channel, payload)` — the wire header this frame
+    /// carries, and its bytes.
+    ///
+    /// The one place the mapping lives, so the length and the writer
+    /// cannot disagree about it.
+    fn parts(&self) -> (u8, u64, u64, &'a [u8]) {
+        match *self {
+            ServerFrame::Ack { scope } => (0, scope, 0, &[]),
+            ServerFrame::Body { scope, payload } => (1, scope, 0, payload),
+            ServerFrame::Finish { scope } => (2, scope, 0, &[]),
+            ServerFrame::Request {
+                scope,
+                channel,
+                r#type,
+                payload,
+            } => (r#type, scope, channel, payload),
+        }
+    }
+
+    /// Exactly how many bytes [`Self::encode_into`] will write, so a
+    /// caller can size a buffer once and never grow it.
+    pub fn encoded_len(&self) -> usize {
+        let (_, scope, channel, payload) = self.parts();
+        super::header_len(scope, channel) + payload.len()
+    }
+
+    /// Append the encoded frame to `out`.
+    pub fn encode_into(&self, out: &mut Vec<u8>) {
+        let (r#type, scope, channel, payload) = self.parts();
+        out.reserve(super::header_len(scope, channel) + payload.len());
+        super::write_header(r#type, scope, channel, out);
+        out.extend_from_slice(payload);
+    }
+
+    /// Encode into a freshly allocated buffer sized exactly. Hand it
+    /// to a WebSocket binary message.
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(self.encoded_len());
+        self.encode_into(&mut out);
+        out
+    }
 }
