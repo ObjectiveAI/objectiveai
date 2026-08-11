@@ -102,14 +102,13 @@ impl<'a> ServerFrame<'a> {
     /// Exactly how many bytes [`Self::encode_into`] will write, so a
     /// caller can size a buffer once and never grow it.
     pub fn encoded_len(&self) -> usize {
-        let (_, scope, channel, payload) = self.parts();
-        super::header_len(scope, channel) + payload.len()
+        super::HEADER_LEN + self.parts().3.len()
     }
 
     /// Append the encoded frame to `out`.
     pub fn encode_into(&self, out: &mut Vec<u8>) {
         let (r#type, scope, channel, payload) = self.parts();
-        out.reserve(super::header_len(scope, channel) + payload.len());
+        out.reserve(super::HEADER_LEN + payload.len());
         super::write_header(r#type, scope, channel, out);
         out.extend_from_slice(payload);
     }

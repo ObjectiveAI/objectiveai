@@ -3,17 +3,20 @@
 //! Every message is one WebSocket BINARY frame:
 //!
 //! ```text
-//! [type: u8][scope: varint][channel: varint][payload…]
+//! [type: u8][scope: u32 big-endian][channel: u32 big-endian][payload…]
 //! ```
 //!
-//! `type` leads because it is the only fixed-width field: a reader
-//! knows what the frame is before parsing anything of variable length.
-//! No length prefix — WebSocket already delimits messages, so carrying
-//! one would be paying twice for the same fact.
+//! `type` leads so a reader learns what a frame is before anything
+//! else, and can reject one it does not recognize without looking at
+//! the rest. No length prefix — WebSocket already delimits messages,
+//! so carrying one would be paying twice for the same fact.
 //!
-//! `scope` and `channel` are `u32`, varint-encoded, so a young
-//! connection spends three bytes on a header and only pays for digits
-//! it is actually using.
+//! Nine bytes, always. Fixed rather than varint-encoded: varints
+//! would have saved about four bytes on a typical frame, which is
+//! under two percent of a chunk carrying JSON, and charged for it with
+//! a payload offset that is a parse result instead of a constant and
+//! an overflow case to get right. A header whose length is
+//! [`HEADER_LEN`] is a header nobody has to parse.
 //!
 //! # No WebSocket dependency
 //!
@@ -73,7 +76,6 @@ pub mod client;
 pub mod server;
 
 mod error;
-mod varint;
 
-pub use error::FrameError;
-use error::{header_len, split_header, write_header};
+pub use error::{FrameError, HEADER_LEN};
+use error::{split_header, write_header};

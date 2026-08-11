@@ -1,12 +1,17 @@
 //! Why a frame could not be decoded.
 
+/// The bytes a header occupies: `type` plus `scope` plus `channel`.
+///
+/// A constant, which is the point of a fixed header — the payload
+/// starts at a known offset rather than wherever a parse happened to
+/// finish.
+pub const HEADER_LEN: usize = 1 + 4 + 4;
+
 /// A frame that could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FrameError {
-    /// The bytes ended inside the header.
+    /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
-    /// A varint ran past 32 bits.
-    Overflow,
     /// A `type` no frame in this direction can have.
     ///
     /// Only a CLIENT frame can produce this. A client's types are a
@@ -21,10 +26,7 @@ impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Truncated => {
-                f.write_str("frame ended inside its header")
-            }
-            FrameError::Overflow => {
-                f.write_str("frame varint exceeded 32 bits")
+                f.write_str("frame is shorter than its header")
             }
             FrameError::UnknownType(byte) => {
                 write!(f, "unknown client frame type {byte}")
@@ -43,11 +45,15 @@ impl std::error::Error for FrameError {}
 pub(super) fn split_header(
     bytes: &[u8],
 ) -> Result<(u8, u32, u32, &[u8]), FrameError> {
-    let (&r#type, rest) = bytes.split_first().ok_or(FrameError::Truncated)?;
-    let (scope, n) = super::varint::read(rest)?;
-    let rest = &rest[n..];
-    let (channel, n) = super::varint::read(rest)?;
-    Ok((r#type, scope, channel, &rest[n..]))
+    let header: &[u8; HEADER_LEN] = bytes
+        .get(..HEADER_LEN)
+        .and_then(|head| head.try_into().ok())
+        .ok_or(FrameError::Truncated)?;
+    let r#type = header[0];
+    let scope = u32::from_be_bytes([header[1], header[2], header[3], header[4]]);
+    let channel =
+        u32::from_be_bytes([header[5], header[6], header[7], header[8]]);
+    Ok((r#type, scope, channel, &bytes[HEADER_LEN..]))
 }
 
 /// Write a header. Counterpart of [`split_header`].
@@ -58,11 +64,6 @@ pub(super) fn write_header(
     out: &mut Vec<u8>,
 ) {
     out.push(r#type);
-    super::varint::write(scope, out);
-    super::varint::write(channel, out);
-}
-
-/// How many bytes a header occupies.
-pub(super) fn header_len(scope: u32, channel: u32) -> usize {
-    1 + super::varint::len(scope) + super::varint::len(channel)
+    out.extend_from_slice(&scope.to_be_bytes());
+    out.extend_from_slice(&channel.to_be_bytes());
 }
