@@ -3,7 +3,7 @@
 use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
-use super::Agent;
+use super::agent::Agent;
 
 /// What a caller hands a provider to start or resume a loop.
 ///
