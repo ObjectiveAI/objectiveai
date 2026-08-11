@@ -25,23 +25,27 @@
 //!
 //! # Types
 //!
-//! `type` means different things by direction, which is why
-//! [`ClientFrame`](client::ClientFrame) and
-//! [`ServerFrame`](server::ServerFrame) are separate types rather than
-//! one shape with fields that are sometimes ignored.
+//! | type | meaning |
+//! |------|---------|
+//! | 0    | ack |
+//! | 1    | body |
+//! | 2    | finish |
+//! | 3+   | a request |
 //!
-//! | type | client sends | server sends |
-//! |------|--------------|--------------|
-//! | 0    | a new request, if unscoped; otherwise an ack | ack |
-//! | 1    | body | body |
-//! | 2    | finish | finish |
-//! | 3+   | — | a request, opening a new channel |
+//! Ack, body and finish mean the same thing in both directions and on
+//! every channel: an exchange beginning, its contents, and its end.
+//! One sequence, whether the server is answering the client's request
+//! on channel `0` or the client is answering a server request on that
+//! request's channel.
 //!
-//! Ack / body / finish is one sequence used in both directions: the
-//! server answering the client's request on channel `0`, and the
-//! client answering a server request on that request's channel. The
-//! values above `2` are what a server request IS, and belong to the
-//! protocol being carried rather than to this layer.
+//! Everything from `3` up is a request. A client has exactly one —
+//! the one that opens a scope — so it uses `3` and nothing else. A
+//! server may have many kinds, and what each value means belongs to
+//! the protocol being carried rather than to this layer.
+//!
+//! Because the reply types are shared and the request types are not,
+//! `type` alone determines what a frame is. Nothing has to consult
+//! whether the scope happens to be zero.
 
 pub mod client;
 pub mod server;

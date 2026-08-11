@@ -7,17 +7,12 @@
 /// A frame sent by a client.
 ///
 /// The variants carry only what they can have, so the states that do
-/// not exist cannot be built: a [`Request`](Self::Request) has no
-/// scope because none exists yet, and every reply has both a scope and
-/// the channel of the server request it answers.
+/// not exist cannot be built: every reply has both a scope and the
+/// channel of the server request it answers, and
+/// [`Request`](Self::Request) has neither, because neither exists
+/// until the server answers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClientFrame<'a> {
-    /// A new request, opening a scope. Type `0`, sent with no scope
-    /// and no channel — the server mints the scope in its ack.
-    Request {
-        /// The request bytes.
-        payload: &'a [u8],
-    },
     /// Type `0`. Acknowledges a server request; the exchange has
     /// begun.
     Ack {
@@ -43,5 +38,14 @@ pub enum ClientFrame<'a> {
         scope: u64,
         /// The channel of the server request being answered.
         channel: u64,
+    },
+    /// Type `3`. A new request, opening a scope.
+    ///
+    /// Sent with no scope and no channel — the server mints the scope
+    /// in its ack. A client has only this one kind of request, so it
+    /// is the only value above `2` a client ever sends.
+    Request {
+        /// The request bytes.
+        payload: &'a [u8],
     },
 }
