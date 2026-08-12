@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 /// The payload of a
 /// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
 /// on a channel opened by
-/// [`ServerRequestFrame::Mcp`](super::super::super::server::ServerRequestFrame::Mcp).
+/// [`RequestFrame::Mcp`](super::super::super::server::RequestFrame::Mcp).
 ///
 /// One MCP answer, arriving in pieces: the head once, then as much
 /// body as there turns out to be.

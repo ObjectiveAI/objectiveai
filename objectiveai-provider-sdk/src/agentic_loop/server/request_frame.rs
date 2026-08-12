@@ -37,7 +37,7 @@ use super::McpRequest;
 /// The JSON-RPC inside stays opaque regardless — see
 /// [`McpRequest::body`](super::McpRequest::body).
 #[derive(Debug, Clone, PartialEq)]
-pub enum ServerRequestFrame<'a> {
+pub enum RequestFrame<'a> {
     /// One MCP exchange, toward the client's MCP proxy. Complete in
     /// this frame; the answer comes back as client response frames.
     Mcp(McpRequest<'a>),
