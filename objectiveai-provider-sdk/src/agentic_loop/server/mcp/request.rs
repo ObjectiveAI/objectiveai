@@ -29,19 +29,24 @@ pub struct McpRequest<'a> {
     /// What the request is doing. This, not [`path`](Self::path), is
     /// the type discriminator.
     pub method: McpMethod,
-    /// The request target in origin form — the path, plus any query
-    /// string, exactly as it appeared on the request line.
+    /// The request target, RELATIVE — the specifier and any query
+    /// string, with no scheme and no authority.
     ///
-    /// Carried rather than assumed, for three reasons. A terminator
-    /// cannot rebuild a request without one, and synthesizing `/`
-    /// would mean inventing the one part of the request it was
-    /// supposed to be relaying. MCP's OAuth discovery lives at real,
-    /// distinct paths under `/.well-known/`, which a stock agent SDK
-    /// may probe whether or not this deployment needs them. And it is
-    /// the natural seam if a conduit ever fronts several MCP servers
-    /// by path rather than by port.
+    /// Never a whole URL. The address the agent dialled is the
+    /// conduit's own, which is a loopback port inside a container: it
+    /// identifies nothing outside that container and would be actively
+    /// misleading anywhere else. So the base is not carried, and the
+    /// far end supplies its own — resolving this against the upstream
+    /// MCP server's base URL, the way any reverse proxy substitutes
+    /// one origin for another.
     ///
-    /// The query is included because some servers use it and dropping
+    /// Which leaves this field carrying only what the agent's base URL
+    /// did not already say. Where the upstream base names the MCP
+    /// endpoint exactly, that is nothing, and this is empty. Where a
+    /// conduit fronts several MCP servers on one port, it is whatever
+    /// distinguishes them.
+    ///
+    /// The query rides along because some servers use it, and dropping
     /// it would be a silent corruption rather than a visible one.
     pub path: String,
     /// The request headers, verbatim.
