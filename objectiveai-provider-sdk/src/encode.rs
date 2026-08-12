@@ -2,6 +2,7 @@
 
 use std::error::Error;
 use std::fmt;
+use std::io;
 
 /// Write `Self` as the payload of one frame.
 ///
@@ -16,21 +17,98 @@ use std::fmt;
 /// a payload without the header in front of it, and a convenience
 /// nobody should reach for is worse than none at all. Anything that
 /// genuinely wants the bytes alone — hashing one, writing one to
-/// disk — can pass an empty buffer.
+/// disk — can hand over an empty buffer.
 ///
 /// See [`Decode`](crate::decode::Decode) for why the format lives in
 /// the type rather than in the caller.
 pub trait Encode {
     /// Append this payload to `out`.
     ///
-    /// Whatever is already in `out` is left alone — a caller that has
-    /// written a header is appending to it, not replacing it.
+    /// An implementation that fails partway may leave bytes behind.
+    /// The caller knows how long the buffer was before it handed the
+    /// [`Writer`] over, so recovering is a truncate — but it has to be
+    /// done rather than assumed.
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), EncodeError>;
+}
+
+/// Where a payload writes itself.
+///
+/// A buffer that can only be APPENDED to. The header is already in it
+/// by the time an implementation gets here, and this type is what
+/// makes overwriting it impossible rather than merely discouraged:
+/// the `Vec` is private, and nothing on the public surface can reach
+/// a byte that was already there. No indexing, no `clear`, no
+/// `truncate`, no `as_mut_slice`.
+///
+/// It implements [`io::Write`], so the serializers hand off to it
+/// directly — `serde_json::to_writer`, `ciborium::into_writer` — and
+/// those can only move forward too. There is nothing to seek with.
+///
+/// A `&mut [u8]` would have given the same guarantee and cost too
+/// much: a payload's encoded length is not known until it is encoded,
+/// so a fixed slice would make every implementation size itself in
+/// advance, twice, and agree with itself both times.
+pub struct Writer<'a> {
+    buffer: &'a mut Vec<u8>,
+    start: usize,
+}
+
+impl<'a> Writer<'a> {
+    /// Start writing a payload at the end of `buffer`.
     ///
-    /// An implementation that fails partway may leave bytes behind. A
-    /// caller that intends to recover should truncate `out` back to
-    /// the length it had before the call rather than assume nothing
-    /// was written.
-    fn encode(&self, out: &mut Vec<u8>) -> Result<(), EncodeError>;
+    /// Whatever is in it stays — this appends.
+    pub fn new(buffer: &'a mut Vec<u8>) -> Self {
+        let start = buffer.len();
+        Self { buffer, start }
+    }
+
+    /// Append bytes.
+    pub fn extend_from_slice(&mut self, bytes: &[u8]) {
+        self.buffer.extend_from_slice(bytes);
+    }
+
+    /// Reserve capacity for `additional` more bytes.
+    ///
+    /// Capacity only. Nothing readable changes, and neither does
+    /// [`len`](Self::len).
+    pub fn reserve(&mut self, additional: usize) {
+        self.buffer.reserve(additional);
+    }
+
+    /// How many bytes this writer has appended.
+    ///
+    /// The payload's length so far — not the buffer's, which still
+    /// counts the header in front of it.
+    pub fn len(&self) -> usize {
+        self.buffer.len() - self.start
+    }
+
+    /// Whether nothing has been appended yet.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl io::Write for Writer<'_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.buffer.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        self.buffer.extend_from_slice(buf);
+        Ok(())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl fmt::Debug for Writer<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Writer").field("len", &self.len()).finish()
+    }
 }
 
 /// A payload that could not be written.
@@ -41,8 +119,7 @@ pub trait Encode {
 /// through [`Error::source`].
 ///
 /// Rarer than a decode failure, and not impossible — a map with
-/// non-string keys, a float where the format admits none, or an
-/// implementation writing to something that can fail.
+/// non-string keys, or a float where the format admits none.
 pub struct EncodeError(Box<dyn Error + Send + Sync>);
 
 impl EncodeError {
