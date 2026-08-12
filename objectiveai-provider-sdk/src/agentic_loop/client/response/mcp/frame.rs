@@ -1,6 +1,7 @@
 //! What a client's response frame carries on an MCP channel.
 
 use super::Head;
+use crate::encode::{Encode, Writer};
 
 /// The payload of a
 /// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
@@ -43,4 +44,27 @@ pub enum Frame<'a> {
     /// A piece of the response body: the whole of it for a single JSON
     /// answer, or one event's worth for a stream.
     Body(&'a [u8]),
+}
+
+/// Two variants, two encodings — which is the point of the format
+/// living in the type. [`Head`](Frame::Head) is a JSON object because
+/// it is a shape someone reads; [`Body`](Frame::Body) is written
+/// through untouched because it is whatever the far MCP server said,
+/// and re-encoding it would break the byte-identity the tunnel exists
+/// to preserve.
+impl Encode for Frame<'_> {
+    /// Only [`Head`](Frame::Head) can fail, and only the way any JSON
+    /// serialization can. A body is bytes and has nothing to get
+    /// wrong.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        match self {
+            Frame::Head(head) => serde_json::to_writer(out, head),
+            Frame::Body(body) => {
+                out.extend_from_slice(body);
+                Ok(())
+            }
+        }
+    }
 }

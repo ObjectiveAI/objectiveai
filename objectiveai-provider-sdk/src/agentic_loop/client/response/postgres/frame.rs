@@ -1,5 +1,9 @@
 //! What a client's response frame carries on a Postgres channel.
 
+use std::convert::Infallible;
+
+use crate::encode::{Encode, Writer};
+
 /// The payload of a
 /// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
 /// on a channel opened by
@@ -27,3 +31,18 @@ pub struct Frame<'a>(
     /// The bytes, borrowed from the frame they arrived in.
     pub &'a [u8],
 );
+
+/// Straight through. There is no encoding step because there is
+/// nothing encoded — pgwire arrives as bytes and leaves as the same
+/// bytes, which is the whole of what a tunnel promises.
+impl Encode for Frame<'_> {
+    /// [`Infallible`]: copying a slice into a buffer has no failure
+    /// mode, and saying so is better than inventing an error nobody
+    /// can produce and every caller has to handle.
+    type Error = Infallible;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(self.0);
+        Ok(())
+    }
+}
