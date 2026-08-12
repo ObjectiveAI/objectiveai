@@ -1,6 +1,5 @@
 //! Writing a type into a frame's payload bytes.
 
-use std::error::Error;
 use std::fmt;
 use std::io;
 
@@ -22,13 +21,25 @@ use std::io;
 /// See [`Decode`](crate::decode::Decode) for why the format lives in
 /// the type rather than in the caller.
 pub trait Encode {
+    /// What went wrong, in the format's own words.
+    ///
+    /// An associated type for the same reason
+    /// [`Decode::Error`](crate::decode::Decode::Error) is one: there
+    /// is no single format here, so there is no single failure, and
+    /// erasing it would cost a caller the only useful thing about it.
+    ///
+    /// A payload that cannot fail to encode names [`Infallible`].
+    ///
+    /// [`Infallible`]: std::convert::Infallible
+    type Error: std::error::Error + Send + Sync + 'static;
+
     /// Append this payload to `out`.
     ///
     /// An implementation that fails partway may leave bytes behind.
     /// The caller knows how long the buffer was before it handed the
     /// [`Writer`] over, so recovering is a truncate — but it has to be
     /// done rather than assumed.
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), EncodeError>;
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error>;
 }
 
 /// Where a payload writes itself.
@@ -108,41 +119,5 @@ impl io::Write for Writer<'_> {
 impl fmt::Debug for Writer<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Writer").field("len", &self.len()).finish()
-    }
-}
-
-/// A payload that could not be written.
-///
-/// Opaque for the same reason [`DecodeError`](crate::decode::DecodeError)
-/// is: naming the format's error type here would put the format back
-/// into a signature that exists to keep it out. The cause is reachable
-/// through [`Error::source`].
-///
-/// Rarer than a decode failure, and not impossible — a map with
-/// non-string keys, or a float where the format admits none.
-pub struct EncodeError(Box<dyn Error + Send + Sync>);
-
-impl EncodeError {
-    /// Wrap the format's error.
-    pub fn new(source: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
-        Self(source.into())
-    }
-}
-
-impl fmt::Debug for EncodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Display for EncodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "payload did not encode: {}", self.0)
-    }
-}
-
-impl Error for EncodeError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.0.as_ref())
     }
 }

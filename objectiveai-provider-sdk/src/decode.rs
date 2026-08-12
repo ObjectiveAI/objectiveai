@@ -1,8 +1,5 @@
 //! Reading a type out of a frame's payload bytes.
 
-use std::error::Error;
-use std::fmt;
-
 /// Read `Self` from the bytes of one frame's payload.
 ///
 /// Deliberately narrower than [`serde::Deserialize`]. A Deserialize
@@ -28,47 +25,28 @@ use std::fmt;
 /// [`serde::Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
 /// [`mcp::Request`]: crate::agentic_loop::server::request::mcp::Request
 pub trait Decode<'a>: Sized {
+    /// What went wrong, in the format's own words.
+    ///
+    /// An associated type rather than one error for the whole crate,
+    /// because there is no one format here and so no one failure. A
+    /// JSON payload fails with `serde_json::Error`, a CBOR one with
+    /// CBOR's — and a caller that knows which payload it is reading
+    /// gets that error whole, with its line and column, rather than
+    /// something erased on the way out.
+    ///
+    /// Generic code names [`Self::Error`] and stays out of it.
+    ///
+    /// `Send + Sync + 'static` so this survives being carried: across
+    /// an await, between tasks, and into a `Box<dyn Error>` where one
+    /// error has to stand for several — which is what the frame layer
+    /// does, since a single `FrameError` covers payload types that do
+    /// not share a format.
+    type Error: std::error::Error + Send + Sync + 'static;
+
     /// Read one payload.
     ///
     /// `bytes` is the payload alone — the frame header has already
     /// been split off, so this never sees a type, a scope or a
     /// channel, and cannot be confused about where the payload starts.
-    fn decode(bytes: &'a [u8]) -> Result<Self, DecodeError>;
-}
-
-/// A payload that could not be read.
-///
-/// Opaque, and carrying whatever the format's own error was. Naming
-/// the underlying error type here would put the format back in the
-/// signature, which is the thing [`Decode`] exists to keep out of it —
-/// a caller that matched on a `serde_json::Error` would break the day
-/// a payload moved to CBOR, having done nothing wrong.
-///
-/// The cause is still reachable through [`Error::source`] for anyone
-/// debugging rather than branching.
-pub struct DecodeError(Box<dyn Error + Send + Sync>);
-
-impl DecodeError {
-    /// Wrap the format's error.
-    pub fn new(source: impl Into<Box<dyn Error + Send + Sync>>) -> Self {
-        Self(source.into())
-    }
-}
-
-impl fmt::Debug for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&self.0, f)
-    }
-}
-
-impl fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "payload did not decode: {}", self.0)
-    }
-}
-
-impl Error for DecodeError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.0.as_ref())
-    }
+    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error>;
 }
