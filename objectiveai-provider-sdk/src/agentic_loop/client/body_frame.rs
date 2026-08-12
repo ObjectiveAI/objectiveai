@@ -13,20 +13,22 @@
 /// frame, not a body — so there is no channel `0` case to leave
 /// implicit the way the server's has.
 ///
-/// Both variants are opaque bytes, and stay separate because they are
-/// different KINDS of channel rather than different formats. See
-/// [`ServerBodyFrame`](super::super::server::ServerBodyFrame) for why
-/// neither is parsed.
+/// Both variants are opaque byte streams, and stay separate because
+/// they are different KINDS of channel rather than different formats.
+/// This is the return half of each tunnel: response bytes for
+/// [`Mcp`](Self::Mcp), server bytes for [`Postgres`](Self::Postgres).
+/// See [`ServerBodyFrame`](super::super::server::ServerBodyFrame) for
+/// what is in them and why neither is parsed.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ClientBodyFrame<'a> {
-    /// MCP bytes, from the client's MCP server.
+    /// A tunneled HTTP connection, from the client's MCP proxy.
     Mcp {
-        /// The channel the server opened for this exchange.
+        /// The channel the server opened for this connection.
         channel: u32,
         /// The bytes, borrowed from the frame they arrived in.
         payload: &'a [u8],
     },
-    /// Postgres bytes, from the database.
+    /// A tunneled Postgres connection, from the database.
     Postgres {
         /// The channel the server opened for this connection.
         channel: u32,
