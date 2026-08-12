@@ -16,14 +16,14 @@
 /// # Why a struct, where MCP has an enum
 ///
 /// Because there is nothing to choose between.
-/// [`ClientMcpResponseFrame`](super::ClientMcpResponseFrame) has two
+/// [`McpResponseFrame`](super::McpResponseFrame) has two
 /// variants for a real reason: an MCP answer has a head that arrives
 /// once and a body that arrives repeatedly, and a reader must tell
 /// them apart. A Postgres channel has one kind of traffic from the
 /// first byte to the last. An enum would imply a decision nobody
 /// makes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ClientPostgresResponseFrame<'a>(
+pub struct PostgresResponseFrame<'a>(
     /// The bytes, borrowed from the frame they arrived in.
     pub &'a [u8],
 );

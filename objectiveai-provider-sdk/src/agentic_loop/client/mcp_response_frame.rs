@@ -37,7 +37,7 @@ use super::McpResponseHead;
 /// It can write the status line and headers onto the agent's socket
 /// the moment the head arrives, then pump bodies straight through.
 #[derive(Debug, Clone, PartialEq)]
-pub enum ClientMcpResponseFrame<'a> {
+pub enum McpResponseFrame<'a> {
     /// The status and headers. Always first, and never repeated.
     Head(McpResponseHead),
     /// A piece of the response body: the whole of it for a single JSON
