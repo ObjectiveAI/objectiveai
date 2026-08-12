@@ -5,9 +5,9 @@ use super::McpResponseHead;
 /// The payload of a [`ClientFrame::Body`](crate::frame::client::ClientFrame::Body).
 ///
 /// What came back on a channel the SERVER opened. A client never
-/// streams anything of its own — its own request rides in a request
-/// frame, and channel `0` belongs to the server — so every body frame
-/// it sends is an answer to something it was asked for.
+/// streams anything of its own — its own request is a frame entire,
+/// and channel `0` belongs to the server — so every body frame it
+/// sends is an answer to something it was asked for.
 ///
 /// # How a reader tells these apart
 ///

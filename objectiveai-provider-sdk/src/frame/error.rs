@@ -8,7 +8,14 @@
 pub const HEADER_LEN: usize = 1 + 4 + 4;
 
 /// A frame that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+///
+/// Not [`Clone`], [`PartialEq`] or [`Copy`], which the other types
+/// here are: [`Malformed`](Self::Malformed) carries a
+/// [`serde_json::Error`], and that is none of them. Keeping the parse
+/// failure is worth more than the derives — a rejected request is
+/// something someone has to debug, and `expected value at line 1
+/// column 84` is the whole of what they need.
+#[derive(Debug)]
 pub enum FrameError {
     /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
@@ -20,6 +27,14 @@ pub enum FrameError {
     /// this layer does not interpret, so an unfamiliar one is a
     /// request from a newer peer rather than an error.
     UnknownType(u8),
+    /// A payload this layer DOES interpret, that did not parse.
+    ///
+    /// Only a client request can produce this, and for the same reason
+    /// [`UnknownType`](Self::UnknownType) is one-sided: the client's
+    /// requests are a closed set, so this layer knows their types and
+    /// decodes them. Everything else it carries — bodies, credentials,
+    /// server requests — it hands on as bytes and cannot judge.
+    Malformed(serde_json::Error),
 }
 
 impl std::fmt::Display for FrameError {
@@ -31,11 +46,21 @@ impl std::fmt::Display for FrameError {
             FrameError::UnknownType(byte) => {
                 write!(f, "unknown client frame type {byte}")
             }
+            FrameError::Malformed(error) => {
+                write!(f, "client request did not parse: {error}")
+            }
         }
     }
 }
 
-impl std::error::Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Malformed(error) => Some(error),
+            FrameError::Truncated | FrameError::UnknownType(_) => None,
+        }
+    }
+}
 
 /// Split a frame's header off the front, returning
 /// `(type, scope, channel, payload)`.
@@ -55,4 +80,3 @@ pub(super) fn split_header(
         u32::from_be_bytes([header[5], header[6], header[7], header[8]]);
     Ok((r#type, scope, channel, &bytes[HEADER_LEN..]))
 }
-

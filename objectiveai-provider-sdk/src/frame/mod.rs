@@ -48,14 +48,15 @@
 //!
 //! # Types
 //!
-//! | type | meaning |
-//! |------|---------|
-//! | 0    | ack |
-//! | 1    | body |
-//! | 2    | finish |
-//! | 3    | auth request |
-//! | 4    | auth response |
-//! | 5+   | a request |
+//! | type | client | server |
+//! |------|--------|--------|
+//! | 0    | ack | ack |
+//! | 1    | body | body |
+//! | 2    | finish | finish |
+//! | 3    | auth request | auth request |
+//! | 4    | auth response | auth response |
+//! | 5    | agentic loop request | a request |
+//! | 6+   | — | a request |
 //!
 //! Ack, body and finish mean the same thing in both directions and on
 //! every channel: an exchange beginning, its contents, and its end.
@@ -63,10 +64,15 @@
 //! on channel `0` or the client is answering a server request on that
 //! request's channel.
 //!
-//! Everything from `5` up is a request. A client has exactly one —
-//! the one that opens a scope — so it uses `5` and nothing else. A
-//! server may have many kinds, and what each value means belongs to
-//! the protocol being carried rather than to this layer.
+//! Everything from `5` up is a request, and the two sides differ in
+//! what that means. A client's requests are a CLOSED set, so this
+//! layer knows them: each is a named variant of [`ClientFrame`], its
+//! payload decoded rather than carried, and a sixth type is malformed.
+//! A server's are open, so this layer knows only that a request
+//! arrived — the payload stays bytes, the type stays a number, and an
+//! unfamiliar one is a newer peer rather than an error.
+//!
+//! [`ClientFrame`]: client::ClientFrame
 //!
 //! # Auth
 //!

@@ -6,15 +6,34 @@
 //! the first.
 
 use super::FrameError;
+use crate::agentic_loop::client::request::AgenticLoopRequest;
 
 /// A frame sent by a client.
 ///
 /// The variants carry only what they can have, so the states that do
 /// not exist cannot be built: every reply has both a scope and the
-/// channel of the server request it answers, and
-/// [`Request`](Self::Request) has neither, because neither exists
-/// until the server answers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// channel of the server request it answers, and a request has
+/// neither, because neither exists until the server answers.
+///
+/// # Requests are named, not numbered
+///
+/// A client's requests are a CLOSED set, so they appear here one
+/// variant apiece rather than behind a single `Request { payload }`
+/// with a type byte beside it. There is exactly one today —
+/// [`AgenticLoop`](Self::AgenticLoop), type `5` — and a second would
+/// be a new variant at `6`.
+///
+/// The server's cannot work this way and does not try: its type space
+/// is open, so an unfamiliar value there is a request from a newer
+/// peer rather than an error, and it keeps its payload as bytes for
+/// something above this layer to interpret.
+///
+/// The consequence is that a client request is DECODED here, not
+/// merely carried, which is why decoding one can fail with
+/// [`FrameError::Malformed`]. Everything else on this side is still
+/// bytes: bodies belong to whatever the channel is tunnelling, and
+/// credentials are for the two ends to agree on.
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
     /// Type `0`. Acknowledges a server request; the exchange has
     /// begun.
@@ -61,15 +80,14 @@ pub enum ClientFrame<'a> {
         /// The verdict, in whatever form the two ends agreed.
         payload: &'a [u8],
     },
-    /// Type `5`. A new request, opening a scope.
+    /// Type `5`. Run an agent, and stream back what it does.
     ///
-    /// Sent with no scope and no channel — the server mints the scope
-    /// in its ack. A client has only this one kind of request, so it
-    /// is the only value above `4` a client ever sends.
-    Request {
-        /// The request bytes.
-        payload: &'a [u8],
-    },
+    /// The request that opens a scope, and the root of everything
+    /// else: the scope the server mints to answer it, the channels the
+    /// server opens inside that scope, and the chunks that come back
+    /// on channel `0`. Sent with neither — the server mints the scope
+    /// in its ack.
+    AgenticLoop(AgenticLoopRequest),
 }
 
 impl<'a> ClientFrame<'a> {
@@ -87,7 +105,10 @@ impl<'a> ClientFrame<'a> {
             2 => ClientFrame::Finish { scope, channel },
             3 => ClientFrame::AuthRequest { payload },
             4 => ClientFrame::AuthResponse { payload },
-            5 => ClientFrame::Request { payload },
+            5 => ClientFrame::AgenticLoop(
+                serde_json::from_slice(payload)
+                    .map_err(FrameError::Malformed)?,
+            ),
             other => return Err(FrameError::UnknownType(other)),
         })
     }
