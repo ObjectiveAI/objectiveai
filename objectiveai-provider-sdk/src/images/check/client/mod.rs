@@ -1,8 +1,7 @@
-//! The client side of an image check: what a client asks, and what it
-//! gets back.
+//! The client side of an image check: what a client sends.
+//!
+//! [`request`] is the whole of it. A client asks and then listens; it
+//! has nothing to send back, so there is no `response` here the way
+//! there is on the other side.
 
-mod request;
-mod response;
-
-pub use request::*;
-pub use response::*;
+pub mod request;

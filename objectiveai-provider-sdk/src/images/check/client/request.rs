@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 /// yes, and a caller naming a registry it cannot reach would be
 /// asserting something it has no standing to assert.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct ImageCheckRequest {
+pub struct Request {
     /// The repository path — `library/nginx`, `myorg/myimage`.
     ///
     /// Kept alongside the digest because a digest alone is not
