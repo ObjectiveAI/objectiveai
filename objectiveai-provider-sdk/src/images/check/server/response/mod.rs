@@ -1,13 +1,13 @@
 //! The image check response.
 //!
-//! [`Response`] is the answer; [`Available`] and [`Unavailable`] are
-//! the two things it can be, each with the discriminator that lets the
-//! answer go on the wire untagged.
+//! [`Frame`] is what comes back on channel `0`; [`Available`] and
+//! [`Unavailable`] are the two things it can be, each with the
+//! discriminator that lets it go on the wire untagged.
 
 mod available;
-mod response;
+mod frame;
 mod unavailable;
 
 pub use available::*;
-pub use response::*;
+pub use frame::*;
 pub use unavailable::*;
