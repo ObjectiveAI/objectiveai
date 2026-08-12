@@ -55,7 +55,8 @@
 //! | 2    | response finish | response finish |
 //! | 3    | auth | auth |
 //! | 4    | agentic loop request | a request |
-//! | 5+   | — | a request |
+//! | 5    | images check request | a request |
+//! | 6+   | — | a request |
 //!
 //! The three response frames — the ack, the response itself, and
 //! the finish — mean the same thing in both directions and on every

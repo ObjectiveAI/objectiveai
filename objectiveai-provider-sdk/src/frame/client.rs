@@ -7,6 +7,7 @@
 
 use super::FrameError;
 use crate::agentic_loop::client::request::AgenticLoopRequest;
+use crate::images;
 
 /// A frame sent by a client.
 ///
@@ -19,9 +20,10 @@ use crate::agentic_loop::client::request::AgenticLoopRequest;
 ///
 /// A client's requests are a CLOSED set, so they appear here one
 /// variant apiece rather than behind a single `Request { payload }`
-/// with a type byte beside it. There is exactly one today —
-/// [`AgenticLoopRequest`](Self::AgenticLoopRequest), type `4` — and a second would
-/// be a new variant at `5`.
+/// with a type byte beside it. Two so far —
+/// [`AgenticLoopRequest`](Self::AgenticLoopRequest) at `4` and
+/// [`ImagesCheckRequest`](Self::ImagesCheckRequest) at `5` — and a
+/// third would be a new variant at `6`.
 ///
 /// The server's cannot work this way and does not try: its type space
 /// is open, so an unfamiliar value there is a request from a newer
@@ -85,6 +87,13 @@ pub enum ClientFrame<'a> {
     /// on channel `0`. Sent with neither — the server mints the scope
     /// in its ack.
     AgenticLoopRequest(AgenticLoopRequest),
+    /// Type `5`. Ask whether the provider can supply an image.
+    ///
+    /// A scope like any other, and a short one: the ack that mints it,
+    /// one response on channel `0`, and the finish. The server opens
+    /// no channels of its own — there is nothing it needs from the
+    /// client to answer.
+    ImagesCheckRequest(images::check::client::request::Request),
 }
 
 impl<'a> ClientFrame<'a> {
@@ -102,6 +111,10 @@ impl<'a> ClientFrame<'a> {
             2 => ClientFrame::ResponseFinish { scope, channel },
             3 => ClientFrame::Auth { payload },
             4 => ClientFrame::AgenticLoopRequest(
+                serde_json::from_slice(payload)
+                    .map_err(FrameError::Malformed)?,
+            ),
+            5 => ClientFrame::ImagesCheckRequest(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
