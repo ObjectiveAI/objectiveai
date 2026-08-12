@@ -4,8 +4,10 @@
 pub mod request;
 pub mod response;
 
-mod response_frame;
 mod mcp;
+mod mcp_response_frame;
+mod postgres_response_frame;
 
-pub use response_frame::*;
 pub use mcp::*;
+pub use mcp_response_frame::*;
+pub use postgres_response_frame::*;
