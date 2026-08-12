@@ -1,8 +1,9 @@
 //! Frames a client sends.
 //!
-//! A client only ever does two things: open a scope, or answer a
-//! request the server made inside one. It never opens a channel and
-//! never sends a request of its own beyond the first.
+//! A client opens a scope, answers requests the server makes inside
+//! one, and — if it was the side that dialled — authenticates. It
+//! never opens a channel and never sends a request of its own beyond
+//! the first.
 
 use super::FrameError;
 
@@ -41,11 +42,30 @@ pub enum ClientFrame<'a> {
         /// The channel of the server request being answered.
         channel: u32,
     },
-    /// Type `3`. A new request, opening a scope.
+    /// Type `3`. The opening frame of a connection, sent by whichever
+    /// side dialled.
+    ///
+    /// No scope and no channel: nothing has been established yet, and
+    /// this is what establishes it. The payload is arbitrary — what
+    /// counts as a credential is not this layer's business.
+    AuthRequest {
+        /// The credential, in whatever form the two ends agreed.
+        payload: &'a [u8],
+    },
+    /// Type `4`. The answer to an [`AuthRequest`](Self::AuthRequest),
+    /// sent by whichever side accepted the connection.
+    ///
+    /// No scope and no channel, for the same reason. The payload
+    /// carries the verdict and anything that comes with it.
+    AuthResponse {
+        /// The verdict, in whatever form the two ends agreed.
+        payload: &'a [u8],
+    },
+    /// Type `5`. A new request, opening a scope.
     ///
     /// Sent with no scope and no channel — the server mints the scope
     /// in its ack. A client has only this one kind of request, so it
-    /// is the only value above `2` a client ever sends.
+    /// is the only value above `4` a client ever sends.
     Request {
         /// The request bytes.
         payload: &'a [u8],
@@ -65,7 +85,9 @@ impl<'a> ClientFrame<'a> {
                 payload,
             },
             2 => ClientFrame::Finish { scope, channel },
-            3 => ClientFrame::Request { payload },
+            3 => ClientFrame::AuthRequest { payload },
+            4 => ClientFrame::AuthResponse { payload },
+            5 => ClientFrame::Request { payload },
             other => return Err(FrameError::UnknownType(other)),
         })
     }

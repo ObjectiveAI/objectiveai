@@ -53,7 +53,9 @@
 //! | 0    | ack |
 //! | 1    | body |
 //! | 2    | finish |
-//! | 3+   | a request |
+//! | 3    | auth request |
+//! | 4    | auth response |
+//! | 5+   | a request |
 //!
 //! Ack, body and finish mean the same thing in both directions and on
 //! every channel: an exchange beginning, its contents, and its end.
@@ -61,10 +63,29 @@
 //! on channel `0` or the client is answering a server request on that
 //! request's channel.
 //!
-//! Everything from `3` up is a request. A client has exactly one —
-//! the one that opens a scope — so it uses `3` and nothing else. A
+//! Everything from `5` up is a request. A client has exactly one —
+//! the one that opens a scope — so it uses `5` and nothing else. A
 //! server may have many kinds, and what each value means belongs to
 //! the protocol being carried rather than to this layer.
+//!
+//! # Auth
+//!
+//! A connection may be dialled from either end: a client to a server,
+//! or a server to a client. Whichever side DIALLED sends an auth
+//! request as the first frame, and the side that accepted answers with
+//! an auth response. Nothing else may precede them.
+//!
+//! Both directions therefore carry both variants — which of the two a
+//! given end may send is decided by who dialled, and that is a fact
+//! about the connection rather than about any frame, so the types do
+//! not express it.
+//!
+//! Auth frames have no scope and no channel. They come before either
+//! exists, and are what makes it possible for one to.
+//!
+//! The payload is arbitrary. What counts as a credential, and what an
+//! acceptance or refusal looks like, are for the two ends to agree —
+//! this layer only guarantees the exchange happens first.
 //!
 //! Because the reply types are shared and the request types are not,
 //! `type` alone determines what a frame is. Nothing has to consult
