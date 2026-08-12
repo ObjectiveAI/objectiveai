@@ -4,8 +4,8 @@
 pub mod request;
 pub mod response;
 
-mod body_frame;
+mod response_frame;
 mod mcp;
 
-pub use body_frame::*;
+pub use response_frame::*;
 pub use mcp::*;

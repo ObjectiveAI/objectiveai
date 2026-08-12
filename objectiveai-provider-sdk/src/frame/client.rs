@@ -20,7 +20,7 @@ use crate::agentic_loop::client::request::AgenticLoopRequest;
 /// A client's requests are a CLOSED set, so they appear here one
 /// variant apiece rather than behind a single `Request { payload }`
 /// with a type byte beside it. There is exactly one today —
-/// [`AgenticLoop`](Self::AgenticLoop), type `4` — and a second would
+/// [`AgenticLoopRequest`](Self::AgenticLoopRequest), type `4` — and a second would
 /// be a new variant at `5`.
 ///
 /// The server's cannot work this way and does not try: its type space
@@ -45,12 +45,12 @@ pub enum ClientFrame<'a> {
     },
     /// Type `1`. One piece of the answer. There may be any number,
     /// including none.
-    Body {
+    Response {
         /// The scope the server minted.
         scope: u32,
         /// The channel of the server request being answered.
         channel: u32,
-        /// The body bytes.
+        /// The response bytes.
         payload: &'a [u8],
     },
     /// Type `2`. The answer is complete and the channel is closed.
@@ -84,7 +84,7 @@ pub enum ClientFrame<'a> {
     /// server opens inside that scope, and the chunks that come back
     /// on channel `0`. Sent with neither — the server mints the scope
     /// in its ack.
-    AgenticLoop(AgenticLoopRequest),
+    AgenticLoopRequest(AgenticLoopRequest),
 }
 
 impl<'a> ClientFrame<'a> {
@@ -94,14 +94,14 @@ impl<'a> ClientFrame<'a> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
             0 => ClientFrame::Ack { scope, channel },
-            1 => ClientFrame::Body {
+            1 => ClientFrame::Response {
                 scope,
                 channel,
                 payload,
             },
             2 => ClientFrame::Finish { scope, channel },
             3 => ClientFrame::Auth { payload },
-            4 => ClientFrame::AgenticLoop(
+            4 => ClientFrame::AgenticLoopRequest(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),

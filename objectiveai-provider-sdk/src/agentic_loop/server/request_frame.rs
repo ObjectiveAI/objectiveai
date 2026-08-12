@@ -39,7 +39,7 @@ use super::McpRequest;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ServerRequestFrame<'a> {
     /// One MCP exchange, toward the client's MCP proxy. Complete in
-    /// this frame; the answer comes back as client body frames.
+    /// this frame; the answer comes back as client response frames.
     Mcp(McpRequest<'a>),
     /// Postgres bytes, toward the database. Opaque, and a stream —
     /// this is a socket, and successive frames on the channel are

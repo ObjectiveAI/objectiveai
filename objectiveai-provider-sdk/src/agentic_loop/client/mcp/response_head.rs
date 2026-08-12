@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 /// knowable in advance, by either end.
 ///
 /// The protocol does not need to know. Both cases are the same
-/// sequence of frames — this head, then body frames, then a finish —
-/// and differ only in how many body frames there are and how far apart
+/// sequence of frames — this head, then response frames, then a finish —
+/// and differ only in how many response frames there are and how far apart
 /// they arrive. A single JSON answer is just a stream that ended after
 /// one. So there is no mode to negotiate and no flag to carry: the one
 /// place the difference is stated is `Content-Type` in
@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Sending the head early is also what lets a conduit avoid buffering.
 /// It can write the status line and headers onto the agent's socket
-/// the moment this arrives, then pump body frames straight through as
+/// the moment this arrives, then pump response frames straight through as
 /// they come.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct McpResponseHead {

@@ -10,7 +10,7 @@ use super::FrameError;
 
 /// A frame sent by a server.
 ///
-/// [`Ack`](Self::Ack), [`Body`](Self::Body) and
+/// [`Ack`](Self::Ack), [`Response`](Self::Response) and
 /// [`Finish`](Self::Finish) carry no channel: they answer the client's
 /// own request, which is always channel `0`. Only
 /// [`Request`](Self::Request) names a channel, because it is the only
@@ -26,10 +26,10 @@ pub enum ServerFrame<'a> {
     },
     /// Type `1` on channel `0`. One piece of the answer to the
     /// client's request.
-    Body {
+    Response {
         /// The scope.
         scope: u32,
-        /// The body bytes.
+        /// The response bytes.
         payload: &'a [u8],
     },
     /// Type `2` on channel `0`. The scope is over. Nothing bearing it
@@ -86,7 +86,7 @@ impl<'a> ServerFrame<'a> {
             // Channel is meaningless on a reply — it is always `0` —
             // so a non-zero one is ignored rather than rejected.
             0 => ServerFrame::Ack { scope },
-            1 => ServerFrame::Body { scope, payload },
+            1 => ServerFrame::Response { scope, payload },
             2 => ServerFrame::Finish { scope },
             3 => ServerFrame::Auth { payload },
             r#type => ServerFrame::Request {

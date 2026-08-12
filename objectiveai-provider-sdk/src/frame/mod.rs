@@ -51,13 +51,13 @@
 //! | type | client | server |
 //! |------|--------|--------|
 //! | 0    | ack | ack |
-//! | 1    | body | body |
+//! | 1    | response | response |
 //! | 2    | finish | finish |
 //! | 3    | auth | auth |
 //! | 4    | agentic loop request | a request |
 //! | 5+   | — | a request |
 //!
-//! Ack, body and finish mean the same thing in both directions and on
+//! Ack, response and finish mean the same thing in both directions and on
 //! every channel: an exchange beginning, its contents, and its end.
 //! One sequence, whether the server is answering the client's request
 //! on channel `0` or the client is answering a server request on that
