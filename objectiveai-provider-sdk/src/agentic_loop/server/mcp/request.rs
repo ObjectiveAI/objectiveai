@@ -16,7 +16,7 @@ use super::McpMethod;
 ///
 /// The response is the opposite, and that asymmetry is the whole
 /// reason the two directions have different shapes — see
-/// [`mcp::Frame`](super::super::super::client::mcp::Frame).
+/// [`mcp::Frame`](crate::agentic_loop::client::response::mcp::Frame).
 ///
 /// [`PartialEq`] is written out rather than derived, because
 /// [`RawValue`] does not implement it. The hand-written one compares
