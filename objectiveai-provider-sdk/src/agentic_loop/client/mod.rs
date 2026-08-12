@@ -3,3 +3,7 @@
 
 pub mod request;
 pub mod response;
+
+mod body_frame;
+
+pub use body_frame::*;
