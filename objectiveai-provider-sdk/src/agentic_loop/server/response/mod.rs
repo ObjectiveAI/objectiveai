@@ -1,6 +1,7 @@
-//! Agentic loop response data.
+//! What a server sends back on channel `0`.
 //!
-//! A response is a **stream** of [`AgenticLoopChunk`]s. Each chunk is
+//! [`Frame`] is what carries it; everything else here is what goes
+//! inside. A response is a **stream** of [`AgenticLoopChunk`]s. Each chunk is
 //! one event — content, reasoning, a tool call, a refusal, a tool
 //! result, usage, an error, or the continuation — rather than a
 //! partially-filled record of everything that could have happened.
@@ -16,6 +17,7 @@ mod assistant_refusal_chunk;
 mod assistant_text_content_chunk;
 mod assistant_tool_call_chunk;
 mod chunk;
+mod frame;
 mod continuation_chunk;
 mod error_chunk;
 mod logprobs;
@@ -29,6 +31,7 @@ pub use assistant_refusal_chunk::*;
 pub use assistant_text_content_chunk::*;
 pub use assistant_tool_call_chunk::*;
 pub use chunk::*;
+pub use frame::*;
 pub use continuation_chunk::*;
 pub use error_chunk::*;
 pub use logprobs::*;

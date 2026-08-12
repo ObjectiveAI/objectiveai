@@ -1,6 +1,6 @@
 //! What a server's response frame carries.
 
-use super::response::AgenticLoopChunk;
+use super::AgenticLoopChunk;
 
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response).
 ///
@@ -15,7 +15,7 @@ use super::response::AgenticLoopChunk;
 /// second thing a server can stream on channel `0` is a matter of
 /// adding a variant rather than changing a shape.
 #[derive(Debug, Clone, PartialEq)]
-pub enum ResponseFrame {
+pub enum Frame {
     /// One chunk of the answer to the client's request.
     AgenticLoop(AgenticLoopChunk),
 }
