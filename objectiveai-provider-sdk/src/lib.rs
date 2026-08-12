@@ -19,6 +19,20 @@
 //! free of runtime concerns is what lets it be depended on by both
 //! sides of the protocol, and by tools that only ever inspect it.
 //!
+//! # More than one wire format
+//!
+//! There is no single serialization for this protocol, and there is no
+//! flag anywhere that says which one applies. Each payload states its
+//! own, by implementing [`Encode`](encode::Encode) and
+//! [`Decode`](decode::Decode) — so the format is a property of the
+//! type, settled where the type is defined, and no caller chooses it.
+//!
+//! It differs by channel because the obligations differ. What crosses
+//! an MCP channel is JSON, because that channel relays JSON-RPC and
+//! has to hand it on byte-identical. Nothing else carries that
+//! obligation, and paying JSON's cost for a filetree event would be
+//! paying it for nothing.
+//!
 //! # What a schema cannot say
 //!
 //! Every type here describes one message. A stream is a *sequence* of
@@ -34,6 +48,8 @@
 //! Under construction. The types land as the provider API is defined.
 
 pub mod agentic_loop;
+pub mod decode;
+pub mod encode;
 pub mod frame;
 pub mod filetree;
 pub mod images;
