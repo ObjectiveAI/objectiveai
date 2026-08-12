@@ -86,7 +86,7 @@ pub enum ClientFrame<'a> {
     /// server opens inside that scope, and the chunks that come back
     /// on channel `0`. Sent with neither — the server mints the scope
     /// in its ack.
-    AgenticLoopRequest(agentic_loop::client::request::Request),
+    AgenticLoopRequest(agentic_loop::client::request::Frame),
     /// Type `5`. Ask whether the provider can supply an image.
     ///
     /// A scope like any other, and a short one: the ack that mints it,

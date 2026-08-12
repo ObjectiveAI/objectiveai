@@ -1,9 +1,10 @@
-//! The agentic loop request.
+//! What a client's request frame carries for an agentic loop.
 
 use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
 use super::agent::Agent;
+use crate::encode::{Encode, Writer};
 
 /// What a caller hands a provider to start or resume a loop.
 ///
@@ -20,7 +21,7 @@ use super::agent::Agent;
 /// [`prompt`](Self::prompt) is the result, not the ingredients, so a
 /// provider never rewrites what it was given.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Request {
+pub struct Frame {
     /// What to run, and how to sample it.
     ///
     /// The model and every decoding parameter live here rather than on
@@ -47,4 +48,15 @@ pub struct Request {
     /// nothing into its contents.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub continuation: Option<String>,
+}
+
+impl Encode for Frame {
+    /// The ordinary JSON failure and nothing else. Every field here is
+    /// a shape rather than a passthrough — unlike the tunnels, which
+    /// copy bytes and cannot fail at all.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        serde_json::to_writer(out, self)
+    }
 }
