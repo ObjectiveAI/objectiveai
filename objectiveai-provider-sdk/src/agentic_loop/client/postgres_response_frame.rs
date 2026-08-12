@@ -16,7 +16,7 @@
 /// # Why a struct, where MCP has an enum
 ///
 /// Because there is nothing to choose between.
-/// [`McpResponseFrame`](super::McpResponseFrame) has two
+/// [`mcp::Frame`](super::mcp::Frame) has two
 /// variants for a real reason: an MCP answer has a head that arrives
 /// once and a body that arrives repeatedly, and a reader must tell
 /// them apart. A Postgres channel has one kind of traffic from the

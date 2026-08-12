@@ -16,7 +16,7 @@ use super::McpMethod;
 ///
 /// The response is the opposite, and that asymmetry is the whole
 /// reason the two directions have different shapes — see
-/// [`McpResponseHead`](super::super::super::client::McpResponseHead).
+/// [`McpResponseHead`](super::super::super::client::mcp::McpResponseHead).
 ///
 /// [`PartialEq`] is written out rather than derived, because
 /// [`RawValue`] does not implement it. The hand-written one compares

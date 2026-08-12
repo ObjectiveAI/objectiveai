@@ -5,7 +5,7 @@ use super::McpResponseHead;
 /// The payload of a
 /// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
 /// on a channel opened by
-/// [`ServerRequestFrame::Mcp`](super::super::server::ServerRequestFrame::Mcp).
+/// [`ServerRequestFrame::Mcp`](super::super::super::server::ServerRequestFrame::Mcp).
 ///
 /// One MCP answer, arriving in pieces: the head once, then as much
 /// body as there turns out to be.
@@ -37,7 +37,7 @@ use super::McpResponseHead;
 /// It can write the status line and headers onto the agent's socket
 /// the moment the head arrives, then pump bodies straight through.
 #[derive(Debug, Clone, PartialEq)]
-pub enum McpResponseFrame<'a> {
+pub enum Frame<'a> {
     /// The status and headers. Always first, and never repeated.
     Head(McpResponseHead),
     /// A piece of the response body: the whole of it for a single JSON
