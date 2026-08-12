@@ -9,11 +9,14 @@ use std::fmt;
 /// for the same reason: a payload is never sent alone. It goes out
 /// behind a nine-byte header, so a caller writes the header into a
 /// buffer and then asks the payload to append itself — one allocation
-/// per frame, and no copy to join the two halves. Returning a fresh
-/// `Vec` would force both.
+/// per frame, and no copy to join the two halves.
 ///
-/// [`encode`](Self::encode) is provided for when there is nothing to
-/// append to.
+/// There is no variant that returns a fresh `Vec`. It would be the
+/// wrong call at every site in this protocol, since none of them want
+/// a payload without the header in front of it, and a convenience
+/// nobody should reach for is worse than none at all. Anything that
+/// genuinely wants the bytes alone — hashing one, writing one to
+/// disk — can pass an empty buffer.
 ///
 /// See [`Decode`](crate::decode::Decode) for why the format lives in
 /// the type rather than in the caller.
@@ -27,14 +30,7 @@ pub trait Encode {
     /// caller that intends to recover should truncate `out` back to
     /// the length it had before the call rather than assume nothing
     /// was written.
-    fn encode_into(&self, out: &mut Vec<u8>) -> Result<(), EncodeError>;
-
-    /// Encode into a fresh buffer.
-    fn encode(&self) -> Result<Vec<u8>, EncodeError> {
-        let mut out = Vec::new();
-        self.encode_into(&mut out)?;
-        Ok(out)
-    }
+    fn encode(&self, out: &mut Vec<u8>) -> Result<(), EncodeError>;
 }
 
 /// A payload that could not be written.
