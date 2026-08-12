@@ -50,15 +50,16 @@
 //!
 //! | type | client | server |
 //! |------|--------|--------|
-//! | 0    | ack | ack |
+//! | 0    | response ack | response ack |
 //! | 1    | response | response |
-//! | 2    | finish | finish |
+//! | 2    | response finish | response finish |
 //! | 3    | auth | auth |
 //! | 4    | agentic loop request | a request |
 //! | 5+   | — | a request |
 //!
-//! Ack, response and finish mean the same thing in both directions and on
-//! every channel: an exchange beginning, its contents, and its end.
+//! The three response frames — the ack, the response itself, and
+//! the finish — mean the same thing in both directions and on every
+//! channel: an exchange beginning, its contents, and its end.
 //! One sequence, whether the server is answering the client's request
 //! on channel `0` or the client is answering a server request on that
 //! request's channel.

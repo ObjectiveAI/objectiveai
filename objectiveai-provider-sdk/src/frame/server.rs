@@ -10,8 +10,8 @@ use super::FrameError;
 
 /// A frame sent by a server.
 ///
-/// [`Ack`](Self::Ack), [`Response`](Self::Response) and
-/// [`Finish`](Self::Finish) carry no channel: they answer the client's
+/// [`ResponseAck`](Self::ResponseAck), [`Response`](Self::Response) and
+/// [`ResponseFinish`](Self::ResponseFinish) carry no channel: they answer the client's
 /// own request, which is always channel `0`. Only
 /// [`Request`](Self::Request) names a channel, because it is the only
 /// one that opens one.
@@ -20,7 +20,7 @@ pub enum ServerFrame<'a> {
     /// Type `0` on channel `0`. Acknowledges the client's request and
     /// MINTS its scope — the first frame of the scope, and the only
     /// place the scope comes from.
-    Ack {
+    ResponseAck {
         /// The newly minted scope.
         scope: u32,
     },
@@ -34,7 +34,7 @@ pub enum ServerFrame<'a> {
     },
     /// Type `2` on channel `0`. The scope is over. Nothing bearing it
     /// follows, on any channel.
-    Finish {
+    ResponseFinish {
         /// The scope.
         scope: u32,
     },
@@ -56,8 +56,8 @@ pub enum ServerFrame<'a> {
     },
     /// Type `4` or above: a request to the client, opening a channel.
     ///
-    /// The client answers on that same channel with its own ack, body
-    /// and finish.
+    /// The client answers on that same channel with its own response
+    /// ack, responses and response finish.
     Request {
         /// The scope this happens inside.
         scope: u32,
@@ -85,9 +85,9 @@ impl<'a> ServerFrame<'a> {
         Ok(match r#type {
             // Channel is meaningless on a reply — it is always `0` —
             // so a non-zero one is ignored rather than rejected.
-            0 => ServerFrame::Ack { scope },
+            0 => ServerFrame::ResponseAck { scope },
             1 => ServerFrame::Response { scope, payload },
-            2 => ServerFrame::Finish { scope },
+            2 => ServerFrame::ResponseFinish { scope },
             3 => ServerFrame::Auth { payload },
             r#type => ServerFrame::Request {
                 scope,

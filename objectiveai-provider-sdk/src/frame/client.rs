@@ -37,7 +37,7 @@ use crate::agentic_loop::client::request::AgenticLoopRequest;
 pub enum ClientFrame<'a> {
     /// Type `0`. Acknowledges a server request; the exchange has
     /// begun.
-    Ack {
+    ResponseAck {
         /// The scope the server minted.
         scope: u32,
         /// The channel of the server request being answered.
@@ -55,7 +55,7 @@ pub enum ClientFrame<'a> {
     },
     /// Type `2`. The answer is complete and the channel is closed.
     /// Nothing follows on it.
-    Finish {
+    ResponseFinish {
         /// The scope the server minted.
         scope: u32,
         /// The channel of the server request being answered.
@@ -93,13 +93,13 @@ impl<'a> ClientFrame<'a> {
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
-            0 => ClientFrame::Ack { scope, channel },
+            0 => ClientFrame::ResponseAck { scope, channel },
             1 => ClientFrame::Response {
                 scope,
                 channel,
                 payload,
             },
-            2 => ClientFrame::Finish { scope, channel },
+            2 => ClientFrame::ResponseFinish { scope, channel },
             3 => ClientFrame::Auth { payload },
             4 => ClientFrame::AgenticLoopRequest(
                 serde_json::from_slice(payload)
