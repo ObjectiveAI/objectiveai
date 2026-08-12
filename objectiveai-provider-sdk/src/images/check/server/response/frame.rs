@@ -1,40 +1,31 @@
 //! What a server's response frame carries in an image check.
 
-use serde::{Deserialize, Serialize};
-
-use super::{Available, Unavailable};
+use super::Response;
 
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response)
 /// on channel `0` of an image check.
 ///
-/// Whether a provider can supply the image that was asked about — and
-/// the whole of the answer, since a check is one question and one
-/// reply. There is exactly one of these per scope, between the ack
-/// that mints it and the finish that ends it.
+/// # A frame type is never serialized
 ///
-/// It is called `Frame` for the same reason the agentic loop's is: the
-/// payload of a response frame is whatever the scope's protocol says
-/// it is, and naming each scope's uniformly is what lets a reader
-/// dispatch on the scope and decode without a special case. Here that
-/// payload is the answer itself, so there is no wrapper around it —
-/// a one-variant enum holding a `Response` would be a layer that says
-/// nothing the module has not said.
+/// This enum is not a wire shape and carries no serde derives. It is
+/// the DISPATCH layer: it says which payload a response frame holds,
+/// and that is settled by the scope the frame arrives in rather than
+/// by anything in its bytes. What goes on the wire is the payload's
+/// own JSON, with nothing wrapped around it.
 ///
-/// Untagged, with each variant's payload carrying its own `type`
-/// constant — the same discipline the agentic loop chunks use. serde
-/// has no tag of its own to read, so the answer goes on the wire as
-/// itself rather than as a wrapper around itself.
+/// Which is why the payloads carry the derives and this does not. A
+/// frame type that could be serialized would be a frame type that had
+/// started describing the wire twice.
 ///
-/// Two variants rather than a `bool`, because only one of the two
-/// answers has anything more to say. An available image has terms
-/// attached to it; an unavailable one is just absent. A boolean would
-/// force everything that qualifies availability to sit beside it as an
-/// optional field that is meaningless when the answer is no.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
+/// # One variant
+///
+/// A check is one question and one reply, so there is exactly one of
+/// these per scope, between the ack that mints it and the finish that
+/// ends it. An enum anyway, for the same reason the agentic loop's is
+/// one: a second thing a server might stream on channel `0` of a
+/// check would be a new variant rather than a changed shape.
+#[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
-    /// The provider can supply it.
-    Available(Available),
-    /// It cannot.
-    Unavailable(Unavailable),
+    /// The answer to the check.
+    Check(Response),
 }

@@ -16,7 +16,7 @@ pub struct Unavailable {
 
 /// [`Unavailable`]'s discriminator.
 ///
-/// One variant, and the reason [`Frame`](super::Frame) can be
+/// One variant, and the reason [`Response`](super::Response) can be
 /// untagged: [`Available`](super::Available) cannot produce this
 /// value.
 #[derive(
