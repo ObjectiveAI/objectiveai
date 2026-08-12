@@ -1,6 +1,6 @@
 //! What a client's response frame carries on an MCP channel.
 
-use indexmap::IndexMap;
+use super::Head;
 
 /// The payload of a
 /// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
@@ -39,30 +39,7 @@ use indexmap::IndexMap;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// The status and headers. Always first, and never repeated.
-    ///
-    /// On the wire this is a JSON object of exactly these two fields.
-    Head {
-        /// The HTTP status.
-        ///
-        /// Load-bearing, and the reason a bare JSON-RPC message would
-        /// not do: `202` marks a notification that has no body coming,
-        /// and `404` tells the agent its session is gone and must be
-        /// re-initialized. Neither fact has anywhere to live inside
-        /// JSON-RPC.
-        status: u16,
-        /// The response headers, verbatim.
-        ///
-        /// Also load-bearing. `Mcp-Session-Id` is how an agent LEARNS
-        /// its session id in the first place — the initialize response
-        /// mints it — and `Content-Type` is what tells the agent
-        /// whether it is reading one JSON document or an event stream.
-        ///
-        /// A map, so a header name appears at most once. This is the
-        /// direction where that could bite, since `Set-Cookie` is the
-        /// classic repeated header; MCP does not use cookies, and the
-        /// ergonomics everywhere else are worth more than the case.
-        headers: IndexMap<String, String>,
-    },
+    Head(Head),
     /// A piece of the response body: the whole of it for a single JSON
     /// answer, or one event's worth for a stream.
     Body(&'a [u8]),
