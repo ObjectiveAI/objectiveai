@@ -3,7 +3,7 @@
 /// The payload of a
 /// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
 /// on a channel opened by
-/// [`RequestFrame::Postgres`](crate::agentic_loop::server::RequestFrame::Postgres).
+/// [`request::Frame::Postgres`](crate::agentic_loop::server::request::Frame::Postgres).
 ///
 /// pgwire as it came off the socket, going back the way it came.
 ///

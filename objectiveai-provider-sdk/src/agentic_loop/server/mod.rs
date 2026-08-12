@@ -1,16 +1,13 @@
 //! The server side of the agentic loop: what a provider sends.
 //!
-//! Its answer to the client's request, on channel `0`, and the
-//! requests it opens channels of its own to make. Both happen inside
-//! the scope the client's request opened — a server never initiates
-//! one.
+//! [`request`] is what it opens channels of its own to ask for.
+//! [`response`] is the chunks of its answer, and [`ResponseFrame`] is
+//! what carries them. Both happen inside the scope the client's
+//! request opened — a server never initiates one.
 
+pub mod request;
 pub mod response;
 
-mod mcp;
-mod request_frame;
 mod response_frame;
 
-pub use mcp::*;
-pub use request_frame::*;
 pub use response_frame::*;

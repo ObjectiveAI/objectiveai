@@ -7,7 +7,7 @@ use super::response::AgenticLoopChunk;
 /// A server's response frames are always channel `0` — the answer to
 /// the client's own request — so there is exactly one thing they can
 /// be. The tunnels do not appear here: their bytes travel the other
-/// direction as [`RequestFrame`](crate::agentic_loop::server::RequestFrame), and
+/// direction as [`request::Frame`](crate::agentic_loop::server::request::Frame), and
 /// what comes BACK on them is a client response, not a server one.
 ///
 /// One variant, and an enum anyway. The wire reserves a whole byte for

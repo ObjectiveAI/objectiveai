@@ -1,6 +1,6 @@
 //! What a server's request frame carries.
 
-use super::McpRequest;
+use super::mcp::McpRequest;
 
 /// The payload of a [`ServerFrame::Request`](crate::frame::server::ServerFrame::Request).
 ///
@@ -35,9 +35,9 @@ use super::McpRequest;
 /// boundaries, no request parser in the conduit, and a terminator that
 /// can rebuild an ordinary request and hand it to an ordinary router.
 /// The JSON-RPC inside stays opaque regardless — see
-/// [`McpRequest::body`](super::McpRequest::body).
+/// [`McpRequest::body`](super::mcp::McpRequest::body).
 #[derive(Debug, Clone, PartialEq)]
-pub enum RequestFrame<'a> {
+pub enum Frame<'a> {
     /// One MCP exchange, toward the client's MCP proxy. Complete in
     /// this frame; the answer comes back as client response frames.
     Mcp(McpRequest<'a>),
