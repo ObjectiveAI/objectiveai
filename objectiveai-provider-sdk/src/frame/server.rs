@@ -38,26 +38,23 @@ pub enum ServerFrame<'a> {
         /// The scope.
         scope: u32,
     },
-    /// Type `3`. The opening frame of a connection, sent by whichever
-    /// side dialled.
+    /// Type `3`. The first frame of a connection, sent by whichever
+    /// side dialled. Nothing may precede it.
     ///
     /// No scope and no channel: nothing has been established yet, and
     /// this is what establishes it. The payload is arbitrary — what
     /// counts as a credential is not this layer's business.
-    AuthRequest {
+    ///
+    /// There is no answer to it. A credential that is accepted is
+    /// followed by the connection simply working; one that is not is
+    /// followed by a close. A peer that has not authenticated cannot
+    /// make the far end compose anything, so a bad credential earns no
+    /// bytes to amplify and no reason to read.
+    Auth {
         /// The credential, in whatever form the two ends agreed.
         payload: &'a [u8],
     },
-    /// Type `4`. The answer to an [`AuthRequest`](Self::AuthRequest),
-    /// sent by whichever side accepted the connection.
-    ///
-    /// No scope and no channel, for the same reason. The payload
-    /// carries the verdict and anything that comes with it.
-    AuthResponse {
-        /// The verdict, in whatever form the two ends agreed.
-        payload: &'a [u8],
-    },
-    /// Type `5` or above: a request to the client, opening a channel.
+    /// Type `4` or above: a request to the client, opening a channel.
     ///
     /// The client answers on that same channel with its own ack, body
     /// and finish.
@@ -68,7 +65,7 @@ pub enum ServerFrame<'a> {
         /// server request gets its own, so several can be outstanding
         /// at once without their answers being confusable.
         channel: u32,
-        /// Which kind of request. `5` or above; what each value means
+        /// Which kind of request. `4` or above; what each value means
         /// belongs to the protocol being carried, not to this layer.
         r#type: u8,
         /// The request bytes.
@@ -91,8 +88,7 @@ impl<'a> ServerFrame<'a> {
             0 => ServerFrame::Ack { scope },
             1 => ServerFrame::Body { scope, payload },
             2 => ServerFrame::Finish { scope },
-            3 => ServerFrame::AuthRequest { payload },
-            4 => ServerFrame::AuthResponse { payload },
+            3 => ServerFrame::Auth { payload },
             r#type => ServerFrame::Request {
                 scope,
                 channel,

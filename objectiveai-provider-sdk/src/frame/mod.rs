@@ -53,10 +53,9 @@
 //! | 0    | ack | ack |
 //! | 1    | body | body |
 //! | 2    | finish | finish |
-//! | 3    | auth request | auth request |
-//! | 4    | auth response | auth response |
-//! | 5    | agentic loop request | a request |
-//! | 6+   | — | a request |
+//! | 3    | auth | auth |
+//! | 4    | agentic loop request | a request |
+//! | 5+   | — | a request |
 //!
 //! Ack, body and finish mean the same thing in both directions and on
 //! every channel: an exchange beginning, its contents, and its end.
@@ -64,7 +63,7 @@
 //! on channel `0` or the client is answering a server request on that
 //! request's channel.
 //!
-//! Everything from `5` up is a request, and the two sides differ in
+//! Everything from `4` up is a request, and the two sides differ in
 //! what that means. A client's requests are a CLOSED set, so this
 //! layer knows them: each is a named variant of [`ClientFrame`], its
 //! payload decoded rather than carried, and a sixth type is malformed.
@@ -77,21 +76,34 @@
 //! # Auth
 //!
 //! A connection may be dialled from either end: a client to a server,
-//! or a server to a client. Whichever side DIALLED sends an auth
-//! request as the first frame, and the side that accepted answers with
-//! an auth response. Nothing else may precede them.
+//! or a server to a client. Whichever side DIALLED sends an auth frame
+//! first. Nothing may precede it.
 //!
-//! Both directions therefore carry both variants — which of the two a
-//! given end may send is decided by who dialled, and that is a fact
-//! about the connection rather than about any frame, so the types do
-//! not express it.
+//! There is no answer. A credential that is accepted is followed by
+//! the connection simply working; one that is not is followed by a
+//! close, and by nothing else.
+//!
+//! That is deliberate, and it is the cheaper side of the trade. A peer
+//! that has not authenticated cannot make the far end compose a reply,
+//! so a bad credential costs its sender a socket and earns it nothing:
+//! no bytes to amplify, and no answer to read a reason out of. Wrong,
+//! expired and unknown are indistinguishable from outside, which is
+//! the point — a rejection that explains itself is an oracle.
+//!
+//! What it costs is diagnosis. An honest client with a stale token
+//! learns that its connection closed and not why, and has to work that
+//! out from what it knows rather than from what it was told.
+//!
+//! Both directions carry the frame, because either may be the side
+//! that dialled. Which end may send it is a fact about the connection
+//! rather than about any frame, so the types do not express it.
 //!
 //! Auth frames have no scope and no channel. They come before either
 //! exists, and are what makes it possible for one to.
 //!
-//! The payload is arbitrary. What counts as a credential, and what an
-//! acceptance or refusal looks like, are for the two ends to agree —
-//! this layer only guarantees the exchange happens first.
+//! The payload is arbitrary. What counts as a credential is for the
+//! two ends to agree — this layer guarantees only that it comes
+//! first.
 //!
 //! Because the reply types are shared and the request types are not,
 //! `type` alone determines what a frame is. Nothing has to consult

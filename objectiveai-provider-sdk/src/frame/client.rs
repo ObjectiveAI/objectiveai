@@ -20,8 +20,8 @@ use crate::agentic_loop::client::request::AgenticLoopRequest;
 /// A client's requests are a CLOSED set, so they appear here one
 /// variant apiece rather than behind a single `Request { payload }`
 /// with a type byte beside it. There is exactly one today —
-/// [`AgenticLoop`](Self::AgenticLoop), type `5` — and a second would
-/// be a new variant at `6`.
+/// [`AgenticLoop`](Self::AgenticLoop), type `4` — and a second would
+/// be a new variant at `5`.
 ///
 /// The server's cannot work this way and does not try: its type space
 /// is open, so an unfamiliar value there is a request from a newer
@@ -61,26 +61,23 @@ pub enum ClientFrame<'a> {
         /// The channel of the server request being answered.
         channel: u32,
     },
-    /// Type `3`. The opening frame of a connection, sent by whichever
-    /// side dialled.
+    /// Type `3`. The first frame of a connection, sent by whichever
+    /// side dialled. Nothing may precede it.
     ///
     /// No scope and no channel: nothing has been established yet, and
     /// this is what establishes it. The payload is arbitrary — what
     /// counts as a credential is not this layer's business.
-    AuthRequest {
+    ///
+    /// There is no answer to it. A credential that is accepted is
+    /// followed by the connection simply working; one that is not is
+    /// followed by a close. A peer that has not authenticated cannot
+    /// make the far end compose anything, so a bad credential earns no
+    /// bytes to amplify and no reason to read.
+    Auth {
         /// The credential, in whatever form the two ends agreed.
         payload: &'a [u8],
     },
-    /// Type `4`. The answer to an [`AuthRequest`](Self::AuthRequest),
-    /// sent by whichever side accepted the connection.
-    ///
-    /// No scope and no channel, for the same reason. The payload
-    /// carries the verdict and anything that comes with it.
-    AuthResponse {
-        /// The verdict, in whatever form the two ends agreed.
-        payload: &'a [u8],
-    },
-    /// Type `5`. Run an agent, and stream back what it does.
+    /// Type `4`. Run an agent, and stream back what it does.
     ///
     /// The request that opens a scope, and the root of everything
     /// else: the scope the server mints to answer it, the channels the
@@ -103,9 +100,8 @@ impl<'a> ClientFrame<'a> {
                 payload,
             },
             2 => ClientFrame::Finish { scope, channel },
-            3 => ClientFrame::AuthRequest { payload },
-            4 => ClientFrame::AuthResponse { payload },
-            5 => ClientFrame::AgenticLoop(
+            3 => ClientFrame::Auth { payload },
+            4 => ClientFrame::AgenticLoop(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
