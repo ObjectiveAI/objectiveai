@@ -2,37 +2,27 @@
 
 /// The payload of a [`ClientFrame::Body`](crate::frame::client::ClientFrame::Body).
 ///
-/// A body frame's bytes mean different things on different channels,
-/// and this is the set of things they can mean. Which one applies is
-/// not carried in the frame: it was settled when the channel opened,
-/// by the type of the server request that opened it. A reader knows
-/// before the body arrives, so the body does not repeat it.
+/// The return half of each tunnel: what came back up the socket the
+/// client spliced onto the far end of one of the server's channels.
+/// A client never streams anything of its own — its own request rides
+/// in a request frame, and channel `0` belongs to the server — so
+/// every body frame it sends is an answer on a channel the SERVER
+/// opened.
 ///
-/// Every variant carries its channel. A client only ever sends bodies
-/// on channels the SERVER opened — its own request rides in a request
-/// frame, not a body — so there is no channel `0` case to leave
-/// implicit the way the server's has.
+/// Nothing on the wire distinguishes these. A client body frame has no
+/// type byte, and needs none: the channel's kind was settled by the
+/// [`ServerRequestFrame`](super::super::server::ServerRequestFrame)
+/// that opened it, and both ends have known it ever since. The variant
+/// is recovered from that, not from the bytes.
 ///
-/// Both variants are opaque byte streams, and stay separate because
-/// they are different KINDS of channel rather than different formats.
-/// This is the return half of each tunnel: response bytes for
-/// [`Mcp`](Self::Mcp), server bytes for [`Postgres`](Self::Postgres).
-/// See [`ServerBodyFrame`](super::super::server::ServerBodyFrame) for
-/// what is in them and why neither is parsed.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+/// Both are opaque byte streams, for the reasons given on
+/// [`ServerRequestFrame`](super::super::server::ServerRequestFrame) —
+/// these are SOCKETS, and a message larger than one frame simply spans
+/// several.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClientBodyFrame<'a> {
-    /// A tunneled HTTP connection, from the client's MCP proxy.
-    Mcp {
-        /// The channel the server opened for this connection.
-        channel: u32,
-        /// The bytes, borrowed from the frame they arrived in.
-        payload: &'a [u8],
-    },
-    /// A tunneled Postgres connection, from the database.
-    Postgres {
-        /// The channel the server opened for this connection.
-        channel: u32,
-        /// The bytes, borrowed from the frame they arrived in.
-        payload: &'a [u8],
-    },
+    /// HTTP response bytes, from the client's MCP proxy.
+    Mcp(&'a [u8]),
+    /// pgwire bytes, from the database.
+    Postgres(&'a [u8]),
 }

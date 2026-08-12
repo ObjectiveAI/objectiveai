@@ -5,5 +5,7 @@ pub mod request;
 pub mod response;
 
 mod body_frame;
+mod request_frame;
 
 pub use body_frame::*;
+pub use request_frame::*;
