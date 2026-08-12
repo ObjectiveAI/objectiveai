@@ -20,7 +20,7 @@ use super::agent::Agent;
 /// [`prompt`](Self::prompt) is the result, not the ingredients, so a
 /// provider never rewrites what it was given.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AgenticLoopRequest {
+pub struct Request {
     /// What to run, and how to sample it.
     ///
     /// The model and every decoding parameter live here rather than on
