@@ -5,10 +5,12 @@
 //! the scope the client's request opened — a server never initiates
 //! one.
 
-mod response_frame;
+pub mod response;
+
 mod mcp;
 mod request_frame;
+mod response_frame;
 
-pub use response_frame::*;
 pub use mcp::*;
 pub use request_frame::*;
+pub use response_frame::*;

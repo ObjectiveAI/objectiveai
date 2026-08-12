@@ -1,6 +1,6 @@
 //! What a server's response frame carries.
 
-use super::super::client::response::AgenticLoopChunk;
+use super::response::AgenticLoopChunk;
 
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response).
 ///
