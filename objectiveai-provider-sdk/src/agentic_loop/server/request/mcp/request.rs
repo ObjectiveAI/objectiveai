@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
-use super::McpMethod;
+use super::Method;
 
 /// An MCP request, complete in a single frame.
 ///
@@ -25,10 +25,10 @@ use super::McpMethod;
 /// right reading for a wire type whose whole promise is that the bytes
 /// come out the way they went in.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct McpRequest<'a> {
+pub struct Request<'a> {
     /// What the request is doing. This, not [`path`](Self::path), is
     /// the type discriminator.
-    pub method: McpMethod,
+    pub method: Method,
     /// The request target, RELATIVE — the specifier and any query
     /// string, with no scheme and no authority.
     ///
@@ -69,7 +69,7 @@ pub struct McpRequest<'a> {
     /// every honest request.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub headers: IndexMap<String, String>,
-    /// The JSON-RPC message, for a [`Post`](McpMethod::Post). `None`
+    /// The JSON-RPC message, for a [`Post`](Method::Post). `None`
     /// for the methods that have no body.
     ///
     /// Raw, and never parsed in transit. Neither end of this channel
@@ -88,7 +88,7 @@ pub struct McpRequest<'a> {
     pub body: Option<&'a RawValue>,
 }
 
-impl PartialEq for McpRequest<'_> {
+impl PartialEq for Request<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.method == other.method
             && self.path == other.path

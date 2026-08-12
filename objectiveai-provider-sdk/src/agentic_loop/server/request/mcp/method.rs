@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// its head arrives.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum McpMethod {
+pub enum Method {
     /// Send a JSON-RPC message. The body is that message. The answer
     /// is either one JSON document or an event stream, depending on
     /// whether the far server wants to report progress before its
