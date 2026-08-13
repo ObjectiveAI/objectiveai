@@ -54,9 +54,9 @@
 //! | 1    | — | response ack |
 //! | 2    | — | response |
 //! | 3    | — | response finish |
-//! | 4    | channel response ack | a request |
-//! | 5    | channel response | a request |
-//! | 6    | channel response finish | a request |
+//! | 4    | channel response ack | channel response ack |
+//! | 5    | channel response | channel response |
+//! | 6    | channel response finish | channel response finish |
 //! | 7    | agentic loop request | a request |
 //! | 8    | images check request | a request |
 //! | 9+   | — | a request |
@@ -67,10 +67,13 @@
 //!
 //! `1` through `3` are the SCOPE-level replies — minting a scope,
 //! answering on channel `0`, ending it — and only a server sends
-//! those. `4` through `6` are the same three at CHANNEL level, for one
-//! exchange the other side opened. The gap on the client is left open
-//! rather than closed up so a number means the same thing whichever
-//! way the frame is travelling.
+//! those, which is why the client's are blank rather than reused.
+//! `4` through `6` are the same three at CHANNEL level, and both sides
+//! send them: each answers a channel the OTHER side opened.
+//!
+//! So `0` through `6` mean one thing apiece regardless of direction,
+//! and only requests differ — which is the whole reason the client's
+//! gap was left open instead of closed up.
 //!
 //! The three response frames — the ack, the response itself, and
 //! the finish — mean the same thing in both directions and on every

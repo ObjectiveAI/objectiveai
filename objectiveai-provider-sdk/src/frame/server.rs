@@ -10,12 +10,23 @@ use super::FrameError;
 
 /// A frame sent by a server.
 ///
-/// [`ResponseAck`](Self::ResponseAck), [`Response`](Self::Response) and
-/// [`ResponseFinish`](Self::ResponseFinish) carry no channel: they answer the client's
-/// own request, which is always channel `0`. Only
-/// [`ChannelRequest`](Self::ChannelRequest) names a channel, because it
-/// is the only
-/// one that opens one.
+/// Which of them carry a channel follows from what they answer.
+/// [`ResponseAck`](Self::ResponseAck), [`Response`](Self::Response)
+/// and [`ResponseFinish`](Self::ResponseFinish) answer the client's
+/// own request, which is always channel `0`, so they name none. The
+/// channel-level three and [`ChannelRequest`](Self::ChannelRequest)
+/// each name one exchange out of many, so they do.
+///
+/// # Two channel spaces
+///
+/// A channel is unique to the side that OPENED it, not to the
+/// connection. [`ChannelRequest`](Self::ChannelRequest) mints numbers
+/// in the server's space; the channel-level replies quote numbers from
+/// the CLIENT's, because they answer channels a client opened. The two
+/// spaces never meet, so both ends can count from zero and a channel
+/// `5` in one direction has nothing to do with a channel `5` in the
+/// other. Which space applies is settled by the frame's direction and
+/// its type, and never has to be carried.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServerFrame<'a> {
     /// Type `0`. The first frame of a connection, sent by whichever
@@ -55,7 +66,36 @@ pub enum ServerFrame<'a> {
         /// The scope.
         scope: u32,
     },
-    /// Type `4` or above: a request to the client, opening a channel.
+    /// Type `4`. Acknowledges a client request; the exchange has
+    /// begun.
+    ChannelResponseAck {
+        /// The scope.
+        scope: u32,
+        /// The channel of the client request being answered, in the
+        /// CLIENT's numbering.
+        channel: u32,
+    },
+    /// Type `5`. One piece of the answer. There may be any number,
+    /// including none.
+    ChannelResponse {
+        /// The scope.
+        scope: u32,
+        /// The channel of the client request being answered, in the
+        /// CLIENT's numbering.
+        channel: u32,
+        /// The response bytes.
+        payload: &'a [u8],
+    },
+    /// Type `6`. The answer is complete and the channel is closed.
+    /// Nothing follows on it.
+    ChannelResponseFinish {
+        /// The scope.
+        scope: u32,
+        /// The channel of the client request being answered, in the
+        /// CLIENT's numbering.
+        channel: u32,
+    },
+    /// Type `7` or above: a request to the client, opening a channel.
     ///
     /// The client answers on that same channel with its own response
     /// ack, responses and response finish.
@@ -66,7 +106,7 @@ pub enum ServerFrame<'a> {
         /// server request gets its own, so several can be outstanding
         /// at once without their answers being confusable.
         channel: u32,
-        /// Which kind of request. `4` or above; what each value means
+        /// Which kind of request. `7` or above; what each value means
         /// belongs to the protocol being carried, not to this layer.
         r#type: u8,
         /// The request bytes.
@@ -78,7 +118,7 @@ impl<'a> ServerFrame<'a> {
     /// Decode one frame. The payload borrows from `bytes`.
     ///
     /// Never returns [`FrameError::UnknownType`]: every value above
-    /// `3` is a request whose meaning belongs to the protocol being
+    /// `6` is a request whose meaning belongs to the protocol being
     /// carried, so an unfamiliar one is a request from a newer peer
     /// rather than a malformed frame.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
@@ -90,6 +130,13 @@ impl<'a> ServerFrame<'a> {
             1 => ServerFrame::ResponseAck { scope },
             2 => ServerFrame::Response { scope, payload },
             3 => ServerFrame::ResponseFinish { scope },
+            4 => ServerFrame::ChannelResponseAck { scope, channel },
+            5 => ServerFrame::ChannelResponse {
+                scope,
+                channel,
+                payload,
+            },
+            6 => ServerFrame::ChannelResponseFinish { scope, channel },
             r#type => ServerFrame::ChannelRequest {
                 scope,
                 channel,
