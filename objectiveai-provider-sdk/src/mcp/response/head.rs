@@ -3,8 +3,6 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::decode::Decode;
-
 /// The status and headers of an MCP response.
 ///
 /// The first thing back, and never repeated — see
@@ -39,13 +37,4 @@ pub struct Head {
     /// ergonomics everywhere else are worth more than the case.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub headers: IndexMap<String, String>,
-}
-
-impl Decode<'_> for Head {
-    /// The ordinary JSON failure.
-    type Error = serde_json::Error;
-
-    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        serde_json::from_slice(bytes)
-    }
 }
