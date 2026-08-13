@@ -55,13 +55,13 @@ pub enum Node {
         name: String,
         /// The link's target, as path components ALWAYS RELATIVE TO
         /// THE FILETREE ROOT — the same frame of reference as the
-        /// `path` carried by [`Event::Inserted`](super::Event::Inserted),
-        /// [`Event::Modified`](super::Event::Modified),
-        /// [`Event::Moved`](super::Event::Moved) and
-        /// [`Event::Removed`](super::Event::Removed). Every path in
+        /// `path` carried by [`Frame::Inserted`](super::Frame::Inserted),
+        /// [`Frame::Modified`](super::Frame::Modified),
+        /// [`Frame::Moved`](super::Frame::Moved) and
+        /// [`Frame::Removed`](super::Frame::Removed). Every path in
         /// this API means the same thing, so a consumer walks a link's
         /// target down from the snapshot's child list exactly as it
-        /// walks an event path, with no separate rule for links.
+        /// walks a frame's path, with no separate rule for links.
         ///
         /// Addressable is not the same as resolved: the link is still
         /// never followed, and the components may name a node that
@@ -99,7 +99,7 @@ impl Node {
     }
 
     /// Rename this node. Only a move does this — see
-    /// [`Event::Moved`](super::Event::Moved).
+    /// [`Frame::Moved`](super::Frame::Moved).
     pub(super) fn set_name(&mut self, new_name: String) {
         match self {
             Node::File { name, .. }

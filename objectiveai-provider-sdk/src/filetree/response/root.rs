@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{Event, Node};
+use super::{Frame, Node};
 
 /// The filetree's root — the whole tree, as the root's entries.
 ///
@@ -30,13 +30,13 @@ pub struct Root(
 );
 
 impl Root {
-    /// Fold one [`Event`] into this tree.
+    /// Fold one [`Frame`] into this tree.
     ///
     /// This is THE fold. Every holder of a materialized tree applies
-    /// events the same way, so that two consumers fed the same stream
+    /// frames the same way, so that two consumers fed the same stream
     /// cannot disagree about what it meant.
     ///
-    /// **Lenient by design.** An event that cannot be applied — an
+    /// **Lenient by design.** A frame that cannot be applied — an
     /// empty path, a parent that is missing or is not a directory — is
     /// DROPPED, never guessed at. The fold does not fabricate the
     /// directories a path implies: a tree that is missing a subtree is
@@ -44,21 +44,21 @@ impl Root {
     /// invented nodes is wrong in a way nothing detects. Nothing here
     /// panics, and no ordering is assumed.
     ///
-    /// **Replay-safe, with one edge.** [`Inserted`](Event::Inserted)
-    /// and [`Modified`](Event::Modified) both place a complete node,
+    /// **Replay-safe, with one edge.** [`Inserted`](Frame::Inserted)
+    /// and [`Modified`](Frame::Modified) both place a complete node,
     /// so applying either twice is a no-op, and applying one where the
     /// other was expected still lands the right value —
     /// deliberately, since that tolerance is what makes at-least-once
-    /// delivery safe. [`Moved`](Event::Moved) is the exception: it
+    /// delivery safe. [`Moved`](Frame::Moved) is the exception: it
     /// reads the tree rather than overwriting part of it, so replaying
     /// one is harmless only while its source path stays empty.
-    pub fn update(&mut self, event: Event) {
-        match event {
-            Event::Snapshot { children } => self.snapshot(children),
-            Event::Inserted { path, node } => self.inserted(path, node),
-            Event::Modified { path, node } => self.modified(path, node),
-            Event::Moved { path, new_path } => self.moved(path, new_path),
-            Event::Removed { path } => self.removed(path),
+    pub fn update(&mut self, frame: Frame) {
+        match frame {
+            Frame::Snapshot { children } => self.snapshot(children),
+            Frame::Inserted { path, node } => self.inserted(path, node),
+            Frame::Modified { path, node } => self.modified(path, node),
+            Frame::Moved { path, new_path } => self.moved(path, new_path),
+            Frame::Removed { path } => self.removed(path),
         }
     }
 
@@ -97,8 +97,8 @@ impl Root {
         let Some(mut node) = self.detach(&path) else {
             return;
         };
-        // A move is the only event that changes a node's name, and the
-        // new name is the only thing it changes. See `Event::Moved`.
+        // A move is the only change that renames a node, and the
+        // new name is the only thing it changes. See `Frame::Moved`.
         node.set_name(name);
         self.place(new_path, node);
     }

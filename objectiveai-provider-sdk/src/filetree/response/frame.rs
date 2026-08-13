@@ -1,17 +1,17 @@
-//! One event on a filetree stream.
+//! What a filetree response frame carries.
 
 use serde::{Deserialize, Serialize};
 
 use super::Node;
 
-/// One event on a filetree stream, discriminated by `type`.
+/// One change on a filetree stream, discriminated by `type`.
 ///
-/// [`Snapshot`](Event::Snapshot) establishes the tree. Every other
+/// [`Snapshot`](Frame::Snapshot) establishes the tree. Every other
 /// variant names exactly one node and says what became of it: it
-/// appeared ([`Inserted`](Event::Inserted)), changed in place
-/// ([`Modified`](Event::Modified)), changed location
-/// ([`Moved`](Event::Moved)), or ceased to exist
-/// ([`Removed`](Event::Removed)).
+/// appeared ([`Inserted`](Frame::Inserted)), changed in place
+/// ([`Modified`](Frame::Modified)), changed location
+/// ([`Moved`](Frame::Moved)), or ceased to exist
+/// ([`Removed`](Frame::Removed)).
 ///
 /// Insertion and modification are distinguished because a consumer
 /// usually wants to treat them differently — a newly appeared file is
@@ -22,10 +22,10 @@ use super::Node;
 ///
 /// A delta that carries a node carries its COMPLETE value, never a
 /// patch against a value the consumer is assumed to hold. That is what
-/// makes replaying an already-applied event harmless, and therefore
+/// makes replaying an already-applied frame harmless, and therefore
 /// what makes at-least-once delivery safe.
 ///
-/// [`Moved`](Event::Moved) is the one variant that reads the tree
+/// [`Moved`](Frame::Moved) is the one variant that reads the tree
 /// rather than overwriting part of it, so it is the one place replay
 /// is not free: re-applying a move is harmless while its source path
 /// stays empty, but not if something has since taken that path.
@@ -35,7 +35,7 @@ use super::Node;
 /// [`Node::Symlink`]'s.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum Event {
+pub enum Frame {
     /// The whole tree: the root's entries, recursively.
     Snapshot {
         /// The root's entries. The root itself is not among them and
@@ -61,7 +61,7 @@ pub enum Event {
     },
     /// A node that already existed changed, staying where it was.
     Modified {
-        /// The node's path, unchanged by this event. The last element
+        /// The node's path, unchanged by this frame. The last element
         /// equals `node`'s `name`.
         path: Vec<String>,
         /// The node's complete new value, replacing the old one. A
@@ -87,10 +87,10 @@ pub enum Event {
     /// actually is.
     ///
     /// A node moved OUT of the filetree is not this — it is
-    /// [`Removed`](Event::Removed), since there is no destination
+    /// [`Removed`](Frame::Removed), since there is no destination
     /// inside the tree to name.
     Moved {
-        /// Where the node was, before this event.
+        /// Where the node was, before this frame.
         path: Vec<String>,
         /// Where the node is now. Its last component is the node's
         /// name, which a move that renames will have changed.
