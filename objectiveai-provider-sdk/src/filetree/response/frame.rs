@@ -145,53 +145,10 @@ impl Encode for Frame {
 }
 
 impl Decode<'_> for Frame {
-    /// Postcard's failure, plus one of this layer's own.
-    type Error = FrameError;
+    /// Postcard's own failure.
+    type Error = postcard::Error;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let (frame, rest) =
-            postcard::take_from_bytes(bytes).map_err(FrameError::Postcard)?;
-        if !rest.is_empty() {
-            return Err(FrameError::Trailing(rest.len()));
-        }
-        Ok(frame)
-    }
-}
-
-/// A filetree frame that could not be read.
-#[derive(Debug)]
-pub enum FrameError {
-    /// The bytes did not decode.
-    Postcard(postcard::Error),
-    /// They decoded, and there were bytes left over.
-    ///
-    /// Rejected rather than ignored. Postcard has no forward
-    /// compatibility to preserve — appending a field breaks an old
-    /// reader whether or not it tolerates leftovers — so bytes past
-    /// the end of a value are corruption, a framing bug, or a peer
-    /// this one cannot understand. None of the three is safer to
-    /// proceed from.
-    Trailing(usize),
-}
-
-impl std::fmt::Display for FrameError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FrameError::Postcard(error) => {
-                write!(f, "filetree frame did not decode: {error}")
-            }
-            FrameError::Trailing(count) => {
-                write!(f, "filetree frame has {count} trailing bytes")
-            }
-        }
-    }
-}
-
-impl std::error::Error for FrameError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            FrameError::Postcard(error) => Some(error),
-            FrameError::Trailing(_) => None,
-        }
+        postcard::from_bytes(bytes)
     }
 }
