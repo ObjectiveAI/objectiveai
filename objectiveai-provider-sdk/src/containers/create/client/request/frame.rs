@@ -3,7 +3,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{Image, Mount};
+use super::{ImageType, Mount};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -24,11 +24,40 @@ use crate::encode::{Encode, Writer};
 /// something later.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Frame {
-    /// Which image, and who produces it.
+    /// Who produces the image.
     ///
-    /// See [`Image`] — a provider may fetch it, may already hold it,
-    /// or may have to be handed it by the caller.
-    pub image: Image,
+    /// See [`ImageType`]. It also decides how
+    /// [`image_reference`](Self::image_reference) is read, so the two
+    /// are one answer in two fields.
+    pub image_type: ImageType,
+    /// What to ask for — `myimage:latest`, `ubuntu:22.04`,
+    /// `ghcr.io/org/image@sha256:…`.
+    ///
+    /// Whatever a container runtime accepts, and what it MEANS depends
+    /// on [`image_type`](Self::image_type): a repository the caller
+    /// serves, an image the provider resolves by its own rules, or a
+    /// registry the provider is being sent to.
+    ///
+    /// # Pinning is the caller's choice
+    ///
+    /// Everything else in this API is digest-addressed so the same
+    /// request means the same bytes. A reference need not be, and a
+    /// tag here resolves differently next week — which is the point. A
+    /// caller asking for `ubuntu:22.04` is asking to track it, exactly
+    /// as a loose version constraint on a Python requirement is. One
+    /// that wants the guarantee writes a digest and gets it.
+    ///
+    /// # For a caller-served image, this lands in a URL path
+    ///
+    /// The provider builds its pull reference by concatenation —
+    /// `localhost:PORT/` plus the scope plus this — with no parsing,
+    /// because a tag or digest suffix stays on the end where one
+    /// belongs. Which makes this a path fragment wearing the costume
+    /// of a name: a `..` in it walks out of the scope segment and into
+    /// another caller's namespace, so a provider normalizes or refuses
+    /// before concatenating. The field cannot enforce that and does
+    /// not pretend to.
+    pub image_reference: String,
     /// How much memory the container may have, in BYTES.
     ///
     /// A ceiling, not a hint. A process past it is killed by the

@@ -10,7 +10,7 @@ use crate::http::request::Request;
 /// One request against the caller's registry.
 ///
 /// Opened only for an
-/// [`Image::Client`](crate::containers::create::client::request::Image::Client)
+/// [`ImageType::Client`](crate::containers::create::client::request::ImageType::Client)
 /// creation, and opened by the container RUNTIME's appetite rather
 /// than the provider's: the provider serves a registry endpoint, the
 /// runtime pulls from it, and every request the runtime makes that the

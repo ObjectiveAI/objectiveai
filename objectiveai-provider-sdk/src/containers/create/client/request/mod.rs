@@ -1,13 +1,13 @@
 //! Container creation request data.
 //!
 //! [`Frame`] is what a caller hands a provider to get a container.
-//! [`Image`] says where the image comes from and [`Mount`] is how a
+//! [`ImageType`] says who produces the image and [`Mount`] is how a
 //! caller asks for a directory inside one.
 
 mod frame;
-mod image;
+mod image_type;
 mod mount;
 
 pub use frame::*;
-pub use image::*;
+pub use image_type::*;
 pub use mount::*;
