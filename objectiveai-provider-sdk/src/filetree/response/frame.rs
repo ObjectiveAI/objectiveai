@@ -3,8 +3,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::Node;
+use crate::decode::Decode;
+use crate::encode::{Encode, Writer};
 
-/// One change on a filetree stream, discriminated by `type`.
+/// One change on a filetree stream.
 ///
 /// [`Snapshot`](Frame::Snapshot) establishes the tree. Every other
 /// variant names exactly one node and says what became of it: it
@@ -33,8 +35,19 @@ use super::Node;
 /// Every `path` in every variant is a component vector relative to the
 /// filetree root — one meaning of "path" throughout, matching
 /// [`Node::Symlink`]'s.
+///
+/// # Variant ORDER is part of the wire format
+///
+/// Serialized in serde's default representation, which writes the
+/// variant's INDEX rather than its name — the same arrangement
+/// [`Node`] uses, and for the same reason: an index needs no lookahead
+/// to read, which is what makes it encodable in a format with no
+/// self-description.
+///
+/// It is also a constraint. Reordering these variants, or inserting
+/// one among them, silently changes what existing bytes mean. New
+/// variants go on the END; nowhere else is a compatible change.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Frame {
     /// The whole tree: the root's entries, recursively.
     Snapshot {
@@ -104,4 +117,81 @@ pub enum Frame {
         /// The vanished node's path.
         path: Vec<String>,
     },
+}
+
+/// Postcard, where the rest of the crate is JSON.
+///
+/// A filetree stream is the one thing here that is both high-volume
+/// and free to choose: it relays nothing, so no byte of it has to
+/// survive a round trip unchanged, and nothing downstream reads it as
+/// text. What it is instead is spammy — one frame per changed node,
+/// indefinitely — so the envelope is worth minimizing.
+///
+/// Postcard drops field names entirely and varint-encodes every length
+/// and integer, which puts a small delta within a couple of bytes of
+/// the information it actually carries. `Removed` naming
+/// `src/main.rs` is fourteen bytes, ten of them the two strings
+/// themselves.
+impl Encode for Frame {
+    /// Postcard's own failure. It has few ways to happen when writing
+    /// — a buffer that will not take bytes, mostly — since everything
+    /// here is a shape it can always represent.
+    type Error = postcard::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        postcard::to_io(self, &mut *out)?;
+        Ok(())
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Postcard's failure, plus one of this layer's own.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (frame, rest) =
+            postcard::take_from_bytes(bytes).map_err(FrameError::Postcard)?;
+        if !rest.is_empty() {
+            return Err(FrameError::Trailing(rest.len()));
+        }
+        Ok(frame)
+    }
+}
+
+/// A filetree frame that could not be read.
+#[derive(Debug)]
+pub enum FrameError {
+    /// The bytes did not decode.
+    Postcard(postcard::Error),
+    /// They decoded, and there were bytes left over.
+    ///
+    /// Rejected rather than ignored. Postcard has no forward
+    /// compatibility to preserve — appending a field breaks an old
+    /// reader whether or not it tolerates leftovers — so bytes past
+    /// the end of a value are corruption, a framing bug, or a peer
+    /// this one cannot understand. None of the three is safer to
+    /// proceed from.
+    Trailing(usize),
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameError::Postcard(error) => {
+                write!(f, "filetree frame did not decode: {error}")
+            }
+            FrameError::Trailing(count) => {
+                write!(f, "filetree frame has {count} trailing bytes")
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Postcard(error) => Some(error),
+            FrameError::Trailing(_) => None,
+        }
+    }
 }

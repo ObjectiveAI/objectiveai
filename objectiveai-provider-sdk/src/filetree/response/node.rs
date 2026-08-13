@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// One node of the filesystem tree, discriminated by `type`.
+/// One node of the filesystem tree.
 ///
 /// A [`Directory`](Node::Directory) carries its children inline;
 /// [`File`](Node::File) and [`Symlink`](Node::Symlink) are leaves. A
@@ -11,24 +11,31 @@ use serde::{Deserialize, Serialize};
 ///
 /// Every variant carries `name` — the basename, never a path — plus
 /// `created_at` and `modified_at`.
+///
+/// # Variant ORDER is part of the wire format
+///
+/// This enum is serialized in serde's default representation, which
+/// writes the variant's INDEX rather than its name. That is what makes
+/// it encodable at all in a format with no self-description — there is
+/// no name to look up and no lookahead to do — and it is also a
+/// constraint: reordering these variants, or inserting one among them,
+/// silently changes what existing bytes mean.
+///
+/// New variants go on the END. Nowhere else is a compatible change.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
 pub enum Node {
     /// A regular file.
     File {
         /// Basename of this file.
         name: String,
         /// Size in bytes. `None` when the stat could not be read.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         size: Option<u64>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time. `None` where unsupported — this is display
         /// metadata and is never load-bearing.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         created_at: Option<i64>,
         /// Last-modified time (unix seconds). `None` when the stat
         /// could not be read.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         modified_at: Option<i64>,
     },
     /// A directory, carrying its entries.
@@ -38,11 +45,9 @@ pub enum Node {
         name: String,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         created_at: Option<i64>,
         /// Last-modified time (unix seconds). A directory's mtime
         /// tracks entry add/remove, not changes within its children.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         modified_at: Option<i64>,
         /// This directory's entries. An empty directory carries an
         /// empty list — this field is never absent, so a consumer never
@@ -76,10 +81,8 @@ pub enum Node {
         path: Vec<String>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         created_at: Option<i64>,
         /// Last-modified time (unix seconds).
-        #[serde(default, skip_serializing_if = "Option::is_none")]
         modified_at: Option<i64>,
     },
 }
