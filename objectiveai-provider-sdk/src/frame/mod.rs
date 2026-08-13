@@ -50,13 +50,27 @@
 //!
 //! | type | client | server |
 //! |------|--------|--------|
-//! | 0    | response ack | response ack |
-//! | 1    | response | response |
-//! | 2    | response finish | response finish |
-//! | 3    | auth | auth |
-//! | 4    | agentic loop request | a request |
-//! | 5    | images check request | a request |
-//! | 6+   | — | a request |
+//! | 0    | auth | auth |
+//! | 1    | — | response ack |
+//! | 2    | — | response |
+//! | 3    | — | response finish |
+//! | 4    | channel response ack | a request |
+//! | 5    | channel response | a request |
+//! | 6    | channel response finish | a request |
+//! | 7    | agentic loop request | a request |
+//! | 8    | images check request | a request |
+//! | 9+   | — | a request |
+//!
+//! Auth leads because it comes first in time: nothing may precede it,
+//! and a peer reading a connection's opening byte should not have to
+//! look past the reply types to find out whether it is one.
+//!
+//! `1` through `3` are the SCOPE-level replies — minting a scope,
+//! answering on channel `0`, ending it — and only a server sends
+//! those. `4` through `6` are the same three at CHANNEL level, for one
+//! exchange the other side opened. The gap on the client is left open
+//! rather than closed up so a number means the same thing whichever
+//! way the frame is travelling.
 //!
 //! The three response frames — the ack, the response itself, and
 //! the finish — mean the same thing in both directions and on every
@@ -65,7 +79,7 @@
 //! on channel `0` or the client is answering a server request on that
 //! request's channel.
 //!
-//! Everything from `4` up is a request, and the two sides differ in
+//! Everything from `7` up is a client request, and the two sides differ in
 //! what that means. A client's requests are a CLOSED set, so this
 //! layer knows them: each is a named variant of [`ClientFrame`], its
 //! payload decoded rather than carried, and a sixth type is malformed.

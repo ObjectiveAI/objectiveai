@@ -21,9 +21,19 @@ use crate::images;
 /// A client's requests are a CLOSED set, so they appear here one
 /// variant apiece rather than behind a single `Request { payload }`
 /// with a type byte beside it. Two so far —
-/// [`AgenticLoopRequest`](Self::AgenticLoopRequest) at `4` and
-/// [`ImagesCheckRequest`](Self::ImagesCheckRequest) at `5` — and a
-/// third would be a new variant at `6`.
+/// [`AgenticLoopRequest`](Self::AgenticLoopRequest) at `7` and
+/// [`ImagesCheckRequest`](Self::ImagesCheckRequest) at `8` — and a
+/// third would be a new variant at `9`.
+///
+/// # The gap at `1` through `3`
+///
+/// Reserved, and deliberately empty here. Those are the SCOPE-level
+/// replies — the ack that mints a scope, the answer on channel `0`,
+/// the finish — and a client sends none of them: it asks for a scope
+/// and the server answers in it. Leaving the numbers unused rather
+/// than closing the gap keeps one number meaning one thing in both
+/// directions, which is worth more than three bytes nobody was going
+/// to run out of.
 ///
 /// The server's cannot work this way and does not try: its type space
 /// is open, so an unfamiliar value there is a request from a newer
@@ -37,33 +47,7 @@ use crate::images;
 /// credentials are for the two ends to agree on.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
-    /// Type `0`. Acknowledges a server request; the exchange has
-    /// begun.
-    ChannelResponseAck {
-        /// The scope the server minted.
-        scope: u32,
-        /// The channel of the server request being answered.
-        channel: u32,
-    },
-    /// Type `1`. One piece of the answer. There may be any number,
-    /// including none.
-    ChannelResponse {
-        /// The scope the server minted.
-        scope: u32,
-        /// The channel of the server request being answered.
-        channel: u32,
-        /// The response bytes.
-        payload: &'a [u8],
-    },
-    /// Type `2`. The answer is complete and the channel is closed.
-    /// Nothing follows on it.
-    ChannelResponseFinish {
-        /// The scope the server minted.
-        scope: u32,
-        /// The channel of the server request being answered.
-        channel: u32,
-    },
-    /// Type `3`. The first frame of a connection, sent by whichever
+    /// Type `0`. The first frame of a connection, sent by whichever
     /// side dialled. Nothing may precede it.
     ///
     /// No scope and no channel: nothing has been established yet, and
@@ -79,7 +63,33 @@ pub enum ClientFrame<'a> {
         /// The credential, in whatever form the two ends agreed.
         payload: &'a [u8],
     },
-    /// Type `4`. Run an agent, and stream back what it does.
+    /// Type `4`. Acknowledges a server request; the exchange has
+    /// begun.
+    ChannelResponseAck {
+        /// The scope the server minted.
+        scope: u32,
+        /// The channel of the server request being answered.
+        channel: u32,
+    },
+    /// Type `5`. One piece of the answer. There may be any number,
+    /// including none.
+    ChannelResponse {
+        /// The scope the server minted.
+        scope: u32,
+        /// The channel of the server request being answered.
+        channel: u32,
+        /// The response bytes.
+        payload: &'a [u8],
+    },
+    /// Type `6`. The answer is complete and the channel is closed.
+    /// Nothing follows on it.
+    ChannelResponseFinish {
+        /// The scope the server minted.
+        scope: u32,
+        /// The channel of the server request being answered.
+        channel: u32,
+    },
+    /// Type `7`. Run an agent, and stream back what it does.
     ///
     /// The request that opens a scope, and the root of everything
     /// else: the scope the server mints to answer it, the channels the
@@ -87,7 +97,7 @@ pub enum ClientFrame<'a> {
     /// on channel `0`. Sent with neither — the server mints the scope
     /// in its ack.
     AgenticLoopRequest(agentic_loop::client::request::Frame),
-    /// Type `5`. Ask whether the provider can supply an image.
+    /// Type `8`. Ask whether the provider can supply an image.
     ///
     /// A scope like any other, and a short one: the ack that mints it,
     /// one response on channel `0`, and the finish. The server opens
@@ -102,19 +112,19 @@ impl<'a> ClientFrame<'a> {
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
-            0 => ClientFrame::ChannelResponseAck { scope, channel },
-            1 => ClientFrame::ChannelResponse {
+            0 => ClientFrame::Auth { payload },
+            4 => ClientFrame::ChannelResponseAck { scope, channel },
+            5 => ClientFrame::ChannelResponse {
                 scope,
                 channel,
                 payload,
             },
-            2 => ClientFrame::ChannelResponseFinish { scope, channel },
-            3 => ClientFrame::Auth { payload },
-            4 => ClientFrame::AgenticLoopRequest(
+            6 => ClientFrame::ChannelResponseFinish { scope, channel },
+            7 => ClientFrame::AgenticLoopRequest(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
-            5 => ClientFrame::ImagesCheckRequest(
+            8 => ClientFrame::ImagesCheckRequest(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),

@@ -22,7 +22,10 @@ pub enum FrameError {
     /// A `type` no frame in this direction can have.
     ///
     /// Only a CLIENT frame can produce this. A client's types are a
-    /// closed set — `0` through `5` — so a sixth value is malformed.
+    /// closed set — `0`, then `4` through `8` — so anything else is
+    /// malformed, including the reserved `1` through `3`, which are
+    /// the scope-level replies a client never sends.
+    ///
     /// A server's are open above `3`, since each is a kind of request
     /// this layer does not interpret, so an unfamiliar one is a
     /// request from a newer peer rather than an error.
