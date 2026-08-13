@@ -1,4 +1,4 @@
-//! What is asked.
+//! What is asked, and the frame that carries it.
 
 mod method;
 mod request;

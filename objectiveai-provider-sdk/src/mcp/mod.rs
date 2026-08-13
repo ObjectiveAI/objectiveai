@@ -1,32 +1,35 @@
-//! The MCP exchange: one request out, one response back.
+//! MCP: the exchange, and how it is framed.
 //!
-//! What a provider's agent asks of a client's MCP proxy, and what
-//! comes back. Described here ONCE, as the exchange it is — not as
-//! whatever a wire happens to make of it.
+//! What a provider's agent asks of a client's MCP proxy, what comes
+//! back, and the shape both take on a wire. Described here ONCE, and
+//! shared by everything that carries MCP — the agentic loop today,
+//! whatever else later.
 //!
-//! # Not a frame
+//! # Why the framing lives here too
 //!
-//! Nothing here encodes, decodes, or knows what a channel is. That
-//! separation is the point, because a frame and an exchange disagree
-//! about shape in one place: a [`Response`](response::Response) is a
-//! status, headers and a body, whereas the response FRAME splits the
-//! head from the body and sends the head first — a stream may run for
-//! the length of a session, and a conduit that waited for the body to
-//! finish before writing the status line would be buffering an event
-//! stream it was supposed to be relaying.
+//! Because the framing is the interesting part, and it is the same
+//! wherever MCP is carried.
 //!
-//! That split is a fact about the wire, not about MCP. Keeping it in
-//! [`agentic_loop`](crate::agentic_loop) leaves this module free to
-//! say the simple, true thing.
+//! A [`request`] is whole: one complete JSON document of known length,
+//! or nothing at all. A [`response`] is not — a `POST` may be answered
+//! with an event stream held open while the far server works, and a
+//! `GET` with one held open for the length of the SESSION. So a
+//! response is split, head first, and a conduit writes the status line
+//! onto the agent's socket the moment the head lands rather than
+//! buffering a stream it was meant to relay.
+//!
+//! That asymmetry is a fact about MCP, not about any one channel. A
+//! second scope carrying MCP would need exactly the same split, and
+//! deriving it twice would be two chances to derive it differently.
 //!
 //! # Split by direction
 //!
 //! [`request`] and [`response`] rather than client and server, because
 //! an exchange has no sides of its own. Which end sends which is a
-//! fact about the channel carrying it, and the agentic loop's own
-//! modules already say so — the request travels server to client
-//! there, which is the opposite of what "MCP request" suggests and
-//! exactly why it is not encoded in these names.
+//! fact about the channel carrying it, and the agentic loop is the
+//! proof: an MCP request travels SERVER to client there, the opposite
+//! of what "MCP request" suggests, and naming these for sides would
+//! have made that read as a bug.
 
 pub mod request;
 pub mod response;

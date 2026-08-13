@@ -1,22 +1,21 @@
-//! One MCP response, whole.
+//! The head of an MCP response.
 
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-/// An MCP response.
+/// The status and headers of an MCP response.
 ///
-/// The whole answer: what a caller would have if it had waited for the
-/// exchange to finish. That is a useful thing to be able to say and a
-/// bad way to send it — a `POST` may be answered with an event stream
-/// held open while the far server works, and a `GET` with one held
-/// open for the length of the session, so anything that waited for
-/// [`body`](Self::body) to be complete would be buffering a stream it
-/// was meant to be relaying.
+/// The first thing back, and never repeated — see
+/// [`Frame`](super::Frame) for why it arrives separately from the body
+/// it introduces.
 ///
-/// Hence the split on the wire and not here. This module is the
-/// exchange; how it is cut into frames belongs to whatever carries it.
+/// A type rather than a pair of fields on that variant, so there is
+/// something to point serde at. This is the one part of an MCP
+/// exchange that IS a shape rather than a stream: the bodies around it
+/// are bytes nobody parses, and this is a JSON object of exactly these
+/// two fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct Response {
+pub struct Head {
     /// The HTTP status.
     ///
     /// Load-bearing, and the reason a bare JSON-RPC message would not
@@ -38,12 +37,4 @@ pub struct Response {
     /// ergonomics everywhere else are worth more than the case.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub headers: IndexMap<String, String>,
-    /// The body, verbatim.
-    ///
-    /// Bytes rather than JSON, because this is not always JSON. When
-    /// `Content-Type` is `text/event-stream` it is a sequence of SSE
-    /// events, and even when it is one JSON document, nothing carrying
-    /// it has any business parsing it.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub body: Vec<u8>,
 }

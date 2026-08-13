@@ -1,5 +1,7 @@
-//! What comes back.
+//! What comes back, and the frames that carry it.
 
-mod response;
+mod frame;
+mod head;
 
-pub use response::*;
+pub use frame::*;
+pub use head::*;

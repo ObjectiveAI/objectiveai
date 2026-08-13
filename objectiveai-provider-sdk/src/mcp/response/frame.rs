@@ -1,13 +1,8 @@
-//! What a client's response frame carries on an MCP channel.
+//! What a response frame carries on an MCP channel.
 
 use super::Head;
 use crate::encode::{Encode, Writer};
 
-/// The payload of a
-/// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
-/// on a channel opened by
-/// [`request::Frame::Mcp`](crate::agentic_loop::server::request::Frame::Mcp).
-///
 /// One MCP answer, arriving in pieces: the head once, then as much
 /// body as there turns out to be.
 ///

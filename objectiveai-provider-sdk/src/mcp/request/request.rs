@@ -5,24 +5,24 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
 use super::Method;
+use crate::encode::{Encode, Writer};
 
-/// An MCP request.
+/// An MCP request, complete in a single frame.
 ///
-/// Whole, and always whole. An MCP request body is a complete JSON
-/// document of known length — a `POST` carries one JSON-RPC message
-/// the agent had finished composing before it sent anything, and
-/// [`Get`](Method::Get) and [`Delete`](Method::Delete) carry nothing
-/// at all. Nothing here arrives in pieces, so nothing here needs
-/// continuing.
+/// It fits in one because an MCP request body is always a whole JSON
+/// document of known length: a [`Post`](Method::Post) carries one
+/// JSON-RPC message the agent had finished composing before it sent
+/// anything, and [`Get`](Method::Get) and [`Delete`](Method::Delete)
+/// carry nothing at all. Nothing here arrives in pieces, so nothing
+/// here needs continuing.
 ///
-/// The [`Response`](super::super::response::Response) is the opposite,
-/// and that asymmetry is the whole reason the two directions are
-/// framed differently on the wire.
+/// The response is the opposite, and that asymmetry is the whole
+/// reason the two directions are shaped differently — see
+/// [`response::Frame`](super::super::response::Frame).
 ///
-/// Owned, unlike the frame types. Those borrow from the buffer a frame
-/// arrived in, which is the right trade when a value's whole life is
-/// one decode; this is the exchange itself, built and held and passed
-/// around by things that have no frame to borrow from.
+/// Borrows from the buffer it was decoded out of. A request's whole
+/// life is one exchange, so copying its body to own it would be
+/// copying it to throw away.
 ///
 /// [`PartialEq`] is written out rather than derived, because
 /// [`RawValue`] does not implement it. The hand-written one compares
@@ -31,7 +31,7 @@ use super::Method;
 /// right reading for a type whose whole promise is that the bytes come
 /// out the way they went in.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Request {
+pub struct Request<'a> {
     /// What the request is doing. This, not [`path`](Self::path), is
     /// the type discriminator.
     pub method: Method,
@@ -89,18 +89,29 @@ pub struct Request {
     /// business.
     ///
     /// A [`RawValue`] rather than a byte string because the payload is
-    /// JSON already: it nests into an envelope with no base64 and no
+    /// JSON already: it nests into the envelope with no base64 and no
     /// re-serialization, and comes out the far side byte-identical.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub body: Option<Box<RawValue>>,
+    #[serde(default, skip_serializing_if = "Option::is_none", borrow)]
+    pub body: Option<&'a RawValue>,
 }
 
-impl PartialEq for Request {
+impl PartialEq for Request<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.method == other.method
             && self.path == other.path
             && self.headers == other.headers
-            && self.body.as_deref().map(RawValue::get)
-                == other.body.as_deref().map(RawValue::get)
+            && self.body.map(RawValue::get) == other.body.map(RawValue::get)
+    }
+}
+
+impl Encode for Request<'_> {
+    /// The ordinary JSON failure and nothing else.
+    ///
+    /// [`body`](Self::body) cannot contribute one: a [`RawValue`] is
+    /// already-valid JSON and serializes by being copied out.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        serde_json::to_writer(out, self)
     }
 }
