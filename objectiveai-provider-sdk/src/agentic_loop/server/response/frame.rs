@@ -1,6 +1,7 @@
 //! What a server's response frame carries.
 
 use super::AgenticLoopChunk;
+use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response).
@@ -51,5 +52,14 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         serde_json::to_writer(out, &self.0)
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// The ordinary JSON failure.
+    type Error = serde_json::Error;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes).map(Frame)
     }
 }

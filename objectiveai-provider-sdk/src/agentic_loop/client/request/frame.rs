@@ -4,6 +4,7 @@ use rmcp::model::ContentBlock;
 use serde::{Deserialize, Serialize};
 
 use super::agent::Agent;
+use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
 /// What a caller hands a provider to start or resume a loop.
@@ -58,5 +59,14 @@ impl Encode for Frame {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         serde_json::to_writer(out, self)
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// The ordinary JSON failure.
+    type Error = serde_json::Error;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes)
     }
 }

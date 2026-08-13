@@ -63,3 +63,15 @@ impl Encode for Frame<'_> {
         }
     }
 }
+
+// No `Decode`. This enum is a CHOICE, and the bytes do not contain it:
+// head or body is settled by POSITION on the channel, which is the
+// reader's own state rather than anything in a payload. A reader that
+// knows it holds the first response frame decodes a
+// [`Head`](crate::mcp::response::Head) and wraps it; every one after
+// is `Frame::Body(bytes)` with nothing to parse.
+//
+// Which is the asymmetry between the two traits. `Encode` on a
+// dispatch enum is fine — you know which variant you are holding.
+// `Decode` is not, because knowing is exactly what the bytes cannot
+// tell you.

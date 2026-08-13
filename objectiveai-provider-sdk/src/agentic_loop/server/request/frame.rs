@@ -69,3 +69,12 @@ impl Encode for Frame<'_> {
         }
     }
 }
+
+// No `Decode`. This enum is a CHOICE, and the bytes do not contain it:
+// which variant applies is the frame's own `type`, one layer up. A
+// reader matches on that and decodes the payload it names —
+// [`mcp::request::Request`](crate::mcp::request::Request) for one,
+// the raw slice for the other — then wraps the result.
+//
+// See [`mcp::response::Frame`](crate::mcp::response::Frame) for the
+// same point made about a different discriminator.

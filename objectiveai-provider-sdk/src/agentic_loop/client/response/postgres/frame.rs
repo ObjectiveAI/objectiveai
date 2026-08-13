@@ -2,6 +2,7 @@
 
 use std::convert::Infallible;
 
+use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
 /// The payload of a
@@ -44,5 +45,17 @@ impl Encode for Frame<'_> {
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         out.extend_from_slice(self.0);
         Ok(())
+    }
+}
+
+/// The bytes, kept. Decoding pgwire would mean parsing it, which is
+/// the one thing a tunnel promises not to do.
+impl<'a> Decode<'a> for Frame<'a> {
+    /// [`Infallible`]: there is nothing to get wrong about a slice
+    /// that is already the answer.
+    type Error = Infallible;
+
+    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+        Ok(Frame(bytes))
     }
 }

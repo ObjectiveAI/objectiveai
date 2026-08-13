@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue;
 
 use super::Method;
+use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
 /// An MCP request, complete in a single frame.
@@ -113,5 +114,14 @@ impl Encode for Request<'_> {
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
         serde_json::to_writer(out, self)
+    }
+}
+
+impl<'a> Decode<'a> for Request<'a> {
+    /// The ordinary JSON failure.
+    type Error = serde_json::Error;
+
+    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+        serde_json::from_slice(bytes)
     }
 }
