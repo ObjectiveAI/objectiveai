@@ -74,12 +74,33 @@ pub struct Frame {
     /// preserved rather than sorted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mounts: Vec<Mount>,
-    /// The working directory processes start in, as path components
-    /// from the container's root.
+    /// Where an agent that connects into this container starts, as
+    /// path components from the container's root.
     ///
-    /// Empty means the root, which is also what it means to omit this.
+    /// Empty means the root, which is also what omitting it means.
+    ///
+    /// # A starting point, not a boundary
+    ///
+    /// An agent that arrives here can leave. `cd ..` goes one above
+    /// this, and keeps going. Nothing about this field confines
+    /// anything, and reading it as a jail is the one way to get it
+    /// badly wrong.
+    ///
+    /// What confines an agent is [`mounts`](Self::mounts) — the
+    /// container sees the image's own filesystem and whatever
+    /// directories were mounted into it, and nothing else exists to
+    /// walk to. This only decides where the walking begins, so a
+    /// caller that mounted something at `/workspace` can have agents
+    /// land there instead of at `/`.
+    ///
+    /// # Not the container's working directory
+    ///
+    /// The image's `WORKDIR` is its author's business and this does
+    /// not touch it. The entrypoint runs where the image says; this is
+    /// about the agents that connect in afterwards, which is a
+    /// different thing happening at a different time.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub working_directory: Vec<String>,
+    pub initial_cwd: Vec<String>,
 }
 
 /// This frame's tag among the scope-opening requests.
