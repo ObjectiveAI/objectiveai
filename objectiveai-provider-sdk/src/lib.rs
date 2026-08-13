@@ -53,3 +53,4 @@ pub mod encode;
 pub mod frame;
 pub mod filetree;
 pub mod images;
+pub mod mcp;
