@@ -4,20 +4,18 @@ use serde::{Deserialize, Serialize};
 
 /// A directory from a listing, mounted into the container.
 ///
-/// # Three paths, two sides
+/// Host side first, then the container side — source before
+/// destination, the order a mount reads in everywhere else.
 ///
-/// [`path`](Self::path) is inside the container.
-/// [`name`](Self::name) and
-/// [`relative_path`](Self::relative_path) together say what to put
-/// there, and both are outside it.
+/// # Why the host side is a name and an offset
 ///
-/// The outside pair is a name and an offset rather than a path,
-/// because a path is not something a caller is allowed to state. The
-/// name is a
+/// Because a host path is not something a caller is allowed to state.
+/// [`host_name`](Self::host_name) is a
 /// [`Directory::name`](crate::filesystem::list::server::response::Directory::name)
-/// the provider published, and the offset is relative to whatever that
-/// name maps to — so a caller can reach a subdirectory of something it
-/// was offered, and nothing else.
+/// the provider published, and
+/// [`host_relative_path`](Self::host_relative_path) descends from
+/// wherever that maps to — so a caller reaches a subdirectory of
+/// something it was offered, and nothing else.
 ///
 /// That is the same access model as
 /// [`watch`](crate::filesystem::watch), and it holds for the same
@@ -27,22 +25,22 @@ use serde::{Deserialize, Serialize};
 /// components, and `..` is a name, not an instruction.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Mount {
-    /// Where the directory appears INSIDE the container, as path
-    /// components from the container's root.
-    ///
-    /// Empty means the root itself, which a provider will almost
-    /// certainly refuse — the image's own filesystem is there.
-    pub path: Vec<String>,
     /// Which offered directory, by the name a listing gave it.
     ///
-    /// Outside the container. Names come from
+    /// Names come from
     /// [`Directory::name`](crate::filesystem::list::server::response::Directory::name)
     /// and mean nothing outside the provider that published them.
-    pub name: String,
+    pub host_name: String,
     /// How far into that directory to start, as path components
     /// relative to it.
     ///
-    /// Outside the container. Empty mounts the directory itself, which
-    /// is the common case; anything else mounts a subdirectory of it.
-    pub relative_path: Vec<String>,
+    /// Empty mounts the directory itself, which is the common case;
+    /// anything else mounts a subdirectory of it.
+    pub host_relative_path: Vec<String>,
+    /// Where it appears inside the container, as path components from
+    /// the container's root.
+    ///
+    /// Empty means the root itself, which a provider will almost
+    /// certainly refuse — the image's own filesystem is there.
+    pub container_path: Vec<String>,
 }
