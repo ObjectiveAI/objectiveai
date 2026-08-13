@@ -6,7 +6,7 @@
 //! opens one, and it is the only frame here.
 //!
 //! Which is why what an MCP one carries is named where it lives, at
-//! [`mcp::request`](crate::mcp::request), rather than pulled under
+//! [`mcp::request`](crate::http::request), rather than pulled under
 //! this module. An MCP request is not a second kind of request frame
 //! — it is the payload inside this one's
 //! [`Mcp`](Frame::Mcp) variant.

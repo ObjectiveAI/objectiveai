@@ -23,7 +23,7 @@
 /// owns everything implements `Decode<'_>` and ignores it.
 ///
 /// [`serde::Deserialize`]: https://docs.rs/serde/latest/serde/trait.Deserialize.html
-/// [`mcp::Request`]: crate::mcp::request::Request
+/// [`mcp::Request`]: crate::http::request::Request
 pub trait Decode<'a>: Sized {
     /// What went wrong, in the format's own words.
     ///

@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::mcp::request::Request;
+use crate::http::request::Request;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
@@ -40,7 +40,7 @@ use crate::mcp::request::Request;
 /// boundaries, no request parser in the conduit, and a terminator that
 /// can rebuild an ordinary request and hand it to an ordinary router.
 /// The JSON-RPC inside stays opaque regardless — see
-/// [`mcp::request::Request::body`](crate::mcp::request::Request::body).
+/// [`mcp::request::Request::body`](crate::http::request::Request::body).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// One MCP exchange, toward the client's MCP proxy. Complete in
@@ -70,7 +70,7 @@ const POSTGRES: u8 = 1;
 /// stays ignorant of it.
 ///
 /// [`Mcp`](Frame::Mcp) hands off to
-/// [`Request`](crate::mcp::request::Request)'s own impl rather than
+/// [`Request`](crate::http::request::Request)'s own impl rather than
 /// serializing the request here. Not to save the four lines — because
 /// an MCP request has ONE wire form, and writing it a second time in
 /// a second place is how two wire forms start.
