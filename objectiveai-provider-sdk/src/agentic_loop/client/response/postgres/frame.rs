@@ -5,7 +5,7 @@ use std::convert::Infallible;
 use crate::encode::{Encode, Writer};
 
 /// The payload of a
-/// [`ClientFrame::Response`](crate::frame::client::ClientFrame::Response)
+/// [`ClientFrame::ChannelResponse`](crate::frame::client::ClientFrame::ChannelResponse)
 /// on a channel opened by
 /// [`request::Frame::Postgres`](crate::agentic_loop::server::request::Frame::Postgres).
 ///

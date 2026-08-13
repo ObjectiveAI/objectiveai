@@ -13,7 +13,8 @@ use super::FrameError;
 /// [`ResponseAck`](Self::ResponseAck), [`Response`](Self::Response) and
 /// [`ResponseFinish`](Self::ResponseFinish) carry no channel: they answer the client's
 /// own request, which is always channel `0`. Only
-/// [`Request`](Self::Request) names a channel, because it is the only
+/// [`ChannelRequest`](Self::ChannelRequest) names a channel, because it
+/// is the only
 /// one that opens one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServerFrame<'a> {
@@ -58,7 +59,7 @@ pub enum ServerFrame<'a> {
     ///
     /// The client answers on that same channel with its own response
     /// ack, responses and response finish.
-    Request {
+    ChannelRequest {
         /// The scope this happens inside.
         scope: u32,
         /// A channel unique within the scope, minted here. Every
@@ -89,7 +90,7 @@ impl<'a> ServerFrame<'a> {
             1 => ServerFrame::Response { scope, payload },
             2 => ServerFrame::ResponseFinish { scope },
             3 => ServerFrame::Auth { payload },
-            r#type => ServerFrame::Request {
+            r#type => ServerFrame::ChannelRequest {
                 scope,
                 channel,
                 r#type,

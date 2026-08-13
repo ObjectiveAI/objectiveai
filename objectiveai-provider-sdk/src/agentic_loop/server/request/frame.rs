@@ -3,7 +3,7 @@
 use crate::encode::{Encode, Writer};
 use crate::mcp::request::Request;
 
-/// The payload of a [`ServerFrame::Request`](crate::frame::server::ServerFrame::Request).
+/// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
 /// A server asks its client for two things, and both are the same ask
 /// in different clothes: a connection it cannot make itself. The agent
