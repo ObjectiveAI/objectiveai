@@ -9,7 +9,7 @@ use crate::encode::{Encode, Writer};
 /// A server's response frames are always channel `0` — the answer to
 /// the client's own request — so there is exactly one thing they can
 /// be. The tunnels do not appear here: their bytes travel the other
-/// direction as [`request::Frame`](crate::agentic_loop::server::request::Frame),
+/// direction as [`request::Frame`](crate::agentic_loop::server::channel_request::Frame),
 /// and what comes BACK on them is a client response, not a server one.
 ///
 /// # A frame type is never serialized
@@ -28,7 +28,7 @@ use crate::encode::{Encode, Writer};
 ///
 /// There is one thing it can hold, so there is nothing to choose
 /// between — the same reason
-/// [`postgres::Frame`](crate::agentic_loop::client::response::postgres::Frame)
+/// [`postgres::Frame`](crate::agentic_loop::client::channel_response::postgres::Frame)
 /// is one. A single-variant enum would ask every reader to match on a
 /// decision that has already been made.
 ///

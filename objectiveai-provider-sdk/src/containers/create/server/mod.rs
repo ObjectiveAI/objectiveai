@@ -1,10 +1,10 @@
 //! The server side of a container creation: what a provider sends.
 //!
-//! [`request`] is what it opens channels to ask the caller for while
-//! assembling the image. [`response`] is the answer to the creation
-//! itself.
+//! [`channel_request`] is what it opens channels to ask the caller for
+//! while pulling the image. [`response`] is the answer to the creation
+//! itself, on channel `0`.
 //!
 //! Under construction — [`response`] is still empty.
 
-pub mod request;
+pub mod channel_request;
 pub mod response;

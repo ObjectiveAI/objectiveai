@@ -8,7 +8,7 @@ use crate::encode::{Encode, Writer};
 /// The payload of a
 /// [`ClientFrame::ChannelResponse`](crate::frame::client::ClientFrame::ChannelResponse)
 /// on a channel opened by
-/// [`request::Frame::Postgres`](crate::agentic_loop::server::request::Frame::Postgres).
+/// [`request::Frame::Postgres`](crate::agentic_loop::server::channel_request::Frame::Postgres).
 ///
 /// pgwire as it came off the socket, going back the way it came.
 ///
@@ -21,7 +21,7 @@ use crate::encode::{Encode, Writer};
 /// # Why a struct, where MCP has an enum
 ///
 /// Because there is nothing to choose between.
-/// [`mcp::Frame`](crate::agentic_loop::client::response::mcp::Frame) has two
+/// [`mcp::Frame`](crate::agentic_loop::client::channel_response::mcp::Frame) has two
 /// variants for a real reason: an MCP answer has a head that arrives
 /// once and a body that arrives repeatedly, and a reader must tell
 /// them apart. A Postgres channel has one kind of traffic from the
