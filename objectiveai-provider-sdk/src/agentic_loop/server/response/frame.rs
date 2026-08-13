@@ -1,6 +1,7 @@
 //! What a server's response frame carries.
 
 use super::AgenticLoopChunk;
+use crate::encode::{Encode, Writer};
 
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response).
 ///
@@ -39,3 +40,16 @@ pub struct Frame(
     /// One chunk of the answer to the client's request.
     pub AgenticLoopChunk,
 );
+
+/// The chunk's own JSON, with nothing wrapped around it. A frame type
+/// is dispatch rather than a wire shape, so encoding one means
+/// encoding what it holds — the newtype leaves no trace on the wire.
+impl Encode for Frame {
+    /// The ordinary JSON failure. A chunk is entirely shapes: content,
+    /// reasoning, tool calls, usage. Nothing in it is a passthrough.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        serde_json::to_writer(out, &self.0)
+    }
+}

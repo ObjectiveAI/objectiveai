@@ -1,5 +1,6 @@
 //! What a server's request frame carries.
 
+use crate::encode::{Encode, Writer};
 use crate::mcp::request::Request;
 
 /// The payload of a [`ServerFrame::Request`](crate::frame::server::ServerFrame::Request).
@@ -45,4 +46,26 @@ pub enum Frame<'a> {
     /// this is a socket, and successive frames on the channel are
     /// successive writes.
     Postgres(&'a [u8]),
+}
+
+/// [`Mcp`](Frame::Mcp) hands off to
+/// [`Request`](crate::mcp::request::Request)'s own impl rather than
+/// serializing the request here. Not to save the four lines — because
+/// an MCP request has ONE wire form, and writing it a second time in
+/// a second place is how two wire forms start.
+impl Encode for Frame<'_> {
+    /// The MCP request's error, since the other variant has none.
+    /// Postgres bytes are copied, and copying cannot fail — so the
+    /// union of the two is just what MCP can do wrong.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        match self {
+            Frame::Mcp(request) => request.encode(out),
+            Frame::Postgres(bytes) => {
+                out.extend_from_slice(bytes);
+                Ok(())
+            }
+        }
+    }
 }
