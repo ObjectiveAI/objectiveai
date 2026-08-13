@@ -6,6 +6,4 @@
 //! front, then one frame per changed node, indefinitely. No polling,
 //! and the full tree is never re-sent.
 
-mod response;
-
-pub use response::*;
+pub mod response;

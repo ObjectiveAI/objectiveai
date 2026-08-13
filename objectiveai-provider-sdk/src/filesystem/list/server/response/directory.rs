@@ -11,10 +11,15 @@ use serde::{Deserialize, Serialize};
 /// not be the last component of wherever it happens to live.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Directory {
-    /// What to call this directory.
+    /// What to call this directory, and how to ask for it.
     ///
-    /// A label, not a basename. Nothing derives it from
+    /// A label, not a basename: nothing derives it from
     /// [`path`](Self::path) and nothing requires the two to agree.
+    ///
+    /// It is also the HANDLE. A
+    /// [`watch`](crate::filesystem::watch) names a directory by this
+    /// and by nothing else, so two directories in one listing sharing
+    /// a name would make one of them unreachable.
     pub name: String,
     /// Where the directory is, as path components.
     ///
