@@ -51,49 +51,45 @@
 //! | type | client | server |
 //! |------|--------|--------|
 //! | 0    | auth | auth |
-//! | 1    | — | response ack |
-//! | 2    | — | response |
-//! | 3    | — | response finish |
-//! | 4    | channel response ack | channel response ack |
-//! | 5    | channel response | channel response |
-//! | 6    | channel response finish | channel response finish |
-//! | 7    | channel request | channel request |
-//! | 8    | agentic loop request | — |
-//! | 9    | images check request | — |
+//! | 1    | request | — |
+//! | 2    | — | response ack |
+//! | 3    | — | response |
+//! | 4    | — | response finish |
+//! | 5    | channel request | channel request |
+//! | 6    | channel response ack | channel response ack |
+//! | 7    | channel response | channel response |
+//! | 8    | channel response finish | channel response finish |
+//! | 9    | agentic loop request | — |
+//! | 10   | images check request | — |
 //!
-//! Auth leads because it comes first in time: nothing may precede it,
-//! and a peer reading a connection's opening byte should not have to
-//! look past the reply types to find out whether it is one.
+//! Auth leads because it leads in time: nothing may precede it, and a
+//! peer reading a connection's opening byte should not have to look
+//! past the reply types to find out whether it is one.
 //!
-//! `1` through `3` are the SCOPE-level replies — minting a scope,
-//! answering on channel `0`, ending it — and only a server sends
-//! those, which is why the client's are blank rather than reused.
-//! `4` through `6` are the same three at CHANNEL level, and both sides
-//! send them: each answers a channel the OTHER side opened.
+//! After it the order is the order things happen in. A request opens
+//! something — a scope at `1`, a channel at `5` — and the ack,
+//! responses and finish that answer it follow immediately behind. The
+//! same four beats twice, once per level.
 //!
-//! So `0` through `6` mean one thing apiece regardless of direction,
-//! and only requests differ — which is the whole reason the client's
-//! gap was left open instead of closed up.
-//!
-//! The three response frames — the ack, the response itself, and
-//! the finish — mean the same thing in both directions and on every
-//! channel: an exchange beginning, its contents, and its end.
-//! One sequence, whether the server is answering the client's request
-//! on channel `0` or the client is answering a server request on that
-//! request's channel.
+//! A number means one thing in both directions, and the blanks are
+//! what keep it that way. Only a client opens a scope, so only a
+//! client sends `1`; only a server answers one, so only a server sends
+//! `2` through `4`. Closing those gaps would save two byte values and
+//! cost the property that a type identifies a frame without reference
+//! to who sent it.
 //!
 //! # Requests
 //!
-//! Two kinds, and the split is by what they OPEN.
+//! Two kinds, and the split is by what they OPEN. `1` opens a SCOPE
+//! and only a client sends it; `5` opens a CHANNEL and both sides
+//! send it. Neither is discriminated here — WHICH request it is lives
+//! in the payload's own leading byte, read by whatever type the
+//! channel carries.
 //!
-//! `8` and `9` open a SCOPE, and only a client sends them — a server
-//! never initiates one. They are a closed set this layer knows by
-//! name: each is a variant of [`ClientFrame`] with its payload
-//! decoded rather than carried, and a third would be `10`.
-//!
-//! `7` opens a CHANNEL, and both sides send it. One type rather than
-//! a range: WHICH request it is lives in the payload's own leading
-//! byte, read by whatever type the channel carries.
+//! `9` and `10` are the same thing said the older way: one named type
+//! apiece, with the payload decoded here rather than carried. They
+//! fold into `1` once their payloads take tags, and this layer stops
+//! knowing what an agentic loop is.
 //!
 //! # Growth happens in payloads, not here
 //!

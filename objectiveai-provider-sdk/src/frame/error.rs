@@ -23,9 +23,10 @@ pub enum FrameError {
     ///
     /// Every frame kind is fixed and enumerated, in both directions,
     /// so an unfamiliar value is a malformed frame rather than a peer
-    /// with more protocol than this one. The client's blanks at `1`
-    /// through `3` count: those are the scope-level replies, which
-    /// only a server sends.
+    /// with more protocol than this one. The blanks count too: a
+    /// client sending `2` through `4` is sending scope-level replies
+    /// only a server has, and a server sending `1` is opening a scope
+    /// it has no business opening.
     ///
     /// What a newer peer legitimately has more of is request KINDS,
     /// and those are discriminated inside payloads rather than by this

@@ -1,21 +1,20 @@
 //! Frames a server sends.
 //!
-//! A server answers the client's request, may open channels of its own
-//! to ask the client for things along the way, and — if it was the
-//! side that dialled — authenticates. The requests and answers all
-//! happen inside the scope the client's request opened; a server never
-//! initiates one.
+//! A server answers the client's request, answers the channels a
+//! client opens, opens channels of its own to ask for things along the
+//! way, and — if it was the side that dialled — authenticates. All of
+//! it happens inside the scope the client's request opened; a server
+//! never initiates one.
 
 use super::FrameError;
 
 /// A frame sent by a server.
 ///
-/// Which of them carry a channel follows from what they answer.
+/// Which of these carry a channel follows from what they answer.
 /// [`ResponseAck`](Self::ResponseAck), [`Response`](Self::Response)
 /// and [`ResponseFinish`](Self::ResponseFinish) answer the client's
 /// own request, which is always channel `0`, so they name none. The
-/// channel-level three and [`ChannelRequest`](Self::ChannelRequest)
-/// each name one exchange out of many, so they do.
+/// channel-level four each name one exchange out of many, so they do.
 ///
 /// # Two channel spaces
 ///
@@ -27,6 +26,12 @@ use super::FrameError;
 /// `5` in one direction has nothing to do with a channel `5` in the
 /// other. Which space applies is settled by the frame's direction and
 /// its type, and never has to be carried.
+///
+/// # The gap at `1`
+///
+/// That is the client's scope-opening request, which a server never
+/// sends. It is left empty rather than closed up so a number means one
+/// thing whichever way a frame is travelling.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ServerFrame<'a> {
     /// Type `0`. The first frame of a connection, sent by whichever
@@ -45,14 +50,14 @@ pub enum ServerFrame<'a> {
         /// The credential, in whatever form the two ends agreed.
         payload: &'a [u8],
     },
-    /// Type `1` on channel `0`. Acknowledges the client's request and
+    /// Type `2` on channel `0`. Acknowledges the client's request and
     /// MINTS its scope — the first frame of the scope, and the only
     /// place the scope comes from.
     ResponseAck {
         /// The newly minted scope.
         scope: u32,
     },
-    /// Type `2` on channel `0`. One piece of the answer to the
+    /// Type `3` on channel `0`. One piece of the answer to the
     /// client's request.
     Response {
         /// The scope.
@@ -60,48 +65,19 @@ pub enum ServerFrame<'a> {
         /// The response bytes.
         payload: &'a [u8],
     },
-    /// Type `3` on channel `0`. The scope is over. Nothing bearing it
+    /// Type `4` on channel `0`. The scope is over. Nothing bearing it
     /// follows, on any channel.
     ResponseFinish {
         /// The scope.
         scope: u32,
     },
-    /// Type `4`. Acknowledges a client request; the exchange has
-    /// begun.
-    ChannelResponseAck {
-        /// The scope.
-        scope: u32,
-        /// The channel of the client request being answered, in the
-        /// CLIENT's numbering.
-        channel: u32,
-    },
-    /// Type `5`. One piece of the answer. There may be any number,
-    /// including none.
-    ChannelResponse {
-        /// The scope.
-        scope: u32,
-        /// The channel of the client request being answered, in the
-        /// CLIENT's numbering.
-        channel: u32,
-        /// The response bytes.
-        payload: &'a [u8],
-    },
-    /// Type `6`. The answer is complete and the channel is closed.
-    /// Nothing follows on it.
-    ChannelResponseFinish {
-        /// The scope.
-        scope: u32,
-        /// The channel of the client request being answered, in the
-        /// CLIENT's numbering.
-        channel: u32,
-    },
-    /// Type `7`. A request to the client, opening a channel.
+    /// Type `5`. A request to the client, opening a channel.
     ///
     /// The client answers on that same channel with its own channel
     /// ack, responses and finish.
     ///
-    /// Not decoded here, and not discriminated here either. WHICH
-    /// request this is lives in the payload's own leading byte — see
+    /// Not discriminated here. WHICH request this is lives in the
+    /// payload's own leading byte — see
     /// [`request::Frame`](crate::agentic_loop::server::request::Frame),
     /// which reads it.
     ChannelRequest {
@@ -116,37 +92,67 @@ pub enum ServerFrame<'a> {
         /// The request bytes, tag included.
         payload: &'a [u8],
     },
+    /// Type `6`. Acknowledges a client request; the exchange has
+    /// begun.
+    ChannelResponseAck {
+        /// The scope.
+        scope: u32,
+        /// The channel of the client request being answered, in the
+        /// CLIENT's numbering.
+        channel: u32,
+    },
+    /// Type `7`. One piece of the answer. There may be any number,
+    /// including none.
+    ChannelResponse {
+        /// The scope.
+        scope: u32,
+        /// The channel of the client request being answered, in the
+        /// CLIENT's numbering.
+        channel: u32,
+        /// The response bytes.
+        payload: &'a [u8],
+    },
+    /// Type `8`. The answer is complete and the channel is closed.
+    /// Nothing follows on it.
+    ChannelResponseFinish {
+        /// The scope.
+        scope: u32,
+        /// The channel of the client request being answered, in the
+        /// CLIENT's numbering.
+        channel: u32,
+    },
 }
 
 impl<'a> ServerFrame<'a> {
     /// Decode one frame. The payload borrows from `bytes`.
     ///
-    /// Every type this layer defines is defined here, so an
-    /// unfamiliar one is a malformed frame rather than a newer peer —
-    /// what a newer peer has more of lives in payloads, behind a
+    /// Every type this layer defines is defined here, so an unfamiliar
+    /// one is a malformed frame rather than a newer peer — what a
+    /// newer peer has more of lives in payloads, behind a
     /// [`ChannelRequest`](Self::ChannelRequest), where this layer
     /// never looks.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
-            // Channel is meaningless on a reply — it is always `0` —
-            // so a non-zero one is ignored rather than rejected.
+            // Channel is meaningless on a scope-level reply — it is
+            // always `0` — so a non-zero one is ignored rather than
+            // rejected.
             0 => ServerFrame::Auth { payload },
-            1 => ServerFrame::ResponseAck { scope },
-            2 => ServerFrame::Response { scope, payload },
-            3 => ServerFrame::ResponseFinish { scope },
-            4 => ServerFrame::ChannelResponseAck { scope, channel },
-            5 => ServerFrame::ChannelResponse {
+            2 => ServerFrame::ResponseAck { scope },
+            3 => ServerFrame::Response { scope, payload },
+            4 => ServerFrame::ResponseFinish { scope },
+            5 => ServerFrame::ChannelRequest {
                 scope,
                 channel,
                 payload,
             },
-            6 => ServerFrame::ChannelResponseFinish { scope, channel },
-            7 => ServerFrame::ChannelRequest {
+            6 => ServerFrame::ChannelResponseAck { scope, channel },
+            7 => ServerFrame::ChannelResponse {
                 scope,
                 channel,
                 payload,
             },
+            8 => ServerFrame::ChannelResponseFinish { scope, channel },
             other => return Err(FrameError::UnknownType(other)),
         })
     }
