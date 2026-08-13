@@ -95,8 +95,7 @@ pub enum ServerFrame<'a> {
         /// CLIENT's numbering.
         channel: u32,
     },
-    /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or above: a
-    /// request to the client, opening a channel.
+    /// `128` or above: a request to the client, opening a channel.
     ///
     /// The client answers on that same channel with its own response
     /// ack, responses and response finish.
@@ -110,8 +109,7 @@ pub enum ServerFrame<'a> {
         /// separately and never collide with these.
         channel: u32,
         /// Which kind of request.
-        /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or
-        /// above; what each value means
+        /// `128` or above; what each value means
         /// belongs to the protocol being carried, not to this layer.
         r#type: u8,
         /// The request bytes.
@@ -124,8 +122,7 @@ impl<'a> ServerFrame<'a> {
     ///
     /// Returns [`FrameError::UnknownType`] only for the RESERVED
     /// range. At
-    /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) and above,
-    /// a type belongs to the protocol being carried rather than to
+    /// `128` and above, a type belongs to the protocol being carried rather than to
     /// this layer, so an unfamiliar one is a request from a newer peer
     /// and decodes fine. Below it, every value this layer defines is
     /// defined already, and the rest are held back on purpose.
@@ -145,7 +142,7 @@ impl<'a> ServerFrame<'a> {
                 payload,
             },
             6 => ServerFrame::ChannelResponseFinish { scope, channel },
-            r#type if r#type >= super::CHANNEL_REQUEST_MIN => {
+            r#type if r#type >= 128 => {
                 ServerFrame::ChannelRequest {
                     scope,
                     channel,

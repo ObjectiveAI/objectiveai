@@ -22,14 +22,14 @@ pub enum FrameError {
     /// A `type` in the RESERVED range that this layer does not
     /// define.
     ///
-    /// Below [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) every
+    /// Below `128` every
     /// meaning belongs to this layer, and every one it has is defined
     /// already — so an undefined value there is not a newer peer, it
     /// is a malformed frame. The client's blanks at `1` through `3`
     /// count: those are the scope-level replies, which only a server
     /// sends.
     ///
-    /// At `CHANNEL_REQUEST_MIN` and above nothing produces this, in
+    /// At `128` and above nothing produces this, in
     /// either direction. Those types belong to the protocol a channel
     /// carries rather than to this layer, so an unfamiliar one decodes
     /// as a channel request and is somebody else's to recognize.

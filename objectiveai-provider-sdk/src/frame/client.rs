@@ -105,8 +105,7 @@ pub enum ClientFrame<'a> {
     /// no channels of its own — there is nothing it needs from the
     /// client to answer.
     ImagesCheckRequest(images::check::client::request::Frame),
-    /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or above: a
-    /// request to the server, opening a channel.
+    /// `128` or above: a request to the server, opening a channel.
     ///
     /// The server answers on that same channel with its own channel
     /// ack, responses and finish.
@@ -124,8 +123,7 @@ pub enum ClientFrame<'a> {
         /// separately and never collide with these.
         channel: u32,
         /// Which kind of request.
-        /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or
-        /// above; what each value means belongs to the protocol being
+        /// `128` or above; what each value means belongs to the protocol being
         /// carried, not to this layer.
         r#type: u8,
         /// The request bytes.
@@ -155,7 +153,7 @@ impl<'a> ClientFrame<'a> {
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
-            r#type if r#type >= super::CHANNEL_REQUEST_MIN => {
+            r#type if r#type >= 128 => {
                 ClientFrame::ChannelRequest {
                     scope,
                     channel,

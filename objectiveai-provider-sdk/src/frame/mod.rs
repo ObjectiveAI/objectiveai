@@ -92,7 +92,7 @@
 //! name: each is a variant of [`ClientFrame`] with its payload
 //! decoded rather than carried, and a third would be `9`.
 //!
-//! [`CHANNEL_REQUEST_MIN`] and above open a CHANNEL, and both sides
+//! `128` and above open a CHANNEL, and both sides
 //! send them. That space is open: this layer knows only that a request
 //! arrived, the payload stays bytes, the type stays a number, and an
 //! unfamiliar one is a newer peer rather than an error.
@@ -141,19 +141,6 @@
 //! Because the reply types are shared and the request types are not,
 //! `type` alone determines what a frame is. Nothing has to consult
 //! whether the scope happens to be zero.
-
-/// The lowest `type` that names a CHANNEL request.
-///
-/// Everything below this is a frame kind this layer defines itself —
-/// auth, and the two levels of reply. Everything at or above it is a
-/// request whose meaning belongs to the protocol a channel carries,
-/// which is why one can be decoded without being understood.
-///
-/// Deliberately far above what either side uses today. The gap is not
-/// a prediction that a hundred control frames are coming; it is so
-/// that adding one never has to push the request space, and so that a
-/// reader can tell the two apart by magnitude alone.
-pub const CHANNEL_REQUEST_MIN: u8 = 128;
 
 pub mod client;
 pub mod server;
