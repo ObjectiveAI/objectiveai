@@ -3,7 +3,7 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::Mount;
+use super::{Image, Mount};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -22,26 +22,13 @@ use crate::encode::{Encode, Writer};
 /// executes — a provider that cannot honour
 /// [`memory`](Self::memory) says so now rather than by killing
 /// something later.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Frame {
-    /// The image's repository path — `library/nginx`, `myorg/myimage`.
+    /// Which image, and who produces it.
     ///
-    /// Kept alongside the digest because a digest alone is not
-    /// resolvable: every registry API is repository-scoped, and there
-    /// is no lookup from a digest to wherever it lives.
-    pub name: String,
-    /// The image's manifest digest, `<algorithm>:<hex>`.
-    ///
-    /// What actually identifies the image. Unlike a tag, it cannot be
-    /// repointed at different content — so a container created twice
-    /// from the same digest is created twice from the same bytes.
-    ///
-    /// No registry, for the reason
-    /// [`images::check`](crate::images::check) gives: where a provider
-    /// gets the image is the provider's business, and a caller naming
-    /// a registry it cannot reach would be asserting something it has
-    /// no standing to assert.
-    pub digest: String,
+    /// See [`Image`] — a provider may fetch it, may already hold it,
+    /// or may have to be handed it by the caller.
+    pub image: Image,
     /// How much memory the container may have, in BYTES.
     ///
     /// A ceiling, not a hint. A process past it is killed by the
@@ -114,10 +101,11 @@ const TAG: u8 = 4;
 /// JSON, matching [`images::check`](crate::images::check) rather than
 /// the postcard [`filesystem`](crate::filesystem) uses.
 ///
-/// It carries the same thing images check does — a repository name and
-/// a digest — and one of these is sent per container rather than per
-/// filesystem event, so there is no volume to optimize for and no
-/// reason for two sides of one concern to be encoded differently.
+/// One of these is sent per container rather than per filesystem
+/// event, so there is no volume to optimize for. And an
+/// [`Image::Client`] carries a manifest that must survive
+/// byte-identical to keep its digest — which a `RawValue` does in
+/// JSON and would not survive a re-encoding into anything else.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
