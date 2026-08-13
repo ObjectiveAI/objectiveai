@@ -5,6 +5,6 @@
 //! check is answerable from the question alone, which is why this is
 //! one type and not a module of them.
 
-mod request;
+mod frame;
 
-pub use request::*;
+pub use frame::*;

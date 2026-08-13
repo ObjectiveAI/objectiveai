@@ -1,6 +1,8 @@
-//! The image check request.
+//! What a client's request frame carries for an image check.
 
 use serde::{Deserialize, Serialize};
+
+use crate::encode::{Encode, Writer};
 
 /// Ask a provider whether it can supply a particular image.
 ///
@@ -16,7 +18,7 @@ use serde::{Deserialize, Serialize};
 /// yes, and a caller naming a registry it cannot reach would be
 /// asserting something it has no standing to assert.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub struct Request {
+pub struct Frame {
     /// The repository path — `library/nginx`, `myorg/myimage`.
     ///
     /// Kept alongside the digest because a digest alone is not
@@ -28,4 +30,15 @@ pub struct Request {
     /// What actually identifies the image. Unlike a tag, it cannot be
     /// repointed at different content.
     pub digest: String,
+}
+
+impl Encode for Frame {
+    /// The ordinary JSON failure. Two strings and nothing else — this
+    /// is as close to unfailable as a serialized shape gets, but it is
+    /// a shape, so it is not [`Infallible`](std::convert::Infallible).
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        serde_json::to_writer(out, self)
+    }
 }

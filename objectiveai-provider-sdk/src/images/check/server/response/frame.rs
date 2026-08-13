@@ -1,6 +1,7 @@
 //! What a server's response frame carries in an image check.
 
 use super::Response;
+use crate::encode::{Encode, Writer};
 
 /// The payload of a [`ServerFrame::Response`](crate::frame::server::ServerFrame::Response)
 /// on channel `0` of an image check.
@@ -38,3 +39,16 @@ pub struct Frame(
     /// The answer to the check.
     pub Response,
 );
+
+/// The answer's own JSON, with nothing wrapped around it. A frame type
+/// is dispatch rather than a wire shape, so encoding one means
+/// encoding what it holds — the newtype leaves no trace on the wire,
+/// and neither does the untagged enum inside it.
+impl Encode for Frame {
+    /// The ordinary JSON failure.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        serde_json::to_writer(out, &self.0)
+    }
+}

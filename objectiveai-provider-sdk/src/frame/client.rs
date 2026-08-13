@@ -93,7 +93,7 @@ pub enum ClientFrame<'a> {
     /// one response on channel `0`, and the finish. The server opens
     /// no channels of its own — there is nothing it needs from the
     /// client to answer.
-    ImagesCheckRequest(images::check::client::request::Request),
+    ImagesCheckRequest(images::check::client::request::Frame),
 }
 
 impl<'a> ClientFrame<'a> {
