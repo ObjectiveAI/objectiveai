@@ -9,13 +9,10 @@ pub const HEADER_LEN: usize = 1 + 4 + 4;
 
 /// A frame that could not be read.
 ///
-/// Not [`Clone`], [`PartialEq`] or [`Copy`], which the other types
-/// here are: [`Malformed`](Self::Malformed) carries a
-/// [`serde_json::Error`], and that is none of them. Keeping the parse
-/// failure is worth more than the derives — a rejected request is
-/// something someone has to debug, and `expected value at line 1
-/// column 84` is the whole of what they need.
-#[derive(Debug)]
+/// Two ways, and both are about the ENVELOPE. Nothing here concerns a
+/// payload, because this layer never looks at one: a frame is a header
+/// and some bytes, and the bytes are somebody else's to judge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FrameError {
     /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
@@ -33,14 +30,6 @@ pub enum FrameError {
     /// byte — so growth never widens the type space and never has to
     /// be tolerated here.
     UnknownType(u8),
-    /// A payload this layer DOES interpret, that did not parse.
-    ///
-    /// Only a client request can produce this, and for the same reason
-    /// [`UnknownType`](Self::UnknownType) is one-sided: the client's
-    /// requests are a closed set, so this layer knows their types and
-    /// decodes them. Everything else it carries — bodies, credentials,
-    /// server requests — it hands on as bytes and cannot judge.
-    Malformed(serde_json::Error),
 }
 
 impl std::fmt::Display for FrameError {
@@ -50,23 +39,13 @@ impl std::fmt::Display for FrameError {
                 f.write_str("frame is shorter than its header")
             }
             FrameError::UnknownType(byte) => {
-                write!(f, "unknown client frame type {byte}")
-            }
-            FrameError::Malformed(error) => {
-                write!(f, "client request did not parse: {error}")
+                write!(f, "unknown frame type {byte}")
             }
         }
     }
 }
 
-impl std::error::Error for FrameError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            FrameError::Malformed(error) => Some(error),
-            FrameError::Truncated | FrameError::UnknownType(_) => None,
-        }
-    }
-}
+impl std::error::Error for FrameError {}
 
 /// Split a frame's header off the front, returning
 /// `(type, scope, channel, payload)`.

@@ -59,8 +59,6 @@
 //! | 6    | channel response ack | channel response ack |
 //! | 7    | channel response | channel response |
 //! | 8    | channel response finish | channel response finish |
-//! | 9    | agentic loop request | — |
-//! | 10   | images check request | — |
 //!
 //! Auth leads because it leads in time: nothing may precede it, and a
 //! peer reading a connection's opening byte should not have to look
@@ -82,14 +80,11 @@
 //!
 //! Two kinds, and the split is by what they OPEN. `1` opens a SCOPE
 //! and only a client sends it; `5` opens a CHANNEL and both sides
-//! send it. Neither is discriminated here — WHICH request it is lives
-//! in the payload's own leading byte, read by whatever type the
-//! channel carries.
+//! send it.
 //!
-//! `9` and `10` are the same thing said the older way: one named type
-//! apiece, with the payload decoded here rather than carried. They
-//! fold into `1` once their payloads take tags, and this layer stops
-//! knowing what an agentic loop is.
+//! Neither is discriminated here. WHICH request either one is lives in
+//! the payload's own leading byte, so this layer sees two frame kinds
+//! however many kinds of request there turn out to be.
 //!
 //! # Growth happens in payloads, not here
 //!

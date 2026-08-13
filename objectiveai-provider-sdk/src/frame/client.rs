@@ -5,8 +5,6 @@
 //! dialled — authenticates.
 
 use super::FrameError;
-use crate::agentic_loop;
-use crate::images;
 
 /// A frame sent by a client.
 ///
@@ -16,19 +14,12 @@ use crate::images;
 /// because neither exists until the server answers, and auth comes
 /// before there is anything to carry.
 ///
-/// # Two ways to send a request, for now
+/// # Nothing here is parsed
 ///
-/// [`Request`](Self::Request) is the general one: a scope-opening
-/// request whose KIND is a tag inside its payload, the way channel
-/// requests already work.
-/// [`AgenticLoopRequest`](Self::AgenticLoopRequest) and
-/// [`ImagesCheckRequest`](Self::ImagesCheckRequest) are the older
-/// shape — one named type apiece, decoded here rather than carried.
-///
-/// The named pair is on its way out. Once their payloads carry tags
-/// they fold into `Request`, this layer stops knowing what an agentic
-/// loop is, and [`FrameError::Malformed`] goes with them, since
-/// nothing here will parse a payload any more.
+/// Every payload is bytes, in both directions. This layer splits a
+/// header and names a frame kind; what a payload MEANS belongs to the
+/// protocol carrying it, and is discriminated by a tag inside the
+/// payload rather than by anything out here.
 ///
 /// # The gaps
 ///
@@ -37,7 +28,7 @@ use crate::images;
 /// none of them: it asks for a scope and the server answers in it.
 /// Leaving the numbers unused rather than closing up keeps one number
 /// meaning one thing in both directions.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClientFrame<'a> {
     /// Type `0`. The first frame of a connection, sent by whichever
     /// side dialled. Nothing may precede it.
@@ -113,19 +104,6 @@ pub enum ClientFrame<'a> {
         /// SERVER's numbering.
         channel: u32,
     },
-    /// Type `9`. Run an agent, and stream back what it does.
-    ///
-    /// The root of everything else: the scope the server mints to
-    /// answer it, the channels opened inside that scope, and the
-    /// chunks that come back on channel `0`.
-    AgenticLoopRequest(agentic_loop::client::request::Frame),
-    /// Type `10`. Ask whether the provider can supply an image.
-    ///
-    /// A scope like any other, and a short one: the ack that mints it,
-    /// one response on channel `0`, and the finish. The server opens
-    /// no channels of its own — there is nothing it needs from the
-    /// client to answer.
-    ImagesCheckRequest(images::check::client::request::Frame),
 }
 
 impl<'a> ClientFrame<'a> {
@@ -148,14 +126,6 @@ impl<'a> ClientFrame<'a> {
                 payload,
             },
             8 => ClientFrame::ChannelResponseFinish { scope, channel },
-            9 => ClientFrame::AgenticLoopRequest(
-                serde_json::from_slice(payload)
-                    .map_err(FrameError::Malformed)?,
-            ),
-            10 => ClientFrame::ImagesCheckRequest(
-                serde_json::from_slice(payload)
-                    .map_err(FrameError::Malformed)?,
-            ),
             other => return Err(FrameError::UnknownType(other)),
         })
     }
