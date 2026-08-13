@@ -19,20 +19,18 @@ pub const HEADER_LEN: usize = 1 + 4 + 4;
 pub enum FrameError {
     /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
-    /// A `type` in the RESERVED range that this layer does not
-    /// define.
+    /// A `type` this layer does not define.
     ///
-    /// Below `128` every
-    /// meaning belongs to this layer, and every one it has is defined
-    /// already — so an undefined value there is not a newer peer, it
-    /// is a malformed frame. The client's blanks at `1` through `3`
-    /// count: those are the scope-level replies, which only a server
-    /// sends.
+    /// Every frame kind is fixed and enumerated, in both directions,
+    /// so an unfamiliar value is a malformed frame rather than a peer
+    /// with more protocol than this one. The client's blanks at `1`
+    /// through `3` count: those are the scope-level replies, which
+    /// only a server sends.
     ///
-    /// At `128` and above nothing produces this, in
-    /// either direction. Those types belong to the protocol a channel
-    /// carries rather than to this layer, so an unfamiliar one decodes
-    /// as a channel request and is somebody else's to recognize.
+    /// What a newer peer legitimately has more of is request KINDS,
+    /// and those are discriminated inside payloads rather than by this
+    /// byte — so growth never widens the type space and never has to
+    /// be tolerated here.
     UnknownType(u8),
     /// A payload this layer DOES interpret, that did not parse.
     ///

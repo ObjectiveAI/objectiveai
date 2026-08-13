@@ -19,11 +19,10 @@ use crate::images;
 /// # Requests are named, not numbered
 ///
 /// A client's requests are a CLOSED set, so they appear here one
-/// variant apiece rather than behind a single `Request { payload }`
-/// with a type byte beside it. Two so far —
-/// [`AgenticLoopRequest`](Self::AgenticLoopRequest) at `7` and
-/// [`ImagesCheckRequest`](Self::ImagesCheckRequest) at `8` — and a
-/// third would be a new variant at `9`.
+/// variant apiece rather than behind one opaque request frame. Two so
+/// far — [`AgenticLoopRequest`](Self::AgenticLoopRequest) at `8` and
+/// [`ImagesCheckRequest`](Self::ImagesCheckRequest) at `9` — and a
+/// third would be a new variant at `10`.
 ///
 /// # The gap at `1` through `3`
 ///
@@ -90,31 +89,15 @@ pub enum ClientFrame<'a> {
         /// The channel of the server request being answered.
         channel: u32,
     },
-    /// Type `7`. Run an agent, and stream back what it does.
-    ///
-    /// The request that opens a scope, and the root of everything
-    /// else: the scope the server mints to answer it, the channels the
-    /// server opens inside that scope, and the chunks that come back
-    /// on channel `0`. Sent with neither — the server mints the scope
-    /// in its ack.
-    AgenticLoopRequest(agentic_loop::client::request::Frame),
-    /// Type `8`. Ask whether the provider can supply an image.
-    ///
-    /// A scope like any other, and a short one: the ack that mints it,
-    /// one response on channel `0`, and the finish. The server opens
-    /// no channels of its own — there is nothing it needs from the
-    /// client to answer.
-    ImagesCheckRequest(images::check::client::request::Frame),
-    /// `128` or above: a request to the server, opening a channel.
+    /// Type `7`. A request to the server, opening a channel.
     ///
     /// The server answers on that same channel with its own channel
     /// ack, responses and finish.
     ///
-    /// Unlike the two above, this is NOT decoded here. Those are the
-    /// scope-opening requests, a closed set this layer knows by name;
-    /// these are open, so an unfamiliar type is a request from a newer
-    /// peer rather than an error, and the payload stays bytes for
-    /// something above this layer to read.
+    /// Not decoded here, and not discriminated here either. WHICH
+    /// request this is lives in the payload's own leading byte, read
+    /// by whatever type the channel carries — so this layer sees one
+    /// frame kind and hands the bytes on.
     ChannelRequest {
         /// The scope this happens inside.
         scope: u32,
@@ -122,13 +105,24 @@ pub enum ClientFrame<'a> {
         /// CLIENT's numbering. The server's channels are counted
         /// separately and never collide with these.
         channel: u32,
-        /// Which kind of request.
-        /// `128` or above; what each value means belongs to the protocol being
-        /// carried, not to this layer.
-        r#type: u8,
-        /// The request bytes.
+        /// The request bytes, tag included.
         payload: &'a [u8],
     },
+    /// Type `8`. Run an agent, and stream back what it does.
+    ///
+    /// The request that opens a scope, and the root of everything
+    /// else: the scope the server mints to answer it, the channels the
+    /// server opens inside that scope, and the chunks that come back
+    /// on channel `0`. Sent with neither — the server mints the scope
+    /// in its ack.
+    AgenticLoopRequest(agentic_loop::client::request::Frame),
+    /// Type `9`. Ask whether the provider can supply an image.
+    ///
+    /// A scope like any other, and a short one: the ack that mints it,
+    /// one response on channel `0`, and the finish. The server opens
+    /// no channels of its own — there is nothing it needs from the
+    /// client to answer.
+    ImagesCheckRequest(images::check::client::request::Frame),
 }
 
 impl<'a> ClientFrame<'a> {
@@ -145,22 +139,19 @@ impl<'a> ClientFrame<'a> {
                 payload,
             },
             6 => ClientFrame::ChannelResponseFinish { scope, channel },
-            7 => ClientFrame::AgenticLoopRequest(
+            7 => ClientFrame::ChannelRequest {
+                scope,
+                channel,
+                payload,
+            },
+            8 => ClientFrame::AgenticLoopRequest(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
-            8 => ClientFrame::ImagesCheckRequest(
+            9 => ClientFrame::ImagesCheckRequest(
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
-            r#type if r#type >= 128 => {
-                ClientFrame::ChannelRequest {
-                    scope,
-                    channel,
-                    r#type,
-                    payload,
-                }
-            }
             other => return Err(FrameError::UnknownType(other)),
         })
     }

@@ -57,10 +57,9 @@
 //! | 4    | channel response ack | channel response ack |
 //! | 5    | channel response | channel response |
 //! | 6    | channel response finish | channel response finish |
-//! | 7    | agentic loop request | — |
-//! | 8    | images check request | — |
-//! | 9-127 | reserved | reserved |
-//! | 128+ | a channel request | a channel request |
+//! | 7    | channel request | channel request |
+//! | 8    | agentic loop request | — |
+//! | 9    | images check request | — |
 //!
 //! Auth leads because it comes first in time: nothing may precede it,
 //! and a peer reading a connection's opening byte should not have to
@@ -87,22 +86,28 @@
 //!
 //! Two kinds, and the split is by what they OPEN.
 //!
-//! `7` and `8` open a SCOPE, and only a client sends them — a server
+//! `8` and `9` open a SCOPE, and only a client sends them — a server
 //! never initiates one. They are a closed set this layer knows by
 //! name: each is a variant of [`ClientFrame`] with its payload
-//! decoded rather than carried, and a third would be `9`.
+//! decoded rather than carried, and a third would be `10`.
 //!
-//! `128` and above open a CHANNEL, and both sides
-//! send them. That space is open: this layer knows only that a request
-//! arrived, the payload stays bytes, the type stays a number, and an
-//! unfamiliar one is a newer peer rather than an error.
+//! `7` opens a CHANNEL, and both sides send it. One type rather than
+//! a range: WHICH request it is lives in the payload's own leading
+//! byte, read by whatever type the channel carries.
 //!
-//! Which is why the boundary sits so far above what either side uses
-//! today. Everything below it is this layer's own vocabulary and has
-//! to be understood to be handled at all; everything above it is
-//! somebody else's and can be passed along unread. Leaving `9` to
-//! `127` empty costs nothing and means the two spaces never have to
-//! be renumbered around each other.
+//! # Growth happens in payloads, not here
+//!
+//! Every type is fixed and enumerated, which is why an unfamiliar one
+//! is malformed rather than tolerated. A protocol that grows a new
+//! kind of channel request grows a tag value inside a payload, where
+//! the reader that cares is already looking — this layer never has to
+//! learn it, and never has to hold room open for it.
+//!
+//! The alternative was a range of request types with the kind encoded
+//! in `type`. It costs a second discriminator: a frame already carries
+//! one payload's worth of protocol, so putting part of that protocol
+//! in the envelope means two places to keep in step and two
+//! vocabularies to version.
 //!
 //! [`ClientFrame`]: client::ClientFrame
 //!

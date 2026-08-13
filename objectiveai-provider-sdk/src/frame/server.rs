@@ -95,10 +95,15 @@ pub enum ServerFrame<'a> {
         /// CLIENT's numbering.
         channel: u32,
     },
-    /// `128` or above: a request to the client, opening a channel.
+    /// Type `7`. A request to the client, opening a channel.
     ///
-    /// The client answers on that same channel with its own response
-    /// ack, responses and response finish.
+    /// The client answers on that same channel with its own channel
+    /// ack, responses and finish.
+    ///
+    /// Not decoded here, and not discriminated here either. WHICH
+    /// request this is lives in the payload's own leading byte — see
+    /// [`request::Frame`](crate::agentic_loop::server::request::Frame),
+    /// which reads it.
     ChannelRequest {
         /// The scope this happens inside.
         scope: u32,
@@ -108,11 +113,7 @@ pub enum ServerFrame<'a> {
         /// being confusable — and the client's channels are counted
         /// separately and never collide with these.
         channel: u32,
-        /// Which kind of request.
-        /// `128` or above; what each value means
-        /// belongs to the protocol being carried, not to this layer.
-        r#type: u8,
-        /// The request bytes.
+        /// The request bytes, tag included.
         payload: &'a [u8],
     },
 }
@@ -120,12 +121,11 @@ pub enum ServerFrame<'a> {
 impl<'a> ServerFrame<'a> {
     /// Decode one frame. The payload borrows from `bytes`.
     ///
-    /// Returns [`FrameError::UnknownType`] only for the RESERVED
-    /// range. At
-    /// `128` and above, a type belongs to the protocol being carried rather than to
-    /// this layer, so an unfamiliar one is a request from a newer peer
-    /// and decodes fine. Below it, every value this layer defines is
-    /// defined already, and the rest are held back on purpose.
+    /// Every type this layer defines is defined here, so an
+    /// unfamiliar one is a malformed frame rather than a newer peer —
+    /// what a newer peer has more of lives in payloads, behind a
+    /// [`ChannelRequest`](Self::ChannelRequest), where this layer
+    /// never looks.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
@@ -142,14 +142,11 @@ impl<'a> ServerFrame<'a> {
                 payload,
             },
             6 => ServerFrame::ChannelResponseFinish { scope, channel },
-            r#type if r#type >= 128 => {
-                ServerFrame::ChannelRequest {
-                    scope,
-                    channel,
-                    r#type,
-                    payload,
-                }
-            }
+            7 => ServerFrame::ChannelRequest {
+                scope,
+                channel,
+                payload,
+            },
             other => return Err(FrameError::UnknownType(other)),
         })
     }
