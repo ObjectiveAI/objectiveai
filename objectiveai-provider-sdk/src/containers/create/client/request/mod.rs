@@ -1,7 +1,10 @@
 //! Container creation request data.
 //!
-//! Under construction — no types yet.
-//!
-//! What it will carry: which image (a repository name and a manifest
-//! digest, the same pair [`images::check`](crate::images::check) asks
-//! about), and the resources the container may have.
+//! [`Frame`] is what a caller hands a provider to get a container, and
+//! [`Mount`] is how it asks for a directory inside one.
+
+mod frame;
+mod mount;
+
+pub use frame::*;
+pub use mount::*;
