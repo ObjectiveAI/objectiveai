@@ -95,18 +95,23 @@ pub enum ServerFrame<'a> {
         /// CLIENT's numbering.
         channel: u32,
     },
-    /// Type `7` or above: a request to the client, opening a channel.
+    /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or above: a
+    /// request to the client, opening a channel.
     ///
     /// The client answers on that same channel with its own response
     /// ack, responses and response finish.
     ChannelRequest {
         /// The scope this happens inside.
         scope: u32,
-        /// A channel unique within the scope, minted here. Every
-        /// server request gets its own, so several can be outstanding
-        /// at once without their answers being confusable.
+        /// A channel unique within the scope, minted here in the
+        /// SERVER's numbering. Every server request gets its own, so
+        /// several can be outstanding at once without their answers
+        /// being confusable — and the client's channels are counted
+        /// separately and never collide with these.
         channel: u32,
-        /// Which kind of request. `7` or above; what each value means
+        /// Which kind of request.
+        /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or
+        /// above; what each value means
         /// belongs to the protocol being carried, not to this layer.
         r#type: u8,
         /// The request bytes.
@@ -117,10 +122,13 @@ pub enum ServerFrame<'a> {
 impl<'a> ServerFrame<'a> {
     /// Decode one frame. The payload borrows from `bytes`.
     ///
-    /// Never returns [`FrameError::UnknownType`]: every value above
-    /// `6` is a request whose meaning belongs to the protocol being
-    /// carried, so an unfamiliar one is a request from a newer peer
-    /// rather than a malformed frame.
+    /// Returns [`FrameError::UnknownType`] only for the RESERVED
+    /// range. At
+    /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) and above,
+    /// a type belongs to the protocol being carried rather than to
+    /// this layer, so an unfamiliar one is a request from a newer peer
+    /// and decodes fine. Below it, every value this layer defines is
+    /// defined already, and the rest are held back on purpose.
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
@@ -137,12 +145,15 @@ impl<'a> ServerFrame<'a> {
                 payload,
             },
             6 => ServerFrame::ChannelResponseFinish { scope, channel },
-            r#type => ServerFrame::ChannelRequest {
-                scope,
-                channel,
-                r#type,
-                payload,
-            },
+            r#type if r#type >= super::CHANNEL_REQUEST_MIN => {
+                ServerFrame::ChannelRequest {
+                    scope,
+                    channel,
+                    r#type,
+                    payload,
+                }
+            }
+            other => return Err(FrameError::UnknownType(other)),
         })
     }
 }

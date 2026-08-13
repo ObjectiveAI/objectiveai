@@ -40,10 +40,11 @@ use crate::images;
 /// peer rather than an error, and it keeps its payload as bytes for
 /// something above this layer to interpret.
 ///
-/// The consequence is that a client request is DECODED here, not
-/// merely carried, which is why decoding one can fail with
+/// The consequence is that a SCOPE-OPENING client request is DECODED
+/// here, not merely carried, which is why decoding one can fail with
 /// [`FrameError::Malformed`]. Everything else on this side is still
-/// bytes: bodies belong to whatever the channel is tunnelling, and
+/// bytes: channel requests belong to whatever protocol the channel
+/// carries, bodies belong to whatever it is tunnelling, and
 /// credentials are for the two ends to agree on.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
@@ -104,6 +105,32 @@ pub enum ClientFrame<'a> {
     /// no channels of its own — there is nothing it needs from the
     /// client to answer.
     ImagesCheckRequest(images::check::client::request::Frame),
+    /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or above: a
+    /// request to the server, opening a channel.
+    ///
+    /// The server answers on that same channel with its own channel
+    /// ack, responses and finish.
+    ///
+    /// Unlike the two above, this is NOT decoded here. Those are the
+    /// scope-opening requests, a closed set this layer knows by name;
+    /// these are open, so an unfamiliar type is a request from a newer
+    /// peer rather than an error, and the payload stays bytes for
+    /// something above this layer to read.
+    ChannelRequest {
+        /// The scope this happens inside.
+        scope: u32,
+        /// A channel unique within the scope, minted here in the
+        /// CLIENT's numbering. The server's channels are counted
+        /// separately and never collide with these.
+        channel: u32,
+        /// Which kind of request.
+        /// [`CHANNEL_REQUEST_MIN`](super::CHANNEL_REQUEST_MIN) or
+        /// above; what each value means belongs to the protocol being
+        /// carried, not to this layer.
+        r#type: u8,
+        /// The request bytes.
+        payload: &'a [u8],
+    },
 }
 
 impl<'a> ClientFrame<'a> {
@@ -128,6 +155,14 @@ impl<'a> ClientFrame<'a> {
                 serde_json::from_slice(payload)
                     .map_err(FrameError::Malformed)?,
             ),
+            r#type if r#type >= super::CHANNEL_REQUEST_MIN => {
+                ClientFrame::ChannelRequest {
+                    scope,
+                    channel,
+                    r#type,
+                    payload,
+                }
+            }
             other => return Err(FrameError::UnknownType(other)),
         })
     }

@@ -57,9 +57,10 @@
 //! | 4    | channel response ack | channel response ack |
 //! | 5    | channel response | channel response |
 //! | 6    | channel response finish | channel response finish |
-//! | 7    | agentic loop request | a request |
-//! | 8    | images check request | a request |
-//! | 9+   | — | a request |
+//! | 7    | agentic loop request | — |
+//! | 8    | images check request | — |
+//! | 9-127 | reserved | reserved |
+//! | 128+ | a channel request | a channel request |
 //!
 //! Auth leads because it comes first in time: nothing may precede it,
 //! and a peer reading a connection's opening byte should not have to
@@ -82,13 +83,26 @@
 //! on channel `0` or the client is answering a server request on that
 //! request's channel.
 //!
-//! Everything from `7` up is a client request, and the two sides differ in
-//! what that means. A client's requests are a CLOSED set, so this
-//! layer knows them: each is a named variant of [`ClientFrame`], its
-//! payload decoded rather than carried, and a sixth type is malformed.
-//! A server's are open, so this layer knows only that a request
-//! arrived — the payload stays bytes, the type stays a number, and an
+//! # Requests
+//!
+//! Two kinds, and the split is by what they OPEN.
+//!
+//! `7` and `8` open a SCOPE, and only a client sends them — a server
+//! never initiates one. They are a closed set this layer knows by
+//! name: each is a variant of [`ClientFrame`] with its payload
+//! decoded rather than carried, and a third would be `9`.
+//!
+//! [`CHANNEL_REQUEST_MIN`] and above open a CHANNEL, and both sides
+//! send them. That space is open: this layer knows only that a request
+//! arrived, the payload stays bytes, the type stays a number, and an
 //! unfamiliar one is a newer peer rather than an error.
+//!
+//! Which is why the boundary sits so far above what either side uses
+//! today. Everything below it is this layer's own vocabulary and has
+//! to be understood to be handled at all; everything above it is
+//! somebody else's and can be passed along unread. Leaving `9` to
+//! `127` empty costs nothing and means the two spaces never have to
+//! be renumbered around each other.
 //!
 //! [`ClientFrame`]: client::ClientFrame
 //!
@@ -127,6 +141,19 @@
 //! Because the reply types are shared and the request types are not,
 //! `type` alone determines what a frame is. Nothing has to consult
 //! whether the scope happens to be zero.
+
+/// The lowest `type` that names a CHANNEL request.
+///
+/// Everything below this is a frame kind this layer defines itself —
+/// auth, and the two levels of reply. Everything at or above it is a
+/// request whose meaning belongs to the protocol a channel carries,
+/// which is why one can be decoded without being understood.
+///
+/// Deliberately far above what either side uses today. The gap is not
+/// a prediction that a hundred control frames are coming; it is so
+/// that adding one never has to push the request space, and so that a
+/// reader can tell the two apart by magnitude alone.
+pub const CHANNEL_REQUEST_MIN: u8 = 128;
 
 pub mod client;
 pub mod server;
