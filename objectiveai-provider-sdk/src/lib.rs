@@ -51,6 +51,7 @@ pub mod agentic_loop;
 pub mod decode;
 pub mod encode;
 pub mod frame;
+pub mod filesystem;
 pub mod filetree;
 pub mod images;
 pub mod mcp;

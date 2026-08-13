@@ -1,0 +1,91 @@
+//! What a client's request frame carries for a filesystem listing.
+
+use std::convert::Infallible;
+
+use crate::decode::Decode;
+use crate::encode::{Encode, Writer};
+
+/// Ask a provider which directories it will let a caller watch.
+///
+/// A unit struct, because the question has no parameters. There is
+/// nothing to narrow: a caller cannot ask about a directory it has not
+/// been told about yet, which is what this exists to tell it, and the
+/// answer is whatever the provider offers rather than whatever the
+/// caller named.
+///
+/// # A frame that is only a tag
+///
+/// It still has to go on the wire, because
+/// [`ClientFrame::Request`](crate::frame::client::ClientFrame::Request)
+/// carries one type of frame and the payload's leading byte is what
+/// says which request it is. So this encodes to exactly one byte and
+/// decodes by reading exactly one byte — the tag and nothing after it.
+///
+/// Which is the smallest a request can be while still being one. A
+/// zero-length payload would save the byte and cost the ability to
+/// tell this apart from any other empty request, of which there may
+/// one day be several.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Frame;
+
+/// This frame's tag among the scope-opening requests.
+///
+/// `0` is the agentic loop and `1` is the image check. The three
+/// values are allocated across three modules that do not know about
+/// each other, so a fourth request has to look at all of them.
+const TAG: u8 = 2;
+
+impl Encode for Frame {
+    /// [`Infallible`]: writing one known byte has no failure mode.
+    type Error = Infallible;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&[TAG]);
+        Ok(())
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Only the tag can be wrong, because only the tag is read.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        match bytes.first() {
+            Some(&TAG) => Ok(Frame),
+            Some(&tag) => Err(FrameError::UnexpectedTag(tag)),
+            None => Err(FrameError::Empty),
+        }
+    }
+}
+
+/// A filesystem listing request that could not be read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FrameError {
+    /// No bytes at all, so not even a tag.
+    Empty,
+    /// A tag naming some other request.
+    ///
+    /// A reader that dispatched on the tag will not see this. One that
+    /// assumed which request it held, and was wrong, will — which is
+    /// the point of checking a tag rather than skipping it.
+    UnexpectedTag(u8),
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameError::Empty => {
+                f.write_str("filesystem listing request frame is empty")
+            }
+            FrameError::UnexpectedTag(tag) => {
+                write!(
+                    f,
+                    "expected filesystem listing request tag {TAG}, \
+                     found {tag}"
+                )
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameError {}
