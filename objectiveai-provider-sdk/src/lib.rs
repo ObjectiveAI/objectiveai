@@ -48,6 +48,7 @@
 //! Under construction. The types land as the provider API is defined.
 
 pub mod agentic_loop;
+pub mod containers;
 pub mod decode;
 pub mod encode;
 pub mod frame;
