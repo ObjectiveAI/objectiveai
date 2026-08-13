@@ -4,10 +4,11 @@
 //! Nothing is re-exported upward: the module is the only thing telling
 //! two types called `Frame` apart, so it has to stay in the path.
 //!
-//! [`mcp`] is [`http::response`](crate::http::response) under a
-//! shorter name, not a copy of it — the head-then-body split is a fact
-//! about HTTP rather than about this channel, so it is defined once
-//! where every tunneled exchange shares it.
+//! [`mcp`]'s frame is an ALIAS of
+//! [`http::response::Frame`](crate::http::response::Frame) — the
+//! head-then-body split is a fact about HTTP rather than about this
+//! channel, so it is defined once where every tunneled exchange
+//! shares it, and named here where a reader looks for it.
 //!
 //! Note what is NOT here. The chunks of the loop itself are a response
 //! too, but the SERVER sends those, so they live in
@@ -15,6 +16,5 @@
 //! module is the other direction — a client answering what it was
 //! asked for.
 
-pub use crate::http::response as mcp;
-
+pub mod mcp;
 pub mod postgres;
