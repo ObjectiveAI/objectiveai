@@ -13,19 +13,24 @@
 //! whether a blob exists without fetching it. None of that had to be
 //! designed here; it is what a registry already says.
 //!
-//! # Aliases
+//! # One alias, for what rides the channel
 //!
-//! Nothing is defined here. A registry answer is an HTTP response, and
+//! [`Frame`] and nothing else. It is an alias because a registry
+//! answer is an HTTP response, and
 //! [`http::response`](crate::http::response) already says what one is
 //! and why it arrives head-first.
 //!
-//! Aliases rather than a re-export of that module, because this one is
-//! real: a reader looking for what a caller answers a creation with
-//! finds it under the path that says so, and each alias names its own
-//! target in its own signature.
+//! What the frame CONTAINS is not aliased. Reaching into a
+//! [`Frame::Head`](crate::http::response::Frame::Head) means naming
+//! [`http::response::Head`](crate::http::response::Head), which is
+//! correct: the head is HTTP's, not OCI's, and this module has no
+//! opinion about it.
+//!
+//! Mirroring the target module instead would mean every type added to
+//! a shared abstraction has to be re-aliased in every module that
+//! borrows it — a can of worms, and one that grows every time the
+//! shared thing does.
 
 mod frame;
-mod head;
 
 pub use frame::*;
-pub use head::*;
