@@ -21,6 +21,26 @@ pub struct Agent {
     /// trimming applied to most string fields would change what the
     /// code means.
     pub python: String,
+    /// How much memory the source needs, in BYTES.
+    ///
+    /// Not a hint. A Python agent runs in a container, and this is the
+    /// ceiling that container is given — so a process that exceeds it
+    /// is killed by the kernel rather than told to try something else.
+    /// There is no failed allocation to catch and no warning first.
+    ///
+    /// Which makes this the author's job and nobody else's. A provider
+    /// cannot infer it: the source is opaque until it runs, and by
+    /// then the number is already needed. Guessing high wastes a
+    /// provider's capacity on every run; guessing low kills the agent
+    /// partway through its work.
+    ///
+    /// Bytes rather than megabytes because a unit that has to be
+    /// spelled out in prose is a unit half of everyone gets wrong.
+    ///
+    /// Note that the interpreter is included. This is what the
+    /// CONTAINER may use, not what the script allocates on top of a
+    /// runtime somebody else is paying for.
+    pub memory: u64,
     /// Third-party packages the source needs: distribution name to
     /// version constraint.
     ///
