@@ -3,14 +3,13 @@
 //! Both are the same ask in different clothes: a connection the
 //! provider cannot make itself. The agent runs beside it; the MCP
 //! servers and the database live with the client. [`Frame`] is what
-//! opens one, and [`mcp`] is what an MCP one carries.
+//! opens one, and it is the only frame here.
 //!
-//! [`mcp`] is [`crate::mcp::request`] under a shorter name, not a copy
-//! of it. An MCP request is the same request wherever it is carried,
-//! and the day a second scope carries one is the day two definitions
-//! would start to differ.
-
-pub use crate::mcp::request as mcp;
+//! Which is why what an MCP one carries is named where it lives, at
+//! [`mcp::request`](crate::mcp::request), rather than pulled under
+//! this module. An MCP request is not a second kind of request frame
+//! — it is the payload inside this one's
+//! [`Mcp`](Frame::Mcp) variant.
 
 mod frame;
 
