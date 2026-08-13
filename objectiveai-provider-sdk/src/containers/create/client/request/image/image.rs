@@ -20,10 +20,8 @@ use super::{Client, Registry, Server};
 /// constant — the same discipline the agentic loop chunks use. serde
 /// has no tag of its own to read, so a source goes on the wire as
 /// itself rather than as a wrapper around itself.
-///
-/// [`PartialEq`] is written out rather than derived, because
-/// [`Client`] holds a `RawValue` and cannot derive it.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Image {
     /// The caller supplies the image.
@@ -33,16 +31,3 @@ pub enum Image {
     /// The caller names a registry reference to pull.
     Registry(Registry),
 }
-
-impl PartialEq for Image {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Image::Client(a), Image::Client(b)) => a == b,
-            (Image::Server(a), Image::Server(b)) => a == b,
-            (Image::Registry(a), Image::Registry(b)) => a == b,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for Image {}

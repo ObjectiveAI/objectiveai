@@ -102,10 +102,9 @@ const TAG: u8 = 4;
 /// the postcard [`filesystem`](crate::filesystem) uses.
 ///
 /// One of these is sent per container rather than per filesystem
-/// event, so there is no volume to optimize for. And an
-/// [`Image::Client`] carries a manifest that must survive
-/// byte-identical to keep its digest — which a `RawValue` does in
-/// JSON and would not survive a re-encoding into anything else.
+/// event, so there is no volume to optimize for — and it names an
+/// image the same way [`images::check`](crate::images::check) does,
+/// which is reason enough for the two to look alike on the wire.
 impl Encode for Frame {
     /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
