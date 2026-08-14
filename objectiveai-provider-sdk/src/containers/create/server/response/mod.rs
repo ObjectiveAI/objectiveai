@@ -1,7 +1,7 @@
 //! What a provider sends back on a creation.
 //!
-//! The container's id, and its filesystem. In no particular order —
-//! see [`Frame`].
+//! The container's id, how many connectors are on it, and its
+//! filesystem. In no particular order — see [`Frame`].
 //!
 //! Every path in the tree is relative to the container's root. What a
 //! provider puts in it is its own to decide, and mounted directories
@@ -12,8 +12,8 @@
 //!
 //! Nothing is aliased here. The filetree frames are WRAPPED rather
 //! than re-exported, because a creation answers with more than a
-//! filetree — the id comes first — and a type that is only sometimes
-//! what it points at is not an alias.
+//! filetree — and a type that is only sometimes what it points at is
+//! not an alias.
 
 mod frame;
 

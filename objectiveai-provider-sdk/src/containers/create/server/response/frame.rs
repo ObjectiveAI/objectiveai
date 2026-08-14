@@ -7,14 +7,15 @@ use std::string::FromUtf8Error;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// A creation's answer: the container's id, and its filesystem for as
-/// long as the scope lives.
+/// A creation's answer: the container's id, how many connectors are on
+/// it, and its filesystem, for as long as the scope lives.
 ///
 /// # The tag byte
 ///
 /// A payload leads with one byte saying which variant it is — `0` for
-/// [`Id`](Self::Id), `1` for [`Filetree`](Self::Filetree) — and the
-/// rest is that variant's own bytes. The same arrangement
+/// [`Id`](Self::Id), `1` for [`Filetree`](Self::Filetree), `2` for
+/// [`Connections`](Self::Connections) — and the rest is that variant's
+/// own bytes. The same arrangement
 /// [`http::response::Frame`](crate::http::response::Frame) uses, and
 /// for the same reason: a frame that means something only in the
 /// context of the ones before it needs a reader carrying state, and
@@ -23,11 +24,12 @@ use crate::encode::{Encode, Writer};
 ///
 /// # Which is why nothing here is ordered
 ///
-/// The two kinds interleave however a provider produces them. An id
+/// The three kinds interleave however a provider produces them. An id
 /// may land before the first filesystem frame, after the snapshot, or
-/// somewhere in the middle of the deltas — a container can be running
-/// and reporting before its provider has finished deciding what to
-/// call it, and nothing is served by making one wait for the other.
+/// somewhere among the deltas — a container can be running and
+/// reporting before its provider has finished deciding what to call
+/// it — and a connector can arrive at any moment, which is not a
+/// moment anything else is waiting for.
 ///
 /// A reader takes each frame as it comes and does not count. That is
 /// what the tag bought, and it paid for itself here: had the split
@@ -62,6 +64,27 @@ pub enum Frame {
     /// the scope that made the container is the scope that reports on
     /// it.
     Filetree(crate::filetree::response::Frame),
+    /// How many connectors are attached to the container. Tag `2`.
+    ///
+    /// Sent again whenever the number changes, which makes this a
+    /// value rather than an event: a reader holds the last one it saw
+    /// and needs no arithmetic, so a frame lost or replayed leaves it
+    /// with a number rather than a drift.
+    ///
+    /// # What the authorize channel is for
+    ///
+    /// A connector arriving is what prompts
+    /// [`Authorize`](super::super::channel_request::Frame::Authorize).
+    /// The provider asks the caller whether this one may attach, the
+    /// caller answers yes or no, and a yes is what this count then
+    /// reflects.
+    ///
+    /// So the two are halves of one exchange, and the order between
+    /// them is the only order in this stream that means anything: the
+    /// question is asked, then the answer changes the number. Nothing
+    /// enforces it — a reader that saw the count move without having
+    /// answered is looking at a provider that decided on its own.
+    Connections(u32),
 }
 
 /// Tag for [`Frame::Id`].
@@ -70,13 +93,17 @@ const ID: u8 = 0;
 /// Tag for [`Frame::Filetree`].
 const FILETREE: u8 = 1;
 
-/// Two variants, two encodings. An id is a string and goes out as its
-/// own bytes; a filetree frame is postcard's, and is handed to
-/// postcard. Neither is re-encoded into the other's format to make
-/// them match, because matching would buy nothing.
+/// Tag for [`Frame::Connections`].
+const CONNECTIONS: u8 = 2;
+
+/// Three variants, three encodings, and none converted into another's
+/// to make them match. An id is a string and goes out as its own
+/// bytes; a count is four big-endian bytes, the same way `scope` and
+/// `channel` are written in every header; a filetree frame is
+/// postcard's and is handed to postcard.
 impl Encode for Frame {
-    /// Postcard's, since only the filetree half can fail. Writing a
-    /// string's bytes after a tag has no failure mode.
+    /// Postcard's, since only the filetree half can fail. A string's
+    /// bytes and a fixed-width integer have no failure mode.
     type Error = postcard::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -90,12 +117,17 @@ impl Encode for Frame {
                 out.extend_from_slice(&[FILETREE]);
                 frame.encode(out)
             }
+            Frame::Connections(count) => {
+                out.extend_from_slice(&[CONNECTIONS]);
+                out.extend_from_slice(&count.to_be_bytes());
+                Ok(())
+            }
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Four ways to fail, and each names which half failed.
+    /// Five ways to fail, and each names which half failed.
     type Error = FrameError;
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
@@ -107,6 +139,9 @@ impl Decode<'_> for Frame {
             FILETREE => crate::filetree::response::Frame::decode(rest)
                 .map(Frame::Filetree)
                 .map_err(FrameError::Filetree),
+            CONNECTIONS => <[u8; 4]>::try_from(rest)
+                .map(|bytes| Frame::Connections(u32::from_be_bytes(bytes)))
+                .map_err(|_| FrameError::Connections(rest.len())),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -117,12 +152,15 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither [`Frame::Id`] nor [`Frame::Filetree`].
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The id was not UTF-8.
     Id(FromUtf8Error),
     /// The filetree frame did not decode.
     Filetree(postcard::Error),
+    /// A connection count that was not four bytes, carrying however
+    /// many there were.
+    Connections(usize),
 }
 
 impl fmt::Display for FrameError {
@@ -140,6 +178,9 @@ impl fmt::Display for FrameError {
             FrameError::Filetree(error) => {
                 write!(f, "filetree frame did not decode: {error}")
             }
+            FrameError::Connections(len) => {
+                write!(f, "connection count is {len} bytes, not 4")
+            }
         }
     }
 }
@@ -149,7 +190,9 @@ impl Error for FrameError {
         match self {
             FrameError::Id(error) => Some(error),
             FrameError::Filetree(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
+            FrameError::Empty
+            | FrameError::UnknownTag(_)
+            | FrameError::Connections(_) => None,
         }
     }
 }

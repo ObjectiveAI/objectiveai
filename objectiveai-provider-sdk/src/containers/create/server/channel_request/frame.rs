@@ -39,12 +39,18 @@ pub enum Frame<'a> {
     /// endpoint serves every creation happening at once and a request
     /// routes itself without a provider keeping state between them.
     Oci(Request<'a>),
-    /// Ask the caller to authorize something.
+    /// Ask the caller whether a connector may attach to the
+    /// container.
     ///
-    /// The payload is arbitrary — what is being asked, and what counts
-    /// as an answer to it, are for the two ends to agree. This layer
-    /// guarantees only that the question is asked on its own channel
-    /// and answered before anything depends on the answer.
+    /// Opened when one arrives. A yes is what
+    /// [`Connections`](crate::containers::create::server::response::Frame::Connections)
+    /// then reflects; a no is a connector that never joins.
+    ///
+    /// The payload is arbitrary — whatever identifies a connector, and
+    /// whatever a caller needs in order to decide, are for the two ends
+    /// to agree. This layer guarantees only that the question is asked
+    /// on its own channel and answered before anything depends on the
+    /// answer.
     ///
     /// # It has a reply, where connection auth does not
     ///
