@@ -4,10 +4,13 @@
 //! the provider's.
 //!
 //! The scope a creation opens is the container's LIFE. It carries the
-//! image pull on channels the provider opens, then the container's
-//! filesystem on channel `0` for as long as it runs — so a caller does
-//! not create and then separately ask to watch, and does not hold a
-//! handle to something it might have to remember to release.
+//! image pull on channels the provider opens, then the container's id
+//! and its filesystem on channel `0` for as long as it runs — so a
+//! caller does not create and then separately ask to watch.
+//!
+//! The id is minted in that stream and nowhere else. Holding the scope
+//! open is what keeps the container; the id is what names it to
+//! anything outside.
 //!
 //! # Channels go both ways here
 //!
