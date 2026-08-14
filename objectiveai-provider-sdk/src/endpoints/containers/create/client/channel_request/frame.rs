@@ -6,86 +6,102 @@ use std::fmt;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::http::request::Request;
+use crate::shared::container::read;
 
-/// One MCP exchange, toward the container.
+/// What a caller asks a provider for while a creation runs.
 ///
-/// A container that runs an MCP server is reachable only from the
-/// provider that runs it. So a caller opens a channel, the provider
-/// relays into the container, and what comes back is a
-/// [`channel_response::mcp::Frame`](crate::endpoints::containers::create::server::channel_response::mcp::Frame).
+/// A payload leads with one byte saying which — `0` for
+/// [`Mcp`](Self::Mcp), `1` for [`Read`](Self::Read) — and the rest is
+/// that variant's own bytes.
 ///
-/// # The provider is a relay here too
-///
-/// It does not parse JSON-RPC, does not track sessions, and does not
-/// know what a tool is. `Mcp-Session-Id` ties a caller's exchanges
-/// together and the provider never reads it — the same arrangement
-/// that carries MCP the other way in an agentic loop, and for the same
-/// reason: a relay that parsed what it carried could only fail on what
-/// its schema was too old to know.
+/// Both reach INTO the container, which is the thing a caller
+/// cannot dial: it runs on the provider. That is the whole reason
+/// these channels open outward from the client rather than the other
+/// way.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Frame<'a>(
-    /// The request, verbatim.
-    pub Request<'a>,
-);
+pub enum Frame<'a> {
+    /// One MCP exchange, toward the container.
+    ///
+    /// The provider relays and nothing more. It does not parse
+    /// JSON-RPC, does not track sessions, and never reads the
+    /// `Mcp-Session-Id` that ties a caller's exchanges together —
+    /// so two clients on one container hold two sessions the provider
+    /// has no opinion about.
+    Mcp(Request<'a>),
+    /// One file, read out of the container.
+    ///
+    /// See [`read`](crate::shared::container::read) for why this is one file and
+    /// never a directory.
+    Read(read::request::Request),
+}
 
-/// This frame's tag among a creation's client channel requests.
-///
-/// The only one so far. Carried anyway, so a second kind of ask is a
-/// new tag rather than a new frame type.
-const TAG: u8 = 0;
+/// Tag for [`Frame::Mcp`].
+const MCP: u8 = 0;
+
+/// Tag for [`Frame::Read`].
+const READ: u8 = 1;
 
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure. The tag cannot fail.
+    /// The ordinary JSON failure, from whichever half is present.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        out.extend_from_slice(&[TAG]);
-        self.0.encode(out)
+        match self {
+            Frame::Mcp(request) => {
+                out.extend_from_slice(&[MCP]);
+                request.encode(out)
+            }
+            Frame::Read(request) => {
+                out.extend_from_slice(&[READ]);
+                request.encode(out)
+            }
+        }
     }
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and each names which half failed.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
-        if *tag != TAG {
-            return Err(FrameError::UnexpectedTag(*tag));
+        match *tag {
+            MCP => Request::decode(rest).map(Frame::Mcp).map_err(FrameError::Mcp),
+            READ => read::request::Request::decode(rest)
+                .map(Frame::Read)
+                .map_err(FrameError::Read),
+            tag => Err(FrameError::UnknownTag(tag)),
         }
-        Request::decode(rest).map(Frame).map_err(FrameError::Body)
     }
 }
 
-/// A creation client channel request that could not be read.
+/// A creation channel request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag naming some other request.
-    UnexpectedTag(u8),
-    /// The request did not parse.
-    Body(serde_json::Error),
+    /// A tag that is neither [`Frame::Mcp`] nor [`Frame::Read`].
+    UnknownTag(u8),
+    /// The MCP request did not parse.
+    Mcp(serde_json::Error),
+    /// The read request did not parse.
+    Read(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("creation client channel request frame is empty")
+                f.write_str("creation channel request frame is empty")
             }
-            FrameError::UnexpectedTag(tag) => {
-                write!(
-                    f,
-                    "expected creation client channel request tag {TAG}, \
-                     found {tag}"
-                )
+            FrameError::UnknownTag(tag) => {
+                write!(f, "unknown creation channel request tag {tag}")
             }
-            FrameError::Body(error) => {
-                write!(
-                    f,
-                    "creation client channel request did not parse: {error}"
-                )
+            FrameError::Mcp(error) => {
+                write!(f, "mcp request did not parse: {error}")
+            }
+            FrameError::Read(error) => {
+                write!(f, "read request did not parse: {error}")
             }
         }
     }
@@ -94,8 +110,8 @@ impl fmt::Display for FrameError {
 impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameError::Body(error) => Some(error),
-            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+            FrameError::Mcp(error) | FrameError::Read(error) => Some(error),
+            FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
 }

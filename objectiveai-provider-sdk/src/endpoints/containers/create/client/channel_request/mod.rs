@@ -1,13 +1,6 @@
-//! The channels a client opens on a provider during a creation.
+//! The channels a caller opens on a provider.
 //!
-//! One, and it is the mirror of the agentic loop's. There, a provider
-//! runs the agent and the MCP servers live with the client, so the
-//! provider opens channels outward. Here the container runs on the
-//! PROVIDER, so the MCP server it holds is the thing a caller cannot
-//! dial — and the caller opens the channels instead.
-//!
-//! Same protocol, same frames, opposite direction. Which is the point
-//! of a frame layer that lets either side open one.
+//! Two, and both reach into the container — see [`Frame`].
 
 mod frame;
 

@@ -1,5 +1,8 @@
-//! The answers a provider sends on the channels a connector opened.
+//! The answers a provider sends on the channels a connector
+//! opened.
 //!
-//! [`mcp`] is the only one, and it comes from inside the container.
+//! Both come from inside the container: [`mcp`] is what its MCP server
+//! said, [`read`] is a file's bytes.
 
 pub mod mcp;
+pub mod read;
