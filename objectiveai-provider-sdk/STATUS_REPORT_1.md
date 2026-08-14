@@ -221,7 +221,7 @@ document states.
 - **Variant order is wire-significant** in the postcard types, since
   external tagging writes an index rather than a name. New variants go
   on the end; nothing enforces it.
-- **`http::request::Request::body` is a `RawValue`**, so tunneled
+- **`shared::http::request::Request::body` is a `RawValue`**, so tunneled
   requests carry JSON bodies only. Both current users are fine — a
   registry `GET` has no body — and it becomes wrong the day something
   needs to `PUT`.

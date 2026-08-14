@@ -78,7 +78,7 @@ pub enum ServerFrame<'a> {
     ///
     /// Not discriminated here. WHICH request this is lives in the
     /// payload's own leading byte — see
-    /// [`request::Frame`](crate::agentic_loop::server::channel_request::Frame),
+    /// [`request::Frame`](crate::endpoints::agentic_loop::server::channel_request::Frame),
     /// which reads it.
     ChannelRequest {
         /// The scope this happens inside.

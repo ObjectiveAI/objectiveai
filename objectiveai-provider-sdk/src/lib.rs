@@ -47,12 +47,8 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
-pub mod agentic_loop;
-pub mod containers;
 pub mod decode;
 pub mod encode;
-pub mod filesystem;
-pub mod filetree;
+pub mod endpoints;
 pub mod frame;
-pub mod http;
-pub mod images;
+pub mod shared;
