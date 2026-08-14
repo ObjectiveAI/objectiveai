@@ -7,13 +7,14 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use super::Authorize;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::container::write;
 use crate::shared::http::request::Request;
 
 /// What a provider asks a caller for while a creation runs.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Oci`](Self::Oci), `1` for [`Authorize`](Self::Authorize) — and
-/// the rest is that variant's own bytes. The frame's own `type` could
+/// [`Oci`](Self::Oci), `1` for [`Authorize`](Self::Authorize), `2` for
+/// [`Write`](Self::Write) — and the rest is that variant's own bytes. The frame's own `type` could
 /// have carried this and deliberately does not: a frame already
 /// carries one payload's worth of protocol, and splitting the
 /// discrimination across the envelope and the payload would mean two
@@ -51,6 +52,14 @@ pub enum Frame<'a> {
     /// arrive as they were sent, and that the question is answered
     /// before the connection it is about is allowed to open.
     Authorize(Authorize<'a>),
+    /// Send the content for a write. Tag `2`.
+    ///
+    /// Opened in answer to a
+    /// [`Write`](crate::endpoints::containers::create::client::channel_request::Frame::Write)
+    /// the caller started. A write cannot carry its own content —
+    /// only a responder can finish a channel — so the bytes travel as
+    /// responses on this one.
+    Write(write::bytes::Request),
 }
 
 /// Tag for [`Frame::Oci`].
@@ -58,6 +67,9 @@ const OCI: u8 = 0;
 
 /// Tag for [`Frame::Authorize`].
 const AUTHORIZE: u8 = 1;
+
+/// Tag for [`Frame::Write`].
+const WRITE: u8 = 2;
 
 /// Marks an [`IpAddr::V4`].
 const V4: u8 = 4;
@@ -95,6 +107,12 @@ impl Encode for Frame<'_> {
                 }
                 out.extend_from_slice(authorize.authorization);
                 Ok(())
+            }
+            Frame::Write(request) => {
+                out.extend_from_slice(&[WRITE]);
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                request.encode(out).map_err(|error| match error {})
             }
         }
     }
@@ -139,6 +157,9 @@ impl<'a> Decode<'a> for Frame<'a> {
                     authorization,
                 }))
             }
+            WRITE => write::bytes::Request::decode(rest)
+                .map(Frame::Write)
+                .map_err(FrameError::Write),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -157,6 +178,8 @@ pub enum FrameError {
     UnknownAddress(u8),
     /// The registry request did not parse.
     Oci(serde_json::Error),
+    /// The write content request did not decode.
+    Write(write::bytes::RequestError),
 }
 
 impl fmt::Display for FrameError {
@@ -177,6 +200,9 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "registry request did not parse: {error}")
             }
+            FrameError::Write(error) => {
+                write!(f, "write content request did not decode: {error}")
+            }
         }
     }
 }
@@ -185,6 +211,7 @@ impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             FrameError::Oci(error) => Some(error),
+            FrameError::Write(error) => Some(error),
             FrameError::Empty
             | FrameError::UnknownTag(_)
             | FrameError::Truncated

@@ -12,3 +12,4 @@
 //! endpoint because BOTH of them need it, not because it is general.
 
 pub mod read;
+pub mod write;

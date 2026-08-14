@@ -1,6 +1,6 @@
 //! The channels a caller opens on a provider.
 //!
-//! Two, and both reach into the container — see [`Frame`].
+//! Three, and all of them reach into the container — see [`Frame`].
 
 mod frame;
 
