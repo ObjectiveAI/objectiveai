@@ -1,6 +1,7 @@
 //! What a provider sends back on a creation.
 //!
-//! The container's id, then its filesystem — see [`Frame`].
+//! The container's id, and its filesystem. In no particular order —
+//! see [`Frame`].
 //!
 //! Every path in the tree is relative to the container's root. What a
 //! provider puts in it is its own to decide, and mounted directories

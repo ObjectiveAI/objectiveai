@@ -7,8 +7,8 @@ use std::string::FromUtf8Error;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// A creation's answer: the container's id once, then its filesystem
-/// for as long as the scope lives.
+/// A creation's answer: the container's id, and its filesystem for as
+/// long as the scope lives.
 ///
 /// # The tag byte
 ///
@@ -21,12 +21,28 @@ use crate::encode::{Encode, Writer};
 /// one arriving out of order is not detectably wrong, it is silently
 /// the other thing.
 ///
+/// # Which is why nothing here is ordered
+///
+/// The two kinds interleave however a provider produces them. An id
+/// may land before the first filesystem frame, after the snapshot, or
+/// somewhere in the middle of the deltas — a container can be running
+/// and reporting before its provider has finished deciding what to
+/// call it, and nothing is served by making one wait for the other.
+///
+/// A reader takes each frame as it comes and does not count. That is
+/// what the tag bought, and it paid for itself here: had the split
+/// been positional, an order would have had to be invented and then
+/// obeyed by every provider forever.
+///
 /// It costs a byte per filetree frame, which is the bulk of the
 /// traffic. That is the price of frames that can be read on their own,
 /// and it is small next to the paths they carry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Frame {
-    /// The container's id. Tag `0`. Always first, and never repeated.
+    /// The container's id. Tag `0`.
+    ///
+    /// Arrives whenever the provider has it, which is not necessarily
+    /// before the filesystem starts reporting.
     ///
     /// What it is for is between the two ends. What it is FROM is this
     /// scope: a provider mints it here, and a caller that wants to
