@@ -2,7 +2,9 @@
 
 use std::error::Error;
 use std::fmt;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
+use super::Authorize;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::http::request::Request;
@@ -39,40 +41,16 @@ pub enum Frame<'a> {
     /// endpoint serves every creation happening at once and a request
     /// routes itself without a provider keeping state between them.
     Oci(Request<'a>),
-    /// Ask the caller whether a connector may attach to the
-    /// container.
+    /// Ask the caller whether a connector may attach to the container.
     ///
     /// Opened when one arrives. A yes is what
     /// [`Connections`](crate::containers::create::server::response::Frame::Connections)
     /// then reflects; a no is a connector that never joins.
     ///
-    /// The payload is a connector's
-    /// [`authorization`](crate::containers::connect::client::request::Frame::authorization),
-    /// relayed verbatim. The provider does not read it, and could not
-    /// usefully: what makes one connector acceptable and another not is
-    /// something only a creator knows, which is exactly why it is the
-    /// creator being asked.
-    ///
-    /// So this layer guarantees two things and no more — that the bytes
+    /// This layer guarantees two things and no more — that the bytes
     /// arrive as they were sent, and that the question is answered
     /// before the connection it is about is allowed to open.
-    ///
-    /// # It has a reply, where connection auth does not
-    ///
-    /// [`Auth`](crate::frame::server::ServerFrame::Auth) is the same
-    /// shape and gets no response at all: a credential that is
-    /// accepted is followed by the connection working, one that is not
-    /// by a close, and a peer that has not authenticated cannot make
-    /// the far end compose anything. That is deliberate, and it costs
-    /// diagnosis to avoid being an oracle.
-    ///
-    /// None of that applies here. The peer is already authenticated
-    /// and already inside a scope it opened, so there is no
-    /// amplification to deny it and no secret a yes-or-no could leak
-    /// that it does not already have. A plain answer is safe, so it
-    /// gets one:
-    /// [`authorize::Frame`](crate::containers::create::client::channel_response::authorize::Frame).
-    Authorize(&'a [u8]),
+    Authorize(Authorize<'a>),
 }
 
 /// Tag for [`Frame::Oci`].
@@ -81,10 +59,20 @@ const OCI: u8 = 0;
 /// Tag for [`Frame::Authorize`].
 const AUTHORIZE: u8 = 1;
 
+/// Marks an [`IpAddr::V4`].
+const V4: u8 = 4;
+
+/// Marks an [`IpAddr::V6`].
+const V6: u8 = 6;
+
 impl Encode for Frame<'_> {
     /// Only [`Oci`](Frame::Oci) can fail, and only the way any JSON
-    /// serialization can. An authorization payload is bytes and has
-    /// nothing to get wrong.
+    /// serialization can.
+    ///
+    /// An authorization cannot. Its address is fixed-width and its
+    /// payload is bytes, which is the point of laying it out by hand:
+    /// there is no length that could overflow a prefix and no shape a
+    /// format could reject.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -93,9 +81,19 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[OCI]);
                 request.encode(out)
             }
-            Frame::Authorize(payload) => {
+            Frame::Authorize(authorize) => {
                 out.extend_from_slice(&[AUTHORIZE]);
-                out.extend_from_slice(payload);
+                match authorize.address {
+                    IpAddr::V4(address) => {
+                        out.extend_from_slice(&[V4]);
+                        out.extend_from_slice(&address.octets());
+                    }
+                    IpAddr::V6(address) => {
+                        out.extend_from_slice(&[V6]);
+                        out.extend_from_slice(&address.octets());
+                    }
+                }
+                out.extend_from_slice(authorize.authorization);
                 Ok(())
             }
         }
@@ -103,14 +101,44 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Five ways to fail, and only one of them is a parse.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            OCI => Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci),
-            AUTHORIZE => Ok(Frame::Authorize(rest)),
+            OCI => {
+                Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci)
+            }
+            AUTHORIZE => {
+                let (version, rest) =
+                    rest.split_first().ok_or(FrameError::Truncated)?;
+                let (address, authorization) = match *version {
+                    V4 => {
+                        let (octets, rest) = rest
+                            .split_at_checked(4)
+                            .ok_or(FrameError::Truncated)?;
+                        let octets = <[u8; 4]>::try_from(octets)
+                            .map_err(|_| FrameError::Truncated)?;
+                        (IpAddr::V4(Ipv4Addr::from(octets)), rest)
+                    }
+                    V6 => {
+                        let (octets, rest) = rest
+                            .split_at_checked(16)
+                            .ok_or(FrameError::Truncated)?;
+                        let octets = <[u8; 16]>::try_from(octets)
+                            .map_err(|_| FrameError::Truncated)?;
+                        (IpAddr::V6(Ipv6Addr::from(octets)), rest)
+                    }
+                    version => {
+                        return Err(FrameError::UnknownAddress(version));
+                    }
+                };
+                Ok(Frame::Authorize(Authorize {
+                    address,
+                    authorization,
+                }))
+            }
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -123,6 +151,10 @@ pub enum FrameError {
     Empty,
     /// A tag that is neither [`Frame::Oci`] nor [`Frame::Authorize`].
     UnknownTag(u8),
+    /// An authorization that ended inside its address.
+    Truncated,
+    /// An address version byte that is neither `4` nor `6`.
+    UnknownAddress(u8),
     /// The registry request did not parse.
     Oci(serde_json::Error),
 }
@@ -136,6 +168,12 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown creation channel request tag {tag}")
             }
+            FrameError::Truncated => {
+                f.write_str("authorization ended inside its address")
+            }
+            FrameError::UnknownAddress(version) => {
+                write!(f, "address version is neither {V4} nor {V6}: {version}")
+            }
             FrameError::Oci(error) => {
                 write!(f, "registry request did not parse: {error}")
             }
@@ -147,7 +185,10 @@ impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             FrameError::Oci(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
+            FrameError::Empty
+            | FrameError::UnknownTag(_)
+            | FrameError::Truncated
+            | FrameError::UnknownAddress(_) => None,
         }
     }
 }

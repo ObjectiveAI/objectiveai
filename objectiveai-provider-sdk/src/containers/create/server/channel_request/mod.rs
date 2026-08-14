@@ -3,6 +3,8 @@
 //! Two, and they have nothing to do with each other beyond both being
 //! things a provider needs from the caller mid-scope — see [`Frame`].
 
+mod authorize;
 mod frame;
 
+pub use authorize::*;
 pub use frame::*;
