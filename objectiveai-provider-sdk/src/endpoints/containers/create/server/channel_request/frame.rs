@@ -7,7 +7,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use super::Authorize;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::container::write;
+use crate::shared::container::write_bytes;
 use crate::shared::http::request::Request;
 
 /// What a provider asks a caller for while a creation runs.
@@ -59,7 +59,7 @@ pub enum Frame<'a> {
     /// the caller started. A write cannot carry its own content —
     /// only a responder can finish a channel — so the bytes travel as
     /// responses on this one.
-    Write(write::bytes::Request),
+    Write(write_bytes::request::Request),
 }
 
 /// Tag for [`Frame::Oci`].
@@ -157,7 +157,7 @@ impl<'a> Decode<'a> for Frame<'a> {
                     authorization,
                 }))
             }
-            WRITE => write::bytes::Request::decode(rest)
+            WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -179,7 +179,7 @@ pub enum FrameError {
     /// The registry request did not parse.
     Oci(serde_json::Error),
     /// The write content request did not decode.
-    Write(write::bytes::RequestError),
+    Write(write_bytes::request::RequestError),
 }
 
 impl fmt::Display for FrameError {

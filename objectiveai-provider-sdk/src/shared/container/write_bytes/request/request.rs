@@ -6,11 +6,11 @@ use std::fmt;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Send the bytes for a write.
+/// Send the content for a write.
 ///
 /// Opened by the provider, on its own channel, in answer to a
-/// [`write::request::Request`](super::super::request::Request) the
-/// client opened on one of its.
+/// [`write_path::request::Request`](crate::shared::container::write_path::request::Request)
+/// the client opened on one of its.
 ///
 /// # Why it names a channel
 ///

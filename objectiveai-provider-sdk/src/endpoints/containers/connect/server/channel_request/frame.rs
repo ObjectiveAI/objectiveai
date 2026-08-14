@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::container::write;
+use crate::shared::container::write_bytes;
 
 /// What a provider asks a connector for.
 ///
@@ -18,7 +18,7 @@ use crate::shared::container::write;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame {
     /// Send the content for a write. Tag `0`.
-    Write(write::bytes::Request),
+    Write(write_bytes::request::Request),
 }
 
 /// Tag for [`Frame::Write`].
@@ -46,7 +46,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            WRITE => write::bytes::Request::decode(rest)
+            WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
             tag => Err(FrameError::UnknownTag(tag)),
@@ -62,7 +62,7 @@ pub enum FrameError {
     /// A tag that is not [`Frame::Write`].
     UnknownTag(u8),
     /// The content request did not decode.
-    Write(write::bytes::RequestError),
+    Write(write_bytes::request::RequestError),
 }
 
 impl fmt::Display for FrameError {

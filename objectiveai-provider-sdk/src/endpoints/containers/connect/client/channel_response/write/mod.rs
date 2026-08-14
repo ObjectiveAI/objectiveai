@@ -4,7 +4,7 @@
 //!
 //! [`Frame`] and nothing else. The bytes are the same bytes
 //! wherever a write happens, and
-//! [`write::bytes`](crate::shared::container::write::bytes)
+//! [`write_bytes`](crate::shared::container::write_bytes)
 //! already says how the stream ends and what abandoning it
 //! means.
 

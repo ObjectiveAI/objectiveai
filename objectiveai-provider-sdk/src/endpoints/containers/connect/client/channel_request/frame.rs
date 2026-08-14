@@ -5,7 +5,7 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::container::{read, write};
+use crate::shared::container::{read, write_path};
 use crate::shared::http::request::Request;
 
 /// What a connector asks a provider for while it is attached.
@@ -35,11 +35,13 @@ pub enum Frame<'a> {
     Read(read::request::Request),
     /// One file, written into the container.
     ///
-    /// Carries no bytes. The provider answers by opening a channel of
-    /// its own asking for them — see
-    /// [`write`](crate::shared::container::write) for why the content
-    /// travels that direction.
-    Write(write::request::Request),
+    /// Carries no content. The provider answers by opening a channel
+    /// of its own asking for it — see
+    /// [`write_path`](crate::shared::container::write_path) for why it
+    /// travels that direction, and
+    /// [`write_bytes`](crate::shared::container::write_bytes) for what
+    /// comes back.
+    Write(write_path::request::Request),
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -84,7 +86,7 @@ impl<'a> Decode<'a> for Frame<'a> {
             READ => read::request::Request::decode(rest)
                 .map(Frame::Read)
                 .map_err(FrameError::Read),
-            WRITE => write::request::Request::decode(rest)
+            WRITE => write_path::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
             tag => Err(FrameError::UnknownTag(tag)),

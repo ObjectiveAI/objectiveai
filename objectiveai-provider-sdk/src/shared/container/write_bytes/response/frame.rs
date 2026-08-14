@@ -9,8 +9,8 @@ use crate::encode::{Encode, Writer};
 ///
 /// Bytes and nothing else — no tag, because there is nothing to
 /// discriminate. A channel opened by a
-/// [`bytes::Request`](super::Request) carries one thing, and the
-/// provider knew what it was when it asked.
+/// [`request::Request`](super::super::request::Request) carries one
+/// thing, and the provider knew what it was when it asked.
 ///
 /// # The end, and the giving up
 ///

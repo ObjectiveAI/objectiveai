@@ -2,5 +2,5 @@
 
 /// A piece of the file being written.
 ///
-/// See [`write::bytes::Frame`](crate::shared::container::write::bytes::Frame).
-pub type Frame<'a> = crate::shared::container::write::bytes::Frame<'a>;
+/// See [`write_bytes::response::Frame`](crate::shared::container::write_bytes::response::Frame).
+pub type Frame<'a> = crate::shared::container::write_bytes::response::Frame<'a>;

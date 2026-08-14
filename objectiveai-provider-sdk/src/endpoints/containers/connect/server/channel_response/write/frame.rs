@@ -2,5 +2,5 @@
 
 /// Whether the file landed.
 ///
-/// See [`write::response::Frame`](crate::shared::container::write::response::Frame).
-pub type Frame = crate::shared::container::write::response::Frame;
+/// See [`write_path::response::Frame`](crate::shared::container::write_path::response::Frame).
+pub type Frame = crate::shared::container::write_path::response::Frame;

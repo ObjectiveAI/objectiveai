@@ -7,10 +7,10 @@ use crate::encode::{Encode, Writer};
 
 /// Write one file into the container.
 ///
-/// Carries no bytes. This opens the exchange and names its
-/// destination; the provider answers by asking for the content on a
-/// channel of its own — see [`write`](super::super) for why the bytes
-/// travel that direction.
+/// Carries no content. This opens the exchange and names its
+/// destination; the provider answers by asking for the bytes on a
+/// channel of its own — see
+/// [`write_bytes`](crate::shared::container::write_bytes).
 ///
 /// No offset and no length. A write replaces whatever is at the path,
 /// whole, and a length stated here would be a promise about a file the

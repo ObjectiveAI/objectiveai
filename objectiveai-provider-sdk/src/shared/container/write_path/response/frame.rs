@@ -1,4 +1,4 @@
-//! What a response frame carries on a write channel.
+//! What a response frame carries on a write path channel.
 
 use std::error::Error;
 use std::fmt;
@@ -10,15 +10,27 @@ use crate::encode::{Encode, Writer};
 ///
 /// One of these, then the channel finishes. Unlike a
 /// [`read`](crate::shared::container::read), where bodies precede the
-/// finish and the finish alone can mean success, a write channel
-/// carries no bodies at all — so a bare finish would be the only
-/// signal and could not tell "it is written" from "I stopped trying".
+/// finish and the finish alone can mean success, this channel carries
+/// no bodies at all — so a bare finish would be the only signal and
+/// could not tell "it is written" from "I stopped trying".
 ///
 /// | the channel ends with | means |
 /// |-----------------------|-------|
 /// | [`Written`](Self::Written), then a finish | the file is at the path |
 /// | [`Failed`](Self::Failed), then a finish | it is not, and nothing partial is |
 /// | nothing | the provider died mid-write; the destination is unknowable from here |
+///
+/// # What a partial write leaves behind
+///
+/// Nothing at the destination. A provider writes to a temporary in the
+/// destination's own directory and renames it into place, so the path
+/// holds the old file, then nothing, then the new one — never a prefix
+/// of the new one.
+///
+/// Where space is too tight for both copies, unlinking the old one
+/// first frees exactly what the new one needs. That trades the old
+/// contents away on failure, which is why it is worth doing only after
+/// the ordinary attempt returns `ENOSPC` rather than up front.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Frame {
     /// The file is at the path. Tag `0`.

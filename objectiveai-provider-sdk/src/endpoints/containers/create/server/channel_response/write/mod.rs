@@ -3,7 +3,7 @@
 //! # One alias, for what rides the channel
 //!
 //! [`Frame`] and nothing else. See
-//! [`write::response`](crate::shared::container::write::response)
+//! [`write_path::response`](crate::shared::container::write_path::response)
 //! for why a bare finish would not have been enough.
 
 mod frame;

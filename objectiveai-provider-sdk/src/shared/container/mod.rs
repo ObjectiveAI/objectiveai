@@ -6,10 +6,17 @@
 //! joins somebody else's and asks permission. Once attached, they do
 //! the same things to it, and those things are here.
 //!
+//! [`read`] is one exchange. A write is TWO — [`write_path`] names the
+//! destination, [`write_bytes`] carries the content — and they are
+//! siblings here rather than halves of a `write` module because each
+//! is a whole exchange with its own request and its own response,
+//! travelling in opposite directions.
+//!
 //! Unlike [`http`](super::http) and [`filetree`](super::filetree),
 //! which are shapes any endpoint could ride, everything in this module
 //! is about containers specifically. It is here rather than in either
 //! endpoint because BOTH of them need it, not because it is general.
 
 pub mod read;
-pub mod write;
+pub mod write_bytes;
+pub mod write_path;
