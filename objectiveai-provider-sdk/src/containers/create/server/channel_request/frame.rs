@@ -46,11 +46,16 @@ pub enum Frame<'a> {
     /// [`Connections`](crate::containers::create::server::response::Frame::Connections)
     /// then reflects; a no is a connector that never joins.
     ///
-    /// The payload is arbitrary — whatever identifies a connector, and
-    /// whatever a caller needs in order to decide, are for the two ends
-    /// to agree. This layer guarantees only that the question is asked
-    /// on its own channel and answered before anything depends on the
-    /// answer.
+    /// The payload is a connector's
+    /// [`authorization`](crate::containers::connect::client::request::Frame::authorization),
+    /// relayed verbatim. The provider does not read it, and could not
+    /// usefully: what makes one connector acceptable and another not is
+    /// something only a creator knows, which is exactly why it is the
+    /// creator being asked.
+    ///
+    /// So this layer guarantees two things and no more — that the bytes
+    /// arrive as they were sent, and that the question is answered
+    /// before the connection it is about is allowed to open.
     ///
     /// # It has a reply, where connection auth does not
     ///
