@@ -4,7 +4,7 @@
 //!
 //! [`Frame`] and nothing else. See
 //! [`write_path::response`](crate::shared::container::write_path::response)
-//! for why a bare finish would not have been enough.
+//! for what its absence means, and why it spends a byte anyway.
 
 mod frame;
 

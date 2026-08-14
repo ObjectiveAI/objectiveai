@@ -6,66 +6,52 @@ use std::fmt;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Whether the file landed.
+/// The file landed.
 ///
-/// One of these, then the channel finishes. Unlike a
-/// [`read`](crate::shared::container::read), where bodies precede the
-/// finish and the finish alone can mean success, this channel carries
-/// no bodies at all — so a bare finish would be the only signal and
-/// could not tell "it is written" from "I stopped trying".
+/// One of these, then the channel finishes. It carries nothing,
+/// because saying so IS the whole message.
 ///
 /// | the channel ends with | means |
 /// |-----------------------|-------|
-/// | [`Written`](Self::Written), then a finish | the file is at the path |
-/// | [`Failed`](Self::Failed), then a finish | it is not, and nothing partial is |
+/// | a [`Frame`], then a finish | the file is at the path |
+/// | a finish, and nothing before it | it is not, and nothing partial is |
 /// | nothing | the provider died mid-write; the destination is unknowable from here |
+///
+/// # It still spends a byte
+///
+/// A payload of zero bytes would carry the same information today and
+/// cost a wire break tomorrow. Failure has no shape yet — a provider
+/// says so by finishing without this — and when it gets one it will be
+/// another tag value, which is only additive if there is a tag to add
+/// to. Nothing here has to change when that happens.
+///
+/// The same reason
+/// [`list`](crate::endpoints::filesystem::list::client::request::Frame)
+/// spends a byte on a request with no fields.
 ///
 /// # What a partial write leaves behind
 ///
 /// Nothing at the destination. A provider writes to a temporary in the
 /// destination's own directory and renames it into place, so the path
 /// holds the old file, then nothing, then the new one — never a prefix
-/// of the new one.
+/// of the new one. That holds whether this frame arrives or not.
 ///
 /// Where space is too tight for both copies, unlinking the old one
 /// first frees exactly what the new one needs. That trades the old
 /// contents away on failure, which is why it is worth doing only after
 /// the ordinary attempt returns `ENOSPC` rather than up front.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Frame {
-    /// The file is at the path. Tag `0`.
-    ///
-    /// Which means the rename completed. A provider that reports this
-    /// has already put the whole file in place — there is no state in
-    /// which some of it is there.
-    Written,
-    /// It is not. Tag `1`.
-    ///
-    /// The destination holds whatever it held before, or nothing if
-    /// the provider had to free that space to make room. It never
-    /// holds part of what was being written.
-    ///
-    /// No reason. A caller's response to any of them is the same —
-    /// stop, or try again later — and enumerating filesystem errors
-    /// here would mean this specification tracking a kernel's.
-    Failed,
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Frame;
 
-/// Tag for [`Frame::Written`].
+/// The tag that says the file landed.
 const WRITTEN: u8 = 0;
-
-/// Tag for [`Frame::Failed`].
-const FAILED: u8 = 1;
 
 impl Encode for Frame {
     /// [`Infallible`](std::convert::Infallible): one known byte.
     type Error = std::convert::Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        out.extend_from_slice(&[match self {
-            Frame::Written => WRITTEN,
-            Frame::Failed => FAILED,
-        }]);
+        out.extend_from_slice(&[WRITTEN]);
         Ok(())
     }
 }
@@ -76,8 +62,7 @@ impl Decode<'_> for Frame {
 
     fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
         match bytes.first() {
-            Some(&WRITTEN) => Ok(Frame::Written),
-            Some(&FAILED) => Ok(Frame::Failed),
+            Some(&WRITTEN) => Ok(Frame),
             Some(&byte) => Err(FrameError::UnknownTag(byte)),
             None => Err(FrameError::Empty),
         }
@@ -89,8 +74,11 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither [`Frame::Written`] nor
-    /// [`Frame::Failed`].
+    /// A tag this version does not define.
+    ///
+    /// Which is what a provider reporting a failure will send, once
+    /// failures have a shape. Until then it is a peer that disagrees
+    /// about the protocol.
     UnknownTag(u8),
 }
 
