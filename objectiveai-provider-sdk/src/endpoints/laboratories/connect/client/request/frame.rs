@@ -63,10 +63,16 @@ pub struct Frame<'a> {
 
 /// This frame's tag among the scope-opening requests.
 ///
-/// `0` is the agentic loop, `1` the image check, `2` the volume
-/// listing, `3` the watch, `4` the container creation. The values are
-/// allocated across six modules that do not know about each other, so
-/// a seventh request has to look at all of them.
+/// One byte at the front of the payload, which is what tells a reader
+/// which request it holds. The frame layer does not discriminate them
+/// — [`ClientFrame::Request`](crate::frame::client::ClientFrame::Request)
+/// is one type carrying bytes — so the distinction has to be in the
+/// bytes, and each request owns the value that names it.
+///
+/// See the table in [`endpoints`](crate::endpoints) for the whole
+/// allocation. The values are chosen across modules that do not know
+/// about each other, so the table is the only place they can be seen
+/// at once.
 const TAG: u8 = 5;
 
 /// The bytes an id's length occupies.

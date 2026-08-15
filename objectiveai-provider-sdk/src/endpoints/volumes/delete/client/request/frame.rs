@@ -1,32 +1,46 @@
-//! What a client's request frame carries for a watch.
+//! What a client's request frame carries for a volume deletion.
 
 use serde::{Deserialize, Serialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Watch one of the volumes a provider offers.
+/// Destroy a volume and everything in it.
 ///
-/// # A name, not a path
+/// # A name, and the same access model as everything else
 ///
 /// The one field is a
 /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
-/// from a listing, and this is the whole of the access model. A caller
-/// cannot watch a volume it was not offered, cannot escape one by
-/// naming components above it, and cannot probe for what exists by
-/// watching and reading the error — because a path it invents is not
-/// something this request can express.
+/// from a listing. A caller cannot delete a volume it was not offered,
+/// cannot reach one by naming components, and cannot probe for what
+/// exists by deleting and reading the error — because a path it
+/// invents is not something this request can express.
 ///
-/// A provider therefore never has to validate a path, only look up a
-/// name it published. That is a smaller job and a much smaller
-/// mistake to make.
+/// Which is the same protection a
+/// [`watch`](crate::endpoints::volumes::watch) has, and it matters
+/// more here: a watch that resolved a name wrongly shows a caller
+/// something, and this one destroys it.
 ///
-/// # What comes back
+/// # It is not undoable and there is no confirmation
 ///
-/// A [`filetree`](crate::shared::filetree) stream on channel `0`: one snapshot
-/// carrying the whole tree, then one frame per change for as long as
-/// the scope lives. Every path in it is relative to the volume
-/// named here.
+/// One frame destroys the volume. Nothing here asks twice, because a
+/// protocol that asked twice would be asking a program, and a program
+/// answers the second time exactly as it answered the first.
+/// Confirmation belongs where a person is, which is above this.
+///
+/// # What it does to whatever is using it
+///
+/// Nothing here says, because nothing here can. A volume may be
+/// [`Mount`](crate::endpoints::laboratories::create::client::request::Mount)ed
+/// into a running laboratory, or being
+/// [`watch`](crate::endpoints::volumes::watch)ed, or both, by this
+/// caller and by nobody else — and what a provider does about that is
+/// the provider's: refuse while it is in use, or delete it and let the
+/// mount fail the way a yanked disk fails.
+///
+/// A caller that cares stops using it first. That is not a courtesy
+/// this protocol can enforce, and pretending otherwise would be
+/// promising a coordination it has no frame for.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
     /// Which volume, by the name a listing gave it.
@@ -49,10 +63,9 @@ pub struct Frame {
 /// allocation. The values are chosen across modules that do not know
 /// about each other, so the table is the only place they can be seen
 /// at once.
-const TAG: u8 = 3;
+const TAG: u8 = 8;
 
-/// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes)
-/// and the [`filetree`](crate::shared::filetree) stream this opens.
+/// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes).
 impl Encode for Frame {
     /// Postcard's own failure. The tag cannot fail.
     type Error = postcard::Error;
@@ -77,7 +90,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A watch request frame that could not be read.
+/// A volume deletion request that could not be read.
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -96,13 +109,16 @@ impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("watch request frame is empty")
+                f.write_str("volume deletion request frame is empty")
             }
             FrameError::UnexpectedTag(tag) => {
-                write!(f, "expected watch request tag {TAG}, found {tag}")
+                write!(
+                    f,
+                    "expected volume deletion request tag {TAG}, found {tag}"
+                )
             }
             FrameError::Body(error) => {
-                write!(f, "watch request did not parse: {error}")
+                write!(f, "volume deletion request did not parse: {error}")
             }
         }
     }

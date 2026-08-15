@@ -8,14 +8,37 @@
 //! |----------|--------|
 //! | [`agentic_loop`] | run an agent, stream what it does |
 //! | [`images`] | ask whether an image can be supplied |
-//! | [`volumes`] | list the directories a provider offers; watch one |
+//! | [`volumes`] | list what a provider offers; watch one; make one; destroy one |
 //! | [`laboratories`] | create a laboratory; join one |
 //! | [`mcp_plugin`] | run a plugin, call it |
 //!
-//! Seven requests in total, and each names itself with one tag value
-//! at the front of its payload — `0` through `6`. The frame layer
-//! never reads them; it carries one kind of request frame and hands
-//! the bytes on.
+//! # The tags
+//!
+//! Every request names itself with one byte at the front of its
+//! payload. The frame layer never reads it — it carries one kind of
+//! request frame and hands the bytes on — so this is the only thing
+//! telling one request from another.
+//!
+//! | tag | request |
+//! |-----|---------|
+//! | `0` | [`agentic_loop`] |
+//! | `1` | [`images::check`] |
+//! | `2` | [`volumes::list`] |
+//! | `3` | [`volumes::watch`] |
+//! | `4` | [`laboratories::create`] |
+//! | `5` | [`laboratories::connect`] |
+//! | `6` | [`mcp_plugin`] |
+//! | `7` | [`volumes::create`] |
+//! | `8` | [`volumes::delete`] |
+//!
+//! Nine, and they are in the order they were allocated rather than
+//! grouped by endpoint — [`volumes`] holds `2`, `3`, `7` and `8`.
+//! Nothing derives meaning from adjacency, so regrouping them would
+//! change every implementation to make a table look tidier.
+//!
+//! This table is the whole allocation. Each request states its own
+//! value and points here, because a value chosen in one module has to
+//! be checked against every other, and no module can see the others.
 //!
 //! # Named for what runs in them
 //!
