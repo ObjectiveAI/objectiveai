@@ -2,11 +2,11 @@
 name = "diverge-provider-sdk"
 version = "2.2.15"
 edition = "2024"
-authors = ["Diverge <admin@diverge.dev>"]
+authors = ["Diverge <admin@diverge.network>"]
 description = "Wire types for the Diverge provider API — the normative artifact of the provider specification"
 license = "MIT"
 repository = "https://github.com/Diverge/diverge"
-homepage = "https://diverge.dev"
+homepage = "https://diverge.network"
 documentation = "https://docs.rs/diverge-provider-sdk"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm", "provider"]
