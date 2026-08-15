@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp-laboratory"
-version = "2.2.15"
+version = "2.2.16"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "MCP (Model Context Protocol) filesystem helpers for ObjectiveAI"
@@ -24,7 +24,7 @@ glob = "0.3"
 http = "1.4.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 notify = "8"
-objectiveai-sdk = { version = "2.2.15", path = "../objectiveai-sdk-rs", default-features = false, features = ["net"] }
+objectiveai-sdk = { version = "2.2.16", path = "../objectiveai-sdk-rs", default-features = false, features = ["net"] }
 pathdiff = "0.2"
 regex = "1"
 rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }

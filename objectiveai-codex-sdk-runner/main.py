@@ -50,7 +50,7 @@ pipe buffer fills and ALL in-flight runs block.
 
 from __future__ import annotations
 
-__version__ = "2.2.15"
+__version__ = "2.2.16"
 
 import asyncio
 import json
