@@ -1,8 +1,8 @@
 //! The channels a server opens on a caller for an MCP plugin.
 //!
-//! Two, and they are the same ask in different clothes: something the
-//! provider cannot reach. One fetches the image, the other reaches the
-//! database — see [`Frame`].
+//! Three, and they are the same ask in different clothes: something
+//! the provider cannot reach. One fetches the image, one reaches the
+//! database, one runs a command — see [`Frame`].
 //!
 //! What an OCI one carries is
 //! [`http::request`](crate::shared::http::request), which is not here
