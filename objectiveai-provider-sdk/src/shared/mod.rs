@@ -8,8 +8,8 @@
 //! [`http`] is a tunneled HTTP exchange — MCP rides it in an agentic
 //! loop and in a container, and the OCI Distribution protocol rides it
 //! when a caller serves its own image. [`filetree`] is a live
-//! filesystem view — a watch answers with one, and so does a container
-//! creation, over a different tree. [`container`] is what a container
+//! filesystem view — a watch answers with one, and so does a
+//! laboratory run, over a different tree. [`container`] is what a container
 //! endpoint does to a container once it has one, plus the part of
 //! asking for one that does not vary between the kinds.
 //!

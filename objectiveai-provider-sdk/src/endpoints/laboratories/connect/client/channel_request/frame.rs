@@ -68,14 +68,14 @@ pub enum Frame<'a> {
     /// provider cannot tell a deliberate exit from a network that
     /// stopped answering, and has to wait to find out — during which
     /// the container's
-    /// [`Connections`](crate::endpoints::laboratories::create::server::response::Frame::Connections)
+    /// [`Connections`](crate::endpoints::laboratories::run::server::response::Frame::Connections)
     /// count still includes a connector that is not there. This is
     /// unambiguous and immediate.
     ///
     /// # What it does not do
     ///
     /// Stop the container. That belongs to whoever created it, and is
-    /// [`Stop`](crate::endpoints::laboratories::create::client::channel_request::Frame::Stop)
+    /// [`Stop`](crate::endpoints::laboratories::run::client::channel_request::Frame::Stop)
     /// on their scope. A connector leaving takes nothing with it: the
     /// container runs, other connectors stay, and the creator sees one
     /// fewer connection.

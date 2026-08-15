@@ -7,9 +7,9 @@
 //! [`Image`] is what lives here so far, and it is here because every
 //! kind of container is made from an image and the question of who
 //! supplies it has the same three answers each time. A
-//! [`laboratory`](crate::endpoints::laboratories::create) and an
+//! [`laboratory`](crate::endpoints::laboratories::run) and an
 //! [`mcp_plugin`](crate::endpoints::mcp_plugin) differ in nearly
-//! everything else about their creation and not at all in this.
+//! everything else about how they are run and not at all in this.
 
 mod image;
 

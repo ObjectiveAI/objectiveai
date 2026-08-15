@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// repository name and a manifest digest, the same pair
 /// [`images::check`](crate::endpoints::images::check::client::request::Frame)
 /// asks about — so a check that came back available names an image a
-/// creation can ask for, with nothing to translate between them.
+/// run can ask for, with nothing to translate between them.
 ///
 /// A digest cannot be repointed at different content, so those two
 /// mean the same bytes every time. [`Registry`](Self::Registry) need
@@ -82,8 +82,7 @@ pub enum Image {
     ///
     /// Ask [`images::check`](crate::endpoints::images::check) first if
     /// the answer matters before the container does. It takes this
-    /// same pair, so what a check said yes to is what a creation
-    /// names.
+    /// same pair, so what a check said yes to is what a run names.
     Server {
         /// The repository path — `library/nginx`, `myorg/myimage`.
         ///

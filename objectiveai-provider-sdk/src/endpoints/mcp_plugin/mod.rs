@@ -5,6 +5,8 @@
 //! [`laboratory`](super::laboratories). An agent runs in the first, an
 //! agent works inside the second, and an agent CALLS the third.
 //!
+//! [`run`] is the one scope, and everything is inside it.
+//!
 //! # What makes it the odd one out
 //!
 //! Nothing is injected into it. A laboratory gets an MCP server put
@@ -24,8 +26,7 @@
 //! It gains two things instead: [`arguments`], which configure the
 //! plugin, and an [`identity`], which tells it who is calling.
 //!
-//! [`arguments`]: client::request::Frame::arguments
-//! [`identity`]: client::request::Frame::identity
+//! [`arguments`]: run::client::request::Frame::arguments
+//! [`identity`]: run::client::request::Frame::identity
 
-pub mod client;
-pub mod server;
+pub mod run;

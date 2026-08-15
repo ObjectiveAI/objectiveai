@@ -7,8 +7,8 @@
 //!
 //! A connector names a container and offers an authorization. The
 //! provider does not judge it — it relays it to whoever holds that
-//! container's creation scope, as an
-//! [`Authorize`](crate::endpoints::laboratories::create::server::channel_request::Frame::Authorize),
+//! container's run scope, as an
+//! [`Authorize`](crate::endpoints::laboratories::run::server::channel_request::Frame::Authorize),
 //! and waits. The creator answers yes or no, and that answer is
 //! whether this scope opens at all.
 //!

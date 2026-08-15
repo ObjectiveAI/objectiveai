@@ -10,7 +10,7 @@ use crate::encode::{Encode, Writer};
 /// The only thing about a volume that can be edited. Its
 /// [`name`](Self::name) cannot — the name is the handle, and a handle
 /// that changed would leave every
-/// [`Mount`](crate::endpoints::laboratories::create::client::request::Mount)
+/// [`Mount`](crate::endpoints::laboratories::run::client::request::Mount)
 /// and every [`watch`](crate::endpoints::volumes::watch) naming
 /// something that is no longer there.
 ///

@@ -1,7 +1,8 @@
 //! The agentic loop — a provider driving an agent through its turns.
 //!
-//! Split by who SENDS, then by which LEVEL. [`client`] is everything a
-//! client puts on the wire; [`server`] is everything a provider does.
+//! [`run`] is the one scope, and everything is inside it. Split there
+//! by who SENDS, then by which LEVEL: `client` is everything a client
+//! puts on the wire; `server` is everything a provider does.
 //!
 //! Within each, a module is named for the frame that carries it, so
 //! the modules and [`frame`](crate::frame)'s types say the same words:
@@ -17,5 +18,4 @@
 //! answers the channels a server opens; a server answers the scope and
 //! opens channels of its own.
 
-pub mod client;
-pub mod server;
+pub mod run;

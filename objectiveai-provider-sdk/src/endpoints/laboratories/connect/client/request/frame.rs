@@ -12,8 +12,8 @@ use crate::encode::{Encode, Writer};
 /// # What happens to the authorization
 ///
 /// Nothing, here. The provider relays it to whoever holds the
-/// container's creation scope, as an
-/// [`Authorize`](crate::endpoints::laboratories::create::server::channel_request::Frame::Authorize),
+/// container's run scope, as an
+/// [`Authorize`](crate::endpoints::laboratories::run::server::channel_request::Frame::Authorize),
 /// and the answer to that is whether this scope opens.
 ///
 /// Which is why the bytes are opaque. A provider that had to
@@ -46,8 +46,8 @@ use crate::encode::{Encode, Writer};
 pub struct Frame<'a> {
     /// The container to join.
     ///
-    /// A [`Frame::Id`](crate::endpoints::laboratories::create::server::response::Frame::Id)
-    /// from a creation. It means nothing to a connector that was not
+    /// A [`Frame::Id`](crate::endpoints::laboratories::run::server::response::Frame::Id)
+    /// from a run. It means nothing to a connector that was not
     /// given it, and nothing outside the provider that minted it.
     pub id: &'a str,
     /// Whatever the creator needs in order to say yes.

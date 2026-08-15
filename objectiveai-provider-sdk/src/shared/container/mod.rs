@@ -1,6 +1,6 @@
 //! What can be done to a container once you have one.
 //!
-//! [`create`](crate::endpoints::laboratories::create) and
+//! [`create`](crate::endpoints::laboratories::run) and
 //! [`connect`](crate::endpoints::laboratories::connect) differ in how
 //! they GET a container — one makes it and owns its life, the other
 //! joins somebody else's and asks permission. Once attached, they do

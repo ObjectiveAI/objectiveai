@@ -33,7 +33,7 @@ use crate::encode::{Encode, Writer};
 ///
 /// # The scope ends, and the volume does not
 ///
-/// Unlike a [`laboratory`](crate::endpoints::laboratories::create),
+/// Unlike a [`laboratory`](crate::endpoints::laboratories::run),
 /// whose scope IS the container's life. A volume outlives the request
 /// that made it and every connection the caller ever holds; it goes
 /// away when a

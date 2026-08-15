@@ -31,7 +31,7 @@ use crate::encode::{Encode, Writer};
 /// # What it does to whatever is using it
 ///
 /// Nothing here says, because nothing here can. A volume may be
-/// [`Mount`](crate::endpoints::laboratories::create::client::request::Mount)ed
+/// [`Mount`](crate::endpoints::laboratories::run::client::request::Mount)ed
 /// into a running laboratory, or being
 /// [`watch`](crate::endpoints::volumes::watch)ed, or both, by this
 /// caller and by nobody else — and what a provider does about that is

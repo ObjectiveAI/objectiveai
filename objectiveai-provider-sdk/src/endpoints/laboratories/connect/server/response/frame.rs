@@ -9,7 +9,7 @@ use crate::encode::{Encode, Writer};
 /// A connection's answer: the container's filesystem and its connector
 /// count, for as long as the scope lives.
 ///
-/// The same two things a creation reports, minus the id — a connector
+/// The same two things a run reports, minus the id — a connector
 /// already has that, which is how it got here.
 ///
 /// # The tag byte
@@ -20,7 +20,7 @@ use crate::encode::{Encode, Writer};
 /// own bytes. Nothing is ordered: a reader takes each frame as it
 /// comes and does not count.
 ///
-/// The tags start at `0` and have nothing to do with a creation's,
+/// The tags start at `0` and have nothing to do with a run's,
 /// which happen to number the same kinds differently. Each frame type
 /// owns its own tag space; a value means something only inside the
 /// type that defines it.
@@ -28,7 +28,7 @@ use crate::encode::{Encode, Writer};
 pub enum Frame {
     /// One change on the container's filesystem. Tag `0`.
     ///
-    /// The same [`filetree`](crate::shared::filetree) stream a creation gets,
+    /// The same [`filetree`](crate::shared::filetree) stream a run gets,
     /// over the same tree. A connector sees what the creator sees.
     Filetree(crate::shared::filetree::response::Frame),
     /// How many connectors are attached to the container. Tag `1`.

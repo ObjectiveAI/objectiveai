@@ -7,7 +7,7 @@
 //! # It outlives the scope that made it
 //!
 //! Which is what separates this from a
-//! [`laboratory creation`](crate::endpoints::laboratories::create),
+//! [`laboratory run`](crate::endpoints::laboratories::run),
 //! where the scope IS the container's life and dropping the connection
 //! stops it. A volume persists until a
 //! [`delete`](super::delete) destroys it — across connections, across

@@ -9,7 +9,7 @@
 //! | [`agentic_loop`] | run an agent, stream what it does |
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`volumes`] | list what a provider offers; watch one; make, resize or destroy one |
-//! | [`laboratories`] | create a laboratory; join one |
+//! | [`laboratories`] | run a laboratory; join one |
 //! | [`mcp_plugin`] | run a plugin, call it |
 //!
 //! # The tags
@@ -21,13 +21,13 @@
 //!
 //! | tag | request |
 //! |-----|---------|
-//! | `0` | [`agentic_loop`] |
+//! | `0` | [`agentic_loop::run`] |
 //! | `1` | [`images::check`] |
 //! | `2` | [`volumes::list`] |
 //! | `3` | [`volumes::watch`] |
-//! | `4` | [`laboratories::create`] |
+//! | `4` | [`laboratories::run`] |
 //! | `5` | [`laboratories::connect`] |
-//! | `6` | [`mcp_plugin`] |
+//! | `6` | [`mcp_plugin::run`] |
 //! | `7` | [`volumes::create`] |
 //! | `8` | [`volumes::delete`] |
 //! | `9` | [`volumes::edit`] |
