@@ -41,7 +41,7 @@ use crate::shared::error::Error;
 /// They are both failures and they are not the same failure.
 ///
 /// A [`NotificationChunk`](super::NotificationChunk) with
-/// [`is_error`](super::NotificationChunk::is_error) set is part of the
+/// [`is_fatal`](super::NotificationChunk::is_fatal) set is part of the
 /// loop's OUTPUT. It arrives as a [`Chunk`](Self::Chunk) like any
 /// other, carries a `_meta` bag like any other, and exists because a
 /// loop can fail after producing output — ending the stream silently

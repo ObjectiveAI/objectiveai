@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Whether it is fatal is a field, not a type
 ///
-/// [`is_error`](Self::is_error) says which. A caller that only cares
-/// about failures reads one boolean; a caller that wants the whole
-/// commentary reads every one of these and decides for itself.
+/// [`is_fatal`](Self::is_fatal) says which. A caller that only cares
+/// whether the run survived reads one boolean; a caller that wants the
+/// whole commentary reads every one of these and decides for itself.
 ///
 /// The alternative was two chunk variants with the same three fields,
 /// which would have made "the loop warned me" and "the loop failed"
@@ -27,13 +27,21 @@ use serde::{Deserialize, Serialize};
 pub struct NotificationChunk {
     /// The discriminator. See [`ContinuationChunk`](super::ContinuationChunk).
     pub r#type: NotificationChunkType,
-    /// Whether this is a failure.
+    /// Whether the run ends here.
     ///
-    /// `true` is the loop reporting that something went wrong; `false`
-    /// is it reporting anything else. Nothing here says what a
-    /// provider must send either as — what is worth mentioning, and
-    /// what counts as failing, is the provider's to decide.
-    pub is_error: bool,
+    /// `true` is the loop saying it is over and this is why. `false`
+    /// is it saying something and carrying on — a warning, a retry, a
+    /// degraded mode, a failure it recovered from.
+    ///
+    /// Fatal rather than merely wrong, because "wrong" is not a
+    /// question a caller can act on and "over" is. A provider that
+    /// hits an error and retries past it has not failed, and a caller
+    /// told otherwise would abandon a run that was still going.
+    ///
+    /// Nothing here says what a provider must send either way. What is
+    /// worth mentioning, and what it can recover from, is the
+    /// provider's to decide.
+    pub is_fatal: bool,
     /// The message or details, as an arbitrary JSON value — providers
     /// report failures in shapes we do not get to dictate, and
     /// flattening one into a string would discard the structure a
