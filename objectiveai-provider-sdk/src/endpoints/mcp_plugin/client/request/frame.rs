@@ -1,0 +1,191 @@
+//! What a client's request frame carries for an MCP plugin.
+
+use indexmap::IndexMap;
+use serde::{Deserialize, Serialize};
+
+use super::{Identity, ImageType};
+use crate::decode::Decode;
+use crate::encode::{Encode, Writer};
+
+/// Ask a provider to run an MCP plugin.
+///
+/// The same bargain a
+/// [`laboratory creation`](crate::endpoints::laboratories::create::client::request::Frame)
+/// strikes — a caller chooses the image and the resources, a provider
+/// chooses the name, the labels and the entrypoint — with the
+/// injection removed and the configuration added.
+///
+/// # What is missing, and why it is missing rather than ignored
+///
+/// A laboratory takes `mounts` and an `initial_cwd`. Neither appears
+/// here.
+///
+/// A plugin serves tools; it does not work on a filesystem, and
+/// mounting a caller's directories into a container whose whole
+/// purpose is to answer tool calls would hand it access it has no
+/// reason to want. And a working directory has nothing to apply to:
+/// the image's own `WORKDIR` governs its entrypoint, and there is no
+/// second process placed alongside it to put anywhere else.
+///
+/// Stating them and having a provider drop them would be worse than
+/// not offering them. A field that is accepted and ignored is a field
+/// callers will believe in.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Frame {
+    /// Who produces the image.
+    ///
+    /// See [`ImageType`]. It also decides how
+    /// [`image_reference`](Self::image_reference) is read, so the two
+    /// are one answer in two fields.
+    pub image_type: ImageType,
+    /// What to ask for — `myplugin:latest`,
+    /// `ghcr.io/org/plugin@sha256:…`.
+    ///
+    /// Read exactly as a laboratory's is, including what a caller-
+    /// served reference lands in and what `..` inside one would do.
+    /// See
+    /// [`laboratories::create`'s](crate::endpoints::laboratories::create::client::request::Frame::image_reference).
+    pub image_reference: String,
+    /// How much memory the container may have, in BYTES.
+    ///
+    /// A ceiling enforced by the kernel, not a hint — a plugin past it
+    /// is killed rather than told. Which matters more here than for a
+    /// laboratory: a laboratory's death is visible to the agent
+    /// working in it, while a plugin's shows up as tool calls that
+    /// stop being answered.
+    pub memory: u64,
+    /// The environment, name to value.
+    ///
+    /// For what the IMAGE expects — credentials, endpoints, whatever
+    /// its author documented. Not for
+    /// [`arguments`](Self::arguments) or [`identity`](Self::identity),
+    /// which a provider delivers by its own reserved names and will
+    /// overwrite anything here that collides.
+    ///
+    /// Ordered, so the same environment always serializes identically,
+    /// and a map rather than `KEY=VALUE` strings so one name cannot
+    /// appear twice with values that contradict each other.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub environment: IndexMap<String, String>,
+    /// What port the plugin's MCP server listens on, inside the
+    /// container.
+    ///
+    /// The caller states it because only the image's author knows it.
+    /// A laboratory does not have this field: the provider puts the
+    /// server there and therefore assigns the port. Here the server
+    /// arrived with the image, already bound to something.
+    ///
+    /// This is the CONTAINER's port, not a host one. What a provider
+    /// publishes it as is the provider's business and no caller will
+    /// see it.
+    ///
+    /// A wrong value is not detectable from here. The container starts
+    /// fine and nothing answers.
+    pub port: u16,
+    /// The plugin's configuration.
+    ///
+    /// Whatever its author defined, and this specification has no
+    /// opinion about any of it — a provider passes it through
+    /// untouched, and a plugin that receives something it cannot use
+    /// is a disagreement between the caller and the plugin's author
+    /// that neither the provider nor this field can adjudicate.
+    ///
+    /// # Why it is not just more environment
+    ///
+    /// Because the values are JSON, not strings. A plugin taking a
+    /// number, a list or a nested object would otherwise have every
+    /// caller inventing an encoding for it and every plugin guessing
+    /// which one was used.
+    ///
+    /// Ordered, and the order is preserved deliberately: it is the
+    /// caller's order, it survives to the plugin, and two requests
+    /// that differ only in it serialize differently.
+    #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
+    pub arguments: IndexMap<String, serde_json::Value>,
+    /// On whose behalf the plugin runs.
+    ///
+    /// See [`Identity`]. Fixed for the container's life, which is why
+    /// it is here rather than on each exchange.
+    pub identity: Identity,
+}
+
+/// This frame's tag among the scope-opening requests.
+///
+/// `0` is the agentic loop, `1` the image check, `2` the filesystem
+/// listing, `3` the watch, `4` a laboratory creation, `5` a laboratory
+/// connection. The values are allocated across six modules that do not
+/// know about each other, so a seventh request has to look at all of
+/// them.
+const TAG: u8 = 6;
+
+/// JSON, matching the laboratory creation this is a variation on.
+///
+/// One of these is sent per plugin container, so there is no volume to
+/// optimize for — and [`arguments`](Frame::arguments) carries
+/// arbitrary JSON, which a positional format could not hold without
+/// tunnelling it through a string.
+impl Encode for Frame {
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+        out.extend_from_slice(&[TAG]);
+        serde_json::to_writer(out, self)
+    }
+}
+
+impl Decode<'_> for Frame {
+    /// Three ways to fail, and only one of them is JSON.
+    type Error = FrameError;
+
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        if *tag != TAG {
+            return Err(FrameError::UnexpectedTag(*tag));
+        }
+        serde_json::from_slice(rest).map_err(FrameError::Body)
+    }
+}
+
+/// An MCP plugin request that could not be read.
+#[derive(Debug)]
+pub enum FrameError {
+    /// No bytes at all, so not even a tag.
+    Empty,
+    /// A tag naming some other request.
+    ///
+    /// A reader that dispatched on the tag will not see this. One that
+    /// assumed which request it held, and was wrong, will — which is
+    /// the point of checking a tag rather than skipping it.
+    UnexpectedTag(u8),
+    /// The request did not parse.
+    Body(serde_json::Error),
+}
+
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FrameError::Empty => {
+                f.write_str("mcp plugin request frame is empty")
+            }
+            FrameError::UnexpectedTag(tag) => {
+                write!(
+                    f,
+                    "expected mcp plugin request tag {TAG}, found {tag}"
+                )
+            }
+            FrameError::Body(error) => {
+                write!(f, "mcp plugin request did not parse: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
+        }
+    }
+}
