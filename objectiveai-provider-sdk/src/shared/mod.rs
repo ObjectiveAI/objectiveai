@@ -9,8 +9,9 @@
 //! loop and in a container, and the OCI Distribution protocol rides it
 //! when a caller serves its own image. [`filetree`] is a live
 //! filesystem view — a watch answers with one, and so does a container
-//! creation, over a different tree. [`container`] is what both
-//! container endpoints do to a container once they have one.
+//! creation, over a different tree. [`container`] is what a container
+//! endpoint does to a container once it has one, plus the part of
+//! asking for one that does not vary between the kinds.
 //!
 //! The reason they live here rather than in whichever endpoint used
 //! them first: a shape defined twice is two shapes that agree until

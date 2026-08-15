@@ -16,7 +16,7 @@ use crate::shared::http::request::Request;
 /// for [`Disconnect`](Self::Disconnect) — and the rest is that variant's own
 /// bytes, of which the last has none.
 ///
-/// All three reach INTO the container, which is the thing a
+/// The first four reach INTO the container, which is the thing a
 /// connector cannot dial: it runs on the provider. That is the whole
 /// reason these channels open outward from the client rather than the
 /// other way.
@@ -128,7 +128,8 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Five ways to fail, and each names which half failed.
+    /// Six ways to fail, and the parses among them name which half
+    /// failed.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {

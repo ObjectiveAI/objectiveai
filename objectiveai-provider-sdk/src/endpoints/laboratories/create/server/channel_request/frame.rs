@@ -119,7 +119,7 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Five ways to fail, and only one of them is a parse.
+    /// Six ways to fail, and only one of them is a parse.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
@@ -170,7 +170,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither [`Frame::Oci`] nor [`Frame::Authorize`].
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// An authorization that ended inside its address.
     Truncated,

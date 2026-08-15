@@ -42,9 +42,14 @@
 //! either direction carries it.
 //!
 //! A **channel** is one exchange inside a scope. Channel `0` is the
-//! answer to the client's own request. Any other channel is a request
-//! the SERVER made, and only the server opens them — which is why the
-//! two ends can never collide over one.
+//! answer to the client's own request. Any other channel was opened by
+//! a channel request, and BOTH sides open them.
+//!
+//! Which is why the numbering is per SENDER. A client's channel `5`
+//! and a server's channel `5` are different channels, told apart by
+//! the direction a frame travelled rather than by the number — so
+//! neither end has to know what the other has minted, and neither can
+//! collide with it.
 //!
 //! # Types
 //!
@@ -134,9 +139,9 @@
 //! two ends to agree — this layer guarantees only that it comes
 //! first.
 //!
-//! Because the reply types are shared and the request types are not,
-//! `type` alone determines what a frame is. Nothing has to consult
-//! whether the scope happens to be zero.
+//! Where a type exists in both directions it means the same thing in
+//! both, so `type` alone determines what a frame is. Nothing has to
+//! consult whether the scope happens to be zero.
 
 pub mod client;
 pub mod server;
