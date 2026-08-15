@@ -49,12 +49,25 @@ pub struct Frame {
     pub image_reference: String,
     /// How much memory the container may have, in BYTES.
     ///
-    /// A ceiling enforced by the kernel, not a hint — a plugin past it
-    /// is killed rather than told. Which matters more here than for a
-    /// laboratory: a laboratory's death is visible to the agent
-    /// working in it, while a plugin's shows up as tool calls that
-    /// stop being answered.
+    /// A ceiling, not a hint — a plugin that exceeds what it is
+    /// allowed is killed by the kernel rather than told. Which matters
+    /// more here than for a laboratory: a laboratory's death is
+    /// visible to the agent working in it, while a plugin's shows up
+    /// as tool calls that stop being answered.
     pub memory: u64,
+    /// How much the plugin may WRITE, in BYTES.
+    ///
+    /// Its own filesystem only — what it adds to or changes over the
+    /// image it came from. The image's layers are read-only and are
+    /// not counted, so a plugin starts at nothing however large the
+    /// image is.
+    ///
+    /// And its own filesystem is all it has. A plugin takes no mounts,
+    /// so unlike a
+    /// [`laboratory's`](crate::endpoints::laboratories::create::client::request::Frame::disk)
+    /// there is no second kind of storage for this number to be
+    /// distinguished from.
+    pub disk: u64,
     /// The environment, name to value.
     ///
     /// For what the IMAGE expects — credentials, endpoints, whatever

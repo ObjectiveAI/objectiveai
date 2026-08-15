@@ -24,9 +24,10 @@ pub struct Agent {
     /// How much memory the source needs, in BYTES.
     ///
     /// Not a hint. A Python agent runs in a container, and this is the
-    /// ceiling that container is given — so a process that exceeds it
-    /// is killed by the kernel rather than told to try something else.
-    /// There is no failed allocation to catch and no warning first.
+    /// ceiling that container is given — so a process that exceeds
+    /// what it is allowed is killed by the kernel rather than told to
+    /// try something else. There is no failed allocation to catch and
+    /// no warning first.
     ///
     /// Which makes this the author's job and nobody else's. A provider
     /// cannot infer it: the source is opaque until it runs, and by
@@ -41,6 +42,23 @@ pub struct Agent {
     /// CONTAINER may use, not what the script allocates on top of a
     /// runtime somebody else is paying for.
     pub memory: u64,
+    /// How much the source may WRITE, in BYTES.
+    ///
+    /// The container's own filesystem — what it adds to or changes
+    /// over the image it came from. The image's layers are read-only
+    /// and are not counted, so a run starts at nothing however large
+    /// the interpreter and its packages are.
+    ///
+    /// The author's job for the same reason
+    /// [`memory`](Self::memory) is: a provider cannot infer what a
+    /// script will write, because the source is opaque until it runs
+    /// and by then the number is already needed.
+    ///
+    /// What [`requirements`](Self::requirements) install is part of
+    /// the image rather than part of this. They are resolved before
+    /// the source runs, so a run does not spend its allowance on its
+    /// own dependencies.
+    pub disk: u64,
     /// Third-party packages the source needs: distribution name to
     /// version constraint.
     ///

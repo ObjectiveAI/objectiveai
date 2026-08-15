@@ -61,15 +61,34 @@ pub struct Frame {
     pub image_reference: String,
     /// How much memory the container may have, in BYTES.
     ///
-    /// A ceiling, not a hint. A process past it is killed by the
-    /// kernel — no failed allocation to catch, no warning first — and
-    /// the container will not see this number in its own
+    /// A ceiling, not a hint. A process that exceeds what the
+    /// container is allowed is killed by the kernel rather than told —
+    /// no failed allocation to catch, no warning first — and the
+    /// container will not see this number in its own
     /// `/proc/meminfo`, which reports the host's. An image that sizes
     /// itself off what it thinks it has will size itself wrong.
     ///
     /// Bytes rather than megabytes because a unit that has to be
     /// spelled out in prose is a unit half of everyone gets wrong.
     pub memory: u64,
+    /// How much the container may WRITE, in BYTES.
+    ///
+    /// Its own filesystem only — what it adds to or changes over the
+    /// image it came from. The image's layers are read-only and are
+    /// not counted, so a container starts at nothing however large the
+    /// image is.
+    ///
+    /// # It does not govern [`mounts`](Self::mounts)
+    ///
+    /// A mount is storage that already existed, with a size of its own
+    /// that a [`volume`](crate::endpoints::volumes) stated when it was
+    /// made. A number here that silently applied to it would be this
+    /// request deciding how much of somebody else's volume a container
+    /// may fill.
+    ///
+    /// Bytes rather than megabytes, for the reason
+    /// [`memory`](Self::memory) gives.
+    pub disk: u64,
     /// The environment, name to value.
     ///
     /// A map rather than a list of `KEY=VALUE` strings, so one name
