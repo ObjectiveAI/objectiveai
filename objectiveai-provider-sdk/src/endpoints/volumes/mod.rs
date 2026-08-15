@@ -2,11 +2,11 @@
 //! life of one.
 //!
 //! [`list`] says which volumes exist; [`watch`] names one and opens a
-//! scope that streams its tree; [`create`] makes one and [`delete`]
-//! destroys it. The four are one exchange with four moves, which is
-//! why every one of them but [`create`] names a volume rather than
-//! describing one: a caller can only ask for what it was offered, and
-//! [`create`] is the move that puts something in the offering.
+//! scope that streams its tree; [`create`] makes one, [`edit`] changes
+//! how much it reserves, and [`delete`] destroys it. Every one of them
+//! but [`create`] names a volume rather than describing one: a caller
+//! can only ask for what it was offered, and [`create`] is the move
+//! that puts something in the offering.
 //!
 //! # Volumes rather than paths
 //!
@@ -41,5 +41,6 @@
 
 pub mod create;
 pub mod delete;
+pub mod edit;
 pub mod list;
 pub mod watch;

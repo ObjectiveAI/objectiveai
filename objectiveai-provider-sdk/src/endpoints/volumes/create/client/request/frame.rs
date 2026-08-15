@@ -54,25 +54,14 @@ pub struct Frame {
     pub name: String,
     /// How big it is, in BYTES.
     ///
-    /// A size, not a hint, and the whole of what a caller may ask for
-    /// about capacity. There is no minimum here and no growth: a
-    /// volume is the size it was made, and a caller that wants a
-    /// bigger one makes a bigger one.
+    /// The size it starts at. An
+    /// [`edit`](crate::endpoints::volumes::edit) changes it later.
     ///
     /// This is what a listing reports back as
     /// [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes),
     /// beside a
     /// [`bytes_used`](crate::endpoints::volumes::list::server::response::Volume::bytes_used)
-    /// that says how much of it is gone.
-    ///
-    /// # What happens at the ceiling is the provider's
-    ///
-    /// Writing past it fails, and how it fails is whatever the
-    /// provider's storage does — `ENOSPC` to whatever is writing,
-    /// most likely, since that is what a full filesystem says. This
-    /// specification does not promise a signal, because the writer is
-    /// usually a process inside a container that this protocol never
-    /// speaks to.
+    /// that says how much of it is in use.
     ///
     /// Bytes rather than megabytes because a unit that has to be
     /// spelled out in prose is a unit half of everyone gets wrong.

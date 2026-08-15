@@ -8,7 +8,7 @@
 //! |----------|--------|
 //! | [`agentic_loop`] | run an agent, stream what it does |
 //! | [`images`] | ask whether an image can be supplied |
-//! | [`volumes`] | list what a provider offers; watch one; make one; destroy one |
+//! | [`volumes`] | list what a provider offers; watch one; make, resize or destroy one |
 //! | [`laboratories`] | create a laboratory; join one |
 //! | [`mcp_plugin`] | run a plugin, call it |
 //!
@@ -30,9 +30,10 @@
 //! | `6` | [`mcp_plugin`] |
 //! | `7` | [`volumes::create`] |
 //! | `8` | [`volumes::delete`] |
+//! | `9` | [`volumes::edit`] |
 //!
-//! Nine, and they are in the order they were allocated rather than
-//! grouped by endpoint — [`volumes`] holds `2`, `3`, `7` and `8`.
+//! Ten, and they are in the order they were allocated rather than
+//! grouped by endpoint — [`volumes`] holds `2`, `3`, `7`, `8` and `9`.
 //! Nothing derives meaning from adjacency, so regrouping them would
 //! change every implementation to make a table look tidier.
 //!
