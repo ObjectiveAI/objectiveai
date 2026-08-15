@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::Identity;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::container::request::ImageType;
+use crate::shared::container::request::Image;
 
 /// Ask a provider to run an MCP plugin.
 ///
@@ -33,20 +33,13 @@ use crate::shared::container::request::ImageType;
 /// callers will believe in.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Frame {
-    /// Who produces the image.
+    /// The image, and who supplies it.
     ///
-    /// See [`ImageType`]. It also decides how
-    /// [`image_reference`](Self::image_reference) is read, so the two
-    /// are one answer in two fields.
-    pub image_type: ImageType,
-    /// What to ask for — `myplugin:latest`,
-    /// `ghcr.io/org/plugin@sha256:…`.
-    ///
-    /// Read exactly as a laboratory's is, including what a caller-
-    /// served reference lands in and what `..` inside one would do.
-    /// See
-    /// [`laboratories::create`'s](crate::endpoints::laboratories::create::client::request::Frame::image_reference).
-    pub image_reference: String,
+    /// See [`Image`]. Read exactly as a laboratory's is — the same
+    /// three answers meaning the same three things, since nothing
+    /// about supplying an image changes because the container built
+    /// from it will serve tool calls.
+    pub image: Image,
     /// How much memory the container may have, in BYTES.
     ///
     /// A ceiling, not a hint — a plugin that exceeds what it is
