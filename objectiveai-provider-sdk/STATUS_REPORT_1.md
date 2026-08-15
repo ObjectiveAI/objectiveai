@@ -139,13 +139,13 @@ what it was not offered, cannot escape upward, and cannot probe by
 reading an error, because a path it invents is not something the
 request can express. The answer is a filetree stream.
 
-**`containers::create` (4)** — run an image. Carries the image type
+**`laboratories::create` (4)** — run an image. Carries the image type
 and reference, a memory ceiling in bytes, environment, mounts, and the
 directory agents land in. A mount names an offered directory and an
 offset within it, so the same access model holds. The scope is the
 container's **life**.
 
-**`containers::connect` (5)** — join a container somebody else made.
+**`laboratories::connect` (5)** — join a container somebody else made.
 A container id and an opaque authorization.
 
 ## Filetree
@@ -162,7 +162,7 @@ therefore at-least-once delivery safe. `Root::update` is the canonical
 fold, so two consumers fed one stream cannot disagree about what it
 meant.
 
-## Containers
+## Laboratories
 
 A creation is the most complete exchange in the protocol, and the only
 one with channels going **both ways at once**.
