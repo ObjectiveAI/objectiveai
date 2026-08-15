@@ -13,6 +13,11 @@
 //! endpoint does to a container once it has one, plus the part of
 //! asking for one that does not vary between the kinds.
 //!
+//! [`error`] is the odd one out: a shape nothing carries yet. It is
+//! here rather than beside whichever frame first needs it, because a
+//! failure that means different things in different modules is a
+//! failure every consumer has to learn twice.
+//!
 //! The reason they live here rather than in whichever endpoint used
 //! them first: a shape defined twice is two shapes that agree until
 //! they do not, and the fold in
@@ -20,5 +25,6 @@
 //! kind of thing that would stop agreeing quietly.
 
 pub mod container;
+pub mod error;
 pub mod filetree;
 pub mod http;
