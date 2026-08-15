@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// A directory from a listing, mounted into the container.
+/// A volume from a listing, mounted into the container.
 ///
 /// Host side first, then the container side — source before
 /// destination, the order a mount reads in everywhere else.
@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Because a host path is not something a caller is allowed to state.
 /// [`host_name`](Self::host_name) is a
-/// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
+/// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
 /// the provider published, and
 /// [`host_relative_path`](Self::host_relative_path) descends from
 /// wherever that maps to — so a caller reaches a subdirectory of
@@ -25,16 +25,16 @@ use serde::{Deserialize, Serialize};
 /// components, and `..` is a name, not an instruction.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Mount {
-    /// Which offered directory, by the name a listing gave it.
+    /// Which offered volume, by the name a listing gave it.
     ///
     /// Names come from
-    /// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
+    /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub host_name: String,
-    /// How far into that directory to start, as path components
+    /// How far into that volume to start, as path components
     /// relative to it.
     ///
-    /// Empty mounts the directory itself, which is the common case;
+    /// Empty mounts the volume itself, which is the common case;
     /// anything else mounts a subdirectory of it.
     pub host_relative_path: Vec<String>,
     /// Where it appears inside the container, as path components from

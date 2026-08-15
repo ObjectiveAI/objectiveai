@@ -2,11 +2,11 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::Directory;
+use super::Volume;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Every directory a provider will let this caller watch.
+/// Every volume a provider will let this caller watch.
 ///
 /// The whole answer, in one frame. A listing is not a stream: a
 /// provider knows what it offers before it is asked, so there is
@@ -18,9 +18,9 @@ use crate::encode::{Encode, Writer};
 /// frame at all.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame(
-    /// The directories, in whatever order the provider chose. Nothing
+    /// The volumes, in whatever order the provider chose. Nothing
     /// promises an order and nothing should be read into one.
-    pub Vec<Directory>,
+    pub Vec<Volume>,
 );
 
 /// Postcard, matching [`filetree`](crate::shared::filetree) rather than the
@@ -28,8 +28,8 @@ pub struct Frame(
 ///
 /// The same reasoning: this relays nothing, so no byte of it has to
 /// survive a round trip unchanged, and nothing downstream reads it as
-/// text. It is also the same DATA — directories and component paths —
-/// and encoding the two sides of one feature differently would be a
+/// text. It is also the same DATA — names and component paths — and
+/// encoding the two sides of one feature differently would be a
 /// difference with nothing behind it.
 impl Encode for Frame {
     /// Postcard's own failure.

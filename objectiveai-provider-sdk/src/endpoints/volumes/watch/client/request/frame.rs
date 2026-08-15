@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Watch one of the directories a provider offers.
+/// Watch one of the volumes a provider offers.
 ///
 /// # A name, not a path
 ///
 /// The one field is a
-/// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
+/// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
 /// from a listing, and this is the whole of the access model. A caller
-/// cannot watch a directory it was not offered, cannot escape one by
+/// cannot watch a volume it was not offered, cannot escape one by
 /// naming components above it, and cannot probe for what exists by
 /// watching and reading the error — because a path it invents is not
 /// something this request can express.
@@ -25,14 +25,14 @@ use crate::encode::{Encode, Writer};
 ///
 /// A [`filetree`](crate::shared::filetree) stream on channel `0`: one snapshot
 /// carrying the whole tree, then one frame per change for as long as
-/// the scope lives. Every path in it is relative to the directory
+/// the scope lives. Every path in it is relative to the volume
 /// named here.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub struct Frame {
-    /// Which directory, by the name a listing gave it.
+    /// Which volume, by the name a listing gave it.
     ///
     /// Names come from
-    /// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
+    /// [`Volume::name`](crate::endpoints::volumes::list::server::response::Volume::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
 }

@@ -9,7 +9,7 @@
 //! # Volumes rather than paths
 //!
 //! A volume is a directory a provider has DECIDED to offer, under a
-//! [`name`](list::server::response::Directory::name) it chose. That is
+//! [`name`](list::server::response::Volume::name) it chose. That is
 //! the whole access model: a caller never states a host path, because
 //! there is no path it could state that a provider would resolve. It
 //! names something it was given and descends from there, and `..` is
