@@ -440,6 +440,25 @@ async def handle_run(
             # outgoing X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY header.
             env["OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY"] = agent_instance_hierarchy
 
+        # The nested CLI is the one MCP client in the system with an
+        # arbitrary per-call ceiling: its default kills any MCP tool call
+        # that stays silent for 60s, and the nested completion that call
+        # spawned runs on, orphaned. Every ObjectiveAI hop is deliberately
+        # unbounded (the api "waits forever on the CLI client"; the daemon
+        # "never bounds its own MCP calls") — real bounds belong to the
+        # spawn's `timeout_seconds` and the tool's own budget. Align the
+        # nested CLI with the platform. The SDK merges `options.env` OVER
+        # the inherited process env (`{**inherited_env, **options.env}`),
+        # so these are set only when the operator has not set them — an
+        # operator's environment must keep winning.
+        for key, default in (
+            ("MCP_TOOL_TIMEOUT", "600000"),  # ms
+            ("CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT", "600000"),  # ms
+            ("MAX_MCP_OUTPUT_TOKENS", "100000"),
+        ):
+            if key not in os.environ:
+                env[key] = default
+
         opts = ClaudeAgentOptions(
             model=params["model"],
             # Pin cwd so claude's per-project session store is stable across
@@ -475,6 +494,14 @@ async def handle_run(
         max_retries = int(params["rate_limit_max_retries"])
         max_wait_secs = int(params.get("rate_limit_max_wait_secs", 180))
         current_session_id: str | None = None
+        # The real text of the most recent error-flagged result frame. The
+        # SDK's terminal exception for one is built from its `errors` list
+        # or, when that list is empty, its *subtype* — which the CLI sets
+        # to "success" on e.g. an auth lapse, yielding the useless
+        # "Claude Code returned an error result: success". The frame's
+        # actual message lives in `result`, which the SDK never reads but
+        # this loop already sees; the except handler splices it in.
+        last_error_result: str | None = None
 
         for attempt in range(max_retries + 1):
             rate_limited = False
@@ -495,6 +522,12 @@ async def handle_run(
                 await wait_for_mcp_servers(client, our_servers)
 
                 async for msg in client.receive_messages():
+                    if isinstance(msg, ResultMessage):
+                        last_error_result = (
+                            _one_line(msg.result)
+                            if msg.is_error and msg.result
+                            else None
+                        )
                     # Track session_id from any message that has it.
                     msg_session_id = getattr(msg, "session_id", None)
                     if msg_session_id:
@@ -547,6 +580,12 @@ async def handle_run(
     except Exception as e:
         status = "error"
         error = _one_line(str(e) or e.__class__.__name__)
+        # Splice in the remembered result text (see `last_error_result`)
+        # so "…error result: success" becomes "…error result: success:
+        # <what actually went wrong>". Skipped when the SDK's message
+        # already carries it (a non-empty `errors` list).
+        if last_error_result and last_error_result not in error:
+            error = f"{error}: {last_error_result}"
     finally:
         # Shield the terminal emit so that a second cancel arriving while
         # the SDK's __aexit__ is unwinding doesn't suppress it.

@@ -579,6 +579,75 @@ fn test_result_success_byok() {
     );
 }
 
+/// 10b. An error-flagged result whose subtype is still "success" — the
+/// CLI emits exactly this on an auth lapse — lands in the `Success` arm
+/// of the untagged enum. `is_error` must turn it into an error chunk
+/// carrying the frame's `result` text, not a silent success with the
+/// message dropped.
+#[test]
+fn test_result_success_with_is_error_carries_result_text() {
+    let msg = SDKResultMessage::Success(SDKResultSuccess {
+        r#type: "result".to_string(),
+        subtype: "success".to_string(),
+        duration_ms: 100,
+        duration_api_ms: 90,
+        is_error: true,
+        num_turns: 1,
+        result: "Invalid API key · Please run /login".to_string(),
+        stop_reason: None,
+        total_cost_usd: Decimal::ZERO,
+        usage: super::super::beta_usage::NonNullableBetaUsage {
+            cache_creation: super::super::beta_usage::BetaCacheCreation {
+                ephemeral_1h_input_tokens: 0,
+                ephemeral_5m_input_tokens: 0,
+            },
+            cache_creation_input_tokens: 0,
+            cache_read_input_tokens: 0,
+            inference_geo: "us".to_string(),
+            input_tokens: 0,
+            iterations: vec![],
+            output_tokens: 0,
+            server_tool_use: super::super::beta_usage::BetaServerToolUsage {
+                web_fetch_requests: 0,
+                web_search_requests: 0,
+            },
+            service_tier: super::super::beta_usage::ServiceTier::Standard,
+            speed: super::super::beta_usage::Speed::Standard,
+        },
+        model_usage: indexmap::IndexMap::new(),
+        permission_denials: vec![],
+        structured_output: None,
+        fast_mode_state: None,
+        uuid: "uuid-10b".to_string(),
+        session_id: "sess-10b".to_string(),
+    });
+
+    let chunk = msg.into_downstream(
+        "id-10b".to_string(),
+        1000,
+        0,
+        false,
+        Decimal::from(1),
+        Decimal::ZERO,
+        0,
+        objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
+    );
+
+    assert_eq!(
+        chunk.error,
+        Some(objectiveai_sdk::error::ResponseError {
+            code: 500,
+            message: serde_json::Value::String(
+                "Invalid API key · Please run /login".to_string()
+            ),
+        })
+    );
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // Regression: a claude_agent_sdk tool result must survive the runner → API
 // boundary and become a logged tool response.
