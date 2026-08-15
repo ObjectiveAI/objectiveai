@@ -18,8 +18,8 @@ use crate::encode::{Encode, Writer};
 ///
 /// Which is why the bytes are opaque. A provider that had to
 /// understand them would have to know what makes one connector
-/// acceptable and another not, and it does not — the creator does, and
-/// the creator is who reads them.
+/// acceptable and another not, and it does not — the runner does, and
+/// the runner is who reads them.
 ///
 /// # The layout
 ///
@@ -50,14 +50,14 @@ pub struct Frame<'a> {
     /// from a run. It means nothing to a connector that was not
     /// given it, and nothing outside the provider that minted it.
     pub id: &'a str,
-    /// Whatever the creator needs in order to say yes.
+    /// Whatever the runner needs in order to say yes.
     ///
     /// Opaque, and relayed verbatim. A shared secret, a signed token,
     /// a name — this layer does not know and does not look, so nothing
-    /// here constrains what a creator chooses to require.
+    /// here constrains what a runner chooses to require.
     ///
     /// May be empty, which is a connector offering nothing. Whether
-    /// that is ever enough is the creator's to decide.
+    /// that is ever enough is the runner's to decide.
     pub authorization: &'a [u8],
 }
 

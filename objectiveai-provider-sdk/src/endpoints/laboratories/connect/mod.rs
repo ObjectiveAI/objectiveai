@@ -1,4 +1,4 @@
-//! Joining a container somebody else created.
+//! Joining a laboratory somebody else is running.
 //!
 //! Split by who SENDS: [`client`] is the connector's traffic,
 //! [`server`] the provider's.
@@ -9,13 +9,13 @@
 //! provider does not judge it — it relays it to whoever holds that
 //! container's run scope, as an
 //! [`Authorize`](crate::endpoints::laboratories::run::server::channel_request::Frame::Authorize),
-//! and waits. The creator answers yes or no, and that answer is
+//! and waits. The runner answers yes or no, and that answer is
 //! whether this scope opens at all.
 //!
 //! So the check happens somewhere neither end of THIS connection can
 //! see, which is the point: a provider hosting a container does not
 //! have to know what makes one connector acceptable and another not.
-//! Only the creator knows, and only the creator is asked.
+//! Only the runner knows, and only the runner is asked.
 
 pub mod client;
 pub mod server;

@@ -9,7 +9,7 @@
 //! IS the laboratory's life: it carries the image pull, mints the id,
 //! and ending it stops the container. A connection owns nothing — it
 //! names a laboratory it was told about, offers an authorization the
-//! provider relays to the creator, and leaving takes nothing with it.
+//! provider relays to the runner, and leaving takes nothing with it.
 //!
 //! What they share, they share through
 //! [`shared::container`](crate::shared::container): reading a file,

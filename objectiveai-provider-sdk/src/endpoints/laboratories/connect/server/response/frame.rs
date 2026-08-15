@@ -29,7 +29,7 @@ pub enum Frame {
     /// One change on the container's filesystem. Tag `0`.
     ///
     /// The same [`filetree`](crate::shared::filetree) stream a run gets,
-    /// over the same tree. A connector sees what the creator sees.
+    /// over the same tree. A connector sees what the runner sees.
     Filetree(crate::shared::filetree::response::Frame),
     /// How many connectors are attached to the container. Tag `1`.
     ///

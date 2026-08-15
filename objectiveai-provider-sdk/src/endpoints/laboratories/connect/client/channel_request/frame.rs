@@ -77,7 +77,7 @@ pub enum Frame<'a> {
     /// Stop the container. That belongs to whoever created it, and is
     /// [`Stop`](crate::endpoints::laboratories::run::client::channel_request::Frame::Stop)
     /// on their scope. A connector leaving takes nothing with it: the
-    /// container runs, other connectors stay, and the creator sees one
+    /// container runs, other connectors stay, and the runner sees one
     /// fewer connection.
     Disconnect,
 }
