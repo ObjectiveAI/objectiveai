@@ -24,6 +24,33 @@ use crate::encode::{Encode, Writer};
 /// something later.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Frame {
+    /// What to call this container.
+    ///
+    /// A label the caller chooses, for whatever inside the container
+    /// wants to know what it is. The laboratory MCP is the case that
+    /// prompted it — it names its own server after this and surfaces
+    /// it verbatim in its instructions, so an agent can say which
+    /// container it is talking about.
+    ///
+    /// # It is not the handle
+    ///
+    /// [`Id`](crate::endpoints::containers::create::server::response::Frame::Id)
+    /// is, and the provider mints it. That separation is deliberate:
+    /// a
+    /// [`connect`](crate::endpoints::containers::connect) names a
+    /// container by id, and so does a
+    /// [`transfer`](crate::shared::container::transfer)'s destination,
+    /// so an identifier a caller could CHOOSE would be an identifier
+    /// another caller could guess. Guessing one is how you reach a
+    /// container nobody gave you.
+    ///
+    /// Which is why nothing requires this to be unique. Two containers
+    /// may share a name and will not share an id, and no provider has
+    /// to reconcile that — it never resolves anything by this.
+    ///
+    /// May be empty, which is a container that does not care what it
+    /// is called.
+    pub name: String,
     /// Who produces the image.
     ///
     /// See [`ImageType`]. It also decides how
