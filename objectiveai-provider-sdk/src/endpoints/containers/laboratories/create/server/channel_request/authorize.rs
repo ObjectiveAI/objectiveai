@@ -33,7 +33,7 @@ pub struct Authorize<'a> {
     /// Whatever the creator needs in order to say yes.
     ///
     /// The connector's
-    /// [`authorization`](crate::endpoints::containers::connect::client::request::Frame::authorization),
+    /// [`authorization`](crate::endpoints::containers::laboratories::connect::client::request::Frame::authorization),
     /// relayed verbatim. Opaque — a shared secret, a signed token, a
     /// name — and the provider neither reads it nor could usefully:
     /// what makes one connector acceptable is something only a creator

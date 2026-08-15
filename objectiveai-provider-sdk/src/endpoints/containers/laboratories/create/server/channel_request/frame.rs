@@ -24,7 +24,7 @@ pub enum Frame<'a> {
     /// One request against the caller's registry.
     ///
     /// Opened only for an
-    /// [`ImageType::Client`](crate::endpoints::containers::create::client::request::ImageType::Client)
+    /// [`ImageType::Client`](crate::endpoints::containers::laboratories::create::client::request::ImageType::Client)
     /// creation, and opened by the container RUNTIME's appetite rather
     /// than the provider's: the provider serves a registry endpoint,
     /// the runtime pulls from it, and every request the runtime makes
@@ -45,7 +45,7 @@ pub enum Frame<'a> {
     /// Ask the caller whether a connector may attach to the container.
     ///
     /// Opened when one arrives. A yes is what
-    /// [`Connections`](crate::endpoints::containers::create::server::response::Frame::Connections)
+    /// [`Connections`](crate::endpoints::containers::laboratories::create::server::response::Frame::Connections)
     /// then reflects; a no is a connector that never joins.
     ///
     /// This layer guarantees two things and no more — that the bytes
@@ -55,7 +55,7 @@ pub enum Frame<'a> {
     /// Send the content for a write. Tag `2`.
     ///
     /// Opened in answer to a
-    /// [`Write`](crate::endpoints::containers::create::client::channel_request::Frame::Write)
+    /// [`Write`](crate::endpoints::containers::laboratories::create::client::channel_request::Frame::Write)
     /// the caller started. A write cannot carry its own content —
     /// only a responder can finish a channel — so the bytes travel as
     /// responses on this one.

@@ -9,7 +9,7 @@ use crate::encode::{Encode, Writer};
 /// Yes or no.
 ///
 /// The whole answer to an
-/// [`Authorize`](crate::endpoints::containers::create::server::channel_request::Frame::Authorize),
+/// [`Authorize`](crate::endpoints::containers::laboratories::create::server::channel_request::Frame::Authorize),
 /// and one frame is all there is — this is not a stream, and a channel
 /// carrying one of these finishes immediately after.
 ///
