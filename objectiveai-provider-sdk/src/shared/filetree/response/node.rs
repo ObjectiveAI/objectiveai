@@ -12,6 +12,17 @@ use serde::{Deserialize, Serialize};
 /// Every variant carries `name` — the basename, never a path — plus
 /// `created_at` and `modified_at`.
 ///
+/// # Times are unsigned seconds
+///
+/// The same representation
+/// [`Volume::created`](crate::endpoints::volumes::list::server::response::Volume::created)
+/// uses, and unsigned for the same reason: nothing a provider offers
+/// predates 1970, and a signed field's negative half would exist to
+/// represent a state that never occurs. `Option` here is about
+/// availability rather than sign — a filesystem that records no birth
+/// time has nothing to report, which is not the same as reporting a
+/// time before the epoch.
+///
 /// # Variant ORDER is part of the wire format
 ///
 /// This enum is serialized in serde's default representation, which
@@ -33,10 +44,10 @@ pub enum Node {
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time. `None` where unsupported — this is display
         /// metadata and is never load-bearing.
-        created_at: Option<i64>,
+        created_at: Option<u64>,
         /// Last-modified time (unix seconds). `None` when the stat
         /// could not be read.
-        modified_at: Option<i64>,
+        modified_at: Option<u64>,
     },
     /// A directory, carrying its entries.
     Directory {
@@ -45,10 +56,10 @@ pub enum Node {
         name: String,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
-        created_at: Option<i64>,
+        created_at: Option<u64>,
         /// Last-modified time (unix seconds). A directory's mtime
         /// tracks entry add/remove, not changes within its children.
-        modified_at: Option<i64>,
+        modified_at: Option<u64>,
         /// This directory's entries. An empty directory carries an
         /// empty list — this field is never absent, so a consumer never
         /// has to distinguish "no children" from "children unknown".
@@ -81,9 +92,9 @@ pub enum Node {
         path: Vec<String>,
         /// Creation time (unix seconds), when the filesystem records a
         /// birth time.
-        created_at: Option<i64>,
+        created_at: Option<u64>,
         /// Last-modified time (unix seconds).
-        modified_at: Option<i64>,
+        modified_at: Option<u64>,
     },
 }
 

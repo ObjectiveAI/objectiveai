@@ -195,12 +195,6 @@ attested IP and an asserted opaque authorization.
   rather than a type.
 - **`shared::http::request::Request::body` is a `RawValue`**, so
   tunneled requests carry JSON bodies only.
-- **`connect`'s server channel request is a one-variant enum**, where
-  the same situation in `agentic_loop` and `mcp_plugin` is a struct with
-  a tag byte.
-- **Time has two representations.** `Volume::created` is `u64` seconds;
-  a filetree node's `created_at` and `modified_at` are `Option<i64>`.
-  Nothing shared defines either.
 - **Deliberately unspecified, and worth knowing about:** what
   `bytes_used` measures, whether it can exceed `bytes`, what an `edit`
   below `bytes_used` does, and where `memory` is enforced given swap is
