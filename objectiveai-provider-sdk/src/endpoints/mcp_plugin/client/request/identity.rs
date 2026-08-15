@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 /// # Almost all of it is optional
 ///
 /// Because almost all of it may be genuinely unknown. A plugin invoked
-/// outside a response has no response to name; one invoked directly
+/// outside an agentic loop has no loop to name; one invoked directly
 /// belongs to no agent. Absence is a real answer here, not a caller
 /// being lazy, and a plugin that requires a field says so in its own
 /// terms rather than being handed a placeholder.
@@ -62,18 +62,22 @@ pub struct Identity {
     /// Where that agent runs, if it is not here.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_remote: Option<String>,
-    /// Which response this call is part of.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub response_id: Option<String>,
-    /// The responses above it.
+    /// Which [`agentic_loop`](crate::endpoints::agentic_loop) this
+    /// call is part of.
     ///
-    /// The same relationship to [`response_id`](Self::response_id)
-    /// that [`agent_parent_instance`](Self::agent_parent_instance) has
-    /// to [`agent_instance`](Self::agent_instance) — but a string,
-    /// because that is the shape the host stamps today. Worth revising
-    /// alongside the rest of the environment, not before.
+    /// The work the agent is doing, as against
+    /// [`agent_instance`](Self::agent_instance), which is the agent
+    /// doing it. One loop reaches many instances and one instance may
+    /// be reached by several loops, so neither implies the other.
+    ///
+    /// A plugin caching or accumulating across a piece of work keys on
+    /// this — it is the widest scope a plugin is told about, and the
+    /// one that corresponds to something a person asked for.
+    ///
+    /// Absent means the call is not part of a loop: a plugin invoked
+    /// directly, or by something that is not an agent at all.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub response_ids: Option<String>,
+    pub agentic_loop_id: Option<String>,
     /// Who publishes this plugin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugin_owner: Option<String>,
