@@ -1,4 +1,4 @@
-//! What a client's request frame carries for a filesystem listing.
+//! What a client's request frame carries for a volume listing.
 
 use std::convert::Infallible;
 
@@ -58,7 +58,7 @@ impl Decode<'_> for Frame {
     }
 }
 
-/// A filesystem listing request that could not be read.
+/// A volume listing request that could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
@@ -75,12 +75,12 @@ impl std::fmt::Display for FrameError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             FrameError::Empty => {
-                f.write_str("filesystem listing request frame is empty")
+                f.write_str("volume listing request frame is empty")
             }
             FrameError::UnexpectedTag(tag) => {
                 write!(
                     f,
-                    "expected filesystem listing request tag {TAG}, \
+                    "expected volume listing request tag {TAG}, \
                      found {tag}"
                 )
             }

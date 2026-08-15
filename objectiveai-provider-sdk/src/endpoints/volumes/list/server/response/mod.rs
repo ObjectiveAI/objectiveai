@@ -1,4 +1,4 @@
-//! Filesystem listing response data.
+//! Volume listing response data.
 //!
 //! [`Frame`] is what comes back on channel `0`, and [`Directory`] is
 //! what it is made of.

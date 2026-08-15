@@ -11,14 +11,14 @@ use serde::{Deserialize, Serialize};
 ///
 /// Because a host path is not something a caller is allowed to state.
 /// [`host_name`](Self::host_name) is a
-/// [`Directory::name`](crate::endpoints::filesystem::list::server::response::Directory::name)
+/// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
 /// the provider published, and
 /// [`host_relative_path`](Self::host_relative_path) descends from
 /// wherever that maps to — so a caller reaches a subdirectory of
 /// something it was offered, and nothing else.
 ///
 /// That is the same access model as
-/// [`watch`](crate::endpoints::filesystem::watch), and it holds for the same
+/// [`watch`](crate::endpoints::volumes::watch), and it holds for the same
 /// reason: a provider never validates a path, it resolves a name it
 /// chose and then descends. A caller cannot escape upward, because
 /// there is no component it can write that means "up" — the offset is
@@ -28,7 +28,7 @@ pub struct Mount {
     /// Which offered directory, by the name a listing gave it.
     ///
     /// Names come from
-    /// [`Directory::name`](crate::endpoints::filesystem::list::server::response::Directory::name)
+    /// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
     /// and mean nothing outside the provider that published them.
     pub host_name: String,
     /// How far into that directory to start, as path components

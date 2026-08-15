@@ -10,7 +10,7 @@ use crate::encode::{Encode, Writer};
 /// # A name, not a path
 ///
 /// The one field is a
-/// [`Directory::name`](crate::endpoints::filesystem::list::server::response::Directory::name)
+/// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
 /// from a listing, and this is the whole of the access model. A caller
 /// cannot watch a directory it was not offered, cannot escape one by
 /// naming components above it, and cannot probe for what exists by
@@ -32,20 +32,20 @@ pub struct Frame {
     /// Which directory, by the name a listing gave it.
     ///
     /// Names come from
-    /// [`Directory::name`](crate::endpoints::filesystem::list::server::response::Directory::name)
+    /// [`Directory::name`](crate::endpoints::volumes::list::server::response::Directory::name)
     /// and mean nothing outside the provider that published them.
     pub name: String,
 }
 
 /// This frame's tag among the scope-opening requests.
 ///
-/// `0` is the agentic loop, `1` the image check, `2` the filesystem
+/// `0` is the agentic loop, `1` the image check, `2` the volume
 /// listing. The values are allocated across four modules that do not
 /// know about each other, so a fifth request has to look at all of
 /// them.
 const TAG: u8 = 3;
 
-/// Postcard, matching the rest of [`filesystem`](crate::endpoints::filesystem)
+/// Postcard, matching the rest of [`volumes`](crate::endpoints::volumes)
 /// and the [`filetree`](crate::shared::filetree) stream this opens.
 impl Encode for Frame {
     /// Postcard's own failure. The tag cannot fail.

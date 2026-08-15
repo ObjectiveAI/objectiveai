@@ -17,7 +17,7 @@ pub struct Directory {
     /// [`path`](Self::path) and nothing requires the two to agree.
     ///
     /// It is also the HANDLE. A
-    /// [`watch`](crate::endpoints::filesystem::watch) names a directory by this
+    /// [`watch`](crate::endpoints::volumes::watch) names a directory by this
     /// and by nothing else, so two directories in one listing sharing
     /// a name would make one of them unreachable.
     pub name: String,

@@ -8,14 +8,14 @@
 //! |----------|--------|
 //! | [`agentic_loop`] | run an agent, stream what it does |
 //! | [`images`] | ask whether an image can be supplied |
-//! | [`filesystem`] | list watchable directories; watch one |
+//! | [`volumes`] | list the directories a provider offers; watch one |
 //! | [`laboratories`] | create a laboratory; join one |
-//! | [`mcp_plugin`] | — under construction |
+//! | [`mcp_plugin`] | run a plugin, call it |
 //!
-//! Six requests in total, and each names itself with one tag value at
-//! the front of its payload — `0` through `5`. The frame layer never
-//! reads them; it carries one kind of request frame and hands the
-//! bytes on.
+//! Seven requests in total, and each names itself with one tag value
+//! at the front of its payload — `0` through `6`. The frame layer
+//! never reads them; it carries one kind of request frame and hands
+//! the bytes on.
 //!
 //! # Named for what runs in them
 //!
@@ -32,7 +32,7 @@
 //! writing and moving of files that any of them can be asked to do.
 
 pub mod agentic_loop;
-pub mod filesystem;
 pub mod images;
 pub mod laboratories;
 pub mod mcp_plugin;
+pub mod volumes;

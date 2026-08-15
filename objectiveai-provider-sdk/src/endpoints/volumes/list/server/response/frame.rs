@@ -1,4 +1,4 @@
-//! What a server's response frame carries for a filesystem listing.
+//! What a server's response frame carries for a volume listing.
 
 use serde::{Deserialize, Serialize};
 

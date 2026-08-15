@@ -26,7 +26,7 @@ use crate::encode::{Encode, Writer};
 /// to. Nothing here has to change when that happens.
 ///
 /// The same reason
-/// [`list`](crate::endpoints::filesystem::list::client::request::Frame)
+/// [`list`](crate::endpoints::volumes::list::client::request::Frame)
 /// spends a byte on a request with no fields.
 ///
 /// # What a partial write leaves behind

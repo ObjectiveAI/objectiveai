@@ -56,7 +56,7 @@ pub enum Frame {
     /// A [`filetree`](crate::shared::filetree) stream over the container's own
     /// root — one snapshot, then one frame per change — which is the
     /// same thing
-    /// [`filesystem::watch`](crate::endpoints::filesystem::watch) answers with,
+    /// [`filesystem::watch`](crate::endpoints::volumes::watch) answers with,
     /// over a different tree.
     ///
     /// Which is why creating and watching are not two asks. A

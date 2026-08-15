@@ -149,17 +149,17 @@ pub struct Frame {
 
 /// This frame's tag among the scope-opening requests.
 ///
-/// `0` is the agentic loop, `1` the image check, `2` the filesystem
+/// `0` is the agentic loop, `1` the image check, `2` the volume
 /// listing, `3` the watch. The values are allocated across five
 /// modules that do not know about each other, so a sixth request has
 /// to look at all of them.
 const TAG: u8 = 4;
 
 /// JSON, matching [`images::check`](crate::endpoints::images::check) rather than
-/// the postcard [`filesystem`](crate::endpoints::filesystem) uses.
+/// the postcard [`volumes`](crate::endpoints::volumes) uses.
 ///
 /// One of these is sent per container rather than per filesystem
-/// event, so there is no volume to optimize for — and it names an
+/// event, so there is no throughput to optimize for — and it names an
 /// image the same way [`images::check`](crate::endpoints::images::check) does,
 /// which is reason enough for the two to look alike on the wire.
 impl Encode for Frame {

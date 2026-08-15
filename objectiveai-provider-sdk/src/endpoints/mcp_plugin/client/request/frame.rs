@@ -112,7 +112,7 @@ pub struct Frame {
 
 /// This frame's tag among the scope-opening requests.
 ///
-/// `0` is the agentic loop, `1` the image check, `2` the filesystem
+/// `0` is the agentic loop, `1` the image check, `2` the volume
 /// listing, `3` the watch, `4` a laboratory creation, `5` a laboratory
 /// connection. The values are allocated across six modules that do not
 /// know about each other, so a seventh request has to look at all of
@@ -121,8 +121,8 @@ const TAG: u8 = 6;
 
 /// JSON, matching the laboratory creation this is a variation on.
 ///
-/// One of these is sent per plugin container, so there is no volume to
-/// optimize for — and [`arguments`](Frame::arguments) carries
+/// One of these is sent per plugin container, so there is no
+/// throughput to optimize for — and [`arguments`](Frame::arguments) carries
 /// arbitrary JSON, which a positional format could not hold without
 /// tunnelling it through a string.
 impl Encode for Frame {
