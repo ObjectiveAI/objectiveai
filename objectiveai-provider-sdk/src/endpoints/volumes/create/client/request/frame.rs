@@ -59,6 +59,12 @@ pub struct Frame {
     /// volume is the size it was made, and a caller that wants a
     /// bigger one makes a bigger one.
     ///
+    /// This is what a listing reports back as
+    /// [`Volume::bytes`](crate::endpoints::volumes::list::server::response::Volume::bytes),
+    /// beside a
+    /// [`bytes_used`](crate::endpoints::volumes::list::server::response::Volume::bytes_used)
+    /// that says how much of it is gone.
+    ///
     /// # What happens at the ceiling is the provider's
     ///
     /// Writing past it fails, and how it fails is whatever the
