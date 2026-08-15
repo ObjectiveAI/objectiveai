@@ -1,15 +1,14 @@
-//! Containers — running an image a provider can supply.
+//! Containers — running an image a provider can supply, and joining
+//! one that is already running.
 //!
-//! [`images`](crate::endpoints::images) settles whether an image is
-//! available; this is what happens once it is. The two are
-//! deliberately separate round trips: a caller that cannot get an
-//! image has no use for the terms of running it, and asking about
-//! both at once would make the common answer — no — carry a payload
-//! nobody reads.
+//! [`images`](crate::endpoints::images) settles whether an image is available;
+//! [`create`] is what happens once it is; [`connect`] is how anyone
+//! else gets in.
 //!
-//! [`laboratories`] is the one kind of container so far. Grouping it
-//! rather than putting its two scopes here directly says what they
-//! are ABOUT: not containers in general, but the kind an agent works
-//! inside.
+//! The two are asymmetric on purpose. A creation owns the container —
+//! its scope is the container's life, and it decides who else may
+//! attach. A connection owns nothing: it names a container somebody
+//! else made and asks to be let in.
 
-pub mod laboratories;
+pub mod connect;
+pub mod create;

@@ -36,7 +36,7 @@ pub struct Request {
     pub path: Vec<String>,
     /// Which container to copy it into.
     ///
-    /// An [`Id`](crate::endpoints::containers::laboratories::create::server::response::Frame::Id)
+    /// An [`Id`](crate::endpoints::containers::create::server::response::Frame::Id)
     /// from a creation. It may be this container, which makes the
     /// transfer a copy within one filesystem and is the case a
     /// provider can do most cheaply of all.

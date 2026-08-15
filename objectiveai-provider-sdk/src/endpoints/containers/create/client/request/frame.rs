@@ -100,10 +100,10 @@ pub struct Frame {
     ///
     /// # It is not the handle
     ///
-    /// [`Id`](crate::endpoints::containers::laboratories::create::server::response::Frame::Id)
+    /// [`Id`](crate::endpoints::containers::create::server::response::Frame::Id)
     /// is, and the provider mints it. That separation is deliberate:
     /// a
-    /// [`connect`](crate::endpoints::containers::laboratories::connect) names a
+    /// [`connect`](crate::endpoints::containers::connect) names a
     /// container by id, and so does a
     /// [`transfer`](crate::shared::container::transfer)'s destination,
     /// so an identifier a caller could CHOOSE would be an identifier
