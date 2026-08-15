@@ -54,45 +54,12 @@ pub struct Volume {
     ///
     /// For a volume a
     /// [`create`](crate::endpoints::volumes::create::client::request::Frame::bytes)
-    /// made, the number that was asked for. For one the provider
-    /// offers on its own, whatever bound the provider says applies —
-    /// a quota, a device's capacity, a figure it decided on. Nothing
-    /// distinguishes the two, and a caller that needs to has asked a
-    /// question this listing does not answer.
-    ///
-    /// It does not change. A volume is the size it was made, and a
-    /// caller that wants a bigger one makes a bigger one.
+    /// made, the number that was asked for.
     pub bytes: u64,
-    /// How much of it is gone, in BYTES.
+    /// How much of it is in use, in BYTES.
     ///
-    /// # A snapshot, and stale immediately
-    ///
-    /// Unlike every other field here, this one moves. It is true when
-    /// the provider measured it and possibly not by the time it
-    /// arrives — anything writing inside the volume changes it, and
-    /// this protocol does not tell a caller when that happens.
-    ///
-    /// So it is worth reading as a rough gauge and not as a budget. A
-    /// caller deciding whether a write will fit is racing every other
-    /// writer, and losing that race looks like `ENOSPC` rather than
-    /// like anything this listing said.
-    ///
-    /// # It is space consumed, not bytes written
-    ///
-    /// Which is not the same number. A sparse file counts what it
-    /// occupies rather than how long it is, so writing a terabyte of
-    /// zeroes may cost almost nothing; a filesystem's own metadata
-    /// costs something for files that are empty. A caller summing the
-    /// sizes in a [`filetree`](crate::shared::filetree) will not
-    /// arrive at this figure and should not try.
-    ///
-    /// # It may exceed [`bytes`](Self::bytes)
-    ///
-    /// Rarely, and a reader should survive it rather than treat it as
-    /// impossible. A quota with a grace allowance lets a writer past
-    /// the limit before stopping it, and a provider that lowered a
-    /// bound over an already-full volume reports what is true rather
-    /// than what is tidy.
+    /// The one field here that changes: writing inside the volume
+    /// moves it, and nothing in this protocol reports when.
     pub bytes_used: u64,
     /// When the volume came into being, in SECONDS since the Unix
     /// epoch.
