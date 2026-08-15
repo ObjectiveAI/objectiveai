@@ -494,6 +494,14 @@ async def handle_run(
         max_retries = int(params["rate_limit_max_retries"])
         max_wait_secs = int(params.get("rate_limit_max_wait_secs", 180))
         current_session_id: str | None = None
+        # The real text of the most recent error-flagged result frame. The
+        # SDK's terminal exception for one is built from its `errors` list
+        # or, when that list is empty, its *subtype* — which the CLI sets
+        # to "success" on e.g. an auth lapse, yielding the useless
+        # "Claude Code returned an error result: success". The frame's
+        # actual message lives in `result`, which the SDK never reads but
+        # this loop already sees; the except handler splices it in.
+        last_error_result: str | None = None
 
         for attempt in range(max_retries + 1):
             rate_limited = False
@@ -514,6 +522,12 @@ async def handle_run(
                 await wait_for_mcp_servers(client, our_servers)
 
                 async for msg in client.receive_messages():
+                    if isinstance(msg, ResultMessage):
+                        last_error_result = (
+                            _one_line(msg.result)
+                            if msg.is_error and msg.result
+                            else None
+                        )
                     # Track session_id from any message that has it.
                     msg_session_id = getattr(msg, "session_id", None)
                     if msg_session_id:
@@ -566,6 +580,12 @@ async def handle_run(
     except Exception as e:
         status = "error"
         error = _one_line(str(e) or e.__class__.__name__)
+        # Splice in the remembered result text (see `last_error_result`)
+        # so "…error result: success" becomes "…error result: success:
+        # <what actually went wrong>". Skipped when the SDK's message
+        # already carries it (a non-empty `errors` list).
+        if last_error_result and last_error_result not in error:
+            error = f"{error}: {last_error_result}"
     finally:
         # Shield the terminal emit so that a second cancel arriving while
         # the SDK's __aexit__ is unwinding doesn't suppress it.
