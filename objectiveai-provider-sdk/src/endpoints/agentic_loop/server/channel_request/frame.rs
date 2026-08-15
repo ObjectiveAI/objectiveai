@@ -9,89 +9,78 @@ use crate::shared::http::request::Request;
 
 /// The payload of a [`ServerFrame::ChannelRequest`](crate::frame::server::ServerFrame::ChannelRequest).
 ///
-/// A server asks its client for two things, and both are the same ask
-/// in different clothes: a connection it cannot make itself. The agent
-/// runs beside the provider; the MCP servers and the database live
-/// with the client. So the provider opens a channel, and the client
-/// splices the far end into the real thing.
+/// One MCP exchange, toward the client's MCP proxy. Complete in this
+/// frame; the answer comes back as client response frames.
 ///
-/// Which variant applies is the frame's own type, not anything in the
-/// payload — the server's type space is open above `4` for exactly
-/// this. Once a channel is open its kind is settled, and what comes
-/// back on it needs no tag at all.
+/// A payload leads with one byte and the rest is the request.
 ///
-/// # Why the two are shaped differently
+/// It is the one thing a server asks its client for, and it is a
+/// connection the server cannot make itself: the agent runs beside the
+/// provider, and the MCP servers live with the client. So the provider
+/// opens a channel, and the client splices the far end into the real
+/// thing.
 ///
-/// [`Postgres`](Self::Postgres) is a byte stream and
-/// [`Mcp`](Self::Mcp) is a structured exchange, because pgwire really
-/// is a CONNECTION and MCP over Streamable HTTP really is not.
+/// # MCP is carried as exchanges, not as a socket
 ///
-/// A Postgres session is a long-lived socket carrying a conversation
-/// with no natural top-level unit, so successive request frames on one
-/// channel are successive writes, and a message larger than one frame
-/// simply spans several. Never parsing it is what lets TLS negotiation
-/// and every protocol extension cross untouched — the argument
-/// db-proxy's conduit already makes.
+/// Because MCP over Streamable HTTP is not a connection. It is a
+/// series of discrete exchanges over a session identified by a HEADER
+/// rather than by anything at the transport layer.
 ///
-/// MCP is a series of discrete exchanges over a session identified by
-/// a HEADER rather than by any connection. Terminating the HTTP at
-/// each end and carrying the exchange itself keeps HTTP/1.1 framing
-/// out of this protocol entirely: no chunked encoding, no keep-alive
-/// boundaries, no request parser in the conduit, and a terminator that
-/// can rebuild an ordinary request and hand it to an ordinary router.
-/// The JSON-RPC inside stays opaque regardless — see
-/// [`mcp::request::Request::body`](crate::shared::http::request::Request::body).
+/// Terminating the HTTP at each end and carrying the exchange itself
+/// keeps HTTP/1.1 framing out of this protocol entirely: no chunked
+/// encoding, no keep-alive boundaries, no request parser in the
+/// conduit, and a terminator that can rebuild an ordinary request and
+/// hand it to an ordinary router. The JSON-RPC inside stays opaque
+/// regardless — see
+/// [`Request::body`](crate::shared::http::request::Request::body).
+///
+/// # A struct, and still a tag byte
+///
+/// One thing to ask for is a struct; an enum of one variant would be a
+/// discriminant with nothing to discriminate.
+///
+/// The byte stays anyway, for the same reason
+/// [`write_path`](crate::shared::container::write_path::response::Frame)
+/// spends one: a second thing to ask a client for is additive if there
+/// is a tag to add to, and a wire break if there is not. Whoever adds
+/// one turns this into an enum with `Mcp` at tag `0` and changes
+/// nothing on the wire.
+///
+/// The frame's own `type` could have carried the discrimination — it
+/// is right there in the header — and deliberately does not. A frame
+/// already carries one payload's worth of protocol; splitting it
+/// across the envelope and the payload would mean two vocabularies to
+/// version and two places to keep in step.
+///
+/// # Not the database
+///
+/// A [`plugin`](crate::endpoints::mcp_plugin::server::channel_request::Frame::Postgres)
+/// gets that channel, because a plugin is what needs a database. An
+/// agent talks to its tools; a tool is what keeps something. So the
+/// tunnel ends where the tool runs, and this loop never sees a
+/// connection it has no query to send down.
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame<'a> {
-    /// One MCP exchange, toward the client's MCP proxy. Complete in
-    /// this frame; the answer comes back as client response frames.
-    Mcp(Request<'a>),
-    /// Postgres bytes, toward the database. Opaque, and a stream —
-    /// this is a socket, and successive frames on the channel are
-    /// successive writes.
-    Postgres(&'a [u8]),
-}
+pub struct Frame<'a>(
+    /// The request, relayed verbatim.
+    ///
+    /// Handed off to
+    /// [`Request`](crate::shared::http::request::Request)'s own impl
+    /// rather than serialized here — not to save the four lines, but
+    /// because an MCP request has ONE wire form, and writing it a
+    /// second time in a second place is how two wire forms start.
+    pub Request<'a>,
+);
 
-/// Tag for [`Frame::Mcp`].
+/// The tag that says this is an MCP exchange.
 const MCP: u8 = 0;
 
-/// Tag for [`Frame::Postgres`].
-const POSTGRES: u8 = 1;
-
-/// A payload leads with one byte saying which variant it is, and the
-/// rest is that variant's own bytes.
-///
-/// The frame's own `type` could have carried this — it is right there
-/// in the header — and deliberately does not. A frame already carries
-/// one payload's worth of protocol; splitting the discrimination
-/// across the envelope and the payload would mean two vocabularies to
-/// version and two places to keep in step. Here the whole of what a
-/// channel carries is described in one place, and the frame layer
-/// stays ignorant of it.
-///
-/// [`Mcp`](Frame::Mcp) hands off to
-/// [`Request`](crate::shared::http::request::Request)'s own impl rather than
-/// serializing the request here. Not to save the four lines — because
-/// an MCP request has ONE wire form, and writing it a second time in
-/// a second place is how two wire forms start.
 impl Encode for Frame<'_> {
-    /// The MCP request's error, since the other variant has none.
-    /// Postgres bytes are copied, and copying cannot fail — so the
-    /// union of the two is just what MCP can do wrong.
+    /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        match self {
-            Frame::Mcp(request) => {
-                out.extend_from_slice(&[MCP]);
-                request.encode(out)
-            }
-            Frame::Postgres(bytes) => {
-                out.extend_from_slice(&[POSTGRES]);
-                out.extend_from_slice(bytes);
-                Ok(())
-            }
-        }
+        out.extend_from_slice(&[MCP]);
+        self.0.encode(out)
     }
 }
 
@@ -101,13 +90,10 @@ impl<'a> Decode<'a> for Frame<'a> {
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
-        match *tag {
-            MCP => Request::decode(rest)
-                .map(Frame::Mcp)
-                .map_err(FrameError::Mcp),
-            POSTGRES => Ok(Frame::Postgres(rest)),
-            tag => Err(FrameError::UnknownTag(tag)),
+        if *tag != MCP {
+            return Err(FrameError::UnknownTag(*tag));
         }
+        Request::decode(rest).map(Frame).map_err(FrameError::Mcp)
     }
 }
 
@@ -115,12 +101,12 @@ impl<'a> Decode<'a> for Frame<'a> {
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
-    ///
-    /// Distinct from a zero-length write, which is a tag byte followed
-    /// by nothing and is ordinary on a socket.
     Empty,
-    /// A tag byte that is neither [`Frame::Mcp`] nor
-    /// [`Frame::Postgres`].
+    /// A tag this version does not define.
+    ///
+    /// Which is what a server asking for something else will send,
+    /// once there is something else to ask for. Until then it is a
+    /// peer that disagrees about the protocol.
     UnknownTag(u8),
     /// The MCP request did not parse.
     Mcp(serde_json::Error),

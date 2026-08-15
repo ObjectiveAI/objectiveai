@@ -8,7 +8,7 @@ use crate::encode::{Encode, Writer};
 /// The payload of a
 /// [`ClientFrame::ChannelResponse`](crate::frame::client::ClientFrame::ChannelResponse)
 /// on a channel opened by
-/// [`request::Frame::Postgres`](crate::endpoints::agentic_loop::server::channel_request::Frame::Postgres).
+/// [`channel_request::Frame::Postgres`](crate::endpoints::mcp_plugin::server::channel_request::Frame::Postgres).
 ///
 /// pgwire as it came off the socket, going back the way it came.
 ///
@@ -18,15 +18,16 @@ use crate::encode::{Encode, Writer};
 /// larger than one frame simply spans several, and both ends
 /// reassemble, as they would from a socket.
 ///
-/// # Why a struct, where MCP has an enum
+/// # Why a struct, where the outbound side has an enum
 ///
-/// Because there is nothing to choose between.
-/// [`mcp::Frame`](crate::endpoints::agentic_loop::client::channel_response::mcp::Frame) has two
-/// variants for a real reason: an MCP answer has a head that arrives
-/// once and a body that arrives repeatedly, and a reader must tell
-/// them apart. A Postgres channel has one kind of traffic from the
-/// first byte to the last. An enum would imply a decision nobody
-/// makes.
+/// Because there is nothing to choose between. A provider's
+/// [`channel_request::Frame`](crate::endpoints::mcp_plugin::server::channel_request::Frame)
+/// has two variants because it opens two kinds of channel and a reader
+/// must tell them apart. Once THIS channel is open its kind is
+/// settled, and it carries one kind of traffic from the first byte to
+/// the last. An enum would imply a decision nobody makes, and a tag
+/// byte would be a tag on a stream — a byte the far end has to strip
+/// out of every write.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Frame<'a>(
     /// The bytes, borrowed from the frame they arrived in.

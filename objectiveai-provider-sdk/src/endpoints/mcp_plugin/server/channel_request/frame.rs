@@ -7,57 +7,110 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::http::request::Request;
 
-/// One request against the caller's registry.
+/// What a provider asks a caller for while a plugin runs.
 ///
-/// A payload leads with one byte and the rest is the request.
+/// A payload leads with one byte saying which — `0` for
+/// [`Oci`](Self::Oci), `1` for [`Postgres`](Self::Postgres) — and the
+/// rest is that variant's own bytes.
 ///
-/// Opened only for an
-/// [`ImageType::Client`](crate::shared::container::request::ImageType::Client)
-/// plugin, and opened by the container RUNTIME's appetite rather than
-/// the provider's: the provider serves a registry endpoint, the
-/// runtime pulls from it, and every request the runtime makes that the
-/// provider cannot answer from what it holds becomes one of these.
-///
-/// The provider understands none of it. It does not parse the manifest
-/// to find layers, does not diff digests against a store of its own,
-/// and does not decide what a blob is. Which means a runtime's cache is
-/// the only cache, its dedup is the only dedup, and `Range` resumes and
-/// `HEAD` probes work because nothing here had to be taught about them.
-///
-/// The repository segment of the path names the scope, so one endpoint
-/// serves every creation happening at once — plugins and laboratories
-/// alike — and a request routes itself without a provider keeping state
-/// between them.
-///
-/// # A struct, and still a tag byte
+/// Both are the same ask in different clothes: something the provider
+/// cannot reach. The image lives with the caller, and so does the
+/// database. The container runs beside the provider, so the provider
+/// opens a channel and the caller splices the far end into the real
+/// thing.
 ///
 /// A [`laboratory creation`](crate::endpoints::laboratories::create::server::channel_request::Frame)
-/// asks for three things. The other two have nothing to act on here:
-/// an authorization gates a connector, and a plugin has none, while a
-/// write asks for content the caller never offered, since a plugin
-/// takes no files. Serving an image is what is left, and it is the one
-/// thing a provider needs from a caller mid-scope.
+/// asks for an image the same way and for two other things that have
+/// nothing to act on here: an authorization gates a connector a plugin
+/// does not have, and a write asks for content a plugin never takes.
 ///
-/// The byte stays anyway, for the same reason
-/// [`write_path`](crate::shared::container::write_path::response::Frame)
-/// spends one: a second thing to ask for is additive if there is a tag
-/// to add to, and a wire break if there is not.
+/// # Why the two are shaped differently
+///
+/// [`Postgres`](Self::Postgres) is a byte stream and [`Oci`](Self::Oci)
+/// is a structured exchange, because pgwire really is a CONNECTION and
+/// a registry pull really is not.
+///
+/// A Postgres session is a long-lived socket carrying a conversation
+/// with no natural top-level unit, so successive request frames on one
+/// channel are successive writes, and a message larger than one frame
+/// simply spans several. A registry pull is a series of discrete
+/// requests, each with a method, a path and a status, and each
+/// answered on its own.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Frame<'a>(
-    /// The registry request, relayed verbatim.
-    pub Request<'a>,
-);
+pub enum Frame<'a> {
+    /// One request against the caller's registry. Tag `0`.
+    ///
+    /// Opened only for an
+    /// [`ImageType::Client`](crate::shared::container::request::ImageType::Client)
+    /// plugin, and opened by the container RUNTIME's appetite rather
+    /// than the provider's: the provider serves a registry endpoint,
+    /// the runtime pulls from it, and every request the runtime makes
+    /// that the provider cannot answer from what it holds becomes one
+    /// of these.
+    ///
+    /// The provider understands none of it. It does not parse the
+    /// manifest to find layers, does not diff digests against a store
+    /// of its own, and does not decide what a blob is. Which means a
+    /// runtime's cache is the only cache, its dedup is the only dedup,
+    /// and `Range` resumes and `HEAD` probes work because nothing here
+    /// had to be taught about them.
+    ///
+    /// The repository segment of the path names the scope, so one
+    /// endpoint serves every creation happening at once — plugins and
+    /// laboratories alike — and a request routes itself without a
+    /// provider keeping state between them.
+    Oci(Request<'a>),
+    /// Postgres bytes, toward the caller's database. Tag `1`.
+    ///
+    /// Opaque, and a stream — this is a socket, and successive frames
+    /// on the channel are successive writes.
+    ///
+    /// # Why a plugin, and not the agent
+    ///
+    /// Because a plugin is what needs a database. An agent talks to
+    /// its tools; a tool is what keeps something. So the tunnel ends
+    /// where the tool runs, and the loop that called it never sees a
+    /// connection it has no query to send down.
+    ///
+    /// # It is opened, not offered
+    ///
+    /// A provider opens this because something inside the container
+    /// dialled the conduit it was given. A plugin that never connects
+    /// means this channel never exists — which is what makes an
+    /// opted-out plugin cost nothing rather than cost an idle tunnel.
+    ///
+    /// # Never parsed
+    ///
+    /// Which is what lets TLS negotiation and every protocol extension
+    /// cross untouched. A conduit that understood pgwire would have to
+    /// keep up with it; one that does not is finished being written.
+    Postgres(&'a [u8]),
+}
 
-/// The tag that says this is a registry request.
+/// Tag for [`Frame::Oci`].
 const OCI: u8 = 0;
 
+/// Tag for [`Frame::Postgres`].
+const POSTGRES: u8 = 1;
+
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure. The tag cannot fail.
+    /// The registry request's error, since the other variant has none.
+    /// Postgres bytes are copied, and copying cannot fail — so the
+    /// union of the two is just what a registry request can do wrong.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        out.extend_from_slice(&[OCI]);
-        self.0.encode(out)
+        match self {
+            Frame::Oci(request) => {
+                out.extend_from_slice(&[OCI]);
+                request.encode(out)
+            }
+            Frame::Postgres(bytes) => {
+                out.extend_from_slice(&[POSTGRES]);
+                out.extend_from_slice(bytes);
+                Ok(())
+            }
+        }
     }
 }
 
@@ -67,10 +120,11 @@ impl<'a> Decode<'a> for Frame<'a> {
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
-        if *tag != OCI {
-            return Err(FrameError::UnknownTag(*tag));
+        match *tag {
+            OCI => Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci),
+            POSTGRES => Ok(Frame::Postgres(rest)),
+            tag => Err(FrameError::UnknownTag(tag)),
         }
-        Request::decode(rest).map(Frame).map_err(FrameError::Oci)
     }
 }
 
@@ -78,12 +132,11 @@ impl<'a> Decode<'a> for Frame<'a> {
 #[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
-    Empty,
-    /// A tag this version does not define.
     ///
-    /// Which is what a provider asking for something else will send,
-    /// once there is something else to ask for. Until then it is a
-    /// peer that disagrees about the protocol.
+    /// Distinct from a zero-length write, which is a tag byte followed
+    /// by nothing and is ordinary on a socket.
+    Empty,
+    /// A tag that is neither of this frame's two.
     UnknownTag(u8),
     /// The registry request did not parse.
     Oci(serde_json::Error),

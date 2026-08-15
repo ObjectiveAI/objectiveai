@@ -28,7 +28,7 @@ use crate::encode::{Encode, Writer};
 ///
 /// There is one thing it can hold, so there is nothing to choose
 /// between — the same reason
-/// [`postgres::Frame`](crate::endpoints::agentic_loop::client::channel_response::postgres::Frame)
+/// [`postgres::Frame`](crate::endpoints::mcp_plugin::client::channel_response::postgres::Frame)
 /// is one. A single-variant enum would ask every reader to match on a
 /// decision that has already been made.
 ///
