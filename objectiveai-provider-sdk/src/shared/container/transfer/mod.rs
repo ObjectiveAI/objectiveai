@@ -1,8 +1,9 @@
 //! Moving a file between two containers on one provider.
 //!
-//! A [`request::Request`] names both ends and the provider does the
-//! rest. No bytes cross the wire in either direction — which is the
-//! entire point, and the entire limitation.
+//! A [`request::Request`] names a file in the container the scope is
+//! attached to, and where to put it. No bytes cross the wire in
+//! either direction — which is the entire point, and the entire
+//! limitation.
 //!
 //! # Why it is not read plus write
 //!

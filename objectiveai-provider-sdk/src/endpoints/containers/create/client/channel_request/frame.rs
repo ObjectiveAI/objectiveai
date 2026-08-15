@@ -43,8 +43,8 @@ pub enum Frame<'a> {
     /// [`write_bytes`](crate::shared::container::write_bytes) for what
     /// comes back.
     Write(write_path::request::Request),
-    /// One file, moved from one container to another without ever
-    /// leaving the provider.
+    /// One file, moved out of this container into another without
+    /// ever leaving the provider.
     ///
     /// Carries no content and receives none. See
     /// [`transfer`](crate::shared::container::transfer) for when this
