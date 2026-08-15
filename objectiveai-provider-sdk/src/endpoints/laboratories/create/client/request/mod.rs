@@ -1,13 +1,14 @@
 //! Container creation request data.
 //!
-//! [`Frame`] is what a caller hands a provider to get a container.
-//! [`ImageType`] says who produces the image and [`Mount`] is how a
-//! caller asks for a directory inside one.
+//! [`Frame`] is what a caller hands a provider to get a container, and
+//! [`Mount`] is how a caller asks for a directory inside one. Who
+//! produces the image is
+//! [`ImageType`](crate::shared::container::request::ImageType), which
+//! lives in [`shared`](crate::shared) because it means the same thing
+//! for every kind of container.
 
 mod frame;
-mod image_type;
 mod mount;
 
 pub use frame::*;
-pub use image_type::*;
 pub use mount::*;

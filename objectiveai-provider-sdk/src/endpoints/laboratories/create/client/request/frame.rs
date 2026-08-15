@@ -3,9 +3,10 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{ImageType, Mount};
+use super::Mount;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::container::request::ImageType;
 
 /// Ask a provider to create a container.
 ///

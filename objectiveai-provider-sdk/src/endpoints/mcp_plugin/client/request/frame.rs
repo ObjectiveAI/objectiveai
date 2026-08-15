@@ -3,9 +3,10 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use super::{Identity, ImageType};
+use super::Identity;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::container::request::ImageType;
 
 /// Ask a provider to run an MCP plugin.
 ///

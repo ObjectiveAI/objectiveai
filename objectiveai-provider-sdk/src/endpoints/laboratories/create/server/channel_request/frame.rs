@@ -24,7 +24,7 @@ pub enum Frame<'a> {
     /// One request against the caller's registry.
     ///
     /// Opened only for an
-    /// [`ImageType::Client`](crate::endpoints::laboratories::create::client::request::ImageType::Client)
+    /// [`ImageType::Client`](crate::shared::container::request::ImageType::Client)
     /// creation, and opened by the container RUNTIME's appetite rather
     /// than the provider's: the provider serves a registry endpoint,
     /// the runtime pulls from it, and every request the runtime makes

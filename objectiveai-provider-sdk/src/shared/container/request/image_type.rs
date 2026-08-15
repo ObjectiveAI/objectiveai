@@ -8,10 +8,11 @@ use serde::{Deserialize, Serialize};
 /// can — and it is the only thing that varies. All three name what
 /// they want with a reference; they differ in who is asked for it.
 ///
-/// It also decides how
-/// [`image_reference`](super::Frame::image_reference) is read, which
-/// is why the two fields belong together and neither means much
-/// alone.
+/// It also decides how the reference beside it is read, which is why
+/// the two fields belong together and neither means much alone. See
+/// [`laboratories`](crate::endpoints::laboratories::create::client::request::Frame::image_reference)
+/// and
+/// [`mcp_plugin`](crate::endpoints::mcp_plugin::client::request::Frame::image_reference).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ImageType {
