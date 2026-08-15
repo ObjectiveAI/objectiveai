@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk-macros"
-version = "2.2.15"
+version = "2.2.16"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "Procedural macros for the ObjectiveAI SDK"
