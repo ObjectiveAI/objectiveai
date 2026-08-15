@@ -10,6 +10,7 @@
 //! | [`images`] | ask whether an image can be supplied |
 //! | [`filesystem`] | list watchable directories; watch one |
 //! | [`laboratories`] | create a laboratory; join one |
+//! | [`mcp_plugin`] | — under construction |
 //!
 //! Six requests in total, and each names itself with one tag value at
 //! the front of its payload — `0` through `5`. The frame layer never
@@ -18,10 +19,11 @@
 //!
 //! # Named for what runs in them
 //!
-//! Nearly all of this is containers. An agentic loop runs an agent in
-//! one, a laboratory is one an agent works inside, and an MCP plugin
-//! will be one that serves tools. So `containers` was never a
-//! distinction — it was the substrate, and naming a module after it
+//! Three of these are containers, and the three are told apart by what
+//! runs inside. An [`agentic_loop`] runs an agent in one, a
+//! [`laboratory`](laboratories) is one an agent works inside, and an
+//! [`mcp_plugin`] is one that serves tools. So `containers` was never
+//! a distinction — it was the substrate, and a module named after it
 //! would have grouped things by the one property they all share.
 //!
 //! What they are NOT all built from is in
@@ -33,3 +35,4 @@ pub mod agentic_loop;
 pub mod filesystem;
 pub mod images;
 pub mod laboratories;
+pub mod mcp_plugin;
