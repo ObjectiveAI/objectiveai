@@ -1662,6 +1662,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "diverge-provider-sdk"
+version = "2.2.15"
+dependencies = [
+ "indexmap 2.14.0",
+ "postcard",
+ "rmcp 3.1.2",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dlopen2"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4553,18 +4565,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
-]
-
-[[package]]
-name = "objectiveai-provider-sdk"
-version = "2.2.15"
-dependencies = [
- "indexmap 2.14.0",
- "postcard",
- "rmcp 3.1.2",
- "rust_decimal",
- "serde",
- "serde_json",
 ]
 
 [[package]]

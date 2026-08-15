@@ -93,7 +93,7 @@ pub enum Frame<'a> {
     /// cross untouched. A conduit that understood pgwire would have to
     /// keep up with it; one that does not is finished being written.
     Postgres(&'a [u8]),
-    /// One ObjectiveAI command, toward the caller. Tag `2`.
+    /// One Diverge command, toward the caller. Tag `2`.
     ///
     /// A plugin has no CLI binary in its container and no daemon it is
     /// allowed to dial, so a command it wants run has to be run by

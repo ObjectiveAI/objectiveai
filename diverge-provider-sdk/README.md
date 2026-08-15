@@ -1,6 +1,6 @@
-# objectiveai-provider-sdk
+# diverge-provider-sdk
 
-Wire types for the ObjectiveAI provider API.
+Wire types for the Diverge provider API.
 
 This crate is the **normative artifact** of the provider
 specification. The Rust types defined here *are* the protocol. Prose

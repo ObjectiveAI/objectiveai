@@ -1,13 +1,13 @@
 [package]
-name = "objectiveai-provider-sdk"
+name = "diverge-provider-sdk"
 version = "2.2.15"
 edition = "2024"
-authors = ["ObjectiveAI <admin@objectiveai.dev>"]
-description = "Wire types for the ObjectiveAI provider API — the normative artifact of the provider specification"
+authors = ["Diverge <admin@diverge.dev>"]
+description = "Wire types for the Diverge provider API — the normative artifact of the provider specification"
 license = "MIT"
-repository = "https://github.com/ObjectiveAI/objectiveai"
-homepage = "https://objectiveai.dev"
-documentation = "https://docs.rs/objectiveai-provider-sdk"
+repository = "https://github.com/Diverge/diverge"
+homepage = "https://diverge.dev"
+documentation = "https://docs.rs/diverge-provider-sdk"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm", "provider"]
 publish = true

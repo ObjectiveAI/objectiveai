@@ -1,4 +1,4 @@
-//! Wire types for the ObjectiveAI provider API.
+//! Wire types for the Diverge provider API.
 //!
 //! This crate is the **normative artifact** of the provider
 //! specification. The types defined here are not a description of the
