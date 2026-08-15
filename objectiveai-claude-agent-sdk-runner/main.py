@@ -440,6 +440,25 @@ async def handle_run(
             # outgoing X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY header.
             env["OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY"] = agent_instance_hierarchy
 
+        # The nested CLI is the one MCP client in the system with an
+        # arbitrary per-call ceiling: its default kills any MCP tool call
+        # that stays silent for 60s, and the nested completion that call
+        # spawned runs on, orphaned. Every ObjectiveAI hop is deliberately
+        # unbounded (the api "waits forever on the CLI client"; the daemon
+        # "never bounds its own MCP calls") — real bounds belong to the
+        # spawn's `timeout_seconds` and the tool's own budget. Align the
+        # nested CLI with the platform. The SDK merges `options.env` OVER
+        # the inherited process env (`{**inherited_env, **options.env}`),
+        # so these are set only when the operator has not set them — an
+        # operator's environment must keep winning.
+        for key, default in (
+            ("MCP_TOOL_TIMEOUT", "600000"),  # ms
+            ("CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT", "600000"),  # ms
+            ("MAX_MCP_OUTPUT_TOKENS", "100000"),
+        ):
+            if key not in os.environ:
+                env[key] = default
+
         opts = ClaudeAgentOptions(
             model=params["model"],
             # Pin cwd so claude's per-project session store is stable across
