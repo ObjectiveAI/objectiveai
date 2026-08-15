@@ -12,8 +12,9 @@ use crate::shared::http::request::Request;
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Mcp`](Self::Mcp), `1` for [`Read`](Self::Read), `2` for
-/// [`Write`](Self::Write), `3` for [`Transfer`](Self::Transfer) — and
-/// the rest is that variant's own bytes.
+/// [`Write`](Self::Write), `3` for [`Transfer`](Self::Transfer), `4`
+/// for [`Stop`](Self::Stop) — and the rest is that variant's own
+/// bytes, of which the last has none.
 ///
 /// All three reach INTO the container, which is the thing a
 /// caller cannot dial: it runs on the provider. That is the whole
@@ -50,6 +51,31 @@ pub enum Frame<'a> {
     /// [`transfer`](crate::shared::container::transfer) for when this
     /// is available and what to do when it is not.
     Transfer(transfer::request::Request),
+    /// Stop the container. Tag `4`.
+    ///
+    /// # It has no answer, and does not need one
+    ///
+    /// Nothing comes back on this channel. What comes back is the end
+    /// of the SCOPE — a
+    /// [`ResponseFinish`](crate::frame::server::ServerFrame::ResponseFinish),
+    /// which already means nothing bearing this scope follows on any
+    /// channel. Finishing this one first would be a smaller way of
+    /// saying the same thing, moments earlier.
+    ///
+    /// # What it adds over closing the connection
+    ///
+    /// The scope IS the container's life, so dropping the connection
+    /// stops it too. The difference is that a provider cannot tell a
+    /// deliberate exit from a network that stopped answering, and has
+    /// to wait to find out. This is unambiguous and immediate: a
+    /// caller that says so is not gone, it is finished.
+    ///
+    /// # What it does to everyone else
+    ///
+    /// Ends them. Connectors hold scopes on a container that no longer
+    /// exists, so those scopes finish too — a connection cannot
+    /// outlive the thing it joined.
+    Stop,
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -63,6 +89,9 @@ const WRITE: u8 = 2;
 
 /// Tag for [`Frame::Transfer`].
 const TRANSFER: u8 = 3;
+
+/// Tag for [`Frame::Stop`].
+const STOP: u8 = 4;
 
 impl Encode for Frame<'_> {
     /// The ordinary JSON failure, from whichever half is present.
@@ -86,6 +115,10 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[TRANSFER]);
                 request.encode(out)
             }
+            Frame::Stop => {
+                out.extend_from_slice(&[STOP]);
+                Ok(())
+            }
         }
     }
 }
@@ -107,6 +140,7 @@ impl<'a> Decode<'a> for Frame<'a> {
             TRANSFER => transfer::request::Request::decode(rest)
                 .map(Frame::Transfer)
                 .map_err(FrameError::Transfer),
+            STOP => Ok(Frame::Stop),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -117,7 +151,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The MCP request did not parse.
     Mcp(serde_json::Error),

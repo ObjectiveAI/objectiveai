@@ -1,6 +1,7 @@
 //! The channels a caller opens on a provider.
 //!
-//! Four, and all of them reach into the container — see [`Frame`].
+//! Five. Four reach into the container; the last ends the scope
+//! that opened them — see [`Frame`].
 
 mod frame;
 

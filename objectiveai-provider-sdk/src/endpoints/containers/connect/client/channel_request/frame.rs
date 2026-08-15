@@ -12,8 +12,9 @@ use crate::shared::http::request::Request;
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Mcp`](Self::Mcp), `1` for [`Read`](Self::Read), `2` for
-/// [`Write`](Self::Write), `3` for [`Transfer`](Self::Transfer) — and
-/// the rest is that variant's own bytes.
+/// [`Write`](Self::Write), `3` for [`Transfer`](Self::Transfer), `4`
+/// for [`Disconnect`](Self::Disconnect) — and the rest is that variant's own
+/// bytes, of which the last has none.
 ///
 /// All three reach INTO the container, which is the thing a
 /// connector cannot dial: it runs on the provider. That is the whole
@@ -50,6 +51,35 @@ pub enum Frame<'a> {
     /// [`transfer`](crate::shared::container::transfer) for when this
     /// is available and what to do when it is not.
     Transfer(transfer::request::Request),
+    /// Leave the container. Tag `4`.
+    ///
+    /// # It has no answer, and does not need one
+    ///
+    /// Nothing comes back on this channel. What comes back is the end
+    /// of the SCOPE — a
+    /// [`ResponseFinish`](crate::frame::server::ServerFrame::ResponseFinish),
+    /// which already means nothing bearing this scope follows on any
+    /// channel. Finishing this one first would be a smaller way of
+    /// saying the same thing, moments earlier.
+    ///
+    /// # What it adds over closing the connection
+    ///
+    /// Leaving ends this scope either way. The difference is that a
+    /// provider cannot tell a deliberate exit from a network that
+    /// stopped answering, and has to wait to find out — during which
+    /// the container's
+    /// [`Connections`](crate::endpoints::containers::create::server::response::Frame::Connections)
+    /// count still includes a connector that is not there. This is
+    /// unambiguous and immediate.
+    ///
+    /// # What it does not do
+    ///
+    /// Stop the container. That belongs to whoever created it, and is
+    /// [`Stop`](crate::endpoints::containers::create::client::channel_request::Frame::Stop)
+    /// on their scope. A connector leaving takes nothing with it: the
+    /// container runs, other connectors stay, and the creator sees one
+    /// fewer connection.
+    Disconnect,
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -63,6 +93,9 @@ const WRITE: u8 = 2;
 
 /// Tag for [`Frame::Transfer`].
 const TRANSFER: u8 = 3;
+
+/// Tag for [`Frame::Disconnect`].
+const DISCONNECT: u8 = 4;
 
 impl Encode for Frame<'_> {
     /// The ordinary JSON failure, from whichever half is present.
@@ -86,6 +119,10 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[TRANSFER]);
                 request.encode(out)
             }
+            Frame::Disconnect => {
+                out.extend_from_slice(&[DISCONNECT]);
+                Ok(())
+            }
         }
     }
 }
@@ -107,6 +144,7 @@ impl<'a> Decode<'a> for Frame<'a> {
             TRANSFER => transfer::request::Request::decode(rest)
                 .map(Frame::Transfer)
                 .map_err(FrameError::Transfer),
+            DISCONNECT => Ok(Frame::Disconnect),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -117,7 +155,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's four.
+    /// A tag that is none of this frame's five.
     UnknownTag(u8),
     /// The MCP request did not parse.
     Mcp(serde_json::Error),
