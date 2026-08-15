@@ -1,13 +1,10 @@
 //! The server side of an MCP plugin: what a provider sends.
 //!
-//! [`response`] is what comes back on channel `0` once the plugin
-//! runs. [`channel_response`] answers the channel a caller opens to
-//! call it.
-//!
-//! No `channel_request` yet. A provider will need one to ask a caller
-//! for a
-//! [`Client`](crate::shared::container::request::ImageType::Client)
-//! image, exactly as a laboratory creation does; it is not written.
+//! [`channel_request`] is what it opens a channel to ask the caller
+//! for while pulling the image. [`channel_response`] answers the
+//! channel the caller opens to call the plugin. [`response`] is what
+//! comes back on channel `0` once it runs.
 
+pub mod channel_request;
 pub mod channel_response;
 pub mod response;
