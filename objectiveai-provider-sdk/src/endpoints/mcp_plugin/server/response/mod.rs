@@ -1,0 +1,15 @@
+//! What a provider sends back for an MCP plugin.
+//!
+//! One frame, once, and it says the plugin is up — see [`Frame`].
+//!
+//! The thinnest response in this specification, and deliberately so. A
+//! laboratory's reports an id, a filesystem and a connector count
+//! because a laboratory is a place; a plugin is a callee, and the only
+//! thing a caller needs to know before calling is that it can.
+//!
+//! Nothing is aliased here, because nothing here is somebody else's
+//! frame.
+
+mod frame;
+
+pub use frame::*;

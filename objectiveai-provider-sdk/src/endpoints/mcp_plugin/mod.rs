@@ -28,3 +28,4 @@
 //! [`identity`]: client::request::Frame::identity
 
 pub mod client;
+pub mod server;
