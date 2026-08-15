@@ -5,14 +5,15 @@ use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::shared::container::{read, write_path};
+use crate::shared::container::{read, transfer, write_path};
 use crate::shared::http::request::Request;
 
 /// What a connector asks a provider for while it is attached.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Mcp`](Self::Mcp), `1` for [`Read`](Self::Read), `2` for
-/// [`Write`](Self::Write) — and the rest is that variant's own bytes.
+/// [`Write`](Self::Write), `3` for [`Transfer`](Self::Transfer) — and
+/// the rest is that variant's own bytes.
 ///
 /// All three reach INTO the container, which is the thing a
 /// connector cannot dial: it runs on the provider. That is the whole
@@ -42,6 +43,13 @@ pub enum Frame<'a> {
     /// [`write_bytes`](crate::shared::container::write_bytes) for what
     /// comes back.
     Write(write_path::request::Request),
+    /// One file, moved from one container to another without ever
+    /// leaving the provider.
+    ///
+    /// Carries no content and receives none. See
+    /// [`transfer`](crate::shared::container::transfer) for when this
+    /// is available and what to do when it is not.
+    Transfer(transfer::request::Request),
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -52,6 +60,9 @@ const READ: u8 = 1;
 
 /// Tag for [`Frame::Write`].
 const WRITE: u8 = 2;
+
+/// Tag for [`Frame::Transfer`].
+const TRANSFER: u8 = 3;
 
 impl Encode for Frame<'_> {
     /// The ordinary JSON failure, from whichever half is present.
@@ -69,6 +80,10 @@ impl Encode for Frame<'_> {
             }
             Frame::Write(request) => {
                 out.extend_from_slice(&[WRITE]);
+                request.encode(out)
+            }
+            Frame::Transfer(request) => {
+                out.extend_from_slice(&[TRANSFER]);
                 request.encode(out)
             }
         }
@@ -89,6 +104,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             WRITE => write_path::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
+            TRANSFER => transfer::request::Request::decode(rest)
+                .map(Frame::Transfer)
+                .map_err(FrameError::Transfer),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -99,7 +117,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The MCP request did not parse.
     Mcp(serde_json::Error),
@@ -107,6 +125,8 @@ pub enum FrameError {
     Read(serde_json::Error),
     /// The write request did not parse.
     Write(serde_json::Error),
+    /// The transfer request did not parse.
+    Transfer(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -127,6 +147,9 @@ impl fmt::Display for FrameError {
             FrameError::Write(error) => {
                 write!(f, "write request did not parse: {error}")
             }
+            FrameError::Transfer(error) => {
+                write!(f, "transfer request did not parse: {error}")
+            }
         }
     }
 }
@@ -136,7 +159,8 @@ impl Error for FrameError {
         match self {
             FrameError::Mcp(error)
             | FrameError::Read(error)
-            | FrameError::Write(error) => Some(error),
+            | FrameError::Write(error)
+            | FrameError::Transfer(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

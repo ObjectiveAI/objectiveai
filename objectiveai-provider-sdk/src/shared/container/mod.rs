@@ -12,11 +12,15 @@
 //! is a whole exchange with its own request and its own response,
 //! travelling in opposite directions.
 //!
+//! [`transfer`] is a read and a write that never became either,
+//! available only when both ends live on one provider.
+//!
 //! Unlike [`http`](super::http) and [`filetree`](super::filetree),
 //! which are shapes any endpoint could ride, everything in this module
 //! is about containers specifically. It is here rather than in either
 //! endpoint because BOTH of them need it, not because it is general.
 
 pub mod read;
+pub mod transfer;
 pub mod write_bytes;
 pub mod write_path;
