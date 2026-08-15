@@ -36,13 +36,14 @@ use crate::shared::error::Error;
 /// distinguished by their JSON would mean a provider's error text
 /// could be read as a chunk, and the failure would look like output.
 ///
-/// # This is not [`ErrorChunk`](super::ErrorChunk)
+/// # This is not [`NotificationChunk`](super::NotificationChunk)
 ///
 /// They are both failures and they are not the same failure.
 ///
-/// An [`ErrorChunk`](super::ErrorChunk) is part of the loop's OUTPUT.
-/// It arrives as a [`Chunk`](Self::Chunk) like any other, carries an
-/// HTTP status and a `_meta` bag like any other, and exists because a
+/// A [`NotificationChunk`](super::NotificationChunk) with
+/// [`is_error`](super::NotificationChunk::is_error) set is part of the
+/// loop's OUTPUT. It arrives as a [`Chunk`](Self::Chunk) like any
+/// other, carries a `_meta` bag like any other, and exists because a
 /// loop can fail after producing output — ending the stream silently
 /// would leave a caller unable to tell a partial result from a
 /// complete one.

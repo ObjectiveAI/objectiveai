@@ -6,7 +6,7 @@ use super::{
     AssistantAudioContentChunk, AssistantImageContentChunk,
     AssistantReasoningChunk, AssistantRefusalChunk,
     AssistantTextContentChunk, AssistantToolCallChunk, ContinuationChunk,
-    ErrorChunk,
+    NotificationChunk,
     ToolResponseChunk, UsageChunk,
 };
 
@@ -45,8 +45,8 @@ pub enum AgenticLoopChunk {
     ToolResponse(ToolResponseChunk),
     /// Token usage so far. See [`UsageChunk`].
     Usage(UsageChunk),
-    /// A failure. See [`ErrorChunk`].
-    Error(ErrorChunk),
+    /// Something about the run itself. See [`NotificationChunk`].
+    Notification(NotificationChunk),
     /// The resume token. See [`ContinuationChunk`].
     Continuation(ContinuationChunk),
 }
