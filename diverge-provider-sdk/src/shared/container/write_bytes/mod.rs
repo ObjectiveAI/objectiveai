@@ -12,9 +12,14 @@
 //!
 //! Which is the expected use, and it works without buffering. A
 //! [`read`](super::read) body arrives as one frame and goes out as one
-//! [`response::Frame`]. No acknowledgement per chunk, no length either
-//! end has to know in advance, and a consumer holds one frame at a
-//! time however large the file is.
+//! [`response::Frame::Body`]. No acknowledgement per chunk, no length
+//! either end has to know in advance, and a consumer holds one frame
+//! at a time however large the file is.
+//!
+//! The read has no error to translate. It reports a failure by
+//! stopping, and a client piping one can turn that into a
+//! [`response::Frame::Error`] or simply stop too — see
+//! [`response::Frame`] for why both remain.
 
 pub mod request;
 pub mod response;
