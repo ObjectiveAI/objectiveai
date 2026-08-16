@@ -19,11 +19,11 @@ use crate::encode::{Encode, Writer};
 /// second would be two signals for one fact.
 ///
 /// A client that decides mid-stream not to go through with the write
-/// — because the read it was piping came back
-/// [`Corrupted`](crate::shared::container::read::response::Frame::Corrupted),
-/// say — simply never finishes. The provider sees content stop without
-/// an end, discards the temporary, and the destination is left
-/// untouched. Abandonment is the cancel, and it needs no frame.
+/// — because the [`read`](crate::shared::container::read) it was
+/// piping stopped without finishing, say — simply never finishes. The
+/// provider sees content stop without an end, discards the temporary,
+/// and the destination is left untouched. Abandonment is the cancel,
+/// and it needs no frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Frame<'a>(
     /// The bytes, borrowed from the frame they arrived in.

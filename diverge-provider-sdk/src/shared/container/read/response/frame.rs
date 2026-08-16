@@ -1,27 +1,47 @@
 //! What a response frame carries on a read channel.
 
-use std::error::Error;
-use std::fmt;
+use std::convert::Infallible;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// The file's bytes, and whether to believe them.
+/// A piece of the file.
 ///
-/// # Two variants, because the third is already on the wire
+/// Bytes and nothing else — no tag, because there is nothing to
+/// discriminate. A read channel carries one kind of traffic from the
+/// first byte to the last, and the requester knew what it was when it
+/// asked.
 ///
-/// There is no `Complete`. A read that finished cleanly is one whose
-/// channel finished — [`ChannelResponseFinish`](crate::frame::server::ServerFrame::ChannelResponseFinish)
-/// says so at the frame layer, and saying it again in the payload
-/// would be two signals for one fact.
-///
-/// Which leaves three outcomes a caller can tell apart:
+/// # Two outcomes, and the frame layer states both
 ///
 /// | the channel ends with | means |
 /// |-----------------------|-------|
 /// | bodies, then a finish | the bytes are the file |
-/// | bodies, a [`Corrupted`](Self::Corrupted), then a finish | you have bytes; they may not be a file |
-/// | bodies, then nothing | the transfer did not finish |
+/// | bodies, then nothing | the read did not finish |
+///
+/// There is no `Complete` and there is no failure. A read that
+/// finished cleanly is one whose channel finished —
+/// [`ChannelResponseFinish`](crate::frame::server::ServerFrame::ChannelResponseFinish)
+/// says so at the frame layer, and saying it again in the payload
+/// would be two signals for one fact. A read that did not is one whose
+/// channel stopped without one.
+///
+/// # A silent tear is possible here
+///
+/// A file being read can be written underneath the reader, and the
+/// bytes already sent are then a mix: whatever was there before the
+/// write, and whatever is there after.
+///
+/// A provider can DETECT it — `fstat` on its own descriptor before the
+/// first byte and after the last, comparing size and mtime — and
+/// cannot prevent it. Linux advisory locks bind only processes that
+/// opt in, and mandatory locking was removed in 5.15. But there is no
+/// frame here that means "here are the bytes, and they moved while I
+/// sent them", so a provider that detects one has nowhere to say so.
+///
+/// Which is [`transfer`](crate::shared::container::transfer)'s
+/// position exactly. Both will want the same thing when failures have
+/// a shape, and neither should invent a private one first.
 ///
 /// # No length, anywhere
 ///
@@ -31,107 +51,37 @@ use crate::encode::{Encode, Writer};
 /// about a number that has already moved. It is the commitment that
 /// makes `tar` corrupt a whole archive when one entry shifts, and this
 /// declines to make it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Frame<'a> {
-    /// A piece of the file. Tag `0`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Frame<'a>(
+    /// The bytes, borrowed from the frame they arrived in.
     ///
-    /// Sent as it is read. A sender holds no more than one buffer's
-    /// worth at a time, whatever the file's size — which is the only
-    /// way a thirty-gigabyte file moves through a container with ten
-    /// gigabytes free.
-    Body(&'a [u8]),
-    /// The file changed while it was being read. Tag `1`.
-    ///
-    /// The bytes already sent are a mix: whatever was there before the
-    /// change, up to wherever the reader had got, and whatever was
-    /// there after it, from that point on. A file that never existed
-    /// in that state at any instant.
-    ///
-    /// # How a sender knows
-    ///
-    /// By `fstat` on its own descriptor before the first byte and
-    /// after the last, comparing size and modification time. Not
-    /// `stat` on the path — a file replaced by a rename leaves the
-    /// descriptor reading the original inode coherently to its end,
-    /// which is the good case and is not this.
-    ///
-    /// # And where it cannot
-    ///
-    /// A same-size overwrite inside one timestamp granule moves
-    /// neither field, and is invisible. This is detection, not a
-    /// guarantee, and the absence of this frame is not proof of
-    /// anything. Where the filesystem supports it,
-    /// `statx(STATX_CHANGE_COOKIE)` closes that gap; nothing requires
-    /// a provider to have it.
-    ///
-    /// # What it does not do
-    ///
-    /// Prevent. Nothing can. Linux advisory locks bind only processes
-    /// that ask for them, and mandatory locking was removed in 5.15 —
-    /// so an arbitrary process in the container writes straight
-    /// through anything a reader might try to hold.
-    Corrupted,
-}
+    /// Sent as they are read. A sender holds no more than one buffer's
+    /// worth, so a file larger than memory crosses without either end
+    /// ever holding it whole.
+    pub &'a [u8],
+);
 
-/// Tag for [`Frame::Body`].
-const BODY: u8 = 0;
-
-/// Tag for [`Frame::Corrupted`].
-const CORRUPTED: u8 = 1;
-
+/// Straight through, and identical to
+/// [`write_bytes`](crate::shared::container::write_bytes::response::Frame)
+/// — which is what makes piping a read into a write cost nothing. One
+/// frame out is one frame in, with no shape to translate between them.
 impl Encode for Frame<'_> {
-    /// [`Infallible`](std::convert::Infallible): a tag and a slice
-    /// copy, neither of which can fail.
-    type Error = std::convert::Infallible;
+    /// [`Infallible`]: copying a slice into a buffer has no failure
+    /// mode.
+    type Error = Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        match self {
-            Frame::Body(body) => {
-                out.extend_from_slice(&[BODY]);
-                out.extend_from_slice(body);
-            }
-            Frame::Corrupted => out.extend_from_slice(&[CORRUPTED]),
-        }
+        out.extend_from_slice(self.0);
         Ok(())
     }
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Two ways to fail, and neither is a parse.
-    type Error = FrameError;
+    /// [`Infallible`]: there is nothing to get wrong about a slice
+    /// that is already the answer.
+    type Error = Infallible;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
-        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
-        match *tag {
-            BODY => Ok(Frame::Body(rest)),
-            CORRUPTED => Ok(Frame::Corrupted),
-            tag => Err(FrameError::UnknownTag(tag)),
-        }
+        Ok(Frame(bytes))
     }
 }
-
-/// A read response frame that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FrameError {
-    /// No bytes at all, so not even a tag.
-    ///
-    /// Distinct from a zero-length body, which is a tag followed by
-    /// nothing and is ordinary — an empty file is a real file.
-    Empty,
-    /// A tag that is neither [`Frame::Body`] nor
-    /// [`Frame::Corrupted`].
-    UnknownTag(u8),
-}
-
-impl fmt::Display for FrameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FrameError::Empty => f.write_str("read response frame is empty"),
-            FrameError::UnknownTag(tag) => {
-                write!(f, "unknown read response frame tag {tag}")
-            }
-        }
-    }
-}
-
-impl Error for FrameError {}
