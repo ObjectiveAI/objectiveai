@@ -1,7 +1,7 @@
 //! What a provider sends back on a laboratory run.
 //!
-//! The container's id, how many connectors are on it, and its
-//! filesystem. In no particular order — see [`Frame`].
+//! The container's id, its filesystem, and a connector leaving. In no
+//! particular order — see [`Frame`].
 //!
 //! Every path in the tree is relative to the container's root. What a
 //! provider puts in it is its own to decide, and mounted directories

@@ -44,9 +44,12 @@ pub enum Frame<'a> {
     Oci(Request<'a>),
     /// Ask the caller whether a connector may attach to the container.
     ///
-    /// Opened when one arrives. A yes is what
-    /// [`Connections`](crate::endpoints::laboratories::run::server::response::Frame::Connections)
-    /// then reflects; a no is a connector that never joins.
+    /// Opened when one arrives. A yes lets it attach and names it —
+    /// see
+    /// [`Authorized`](crate::endpoints::laboratories::run::client::channel_response::authorize::Frame::Authorized)
+    /// — and that name comes back as a
+    /// [`Disconnected`](crate::endpoints::laboratories::run::server::response::Frame::Disconnected)
+    /// when it leaves. A no is a connector that never joins.
     ///
     /// This layer guarantees two things and no more — that the bytes
     /// arrive as they were sent, and that the question is answered

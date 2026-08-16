@@ -7,15 +7,15 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// A run's answer: the container's id, how many connectors are on
-/// it, and its filesystem, for as long as the scope lives.
+/// A run's answer: the container's id, its filesystem, and who has
+/// left it, for as long as the scope lives.
 ///
 /// # The tag byte
 ///
 /// A payload leads with one byte saying which variant it is — `0` for
 /// [`Id`](Self::Id), `1` for [`Filetree`](Self::Filetree), `2` for
-/// [`Connections`](Self::Connections) — and the rest is that variant's
-/// own bytes. The same arrangement
+/// [`Disconnected`](Self::Disconnected) — and the rest is that
+/// variant's own bytes. The same arrangement
 /// [`http::response::Frame`](crate::shared::http::response::Frame) uses, and
 /// for the same reason: a frame that means something only in the
 /// context of the ones before it needs a reader carrying state, and
@@ -64,27 +64,44 @@ pub enum Frame {
     /// the scope that made the container is the scope that reports on
     /// it.
     Filetree(crate::shared::filetree::response::Frame),
-    /// How many connectors are attached to the container. Tag `2`.
+    /// A connector that was attached is not any more. Tag `2`.
     ///
-    /// Sent again whenever the number changes, which makes this a
-    /// value rather than an event: a reader holds the last one it saw
-    /// and needs no arithmetic, so a frame lost or replayed leaves it
-    /// with a number rather than a drift.
+    /// Carries the nickname the runner gave that connector when it
+    /// [`Authorized`](crate::endpoints::laboratories::run::client::channel_response::authorize::Frame::Authorized)
+    /// it, or nothing if it gave none.
+    ///
+    /// # An event, not a count
+    ///
+    /// It says one connector left, not how many remain. A runner that
+    /// wants a number keeps one: it answered every authorization, so
+    /// it saw every arrival, and this is every departure.
+    ///
+    /// That is the whole reason the nickname exists. A count can be
+    /// re-sent and read afresh; a departure cannot, because "one of
+    /// them left" is not an answer to "which". A runner holding four
+    /// authorized connectors needs the name it chose for them, and the
+    /// provider gives it back rather than inventing an identifier of
+    /// its own — it never read the name and has no opinion about it.
+    ///
+    /// # Two connectors may share a name
+    ///
+    /// Nothing prevents it, and a runner that allowed it has decided
+    /// it does not need to tell those two apart. A disconnection then
+    /// names both and resolves neither, which is the runner's own
+    /// arrangement rather than something this protocol did to it.
     ///
     /// # What the authorize channel is for
     ///
     /// A connector arriving is what prompts
     /// [`Authorize`](super::super::channel_request::Frame::Authorize).
-    /// The provider asks the caller whether this one may attach, the
-    /// caller answers yes or no, and a yes is what this count then
-    /// reflects.
+    /// The provider asks the runner whether this one may attach, the
+    /// runner answers yes or no and names it, and this is the other
+    /// end of that: the same name coming back when it leaves.
     ///
     /// So the two are halves of one exchange, and the order between
-    /// them is the only order in this stream that means anything: the
-    /// question is asked, then the answer changes the number. Nothing
-    /// enforces it — a reader that saw the count move without having
-    /// answered is looking at a provider that decided on its own.
-    Connections(u32),
+    /// them is the only order in this stream that means anything —
+    /// nothing can disconnect that was not authorized first.
+    Disconnected(Option<String>),
     /// A failure. Tag `3`.
     ///
     /// The laboratory is not running and will not be — the image
@@ -103,11 +120,17 @@ const ID: u8 = 0;
 /// Tag for [`Frame::Filetree`].
 const FILETREE: u8 = 1;
 
-/// Tag for [`Frame::Connections`].
-const CONNECTIONS: u8 = 2;
+/// Tag for [`Frame::Disconnected`].
+const DISCONNECTED: u8 = 2;
 
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 3;
+
+/// The byte for a nickname that is not there.
+const ABSENT: u8 = 0;
+
+/// The byte for a nickname that follows.
+const PRESENT: u8 = 1;
 
 /// Four variants, four encodings, and none converted into another's
 /// to make them match. An id is a string and goes out as its own
@@ -138,9 +161,13 @@ impl Encode for Frame {
                 out.extend_from_slice(&[FILETREE]);
                 frame.encode(out).map_err(FrameEncodeError::Filetree)
             }
-            Frame::Connections(count) => {
-                out.extend_from_slice(&[CONNECTIONS]);
-                out.extend_from_slice(&count.to_be_bytes());
+            Frame::Disconnected(None) => {
+                out.extend_from_slice(&[DISCONNECTED, ABSENT]);
+                Ok(())
+            }
+            Frame::Disconnected(Some(nickname)) => {
+                out.extend_from_slice(&[DISCONNECTED, PRESENT]);
+                out.extend_from_slice(nickname.as_bytes());
                 Ok(())
             }
             Frame::Error(error) => {
@@ -196,9 +223,17 @@ impl Decode<'_> for Frame {
             FILETREE => crate::shared::filetree::response::Frame::decode(rest)
                 .map(Frame::Filetree)
                 .map_err(FrameError::Filetree),
-            CONNECTIONS => <[u8; 4]>::try_from(rest)
-                .map(|bytes| Frame::Connections(u32::from_be_bytes(bytes)))
-                .map_err(|_| FrameError::Connections(rest.len())),
+            DISCONNECTED => {
+                let (presence, nickname) =
+                    rest.split_first().ok_or(FrameError::Truncated)?;
+                match *presence {
+                    ABSENT => Ok(Frame::Disconnected(None)),
+                    PRESENT => String::from_utf8(nickname.to_vec())
+                        .map(|nickname| Frame::Disconnected(Some(nickname)))
+                        .map_err(FrameError::Nickname),
+                    presence => Err(FrameError::UnknownPresence(presence)),
+                }
+            }
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
@@ -218,9 +253,13 @@ pub enum FrameError {
     Id(FromUtf8Error),
     /// The filetree frame did not decode.
     Filetree(postcard::Error),
-    /// A connection count that was not four bytes, carrying however
-    /// many there were.
-    Connections(usize),
+    /// A disconnection that ended before saying whether a nickname
+    /// followed.
+    Truncated,
+    /// A presence byte that is neither absent nor present.
+    UnknownPresence(u8),
+    /// The nickname was not UTF-8.
+    Nickname(FromUtf8Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -240,8 +279,17 @@ impl fmt::Display for FrameError {
             FrameError::Filetree(error) => {
                 write!(f, "filetree frame did not decode: {error}")
             }
-            FrameError::Connections(len) => {
-                write!(f, "connection count is {len} bytes, not 4")
+            FrameError::Truncated => {
+                f.write_str("disconnection ended before its nickname")
+            }
+            FrameError::UnknownPresence(presence) => {
+                write!(
+                    f,
+                    "nickname presence is neither {ABSENT} nor {PRESENT}:                      {presence}"
+                )
+            }
+            FrameError::Nickname(error) => {
+                write!(f, "nickname is not utf-8: {error}")
             }
             FrameError::Error(error) => {
                 write!(f, "laboratory run error did not parse: {error}")
@@ -255,10 +303,12 @@ impl std::error::Error for FrameError {
         match self {
             FrameError::Id(error) => Some(error),
             FrameError::Filetree(error) => Some(error),
+            FrameError::Nickname(error) => Some(error),
             FrameError::Error(error) => Some(error),
             FrameError::Empty
             | FrameError::UnknownTag(_)
-            | FrameError::Connections(_) => None,
+            | FrameError::Truncated
+            | FrameError::UnknownPresence(_) => None,
         }
     }
 }

@@ -67,10 +67,11 @@ pub enum Frame<'a> {
     /// Leaving ends this scope either way. The difference is that a
     /// provider cannot tell a deliberate exit from a network that
     /// stopped answering, and has to wait to find out — during which
-    /// the container's
-    /// [`Connections`](crate::endpoints::laboratories::run::server::response::Frame::Connections)
-    /// count still includes a connector that is not there. This is
-    /// unambiguous and immediate.
+    /// the runner has not been told this connector is gone, because
+    /// the provider does not yet know. This is unambiguous and
+    /// immediate, and the
+    /// [`Disconnected`](crate::endpoints::laboratories::run::server::response::Frame::Disconnected)
+    /// follows straight away.
     ///
     /// # What it does not do
     ///
