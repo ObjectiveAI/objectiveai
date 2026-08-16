@@ -1,8 +1,8 @@
 //! Asking for a write's content, and streaming it.
 //!
 //! The second half of a write, and the one that travels the other way.
-//! A provider opens a channel with a [`request::Request`] naming which
-//! write it wants content for, and the client streams
+//! A provider opens a channel with a [`request::Request`] quoting the
+//! write id it wants content for, and the client streams
 //! [`response::Frame`]s back until it finishes the channel.
 //!
 //! See [`write_path`](super::write_path) for why the content is
