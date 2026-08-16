@@ -1,13 +1,11 @@
 //! What a client's request frame carries for a connection.
 
-use std::error::Error;
-use std::fmt;
-use std::str::{self, Utf8Error};
+use serde::{Deserialize, Serialize};
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// Ask to join a container somebody else created.
+/// Ask to join a container somebody else is running.
 ///
 /// # What happens to the authorization
 ///
@@ -20,34 +18,14 @@ use crate::encode::{Encode, Writer};
 /// understand it would have to know what makes one connector
 /// acceptable and another not, and it does not — the runner does, and
 /// the runner is who reads it.
-///
-/// # The layout
-///
-/// Neither JSON nor postcard. The frame is:
-///
-/// ```text
-/// [tag: u8][id length: u16 big-endian][id: utf-8][authorization…]
-/// ```
-///
-/// One length, because there are two variable-length fields and the
-/// frame's own end delimits the second. The authorization runs to
-/// wherever the payload stops.
-///
-/// Both fields are strings, so a format would work now — the trap that
-/// once ruled postcard out was serde writing `&[u8]` as a sequence and
-/// reading it back as a byte string, and there are no bytes here any
-/// more. The layout stays because nothing about two strings and a
-/// length is a shape a format would improve, and because both fields
-/// are borrowed straight out of the frame: JSON would have to unescape
-/// them into owned copies to hand either one back.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Frame<'a> {
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub struct Frame {
     /// The container to join.
     ///
     /// A [`Frame::Id`](crate::endpoints::laboratories::run::server::response::Frame::Id)
     /// from a run. It means nothing to a connector that was not
     /// given it, and nothing outside the provider that minted it.
-    pub id: &'a str,
+    pub id: String,
     /// Whatever the runner needs in order to say yes.
     ///
     /// Opaque, and relayed verbatim. A shared secret, a signed token,
@@ -55,13 +33,13 @@ pub struct Frame<'a> {
     /// here constrains what a runner chooses to require.
     ///
     /// Text, for the same reason an
-    /// [`Auth`](crate::frame::auth::Auth) credential is: what this carries in
-    /// practice already is a string, and bytes made a caller pick an
-    /// encoding for something that never needed one.
+    /// [`Auth`](crate::frame::auth::Auth) credential is: what this
+    /// carries in practice already is a string, and bytes made a
+    /// caller pick an encoding for something that never needed one.
     ///
     /// May be empty, which is a connector offering nothing. Whether
     /// that is ever enough is the runner's to decide.
-    pub authorization: &'a str,
+    pub authorization: String,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -78,117 +56,77 @@ pub struct Frame<'a> {
 /// at once.
 const TAG: u8 = 3;
 
-/// The bytes an id's length occupies.
-const LENGTH_LEN: usize = 2;
-
-impl Encode for Frame<'_> {
-    /// One way to fail, and it is not a serialization.
-    type Error = FrameEncodeError;
+/// JSON, like every other structured request.
+///
+/// It was laid out by hand once — a length-prefixed id and then the
+/// authorization running to the end of the payload — because an
+/// authorization used to be arbitrary bytes, which JSON can only hold
+/// as base64 and which serde would have written as a sequence and read
+/// back as a byte string.
+///
+/// Both are strings now, so none of that applies, and neither does the
+/// length: it existed only because two variable-length fields cannot
+/// share one end. A format that already delimits its fields does not
+/// need to be told where one stops.
+impl Encode for Frame {
+    /// The ordinary JSON failure. The tag cannot fail.
+    type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        let length = u16::try_from(self.id.len())
-            .map_err(|_| FrameEncodeError::IdTooLong(self.id.len()))?;
         out.extend_from_slice(&[TAG]);
-        out.extend_from_slice(&length.to_be_bytes());
-        out.extend_from_slice(self.id.as_bytes());
-        out.extend_from_slice(self.authorization.as_bytes());
-        Ok(())
+        serde_json::to_writer(out, self)
     }
 }
 
-impl<'a> Decode<'a> for Frame<'a> {
-    /// Four ways to fail, and none of them is a parse.
-    type Error = FrameDecodeError;
+impl Decode<'_> for Frame {
+    /// Three ways to fail, and only one of them is JSON.
+    type Error = FrameError;
 
-    fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
-        let (tag, rest) =
-            bytes.split_first().ok_or(FrameDecodeError::Empty)?;
+    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         if *tag != TAG {
-            return Err(FrameDecodeError::UnexpectedTag(*tag));
+            return Err(FrameError::UnexpectedTag(*tag));
         }
-        let (length, rest) = rest
-            .split_at_checked(LENGTH_LEN)
-            .ok_or(FrameDecodeError::Truncated)?;
-        let length = usize::from(u16::from_be_bytes([length[0], length[1]]));
-        let (id, authorization) = rest
-            .split_at_checked(length)
-            .ok_or(FrameDecodeError::Truncated)?;
-        let id = str::from_utf8(id).map_err(FrameDecodeError::Id)?;
-        let authorization = str::from_utf8(authorization)
-            .map_err(FrameDecodeError::Authorization)?;
-        Ok(Frame { id, authorization })
+        serde_json::from_slice(rest).map_err(FrameError::Body)
     }
 }
-
-/// A connection request that could not be written.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FrameEncodeError {
-    /// An id longer than a `u16` can measure, carrying its length.
-    ///
-    /// Two bytes of length is 65535 characters of id, which is not a
-    /// limit anything sane meets. It is an error rather than a wider
-    /// field because the alternative is spending two more bytes on
-    /// every connection to describe ids nobody mints.
-    IdTooLong(usize),
-}
-
-impl fmt::Display for FrameEncodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FrameEncodeError::IdTooLong(length) => {
-                write!(f, "container id is {length} bytes, over 65535")
-            }
-        }
-    }
-}
-
-impl Error for FrameEncodeError {}
 
 /// A connection request that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FrameDecodeError {
+#[derive(Debug)]
+pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
     /// A tag naming some other request.
+    ///
+    /// A reader that dispatched on the tag will not see this. One that
+    /// assumed which request it held, and was wrong, will — which is
+    /// the point of checking a tag rather than skipping it.
     UnexpectedTag(u8),
-    /// The payload ended inside the length or inside the id.
-    Truncated,
-    /// The id was not UTF-8.
-    Id(Utf8Error),
-    /// The authorization was not UTF-8.
-    Authorization(Utf8Error),
+    /// The request did not parse.
+    Body(serde_json::Error),
 }
 
-impl fmt::Display for FrameDecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for FrameError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FrameDecodeError::Empty => {
+            FrameError::Empty => {
                 f.write_str("connection request frame is empty")
             }
-            FrameDecodeError::UnexpectedTag(tag) => {
+            FrameError::UnexpectedTag(tag) => {
                 write!(f, "expected connection request tag {TAG}, found {tag}")
             }
-            FrameDecodeError::Truncated => {
-                f.write_str("connection request ended inside its id")
-            }
-            FrameDecodeError::Id(error) => {
-                write!(f, "container id is not utf-8: {error}")
-            }
-            FrameDecodeError::Authorization(error) => {
-                write!(f, "authorization is not utf-8: {error}")
+            FrameError::Body(error) => {
+                write!(f, "connection request did not parse: {error}")
             }
         }
     }
 }
 
-impl Error for FrameDecodeError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            FrameDecodeError::Id(error)
-            | FrameDecodeError::Authorization(error) => Some(error),
-            FrameDecodeError::Empty
-            | FrameDecodeError::UnexpectedTag(_)
-            | FrameDecodeError::Truncated => None,
+            FrameError::Body(error) => Some(error),
+            FrameError::Empty | FrameError::UnexpectedTag(_) => None,
         }
     }
 }

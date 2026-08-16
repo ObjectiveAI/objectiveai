@@ -37,7 +37,7 @@ pub enum ClientRequest<'a> {
     /// Tag `2`. Run a laboratory.
     LaboratoriesRun(laboratories::run::client::request::Frame),
     /// Tag `3`. Join one somebody else is running.
-    LaboratoriesConnect(laboratories::connect::client::request::Frame<'a>),
+    LaboratoriesConnect(laboratories::connect::client::request::Frame),
     /// Tag `4`. List the volumes a provider offers.
     VolumesList(volumes::list::client::request::Frame),
     /// Tag `5`. Watch one of them.
@@ -75,7 +75,7 @@ pub enum ClientRequest<'a> {
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Three ways to fail, because ten requests use three encodings
+    /// Two ways to fail, because ten requests use two encodings
     /// between them.
     type Error = ClientRequestEncodeError;
 
@@ -95,7 +95,7 @@ impl Encode for ClientRequest<'_> {
                 frame.encode(out).map_err(E::Json)
             }
             ClientRequest::LaboratoriesConnect(frame) => {
-                frame.encode(out).map_err(E::LaboratoriesConnect)
+                frame.encode(out).map_err(E::Json)
             }
             ClientRequest::VolumesList(frame) => {
                 // Its error is `Infallible`, and an empty match on one
@@ -180,22 +180,14 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
 /// A request that could not be written.
 ///
 /// Named for the encoding rather than for the request, because ten
-/// requests share three of them and a variant per request would be
-/// seven names that mean the same failure.
+/// requests share two of them and a variant per request would be eight
+/// names that mean the same failure.
 #[derive(Debug)]
 pub enum ClientRequestEncodeError {
     /// A JSON request did not serialize.
     Json(serde_json::Error),
     /// A postcard request did not serialize.
     Postcard(postcard::Error),
-    /// A laboratory connection did not serialize.
-    ///
-    /// Its own type, because its layout is hand-rolled and its one
-    /// failure — an id too long for a `u16` — is not something a
-    /// format reports.
-    LaboratoriesConnect(
-        laboratories::connect::client::request::FrameEncodeError,
-    ),
 }
 
 impl fmt::Display for ClientRequestEncodeError {
@@ -207,9 +199,6 @@ impl fmt::Display for ClientRequestEncodeError {
             ClientRequestEncodeError::Postcard(error) => {
                 write!(f, "request did not serialize as postcard: {error}")
             }
-            ClientRequestEncodeError::LaboratoriesConnect(error) => {
-                write!(f, "connection request did not serialize: {error}")
-            }
         }
     }
 }
@@ -219,9 +208,6 @@ impl std::error::Error for ClientRequestEncodeError {
         match self {
             ClientRequestEncodeError::Json(error) => Some(error),
             ClientRequestEncodeError::Postcard(error) => Some(error),
-            ClientRequestEncodeError::LaboratoriesConnect(error) => {
-                Some(error)
-            }
         }
     }
 }
