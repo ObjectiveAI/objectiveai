@@ -47,7 +47,12 @@ pub enum ServerFrame<'a> {
     /// make the far end compose anything, so a bad credential earns no
     /// bytes to amplify and no reason to read.
     Auth {
-        /// The credential, in whatever form the two ends agreed.
+        /// The credential — an [`Auth`](crate::auth::Auth), which
+        /// leads with a mode byte and carries the credential itself
+        /// as text.
+        ///
+        /// Bytes here, like every other payload in this layer. The
+        /// frame layer does not read it.
         payload: &'a [u8],
     },
     /// Type `2` on channel `0`. Acknowledges the client's request and

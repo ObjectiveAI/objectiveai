@@ -145,9 +145,11 @@
 //! Auth frames have no scope and no channel. They come before either
 //! exists, and are what makes it possible for one to.
 //!
-//! The payload is arbitrary. What counts as a credential is for the
-//! two ends to agree — this layer guarantees only that it comes
-//! first.
+//! The payload is an [`Auth`](crate::auth::Auth): a mode byte, then
+//! the credential as text. This layer guarantees only that it comes
+//! first, and does not read it — what counts as a credential is for
+//! the two ends to agree, and there is a second mode coming in which a
+//! broker is the one that agrees.
 //!
 //! Where a type exists in both directions it means the same thing in
 //! both, so `type` alone determines what a frame is. Nothing has to

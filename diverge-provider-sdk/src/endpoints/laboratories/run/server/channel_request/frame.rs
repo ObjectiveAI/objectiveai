@@ -3,6 +3,7 @@
 use std::error::Error;
 use std::fmt;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::str::{self, Utf8Error};
 
 use super::Authorize;
 use crate::decode::Decode;
@@ -108,7 +109,7 @@ impl Encode for Frame<'_> {
                         out.extend_from_slice(&address.octets());
                     }
                 }
-                out.extend_from_slice(authorize.authorization);
+                out.extend_from_slice(authorize.authorization.as_bytes());
                 Ok(())
             }
             Frame::Write(request) => {
@@ -122,7 +123,7 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Six ways to fail, and only one of them is a parse.
+    /// Seven ways to fail, and only one of them is a parse.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
@@ -155,6 +156,8 @@ impl<'a> Decode<'a> for Frame<'a> {
                         return Err(FrameError::UnknownAddress(version));
                     }
                 };
+                let authorization = str::from_utf8(authorization)
+                    .map_err(FrameError::Authorization)?;
                 Ok(Frame::Authorize(Authorize {
                     address,
                     authorization,
@@ -179,6 +182,8 @@ pub enum FrameError {
     Truncated,
     /// An address version byte that is neither `4` nor `6`.
     UnknownAddress(u8),
+    /// The authorization was not UTF-8.
+    Authorization(Utf8Error),
     /// The registry request did not parse.
     Oci(serde_json::Error),
     /// The write content request did not decode.
@@ -200,6 +205,9 @@ impl fmt::Display for FrameError {
             FrameError::UnknownAddress(version) => {
                 write!(f, "address version is neither {V4} nor {V6}: {version}")
             }
+            FrameError::Authorization(error) => {
+                write!(f, "authorization is not utf-8: {error}")
+            }
             FrameError::Oci(error) => {
                 write!(f, "registry request did not parse: {error}")
             }
@@ -215,6 +223,7 @@ impl Error for FrameError {
         match self {
             FrameError::Oci(error) => Some(error),
             FrameError::Write(error) => Some(error),
+            FrameError::Authorization(error) => Some(error),
             FrameError::Empty
             | FrameError::UnknownTag(_)
             | FrameError::Truncated

@@ -41,5 +41,5 @@ pub struct Authorize<'a> {
     ///
     /// May be empty, which is a connector offering nothing. Whether
     /// that is ever enough is the runner's to decide.
-    pub authorization: &'a [u8],
+    pub authorization: &'a str,
 }

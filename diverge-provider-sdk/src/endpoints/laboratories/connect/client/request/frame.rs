@@ -16,10 +16,10 @@ use crate::encode::{Encode, Writer};
 /// [`Authorize`](crate::endpoints::laboratories::run::server::channel_request::Frame::Authorize),
 /// and the answer to that is whether this scope opens.
 ///
-/// Which is why the bytes are opaque. A provider that had to
-/// understand them would have to know what makes one connector
+/// Which is why the credential is opaque. A provider that had to
+/// understand it would have to know what makes one connector
 /// acceptable and another not, and it does not — the runner does, and
-/// the runner is who reads them.
+/// the runner is who reads it.
 ///
 /// # The layout
 ///
@@ -33,15 +33,13 @@ use crate::encode::{Encode, Writer};
 /// frame's own end delimits the second. The authorization runs to
 /// wherever the payload stops.
 ///
-/// JSON was out because the authorization is arbitrary bytes, and JSON
-/// has no way to hold those except base64 — a third more bytes, on the
-/// one field most likely to be large.
-///
-/// Postcard would have worked and is a trap here: serde serializes
-/// `&[u8]` as a SEQUENCE and deserializes it as a byte string, so
-/// every byte above `127` would be written as two and read back as
-/// one. Avoiding that needs `serde_bytes` or a `with` helper, which is
-/// a dependency and an annotation to protect a layout this simple.
+/// Both fields are strings, so a format would work now — the trap that
+/// once ruled postcard out was serde writing `&[u8]` as a sequence and
+/// reading it back as a byte string, and there are no bytes here any
+/// more. The layout stays because nothing about two strings and a
+/// length is a shape a format would improve, and because both fields
+/// are borrowed straight out of the frame: JSON would have to unescape
+/// them into owned copies to hand either one back.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Frame<'a> {
     /// The container to join.
@@ -56,9 +54,14 @@ pub struct Frame<'a> {
     /// a name — this layer does not know and does not look, so nothing
     /// here constrains what a runner chooses to require.
     ///
+    /// Text, for the same reason an
+    /// [`Auth`](crate::auth::Auth) credential is: what this carries in
+    /// practice already is a string, and bytes made a caller pick an
+    /// encoding for something that never needed one.
+    ///
     /// May be empty, which is a connector offering nothing. Whether
     /// that is ever enough is the runner's to decide.
-    pub authorization: &'a [u8],
+    pub authorization: &'a str,
 }
 
 /// This frame's tag among the scope-opening requests.
@@ -88,7 +91,7 @@ impl Encode for Frame<'_> {
         out.extend_from_slice(&[TAG]);
         out.extend_from_slice(&length.to_be_bytes());
         out.extend_from_slice(self.id.as_bytes());
-        out.extend_from_slice(self.authorization);
+        out.extend_from_slice(self.authorization.as_bytes());
         Ok(())
     }
 }
@@ -111,6 +114,8 @@ impl<'a> Decode<'a> for Frame<'a> {
             .split_at_checked(length)
             .ok_or(FrameDecodeError::Truncated)?;
         let id = str::from_utf8(id).map_err(FrameDecodeError::Id)?;
+        let authorization = str::from_utf8(authorization)
+            .map_err(FrameDecodeError::Authorization)?;
         Ok(Frame { id, authorization })
     }
 }
@@ -150,6 +155,8 @@ pub enum FrameDecodeError {
     Truncated,
     /// The id was not UTF-8.
     Id(Utf8Error),
+    /// The authorization was not UTF-8.
+    Authorization(Utf8Error),
 }
 
 impl fmt::Display for FrameDecodeError {
@@ -167,6 +174,9 @@ impl fmt::Display for FrameDecodeError {
             FrameDecodeError::Id(error) => {
                 write!(f, "container id is not utf-8: {error}")
             }
+            FrameDecodeError::Authorization(error) => {
+                write!(f, "authorization is not utf-8: {error}")
+            }
         }
     }
 }
@@ -174,7 +184,8 @@ impl fmt::Display for FrameDecodeError {
 impl Error for FrameDecodeError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            FrameDecodeError::Id(error) => Some(error),
+            FrameDecodeError::Id(error)
+            | FrameDecodeError::Authorization(error) => Some(error),
             FrameDecodeError::Empty
             | FrameDecodeError::UnexpectedTag(_)
             | FrameDecodeError::Truncated => None,
