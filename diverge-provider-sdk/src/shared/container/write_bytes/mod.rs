@@ -12,9 +12,9 @@
 //!
 //! Which is the expected use, and it works without buffering. A
 //! [`read`](super::read) body arrives as one frame and goes out as one
-//! [`response::Frame::Body`]. No acknowledgement per chunk, no length
-//! either end has to know in advance, and a consumer holds one frame
-//! at a time however large the file is.
+//! [`response::Frame`]. No acknowledgement per chunk, no length either
+//! end has to know in advance, and a consumer holds one frame at a
+//! time however large the file is.
 
 
 pub mod request;

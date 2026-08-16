@@ -56,10 +56,12 @@ pub struct Frame<'a>(
     pub &'a [u8],
 );
 
-/// Straight through. A body arriving here goes out as a
-/// [`write_bytes`](crate::shared::container::write_bytes::response::Frame::Body)
-/// body, which is what makes piping a read into a write cost nothing:
-/// the bytes are never copied, only re-tagged.
+/// Straight through, and identical to
+/// [`write_bytes`](crate::shared::container::write_bytes::response::Frame)
+/// — which is what makes piping a read into a write cost nothing. One
+/// frame out is one frame in, with no shape to translate between
+/// them; whatever tag an endpoint puts in front is a byte, not a
+/// copy.
 impl Encode for Frame<'_> {
     /// [`Infallible`]: copying a slice into a buffer has no failure
     /// mode.

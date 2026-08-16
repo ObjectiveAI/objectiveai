@@ -1,11 +1,10 @@
 //! The content a caller streams for a write.
 //!
-//! # One alias, for what rides the channel
-//!
-//! [`Frame`] and nothing else. A write's content is the same content
-//! wherever a write happens, and
-//! [`write_bytes`](crate::shared::container::write_bytes)
-//! already says how the stream ends and what failing it means.
+//! Not an alias. The bytes are
+//! [`write_bytes`](crate::shared::container::write_bytes)'s, and that
+//! module says how a stream of them ends — but whether this channel
+//! can also carry a failure is this endpoint's question, so [`Frame`]
+//! is its own enum rather than a name for somebody else's.
 
 mod frame;
 
