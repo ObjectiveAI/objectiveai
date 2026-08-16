@@ -51,6 +51,41 @@ pub const STATUS_HEIGHT_LOGICAL: f64 = 32.0;
 #[derive(Default)]
 pub struct WebviewSync(pub tokio::sync::Mutex<()>);
 
+/// Every window's TOP INSET, cached (managed state) — see
+/// [`read_top_inset`] for what it is and why the layout needs it.
+///
+/// Cached because AppKit geometry may only be read on the main
+/// thread, while the reconciler runs on tokio tasks. Written by
+/// [`refresh_top_inset`] (main thread: window build, every resize)
+/// and read everywhere else.
+#[derive(Default)]
+pub struct ChromeInsets(
+    std::sync::Mutex<std::collections::HashMap<String, f64>>,
+);
+
+impl ChromeInsets {
+    fn get(&self, window: &str) -> f64 {
+        self.0
+            .lock()
+            .map(|map| map.get(window).copied().unwrap_or(0.0))
+            .unwrap_or(0.0)
+    }
+
+    fn set(&self, window: &str, inset: f64) {
+        if let Ok(mut map) = self.0.lock() {
+            map.insert(window.to_string(), inset);
+        }
+    }
+
+    /// Forget a closed window — labels are never reused, so nothing
+    /// else expires these.
+    pub fn forget(&self, window: &str) {
+        if let Ok(mut map) = self.0.lock() {
+            map.remove(window);
+        }
+    }
+}
+
 /// A content webview's label, from its tab id. Tab ids are never
 /// reused, so labels never collide across a tab's whole life.
 pub fn tab_label(id: u64) -> String {
@@ -73,11 +108,77 @@ pub fn status_label(window: &str) -> String {
     format!("status-{window}")
 }
 
+/// A window's TOP INSET in LOGICAL px: the slice of the content view
+/// the titlebar floats OVER, which nothing may be laid out under.
+///
+/// Tauri gives every macOS window a FULL-SIZE content view — its
+/// default title bar style is `Visible`, which sets
+/// `with_fullsize_content_view(true)` (tauri-runtime-wry's workaround
+/// for a devtools resize bug) — so the content view spans the entire
+/// window and the titlebar is drawn on top of it. `inner_size()`
+/// therefore reports the WHOLE window height, titlebar included, and
+/// a webview placed at y = 0 lands underneath it.
+///
+/// WebKit will not lay out in that obscured strip: it hands the
+/// document a viewport short by exactly this inset. That is what
+/// sliced the tab strip — a 40pt band whose document was given 8pt of
+/// viewport, rendering the identity line and nothing else.
+///
+/// `contentLayoutRect` is AppKit's own answer for "the part of the
+/// content view nothing floats over", so the bands are laid out
+/// against THAT rather than against a raw window height. Asking is
+/// also why no titlebar height is hardcoded here: it is whatever the
+/// OS says today, in fullscreen (zero) as much as windowed.
+///
+/// MAIN THREAD ONLY — [`refresh_top_inset`] is the caller that
+/// guarantees it; everything else reads [`ChromeInsets`].
+fn read_top_inset(#[allow(unused)] window: &tauri::Window) -> f64 {
+    #[cfg(target_os = "macos")]
+    {
+        let Ok(ptr) = window.ns_window() else {
+            return 0.0;
+        };
+        // SAFETY: tauri hands back this window's live NSWindow, and
+        // `refresh_top_inset` only calls this on the main thread.
+        let ns: &objc2_app_kit::NSWindow = unsafe { &*ptr.cast() };
+        let Some(view) = ns.contentView() else {
+            return 0.0;
+        };
+        let inset =
+            view.frame().size.height - ns.contentLayoutRect().size.height;
+        // Clamped: a window mid-teardown can report nonsense, and a
+        // negative inset would push the strip off the top.
+        return inset.clamp(0.0, STRIP_HEIGHT_LOGICAL * 4.0);
+    }
+    #[allow(unreachable_code)]
+    0.0
+}
+
+/// Re-read `label`'s top inset on the MAIN THREAD, cache it, and
+/// re-place its bands with the fresh value. Cheap and idempotent —
+/// called at window build and on every resize, which is also how
+/// entering and leaving fullscreen (where the inset goes to zero and
+/// back) reaches the layout.
+pub fn refresh_top_inset(app: &tauri::AppHandle, label: &str) {
+    let Some(window) = app.get_window(label) else {
+        return;
+    };
+    let app = app.clone();
+    let label = label.to_string();
+    // Queues when called off the main thread and runs on the next
+    // turn when called from it — never blocks, so it cannot deadlock
+    // against the event loop it is queued on.
+    let _ = window.clone().run_on_main_thread(move || {
+        app.state::<ChromeInsets>().set(&label, read_top_inset(&window));
+        place_bands(&app, &window);
+    });
+}
+
 /// The strip band (logical): the full width, `STRIP_HEIGHT_LOGICAL`
-/// tall, at the top.
-fn strip_rect(size: tauri::LogicalSize<f64>) -> tauri::Rect {
+/// tall, directly below whatever the titlebar covers.
+fn strip_rect(size: tauri::LogicalSize<f64>, top: f64) -> tauri::Rect {
     tauri::Rect {
-        position: tauri::LogicalPosition::new(0.0, 0.0).into(),
+        position: tauri::LogicalPosition::new(0.0, top).into(),
         size: tauri::LogicalSize::new(size.width, STRIP_HEIGHT_LOGICAL).into(),
     }
 }
@@ -101,16 +202,22 @@ fn logical_size(window: &tauri::Window) -> Option<tauri::LogicalSize<f64>> {
     Some(window.inner_size().ok()?.to_logical::<f64>(scale))
 }
 
-/// The content rect (logical): the window minus the strip band and
-/// the status bar.
-fn content_rect(window: &tauri::Window) -> Option<tauri::Rect> {
+/// The content rect (logical): the window minus the titlebar's
+/// inset, the strip band, and the status bar.
+fn content_rect(
+    app: &tauri::AppHandle,
+    window: &tauri::Window,
+) -> Option<tauri::Rect> {
     let scale = window.scale_factor().ok()?;
     let size = window.inner_size().ok()?.to_logical::<f64>(scale);
+    let top = app.state::<ChromeInsets>().get(window.label());
     Some(tauri::Rect {
-        position: tauri::LogicalPosition::new(0.0, STRIP_HEIGHT_LOGICAL).into(),
+        position: tauri::LogicalPosition::new(0.0, top + STRIP_HEIGHT_LOGICAL)
+            .into(),
         size: tauri::LogicalSize::new(
             size.width,
-            (size.height - STRIP_HEIGHT_LOGICAL - STATUS_HEIGHT_LOGICAL).max(1.0),
+            (size.height - top - STRIP_HEIGHT_LOGICAL - STATUS_HEIGHT_LOGICAL)
+                .max(1.0),
         )
         .into(),
     })
@@ -183,13 +290,17 @@ pub fn build_shell_window(
     let window = builder.build()?;
     let size = logical_size(&window)
         .unwrap_or_else(|| tauri::LogicalSize::new(1024.0, 768.0));
-    for (label, entry, rect) in [
-        (chrome_label(label), "index.html", strip_rect(size)),
+    // Placed with the inset we know NOW (zero for a window whose
+    // first read has not landed); `refresh_top_inset` below re-places
+    // both bands the moment the real one is read on the main thread.
+    let top = app.state::<ChromeInsets>().get(label);
+    for (child, entry, rect) in [
+        (chrome_label(label), "index.html", strip_rect(size, top)),
         (status_label(label), "status.html", status_rect(size)),
     ] {
         window.add_child(
             tauri::webview::WebviewBuilder::new(
-                label,
+                child,
                 tauri::WebviewUrl::App(entry.into()),
             )
             .background_color(GROUND)
@@ -198,6 +309,7 @@ pub fn build_shell_window(
             rect.size,
         )?;
     }
+    refresh_top_inset(app, label);
     Ok(window)
 }
 
@@ -248,9 +360,13 @@ pub async fn sync(app: &tauri::AppHandle) {
         let Some(window) = app.get_window(win_label) else {
             continue;
         };
-        let Some(rect) = content_rect(&window) else {
+        let Some(rect) = content_rect(app, &window) else {
             continue;
         };
+        // The bands ride along: every mutation re-asserts them, so a
+        // band placed before the inset was known heals on the next
+        // sync as well as on the refresh itself.
+        place_bands(app, &window);
         for tab in &ws.tabs {
             let label = tab_label(tab.id);
             // Active = the content rect; background = parked (same
@@ -390,6 +506,30 @@ async fn sync_browser(
     crate::cef::set_zoom(tab.id, ui.zoom.max(0.01).ln() / 1.2f64.ln());
 }
 
+/// Re-place one window's two chrome bands against its CURRENT size:
+/// the strip across the top of the usable area, the status bar
+/// pinned to the bottom. Unlike the content webviews these need
+/// their POSITION too — the status bar's y moves with every resize —
+/// which is exactly what `auto_resize` could not express and why
+/// neither uses it.
+///
+/// Idempotent, and called from the resize path, the reconciler, and
+/// [`refresh_top_inset`] alike.
+fn place_bands(app: &tauri::AppHandle, window: &tauri::Window) {
+    let Some(size) = logical_size(window) else {
+        return;
+    };
+    let top = app.state::<ChromeInsets>().get(window.label());
+    for (label, rect) in [
+        (chrome_label(window.label()), strip_rect(size, top)),
+        (status_label(window.label()), status_rect(size)),
+    ] {
+        if let Some(webview) = app.get_webview(&label) {
+            let _ = webview.set_bounds(rect);
+        }
+    }
+}
+
 /// Resize one window's content webviews (Resized /
 /// ScaleFactorChanged). SIZE ONLY: the active position (0, strip)
 /// and the parked position (0, PARK_Y) are both constants, so a
@@ -401,7 +541,7 @@ pub fn layout_window(app: &tauri::AppHandle, label: &str) {
     let Some(window) = app.get_window(label) else {
         return;
     };
-    let Some(rect) = content_rect(&window) else {
+    let Some(rect) = content_rect(app, &window) else {
         return;
     };
     for webview in window.webviews() {
@@ -409,20 +549,7 @@ pub fn layout_window(app: &tauri::AppHandle, label: &str) {
             let _ = webview.set_size(rect.size);
         }
     }
-    // The two chrome bands. Unlike the content webviews these need
-    // their POSITION too — the status bar is pinned to the bottom, so
-    // its y moves with every resize — which is exactly what
-    // `auto_resize` could not express and why neither uses it.
-    if let Some(size) = logical_size(&window) {
-        for (label, band) in [
-            (chrome_label(label), strip_rect(size)),
-            (status_label(label), status_rect(size)),
-        ] {
-            if let Some(webview) = app.get_webview(&label) {
-                let _ = webview.set_bounds(band);
-            }
-        }
-    }
+    place_bands(app, &window);
     // Browser tabs are not in `window.webviews()`, and their surfaces
     // take PHYSICAL bounds. Same size-only spirit: CEF remembers each
     // browser's parent and its last y (active or parked — both

@@ -4683,6 +4683,7 @@ dependencies = [
  "futures",
  "mime_guess",
  "notify",
+ "objc2-app-kit",
  "objectiveai-sdk",
  "open",
  "reqwest 0.12.28",

@@ -82,5 +82,18 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_LibraryLoader",
 ] }
 
+[target."cfg(target_os = \"macos\")".dependencies]
+# NSWindow::contentLayoutRect — the chrome bands are laid out against
+# the part of the content view the titlebar does NOT float over. See
+# `top_inset` in shell/native.rs for why that is not the whole window.
+# Same 0.3.x wry itself depends on, so Cargo.lock unifies and this
+# adds nothing transitively.
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+    "std",
+    "NSResponder",
+    "NSView",
+    "NSWindow",
+] }
+
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }

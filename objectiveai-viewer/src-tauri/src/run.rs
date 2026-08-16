@@ -190,6 +190,7 @@ pub fn serve(
         .manage(lab_env)
         .manage(model)
         .manage(crate::shell::WebviewSync::default())
+        .manage(crate::shell::ChromeInsets::default())
         .manage(crate::shell::TabMail::default())
         .manage(crate::shell::browser::Browsers::default())
         .manage(profile_root)
@@ -409,6 +410,11 @@ pub fn serve(
                 // a sole tab drags its window whole; dock closes the
                 // source only after the target proved alive.)
                 tauri::WindowEvent::Destroyed => {
+                    // Labels are never reused, so nothing else would
+                    // ever expire this window's cached inset.
+                    app_handle
+                        .state::<crate::shell::ChromeInsets>()
+                        .forget(&label);
                     let handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
                         let model = handle.state::<crate::shell::ShellModel>();
@@ -447,6 +453,11 @@ pub fn serve(
                 tauri::WindowEvent::Resized(_)
                 | tauri::WindowEvent::ScaleFactorChanged { .. } => {
                     crate::shell::layout_window(app_handle, &label);
+                    // The titlebar's inset is not a constant: it goes
+                    // to zero entering fullscreen and back on the way
+                    // out, and both arrive as a resize. Re-read it and
+                    // re-place the bands against the new one.
+                    crate::shell::refresh_top_inset(app_handle, &label);
                 }
                 _ => {}
             }
