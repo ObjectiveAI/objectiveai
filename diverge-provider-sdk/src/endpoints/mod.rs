@@ -41,6 +41,11 @@
 //! value and points here, because a value chosen in one module has to
 //! be checked against every other, and no module can see the others.
 //!
+//! [`ClientRequest`] is the same table as a type: one variant per row,
+//! in tag order, plus an
+//! [`Invalid`](ClientRequest::Invalid) for a payload that is none of
+//! them. It is the only place the values meet.
+//!
 //! # Named for what runs in them
 //!
 //! Three of these are containers, and the three are told apart by what
@@ -54,6 +59,10 @@
 //! [`shared`](crate::shared) — including
 //! [`container`](crate::shared::container), which is the reading,
 //! writing and moving of files that any of them can be asked to do.
+
+mod client_request;
+
+pub use client_request::*;
 
 pub mod agentic_loop;
 pub mod images;

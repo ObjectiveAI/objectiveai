@@ -5,6 +5,7 @@
 //! dialled — authenticates.
 
 use super::auth::Auth;
+use crate::endpoints::ClientRequest;
 use super::FrameError;
 use crate::decode::Decode;
 
@@ -30,7 +31,7 @@ use crate::decode::Decode;
 /// none of them: it asks for a scope and the server answers in it.
 /// Leaving the numbers unused rather than closing up keeps one number
 /// meaning one thing in both directions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
     /// Type `0`. The first frame of a connection, sent by whichever
     /// side dialled. Nothing may precede it.
@@ -53,13 +54,15 @@ pub enum ClientFrame<'a> {
     /// Sent with no scope and no channel — the server mints the scope
     /// in its ack, and everything that follows carries it.
     ///
-    /// Not discriminated here. WHICH request this is lives in the
-    /// payload's own leading byte, so this layer sees one frame kind
-    /// and hands the bytes on.
-    Request {
-        /// The request bytes, tag included.
-        payload: &'a [u8],
-    },
+    /// Read here rather than handed on, because the set is closed
+    /// and a server has to know which request it is answering before
+    /// it can answer. One this version cannot make out becomes
+    /// [`Invalid`](ClientRequest::Invalid), which is answered like any
+    /// other rather than refused.
+    Request(
+        /// Which request — see [`ClientRequest`].
+        ClientRequest<'a>,
+    ),
     /// Type `5`. A request to the server, opening a channel.
     ///
     /// The server answers on that same channel with its own channel
@@ -117,7 +120,12 @@ impl<'a> ClientFrame<'a> {
             0 => ClientFrame::Auth(
                 Auth::decode(payload).map_err(FrameError::Auth)?,
             ),
-            1 => ClientFrame::Request { payload },
+            1 => ClientFrame::Request(
+                // Decoding one is `Infallible`: a payload this version
+                // cannot read becomes `Invalid` rather than an error.
+                ClientRequest::decode(payload)
+                    .unwrap_or_else(|error| match error {}),
+            ),
             5 => ClientFrame::ChannelRequest {
                 scope,
                 channel,

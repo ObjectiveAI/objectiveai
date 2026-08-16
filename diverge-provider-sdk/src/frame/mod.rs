@@ -97,9 +97,20 @@
 //! and only a client sends it; `5` opens a CHANNEL and both sides
 //! send it.
 //!
-//! Neither is discriminated here. WHICH request either one is lives in
-//! the payload's own leading byte, so this layer sees two frame kinds
-//! however many kinds of request there turn out to be.
+//! They are discriminated differently, and deliberately. A scope
+//! request is read here, into a
+//! [`ClientRequest`](crate::endpoints::ClientRequest) — there are ten
+//! of them, the set is closed, and a server has to know which one it
+//! was answering before it can answer anything. A channel request is
+//! not: its tag means something only inside the scope it arrived in,
+//! so this layer hands the bytes to whoever opened that scope.
+//!
+//! Reading the scope request here is also what makes a malformed one
+//! answerable. It decodes to
+//! [`Invalid`](crate::endpoints::ClientRequest::Invalid) rather than
+//! failing, so a server acks it, mints a scope, and replies with an
+//! error — instead of holding bytes it cannot name with nowhere to
+//! complain.
 //!
 //! # Growth happens in payloads, not here
 //!
@@ -108,6 +119,11 @@
 //! kind of channel request grows a tag value inside a payload, where
 //! the reader that cares is already looking — this layer never has to
 //! learn it, and never has to hold room open for it.
+//!
+//! A new SCOPE request is the exception, and it is an exception in
+//! [`endpoints`](crate::endpoints) rather than here: it takes the next
+//! tag value and a variant beside the others. The frame types are
+//! untouched either way.
 //!
 //! The alternative was a range of request types with the kind encoded
 //! in `type`. It costs a second discriminator: a frame already carries
