@@ -2,8 +2,6 @@
 
 use std::error::Error;
 use std::fmt;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::str::{self, Utf8Error};
 
 use super::Authorize;
 use crate::decode::Decode;
@@ -55,7 +53,7 @@ pub enum Frame<'a> {
     /// This layer guarantees two things and no more — that the bytes
     /// arrive as they were sent, and that the question is answered
     /// before the connection it is about is allowed to open.
-    Authorize(Authorize<'a>),
+    Authorize(Authorize),
     /// Send the content for a write. Tag `2`.
     ///
     /// Opened in answer to a
@@ -75,20 +73,10 @@ const AUTHORIZE: u8 = 1;
 /// Tag for [`Frame::Write`].
 const WRITE: u8 = 2;
 
-/// Marks an [`IpAddr::V4`].
-const V4: u8 = 4;
-
-/// Marks an [`IpAddr::V6`].
-const V6: u8 = 6;
-
 impl Encode for Frame<'_> {
-    /// Only [`Oci`](Frame::Oci) can fail, and only the way any JSON
-    /// serialization can.
-    ///
-    /// An authorization cannot. Its address is fixed-width and its
-    /// payload is bytes, which is the point of laying it out by hand:
-    /// there is no length that could overflow a prefix and no shape a
-    /// format could reject.
+    /// The ordinary JSON failure. [`Oci`](Frame::Oci) and
+    /// [`Authorize`](Frame::Authorize) are both JSON;
+    /// [`Write`](Frame::Write) is four known bytes and cannot fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -99,18 +87,7 @@ impl Encode for Frame<'_> {
             }
             Frame::Authorize(authorize) => {
                 out.extend_from_slice(&[AUTHORIZE]);
-                match authorize.address {
-                    IpAddr::V4(address) => {
-                        out.extend_from_slice(&[V4]);
-                        out.extend_from_slice(&address.octets());
-                    }
-                    IpAddr::V6(address) => {
-                        out.extend_from_slice(&[V6]);
-                        out.extend_from_slice(&address.octets());
-                    }
-                }
-                out.extend_from_slice(authorize.authorization.as_bytes());
-                Ok(())
+                serde_json::to_writer(out, authorize)
             }
             Frame::Write(request) => {
                 out.extend_from_slice(&[WRITE]);
@@ -123,7 +100,7 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Seven ways to fail, and only one of them is a parse.
+    /// Five ways to fail, and two of them are parses.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
@@ -132,37 +109,9 @@ impl<'a> Decode<'a> for Frame<'a> {
             OCI => {
                 Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci)
             }
-            AUTHORIZE => {
-                let (version, rest) =
-                    rest.split_first().ok_or(FrameError::Truncated)?;
-                let (address, authorization) = match *version {
-                    V4 => {
-                        let (octets, rest) = rest
-                            .split_at_checked(4)
-                            .ok_or(FrameError::Truncated)?;
-                        let octets = <[u8; 4]>::try_from(octets)
-                            .map_err(|_| FrameError::Truncated)?;
-                        (IpAddr::V4(Ipv4Addr::from(octets)), rest)
-                    }
-                    V6 => {
-                        let (octets, rest) = rest
-                            .split_at_checked(16)
-                            .ok_or(FrameError::Truncated)?;
-                        let octets = <[u8; 16]>::try_from(octets)
-                            .map_err(|_| FrameError::Truncated)?;
-                        (IpAddr::V6(Ipv6Addr::from(octets)), rest)
-                    }
-                    version => {
-                        return Err(FrameError::UnknownAddress(version));
-                    }
-                };
-                let authorization = str::from_utf8(authorization)
-                    .map_err(FrameError::Authorization)?;
-                Ok(Frame::Authorize(Authorize {
-                    address,
-                    authorization,
-                }))
-            }
+            AUTHORIZE => serde_json::from_slice(rest)
+                .map(Frame::Authorize)
+                .map_err(FrameError::Authorize),
             WRITE => write_bytes::request::Request::decode(rest)
                 .map(Frame::Write)
                 .map_err(FrameError::Write),
@@ -178,12 +127,8 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's three.
     UnknownTag(u8),
-    /// An authorization that ended inside its address.
-    Truncated,
-    /// An address version byte that is neither `4` nor `6`.
-    UnknownAddress(u8),
-    /// The authorization was not UTF-8.
-    Authorization(Utf8Error),
+    /// The authorization request did not parse.
+    Authorize(serde_json::Error),
     /// The registry request did not parse.
     Oci(serde_json::Error),
     /// The write content request did not decode.
@@ -199,14 +144,8 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown laboratory run channel request tag {tag}")
             }
-            FrameError::Truncated => {
-                f.write_str("authorization ended inside its address")
-            }
-            FrameError::UnknownAddress(version) => {
-                write!(f, "address version is neither {V4} nor {V6}: {version}")
-            }
-            FrameError::Authorization(error) => {
-                write!(f, "authorization is not utf-8: {error}")
+            FrameError::Authorize(error) => {
+                write!(f, "authorization request did not parse: {error}")
             }
             FrameError::Oci(error) => {
                 write!(f, "registry request did not parse: {error}")
@@ -222,12 +161,9 @@ impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             FrameError::Oci(error) => Some(error),
+            FrameError::Authorize(error) => Some(error),
             FrameError::Write(error) => Some(error),
-            FrameError::Authorization(error) => Some(error),
-            FrameError::Empty
-            | FrameError::UnknownTag(_)
-            | FrameError::Truncated
-            | FrameError::UnknownAddress(_) => None,
+            FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
 }
