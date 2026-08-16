@@ -32,24 +32,24 @@ use crate::encode::{Encode, Writer};
 pub enum ClientRequest<'a> {
     /// Tag `0`. Run an agent and stream what it does.
     AgenticLoopRun(agentic_loop::run::client::request::Frame),
-    /// Tag `1`. Ask whether an image can be supplied.
-    ImagesCheck(images::check::client::request::Frame),
-    /// Tag `2`. List the volumes a provider offers.
-    VolumesList(volumes::list::client::request::Frame),
-    /// Tag `3`. Watch one of them.
-    VolumesWatch(volumes::watch::client::request::Frame),
-    /// Tag `4`. Run a laboratory.
-    LaboratoriesRun(laboratories::run::client::request::Frame),
-    /// Tag `5`. Join one somebody else is running.
-    LaboratoriesConnect(laboratories::connect::client::request::Frame<'a>),
-    /// Tag `6`. Run an MCP plugin.
+    /// Tag `1`. Run an MCP plugin.
     McpPluginRun(mcp_plugin::run::client::request::Frame),
-    /// Tag `7`. Make a volume.
+    /// Tag `2`. Run a laboratory.
+    LaboratoriesRun(laboratories::run::client::request::Frame),
+    /// Tag `3`. Join one somebody else is running.
+    LaboratoriesConnect(laboratories::connect::client::request::Frame<'a>),
+    /// Tag `4`. List the volumes a provider offers.
+    VolumesList(volumes::list::client::request::Frame),
+    /// Tag `5`. Watch one of them.
+    VolumesWatch(volumes::watch::client::request::Frame),
+    /// Tag `6`. Make a volume.
     VolumesCreate(volumes::create::client::request::Frame),
+    /// Tag `7`. Change how much one reserves.
+    VolumesEdit(volumes::edit::client::request::Frame),
     /// Tag `8`. Destroy one.
     VolumesDelete(volumes::delete::client::request::Frame),
-    /// Tag `9`. Change how much one reserves.
-    VolumesEdit(volumes::edit::client::request::Frame),
+    /// Tag `9`. Ask whether an image can be supplied.
+    ImagesCheck(images::check::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -88,8 +88,14 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::AgenticLoopRun(frame) => {
                 frame.encode(out).map_err(E::Json)
             }
-            ClientRequest::ImagesCheck(frame) => {
+            ClientRequest::McpPluginRun(frame) => {
                 frame.encode(out).map_err(E::Json)
+            }
+            ClientRequest::LaboratoriesRun(frame) => {
+                frame.encode(out).map_err(E::Json)
+            }
+            ClientRequest::LaboratoriesConnect(frame) => {
+                frame.encode(out).map_err(E::LaboratoriesConnect)
             }
             ClientRequest::VolumesList(frame) => {
                 // Its error is `Infallible`, and an empty match on one
@@ -99,23 +105,17 @@ impl Encode for ClientRequest<'_> {
             ClientRequest::VolumesWatch(frame) => {
                 frame.encode(out).map_err(E::Postcard)
             }
-            ClientRequest::LaboratoriesRun(frame) => {
-                frame.encode(out).map_err(E::Json)
-            }
-            ClientRequest::LaboratoriesConnect(frame) => {
-                frame.encode(out).map_err(E::LaboratoriesConnect)
-            }
-            ClientRequest::McpPluginRun(frame) => {
-                frame.encode(out).map_err(E::Json)
-            }
             ClientRequest::VolumesCreate(frame) => {
+                frame.encode(out).map_err(E::Postcard)
+            }
+            ClientRequest::VolumesEdit(frame) => {
                 frame.encode(out).map_err(E::Postcard)
             }
             ClientRequest::VolumesDelete(frame) => {
                 frame.encode(out).map_err(E::Postcard)
             }
-            ClientRequest::VolumesEdit(frame) => {
-                frame.encode(out).map_err(E::Postcard)
+            ClientRequest::ImagesCheck(frame) => {
+                frame.encode(out).map_err(E::Json)
             }
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -144,32 +144,32 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
             0 => agentic_loop::run::client::request::Frame::decode(bytes)
                 .map(ClientRequest::AgenticLoopRun)
                 .ok(),
-            1 => images::check::client::request::Frame::decode(bytes)
-                .map(ClientRequest::ImagesCheck)
-                .ok(),
-            2 => volumes::list::client::request::Frame::decode(bytes)
-                .map(ClientRequest::VolumesList)
-                .ok(),
-            3 => volumes::watch::client::request::Frame::decode(bytes)
-                .map(ClientRequest::VolumesWatch)
-                .ok(),
-            4 => laboratories::run::client::request::Frame::decode(bytes)
-                .map(ClientRequest::LaboratoriesRun)
-                .ok(),
-            5 => laboratories::connect::client::request::Frame::decode(bytes)
-                .map(ClientRequest::LaboratoriesConnect)
-                .ok(),
-            6 => mcp_plugin::run::client::request::Frame::decode(bytes)
+            1 => mcp_plugin::run::client::request::Frame::decode(bytes)
                 .map(ClientRequest::McpPluginRun)
                 .ok(),
-            7 => volumes::create::client::request::Frame::decode(bytes)
+            2 => laboratories::run::client::request::Frame::decode(bytes)
+                .map(ClientRequest::LaboratoriesRun)
+                .ok(),
+            3 => laboratories::connect::client::request::Frame::decode(bytes)
+                .map(ClientRequest::LaboratoriesConnect)
+                .ok(),
+            4 => volumes::list::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesList)
+                .ok(),
+            5 => volumes::watch::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesWatch)
+                .ok(),
+            6 => volumes::create::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesCreate)
+                .ok(),
+            7 => volumes::edit::client::request::Frame::decode(bytes)
+                .map(ClientRequest::VolumesEdit)
                 .ok(),
             8 => volumes::delete::client::request::Frame::decode(bytes)
                 .map(ClientRequest::VolumesDelete)
                 .ok(),
-            9 => volumes::edit::client::request::Frame::decode(bytes)
-                .map(ClientRequest::VolumesEdit)
+            9 => images::check::client::request::Frame::decode(bytes)
+                .map(ClientRequest::ImagesCheck)
                 .ok(),
             _ => None,
         };

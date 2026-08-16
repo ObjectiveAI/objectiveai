@@ -22,20 +22,27 @@
 //! | tag | request |
 //! |-----|---------|
 //! | `0` | [`agentic_loop::run`] |
-//! | `1` | [`images::check`] |
-//! | `2` | [`volumes::list`] |
-//! | `3` | [`volumes::watch`] |
-//! | `4` | [`laboratories::run`] |
-//! | `5` | [`laboratories::connect`] |
-//! | `6` | [`mcp_plugin::run`] |
-//! | `7` | [`volumes::create`] |
+//! | `1` | [`mcp_plugin::run`] |
+//! | `2` | [`laboratories::run`] |
+//! | `3` | [`laboratories::connect`] |
+//! | `4` | [`volumes::list`] |
+//! | `5` | [`volumes::watch`] |
+//! | `6` | [`volumes::create`] |
+//! | `7` | [`volumes::edit`] |
 //! | `8` | [`volumes::delete`] |
-//! | `9` | [`volumes::edit`] |
+//! | `9` | [`images::check`] |
 //!
-//! Ten, and they are in the order they were allocated rather than
-//! grouped by endpoint — [`volumes`] holds `2`, `3`, `7`, `8` and `9`.
-//! Nothing derives meaning from adjacency, so regrouping them would
-//! change every implementation to make a table look tidier.
+//! Ten, grouped by endpoint and ordered within it. The three
+//! containers lead, in the order an agent meets them — it runs in the
+//! first, calls the second, works inside the third — then joining one
+//! somebody else is running. The five volume scopes follow in the
+//! order a caller uses them: find one, watch it, make one, resize it,
+//! destroy it. [`images::check`] is last because it is the one scope
+//! that asks about something rather than doing anything.
+//!
+//! Nothing derives meaning from adjacency. The grouping is for whoever
+//! reads the table, and a new scope takes `10` wherever it belongs
+//! conceptually.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
