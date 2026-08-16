@@ -1,10 +1,10 @@
 //! Whether a write landed.
 //!
-//! # One alias, for what rides the channel
-//!
-//! [`Frame`] and nothing else. See
-//! [`write_path::response`](crate::shared::container::write_path::response)
-//! for what its absence means, and why it spends a byte anyway.
+//! Not an alias. What rides this channel is
+//! [`write_path`](crate::shared::container::write_path)'s, and that module
+//! says what it means — but whether this channel can also carry a
+//! failure is this endpoint's question, so [`Frame`] is its own enum
+//! rather than a name for somebody else's.
 
 mod frame;
 

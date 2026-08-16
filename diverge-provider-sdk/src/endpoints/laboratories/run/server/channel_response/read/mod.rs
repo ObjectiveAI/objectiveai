@@ -1,11 +1,10 @@
 //! The file bytes a provider relays out of the container.
 //!
-//! # One alias, for what rides the channel
-//!
-//! [`Frame`] and nothing else. A read answer is the same answer
-//! wherever it is asked for, and
-//! [`read::response`](crate::shared::container::read::response)
-//! already says what one is and how a stream of them ends.
+//! Not an alias. What rides this channel is
+//! [`read`](crate::shared::container::read)'s, and that module
+//! says what it means — but whether this channel can also carry a
+//! failure is this endpoint's question, so [`Frame`] is its own enum
+//! rather than a name for somebody else's.
 
 mod frame;
 
