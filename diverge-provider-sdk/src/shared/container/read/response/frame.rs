@@ -12,19 +12,14 @@ use crate::encode::{Encode, Writer};
 /// first byte to the last, and the requester knew what it was when it
 /// asked.
 ///
-/// # Two outcomes, and the frame layer states both
+/// # How it ends
 ///
-/// | the channel ends with | means |
-/// |-----------------------|-------|
-/// | bodies, then a finish | the bytes are the file |
-/// | bodies, then nothing | the read did not finish |
-///
-/// There is no `Complete` and there is no failure. A read that
-/// finished cleanly is one whose channel finished —
+/// With a finish, and only with a finish. There is no `Complete` and
+/// there is no failure: a read that finished cleanly is one whose
+/// channel finished —
 /// [`ChannelResponseFinish`](crate::frame::server::ServerFrame::ChannelResponseFinish)
 /// says so at the frame layer, and saying it again in the payload
-/// would be two signals for one fact. A read that did not is one whose
-/// channel stopped without one.
+/// would be two signals for one fact.
 ///
 /// # A silent tear is possible here
 ///

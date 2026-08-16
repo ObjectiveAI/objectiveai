@@ -51,6 +51,16 @@
 //! neither end has to know what the other has minted, and neither can
 //! collide with it.
 //!
+//! # A stream ends at its finish frame, and nowhere else
+//!
+//! This holds everywhere, for every stream in this protocol. A quiet
+//! channel is a channel still running, however long it has been quiet.
+//! Nothing times one out, and a reader waits.
+//!
+//! So a pause is never an ending, and a sender that stops without
+//! finishing has not cancelled anything — it has left a stream open.
+//! A sender with something to say says it in a frame.
+//!
 //! # Types
 //!
 //! | type | client | server |

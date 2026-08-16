@@ -13,34 +13,19 @@ use crate::shared::error::Error;
 /// [`Body`](Self::Body), `1` for [`Error`](Self::Error) — and the rest
 /// is that variant's own bytes.
 ///
-/// # The end, the failure, and the giving up
-///
-/// Three ways this stream stops, and they are not the same.
+/// # How it ends
 ///
 /// | the channel ends with | means |
 /// |-----------------------|-------|
 /// | bodies, then a finish | that was the whole content |
-/// | an [`Error`](Self::Error), then a finish | the client cannot supply it, and said why |
-/// | bodies, then nothing | the client abandoned the write |
+/// | an [`Error`](Self::Error), then a finish | the full content was not streamed |
 ///
-/// The content ends when the channel finishes. There is no terminator
-/// in the payload because the frame layer already has one, and a
-/// second would be two signals for one fact.
+/// Only a finish ends it. There is no terminator in the payload
+/// because the frame layer already has one, and a second would be two
+/// signals for one fact.
 ///
-/// # Why abandonment survives
-///
-/// A client that decides mid-stream not to go through with the write
-/// can still simply never finish. The provider sees content stop
-/// without an end, discards the temporary, and the destination is left
-/// untouched.
-///
-/// That is not the same as an [`Error`](Self::Error), and adding one
-/// did not replace it. An error is a client that knows it cannot
-/// continue and can say so; abandonment is a client that stopped,
-/// which includes every case where it was not able to say anything —
-/// a process that died, a pipe that broke, a network that went away.
-/// A provider has to handle a stream that just stops regardless, so
-/// the error is a courtesy rather than a replacement.
+/// What a provider does with a write that ended in an error is not
+/// specified here.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Frame<'a> {
     /// The bytes, borrowed from the frame they arrived in. Tag `0`.
