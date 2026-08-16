@@ -10,11 +10,20 @@
 //! notifications, so a provider that included one would be promising
 //! updates it cannot deliver.
 //!
+//! [`Id`] and [`Disconnected`] are what two of [`Frame`]'s variants
+//! carry, defined here beside it. Both are JSON objects rather than a
+//! bare string, so a provider that later has more to say about an
+//! identity or a departure has somewhere to say it.
+//!
 //! Nothing is aliased here. The filetree frames are WRAPPED rather
 //! than re-exported, because a run answers with more than a
 //! filetree — and a type that is only sometimes what it points at is
 //! not an alias.
 
+mod disconnected;
 mod frame;
+mod id;
 
+pub use disconnected::*;
 pub use frame::*;
+pub use id::*;

@@ -1,10 +1,10 @@
 //! What a server's response frame carries for a laboratory run.
 
 use std::fmt;
-use std::string::FromUtf8Error;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use super::{Disconnected, Id};
 use crate::shared::error::Error;
 
 /// A run's answer: the container's id, its filesystem, and who has
@@ -44,13 +44,8 @@ pub enum Frame {
     /// The container's id. Tag `0`.
     ///
     /// Arrives whenever the provider has it, which is not necessarily
-    /// before the filesystem starts reporting.
-    ///
-    /// What it is for is between the two ends. What it is FROM is this
-    /// scope: a provider mints it here, and a caller that wants to
-    /// name this container anywhere else has this and nothing else to
-    /// name it with.
-    Id(String),
+    /// before the filesystem starts reporting. See [`Id`].
+    Id(Id),
     /// One change on the container's filesystem. Tag `1`.
     ///
     /// A [`filetree`](crate::shared::filetree) stream over the container's own
@@ -66,9 +61,8 @@ pub enum Frame {
     Filetree(crate::shared::filetree::response::Frame),
     /// A connector that was attached is not any more. Tag `2`.
     ///
-    /// Carries the nickname the runner gave that connector when it
-    /// [`Authorized`](crate::endpoints::laboratories::run::client::channel_response::authorize::Frame::Authorized)
-    /// it, or nothing if it gave none.
+    /// See [`Disconnected`] for the name it carries and what a runner
+    /// may assume about it.
     ///
     /// # An event, not a count
     ///
@@ -79,16 +73,7 @@ pub enum Frame {
     /// That is the whole reason the nickname exists. A count can be
     /// re-sent and read afresh; a departure cannot, because "one of
     /// them left" is not an answer to "which". A runner holding four
-    /// authorized connectors needs the name it chose for them, and the
-    /// provider gives it back rather than inventing an identifier of
-    /// its own — it never read the name and has no opinion about it.
-    ///
-    /// # Two connectors may share a name
-    ///
-    /// Nothing prevents it, and a runner that allowed it has decided
-    /// it does not need to tell those two apart. A disconnection then
-    /// names both and resolves neither, which is the runner's own
-    /// arrangement rather than something this protocol did to it.
+    /// authorized connectors needs the name it chose for them.
     ///
     /// # What the authorize channel is for
     ///
@@ -101,7 +86,7 @@ pub enum Frame {
     /// So the two are halves of one exchange, and the order between
     /// them is the only order in this stream that means anything —
     /// nothing can disconnect that was not authorized first.
-    Disconnected(Option<String>),
+    Disconnected(Disconnected),
     /// A failure. Tag `3`.
     ///
     /// The laboratory is not running and will not be — the image
@@ -126,12 +111,6 @@ const DISCONNECTED: u8 = 2;
 /// Tag for [`Frame::Error`].
 const ERROR: u8 = 3;
 
-/// The byte for a nickname that is not there.
-const ABSENT: u8 = 0;
-
-/// The byte for a nickname that follows.
-const PRESENT: u8 = 1;
-
 /// Four variants, four encodings, and none converted into another's
 /// to make them match. An id is a string and goes out as its own
 /// bytes; a count is four big-endian bytes, the same way `scope` and
@@ -154,21 +133,16 @@ impl Encode for Frame {
         match self {
             Frame::Id(id) => {
                 out.extend_from_slice(&[ID]);
-                out.extend_from_slice(id.as_bytes());
-                Ok(())
+                serde_json::to_writer(out, id).map_err(FrameEncodeError::Id)
             }
             Frame::Filetree(frame) => {
                 out.extend_from_slice(&[FILETREE]);
                 frame.encode(out).map_err(FrameEncodeError::Filetree)
             }
-            Frame::Disconnected(None) => {
-                out.extend_from_slice(&[DISCONNECTED, ABSENT]);
-                Ok(())
-            }
-            Frame::Disconnected(Some(nickname)) => {
-                out.extend_from_slice(&[DISCONNECTED, PRESENT]);
-                out.extend_from_slice(nickname.as_bytes());
-                Ok(())
+            Frame::Disconnected(disconnected) => {
+                out.extend_from_slice(&[DISCONNECTED]);
+                serde_json::to_writer(out, disconnected)
+                    .map_err(FrameEncodeError::Disconnected)
             }
             Frame::Error(error) => {
                 out.extend_from_slice(&[ERROR]);
@@ -181,8 +155,12 @@ impl Encode for Frame {
 /// A laboratory run response that could not be written.
 #[derive(Debug)]
 pub enum FrameEncodeError {
+    /// The id did not serialize.
+    Id(serde_json::Error),
     /// The filetree frame did not serialize.
     Filetree(postcard::Error),
+    /// The disconnection did not serialize.
+    Disconnected(serde_json::Error),
     /// The error did not serialize.
     Error(serde_json::Error),
 }
@@ -190,8 +168,14 @@ pub enum FrameEncodeError {
 impl fmt::Display for FrameEncodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            FrameEncodeError::Id(error) => {
+                write!(f, "container id did not serialize: {error}")
+            }
             FrameEncodeError::Filetree(error) => {
                 write!(f, "filetree frame did not serialize: {error}")
+            }
+            FrameEncodeError::Disconnected(error) => {
+                write!(f, "disconnection did not serialize: {error}")
             }
             FrameEncodeError::Error(error) => {
                 write!(f, "laboratory run error did not serialize: {error}")
@@ -203,7 +187,9 @@ impl fmt::Display for FrameEncodeError {
 impl std::error::Error for FrameEncodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            FrameEncodeError::Id(error) => Some(error),
             FrameEncodeError::Filetree(error) => Some(error),
+            FrameEncodeError::Disconnected(error) => Some(error),
             FrameEncodeError::Error(error) => Some(error),
         }
     }
@@ -217,23 +203,15 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            ID => String::from_utf8(rest.to_vec())
+            ID => serde_json::from_slice(rest)
                 .map(Frame::Id)
                 .map_err(FrameError::Id),
             FILETREE => crate::shared::filetree::response::Frame::decode(rest)
                 .map(Frame::Filetree)
                 .map_err(FrameError::Filetree),
-            DISCONNECTED => {
-                let (presence, nickname) =
-                    rest.split_first().ok_or(FrameError::Truncated)?;
-                match *presence {
-                    ABSENT => Ok(Frame::Disconnected(None)),
-                    PRESENT => String::from_utf8(nickname.to_vec())
-                        .map(|nickname| Frame::Disconnected(Some(nickname)))
-                        .map_err(FrameError::Nickname),
-                    presence => Err(FrameError::UnknownPresence(presence)),
-                }
-            }
+            DISCONNECTED => serde_json::from_slice(rest)
+                .map(Frame::Disconnected)
+                .map_err(FrameError::Disconnected),
             ERROR => Error::decode(rest)
                 .map(Frame::Error)
                 .map_err(FrameError::Error),
@@ -249,17 +227,12 @@ pub enum FrameError {
     Empty,
     /// A tag that is none of this frame's four.
     UnknownTag(u8),
-    /// The id was not UTF-8.
-    Id(FromUtf8Error),
+    /// The id did not parse.
+    Id(serde_json::Error),
     /// The filetree frame did not decode.
     Filetree(postcard::Error),
-    /// A disconnection that ended before saying whether a nickname
-    /// followed.
-    Truncated,
-    /// A presence byte that is neither absent nor present.
-    UnknownPresence(u8),
-    /// The nickname was not UTF-8.
-    Nickname(FromUtf8Error),
+    /// The disconnection did not parse.
+    Disconnected(serde_json::Error),
     /// The error did not parse.
     Error(serde_json::Error),
 }
@@ -274,22 +247,13 @@ impl fmt::Display for FrameError {
                 write!(f, "unknown laboratory run response frame tag {tag}")
             }
             FrameError::Id(error) => {
-                write!(f, "container id is not utf-8: {error}")
+                write!(f, "container id did not parse: {error}")
             }
             FrameError::Filetree(error) => {
                 write!(f, "filetree frame did not decode: {error}")
             }
-            FrameError::Truncated => {
-                f.write_str("disconnection ended before its nickname")
-            }
-            FrameError::UnknownPresence(presence) => {
-                write!(
-                    f,
-                    "nickname presence is neither {ABSENT} nor {PRESENT}:                      {presence}"
-                )
-            }
-            FrameError::Nickname(error) => {
-                write!(f, "nickname is not utf-8: {error}")
+            FrameError::Disconnected(error) => {
+                write!(f, "disconnection did not parse: {error}")
             }
             FrameError::Error(error) => {
                 write!(f, "laboratory run error did not parse: {error}")
@@ -303,12 +267,9 @@ impl std::error::Error for FrameError {
         match self {
             FrameError::Id(error) => Some(error),
             FrameError::Filetree(error) => Some(error),
-            FrameError::Nickname(error) => Some(error),
+            FrameError::Disconnected(error) => Some(error),
             FrameError::Error(error) => Some(error),
-            FrameError::Empty
-            | FrameError::UnknownTag(_)
-            | FrameError::Truncated
-            | FrameError::UnknownPresence(_) => None,
+            FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
 }
