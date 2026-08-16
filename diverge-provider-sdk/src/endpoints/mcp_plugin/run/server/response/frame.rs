@@ -1,30 +1,30 @@
 //! What a server's response frame carries for an MCP plugin.
 
-use std::error::Error;
 use std::fmt;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::error::Error;
 
-/// The plugin is running.
+/// The plugin is running, or it is not.
 ///
-/// One of these, on channel `0`, once the container is up and its MCP
-/// server can be reached. It carries nothing, because saying so IS the
-/// whole message.
+/// One of these on channel `0`. A payload leads with one byte saying
+/// which — `0` for [`Ready`](Self::Ready), `1` for
+/// [`Error`](Self::Error) — and for the first there is nothing after
+/// it, because saying so IS the whole message.
 ///
 /// | the scope ends with | means |
 /// |----------------------|-------|
-/// | a [`Frame`], then work | the plugin is up; call it |
-/// | a finish, and nothing before it | it never came up |
-/// | nothing | the connection died; whether it came up is unknowable from here |
+/// | [`Ready`](Self::Ready), then work | the plugin is up; call it |
+/// | an [`Error`](Self::Error), then a finish | it never came up, and here is what the provider knows |
 ///
 /// # Why there is no id
 ///
-/// A [`laboratory run`](crate::endpoints::laboratories::run)
-/// answers with one, because a laboratory is a place others join: an
-/// id is what a
-/// [`connect`](crate::endpoints::laboratories::connect) names and what
-/// a [`transfer`](crate::shared::container::transfer) sends a file to.
+/// A [`laboratory run`](crate::endpoints::laboratories::run) answers
+/// with one, because a laboratory is a place others join: an id is
+/// what a [`connect`](crate::endpoints::laboratories::connect) names
+/// and what a
+/// [`transfer`](crate::shared::container::transfer) sends a file to.
 ///
 /// A plugin is none of those. It is created for one caller, answers
 /// that caller's tool calls, and is torn down after — so the scope is
@@ -41,59 +41,79 @@ use crate::encode::{Encode, Writer};
 /// it takes no [`mounts`], and a caller with no way to read or write
 /// inside it has nothing to do with a tree of it.
 ///
-/// # It still spends a byte
-///
-/// A payload of zero bytes would carry the same information today and
-/// cost a wire break tomorrow. Failure has no shape yet — a provider
-/// says so by finishing the scope without this — and when it gets one
-/// it will be another tag value, which is only additive if there is a
-/// tag to add to.
-///
-/// The same reason
-/// [`write_path`](crate::shared::container::write_path::response::Frame)
-/// spends one.
-///
 /// [`mounts`]: crate::endpoints::laboratories::run::client::request::Frame::mounts
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub struct Frame;
+#[derive(Debug, Clone, PartialEq)]
+pub enum Frame {
+    /// The plugin is up and its MCP server can be reached. Tag `0`.
+    Ready,
+    /// A failure. Tag `1`.
+    ///
+    /// The plugin is not running and will not be — the image would not
+    /// pull, the container would not start, nothing ever answered on
+    /// [`port`](crate::endpoints::mcp_plugin::run::client::request::Frame::port),
+    /// whatever the provider knows.
+    ///
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
+    Error(Error),
+}
 
-/// The tag that says the plugin is running.
+/// Tag for [`Frame::Ready`].
 const READY: u8 = 0;
 
-impl Encode for Frame {
-    /// [`Infallible`](std::convert::Infallible): one known byte.
-    type Error = std::convert::Infallible;
+/// Tag for [`Frame::Error`].
+const ERROR: u8 = 1;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        out.extend_from_slice(&[READY]);
-        Ok(())
+impl Encode for Frame {
+    /// The ordinary JSON failure, from the half that has one. A lone
+    /// tag byte cannot fail.
+    type Error = serde_json::Error;
+
+    // Spelled out rather than `Self::Error`: this enum has a variant
+    // called `Error`, so the associated type is ambiguous by that name.
+    fn encode(
+        &self,
+        out: &mut Writer<'_>,
+    ) -> Result<(), serde_json::Error> {
+        match self {
+            Frame::Ready => {
+                out.extend_from_slice(&[READY]);
+                Ok(())
+            }
+            Frame::Error(error) => {
+                out.extend_from_slice(&[ERROR]);
+                error.encode(out)
+            }
+        }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Two ways to fail, and neither is a parse.
+    /// Three ways to fail, and only one of them is a parse.
     type Error = FrameError;
 
-    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        match bytes.first() {
-            Some(&READY) => Ok(Frame),
-            Some(&byte) => Err(FrameError::UnknownTag(byte)),
-            None => Err(FrameError::Empty),
+    // Spelled out for the same reason as `encode` above.
+    fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
+        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
+        match *tag {
+            READY => Ok(Frame::Ready),
+            ERROR => {
+                Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
+            }
+            tag => Err(FrameError::UnknownTag(tag)),
         }
     }
 }
 
 /// An MCP plugin response frame that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug)]
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag this version does not define.
-    ///
-    /// Which is what a provider reporting a failure will send, once
-    /// failures have a shape. Until then it is a peer that disagrees
-    /// about the protocol.
+    /// A tag that is neither of this frame's two.
     UnknownTag(u8),
+    /// The error did not parse.
+    Error(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -105,8 +125,18 @@ impl fmt::Display for FrameError {
             FrameError::UnknownTag(tag) => {
                 write!(f, "unknown mcp plugin response frame tag {tag}")
             }
+            FrameError::Error(error) => {
+                write!(f, "mcp plugin error did not parse: {error}")
+            }
         }
     }
 }
 
-impl Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Error(error) => Some(error),
+            FrameError::Empty | FrameError::UnknownTag(_) => None,
+        }
+    }
+}

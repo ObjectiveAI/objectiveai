@@ -2,18 +2,18 @@
 //!
 //! A [`filetree`](crate::shared::filetree) stream: one snapshot carrying the
 //! whole tree, then one frame per change for as long as the caller
-//! watches. Every path in it is relative to the directory the watch
+//! watches. Every path in it is relative to the volume the watch
 //! named.
 //!
-//! # One alias, for what rides the channel
+//! # Not an alias
 //!
-//! [`Frame`] and nothing else. It is an alias because a watch's answer
-//! IS a filetree stream — defining it again would be two definitions
-//! of one thing waiting to disagree, and
-//! [`Root::update`](crate::shared::filetree::response::Root::update) would be
-//! where they did.
+//! [`Frame`] wraps
+//! [`filetree::response::Frame`](crate::shared::filetree::response::Frame)
+//! rather than naming it, because a watch can also fail and a filetree
+//! cannot — what a change to a tree looks like is shared, and what can
+//! go wrong watching one belongs to this endpoint.
 //!
-//! What the frame CONTAINS is not aliased.
+//! What the frame CONTAINS is not redefined.
 //! [`Node`](crate::shared::filetree::response::Node) is named through
 //! [`filetree::response`](crate::shared::filetree::response), which is where
 //! it is defined. So is [`Root`](crate::shared::filetree::response::Root),

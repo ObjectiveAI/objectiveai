@@ -1,11 +1,11 @@
 //! What a server's response frame carries for a laboratory run.
 
-use std::error::Error;
 use std::fmt;
 use std::string::FromUtf8Error;
 
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::shared::error::Error;
 
 /// A run's answer: the container's id, how many connectors are on
 /// it, and its filesystem, for as long as the scope lives.
@@ -39,7 +39,7 @@ use crate::encode::{Encode, Writer};
 /// It costs a byte per filetree frame, which is the bulk of the
 /// traffic. That is the price of frames that can be read on their own,
 /// and it is small next to the paths they carry.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Frame {
     /// The container's id. Tag `0`.
     ///
@@ -85,6 +85,16 @@ pub enum Frame {
     /// enforces it — a reader that saw the count move without having
     /// answered is looking at a provider that decided on its own.
     Connections(u32),
+    /// A failure. Tag `3`.
+    ///
+    /// The laboratory is not running and will not be — the image
+    /// would not pull, the container would not start, whatever the
+    /// provider knows. It is the one variant that ends the scope
+    /// rather than adding to it.
+    ///
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
+    Error(Error),
 }
 
 /// Tag for [`Frame::Id`].
@@ -96,17 +106,28 @@ const FILETREE: u8 = 1;
 /// Tag for [`Frame::Connections`].
 const CONNECTIONS: u8 = 2;
 
-/// Three variants, three encodings, and none converted into another's
+/// Tag for [`Frame::Error`].
+const ERROR: u8 = 3;
+
+/// Four variants, four encodings, and none converted into another's
 /// to make them match. An id is a string and goes out as its own
 /// bytes; a count is four big-endian bytes, the same way `scope` and
 /// `channel` are written in every header; a filetree frame is
-/// postcard's and is handed to postcard.
+/// postcard's and is handed to postcard; an error is JSON, because a
+/// [`serde_json::Value`] deserializes through `deserialize_any` and
+/// cannot come back out of postcard at all.
 impl Encode for Frame {
-    /// Postcard's, since only the filetree half can fail. A string's
-    /// bytes and a fixed-width integer have no failure mode.
-    type Error = postcard::Error;
+    /// One failure per half that has one, and they are different
+    /// libraries'. A string's bytes and a fixed-width integer have no
+    /// failure mode.
+    type Error = FrameEncodeError;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+    // Spelled out rather than `Self::Error`: this enum has a variant
+    // called `Error`, so the associated type is ambiguous by that name.
+    fn encode(
+        &self,
+        out: &mut Writer<'_>,
+    ) -> Result<(), FrameEncodeError> {
         match self {
             Frame::Id(id) => {
                 out.extend_from_slice(&[ID]);
@@ -115,22 +136,58 @@ impl Encode for Frame {
             }
             Frame::Filetree(frame) => {
                 out.extend_from_slice(&[FILETREE]);
-                frame.encode(out)
+                frame.encode(out).map_err(FrameEncodeError::Filetree)
             }
             Frame::Connections(count) => {
                 out.extend_from_slice(&[CONNECTIONS]);
                 out.extend_from_slice(&count.to_be_bytes());
                 Ok(())
             }
+            Frame::Error(error) => {
+                out.extend_from_slice(&[ERROR]);
+                error.encode(out).map_err(FrameEncodeError::Error)
+            }
+        }
+    }
+}
+
+/// A laboratory run response that could not be written.
+#[derive(Debug)]
+pub enum FrameEncodeError {
+    /// The filetree frame did not serialize.
+    Filetree(postcard::Error),
+    /// The error did not serialize.
+    Error(serde_json::Error),
+}
+
+impl fmt::Display for FrameEncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FrameEncodeError::Filetree(error) => {
+                write!(f, "filetree frame did not serialize: {error}")
+            }
+            FrameEncodeError::Error(error) => {
+                write!(f, "laboratory run error did not serialize: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for FrameEncodeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameEncodeError::Filetree(error) => Some(error),
+            FrameEncodeError::Error(error) => Some(error),
         }
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Five ways to fail, and each names which half failed.
+    /// Six ways to fail, and each names which half failed.
     type Error = FrameError;
 
-    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
+    // Spelled out for the same reason as `encode` above.
+    fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             ID => String::from_utf8(rest.to_vec())
@@ -142,6 +199,9 @@ impl Decode<'_> for Frame {
             CONNECTIONS => <[u8; 4]>::try_from(rest)
                 .map(|bytes| Frame::Connections(u32::from_be_bytes(bytes)))
                 .map_err(|_| FrameError::Connections(rest.len())),
+            ERROR => Error::decode(rest)
+                .map(Frame::Error)
+                .map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -152,7 +212,7 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's three.
+    /// A tag that is none of this frame's four.
     UnknownTag(u8),
     /// The id was not UTF-8.
     Id(FromUtf8Error),
@@ -161,6 +221,8 @@ pub enum FrameError {
     /// A connection count that was not four bytes, carrying however
     /// many there were.
     Connections(usize),
+    /// The error did not parse.
+    Error(serde_json::Error),
 }
 
 impl fmt::Display for FrameError {
@@ -181,15 +243,19 @@ impl fmt::Display for FrameError {
             FrameError::Connections(len) => {
                 write!(f, "connection count is {len} bytes, not 4")
             }
+            FrameError::Error(error) => {
+                write!(f, "laboratory run error did not parse: {error}")
+            }
         }
     }
 }
 
-impl Error for FrameError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             FrameError::Id(error) => Some(error),
             FrameError::Filetree(error) => Some(error),
+            FrameError::Error(error) => Some(error),
             FrameError::Empty
             | FrameError::UnknownTag(_)
             | FrameError::Connections(_) => None,

@@ -1,7 +1,8 @@
 //! Volume listing response data.
 //!
-//! [`Frame`] is what comes back on channel `0`, and [`Volume`] is what
-//! it is made of.
+//! [`Frame`] is what comes back on channel `0` — the volumes, or a
+//! failure to list them — and [`Volume`] is what the first is made
+//! of.
 
 mod frame;
 mod volume;
