@@ -239,6 +239,7 @@ CARGO_TOMLS=(
   objectiveai-mcp-plugin-framework-rs/Cargo.toml
   objectiveai-mcp-plugin-scaffold-rs/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
+  diverge-broker-sdk/Cargo.toml
   diverge-provider-sdk/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml

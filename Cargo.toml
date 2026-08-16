@@ -8,6 +8,7 @@ members = [
     "objectiveai-mcp-laboratory",
     "objectiveai-mcp-proxy",
     "objectiveai-mcp-plugin-framework-rs",
+    "diverge-broker-sdk",
     "diverge-provider-sdk",
     "objectiveai-sdk-rs",
     "objectiveai-json-schema/builder",
