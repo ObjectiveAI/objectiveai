@@ -47,7 +47,6 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
-pub mod auth;
 pub mod decode;
 pub mod encode;
 pub mod endpoints;

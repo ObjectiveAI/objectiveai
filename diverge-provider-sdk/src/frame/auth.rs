@@ -6,7 +6,7 @@ use std::str::{self, Utf8Error};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
-/// The payload of an [`Auth`](crate::frame::client::ClientFrame::Auth)
+/// The payload of an [`Auth`](super::client::ClientFrame::Auth)
 /// frame, in either direction.
 ///
 /// One type for both ends, because a connection may be dialled from

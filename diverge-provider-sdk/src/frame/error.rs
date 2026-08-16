@@ -9,10 +9,12 @@ pub const HEADER_LEN: usize = 1 + 4 + 4;
 
 /// A frame that could not be read.
 ///
-/// Two ways, and both are about the ENVELOPE. Nothing here concerns a
-/// payload, because this layer never looks at one: a frame is a header
-/// and some bytes, and the bytes are somebody else's to judge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Two of the three are about the ENVELOPE. The third is the one
+/// payload this layer does look at: an auth frame belongs to the
+/// CONNECTION rather than to any scope, so there is nobody else to
+/// hand it to. Every other payload is bytes, and the bytes are
+/// somebody else's to judge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FrameError {
     /// Fewer than [`HEADER_LEN`] bytes.
     Truncated,
@@ -30,6 +32,8 @@ pub enum FrameError {
     /// byte — so growth never widens the type space and never has to
     /// be tolerated here.
     UnknownType(u8),
+    /// The credential on an auth frame did not decode.
+    Auth(super::auth::AuthError),
 }
 
 impl std::fmt::Display for FrameError {
@@ -41,11 +45,21 @@ impl std::fmt::Display for FrameError {
             FrameError::UnknownType(byte) => {
                 write!(f, "unknown frame type {byte}")
             }
+            FrameError::Auth(error) => {
+                write!(f, "auth frame did not decode: {error}")
+            }
         }
     }
 }
 
-impl std::error::Error for FrameError {}
+impl std::error::Error for FrameError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            FrameError::Auth(error) => Some(error),
+            FrameError::Truncated | FrameError::UnknownType(_) => None,
+        }
+    }
+}
 
 /// Split a frame's header off the front, returning
 /// `(type, scope, channel, payload)`.

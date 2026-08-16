@@ -4,7 +4,9 @@
 //! one, opens channels of its own, and — if it was the side that
 //! dialled — authenticates.
 
+use super::auth::Auth;
 use super::FrameError;
+use crate::decode::Decode;
 
 /// A frame sent by a client.
 ///
@@ -42,15 +44,10 @@ pub enum ClientFrame<'a> {
     /// followed by a close. A peer that has not authenticated cannot
     /// make the far end compose anything, so a bad credential earns no
     /// bytes to amplify and no reason to read.
-    Auth {
-        /// The credential — an [`Auth`](crate::auth::Auth), which
-        /// leads with a mode byte and carries the credential itself
-        /// as text.
-        ///
-        /// Bytes here, like every other payload in this layer. The
-        /// frame layer does not read it.
-        payload: &'a [u8],
-    },
+    Auth(
+        /// The credential — see [`Auth`].
+        Auth<'a>,
+    ),
     /// Type `1`. A request that opens a scope.
     ///
     /// Sent with no scope and no channel — the server mints the scope
@@ -117,7 +114,9 @@ impl<'a> ClientFrame<'a> {
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
-            0 => ClientFrame::Auth { payload },
+            0 => ClientFrame::Auth(
+                Auth::decode(payload).map_err(FrameError::Auth)?,
+            ),
             1 => ClientFrame::Request { payload },
             5 => ClientFrame::ChannelRequest {
                 scope,

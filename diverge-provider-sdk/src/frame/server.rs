@@ -6,7 +6,9 @@
 //! it happens inside the scope the client's request opened; a server
 //! never initiates one.
 
+use super::auth::Auth;
 use super::FrameError;
+use crate::decode::Decode;
 
 /// A frame sent by a server.
 ///
@@ -46,15 +48,10 @@ pub enum ServerFrame<'a> {
     /// followed by a close. A peer that has not authenticated cannot
     /// make the far end compose anything, so a bad credential earns no
     /// bytes to amplify and no reason to read.
-    Auth {
-        /// The credential — an [`Auth`](crate::auth::Auth), which
-        /// leads with a mode byte and carries the credential itself
-        /// as text.
-        ///
-        /// Bytes here, like every other payload in this layer. The
-        /// frame layer does not read it.
-        payload: &'a [u8],
-    },
+    Auth(
+        /// The credential — see [`Auth`].
+        Auth<'a>,
+    ),
     /// Type `2` on channel `0`. Acknowledges the client's request and
     /// MINTS its scope — the first frame of the scope, and the only
     /// place the scope comes from.
@@ -142,7 +139,9 @@ impl<'a> ServerFrame<'a> {
             // Channel is meaningless on a scope-level reply — it is
             // always `0` — so a non-zero one is ignored rather than
             // rejected.
-            0 => ServerFrame::Auth { payload },
+            0 => ServerFrame::Auth(
+                Auth::decode(payload).map_err(FrameError::Auth)?,
+            ),
             2 => ServerFrame::ResponseAck { scope },
             3 => ServerFrame::Response { scope, payload },
             4 => ServerFrame::ResponseFinish { scope },

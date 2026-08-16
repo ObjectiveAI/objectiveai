@@ -55,7 +55,7 @@ pub struct Frame<'a> {
     /// here constrains what a runner chooses to require.
     ///
     /// Text, for the same reason an
-    /// [`Auth`](crate::auth::Auth) credential is: what this carries in
+    /// [`Auth`](crate::frame::auth::Auth) credential is: what this carries in
     /// practice already is a string, and bytes made a caller pick an
     /// encoding for something that never needed one.
     ///
