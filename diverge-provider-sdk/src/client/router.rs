@@ -177,7 +177,7 @@ impl Router {
                     if let Some(entry) = self.scope(scope) {
                         let _ = entry.sender.send(bytes).await;
                     }
-                    self.scopes.remove(&scope);
+                    self.close_scope(scope);
                 }
                 // One frame and the channel is done — a request is the
                 // whole of what arrives on it, and what follows goes
@@ -238,6 +238,20 @@ impl Router {
             self.drain();
         }
         self.scopes.get(&scope)?.channels.get(&channel)
+    }
+
+    /// Drop a scope, and every channel that was open inside it.
+    ///
+    /// One removal does both, which is the whole reason the channels
+    /// are nested rather than keyed by `(scope, channel)` — see
+    /// [`Scope`]. The map entry going away is what the consumers see: a
+    /// dropped [`Sender`] closes its receiver, so each of them learns
+    /// its stream is over without being told individually.
+    ///
+    /// A scope that is already gone is not an error. A finish for a
+    /// scope nobody registered is the ordinary case, not a special one.
+    fn close_scope(&mut self, scope: u32) {
+        self.scopes.remove(&scope);
     }
 
     /// Drop a channel, and leave the scope it was in alone.
