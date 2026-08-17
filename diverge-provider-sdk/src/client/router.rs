@@ -170,7 +170,7 @@ impl Router {
                     if let Some(sender) = self.channel(scope, channel) {
                         let _ = sender.send(bytes).await;
                     }
-                    self.close(scope, channel);
+                    self.close_channel(scope, channel);
                 }
                 ServerFrame::ChannelResponse { scope, channel, .. } => {
                     if let Some(sender) = self.channel(scope, channel) {
@@ -183,7 +183,7 @@ impl Router {
                     if let Some(sender) = self.channel(scope, channel) {
                         let _ = sender.send(bytes).await;
                     }
-                    self.close(scope, channel);
+                    self.close_channel(scope, channel);
                 }
             }
         }
@@ -229,7 +229,7 @@ impl Router {
     /// A scope outlives its channels — it is the request, and they are
     /// the exchanges inside it — so a channel ending takes nothing else
     /// with it. A scope that is already gone took this with it.
-    fn close(&mut self, scope: u32, channel: u32) {
+    fn close_channel(&mut self, scope: u32, channel: u32) {
         if let Some(entry) = self.scopes.get_mut(&scope) {
             entry.channels.remove(&channel);
         }
