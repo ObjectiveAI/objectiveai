@@ -17,16 +17,6 @@ use crate::encode::{Encode, Writer};
 use crate::endpoints::ClientRequest;
 use crate::frame::client::ClientFrame;
 
-/// How many frames a scope or a channel may be behind before the
-/// router stops reading.
-///
-/// A guess, and the only number in this module that is one. It is deep
-/// enough that a consumer doing ordinary work between reads never
-/// stalls the connection, and shallow enough that a consumer that has
-/// stopped reading is noticed while the memory it is holding is still
-/// small. Nothing has measured it.
-const CAPACITY: usize = 32;
-
 /// One connection's outbound half, and the way to be heard by the
 /// inbound one.
 ///
@@ -100,8 +90,35 @@ impl Handle {
     /// writing the frame that spends it are one indivisible act. Two
     /// callers racing here would otherwise be two callers with the same
     /// scope.
-    pub async fn send_request(&self, request: ClientRequest<'_>) -> Scope {
-        self.0.lock().await.send_request(request).await
+    ///
+    /// # Choosing the capacities
+    ///
+    /// They belong to the caller because only the caller knows what it
+    /// asked for. A volume listing answers once; a file read answers in
+    /// chunks for as long as the file lasts. One number for both would
+    /// be too deep for the first or too shallow for the second.
+    ///
+    /// Depth buys tolerance for a slow reader and costs memory while it
+    /// goes unread — at most `capacity` frames of it per stream, and a
+    /// frame is as large as whatever the provider chunked. Too shallow
+    /// costs no frames at all: nothing is dropped, the router blocks on
+    /// the full queue instead, and it blocks for every scope on the
+    /// connection rather than only this one.
+    ///
+    /// Zero is not allowed and panics, which is
+    /// [`tokio`](tokio::sync::mpsc::channel)'s rule rather than this
+    /// one.
+    pub async fn send_request(
+        &self,
+        request: ClientRequest<'_>,
+        response_capacity: usize,
+        request_capacity: usize,
+    ) -> Scope {
+        self.0
+            .lock()
+            .await
+            .send_request(request, response_capacity, request_capacity)
+            .await
     }
 }
 
@@ -247,11 +264,16 @@ impl HandleInner {
     /// reads as "this scope is not happening". The scope number is not
     /// spent in the second case — the entry comes back out of the map
     /// before returning, because nothing on the wire ever named it.
-    async fn send_request(&mut self, request: ClientRequest<'_>) -> Scope {
+    async fn send_request(
+        &mut self,
+        request: ClientRequest<'_>,
+        response_capacity: usize,
+        request_capacity: usize,
+    ) -> Scope {
         self.take_back();
         let scope = self.mint_scope();
-        let (response_sender, responses) = channel(CAPACITY);
-        let (request_sender, requests) = channel(CAPACITY);
+        let (response_sender, responses) = channel(response_capacity);
+        let (request_sender, requests) = channel(request_capacity);
         let mut bytes = Vec::new();
         let encoded = ClientFrame::Request { scope, request }
             .encode(&mut Writer::new(&mut bytes));
@@ -357,11 +379,11 @@ impl HandleInner {
 ///
 /// # Reading is not optional
 ///
-/// The receivers are bounded, and shallow. A caller that stops reading
-/// one stops the router within a few dozen frames, and stopping the
-/// router stops every scope on the connection — not just this one. Drop what you are not
-/// going to read: a dropped receiver makes its sends fail, which the
-/// router ignores and carries on.
+/// The receivers are bounded, at whatever depth was asked for. A caller
+/// that stops reading one stops the router that many frames later, and
+/// stopping the router stops every scope on the connection — not just
+/// this one. Drop what you are not going to read: a dropped receiver
+/// makes its sends fail, which the router ignores and carries on.
 #[derive(Debug)]
 pub struct Scope {
     /// The scope's number, chosen by this end.
