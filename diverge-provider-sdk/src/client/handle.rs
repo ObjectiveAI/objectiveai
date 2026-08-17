@@ -249,7 +249,7 @@ impl HandleInner {
     /// before returning, because nothing on the wire ever named it.
     async fn send_request(&mut self, request: ClientRequest<'_>) -> Scope {
         self.take_back();
-        let scope = self.mint();
+        let scope = self.mint_scope();
         let (response_sender, responses) = channel(CAPACITY);
         let (request_sender, requests) = channel(CAPACITY);
         let mut bytes = Vec::new();
@@ -317,7 +317,7 @@ impl HandleInner {
     /// Never returns if all four billion are open. That is not a case
     /// worth handling — it is a client holding four billion scopes,
     /// which the map itself could not fit in memory.
-    fn mint(&mut self) -> u32 {
+    fn mint_scope(&mut self) -> u32 {
         loop {
             self.scope_counter = self.scope_counter.wrapping_add(1);
             let scope = self.scope_counter;
