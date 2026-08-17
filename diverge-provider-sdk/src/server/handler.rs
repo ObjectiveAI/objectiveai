@@ -1,6 +1,6 @@
 //! The top of the tree: one connection, read to its end.
 
-use futures_util::StreamExt as _;
+use futures_util::{SinkExt as _, StreamExt as _};
 
 use super::scope_handler::ScopeHandler;
 use crate::encode::{Encode, Writer};

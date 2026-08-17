@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
-use futures_util::Stream;
+use futures_util::{Sink, Stream};
 
 /// A connection, however it was made.
 ///
@@ -30,13 +30,14 @@ use futures_util::Stream;
 ///
 /// Because the two libraries agree on nothing else. axum hands out a
 /// socket with inherent `recv` and `send`; tungstenite hands out a
-/// [`Stream`] and a [`Sink`](futures_util::Sink) with neither. Both call a binary payload [`Bytes`], and that is
+/// [`Stream`] and a [`Sink`] with neither. Both call a binary payload [`Bytes`], and that is
 /// about where it stops.
 ///
-/// So the difference is absorbed here, once. It is a
-/// [`Stream`] of payloads and has a [`send`](Self::send), and
-/// everything above reads and writes without knowing how the socket
-/// arrived.
+/// So the difference is absorbed here, once. It is a [`Stream`] of
+/// payloads and a [`Sink`] of them, and everything above reads and
+/// writes without knowing how the socket arrived — including by
+/// [`split`](futures_util::StreamExt::split)ting the two apart, which
+/// is how more than one scope shares a connection.
 ///
 /// # What it does not do
 ///
@@ -138,26 +139,87 @@ impl Stream for WebSocket {
     }
 }
 
-impl WebSocket {
-    /// Send one binary payload.
-    ///
-    /// Binary always. Nothing in this protocol is text, and a payload
-    /// that looks like text — a JSON request, an MCP body — is still
-    /// bytes on the wire.
-    pub async fn send(&mut self, payload: Bytes) -> Result<(), Error> {
-        match self {
-            WebSocket::Accepted(socket) => socket
-                .send(axum::extract::ws::Message::Binary(payload))
-                .await
-                .map_err(Error::Accepted),
+/// One binary payload at a time, out.
+///
+/// Binary always. Nothing in this protocol is text, and a payload that
+/// looks like text — a JSON request, an MCP body — is still bytes on
+/// the wire.
+///
+/// # This is what makes splitting possible
+///
+/// [`StreamExt::split`](futures_util::StreamExt::split) requires
+/// `Sink`, and splitting is what the protocol needs: a laboratory run
+/// streams a filetree for as long as its container lives, while every
+/// other scope on the same connection carries on. One task holding the
+/// read half and another holding the write half is the only way that
+/// works, and a socket that were only a [`Stream`] could not be taken
+/// apart that way.
+///
+/// Both inner sockets are already `Sink`s. This one would have been
+/// narrower than what it wraps.
+impl Sink<Bytes> for WebSocket {
+    type Error = Error;
+
+    fn poll_ready(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Error>> {
+        match self.get_mut() {
+            WebSocket::Accepted(socket) => {
+                Pin::new(socket).poll_ready(cx).map_err(Error::Accepted)
+            }
             WebSocket::Dialled(stream) => {
-                use futures_util::SinkExt as _;
-                stream
-                    .send(tokio_tungstenite::tungstenite::Message::Binary(
-                        payload,
-                    ))
-                    .await
-                    .map_err(Error::Dialled)
+                Pin::new(stream).poll_ready(cx).map_err(Error::Dialled)
+            }
+        }
+    }
+
+    fn start_send(
+        self: Pin<&mut Self>,
+        payload: Bytes,
+    ) -> Result<(), Error> {
+        match self.get_mut() {
+            WebSocket::Accepted(socket) => Pin::new(socket)
+                .start_send(axum::extract::ws::Message::Binary(payload))
+                .map_err(Error::Accepted),
+            WebSocket::Dialled(stream) => Pin::new(stream)
+                .start_send(tokio_tungstenite::tungstenite::Message::Binary(
+                    payload,
+                ))
+                .map_err(Error::Dialled),
+        }
+    }
+
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Error>> {
+        match self.get_mut() {
+            WebSocket::Accepted(socket) => {
+                Pin::new(socket).poll_flush(cx).map_err(Error::Accepted)
+            }
+            WebSocket::Dialled(stream) => {
+                Pin::new(stream).poll_flush(cx).map_err(Error::Dialled)
+            }
+        }
+    }
+
+    /// Close the socket, which sends a close frame.
+    ///
+    /// The graceful half of a close. Dropping a
+    /// [`WebSocket`] instead is the ungraceful one, and both are
+    /// allowed — a peer reads the same `None` either way, because a
+    /// close and a stream that stops mean the same thing here.
+    fn poll_close(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Error>> {
+        match self.get_mut() {
+            WebSocket::Accepted(socket) => {
+                Pin::new(socket).poll_close(cx).map_err(Error::Accepted)
+            }
+            WebSocket::Dialled(stream) => {
+                Pin::new(stream).poll_close(cx).map_err(Error::Dialled)
             }
         }
     }
