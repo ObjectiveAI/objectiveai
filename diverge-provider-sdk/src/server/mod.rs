@@ -38,27 +38,20 @@
 //! this one does. A provider on some third transport keeps the frame
 //! layer and leaves this module off.
 //!
-//! # A tree of handlers
+//! # Empty
 //!
-//! [`Handler`](handler::Handler) is the root: one connection, read to
-//! its end. Under it is [`ScopeHandler`](scope_handler::ScopeHandler),
-//! one per request, and under that will be channels.
+//! There was a handler tree here — a connection at the root, a scope
+//! under it, channels below that — and it was written before the shape
+//! of the client half was. It is gone rather than carried: the client
+//! now has a [`Router`](crate::client::router::Router) that reads
+//! frames and forwards them, and whatever answers requests here has the
+//! same problem to solve and should be built knowing how that one was
+//! solved, not around a sketch that predates it.
 //!
-//! Each level knows only about the one below. The connection knows
-//! about scopes and does not know what a laboratory is; a scope knows
-//! what it was asked for and does not know what a socket is.
+//! What went with it was one real path, an unreadable request answered
+//! with an error and a finish, and a good deal of scaffolding that had
+//! `unimplemented!` where every decision belonged.
 //!
-//! # Mostly unimplemented, on purpose
-//!
-//! One path is real: a request nobody can name gets a scope, an error
-//! and a finish, because nothing has to be decided to answer it. Every
-//! other path reaches an `unimplemented` marked with what it is
-//! waiting for — a provider's behaviour, a decision about writing
-//! concurrently, or a register of open scopes.
-//!
-//! Nothing outside this module changes as those land. A message is the
-//! same message whether or not somebody compiled the code that answers
-//! it.
-
-pub mod handler;
-pub mod scope_handler;
+//! Nothing outside this module noticed. A message is the same message
+//! whether or not somebody compiled the code that answers it, which is
+//! what the split between this and [`frame`](crate::frame) is for.
