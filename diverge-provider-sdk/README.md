@@ -20,6 +20,11 @@ concerns.
 |---------|--------------|
 | `server` | the provider half — off unless asked for |
 
+`server` pulls `axum` with `default-features = false` and `ws` alone:
+the WebSocket handshake and socket types, and neither `http1` nor
+`http2`. Nothing in this crate can serve HTTP. A provider stands up its
+own server and hands over an upgraded socket.
+
 Rules about *sequences* of messages — ordering, cardinality, what may
 appear first or last — are properties of a stream rather than of any
 one message, so no type declaration can carry them. They live in the
