@@ -60,14 +60,12 @@
 
 #[cfg(feature = "client")]
 pub mod client;
+#[cfg(any(feature = "client", feature = "server"))]
+pub mod connection;
 pub mod decode;
 pub mod encode;
 pub mod endpoints;
 pub mod frame;
-#[cfg(any(feature = "client", feature = "server"))]
-pub mod router;
 #[cfg(feature = "server")]
 pub mod server;
 pub mod shared;
-#[cfg(any(feature = "client", feature = "server"))]
-pub mod connection;

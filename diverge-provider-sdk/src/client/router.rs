@@ -38,9 +38,8 @@ pub struct Scope {
 ///
 /// Reads frames, looks up where each belongs, and forwards it. It is
 /// the only thing that touches the read half of a
-/// [`Connection`], and nothing outside
-/// this crate is expected to hold one — what a caller or a provider
-/// touches is a handle that talks TO this.
+/// [`Connection`], and nothing outside this crate is expected to hold
+/// one — what a caller touches is a handle that talks TO this.
 ///
 /// # Whole frames, untouched
 ///

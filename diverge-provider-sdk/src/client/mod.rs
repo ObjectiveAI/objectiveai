@@ -10,11 +10,14 @@
 //! running a command, proxying Postgres. A caller is not only a source
 //! of requests, so it is not only a client in the ordinary sense.
 //!
-//! # Empty
+//! # What is here
 //!
-//! Nothing here yet. The parts that are not a caller's alone have gone
-//! elsewhere: [`Connection`](crate::connection::Connection) carries
-//! either kind of socket, and [`router`](crate::router) is the read
-//! loop that both halves need. What is left for this module is what
-//! only a caller does — open scopes, and answer the channels a
-//! provider opens back.
+//! [`router`], the read loop: frames off the socket, forwarded to
+//! whoever is waiting. Nothing else yet.
+//!
+//! The socket itself is not here.
+//! [`Connection`](crate::connection::Connection) carries either kind
+//! under either half, because which end dialled is not a fact about
+//! the protocol.
+
+pub mod router;
