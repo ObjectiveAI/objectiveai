@@ -5,17 +5,18 @@
 //! dialled — authenticates.
 
 use super::auth::Auth;
-use crate::endpoints::ClientRequest;
 use super::FrameError;
 use crate::decode::Decode;
+use crate::encode::{Encode, Writer};
+use crate::endpoints::{ClientRequest, ClientRequestEncodeError};
 
 /// A frame sent by a client.
 ///
 /// The variants carry only what they can have, so the states that do
 /// not exist cannot be built: a reply carries both a scope and the
-/// channel it answers on, a scope-opening request carries neither
-/// because neither exists until the server answers, and auth comes
-/// before there is anything to carry.
+/// channel it answers on, a scope-opening request carries the scope it
+/// opens and no channel, and auth comes before there is anything to
+/// carry.
 ///
 /// # Nothing here is parsed
 ///
@@ -113,6 +114,52 @@ pub enum ClientFrame<'a> {
         /// SERVER's numbering.
         channel: u32,
     },
+}
+
+/// A frame writes its own header, and a payload never does — see
+/// [`ServerFrame`](super::server::ServerFrame) for why the writer
+/// permits the one and not the other.
+impl Encode for ClientFrame<'_> {
+    /// A request's own. It is the only payload here that is a structure
+    /// rather than bytes, so it is the only one with anything to fail
+    /// at.
+    type Error = ClientRequestEncodeError;
+
+    fn encode(
+        &self,
+        out: &mut Writer<'_>,
+    ) -> Result<(), ClientRequestEncodeError> {
+        let (r#type, scope, channel) = match self {
+            ClientFrame::Auth(_) => (0, 0, 0),
+            ClientFrame::Request { scope, .. } => (1, *scope, 0),
+            ClientFrame::ChannelRequest { scope, channel, .. } => {
+                (4, *scope, *channel)
+            }
+            ClientFrame::ChannelResponse { scope, channel, .. } => {
+                (5, *scope, *channel)
+            }
+            ClientFrame::ChannelResponseFinish { scope, channel } => {
+                (6, *scope, *channel)
+            }
+        };
+        out.extend_from_slice(&[r#type]);
+        out.extend_from_slice(&scope.to_be_bytes());
+        out.extend_from_slice(&channel.to_be_bytes());
+        match self {
+            // Its error is `Infallible`, and an empty match on one is
+            // how you say so: there is no value to handle.
+            ClientFrame::Auth(auth) => {
+                auth.encode(out).map_err(|error| match error {})
+            }
+            ClientFrame::Request { request, .. } => request.encode(out),
+            ClientFrame::ChannelRequest { payload, .. }
+            | ClientFrame::ChannelResponse { payload, .. } => {
+                out.extend_from_slice(payload);
+                Ok(())
+            }
+            ClientFrame::ChannelResponseFinish { .. } => Ok(()),
+        }
+    }
 }
 
 impl<'a> ClientFrame<'a> {

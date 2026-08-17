@@ -4,12 +4,28 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use bytes::Bytes;
+use futures_util::SinkExt as _;
 use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{
+    Receiver, UnboundedReceiver, UnboundedSender, channel,
+};
 
 use super::router::Registration;
 use crate::connection::Connection;
+use crate::encode::{Encode, Writer};
+use crate::endpoints::ClientRequest;
+use crate::frame::client::ClientFrame;
+
+/// How many frames a scope or a channel may be behind before the
+/// router stops reading.
+///
+/// A guess, and the only number in this module that is one. It is deep
+/// enough that a consumer doing ordinary work between reads never
+/// stalls the connection, and shallow enough that a consumer that has
+/// stopped reading is noticed while the memory it is holding is still
+/// small. Nothing has measured it.
+const CAPACITY: usize = 32;
 
 /// One connection's outbound half, and the way to be heard by the
 /// inbound one.
@@ -72,6 +88,20 @@ impl Handle {
             registrations,
             closed,
         ))))
+    }
+
+    /// Open a scope, and send the request that opens it.
+    ///
+    /// Comes back with the scope's number and the two receivers its
+    /// frames will arrive on. See [`Scope`].
+    ///
+    /// Holds the lock for the whole call, which is what makes it safe
+    /// to call from anywhere: minting a number, claiming it, and
+    /// writing the frame that spends it are one indivisible act. Two
+    /// callers racing here would otherwise be two callers with the same
+    /// scope.
+    pub async fn send_request(&self, request: ClientRequest<'_>) -> Scope {
+        self.0.lock().await.send_request(request).await
     }
 }
 
@@ -172,7 +202,7 @@ struct HandleInner {
     ///
     /// An entry leaves when the router says its scope closed — that
     /// message exists for this map.
-    scopes: HashMap<u32, Scope>,
+    scopes: HashMap<u32, ScopeState>,
 }
 
 impl HandleInner {
@@ -200,9 +230,160 @@ impl HandleInner {
             scopes: HashMap::new(),
         }
     }
+
+    /// Open a scope, and send the request that opens it.
+    ///
+    /// In order: take back what has closed, mint a number nothing else
+    /// is using, say where its frames go, and send the frame. The
+    /// middle two are the ones that cannot be reordered — a request
+    /// that went out before its registration would be a request whose
+    /// answer has nowhere to land.
+    ///
+    /// # What a failed send does
+    ///
+    /// Nothing, here. A dead socket and a request that will not
+    /// serialize both end the same way: the receivers in the returned
+    /// [`Scope`] close without a finish frame, which is what a caller
+    /// reads as "this scope is not happening". The scope number is not
+    /// spent in the second case — the entry comes back out of the map
+    /// before returning, because nothing on the wire ever named it.
+    async fn send_request(&mut self, request: ClientRequest<'_>) -> Scope {
+        self.take_back();
+        let scope = self.mint();
+        let (response_sender, responses) = channel(CAPACITY);
+        let (request_sender, requests) = channel(CAPACITY);
+        let mut bytes = Vec::new();
+        let encoded = ClientFrame::Request { scope, request }
+            .encode(&mut Writer::new(&mut bytes));
+        if encoded.is_err() {
+            // Never sent, never registered, never named on the wire.
+            // The senders drop here and the caller's receivers close
+            // with them.
+            self.scopes.remove(&scope);
+            return Scope {
+                scope,
+                responses,
+                requests,
+            };
+        }
+        let _ = self.registrations.send(Registration::Scope {
+            scope,
+            response_sender,
+            request_sender,
+        });
+        let _ = self.sink.send(bytes.into()).await;
+        Scope {
+            scope,
+            responses,
+            requests,
+        }
+    }
+
+    /// Drop every scope and channel the router says is finished.
+    ///
+    /// The queue is emptied rather than sampled, and it is emptied
+    /// before minting, because what it holds is exactly the numbers
+    /// that are free again. A mint that ran first would skip over them
+    /// and hand out a larger number for no reason.
+    ///
+    /// A closure for a scope that is already gone, or a channel inside
+    /// one, is nothing to do. Both mean the same thing, which is that
+    /// the number is not in use.
+    fn take_back(&mut self) {
+        while let Ok((scope, channel)) = self.closed.try_recv() {
+            match channel {
+                None => {
+                    self.scopes.remove(&scope);
+                }
+                Some(channel) => {
+                    if let Some(state) = self.scopes.get_mut(&scope) {
+                        state.channels.remove(&channel);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Take the next free scope number, and claim it.
+    ///
+    /// Counts up and steps over anything open, wrapping at the top
+    /// rather than stopping there. Which is why the counter is not
+    /// enough on its own: after a wrap the numbers below it may still
+    /// be in use, and only the map knows.
+    ///
+    /// It claims as it returns, because a number that was minted and
+    /// not recorded is a number the next call will mint again.
+    ///
+    /// Never returns if all four billion are open. That is not a case
+    /// worth handling — it is a client holding four billion scopes,
+    /// which the map itself could not fit in memory.
+    fn mint(&mut self) -> u32 {
+        loop {
+            self.scope_counter = self.scope_counter.wrapping_add(1);
+            let scope = self.scope_counter;
+            if !self.scopes.contains_key(&scope) {
+                self.scopes.insert(
+                    scope,
+                    ScopeState {
+                        channel_counter: 0,
+                        channels: HashSet::new(),
+                    },
+                );
+                return scope;
+            }
+        }
+    }
 }
 
-/// One open scope, as the side that opened it sees it.
+/// A scope that has been opened, and the frames that will arrive in it.
+///
+/// What [`Handle::send_request`] gives back. The scope is open from the
+/// moment this exists — the request has gone out, and the router
+/// already knows where to put what comes back.
+///
+/// # Two streams, and why they are not one
+///
+/// [`responses`](Self::responses) is the answer to the request. It ends
+/// at a finish frame and there is exactly one per scope.
+///
+/// [`requests`](Self::requests) is the server asking for something
+/// inside this scope — serving an image, running a command, proxying
+/// Postgres. There may be none, and there may be more of them than
+/// answers.
+///
+/// They are separate because a channel number belongs to whoever opened
+/// it: the server numbers its own from zero and so does this end, so
+/// the two cannot share a stream without the numbers colliding.
+///
+/// # Reading is not optional
+///
+/// The receivers are bounded, and shallow. A caller that stops reading
+/// one stops the router within a few dozen frames, and stopping the
+/// router stops every scope on the connection — not just this one. Drop what you are not
+/// going to read: a dropped receiver makes its sends fail, which the
+/// router ignores and carries on.
+#[derive(Debug)]
+pub struct Scope {
+    /// The scope's number, chosen by this end.
+    ///
+    /// It is in the header of every frame belonging to this scope, in
+    /// both directions. Free for reuse once the scope closes, which is
+    /// the [`Handle`]'s business rather than a caller's.
+    pub scope: u32,
+    /// The answer to the request, frame by frame.
+    ///
+    /// Whole frames, headers included, exactly as they came off the
+    /// socket. Ends at the finish frame; the channel closing without
+    /// one means the connection went first.
+    pub responses: Receiver<Bytes>,
+    /// The requests the server makes inside this scope.
+    ///
+    /// Whole frames again, and the channel number in each header is the
+    /// SERVER's — it is what an answer has to quote to be understood.
+    pub requests: Receiver<Bytes>,
+}
+
+/// What the opening side remembers about one open scope.
 ///
 /// Numbers and nothing else. Where the frames of this scope go is the
 /// router's business and is not duplicated here; what is here is what
@@ -210,7 +391,7 @@ impl HandleInner {
 // As with `HandleInner`: nothing reads these until something mints.
 #[allow(dead_code)]
 #[derive(Debug)]
-struct Scope {
+struct ScopeState {
     /// Where the next channel number in this scope comes from.
     ///
     /// Per scope, not per connection, because a channel number is only
