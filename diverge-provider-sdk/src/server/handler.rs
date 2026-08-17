@@ -1,13 +1,12 @@
 //! The top of the tree: one connection, read to its end.
 
-use axum::extract::ws::{Message, WebSocket};
-
 use super::scope_handler::ScopeHandler;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::ClientRequest;
 use crate::frame::client::ClientFrame;
 use crate::frame::server::ServerFrame;
 use crate::shared::error::Error;
+use crate::websocket::WebSocket;
 
 /// One connection, and everything that happens on it.
 ///
@@ -15,6 +14,10 @@ use crate::shared::error::Error;
 /// ends, handing each frame to whatever is below. It is the only thing
 /// in this module that touches the socket directly; everything deeper
 /// is handed what it needs.
+///
+/// Either kind of socket. A provider that was dialled and a provider
+/// that dialled out answer the same frames the same way, so this does
+/// not ask which.
 ///
 /// # A tree, and this is the root
 ///
@@ -40,10 +43,12 @@ pub struct Handler {
 }
 
 impl Handler {
-    /// Take a socket somebody else upgraded.
+    /// Take a socket somebody else finished making.
     ///
-    /// The upgrade is the provider's — see [`server`](super) for why
-    /// this crate does not serve HTTP.
+    /// Accepted or dialled — see
+    /// [`WebSocket`] for why that is not
+    /// this type's business, and [`server`](super) for why this crate
+    /// neither serves HTTP nor connects.
     pub fn new(socket: WebSocket) -> Self {
         Handler {
             socket,
@@ -58,16 +63,14 @@ impl Handler {
     /// here — every scope on it ends with it, and there is nobody left
     /// to tell.
     pub async fn run(mut self) {
-        while let Some(Ok(message)) = self.socket.recv().await {
-            let bytes = match message {
-                Message::Binary(bytes) => bytes,
-                // Every message in this protocol is binary. What a
-                // text one means has not been decided; nothing sends
-                // one.
-                Message::Text(_) => unimplemented!("a text message"),
-                // axum answers pings itself and sends pongs itself.
-                Message::Ping(_) | Message::Pong(_) => continue,
-                Message::Close(_) => return,
+        while let Some(received) = self.socket.recv().await {
+            let bytes = match received {
+                Ok(bytes) => bytes,
+                // A socket that failed, or a peer sending text where
+                // every message is binary. The first is a connection
+                // that is over; the second is one this end has nothing
+                // to say to. Both stop the loop.
+                Err(_) => return,
             };
             let frame = match ClientFrame::decode(&bytes) {
                 Ok(frame) => frame,
@@ -161,6 +164,6 @@ impl Handler {
         frame
             .encode(&mut Writer::new(&mut bytes))
             .unwrap_or_else(|error| match error {});
-        let _ = self.socket.send(Message::Binary(bytes.into())).await;
+        let _ = self.socket.send(bytes.into()).await;
     }
 }

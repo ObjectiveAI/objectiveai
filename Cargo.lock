@@ -1674,12 +1674,16 @@ name = "diverge-provider-sdk"
 version = "2.2.15"
 dependencies = [
  "axum",
+ "bytes",
+ "futures-util",
  "indexmap 2.14.0",
  "postcard",
  "rmcp 3.1.2",
  "rust_decimal",
  "serde",
  "serde_json",
+ "tokio",
+ "tokio-tungstenite 0.29.0",
 ]
 
 [[package]]

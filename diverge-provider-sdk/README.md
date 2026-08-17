@@ -18,12 +18,20 @@ concerns.
 
 | feature | what it adds |
 |---------|--------------|
-| `server` | the provider half — off unless asked for |
+| `server` | the provider half |
+| `client` | the caller half |
 
-`server` pulls `axum` with `default-features = false` and `ws` alone:
-the WebSocket handshake and socket types, and neither `http1` nor
-`http2`. Nothing in this crate can serve HTTP. A provider stands up its
-own server and hands over an upgraded socket.
+Both are off unless asked for, and both bring `websocket`, which
+carries either kind of socket: one this process accepted, or one it
+dialled. Which end dialled is a fact about TCP rather than about the
+protocol — a provider usually waits to be connected to and sometimes
+connects out, and a caller can be connected to just as well.
+
+The dependencies are cut to naming those two socket types and nothing
+more: `axum` without `http1` or `http2`, and `tokio-tungstenite` with
+`stream` alone. Nothing here serves HTTP or dials. A provider stands up
+its own server, or connects with its own client, and hands over what
+comes out.
 
 Rules about *sequences* of messages — ordering, cardinality, what may
 appear first or last — are properties of a stream rather than of any

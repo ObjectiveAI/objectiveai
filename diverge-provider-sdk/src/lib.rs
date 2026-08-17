@@ -19,9 +19,16 @@
 //! depended on by both sides of the protocol, and by tools that only
 //! ever inspect it.
 //!
-//! The `server` feature adds [`server`], the provider half. It is
-//! off unless asked for, so nothing above changes for anyone who does
-//! not ask: a client still compiles messages and nothing else.
+//! Two features add halves that do: `server` adds [`server`] and
+//! `client` adds [`client`]. Both are off unless asked for, so nothing
+//! above changes for anyone who does not ask.
+//!
+//! [`websocket`] appears with either, and carries both kinds of socket
+//! under either. Which end dialled is a fact about TCP, not about the
+//! protocol: a provider usually waits to be dialled and sometimes
+//! dials a caller it cannot otherwise reach, and a caller can
+//! perfectly well be dialled into. The frames are the same frames
+//! whichever way round it went.
 //!
 //! # More than one wire format
 //!
@@ -51,6 +58,8 @@
 //!
 //! Under construction. The types land as the provider API is defined.
 
+#[cfg(feature = "client")]
+pub mod client;
 pub mod decode;
 pub mod encode;
 pub mod endpoints;
@@ -58,3 +67,5 @@ pub mod frame;
 #[cfg(feature = "server")]
 pub mod server;
 pub mod shared;
+#[cfg(any(feature = "client", feature = "server"))]
+pub mod websocket;
