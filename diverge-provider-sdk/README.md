@@ -9,9 +9,16 @@ the messages.
 
 ## Scope
 
-Types only. No transport, no client, no server. That is deliberate:
-both sides of the protocol depend on this crate, as do tools that only
-inspect it, so it carries no runtime concerns.
+Types only, by default. No transport, no client, no server. That is
+deliberate: both sides of the protocol depend on this crate, as do
+tools that only inspect it, so the default build carries no runtime
+concerns.
+
+## Features
+
+| feature | what it adds |
+|---------|--------------|
+| `server` | the provider half — off unless asked for |
 
 Rules about *sequences* of messages — ordering, cardinality, what may
 appear first or last — are properties of a stream rather than of any

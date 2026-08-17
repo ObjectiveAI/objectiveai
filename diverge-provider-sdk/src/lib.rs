@@ -13,11 +13,15 @@
 //!
 //! # Scope
 //!
-//! Types only — no transport, no client, no server. A provider
-//! implementation binds these types to a transport; the frameworks
-//! that make that easy live in separate crates. Keeping this crate
-//! free of runtime concerns is what lets it be depended on by both
-//! sides of the protocol, and by tools that only ever inspect it.
+//! Types only, by default — no transport, no client, no server. A
+//! provider implementation binds these types to a transport. Keeping
+//! the default build free of runtime concerns is what lets it be
+//! depended on by both sides of the protocol, and by tools that only
+//! ever inspect it.
+//!
+//! The `server` feature adds [`server`], the provider half. It is
+//! off unless asked for, so nothing above changes for anyone who does
+//! not ask: a client still compiles messages and nothing else.
 //!
 //! # More than one wire format
 //!
@@ -51,4 +55,6 @@ pub mod decode;
 pub mod encode;
 pub mod endpoints;
 pub mod frame;
+#[cfg(feature = "server")]
+pub mod server;
 pub mod shared;
