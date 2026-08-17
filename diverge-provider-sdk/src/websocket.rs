@@ -1,4 +1,4 @@
-//! One socket, whichever end dialled it.
+//! One socket, incoming or outgoing.
 
 use std::fmt;
 use std::pin::Pin;
@@ -11,20 +11,21 @@ use futures_util::{Sink, Stream};
 ///
 /// # The variant is about the socket, not about the protocol
 ///
-/// [`Accepted`](Self::Accepted) is one this process's own server
-/// upgraded. [`Dialled`](Self::Dialled) is one this process opened.
-/// That is a fact about TCP and says nothing about which half of the
-/// protocol is spoken over it.
+/// [`Incoming`](Self::Incoming) is a connection that came to this
+/// process, which its own server upgraded. [`Outgoing`](Self::Outgoing)
+/// is one this process went out and made. That is a fact about TCP and
+/// says nothing about which half of the protocol is spoken over it.
 ///
-/// Both halves need both. A provider usually waits to be dialled and
-/// sometimes dials a caller that cannot be reached otherwise; a caller
-/// usually dials and can perfectly well be dialled into. Neither
-/// arrangement changes a single frame — the same scopes, the same
-/// channels, the same ten requests going the same direction.
+/// Both halves need both. A provider usually waits to be connected to
+/// and sometimes goes out to a caller it cannot otherwise reach; a
+/// caller usually goes out and can perfectly well be connected to.
+/// Neither arrangement changes a single frame — the same scopes, the
+/// same channels, the same ten requests going the same direction.
 ///
-/// The one place it shows is [`auth`](crate::frame::auth): whichever
-/// side DIALLED sends the credential, and that is a fact about the
-/// connection rather than about either half.
+/// The one place it shows is [`auth`](crate::frame::auth): the end
+/// whose socket is [`Outgoing`](Self::Outgoing) sends the credential,
+/// because whichever side dialled authenticates. That is a fact about
+/// the connection rather than about either half.
 ///
 /// # Why one type
 ///
@@ -43,7 +44,7 @@ use futures_util::{Sink, Stream};
 ///
 /// Neither dial nor accept. Both variants take a socket somebody else
 /// finished making: a provider upgrades a request its own server
-/// received, a dialler connects with its own tokio-tungstenite. This
+/// received, a caller connects with its own tokio-tungstenite. This
 /// crate carries `tokio-tungstenite` with `stream` alone — enough to
 /// name the type and not to connect with — and `axum` without `http1`,
 /// for the same reason.
@@ -52,10 +53,11 @@ use futures_util::{Sink, Stream};
 /// what the URL is, what the TLS story is, what authenticates the
 /// upgrade, and what else that server or process does.
 pub enum WebSocket {
-    /// A socket this process's own server upgraded.
-    Accepted(axum::extract::ws::WebSocket),
-    /// A socket this process dialled.
-    Dialled(
+    /// A connection that came in, which this process's own server
+    /// upgraded.
+    Incoming(axum::extract::ws::WebSocket),
+    /// A connection this process went out and made.
+    Outgoing(
         tokio_tungstenite::WebSocketStream<
             tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
         >,
@@ -96,7 +98,7 @@ impl Stream for WebSocket {
         let this = self.get_mut();
         loop {
             match this {
-                WebSocket::Accepted(socket) => {
+                WebSocket::Incoming(socket) => {
                     use axum::extract::ws::Message;
                     match ready!(Pin::new(&mut *socket).poll_next(cx)) {
                         Some(Ok(Message::Binary(bytes))) => {
@@ -109,13 +111,13 @@ impl Stream for WebSocket {
                         // this protocol's.
                         Some(Ok(_)) => continue,
                         Some(Err(error)) => {
-                            return Poll::Ready(Some(Err(Error::Accepted(
+                            return Poll::Ready(Some(Err(Error::Incoming(
                                 error,
                             ))));
                         }
                     }
                 }
-                WebSocket::Dialled(stream) => {
+                WebSocket::Outgoing(stream) => {
                     use tokio_tungstenite::tungstenite::Message;
                     match ready!(Pin::new(&mut *stream).poll_next(cx)) {
                         Some(Ok(Message::Binary(bytes))) => {
@@ -128,7 +130,7 @@ impl Stream for WebSocket {
                         // of them are this protocol's.
                         Some(Ok(_)) => continue,
                         Some(Err(error)) => {
-                            return Poll::Ready(Some(Err(Error::Dialled(
+                            return Poll::Ready(Some(Err(Error::Outgoing(
                                 error,
                             ))));
                         }
@@ -165,11 +167,11 @@ impl Sink<Bytes> for WebSocket {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match self.get_mut() {
-            WebSocket::Accepted(socket) => {
-                Pin::new(socket).poll_ready(cx).map_err(Error::Accepted)
+            WebSocket::Incoming(socket) => {
+                Pin::new(socket).poll_ready(cx).map_err(Error::Incoming)
             }
-            WebSocket::Dialled(stream) => {
-                Pin::new(stream).poll_ready(cx).map_err(Error::Dialled)
+            WebSocket::Outgoing(stream) => {
+                Pin::new(stream).poll_ready(cx).map_err(Error::Outgoing)
             }
         }
     }
@@ -179,14 +181,14 @@ impl Sink<Bytes> for WebSocket {
         payload: Bytes,
     ) -> Result<(), Error> {
         match self.get_mut() {
-            WebSocket::Accepted(socket) => Pin::new(socket)
+            WebSocket::Incoming(socket) => Pin::new(socket)
                 .start_send(axum::extract::ws::Message::Binary(payload))
-                .map_err(Error::Accepted),
-            WebSocket::Dialled(stream) => Pin::new(stream)
+                .map_err(Error::Incoming),
+            WebSocket::Outgoing(stream) => Pin::new(stream)
                 .start_send(tokio_tungstenite::tungstenite::Message::Binary(
                     payload,
                 ))
-                .map_err(Error::Dialled),
+                .map_err(Error::Outgoing),
         }
     }
 
@@ -195,11 +197,11 @@ impl Sink<Bytes> for WebSocket {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match self.get_mut() {
-            WebSocket::Accepted(socket) => {
-                Pin::new(socket).poll_flush(cx).map_err(Error::Accepted)
+            WebSocket::Incoming(socket) => {
+                Pin::new(socket).poll_flush(cx).map_err(Error::Incoming)
             }
-            WebSocket::Dialled(stream) => {
-                Pin::new(stream).poll_flush(cx).map_err(Error::Dialled)
+            WebSocket::Outgoing(stream) => {
+                Pin::new(stream).poll_flush(cx).map_err(Error::Outgoing)
             }
         }
     }
@@ -215,11 +217,11 @@ impl Sink<Bytes> for WebSocket {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match self.get_mut() {
-            WebSocket::Accepted(socket) => {
-                Pin::new(socket).poll_close(cx).map_err(Error::Accepted)
+            WebSocket::Incoming(socket) => {
+                Pin::new(socket).poll_close(cx).map_err(Error::Incoming)
             }
-            WebSocket::Dialled(stream) => {
-                Pin::new(stream).poll_close(cx).map_err(Error::Dialled)
+            WebSocket::Outgoing(stream) => {
+                Pin::new(stream).poll_close(cx).map_err(Error::Outgoing)
             }
         }
     }
@@ -228,8 +230,8 @@ impl Sink<Bytes> for WebSocket {
 impl fmt::Debug for WebSocket {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WebSocket::Accepted(_) => f.write_str("WebSocket::Accepted"),
-            WebSocket::Dialled(_) => f.write_str("WebSocket::Dialled"),
+            WebSocket::Incoming(_) => f.write_str("WebSocket::Incoming"),
+            WebSocket::Outgoing(_) => f.write_str("WebSocket::Outgoing"),
         }
     }
 }
@@ -241,17 +243,17 @@ impl fmt::Debug for WebSocket {
 /// means is decided further up.
 #[derive(Debug)]
 pub enum Error {
-    /// An accepted socket failed.
-    Accepted(axum::Error),
-    /// A dialled socket failed.
-    Dialled(tokio_tungstenite::tungstenite::Error),
+    /// An incoming socket failed.
+    Incoming(axum::Error),
+    /// An outgoing socket failed.
+    Outgoing(tokio_tungstenite::tungstenite::Error),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Accepted(error) => write!(f, "websocket failed: {error}"),
-            Error::Dialled(error) => write!(f, "websocket failed: {error}"),
+            Error::Incoming(error) => write!(f, "websocket failed: {error}"),
+            Error::Outgoing(error) => write!(f, "websocket failed: {error}"),
         }
     }
 }
@@ -259,8 +261,8 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Error::Accepted(error) => Some(error),
-            Error::Dialled(error) => Some(error),
+            Error::Incoming(error) => Some(error),
+            Error::Outgoing(error) => Some(error),
         }
     }
 }

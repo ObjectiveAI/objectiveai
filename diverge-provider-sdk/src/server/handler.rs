@@ -17,9 +17,9 @@ use crate::websocket::WebSocket;
 /// in this module that touches the socket directly; everything deeper
 /// is handed what it needs.
 ///
-/// Either kind of socket. A provider that was dialled and a provider
-/// that dialled out answer the same frames the same way, so this does
-/// not ask which.
+/// Either kind of socket. A provider that was connected to and a
+/// provider that connected out answer the same frames the same way, so
+/// this does not ask which.
 ///
 /// # A tree, and this is the root
 ///
@@ -47,8 +47,7 @@ pub struct Handler {
 impl Handler {
     /// Take a socket somebody else finished making.
     ///
-    /// Accepted or dialled — see
-    /// [`WebSocket`] for why that is not
+    /// Incoming or outgoing — see [`WebSocket`] for why that is not
     /// this type's business, and [`server`](super) for why this crate
     /// neither serves HTTP nor connects.
     pub fn new(socket: WebSocket) -> Self {

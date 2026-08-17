@@ -7,8 +7,8 @@
 //!
 //! # The socket, and only the socket
 //!
-//! It takes a [`WebSocket`](crate::websocket::WebSocket) — accepted or
-//! dialled, because a provider usually waits to be connected to and
+//! It takes a [`WebSocket`](crate::websocket::WebSocket) — incoming or
+//! outgoing, because a provider usually waits to be connected to and
 //! sometimes connects to a caller it cannot otherwise reach, and
 //! answers the same frames either way.
 //!
