@@ -1,7 +1,10 @@
 //! The other end of the read loop: what a caller actually holds.
 
+use std::sync::Arc;
+
 use bytes::Bytes;
 use futures_util::stream::SplitSink;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use super::router::Registration;
@@ -28,12 +31,33 @@ use crate::connection::Connection;
 /// makes the channels necessary: the halves cannot see each other's
 /// state, so anything one needs from the other travels as a message.
 ///
+/// # Shared, and the lock that costs
+///
+/// [`new`](Self::new) returns an [`Arc`], because one socket is what
+/// every caller on this connection has to write to. Handing out clones
+/// of the writer is not on offer — there is one, and it is the wire.
+///
+/// So the sink is behind a [`Mutex`]: shared ownership plus a
+/// [`Sink`](futures_util::Sink) that needs `&mut` is exactly what a
+/// mutex is for. It is [`tokio`]'s and not [`std`]'s, because the guard
+/// is held across the `await` that writes the frame, and a `std` guard
+/// is not [`Send`] across one.
+///
+/// What the lock buys is more than exclusion. A WebSocket forbids
+/// interleaving the fragments of two messages, so one writer at a time
+/// is not a policy — holding the lock for a whole frame is what makes
+/// concurrent callers legal on one socket.
+///
 /// # Nothing is written yet
 ///
 /// The fields are the whole of it. What goes on top — opening a scope,
-/// opening a channel inside one, and the sharing that lets more than
-/// one caller do either — is not decided, and each of those decisions
-/// wants this to exist first.
+/// opening a channel inside one, minting the numbers for either — is
+/// not decided, and each of those decisions wants this to exist first.
+///
+/// One thing the fields decide in advance: `closed` is a receiver, and
+/// receiving needs `&mut`, which an [`Arc`] does not give. Whatever
+/// reads it either locks it as the sink is locked, or does not live
+/// here at all.
 // Nothing reads these yet, because nothing sends yet. The attribute
 // goes when the methods do.
 #[allow(dead_code)]
@@ -42,10 +66,14 @@ pub struct Handle {
     /// The write half of the connection.
     ///
     /// Every frame this end sends goes out here, in order, one at a
-    /// time. Which is not a queue discipline anybody chose: a
-    /// WebSocket forbids interleaving the fragments of two messages, so
-    /// one writer at a time is the wire's rule.
-    sink: SplitSink<Connection, Bytes>,
+    /// time — see above for why that is the wire's rule rather than a
+    /// choice, and why the lock is an async one.
+    ///
+    /// Locked per frame, not per scope. A caller that held it across a
+    /// stream of chunks would be the only caller on the connection for
+    /// the duration, which is the stall this whole arrangement exists
+    /// to avoid.
+    sink: Mutex<SplitSink<Connection, Bytes>>,
     /// Where to say that frames are coming, before sending the request
     /// that causes them.
     ///
@@ -82,15 +110,22 @@ impl Handle {
     /// here can check it. Two halves of different sockets, or channels
     /// crossed with another connection's, type-check exactly as well as
     /// the right ones.
+    ///
+    /// Comes back in an [`Arc`] rather than bare. Sharing is not an
+    /// option a caller weighs later — a connection has one writer and
+    /// everything that writes to it needs the same one — so it is not
+    /// left to a caller to remember, and a `Handle` that was never
+    /// shared is a connection with one user, which is the ordinary case
+    /// and costs one refcount.
     pub fn new(
         sink: SplitSink<Connection, Bytes>,
         registrations: UnboundedSender<Registration>,
         closed: UnboundedReceiver<(u32, Option<u32>)>,
-    ) -> Self {
-        Handle {
-            sink,
+    ) -> Arc<Self> {
+        Arc::new(Handle {
+            sink: Mutex::new(sink),
             registrations,
             closed,
-        }
+        })
     }
 }
