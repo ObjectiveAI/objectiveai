@@ -23,7 +23,7 @@
 //! `client` adds [`client`]. Both are off unless asked for, so nothing
 //! above changes for anyone who does not ask.
 //!
-//! [`websocket`] appears with either, and carries both kinds of socket
+//! [`connection`] appears with either, and carries both kinds of socket
 //! under either. Which end dialled is a fact about TCP, not about the
 //! protocol: a provider usually waits to be dialled and sometimes
 //! dials a caller it cannot otherwise reach, and a caller can
@@ -68,4 +68,4 @@ pub mod frame;
 pub mod server;
 pub mod shared;
 #[cfg(any(feature = "client", feature = "server"))]
-pub mod websocket;
+pub mod connection;

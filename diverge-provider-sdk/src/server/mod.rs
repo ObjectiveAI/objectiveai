@@ -7,7 +7,7 @@
 //!
 //! # The socket, and only the socket
 //!
-//! It takes a [`WebSocket`](crate::websocket::WebSocket) — incoming or
+//! It takes a [`Connection`](crate::connection::Connection) — incoming or
 //! outgoing, because a provider usually waits to be connected to and
 //! sometimes connects to a caller it cannot otherwise reach, and
 //! answers the same frames either way.
@@ -29,7 +29,7 @@
 //! naming `axum::extract::ws::WebSocket` through this crate would put
 //! a second path on somebody else's type — one that says nothing new
 //! and goes stale the day the version underneath it moves. What
-//! [`websocket`](crate::websocket) takes, it takes by that name.
+//! [`connection`](crate::connection) takes, it takes by that name.
 //!
 //! The [`frame`](crate::frame) layer stays free of both libraries
 //! regardless: it decodes `&[u8]`, because axum defines its own

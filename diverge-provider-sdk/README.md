@@ -21,7 +21,7 @@ concerns.
 | `server` | the provider half |
 | `client` | the caller half |
 
-Both are off unless asked for, and both bring `websocket`, which
+Both are off unless asked for, and both bring `connection`, which
 carries either kind of socket: one this process accepted, or one it
 dialled. Which end dialled is a fact about TCP rather than about the
 protocol — a provider usually waits to be connected to and sometimes

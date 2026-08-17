@@ -8,16 +8,16 @@ use crate::endpoints::ClientRequest;
 use crate::frame::client::ClientFrame;
 use crate::frame::server::ServerFrame;
 use crate::shared::error::Error;
-use crate::websocket::WebSocket;
+use crate::connection::Connection;
 
 /// One connection, and everything that happens on it.
 ///
-/// A [`WebSocket`] goes in and [`run`](Self::run) reads it until it
+/// A [`Connection`] goes in and [`run`](Self::run) reads it until it
 /// ends, handing each frame to whatever is below. It is the only thing
-/// in this module that touches the socket directly; everything deeper
-/// is handed what it needs.
+/// in this module that touches the connection directly; everything
+/// deeper is handed what it needs.
 ///
-/// Either kind of socket. A provider that was connected to and a
+/// Either kind of connection. A provider that was connected to and a
 /// provider that connected out answer the same frames the same way, so
 /// this does not ask which.
 ///
@@ -35,7 +35,7 @@ use crate::websocket::WebSocket;
 /// other path reaches an [`unimplemented`] rather than guessing, and
 /// they are marked with what they are waiting for.
 pub struct Handler {
-    socket: WebSocket,
+    connection: Connection,
     /// The next scope to mint.
     ///
     /// A counter because scopes are the server's to choose and nothing
@@ -45,29 +45,29 @@ pub struct Handler {
 }
 
 impl Handler {
-    /// Take a socket somebody else finished making.
+    /// Take a connection somebody else finished making.
     ///
-    /// Incoming or outgoing — see [`WebSocket`] for why that is not
+    /// Incoming or outgoing — see [`Connection`] for why that is not
     /// this type's business, and [`server`](super) for why this crate
     /// neither serves HTTP nor connects.
-    pub fn new(socket: WebSocket) -> Self {
+    pub fn new(connection: Connection) -> Self {
         Handler {
-            socket,
+            connection,
             next_scope: 0,
         }
     }
 
     /// Read frames until the connection ends.
     ///
-    /// Returns when the peer closes, when the socket errors, or when
-    /// the stream simply stops. A connection ending is not a failure
+    /// Returns when the peer closes, when the connection errors, or
+    /// when the stream simply stops. A connection ending is not a failure
     /// here — every scope on it ends with it, and there is nobody left
     /// to tell.
     pub async fn run(mut self) {
-        while let Some(received) = self.socket.next().await {
+        while let Some(received) = self.connection.next().await {
             let bytes = match received {
                 Ok(bytes) => bytes,
-                // The socket failed, which is a connection that is
+                // The transport failed, which is a connection that is
                 // over. Everything a peer could have said wrongly was
                 // skipped or is still to be decoded; only the
                 // transport reaches here.
@@ -165,6 +165,6 @@ impl Handler {
         frame
             .encode(&mut Writer::new(&mut bytes))
             .unwrap_or_else(|error| match error {});
-        let _ = self.socket.send(bytes.into()).await;
+        let _ = self.connection.send(bytes.into()).await;
     }
 }

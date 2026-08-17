@@ -1,4 +1,4 @@
-//! One socket, incoming or outgoing.
+//! One connection, incoming or outgoing.
 
 use std::fmt;
 use std::pin::Pin;
@@ -52,7 +52,7 @@ use futures_util::{Sink, Stream};
 /// Which keeps every question about the transport where it belongs:
 /// what the URL is, what the TLS story is, what authenticates the
 /// upgrade, and what else that server or process does.
-pub enum WebSocket {
+pub enum Connection {
     /// A connection that came in, which this process's own server
     /// upgraded.
     Incoming(axum::extract::ws::WebSocket),
@@ -86,7 +86,7 @@ pub enum WebSocket {
 /// [`ClientFrame`](crate::frame::client::ClientFrame)'s and
 /// [`ServerFrame`](crate::frame::server::ServerFrame)'s, and which of
 /// the two a reader wants is not something a socket knows.
-impl Stream for WebSocket {
+impl Stream for Connection {
     type Item = Result<Bytes, Error>;
 
     fn poll_next(
@@ -98,7 +98,7 @@ impl Stream for WebSocket {
         let this = self.get_mut();
         loop {
             match this {
-                WebSocket::Incoming(socket) => {
+                Connection::Incoming(socket) => {
                     use axum::extract::ws::Message;
                     match ready!(Pin::new(&mut *socket).poll_next(cx)) {
                         Some(Ok(Message::Binary(bytes))) => {
@@ -117,7 +117,7 @@ impl Stream for WebSocket {
                         }
                     }
                 }
-                WebSocket::Outgoing(stream) => {
+                Connection::Outgoing(stream) => {
                     use tokio_tungstenite::tungstenite::Message;
                     match ready!(Pin::new(&mut *stream).poll_next(cx)) {
                         Some(Ok(Message::Binary(bytes))) => {
@@ -159,7 +159,7 @@ impl Stream for WebSocket {
 ///
 /// Both inner sockets are already `Sink`s. This one would have been
 /// narrower than what it wraps.
-impl Sink<Bytes> for WebSocket {
+impl Sink<Bytes> for Connection {
     type Error = Error;
 
     fn poll_ready(
@@ -167,10 +167,10 @@ impl Sink<Bytes> for WebSocket {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match self.get_mut() {
-            WebSocket::Incoming(socket) => {
+            Connection::Incoming(socket) => {
                 Pin::new(socket).poll_ready(cx).map_err(Error::Incoming)
             }
-            WebSocket::Outgoing(stream) => {
+            Connection::Outgoing(stream) => {
                 Pin::new(stream).poll_ready(cx).map_err(Error::Outgoing)
             }
         }
@@ -181,10 +181,10 @@ impl Sink<Bytes> for WebSocket {
         payload: Bytes,
     ) -> Result<(), Error> {
         match self.get_mut() {
-            WebSocket::Incoming(socket) => Pin::new(socket)
+            Connection::Incoming(socket) => Pin::new(socket)
                 .start_send(axum::extract::ws::Message::Binary(payload))
                 .map_err(Error::Incoming),
-            WebSocket::Outgoing(stream) => Pin::new(stream)
+            Connection::Outgoing(stream) => Pin::new(stream)
                 .start_send(tokio_tungstenite::tungstenite::Message::Binary(
                     payload,
                 ))
@@ -197,10 +197,10 @@ impl Sink<Bytes> for WebSocket {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match self.get_mut() {
-            WebSocket::Incoming(socket) => {
+            Connection::Incoming(socket) => {
                 Pin::new(socket).poll_flush(cx).map_err(Error::Incoming)
             }
-            WebSocket::Outgoing(stream) => {
+            Connection::Outgoing(stream) => {
                 Pin::new(stream).poll_flush(cx).map_err(Error::Outgoing)
             }
         }
@@ -209,7 +209,7 @@ impl Sink<Bytes> for WebSocket {
     /// Close the socket, which sends a close frame.
     ///
     /// The graceful half of a close. Dropping a
-    /// [`WebSocket`] instead is the ungraceful one, and both are
+    /// [`Connection`] instead is the ungraceful one, and both are
     /// allowed — a peer reads the same `None` either way, because a
     /// close and a stream that stops mean the same thing here.
     fn poll_close(
@@ -217,21 +217,21 @@ impl Sink<Bytes> for WebSocket {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), Error>> {
         match self.get_mut() {
-            WebSocket::Incoming(socket) => {
+            Connection::Incoming(socket) => {
                 Pin::new(socket).poll_close(cx).map_err(Error::Incoming)
             }
-            WebSocket::Outgoing(stream) => {
+            Connection::Outgoing(stream) => {
                 Pin::new(stream).poll_close(cx).map_err(Error::Outgoing)
             }
         }
     }
 }
 
-impl fmt::Debug for WebSocket {
+impl fmt::Debug for Connection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WebSocket::Incoming(_) => f.write_str("WebSocket::Incoming"),
-            WebSocket::Outgoing(_) => f.write_str("WebSocket::Outgoing"),
+            Connection::Incoming(_) => f.write_str("Connection::Incoming"),
+            Connection::Outgoing(_) => f.write_str("Connection::Outgoing"),
         }
     }
 }
