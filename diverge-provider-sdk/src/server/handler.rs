@@ -68,10 +68,10 @@ impl Handler {
         while let Some(received) = self.socket.next().await {
             let bytes = match received {
                 Ok(bytes) => bytes,
-                // A socket that failed, or a peer sending text where
-                // every message is binary. The first is a connection
-                // that is over; the second is one this end has nothing
-                // to say to. Both stop the loop.
+                // The socket failed, which is a connection that is
+                // over. Everything a peer could have said wrongly was
+                // skipped or is still to be decoded; only the
+                // transport reaches here.
                 Err(_) => return,
             };
             let frame = match ClientFrame::decode(&bytes) {

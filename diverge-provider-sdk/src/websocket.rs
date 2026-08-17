@@ -63,22 +63,21 @@ pub enum WebSocket {
 
 /// The binary payloads, one at a time, until the connection ends.
 ///
-/// # What it hides
+/// # Everything that is not a payload is skipped
 ///
 /// Pings and pongs, which are the library's business — axum answers
 /// them itself, and tungstenite does the same. A protocol with no
 /// heartbeat of its own has nothing to say about them.
 ///
+/// And text, which this protocol has none of. Skipped rather than
+/// reported: a peer sending one has not necessarily stopped sending
+/// the ones that matter, and a reader that gave up would be throwing
+/// away the frames it came for. Something else on that socket may
+/// simply not be this protocol.
+///
 /// A close, and a stream that simply stops, both end this one. They
 /// are the same thing to everything above: the connection is over, so
 /// every scope on it is over, and there is nobody left to tell.
-///
-/// # What it does not hide
-///
-/// A text message, which yields [`Error::NotBinary`]. Every message in
-/// this protocol is binary, so one that is not is a peer that
-/// disagrees about the protocol — and swallowing it would leave this
-/// end waiting on a connection that is not going to work.
 ///
 /// The item is a payload rather than a frame. Decoding is
 /// [`ClientFrame`](crate::frame::client::ClientFrame)'s and
@@ -102,14 +101,11 @@ impl Stream for WebSocket {
                         Some(Ok(Message::Binary(bytes))) => {
                             return Poll::Ready(Some(Ok(bytes)));
                         }
-                        Some(Ok(Message::Text(_))) => {
-                            return Poll::Ready(Some(Err(Error::NotBinary)));
-                        }
                         Some(Ok(Message::Close(_))) | None => {
                             return Poll::Ready(None);
                         }
-                        // A ping or a pong. The library has already
-                        // dealt with it.
+                        // A ping, a pong, or text. None of them are
+                        // this protocol's.
                         Some(Ok(_)) => continue,
                         Some(Err(error)) => {
                             return Poll::Ready(Some(Err(Error::Accepted(
@@ -124,13 +120,11 @@ impl Stream for WebSocket {
                         Some(Ok(Message::Binary(bytes))) => {
                             return Poll::Ready(Some(Ok(bytes)));
                         }
-                        Some(Ok(Message::Text(_))) => {
-                            return Poll::Ready(Some(Err(Error::NotBinary)));
-                        }
                         Some(Ok(Message::Close(_))) | None => {
                             return Poll::Ready(None);
                         }
-                        // A ping, a pong, or a raw frame.
+                        // A ping, a pong, text, or a raw frame. None
+                        // of them are this protocol's.
                         Some(Ok(_)) => continue,
                         Some(Err(error)) => {
                             return Poll::Ready(Some(Err(Error::Dialled(
@@ -178,20 +172,17 @@ impl fmt::Debug for WebSocket {
     }
 }
 
-/// A socket that would not carry a payload.
+/// A socket that failed.
+///
+/// Only the transport. Nothing a peer can put in a message reaches
+/// here — a payload this end cannot read is a payload, and what it
+/// means is decided further up.
 #[derive(Debug)]
 pub enum Error {
     /// An accepted socket failed.
     Accepted(axum::Error),
     /// A dialled socket failed.
     Dialled(tokio_tungstenite::tungstenite::Error),
-    /// A text message arrived, and this protocol has none.
-    ///
-    /// Not a transport failure — the socket is fine and the peer is
-    /// not. Kept separate from the two above because the response
-    /// differs: a broken socket is over, and a peer talking nonsense
-    /// may simply be a peer this end should stop talking to.
-    NotBinary,
 }
 
 impl fmt::Display for Error {
@@ -199,9 +190,6 @@ impl fmt::Display for Error {
         match self {
             Error::Accepted(error) => write!(f, "websocket failed: {error}"),
             Error::Dialled(error) => write!(f, "websocket failed: {error}"),
-            Error::NotBinary => {
-                f.write_str("a text message, where every message is binary")
-            }
         }
     }
 }
@@ -211,7 +199,6 @@ impl std::error::Error for Error {
         match self {
             Error::Accepted(error) => Some(error),
             Error::Dialled(error) => Some(error),
-            Error::NotBinary => None,
         }
     }
 }
