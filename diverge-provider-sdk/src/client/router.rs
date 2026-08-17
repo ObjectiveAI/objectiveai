@@ -8,32 +8,6 @@ use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::connection::Connection;
 
-/// Where one scope's frames go.
-///
-/// Nested inside [`Router`]'s map rather than flattened into a
-/// `(scope, channel)` key, because a scope ending ends everything
-/// under it: one removal drops the responses and every channel at
-/// once, where a flat map would have to be scanned for them.
-// Nothing reads these yet, because nothing routes yet. The attribute
-// goes when the loop does.
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct Scope {
-    /// The answers to the request that opened the scope.
-    ///
-    /// Channel `0`, which the frame layer already treats as the
-    /// scope's own — so it does not need a key in
-    /// [`channels`](Self::channels) and does not get one.
-    responses: Sender<Bytes>,
-    /// The channels inside it, by number.
-    ///
-    /// One space, not two. A router reads frames travelling in ONE
-    /// direction, so the channels it sees were all opened by the same
-    /// side — the ambiguity that makes a bare channel number
-    /// meaningless never arises here.
-    channels: HashMap<u32, Sender<Bytes>>,
-}
-
 /// One connection's inbound half.
 ///
 /// Reads frames, looks up where each belongs, and forwards it. It is
@@ -101,4 +75,30 @@ pub struct Router {
     /// full queue would be a request whose answers arrive before
     /// anywhere exists to put them.
     registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
+}
+
+/// Where one scope's frames go.
+///
+/// Nested inside [`Router`]'s map rather than flattened into a
+/// `(scope, channel)` key, because a scope ending ends everything
+/// under it: one removal drops the responses and every channel at
+/// once, where a flat map would have to be scanned for them.
+// Nothing reads these yet, because nothing routes yet. The attribute
+// goes when the loop does.
+#[allow(dead_code)]
+#[derive(Debug)]
+struct Scope {
+    /// The answers to the request that opened the scope.
+    ///
+    /// Channel `0`, which the frame layer already treats as the
+    /// scope's own — so it does not need a key in
+    /// [`channels`](Self::channels) and does not get one.
+    sender: Sender<Bytes>,
+    /// The channels inside it, by number.
+    ///
+    /// One space, not two. A router reads frames travelling in ONE
+    /// direction, so the channels it sees were all opened by the same
+    /// side — the ambiguity that makes a bare channel number
+    /// meaningless never arises here.
+    channels: HashMap<u32, Sender<Bytes>>,
 }
