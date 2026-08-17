@@ -17,15 +17,19 @@
 //! thousands. Registration is a hop, but it happens once per channel
 //! rather than once per payload.
 //!
-//! **The payload is never copied.** A
+//! **Nothing is copied and nothing is rewritten.** A
 //! [`Connection`](crate::connection::Connection) yields
-//! [`Bytes`](bytes::Bytes), and
-//! `bytes.slice(HEADER_LEN..)`([`HEADER_LEN`](crate::frame::HEADER_LEN))
-//! hands on the same allocation with a refcount bump. That is also
-//! forced rather than clever: a decoded
+//! [`Bytes`](bytes::Bytes), and the whole frame goes on as it arrived
+//! — header included — for the cost of a refcount bump. The header is
+//! read to know where the frame belongs and then left alone, because
+//! a consumer needs it too: a finish is a frame, and telling one from
+//! a response means reading the type.
+//!
+//! Bytes rather than a decoded frame, and that is forced rather than
+//! clever. A decoded
 //! [`ClientFrame`](crate::frame::client::ClientFrame) borrows from the
-//! buffer, so a frame cannot cross a channel — only its bytes can, and
-//! the far side decodes.
+//! buffer it came from, so it cannot cross a channel at all. The far
+//! side decodes.
 //!
 //! **Backpressure is not settled.** Unbounded queues let a slow
 //! consumer grow memory without limit, and this protocol streams file
