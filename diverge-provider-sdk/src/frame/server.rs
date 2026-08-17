@@ -16,10 +16,11 @@ use crate::encode::{Encode, Writer};
 /// A frame sent by a server.
 ///
 /// Which of these carry a channel follows from what they answer.
-/// [`ResponseAck`](Self::ResponseAck), [`Response`](Self::Response)
-/// and [`ResponseFinish`](Self::ResponseFinish) answer the client's
-/// own request, which is always channel `0`, so they name none. The
-/// channel-level four each name one exchange out of many, so they do.
+/// [`Response`](Self::Response) and
+/// [`ResponseFinish`](Self::ResponseFinish) answer the client's own
+/// request, which is always channel `0`, so they name none. The
+/// channel-level three each name one exchange out of many, so they
+/// do.
 ///
 /// # Two channel spaces
 ///
@@ -55,14 +56,7 @@ pub enum ServerFrame<'a> {
         /// The credential — see [`Auth`].
         Auth<'a>,
     ),
-    /// Type `2` on channel `0`. Acknowledges the client's request and
-    /// MINTS its scope — the first frame of the scope, and the only
-    /// place the scope comes from.
-    ResponseAck {
-        /// The newly minted scope.
-        scope: u32,
-    },
-    /// Type `3` on channel `0`. One piece of the answer to the
+    /// Type `2` on channel `0`. One piece of the answer to the
     /// client's request.
     Response {
         /// The scope.
@@ -70,16 +64,16 @@ pub enum ServerFrame<'a> {
         /// The response bytes.
         payload: &'a [u8],
     },
-    /// Type `4` on channel `0`. The scope is over. Nothing bearing it
+    /// Type `3` on channel `0`. The scope is over. Nothing bearing it
     /// follows, on any channel.
     ResponseFinish {
         /// The scope.
         scope: u32,
     },
-    /// Type `5`. A request to the client, opening a channel.
+    /// Type `4`. A request to the client, opening a channel.
     ///
-    /// The client answers on that same channel with its own channel
-    /// ack, responses and finish.
+    /// The client answers on that same channel with its own responses
+    /// and finish.
     ///
     /// Not discriminated here. WHICH request this is lives in the
     /// payload's own leading byte — see
@@ -97,16 +91,7 @@ pub enum ServerFrame<'a> {
         /// The request bytes, tag included.
         payload: &'a [u8],
     },
-    /// Type `6`. Acknowledges a client request; the exchange has
-    /// begun.
-    ChannelResponseAck {
-        /// The scope.
-        scope: u32,
-        /// The channel of the client request being answered, in the
-        /// CLIENT's numbering.
-        channel: u32,
-    },
-    /// Type `7`. One piece of the answer. There may be any number,
+    /// Type `5`. One piece of the answer. There may be any number,
     /// including none.
     ChannelResponse {
         /// The scope.
@@ -117,7 +102,7 @@ pub enum ServerFrame<'a> {
         /// The response bytes.
         payload: &'a [u8],
     },
-    /// Type `8`. The answer is complete and the channel is closed.
+    /// Type `6`. The answer is complete and the channel is closed.
     /// Nothing follows on it.
     ChannelResponseFinish {
         /// The scope.
@@ -148,20 +133,16 @@ impl Encode for ServerFrame<'_> {
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
         let (r#type, scope, channel) = match self {
             ServerFrame::Auth(_) => (0, 0, 0),
-            ServerFrame::ResponseAck { scope } => (2, *scope, 0),
-            ServerFrame::Response { scope, .. } => (3, *scope, 0),
-            ServerFrame::ResponseFinish { scope } => (4, *scope, 0),
+            ServerFrame::Response { scope, .. } => (2, *scope, 0),
+            ServerFrame::ResponseFinish { scope } => (3, *scope, 0),
             ServerFrame::ChannelRequest { scope, channel, .. } => {
-                (5, *scope, *channel)
-            }
-            ServerFrame::ChannelResponseAck { scope, channel } => {
-                (6, *scope, *channel)
+                (4, *scope, *channel)
             }
             ServerFrame::ChannelResponse { scope, channel, .. } => {
-                (7, *scope, *channel)
+                (5, *scope, *channel)
             }
             ServerFrame::ChannelResponseFinish { scope, channel } => {
-                (8, *scope, *channel)
+                (6, *scope, *channel)
             }
         };
         out.extend_from_slice(&[r#type]);
@@ -175,9 +156,7 @@ impl Encode for ServerFrame<'_> {
                 out.extend_from_slice(payload);
                 Ok(())
             }
-            ServerFrame::ResponseAck { .. }
-            | ServerFrame::ResponseFinish { .. }
-            | ServerFrame::ChannelResponseAck { .. }
+            ServerFrame::ResponseFinish { .. }
             | ServerFrame::ChannelResponseFinish { .. } => Ok(()),
         }
     }
@@ -200,21 +179,19 @@ impl<'a> ServerFrame<'a> {
             0 => ServerFrame::Auth(
                 Auth::decode(payload).map_err(FrameError::Auth)?,
             ),
-            2 => ServerFrame::ResponseAck { scope },
-            3 => ServerFrame::Response { scope, payload },
-            4 => ServerFrame::ResponseFinish { scope },
-            5 => ServerFrame::ChannelRequest {
+            2 => ServerFrame::Response { scope, payload },
+            3 => ServerFrame::ResponseFinish { scope },
+            4 => ServerFrame::ChannelRequest {
                 scope,
                 channel,
                 payload,
             },
-            6 => ServerFrame::ChannelResponseAck { scope, channel },
-            7 => ServerFrame::ChannelResponse {
+            5 => ServerFrame::ChannelResponse {
                 scope,
                 channel,
                 payload,
             },
-            8 => ServerFrame::ChannelResponseFinish { scope, channel },
+            6 => ServerFrame::ChannelResponseFinish { scope, channel },
             other => return Err(FrameError::UnknownType(other)),
         })
     }

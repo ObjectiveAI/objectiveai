@@ -2,11 +2,11 @@
 
 use crate::endpoints::ClientRequest;
 
-/// One request, from its ack to its finish.
+/// One request, from arrival to finish.
 ///
-/// A [`Handler`](super::handler::Handler) mints a scope and hands the
-/// request here; this is where the ten of them part company. Below it
-/// are channels, which nothing has yet.
+/// A [`Handler`](super::handler::Handler) reads the scope off the
+/// request and hands it here; this is where the ten of them part
+/// company. Below it are channels, which nothing has yet.
 ///
 /// # It is a placeholder
 ///
@@ -31,12 +31,12 @@ use crate::endpoints::ClientRequest;
 /// Both are this type, and only the second needs to be remembered — a
 /// register of open scopes is what the channel frames are waiting for.
 pub struct ScopeHandler {
-    /// The scope this handler answers in, minted above.
+    /// The scope this handler answers in, chosen by the client.
     scope: u32,
 }
 
 impl ScopeHandler {
-    /// Take a freshly minted scope.
+    /// Take the scope a client opened.
     pub fn new(scope: u32) -> Self {
         ScopeHandler { scope }
     }

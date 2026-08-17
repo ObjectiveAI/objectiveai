@@ -36,12 +36,6 @@ use crate::connection::Connection;
 /// they are marked with what they are waiting for.
 pub struct Handler {
     connection: Connection,
-    /// The next scope to mint.
-    ///
-    /// A counter because scopes are the server's to choose and nothing
-    /// requires them to mean anything. It never wraps in practice: a
-    /// connection would have to open four billion scopes first.
-    next_scope: u32,
 }
 
 impl Handler {
@@ -51,10 +45,7 @@ impl Handler {
     /// this type's business, and [`server`](super) for why this crate
     /// neither serves HTTP nor connects.
     pub fn new(connection: Connection) -> Self {
-        Handler {
-            connection,
-            next_scope: 0,
-        }
+        Handler { connection }
     }
 
     /// Read frames until the connection ends.
@@ -87,21 +78,19 @@ impl Handler {
                 // token is whatever the two ends agreed, and this
                 // crate is not one of the ends.
                 ClientFrame::Auth(_) => unimplemented!("auth"),
-                // A request nobody can name still gets a scope and an
-                // answer. See `invalid`.
-                ClientFrame::Request(ClientRequest::Invalid(_)) => {
-                    let scope = self.mint();
-                    self.invalid(scope).await;
-                }
-                ClientFrame::Request(request) => {
-                    let scope = self.mint();
+                // A request nobody can name still gets an answer.
+                // See `invalid`.
+                ClientFrame::Request {
+                    scope,
+                    request: ClientRequest::Invalid(_),
+                } => self.invalid(scope).await,
+                ClientFrame::Request { scope, request } => {
                     ScopeHandler::new(scope).handle(request).await;
                 }
                 // These belong to a scope that is already open, and
                 // there is no register of open scopes yet — that
                 // arrives with the scope handler.
                 ClientFrame::ChannelRequest { .. }
-                | ClientFrame::ChannelResponseAck { .. }
                 | ClientFrame::ChannelResponse { .. }
                 | ClientFrame::ChannelResponseFinish { .. } => {
                     unimplemented!("a frame inside an open scope")
@@ -110,25 +99,17 @@ impl Handler {
         }
     }
 
-    /// Take the next scope.
-    fn mint(&mut self) -> u32 {
-        let scope = self.next_scope;
-        self.next_scope = self.next_scope.wrapping_add(1);
-        scope
-    }
-
     /// Answer a request nobody could name.
     ///
-    /// Three frames and the scope is over: the ack that mints it, an
-    /// error, and the finish.
+    /// Two frames and the scope is over: an error, and the finish.
     ///
-    /// # Why it gets a scope at all
+    /// # Why it is answered at all
     ///
     /// Because the alternative is silence, and silence is not an
     /// answer a client can act on — a stream ends at its finish frame,
-    /// so a client that got nothing would wait forever for a scope it
-    /// believes it opened. Minting one costs a number and lets the
-    /// rest of the connection carry on.
+    /// so a client that got nothing would wait forever in a scope it
+    /// opened. Answering costs two frames and lets the rest of the
+    /// connection carry on.
     ///
     /// # Why the payload is a bare error
     ///
@@ -145,7 +126,6 @@ impl Handler {
         Error::default()
             .encode(&mut Writer::new(&mut payload))
             .expect("a null error always serializes");
-        self.send(&ServerFrame::ResponseAck { scope }).await;
         self.send(&ServerFrame::Response {
             scope,
             payload: &payload,

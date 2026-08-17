@@ -37,9 +37,10 @@
 //! # Scopes and channels
 //!
 //! A **scope** is one client request and everything that follows from
-//! it. The client does not choose it: it sends a request with no
-//! scope, and the server mints one in its ack. Every later frame in
-//! either direction carries it.
+//! it. The client chooses it and puts it in the request's header, and
+//! every later frame in either direction carries it. Nothing else
+//! opens a scope, so there is one minter and nothing to collide
+//! with.
 //!
 //! A **channel** is one exchange inside a scope. Channel `0` is the
 //! answer to the client's own request. Any other channel was opened by
@@ -67,34 +68,48 @@
 //! |------|--------|--------|
 //! | 0    | auth | auth |
 //! | 1    | request | — |
-//! | 2    | — | response ack |
-//! | 3    | — | response |
-//! | 4    | — | response finish |
-//! | 5    | channel request | channel request |
-//! | 6    | channel response ack | channel response ack |
-//! | 7    | channel response | channel response |
-//! | 8    | channel response finish | channel response finish |
+//! | 2    | — | response |
+//! | 3    | — | response finish |
+//! | 4    | channel request | channel request |
+//! | 5    | channel response | channel response |
+//! | 6    | channel response finish | channel response finish |
 //!
 //! Auth leads because it leads in time: nothing may precede it, and a
 //! peer reading a connection's opening byte should not have to look
 //! past the reply types to find out whether it is one.
 //!
 //! After it the order is the order things happen in. A request opens
-//! something — a scope at `1`, a channel at `5` — and the ack,
-//! responses and finish that answer it follow immediately behind. The
-//! same four beats twice, once per level.
+//! something — a scope at `1`, a channel at `4` — and the responses
+//! and finish that answer it follow immediately behind. The same three
+//! beats twice, once per level.
 //!
 //! A number means one thing in both directions, and the blanks are
 //! what keep it that way. Only a client opens a scope, so only a
 //! client sends `1`; only a server answers one, so only a server sends
-//! `2` through `4`. Closing those gaps would save two byte values and
-//! cost the property that a type identifies a frame without reference
-//! to who sent it.
+//! `2` and `3`. Closing those gaps would save two byte values and cost
+//! the property that a type identifies a frame without reference to
+//! who sent it.
+//!
+//! # Nothing is acknowledged
+//!
+//! An opening used to be answered before it was answered: a scope got
+//! an ack, and so did a channel.
+//!
+//! The scope ack had a job — it was where the scope came from — and
+//! the requestor choosing its own took that away. The channel acks
+//! never had one: a channel has always been numbered by whoever opened
+//! it, so those two only ever said "received".
+//!
+//! Which is not worth a frame. A peer too busy to answer is a peer too
+//! busy to acknowledge, so the signal is thinnest exactly when someone
+//! would want it, and it adds to what is already too much. A sender
+//! learns its request landed by being answered; a sender that wants a
+//! deadline keeps one itself, because nothing here will.
 //!
 //! # Requests
 //!
 //! Two kinds, and the split is by what they OPEN. `1` opens a SCOPE
-//! and only a client sends it; `5` opens a CHANNEL and both sides
+//! and only a client sends it; `4` opens a CHANNEL and both sides
 //! send it.
 //!
 //! They are discriminated differently, and deliberately. A scope
@@ -108,9 +123,9 @@
 //! Reading the scope request here is also what makes a malformed one
 //! answerable. It decodes to
 //! [`Invalid`](crate::endpoints::ClientRequest::Invalid) rather than
-//! failing, so a server acks it, mints a scope, and replies with an
-//! error — instead of holding bytes it cannot name with nowhere to
-//! complain.
+//! failing, so a server answers in the scope the client opened and
+//! finishes it — instead of holding bytes it cannot name with nowhere
+//! to complain.
 //!
 //! # Growth happens in payloads, not here
 //!

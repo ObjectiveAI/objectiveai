@@ -26,11 +26,11 @@ use crate::decode::Decode;
 ///
 /// # The gaps
 ///
-/// `2` through `4` are the SCOPE-level replies — the ack that mints a
-/// scope, the answer on channel `0`, the finish — and a client sends
-/// none of them: it asks for a scope and the server answers in it.
-/// Leaving the numbers unused rather than closing up keeps one number
-/// meaning one thing in both directions.
+/// `2` and `3` are the SCOPE-level replies — the answer on channel
+/// `0` and the finish — and a client sends neither: it opens a scope
+/// and the server answers in it. Leaving the numbers unused rather
+/// than closing up keeps one number meaning one thing in both
+/// directions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame<'a> {
     /// Type `0`. The first frame of a connection, sent by whichever
@@ -51,22 +51,35 @@ pub enum ClientFrame<'a> {
     ),
     /// Type `1`. A request that opens a scope.
     ///
-    /// Sent with no scope and no channel — the server mints the scope
-    /// in its ack, and everything that follows carries it.
+    /// The scope is in the header and the CLIENT chose it. Every frame
+    /// that follows, in either direction, carries it.
     ///
     /// Read here rather than handed on, because the set is closed
     /// and a server has to know which request it is answering before
     /// it can answer. One this version cannot make out becomes
     /// [`Invalid`](ClientRequest::Invalid), which is answered like any
     /// other rather than refused.
-    Request(
+    Request {
+        /// The scope this opens.
+        ///
+        /// Minted here, because nothing else opens a scope — there is
+        /// one minter per connection, so there is nothing to collide
+        /// with. It is the same argument that lets both ends count
+        /// channels from zero.
+        ///
+        /// Unique among the scopes this client has open. Reusing one
+        /// that has not finished makes two scopes indistinguishable,
+        /// and the client is the only party that could have prevented
+        /// it. Reuse after a finish is fine, because nothing
+        /// remembers.
+        scope: u32,
         /// Which request — see [`ClientRequest`].
-        ClientRequest<'a>,
-    ),
-    /// Type `5`. A request to the server, opening a channel.
+        request: ClientRequest<'a>,
+    },
+    /// Type `4`. A request to the server, opening a channel.
     ///
-    /// The server answers on that same channel with its own channel
-    /// ack, responses and finish.
+    /// The server answers on that same channel with its own responses
+    /// and finish.
     ///
     /// Not discriminated here either, for the same reason and by the
     /// same means.
@@ -80,19 +93,10 @@ pub enum ClientFrame<'a> {
         /// The request bytes, tag included.
         payload: &'a [u8],
     },
-    /// Type `6`. Acknowledges a server request; the exchange has
-    /// begun.
-    ChannelResponseAck {
-        /// The scope the server minted.
-        scope: u32,
-        /// The channel of the server request being answered, in the
-        /// SERVER's numbering.
-        channel: u32,
-    },
-    /// Type `7`. One piece of the answer. There may be any number,
+    /// Type `5`. One piece of the answer. There may be any number,
     /// including none.
     ChannelResponse {
-        /// The scope the server minted.
+        /// The scope.
         scope: u32,
         /// The channel of the server request being answered, in the
         /// SERVER's numbering.
@@ -100,10 +104,10 @@ pub enum ClientFrame<'a> {
         /// The response bytes.
         payload: &'a [u8],
     },
-    /// Type `8`. The answer is complete and the channel is closed.
+    /// Type `6`. The answer is complete and the channel is closed.
     /// Nothing follows on it.
     ChannelResponseFinish {
-        /// The scope the server minted.
+        /// The scope.
         scope: u32,
         /// The channel of the server request being answered, in the
         /// SERVER's numbering.
@@ -120,24 +124,24 @@ impl<'a> ClientFrame<'a> {
             0 => ClientFrame::Auth(
                 Auth::decode(payload).map_err(FrameError::Auth)?,
             ),
-            1 => ClientFrame::Request(
+            1 => ClientFrame::Request {
+                scope,
                 // Decoding one is `Infallible`: a payload this version
                 // cannot read becomes `Invalid` rather than an error.
-                ClientRequest::decode(payload)
+                request: ClientRequest::decode(payload)
                     .unwrap_or_else(|error| match error {}),
-            ),
-            5 => ClientFrame::ChannelRequest {
+            },
+            4 => ClientFrame::ChannelRequest {
                 scope,
                 channel,
                 payload,
             },
-            6 => ClientFrame::ChannelResponseAck { scope, channel },
-            7 => ClientFrame::ChannelResponse {
+            5 => ClientFrame::ChannelResponse {
                 scope,
                 channel,
                 payload,
             },
-            8 => ClientFrame::ChannelResponseFinish { scope, channel },
+            6 => ClientFrame::ChannelResponseFinish { scope, channel },
             other => return Err(FrameError::UnknownType(other)),
         })
     }

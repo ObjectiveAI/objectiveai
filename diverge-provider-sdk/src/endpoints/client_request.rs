@@ -59,9 +59,9 @@ pub enum ClientRequest<'a> {
     ///
     /// # It is answered, not dropped
     ///
-    /// A server acks it, minting a scope like any other, and responds
-    /// with an error. Which is the whole point: a client that sent
-    /// something wrong learns so, in the scope it asked for, and its
+    /// A server answers it with an error and finishes the scope, like
+    /// any other request. Which is the whole point: a client that sent
+    /// something wrong learns so, in the scope it opened, and its
     /// other work carries on.
     ///
     /// # Why it carries no reason

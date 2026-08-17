@@ -11,9 +11,9 @@ use crate::shared::error::Error;
 /// on channel `0` of an image check.
 ///
 /// A check is one question and one reply, so there is exactly one of
-/// these per scope, between the ack that mints it and the finish that
-/// ends it. There are two things that reply can be: an answer, or the
-/// news that the question could not be answered.
+/// these per scope, before the finish that ends it. There are two
+/// things that reply can be: an answer, or the news that the question
+/// could not be answered.
 ///
 /// A payload leads with one byte saying which — `0` for
 /// [`Response`](Self::Response), `1` for [`Error`](Self::Error) — and
