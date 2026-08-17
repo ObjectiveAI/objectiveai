@@ -75,18 +75,17 @@ pub struct Router {
     /// Somewhere to register a new destination before its frames
     /// arrive.
     ///
-    /// `(scope, channel, sender)`, where the channel is `None` for the
-    /// scope's own responses.
+    /// See [`Registration`] for the two kinds.
     ///
     /// Unbounded on purpose. Registering must not block, because
     /// whoever is registering is about to write the request that
     /// causes the frames — and a registration that waited behind a
     /// full queue would be a request whose answers arrive before
     /// anywhere exists to put them.
-    registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
+    registrations: UnboundedReceiver<Registration>,
     /// Somewhere to say an entry is gone.
     ///
-    /// `(scope, channel)`, the registration tuple without the sender —
+    /// `(scope, channel)`, naming what a [`Registration`] named —
     /// `None` for the scope itself, which takes its channels with it
     /// and does not announce them one by one.
     ///
@@ -124,7 +123,7 @@ impl Router {
     /// arrives through `registrations`.
     pub fn new(
         stream: SplitStream<Connection>,
-        registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
+        registrations: UnboundedReceiver<Registration>,
         closed: UnboundedSender<(u32, Option<u32>)>,
     ) -> Self {
         Router {
@@ -190,27 +189,30 @@ impl Router {
                 ServerFrame::Auth(_) => {}
                 ServerFrame::Response { scope, .. } => {
                     if let Some(entry) = self.scope(scope) {
-                        let _ = entry.sender.send(bytes).await;
+                        let _ = entry.response_sender.send(bytes).await;
                     }
                 }
-                // The scope is over, so everything under it goes: its
-                // own sender and every channel that was open inside it.
+                // The scope is over, so everything under it goes: both
+                // its senders and every channel that was open inside it.
                 // Forwarded first, because the finish is what says the
                 // stream ended rather than the connection.
                 ServerFrame::ResponseFinish { scope } => {
                     if let Some(entry) = self.scope(scope) {
-                        let _ = entry.sender.send(bytes).await;
+                        let _ = entry.response_sender.send(bytes).await;
                     }
                     self.close_scope(scope);
                 }
-                // One frame and the channel is done — a request is the
-                // whole of what arrives on it, and what follows goes
-                // the other way, where this never looks.
-                ServerFrame::ChannelRequest { scope, channel, .. } => {
-                    if let Some(sender) = self.channel(scope, channel) {
-                        let _ = sender.send(bytes).await;
+                // The scope's sender, not a channel's. The channel
+                // number in the header is the SERVER's, and the map
+                // holds the client's — see `request_sender`.
+                //
+                // Nothing is closed, because nothing was opened here. A
+                // request is one frame, and what answers it travels the
+                // other way, where this never looks.
+                ServerFrame::ChannelRequest { scope, .. } => {
+                    if let Some(entry) = self.scope(scope) {
+                        let _ = entry.request_sender.send(bytes).await;
                     }
-                    self.close_channel(scope, channel);
                 }
                 ServerFrame::ChannelResponse { scope, channel, .. } => {
                     if let Some(sender) = self.channel(scope, channel) {
@@ -322,19 +324,28 @@ impl Router {
     /// there is no reply to put an answer in. What a caller sees is a
     /// receiver that stays empty.
     fn drain(&mut self) {
-        while let Ok((scope, channel, sender)) = self.registrations.try_recv() {
-            match channel {
-                None => {
+        while let Ok(registration) = self.registrations.try_recv() {
+            match registration {
+                Registration::Scope {
+                    scope,
+                    responses,
+                    requests,
+                } => {
                     self.scopes.entry(scope).or_insert_with(|| Scope {
-                        sender,
+                        response_sender: responses,
+                        request_sender: requests,
                         channels: HashMap::new(),
                     });
                 }
-                Some(channel) => {
+                Registration::Channel {
+                    scope,
+                    channel,
+                    responses,
+                } => {
                     let Some(entry) = self.scopes.get_mut(&scope) else {
                         continue;
                     };
-                    entry.channels.entry(channel).or_insert(sender);
+                    entry.channels.entry(channel).or_insert(responses);
                 }
             }
         }
@@ -354,12 +365,76 @@ struct Scope {
     /// Channel `0`, which the frame layer already treats as the
     /// scope's own — so it does not need a key in
     /// [`channels`](Self::channels) and does not get one.
-    sender: Sender<Bytes>,
-    /// The channels inside it, by number.
+    response_sender: Sender<Bytes>,
+    /// The channels the SERVER opens inside this scope. All of them,
+    /// on one stream.
     ///
-    /// One space, not two. A router reads frames travelling in ONE
-    /// direction, so the channels it sees were all opened by the same
-    /// side — the ambiguity that makes a bare channel number
-    /// meaningless never arises here.
+    /// They cannot share the map with [`channels`](Self::channels). A
+    /// channel number belongs to whoever opened it and both sides count
+    /// from zero, so the server's channel `3` and this client's channel
+    /// `3` are two different channels — and one map keyed by `3` holds
+    /// one of them.
+    ///
+    /// Not that the number is lost: it is in the header of the frame
+    /// that goes down this, whole. What this end does with it is answer
+    /// on it, which is a write, and writes are not a router's business.
+    ///
+    /// Nothing is ever removed for one of these. A request is the whole
+    /// of what arrives — one frame, opening a channel whose remaining
+    /// traffic travels the other way — so there is no entry to keep and
+    /// none to take away.
+    request_sender: Sender<Bytes>,
+    /// The channels this CLIENT opened, by number, and what the server
+    /// sends back on each.
+    ///
+    /// One space, because one opener: everything in here was numbered
+    /// by this end. What the server numbers goes to
+    /// [`request_sender`](Self::request_sender) instead, which is what
+    /// keeps that true.
     channels: HashMap<u32, Sender<Bytes>>,
+}
+
+/// Somewhere to put frames, arranged before any of them arrive.
+///
+/// Sent to a [`Router`], rather than installed by one, because the
+/// party that knows a scope is coming is the party about to open it,
+/// and that is not the router. It races with the frames it is for,
+/// which a [`Router`] handles by draining this queue whenever a lookup
+/// misses.
+///
+/// # Why a scope brings two senders and a channel brings one
+///
+/// Two things arrive inside a scope that cannot be told apart
+/// afterwards: the answers to the request, and the channels the server
+/// opens. Both are the server talking, both are inside one scope, and
+/// the client that opened it is the only party that ever knows both are
+/// wanted. So both are registered together, and there is no way to
+/// register half a scope.
+///
+/// A channel brings one, because a channel this end opened has one
+/// thing coming back on it.
+#[derive(Debug)]
+pub enum Registration {
+    /// Open a scope. Nothing routes into one until this arrives.
+    Scope {
+        /// The scope, chosen by whoever is about to request it.
+        scope: u32,
+        /// Where the answers on channel `0` go.
+        responses: Sender<Bytes>,
+        /// Where the server's own channel requests go, whatever it
+        /// numbers them.
+        requests: Sender<Bytes>,
+    },
+    /// Open a channel inside a scope that is already registered.
+    ///
+    /// Discarded if it is not. A channel entry lives inside a scope's
+    /// entry, and a [`Router`] will not invent the scope to put it in.
+    Channel {
+        /// The scope it is inside.
+        scope: u32,
+        /// The channel, chosen by whoever is about to request it.
+        channel: u32,
+        /// Where the server's answers on it go.
+        responses: Sender<Bytes>,
+    },
 }
