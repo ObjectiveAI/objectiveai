@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use futures_util::StreamExt as _;
 use futures_util::stream::SplitStream;
-use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::connection::Connection;
 use crate::frame::server::ServerFrame;
@@ -56,11 +56,11 @@ use crate::frame::server::ServerFrame;
 ///
 /// # When entries leave
 ///
-/// A finish takes one out, which is the only removal there is. A
-/// consumer that walked away without one lingers — a send to a dropped
-/// receiver fails and that failure is ignored, and no send happens at
-/// all if no further frame arrives — so a scope nobody is listening to
-/// occupies its entry until the connection ends.
+/// A finish takes one out, which is the only removal there is, and a
+/// closure goes out to whoever is keeping a matching record. A consumer that walked away without a finish lingers — a
+/// send to a dropped receiver fails and that failure is ignored, and no
+/// send happens at all if no further frame arrives — so a scope nobody
+/// is listening to occupies its entry until the connection ends.
 #[derive(Debug)]
 pub struct Router {
     /// The read half of the connection.
@@ -84,30 +84,54 @@ pub struct Router {
     /// full queue would be a request whose answers arrive before
     /// anywhere exists to put them.
     registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
+    /// Somewhere to say an entry is gone.
+    ///
+    /// `(scope, channel)`, the registration tuple without the sender —
+    /// `None` for the scope itself, which takes its channels with it
+    /// and does not announce them one by one.
+    ///
+    /// It is a fact the holder cannot work out alone. A finish arrives
+    /// here and nowhere else, and what a scope or channel number MEANS
+    /// is a client's own bookkeeping: which numbers are in use, what
+    /// each one was asked for. Closing the receiver tells it a stream
+    /// ended; this tells it the number is free.
+    ///
+    /// Unbounded, and for a plainer reason than
+    /// [`registrations`](Self::registrations) — this is sent from
+    /// inside the read loop, so a bounded queue that filled would stop
+    /// the loop that drains it. Nothing is retried and a failed send is
+    /// ignored: the only way to fail is a holder that is gone, and a
+    /// holder that is gone has no record to correct.
+    closed: UnboundedSender<(u32, Option<u32>)>,
 }
 
 impl Router {
-    /// Take the two halves a router is made of.
+    /// Take the three parts a router is made of.
     ///
-    /// The read half of a split [`Connection`], and the receiving end
-    /// of the registration channel — whoever holds the matching sender
-    /// is whoever gets to ask for frames.
+    /// The read half of a split [`Connection`], the receiving end of
+    /// the registration channel, and the sending end of the closure
+    /// channel — one socket and both directions of the traffic about
+    /// it. Whoever holds the other ends of those two is whoever asks
+    /// for frames and hears when they stop.
     ///
-    /// Neither is made here, and that is the point: the split produces
-    /// a writer at the same moment, and the registration channel needs
-    /// its sender to go somewhere. Both belong to the caller, which
-    /// pairs this with them and keeps the other ends.
+    /// None of them is made here, and that is the point: the split
+    /// produces a writer at the same moment, and each channel has an
+    /// end that has to go somewhere. All of it belongs to the caller,
+    /// which pairs this with them and keeps what it is not handing
+    /// over.
     ///
     /// No scopes. A connection starts with none open, and every entry
     /// arrives through `registrations`.
     pub fn new(
         stream: SplitStream<Connection>,
         registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
+        closed: UnboundedSender<(u32, Option<u32>)>,
     ) -> Self {
         Router {
             stream,
             scopes: HashMap::new(),
             registrations,
+            closed,
         }
     }
 
@@ -250,8 +274,14 @@ impl Router {
     ///
     /// A scope that is already gone is not an error. A finish for a
     /// scope nobody registered is the ordinary case, not a special one.
+    /// It is also not a closure, and nothing is announced for it —
+    /// [`closed`](Self::closed) reports entries that this removed, so
+    /// that a holder counting what it opened against what it closed
+    /// gets the same number twice.
     fn close_scope(&mut self, scope: u32) {
-        self.scopes.remove(&scope);
+        if self.scopes.remove(&scope).is_some() {
+            let _ = self.closed.send((scope, None));
+        }
     }
 
     /// Drop a channel, and leave the scope it was in alone.
@@ -260,8 +290,9 @@ impl Router {
     /// the exchanges inside it — so a channel ending takes nothing else
     /// with it. A scope that is already gone took this with it.
     fn close_channel(&mut self, scope: u32, channel: u32) {
-        if let Some(entry) = self.scopes.get_mut(&scope) {
-            entry.channels.remove(&channel);
+        let Some(entry) = self.scopes.get_mut(&scope) else { return };
+        if entry.channels.remove(&channel).is_some() {
+            let _ = self.closed.send((scope, Some(channel)));
         }
     }
 
