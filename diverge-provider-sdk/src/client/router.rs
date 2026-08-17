@@ -329,24 +329,24 @@ impl Router {
             match registration {
                 Registration::Scope {
                     scope,
-                    responses,
-                    requests,
+                    response_sender,
+                    request_sender,
                 } => {
                     self.scopes.entry(scope).or_insert_with(|| Scope {
-                        response_sender: responses,
-                        request_sender: requests,
+                        response_sender,
+                        request_sender,
                         channels: HashMap::new(),
                     });
                 }
                 Registration::Channel {
                     scope,
                     channel,
-                    responses,
+                    response_sender,
                 } => {
                     let Some(entry) = self.scopes.get_mut(&scope) else {
                         continue;
                     };
-                    entry.channels.entry(channel).or_insert(responses);
+                    entry.channels.entry(channel).or_insert(response_sender);
                 }
             }
         }
@@ -421,10 +421,10 @@ pub enum Registration {
         /// The scope, chosen by whoever is about to request it.
         scope: u32,
         /// Where the answers on channel `0` go.
-        responses: Sender<Bytes>,
+        response_sender: Sender<Bytes>,
         /// Where the server's own channel requests go, whatever it
         /// numbers them.
-        requests: Sender<Bytes>,
+        request_sender: Sender<Bytes>,
     },
     /// Open a channel inside a scope that is already registered.
     ///
@@ -436,6 +436,6 @@ pub enum Registration {
         /// The channel, chosen by whoever is about to request it.
         channel: u32,
         /// Where the server's answers on it go.
-        responses: Sender<Bytes>,
+        response_sender: Sender<Bytes>,
     },
 }
