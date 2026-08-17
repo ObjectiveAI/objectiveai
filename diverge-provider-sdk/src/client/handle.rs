@@ -220,6 +220,23 @@ struct HandleInner {
     /// An entry leaves when the router says its scope closed — that
     /// message exists for this map.
     scopes: HashMap<u32, ScopeState>,
+    /// Where a frame is built, before it is handed to the socket.
+    ///
+    /// One buffer for the whole connection, which the lock is what
+    /// makes possible: a frame is encoded and copied out before the
+    /// guard is released, so no two builders ever overlap in it. It
+    /// grows to the largest frame this connection has sent and stops.
+    ///
+    /// The copy at the end is not avoidable. A
+    /// [`Sink`](futures_util::Sink) of [`Bytes`] takes ownership of
+    /// what it sends, and this buffer is not giving up ownership — that
+    /// is the whole point of it.
+    ///
+    /// What it saves is the growth. A fresh [`Vec`] per frame
+    /// reallocates its way up from nothing every time, copying at each
+    /// step; this reallocates once ever and pays one exact-size copy
+    /// per frame.
+    buffer: Vec<u8>,
 }
 
 impl HandleInner {
@@ -245,6 +262,7 @@ impl HandleInner {
             closed,
             scope_counter: 0,
             scopes: HashMap::new(),
+            buffer: Vec::new(),
         }
     }
 
@@ -274,9 +292,12 @@ impl HandleInner {
         let scope = self.mint_scope();
         let (response_sender, responses) = channel(response_capacity);
         let (request_sender, requests) = channel(request_capacity);
-        let mut bytes = Vec::new();
+        // From the end of the last frame, which is why it is cleared
+        // and not merely reused: a `Writer` appends from wherever the
+        // buffer already ends.
+        self.buffer.clear();
         let encoded = ClientFrame::Request { scope, request }
-            .encode(&mut Writer::new(&mut bytes));
+            .encode(&mut Writer::new(&mut self.buffer));
         if encoded.is_err() {
             // Never sent, never registered, never named on the wire.
             // The senders drop here and the caller's receivers close
@@ -293,7 +314,8 @@ impl HandleInner {
             response_sender,
             request_sender,
         });
-        let _ = self.sink.send(bytes.into()).await;
+        let frame = Bytes::copy_from_slice(&self.buffer);
+        let _ = self.sink.send(frame).await;
         Scope {
             scope,
             responses,
