@@ -1,5 +1,6 @@
 //! The other end of the read loop: what a caller actually holds.
 
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -101,6 +102,15 @@ impl Handle {
 /// [`UnboundedReceiver`]. A shared reference gives neither, so sharing
 /// without a lock would be sharing something nobody can use.
 ///
+/// # What it knows that the router does not
+///
+/// Which numbers are taken. The router has a map of the same scopes and
+/// it is not the same map: the router's says where frames GO, and this
+/// one says which numbers are SPOKEN FOR. Only this side can keep the
+/// second, because only this side mints them — the client chooses every
+/// scope and every channel it opens, which is what makes one minter
+/// enough and collisions this end's fault when they happen.
+///
 /// # Nothing is written yet
 ///
 /// The fields are the whole of it. What goes on top — opening a scope,
@@ -143,6 +153,26 @@ struct HandleInner {
     /// the stream is over, and this tells whoever is minting numbers
     /// that the number is free.
     closed: UnboundedReceiver<(u32, Option<u32>)>,
+    /// Where the next scope number comes from.
+    ///
+    /// Nobody else mints one, on this connection or anywhere: a scope
+    /// belongs to the client that opened it, and the numbers are only
+    /// ever compared with the ones in [`scopes`](Self::scopes).
+    ///
+    /// What happens at the top is not decided. A `u32` that wraps
+    /// arrives back at numbers that may still be open, and the counter
+    /// alone cannot tell — the map beside it can.
+    scope_counter: u32,
+    /// The scopes this end has open, by number.
+    ///
+    /// Not the router's map, though it holds the same numbers. That one
+    /// says where a frame goes; this one says what has been handed out
+    /// and not yet taken back, which is the question a minter asks and
+    /// a router never does.
+    ///
+    /// An entry leaves when the router says its scope closed — that
+    /// message exists for this map.
+    scopes: HashMap<u32, Scope>,
 }
 
 impl HandleInner {
@@ -152,6 +182,11 @@ impl HandleInner {
     /// wrapper decides what a `Handle` is made of, and this decides
     /// nothing — there is no argument it could take that the public one
     /// does not already have to be given.
+    ///
+    /// The bookkeeping is not among them. A connection starts with no
+    /// scopes open and its first at `0`, and there is no other answer a
+    /// caller could give: a number already handed out is a number this
+    /// end handed out, and this end is what is being made.
     fn new(
         sink: SplitSink<Connection, Bytes>,
         registrations: UnboundedSender<Registration>,
@@ -161,6 +196,32 @@ impl HandleInner {
             sink,
             registrations,
             closed,
+            scope_counter: 0,
+            scopes: HashMap::new(),
         }
     }
+}
+
+/// One open scope, as the side that opened it sees it.
+///
+/// Numbers and nothing else. Where the frames of this scope go is the
+/// router's business and is not duplicated here; what is here is what
+/// the router cannot know, which is what has been given out.
+// As with `HandleInner`: nothing reads these until something mints.
+#[allow(dead_code)]
+#[derive(Debug)]
+struct Scope {
+    /// Where the next channel number in this scope comes from.
+    ///
+    /// Per scope, not per connection, because a channel number is only
+    /// ever read alongside the scope in the same frame header. Two
+    /// scopes both using channel `0` are two different channels and
+    /// neither has to know about the other.
+    channel_counter: u32,
+    /// The channels open inside it.
+    ///
+    /// A set, because there is nothing to store against them. What
+    /// arrives on a channel goes to a receiver the router holds, so the
+    /// only fact this side keeps is that the number is in use.
+    channels: HashSet<u32>,
 }
