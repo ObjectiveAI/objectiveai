@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::stream::SplitSink;
+use tokio::sync::Mutex;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use super::router::Registration;
@@ -12,8 +13,71 @@ use crate::connection::Connection;
 /// One connection's outbound half, and the way to be heard by the
 /// inbound one.
 ///
-/// A [`Router`](super::router::Router) is a task that runs; this is the
-/// thing a caller keeps. Between them they own one socket, split down
+/// Cheap to clone and shared by every clone — there is one socket
+/// under here, so there is one of these however many exist.
+///
+/// # Why the lock is inside
+///
+/// What is inside is private and there is no way to get at it
+/// unlocked. Which is the point: a caller that could hold the parts
+/// without the lock could write half a frame and then wait, and the
+/// next writer's bytes would land inside the first one's message. A
+/// WebSocket forbids exactly that, and forbidding it in the type is
+/// cheaper than documenting it.
+///
+/// The lock is [`tokio`]'s, because the guard is held across the
+/// `await` that writes a frame and a [`std`] guard is not [`Send`]
+/// across one.
+///
+/// # What it costs
+///
+/// One lock for the whole connection, so a caller waiting to write
+/// waits behind a caller reading closures, and vice versa. Locking the
+/// two fields separately would not, and it is not worth it: a closure
+/// read is a queue pop, and the frame writes it would be interleaved
+/// with are the thing that has to be exclusive anyway.
+///
+/// What must not happen is a guard held across a stream of frames. One
+/// frame is the wire's unit of exclusion, and a caller holding the lock
+/// for a stream of chunks is a caller who has taken the connection away
+/// from everybody else until it finishes.
+// Nothing reads it yet, because nothing locks it yet. The attribute
+// goes when the methods do.
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub struct Handle(Arc<Mutex<HandleInner>>);
+
+impl Handle {
+    /// Take the three parts, from whoever made all of them.
+    ///
+    /// The write half of a split [`Connection`], the sending end of the
+    /// registration channel, and the receiving end of the closure
+    /// channel — the exact complements of what a
+    /// [`Router`](super::router::Router) is given. None of them is made
+    /// here, because a split and a channel each produce two ends and
+    /// only one of each belongs on this side.
+    ///
+    /// Pairing them correctly is the caller's to get right, and nothing
+    /// here can check it. Two halves of different sockets, or channels
+    /// crossed with another connection's, type-check exactly as well as
+    /// the right ones.
+    pub fn new(
+        sink: SplitSink<Connection, Bytes>,
+        registrations: UnboundedSender<Registration>,
+        closed: UnboundedReceiver<(u32, Option<u32>)>,
+    ) -> Self {
+        Handle(Arc::new(Mutex::new(HandleInner::new(
+            sink,
+            registrations,
+            closed,
+        ))))
+    }
+}
+
+/// What a [`Handle`] is a handle to.
+///
+/// A [`Router`](super::router::Router) is a task that runs; this is
+/// what the callers share. Between them they own one socket, split down
 /// the middle: the router reads and this writes, and the two channels
 /// here are how the writing side arranges to be told what the reading
 /// side found.
@@ -30,23 +94,12 @@ use crate::connection::Connection;
 /// makes the channels necessary: the halves cannot see each other's
 /// state, so anything one needs from the other travels as a message.
 ///
-/// # Shared, and not yet lockable
+/// # Why it is behind a lock and not an [`Arc`] alone
 ///
-/// [`new`](Self::new) returns an [`Arc`], because one socket is what
-/// every caller on this connection has to write to. Handing out clones
-/// of the writer is not on offer — there is one, and it is the wire.
-///
-/// An [`Arc`] alone is not enough to use one, and two fields say so
-/// the same way: writing to a [`Sink`](futures_util::Sink) needs
-/// `&mut`, and so does receiving on an [`UnboundedReceiver`]. A shared
-/// reference gives neither.
-///
-/// So a lock is coming and its shape is not settled. Locking the whole
-/// thing is the likely answer and locking the fields separately is the
-/// other one, and the difference is whether a caller waiting to write
-/// blocks a caller reading closures. Whichever it is, it will be an
-/// async lock: the guard has to be held across the `await` that writes
-/// a frame, and a [`std`] guard is not [`Send`] across one.
+/// Two of the three fields need `&mut` to be used at all: writing to a
+/// [`Sink`](futures_util::Sink) needs one, and so does receiving on an
+/// [`UnboundedReceiver`]. A shared reference gives neither, so sharing
+/// without a lock would be sharing something nobody can use.
 ///
 /// # Nothing is written yet
 ///
@@ -57,7 +110,7 @@ use crate::connection::Connection;
 // goes when the methods do.
 #[allow(dead_code)]
 #[derive(Debug)]
-pub struct Handle {
+struct HandleInner {
     /// The write half of the connection.
     ///
     /// Every frame this end sends goes out here, in order, one at a
@@ -65,10 +118,10 @@ pub struct Handle {
     /// forbids interleaving the fragments of two messages, so one
     /// writer at a time is the wire's rule.
     ///
-    /// Which is also what whatever locks this will have to respect, and
-    /// at what granularity: exclusive for one frame, never for a stream
-    /// of them. A caller holding the socket across a stream of chunks
-    /// would be the connection's only user until it finished.
+    /// Which is what sets the granularity of the lock around all of
+    /// this: exclusive for one frame, never for a stream of them. A
+    /// caller holding it across a stream of chunks would be the
+    /// connection's only user until it finished.
     sink: SplitSink<Connection, Bytes>,
     /// Where to say that frames are coming, before sending the request
     /// that causes them.
@@ -92,36 +145,22 @@ pub struct Handle {
     closed: UnboundedReceiver<(u32, Option<u32>)>,
 }
 
-impl Handle {
-    /// Take the three parts, from whoever made all of them.
+impl HandleInner {
+    /// The same three parts, in the same order.
     ///
-    /// The write half of a split [`Connection`], the sending end of the
-    /// registration channel, and the receiving end of the closure
-    /// channel — the exact complements of what a
-    /// [`Router`](super::router::Router) is given. Neither is made
-    /// here, because a split and a channel each produce two ends and
-    /// only one of them belongs on this side.
-    ///
-    /// Pairing them correctly is the caller's to get right, and nothing
-    /// here can check it. Two halves of different sockets, or channels
-    /// crossed with another connection's, type-check exactly as well as
-    /// the right ones.
-    ///
-    /// Comes back in an [`Arc`] rather than bare. Sharing is not an
-    /// option a caller weighs later — a connection has one writer and
-    /// everything that writes to it needs the same one — so it is not
-    /// left to a caller to remember, and a `Handle` that was never
-    /// shared is a connection with one user, which is the ordinary case
-    /// and costs one refcount.
-    pub fn new(
+    /// Matching [`Handle::new`] because it is the one caller: the
+    /// wrapper decides what a `Handle` is made of, and this decides
+    /// nothing — there is no argument it could take that the public one
+    /// does not already have to be given.
+    fn new(
         sink: SplitSink<Connection, Bytes>,
         registrations: UnboundedSender<Registration>,
         closed: UnboundedReceiver<(u32, Option<u32>)>,
-    ) -> Arc<Self> {
-        Arc::new(Handle {
+    ) -> Self {
+        HandleInner {
             sink,
             registrations,
             closed,
-        })
+        }
     }
 }
