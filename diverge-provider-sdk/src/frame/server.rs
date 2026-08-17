@@ -6,9 +6,12 @@
 //! it happens inside the scope the client's request opened; a server
 //! never initiates one.
 
+use std::convert::Infallible;
+
 use super::auth::Auth;
 use super::FrameError;
 use crate::decode::Decode;
+use crate::encode::{Encode, Writer};
 
 /// A frame sent by a server.
 ///
@@ -123,6 +126,61 @@ pub enum ServerFrame<'a> {
         /// CLIENT's numbering.
         channel: u32,
     },
+}
+
+/// The nine bytes of header, then the payload's own.
+///
+/// Here rather than in whoever is writing, because the `type` values
+/// are here: a writer that spelled them out again would be a second
+/// copy of this layer's only vocabulary, kept in step by hand.
+///
+/// A frame writes its own header, which is the one thing
+/// [`Writer`] permits and payloads do not — a
+/// writer starts at the buffer's current length, so a frame appending
+/// a header and then handing the same writer to its payload is
+/// appending twice rather than reaching backwards.
+impl Encode for ServerFrame<'_> {
+    /// [`Infallible`]: a header is fixed bytes, and every payload here
+    /// is either bytes already or an [`Auth`], which cannot fail
+    /// either.
+    type Error = Infallible;
+
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
+        let (r#type, scope, channel) = match self {
+            ServerFrame::Auth(_) => (0, 0, 0),
+            ServerFrame::ResponseAck { scope } => (2, *scope, 0),
+            ServerFrame::Response { scope, .. } => (3, *scope, 0),
+            ServerFrame::ResponseFinish { scope } => (4, *scope, 0),
+            ServerFrame::ChannelRequest { scope, channel, .. } => {
+                (5, *scope, *channel)
+            }
+            ServerFrame::ChannelResponseAck { scope, channel } => {
+                (6, *scope, *channel)
+            }
+            ServerFrame::ChannelResponse { scope, channel, .. } => {
+                (7, *scope, *channel)
+            }
+            ServerFrame::ChannelResponseFinish { scope, channel } => {
+                (8, *scope, *channel)
+            }
+        };
+        out.extend_from_slice(&[r#type]);
+        out.extend_from_slice(&scope.to_be_bytes());
+        out.extend_from_slice(&channel.to_be_bytes());
+        match self {
+            ServerFrame::Auth(auth) => auth.encode(out),
+            ServerFrame::Response { payload, .. }
+            | ServerFrame::ChannelRequest { payload, .. }
+            | ServerFrame::ChannelResponse { payload, .. } => {
+                out.extend_from_slice(payload);
+                Ok(())
+            }
+            ServerFrame::ResponseAck { .. }
+            | ServerFrame::ResponseFinish { .. }
+            | ServerFrame::ChannelResponseAck { .. }
+            | ServerFrame::ChannelResponseFinish { .. } => Ok(()),
+        }
+    }
 }
 
 impl<'a> ServerFrame<'a> {
