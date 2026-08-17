@@ -8,7 +8,7 @@ use futures_util::SinkExt as _;
 use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{
-    Receiver, UnboundedReceiver, UnboundedSender, channel,
+    self, Receiver, UnboundedReceiver, UnboundedSender,
 };
 
 use super::router::Registration;
@@ -118,6 +118,39 @@ impl Handle {
             .lock()
             .await
             .send_request(request, response_capacity, request_capacity)
+            .await
+    }
+
+    /// Open a channel inside a scope, and send the request that opens
+    /// it.
+    ///
+    /// `None` if that scope is not open. Which is a race a caller
+    /// cannot always avoid — a scope ends when its finish frame
+    /// arrives, and that can happen between reading the last response
+    /// and asking for a channel — so it is an answer rather than a
+    /// panic. Nothing was sent when it comes back.
+    ///
+    /// The payload is written as given, tag and all. This layer does
+    /// not know what a channel request says; see
+    /// [`endpoints`](crate::endpoints) for who does.
+    ///
+    /// # One receiver, not two
+    ///
+    /// A channel this end opened has one thing coming back on it, so
+    /// [`Channel`] carries one receiver where [`Scope`] carries two.
+    /// There is no nesting: what the server opens arrives on the
+    /// scope's own [`requests`](Scope::requests), whichever channel of
+    /// this end's it was prompted by.
+    pub async fn send_channel_request(
+        &self,
+        scope: u32,
+        payload: &[u8],
+        response_capacity: usize,
+    ) -> Option<Channel> {
+        self.0
+            .lock()
+            .await
+            .send_channel_request(scope, payload, response_capacity)
             .await
     }
 }
@@ -290,8 +323,8 @@ impl HandleInner {
     ) -> Scope {
         self.take_back();
         let scope = self.mint_scope();
-        let (response_sender, responses) = channel(response_capacity);
-        let (request_sender, requests) = channel(request_capacity);
+        let (response_sender, responses) = mpsc::channel(response_capacity);
+        let (request_sender, requests) = mpsc::channel(request_capacity);
         // From the end of the last frame, which is why it is cleared
         // and not merely reused: a `Writer` appends from wherever the
         // buffer already ends.
@@ -321,6 +354,52 @@ impl HandleInner {
             responses,
             requests,
         }
+    }
+
+    /// Open a channel inside a scope, and send the request that opens
+    /// it.
+    ///
+    /// The same order as [`send_request`](Self::send_request) and for
+    /// the same reasons: take back what has closed, mint, encode,
+    /// register, send. What differs is that the scope is given rather
+    /// than minted — so it can be missing, which is the one failure
+    /// this can report before touching the wire.
+    ///
+    /// A failed encode is also `None`, with the number given up again.
+    /// It cannot happen today: a channel request's payload is bytes
+    /// this crate never looks at, and bytes cannot fail to serialize.
+    /// The branch is there because the signature says it can be, not
+    /// because anything has seen it.
+    async fn send_channel_request(
+        &mut self,
+        scope: u32,
+        payload: &[u8],
+        response_capacity: usize,
+    ) -> Option<Channel> {
+        self.take_back();
+        let channel = self.scopes.get_mut(&scope)?.mint_channel();
+        let (response_sender, responses) = mpsc::channel(response_capacity);
+        self.buffer.clear();
+        let encoded = ClientFrame::ChannelRequest {
+            scope,
+            channel,
+            payload,
+        }
+        .encode(&mut Writer::new(&mut self.buffer));
+        if encoded.is_err() {
+            if let Some(state) = self.scopes.get_mut(&scope) {
+                state.channels.remove(&channel);
+            }
+            return None;
+        }
+        let _ = self.registrations.send(Registration::Channel {
+            scope,
+            channel,
+            response_sender,
+        });
+        let frame = Bytes::copy_from_slice(&self.buffer);
+        let _ = self.sink.send(frame).await;
+        Some(Channel { channel, responses })
     }
 
     /// Drop every scope and channel the router says is finished.
@@ -449,4 +528,50 @@ struct ScopeState {
     /// arrives on a channel goes to a receiver the router holds, so the
     /// only fact this side keeps is that the number is in use.
     channels: HashSet<u32>,
+}
+
+impl ScopeState {
+    /// Take the next free channel number in this scope, and claim it.
+    ///
+    /// [`mint_scope`](HandleInner::mint_scope) one level down, with the
+    /// same wrap for the same reason. What is shorter here is the
+    /// claim: a [`HashSet`] insert answers "was it free" and takes it
+    /// in one move, where a map has to be asked and then told.
+    ///
+    /// Counting is per scope. Two scopes both using channel `1` are two
+    /// different channels, because a channel number is only ever read
+    /// alongside the scope in the same frame header.
+    fn mint_channel(&mut self) -> u32 {
+        loop {
+            self.channel_counter = self.channel_counter.wrapping_add(1);
+            if self.channels.insert(self.channel_counter) {
+                return self.channel_counter;
+            }
+        }
+    }
+}
+
+/// A channel that has been opened inside a scope, and what comes back
+/// on it.
+///
+/// What [`Handle::send_channel_request`] gives back. The request has
+/// gone out, and the router is holding the other end of
+/// [`responses`](Self::responses).
+///
+/// The number is this end's. The server counts its own channels
+/// separately and from zero, so a server's channel `1` and this one are
+/// unrelated — which is why they never share a stream.
+#[derive(Debug)]
+pub struct Channel {
+    /// The channel's number, chosen by this end.
+    ///
+    /// Meaningful only inside the scope it was opened in. Free for
+    /// reuse once the channel closes.
+    pub channel: u32,
+    /// The server's answer, frame by frame.
+    ///
+    /// Whole frames, headers included. Ends at the finish frame; the
+    /// channel closing without one means the connection went first, or
+    /// the scope did.
+    pub responses: Receiver<Bytes>,
 }
