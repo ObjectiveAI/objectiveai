@@ -77,6 +77,32 @@ pub struct Router {
     registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
 }
 
+impl Router {
+    /// Take the two halves a router is made of.
+    ///
+    /// The read half of a split [`Connection`], and the receiving end
+    /// of the registration channel — whoever holds the matching sender
+    /// is whoever gets to ask for frames.
+    ///
+    /// Neither is made here, and that is the point: the split produces
+    /// a writer at the same moment, and the registration channel needs
+    /// its sender to go somewhere. Both belong to the caller, which
+    /// pairs this with them and keeps the other ends.
+    ///
+    /// No scopes. A connection starts with none open, and every entry
+    /// arrives through `registrations`.
+    pub fn new(
+        stream: SplitStream<Connection>,
+        registrations: UnboundedReceiver<(u32, Option<u32>, Sender<Bytes>)>,
+    ) -> Self {
+        Router {
+            stream,
+            scopes: HashMap::new(),
+            registrations,
+        }
+    }
+}
+
 /// Where one scope's frames go.
 ///
 /// Nested inside [`Router`]'s map rather than flattened into a
