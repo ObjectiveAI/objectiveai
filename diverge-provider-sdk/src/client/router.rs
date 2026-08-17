@@ -113,11 +113,25 @@ impl Router {
 
     /// Read frames until the connection ends.
     ///
-    /// Returns when the peer closes, when the transport errors, or
-    /// when the stream simply stops. All three are the same event —
-    /// there are no more frames — and every consumer learns it the same
-    /// way: this is dropped, and with it every sender in it, so a
-    /// receiver that was waiting sees its channel close.
+    /// Returns when the stream ends, and at no other point. A peer that
+    /// closed and a peer that vanished arrive the same way, and every
+    /// consumer learns it the same way too: this is dropped, and with it
+    /// every sender in it, so a receiver that was waiting sees its
+    /// channel close.
+    ///
+    /// A transport error is not the end. It yields no frame, so there
+    /// is nothing to route and the loop takes the next one — which is
+    /// the end, in practice, because both transports fuse: an error
+    /// sets `ended` and the poll after it returns `None`
+    /// ([`tokio_tungstenite::WebSocketStream`], which
+    /// [`axum`](axum::extract::ws::WebSocket) delegates to).
+    ///
+    /// Which makes ending here and reading on identical today, and the
+    /// choice is about what the identity rests on. Reading on is right
+    /// because the stream says when it is over; ending on an error is
+    /// right only while every transport behind [`Connection`] fuses,
+    /// which is a fact about two dependencies rather than about this
+    /// protocol.
     ///
     /// A closed channel is how a connection ending differs from a
     /// stream ending. A stream ends at its finish frame, which the
@@ -139,7 +153,9 @@ impl Router {
     /// or a consumer never registered at all.
     pub async fn run(mut self) {
         while let Some(received) = self.stream.next().await {
-            let Ok(bytes) = received else { return };
+            // No frame, so nothing to route. The stream is what ends
+            // this loop, and it has not ended.
+            let Ok(bytes) = received else { continue };
             // Decoded for its header alone. The payload is borrowed and
             // then ignored; what gets forwarded is `bytes`, whole and
             // untouched.
