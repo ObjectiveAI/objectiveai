@@ -1,5 +1,7 @@
 //! The top of the tree: one connection, read to its end.
 
+use futures_util::StreamExt as _;
+
 use super::scope_handler::ScopeHandler;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::ClientRequest;
@@ -63,7 +65,7 @@ impl Handler {
     /// here — every scope on it ends with it, and there is nobody left
     /// to tell.
     pub async fn run(mut self) {
-        while let Some(received) = self.socket.recv().await {
+        while let Some(received) = self.socket.next().await {
             let bytes = match received {
                 Ok(bytes) => bytes,
                 // A socket that failed, or a peer sending text where

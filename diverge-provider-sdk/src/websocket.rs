@@ -1,8 +1,11 @@
 //! One socket, whichever end dialled it.
 
 use std::fmt;
+use std::pin::Pin;
+use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
+use futures_util::Stream;
 
 /// A connection, however it was made.
 ///
@@ -27,12 +30,13 @@ use bytes::Bytes;
 ///
 /// Because the two libraries agree on nothing else. axum hands out a
 /// socket with inherent `recv` and `send`; tungstenite hands out a
-/// [`Stream`](futures_util::Stream) and a [`Sink`](futures_util::Sink)
-/// with neither. Both call a binary payload [`Bytes`], and that is
+/// [`Stream`] and a [`Sink`](futures_util::Sink) with neither. Both call a binary payload [`Bytes`], and that is
 /// about where it stops.
 ///
-/// So the difference is absorbed here, once, and everything above
-/// reads and writes payloads without knowing how the socket arrived.
+/// So the difference is absorbed here, once. It is a
+/// [`Stream`] of payloads and has a [`send`](Self::send), and
+/// everything above reads and writes without knowing how the socket
+/// arrived.
 ///
 /// # What it does not do
 ///
@@ -57,63 +61,90 @@ pub enum WebSocket {
     ),
 }
 
-impl WebSocket {
-    /// The next binary payload, or `None` when the connection ends.
-    ///
-    /// # What it hides
-    ///
-    /// Pings and pongs, which are the library's business — axum
-    /// answers them itself, and tungstenite does the same. A protocol
-    /// with no heartbeat of its own has nothing to say about them.
-    ///
-    /// A close, and a stream that simply stops, both arrive as `None`.
-    /// They are the same thing to everything above: the connection is
-    /// over, so every scope on it is over, and there is nobody left to
-    /// tell.
-    ///
-    /// # What it does not hide
-    ///
-    /// A text message, which becomes [`Error::NotBinary`]. Every
-    /// message in this protocol is binary, so one that is not is a
-    /// peer that disagrees about the protocol — and swallowing it
-    /// would leave this end waiting on a connection that is not going
-    /// to work.
-    pub async fn recv(&mut self) -> Option<Result<Bytes, Error>> {
+/// The binary payloads, one at a time, until the connection ends.
+///
+/// # What it hides
+///
+/// Pings and pongs, which are the library's business — axum answers
+/// them itself, and tungstenite does the same. A protocol with no
+/// heartbeat of its own has nothing to say about them.
+///
+/// A close, and a stream that simply stops, both end this one. They
+/// are the same thing to everything above: the connection is over, so
+/// every scope on it is over, and there is nobody left to tell.
+///
+/// # What it does not hide
+///
+/// A text message, which yields [`Error::NotBinary`]. Every message in
+/// this protocol is binary, so one that is not is a peer that
+/// disagrees about the protocol — and swallowing it would leave this
+/// end waiting on a connection that is not going to work.
+///
+/// The item is a payload rather than a frame. Decoding is
+/// [`ClientFrame`](crate::frame::client::ClientFrame)'s and
+/// [`ServerFrame`](crate::frame::server::ServerFrame)'s, and which of
+/// the two a reader wants is not something a socket knows.
+impl Stream for WebSocket {
+    type Item = Result<Bytes, Error>;
+
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        // Both sockets are `Unpin` — a `TcpStream` is, and so is
+        // hyper's upgraded one — so this never has to project.
+        let this = self.get_mut();
         loop {
-            match self {
-                WebSocket::Accepted(socket) => match socket.recv().await? {
-                    Ok(axum::extract::ws::Message::Binary(bytes)) => {
-                        return Some(Ok(bytes));
-                    }
-                    Ok(axum::extract::ws::Message::Text(_)) => {
-                        return Some(Err(Error::NotBinary));
-                    }
-                    Ok(axum::extract::ws::Message::Close(_)) => return None,
-                    // A ping or a pong. The library has already dealt
-                    // with it.
-                    Ok(_) => continue,
-                    Err(error) => return Some(Err(Error::Accepted(error))),
-                },
-                WebSocket::Dialled(stream) => {
-                    use futures_util::StreamExt as _;
-                    use tokio_tungstenite::tungstenite::Message;
-                    match stream.next().await? {
-                        Ok(Message::Binary(bytes)) => return Some(Ok(bytes)),
-                        Ok(Message::Text(_)) => {
-                            return Some(Err(Error::NotBinary));
+            match this {
+                WebSocket::Accepted(socket) => {
+                    use axum::extract::ws::Message;
+                    match ready!(Pin::new(&mut *socket).poll_next(cx)) {
+                        Some(Ok(Message::Binary(bytes))) => {
+                            return Poll::Ready(Some(Ok(bytes)));
                         }
-                        Ok(Message::Close(_)) => return None,
+                        Some(Ok(Message::Text(_))) => {
+                            return Poll::Ready(Some(Err(Error::NotBinary)));
+                        }
+                        Some(Ok(Message::Close(_))) | None => {
+                            return Poll::Ready(None);
+                        }
+                        // A ping or a pong. The library has already
+                        // dealt with it.
+                        Some(Ok(_)) => continue,
+                        Some(Err(error)) => {
+                            return Poll::Ready(Some(Err(Error::Accepted(
+                                error,
+                            ))));
+                        }
+                    }
+                }
+                WebSocket::Dialled(stream) => {
+                    use tokio_tungstenite::tungstenite::Message;
+                    match ready!(Pin::new(&mut *stream).poll_next(cx)) {
+                        Some(Ok(Message::Binary(bytes))) => {
+                            return Poll::Ready(Some(Ok(bytes)));
+                        }
+                        Some(Ok(Message::Text(_))) => {
+                            return Poll::Ready(Some(Err(Error::NotBinary)));
+                        }
+                        Some(Ok(Message::Close(_))) | None => {
+                            return Poll::Ready(None);
+                        }
                         // A ping, a pong, or a raw frame.
-                        Ok(_) => continue,
-                        Err(error) => {
-                            return Some(Err(Error::Dialled(error)));
+                        Some(Ok(_)) => continue,
+                        Some(Err(error)) => {
+                            return Poll::Ready(Some(Err(Error::Dialled(
+                                error,
+                            ))));
                         }
                     }
                 }
             }
         }
     }
+}
 
+impl WebSocket {
     /// Send one binary payload.
     ///
     /// Binary always. Nothing in this protocol is text, and a payload
