@@ -72,7 +72,36 @@ pub struct Router {
     /// requirement rather than an implementation detail.
     stream: SplitStream<Connection>,
     /// Every scope open on this connection.
-    scopes: HashMap<u32, Scope>,
+    ///
+    /// `(response_sender, request_sender, channels)`.
+    ///
+    /// **`0`** is the answer to the request that opened the scope.
+    /// Channel `0`, which the frame layer already treats as the scope's
+    /// own, so it does not need a key in the map and does not get one.
+    ///
+    /// **`1`** is every channel the SERVER opens inside this scope, on
+    /// one stream. They cannot share the map with `2`: a channel number
+    /// belongs to whoever opened it and both sides count from zero, so
+    /// the server's channel `3` and this client's channel `3` are two
+    /// different channels, and one map keyed by `3` holds one of them.
+    /// The number is not lost — it is in the header of the frame that
+    /// goes down this, whole — and nothing is ever removed for one,
+    /// because a request is one frame and its answer travels the other
+    /// way.
+    ///
+    /// **`2`** is the channels this CLIENT opened, by number, and what
+    /// the server sends back on each. One space, because one opener:
+    /// everything in it was numbered by this end, which is what `1`
+    /// being separate keeps true.
+    ///
+    /// Nested rather than flattened into a `(scope, channel)` key,
+    /// because a scope ending ends everything under it: one removal
+    /// drops both senders and every channel at once, where a flat map
+    /// would have to be scanned for them.
+    scopes: HashMap<
+        u32,
+        (Sender<Bytes>, Sender<Bytes>, HashMap<u32, Sender<Bytes>>),
+    >,
     /// Somewhere to register a new destination before its frames
     /// arrive.
     ///
@@ -189,8 +218,8 @@ impl Router {
                 // the connection is not routed.
                 ServerFrame::Auth { .. } => {}
                 ServerFrame::Response { scope, .. } => {
-                    if let Some(entry) = self.scope(scope) {
-                        let _ = entry.response_sender.send(bytes).await;
+                    if let Some((response_sender, ..)) = self.scope(scope) {
+                        let _ = response_sender.send(bytes).await;
                     }
                 }
                 // The scope is over, so everything under it goes: both
@@ -198,8 +227,8 @@ impl Router {
                 // Forwarded first, because the finish is what says the
                 // stream ended rather than the connection.
                 ServerFrame::ResponseFinish { scope } => {
-                    if let Some(entry) = self.scope(scope) {
-                        let _ = entry.response_sender.send(bytes).await;
+                    if let Some((response_sender, ..)) = self.scope(scope) {
+                        let _ = response_sender.send(bytes).await;
                     }
                     self.close_scope(scope);
                 }
@@ -211,8 +240,8 @@ impl Router {
                 // request is one frame, and what answers it travels the
                 // other way, where this never looks.
                 ServerFrame::ChannelRequest { scope, .. } => {
-                    if let Some(entry) = self.scope(scope) {
-                        let _ = entry.request_sender.send(bytes).await;
+                    if let Some((_, request_sender, _)) = self.scope(scope) {
+                        let _ = request_sender.send(bytes).await;
                     }
                 }
                 ServerFrame::ChannelResponse { scope, channel, .. } => {
@@ -244,7 +273,12 @@ impl Router {
     /// A miss after the drain is a real miss. Nothing waits for a
     /// registration that has not been made, because nothing says one is
     /// coming.
-    fn scope(&mut self, scope: u32) -> Option<&mut Scope> {
+    fn scope(
+        &mut self,
+        scope: u32,
+    ) -> Option<
+        &mut (Sender<Bytes>, Sender<Bytes>, HashMap<u32, Sender<Bytes>>),
+    > {
         if !self.scopes.contains_key(&scope) {
             self.drain();
         }
@@ -260,18 +294,18 @@ impl Router {
         let found = self
             .scopes
             .get(&scope)
-            .is_some_and(|entry| entry.channels.contains_key(&channel));
+            .is_some_and(|entry| entry.2.contains_key(&channel));
         if !found {
             self.drain();
         }
-        self.scopes.get(&scope)?.channels.get(&channel)
+        self.scopes.get(&scope)?.2.get(&channel)
     }
 
     /// Drop a scope, and every channel that was open inside it.
     ///
     /// One removal does both, which is the whole reason the channels
     /// are nested rather than keyed by `(scope, channel)` — see
-    /// [`Scope`]. The map entry going away is what the consumers see: a
+    /// `scopes`. The map entry going away is what the consumers see: a
     /// dropped [`Sender`] closes its receiver, so each of them learns
     /// its stream is over without being told individually.
     ///
@@ -294,7 +328,7 @@ impl Router {
     /// with it. A scope that is already gone took this with it.
     fn close_channel(&mut self, scope: u32, channel: u32) {
         let Some(entry) = self.scopes.get_mut(&scope) else { return };
-        if entry.channels.remove(&channel).is_some() {
+        if entry.2.remove(&channel).is_some() {
             let _ = self.closed.send((scope, Some(channel)));
         }
     }
@@ -332,10 +366,8 @@ impl Router {
                     response_sender,
                     request_sender,
                 } => {
-                    self.scopes.entry(scope).or_insert_with(|| Scope {
-                        response_sender,
-                        request_sender,
-                        channels: HashMap::new(),
+                    self.scopes.entry(scope).or_insert_with(|| {
+                        (response_sender, request_sender, HashMap::new())
                     });
                 }
                 Registration::Channel {
@@ -346,53 +378,11 @@ impl Router {
                     let Some(entry) = self.scopes.get_mut(&scope) else {
                         continue;
                     };
-                    entry.channels.entry(channel).or_insert(response_sender);
+                    entry.2.entry(channel).or_insert(response_sender);
                 }
             }
         }
     }
-}
-
-/// Where one scope's frames go.
-///
-/// Nested inside [`Router`]'s map rather than flattened into a
-/// `(scope, channel)` key, because a scope ending ends everything
-/// under it: one removal drops the responses and every channel at
-/// once, where a flat map would have to be scanned for them.
-#[derive(Debug)]
-struct Scope {
-    /// The answers to the request that opened the scope.
-    ///
-    /// Channel `0`, which the frame layer already treats as the
-    /// scope's own — so it does not need a key in
-    /// [`channels`](Self::channels) and does not get one.
-    response_sender: Sender<Bytes>,
-    /// The channels the SERVER opens inside this scope. All of them,
-    /// on one stream.
-    ///
-    /// They cannot share the map with [`channels`](Self::channels). A
-    /// channel number belongs to whoever opened it and both sides count
-    /// from zero, so the server's channel `3` and this client's channel
-    /// `3` are two different channels — and one map keyed by `3` holds
-    /// one of them.
-    ///
-    /// Not that the number is lost: it is in the header of the frame
-    /// that goes down this, whole. What this end does with it is answer
-    /// on it, which is a write, and writes are not a router's business.
-    ///
-    /// Nothing is ever removed for one of these. A request is the whole
-    /// of what arrives — one frame, opening a channel whose remaining
-    /// traffic travels the other way — so there is no entry to keep and
-    /// none to take away.
-    request_sender: Sender<Bytes>,
-    /// The channels this CLIENT opened, by number, and what the server
-    /// sends back on each.
-    ///
-    /// One space, because one opener: everything in here was numbered
-    /// by this end. What the server numbers goes to
-    /// [`request_sender`](Self::request_sender) instead, which is what
-    /// keeps that true.
-    channels: HashMap<u32, Sender<Bytes>>,
 }
 
 /// Somewhere to put frames, arranged before any of them arrive.
