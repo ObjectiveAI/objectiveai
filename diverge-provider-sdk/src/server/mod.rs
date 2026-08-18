@@ -38,20 +38,21 @@
 //! this one does. A provider on some third transport keeps the frame
 //! layer and leaves this module off.
 //!
-//! # Empty
+//! # What is here
 //!
-//! There was a handler tree here — a connection at the root, a scope
-//! under it, channels below that — and it was written before the shape
-//! of the client half was. It is gone rather than carried: the client
-//! now has a [`Router`](crate::client::router::Router) that reads
-//! frames and forwards them, and whatever answers requests here has the
-//! same problem to solve and should be built knowing how that one was
+//! [`router`], the read loop: frames off the socket, forwarded to
+//! whoever is waiting. It is the mirror of
+//! [`client::router`](crate::client::router), and where it is not, the
+//! reason is always the same one: a client opens scopes and a server
+//! answers in them, so what one side registers in advance the other
+//! learns from a frame.
+//!
+//! The write half is not here yet. When it is, it will be what
+//! [`Sent`](router::Sent) is addressed to.
+//!
+//! There was a handler tree here before any of this, written before the
+//! client half had a shape. It is gone rather than carried — what
+//! answers requests should be built knowing how the routing was
 //! solved, not around a sketch that predates it.
-//!
-//! What went with it was one real path, an unreadable request answered
-//! with an error and a finish, and a good deal of scaffolding that had
-//! `unimplemented!` where every decision belonged.
-//!
-//! Nothing outside this module noticed. A message is the same message
-//! whether or not somebody compiled the code that answers it, which is
-//! what the split between this and [`frame`](crate::frame) is for.
+
+pub mod router;
