@@ -257,7 +257,19 @@ struct HandleInner {
     ///
     /// An entry leaves when the router says its scope closed — that
     /// message exists for this map.
-    scopes: HashMap<u32, ScopeState>,
+    ///
+    /// `(channel_counter, channels)`: where the next channel number in
+    /// that scope comes from, and which ones are open. The counter is
+    /// per scope because a channel number is only ever read alongside
+    /// the scope in the same frame header — two scopes both using
+    /// channel `1` are two different channels, and neither has to know
+    /// about the other.
+    ///
+    /// A set for the channels, because there is nothing to store
+    /// against them. What arrives on one goes to a receiver the router
+    /// holds, so the only fact this side keeps is that the number is in
+    /// use.
+    scopes: HashMap<u32, (u32, HashSet<u32>)>,
     /// Where a frame is built, before it is handed to the socket.
     ///
     /// One buffer for the whole connection, which the lock is what
@@ -374,7 +386,7 @@ impl HandleInner {
         response_capacity: usize,
     ) -> Option<Channel> {
         self.take_back();
-        let channel = self.scopes.get_mut(&scope)?.mint_channel();
+        let channel = mint_channel(self.scopes.get_mut(&scope)?);
         let (response_sender, responses) = mpsc::channel(response_capacity);
         self.buffer.clear();
         ClientFrame::ChannelRequest {
@@ -411,8 +423,9 @@ impl HandleInner {
                     self.scopes.remove(&scope);
                 }
                 Some(channel) => {
-                    if let Some(state) = self.scopes.get_mut(&scope) {
-                        state.channels.remove(&channel);
+                    if let Some((_, channels)) = self.scopes.get_mut(&scope)
+                    {
+                        channels.remove(&channel);
                     }
                 }
             }
@@ -437,13 +450,7 @@ impl HandleInner {
             self.scope_counter = self.scope_counter.wrapping_add(1);
             let scope = self.scope_counter;
             if !self.scopes.contains_key(&scope) {
-                self.scopes.insert(
-                    scope,
-                    ScopeState {
-                        channel_counter: 0,
-                        channels: HashSet::new(),
-                    },
-                );
+                self.scopes.insert(scope, (0, HashSet::new()));
                 return scope;
             }
         }
@@ -499,47 +506,21 @@ pub struct Scope {
     pub request_receiver: Receiver<Bytes>,
 }
 
-/// What the opening side remembers about one open scope.
+/// Take the next free channel number in one scope, and claim it.
 ///
-/// Numbers and nothing else. Where the frames of this scope go is the
-/// router's business and is not duplicated here; what is here is what
-/// the router cannot know, which is what has been given out.
-// As with `HandleInner`: nothing reads these until something mints.
-#[allow(dead_code)]
-#[derive(Debug)]
-struct ScopeState {
-    /// Where the next channel number in this scope comes from.
-    ///
-    /// Per scope, not per connection, because a channel number is only
-    /// ever read alongside the scope in the same frame header. Two
-    /// scopes both using channel `0` are two different channels and
-    /// neither has to know about the other.
-    channel_counter: u32,
-    /// The channels open inside it.
-    ///
-    /// A set, because there is nothing to store against them. What
-    /// arrives on a channel goes to a receiver the router holds, so the
-    /// only fact this side keeps is that the number is in use.
-    channels: HashSet<u32>,
-}
-
-impl ScopeState {
-    /// Take the next free channel number in this scope, and claim it.
-    ///
-    /// [`mint_scope`](HandleInner::mint_scope) one level down, with the
-    /// same wrap for the same reason. What is shorter here is the
-    /// claim: a [`HashSet`] insert answers "was it free" and takes it
-    /// in one move, where a map has to be asked and then told.
-    ///
-    /// Counting is per scope. Two scopes both using channel `1` are two
-    /// different channels, because a channel number is only ever read
-    /// alongside the scope in the same frame header.
-    fn mint_channel(&mut self) -> u32 {
-        loop {
-            self.channel_counter = self.channel_counter.wrapping_add(1);
-            if self.channels.insert(self.channel_counter) {
-                return self.channel_counter;
-            }
+/// [`mint_scope`](HandleInner::mint_scope) one level down, with the
+/// same wrap for the same reason. What is shorter here is the claim: a
+/// [`HashSet`] insert answers "was it free" and takes it in one move,
+/// where a map has to be asked and then told.
+///
+/// A free function because a scope's state is a
+/// `(counter, channels)` pair rather than a type — two numbers with
+/// nothing to hold them together but the entry they live in.
+fn mint_channel((counter, channels): &mut (u32, HashSet<u32>)) -> u32 {
+    loop {
+        *counter = counter.wrapping_add(1);
+        if channels.insert(*counter) {
+            return *counter;
         }
     }
 }
