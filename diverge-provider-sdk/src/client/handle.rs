@@ -158,6 +158,62 @@ impl Handle {
             .send_channel_request(scope, payload, response_capacity)
             .await
     }
+
+    /// Answer, on a channel the server opened.
+    ///
+    /// The scope and the channel are quoted from the request being
+    /// answered — both are in the header of the frame that arrived on
+    /// [`Scope::request_receiver`], and the channel is in the SERVER's
+    /// numbering, which is why it has to be quoted rather than chosen.
+    ///
+    /// Any number of these, including none, and then exactly one
+    /// [`send_channel_response_finish`](Self::send_channel_response_finish).
+    /// Nothing else ends the answer: a slow one is not a finished one,
+    /// and there is no timeout anywhere in this protocol.
+    ///
+    /// # Nothing comes back
+    ///
+    /// So there is nothing to return and nothing to register. This end
+    /// did not open the channel, and a channel carries one side's
+    /// answer to the other side's request — the request already
+    /// arrived, and this is the answer going the other way.
+    ///
+    /// Nothing is checked either. This end tracks the numbers IT mints,
+    /// and the server's are not among them, so a misquoted channel is a
+    /// frame the server discards and this end never hears about.
+    pub async fn send_channel_response(
+        &self,
+        scope: u32,
+        channel: u32,
+        payload: &[u8],
+    ) {
+        self.0
+            .lock()
+            .await
+            .send_frame(ClientFrame::ChannelResponse {
+                scope,
+                channel,
+                payload,
+            })
+            .await;
+    }
+
+    /// End an answer on a channel the server opened.
+    ///
+    /// One frame, no payload, and the channel is over. The far side
+    /// learns the answer is complete here and nowhere else — the same
+    /// rule this end relies on when it reads
+    /// [`Scope::response_receiver`].
+    ///
+    /// Send it even for an answer that carried nothing. An empty answer
+    /// and an answer still coming are the same thing until this arrives.
+    pub async fn send_channel_response_finish(&self, scope: u32, channel: u32) {
+        self.0
+            .lock()
+            .await
+            .send_frame(ClientFrame::ChannelResponseFinish { scope, channel })
+            .await;
+    }
 }
 
 /// What a [`Handle`] is a handle to.
@@ -346,20 +402,12 @@ impl HandleInner {
             mpsc::channel(response_capacity);
         let (request_sender, request_receiver) =
             mpsc::channel(request_capacity);
-        // From the end of the last frame, which is why it is cleared
-        // and not merely reused: a `Writer` appends from wherever the
-        // buffer already ends.
-        self.buffer.clear();
-        ClientFrame::Request { scope, payload }
-            .encode(&mut Writer::new(&mut self.buffer))
-            .unwrap_or_else(|error| match error {});
         let _ = self.registrations.send(Registration::Scope {
             scope,
             response_sender,
             request_sender,
         });
-        let frame = Bytes::copy_from_slice(&self.buffer);
-        let _ = self.sink.send(frame).await;
+        self.send_frame(ClientFrame::Request { scope, payload }).await;
         Scope {
             scope,
             response_receiver,
@@ -371,10 +419,10 @@ impl HandleInner {
     /// it.
     ///
     /// The same order as [`send_request`](Self::send_request) and for
-    /// the same reasons: take back what has closed, mint, encode,
-    /// register, send. What differs is that the scope is given rather
-    /// than minted — so it can be missing, which is the one failure
-    /// this can report before touching the wire.
+    /// the same reasons: take back what has closed, mint, register,
+    /// send. What differs is that the scope is given rather than minted
+    /// — so it can be missing, which is the one failure this can report
+    /// before touching the wire.
     ///
     /// It is the only failure. Encoding a frame cannot fail — a header
     /// and a payload nobody reads — so a scope that is open is a
@@ -388,22 +436,40 @@ impl HandleInner {
         self.take_back();
         let channel = mint_channel(self.scopes.get_mut(&scope)?);
         let (response_sender, responses) = mpsc::channel(response_capacity);
-        self.buffer.clear();
-        ClientFrame::ChannelRequest {
-            scope,
-            channel,
-            payload,
-        }
-        .encode(&mut Writer::new(&mut self.buffer))
-        .unwrap_or_else(|error| match error {});
         let _ = self.registrations.send(Registration::Channel {
             scope,
             channel,
             response_sender,
         });
-        let frame = Bytes::copy_from_slice(&self.buffer);
-        let _ = self.sink.send(frame).await;
+        self.send_frame(ClientFrame::ChannelRequest {
+            scope,
+            channel,
+            payload,
+        })
+        .await;
         Some(Channel { channel, responses })
+    }
+
+    /// Build one frame and write it.
+    ///
+    /// Every frame this end sends goes through here, which is what
+    /// keeps the buffer's protocol in one place: clear, encode, copy
+    /// out, write. Cleared and not merely reused because a
+    /// [`Writer`] appends from wherever the buffer already ends, so an
+    /// uncleared one would send the last frame with this one glued to
+    /// its back.
+    ///
+    /// A failed write is dropped. It means the connection is gone, and
+    /// every receiver on it is about to close on its own — there is
+    /// nothing this could tell a caller that the caller is not about to
+    /// find out.
+    async fn send_frame(&mut self, frame: ClientFrame<'_>) {
+        self.buffer.clear();
+        frame
+            .encode(&mut Writer::new(&mut self.buffer))
+            .unwrap_or_else(|error| match error {});
+        let bytes = Bytes::copy_from_slice(&self.buffer);
+        let _ = self.sink.send(bytes).await;
     }
 
     /// Drop every scope and channel the router says is finished.
