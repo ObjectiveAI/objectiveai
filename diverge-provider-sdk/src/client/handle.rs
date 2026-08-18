@@ -139,8 +139,8 @@ impl Handle {
     /// A channel this end opened has one thing coming back on it, so
     /// [`Channel`] carries one receiver where [`Scope`] carries two.
     /// There is no nesting: what the server opens arrives on the
-    /// scope's own [`requests`](Scope::requests), whichever channel of
-    /// this end's it was prompted by.
+    /// scope's own [`request_receiver`](Scope::request_receiver),
+    /// whichever channel of this end's it was prompted by.
     pub async fn send_channel_request(
         &self,
         scope: u32,
@@ -323,8 +323,10 @@ impl HandleInner {
     ) -> Scope {
         self.take_back();
         let scope = self.mint_scope();
-        let (response_sender, responses) = mpsc::channel(response_capacity);
-        let (request_sender, requests) = mpsc::channel(request_capacity);
+        let (response_sender, response_receiver) =
+            mpsc::channel(response_capacity);
+        let (request_sender, request_receiver) =
+            mpsc::channel(request_capacity);
         // From the end of the last frame, which is why it is cleared
         // and not merely reused: a `Writer` appends from wherever the
         // buffer already ends.
@@ -338,8 +340,8 @@ impl HandleInner {
             self.scopes.remove(&scope);
             return Scope {
                 scope,
-                responses,
-                requests,
+                response_receiver,
+                request_receiver,
             };
         }
         let _ = self.registrations.send(Registration::Scope {
@@ -351,8 +353,8 @@ impl HandleInner {
         let _ = self.sink.send(frame).await;
         Scope {
             scope,
-            responses,
-            requests,
+            response_receiver,
+            request_receiver,
         }
     }
 
@@ -466,13 +468,14 @@ impl HandleInner {
 ///
 /// # Two streams, and why they are not one
 ///
-/// [`responses`](Self::responses) is the answer to the request. It ends
-/// at a finish frame and there is exactly one per scope.
+/// [`response_receiver`](Self::response_receiver) is the answer to the
+/// request. It ends at a finish frame and there is exactly one per
+/// scope.
 ///
-/// [`requests`](Self::requests) is the server asking for something
-/// inside this scope — serving an image, running a command, proxying
-/// Postgres. There may be none, and there may be more of them than
-/// answers.
+/// [`request_receiver`](Self::request_receiver) is the server asking
+/// for something inside this scope — serving an image, running a
+/// command, proxying Postgres. There may be none, and there may be more
+/// of them than answers.
 ///
 /// They are separate because a channel number belongs to whoever opened
 /// it: the server numbers its own from zero and so does this end, so
@@ -498,12 +501,12 @@ pub struct Scope {
     /// Whole frames, headers included, exactly as they came off the
     /// socket. Ends at the finish frame; the channel closing without
     /// one means the connection went first.
-    pub responses: Receiver<Bytes>,
+    pub response_receiver: Receiver<Bytes>,
     /// The requests the server makes inside this scope.
     ///
     /// Whole frames again, and the channel number in each header is the
     /// SERVER's — it is what an answer has to quote to be understood.
-    pub requests: Receiver<Bytes>,
+    pub request_receiver: Receiver<Bytes>,
 }
 
 /// What the opening side remembers about one open scope.
