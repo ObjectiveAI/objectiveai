@@ -179,7 +179,7 @@ impl Router {
                     if let Some(sender) = self.channel(scope, channel) {
                         let _ = sender.send(bytes).await;
                     }
-                    self.close(scope, channel);
+                    self.close_channel(scope, channel);
                 }
             }
         }
@@ -208,7 +208,7 @@ impl Router {
     /// Only on a real removal, so that whoever is counting what it
     /// opened against what it closed is never told twice. A finish for
     /// a channel that is already gone is nothing to do.
-    fn close(&mut self, scope: u32, channel: u32) {
+    fn close_channel(&mut self, scope: u32, channel: u32) {
         if self.channels.remove(&(scope, channel)).is_some() {
             let _ = self.closed.send((scope, channel));
         }
