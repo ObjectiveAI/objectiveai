@@ -85,6 +85,11 @@ impl Handle {
     /// Comes back with the scope's number and the two receivers its
     /// frames will arrive on. See [`Scope`].
     ///
+    /// The payload is written as given, tag and all. This layer does
+    /// not know what a request says and does not need to — see
+    /// [`ClientRequest`] for the ten it could be, and
+    /// [`endpoints`](crate::endpoints) for what each one means.
+    ///
     /// Holds the lock for the whole call, which is what makes it safe
     /// to call from anywhere: minting a number, claiming it, and
     /// writing the frame that spends it are one indivisible act. Two
@@ -110,14 +115,14 @@ impl Handle {
     /// one.
     pub async fn send_request(
         &self,
-        request: ClientRequest<'_>,
+        payload: &[u8],
         response_capacity: usize,
         request_capacity: usize,
     ) -> Scope {
         self.0
             .lock()
             .await
-            .send_request(request, response_capacity, request_capacity)
+            .send_request(payload, response_capacity, request_capacity)
             .await
     }
 
@@ -309,15 +314,19 @@ impl HandleInner {
     ///
     /// # What a failed send does
     ///
-    /// Nothing, here. A dead socket and a request that will not
-    /// serialize both end the same way: the receivers in the returned
-    /// [`Scope`] close without a finish frame, which is what a caller
-    /// reads as "this scope is not happening". The scope number is not
-    /// spent in the second case — the entry comes back out of the map
-    /// before returning, because nothing on the wire ever named it.
+    /// Nothing, here. The receivers in the returned [`Scope`] close
+    /// without a finish frame, which is what a caller reads as "this
+    /// scope is not happening".
+    ///
+    /// A failed encode is the same, with the scope number given up
+    /// again — the entry comes back out of the map before returning,
+    /// because nothing on the wire ever named it. As in
+    /// [`send_channel_request`](Self::send_channel_request), that
+    /// branch cannot happen: the payload is bytes, and bytes cannot
+    /// fail to serialize.
     async fn send_request(
         &mut self,
-        request: ClientRequest<'_>,
+        payload: &[u8],
         response_capacity: usize,
         request_capacity: usize,
     ) -> Scope {
@@ -331,12 +340,21 @@ impl HandleInner {
         // and not merely reused: a `Writer` appends from wherever the
         // buffer already ends.
         self.buffer.clear();
-        let encoded = ClientFrame::Request { scope, request }
-            .encode(&mut Writer::new(&mut self.buffer));
+        let encoded = ClientFrame::Request {
+            scope,
+            // The opaque-bytes variant, which encodes verbatim. It is
+            // named for what a DECODER makes of a payload it cannot
+            // place, and this end places nothing on purpose: a caller
+            // encodes its own request and hands over the bytes, exactly
+            // as it does for a channel request.
+            request: ClientRequest::Invalid(payload),
+        }
+        .encode(&mut Writer::new(&mut self.buffer));
         if encoded.is_err() {
             // Never sent, never registered, never named on the wire.
             // The senders drop here and the caller's receivers close
-            // with them.
+            // with them. Unreachable while the payload is bytes; see
+            // above.
             self.scopes.remove(&scope);
             return Scope {
                 scope,
