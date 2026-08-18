@@ -4,11 +4,10 @@
 //! one, opens channels of its own, and — if it was the side that
 //! dialled — authenticates.
 
-use super::auth::Auth;
+use std::convert::Infallible;
+
 use super::FrameError;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::{ClientRequest, ClientRequestEncodeError};
 
 /// A frame sent by a client.
 ///
@@ -20,10 +19,17 @@ use crate::endpoints::{ClientRequest, ClientRequestEncodeError};
 ///
 /// # Nothing here is parsed
 ///
-/// Every payload is bytes, in both directions. This layer splits a
+/// Every payload is bytes, without exception. This layer splits a
 /// header and names a frame kind; what a payload MEANS belongs to the
 /// protocol carrying it, and is discriminated by a tag inside the
 /// payload rather than by anything out here.
+///
+/// Decoding one is a second step the holder takes:
+/// [`ClientRequest::decode`](crate::endpoints::ClientRequest) for a
+/// request, [`Auth::decode`](super::auth::Auth) for a credential. Which
+/// is what lets one type serve both directions of the wire — a sender
+/// hands over bytes it encoded itself, and a receiver decodes when it
+/// is ready to act, rather than the envelope insisting on both.
 ///
 /// # The gaps
 ///
@@ -46,20 +52,20 @@ pub enum ClientFrame<'a> {
     /// followed by a close. A peer that has not authenticated cannot
     /// make the far end compose anything, so a bad credential earns no
     /// bytes to amplify and no reason to read.
-    Auth(
-        /// The credential — see [`Auth`].
-        Auth<'a>,
-    ),
+    Auth {
+        /// The credential bytes, mode byte included — see
+        /// [`Auth`](super::auth::Auth).
+        payload: &'a [u8],
+    },
     /// Type `1`. A request that opens a scope.
     ///
     /// The scope is in the header and the CLIENT chose it. Every frame
     /// that follows, in either direction, carries it.
     ///
-    /// Read here rather than handed on, because the set is closed
-    /// and a server has to know which request it is answering before
-    /// it can answer. One this version cannot make out becomes
-    /// [`Invalid`](ClientRequest::Invalid), which is answered like any
-    /// other rather than refused.
+    /// Handed on rather than read here. A server decodes it when it
+    /// goes to answer it, and one this version cannot make out becomes
+    /// [`Invalid`](crate::endpoints::ClientRequest::Invalid) at that
+    /// point — answered like any other rather than refused.
     Request {
         /// The scope this opens.
         ///
@@ -74,8 +80,10 @@ pub enum ClientFrame<'a> {
         /// it. Reuse after a finish is fine, because nothing
         /// remembers.
         scope: u32,
-        /// Which request — see [`ClientRequest`].
-        request: ClientRequest<'a>,
+        /// The request bytes, tag included — see
+        /// [`ClientRequest`](crate::endpoints::ClientRequest) for what
+        /// the tag chooses between.
+        payload: &'a [u8],
     },
     /// Type `4`. A request to the server, opening a channel.
     ///
@@ -120,17 +128,13 @@ pub enum ClientFrame<'a> {
 /// [`ServerFrame`](super::server::ServerFrame) for why the writer
 /// permits the one and not the other.
 impl Encode for ClientFrame<'_> {
-    /// A request's own. It is the only payload here that is a structure
-    /// rather than bytes, so it is the only one with anything to fail
-    /// at.
-    type Error = ClientRequestEncodeError;
+    /// [`Infallible`]: a header is fixed bytes and every payload is
+    /// bytes already.
+    type Error = Infallible;
 
-    fn encode(
-        &self,
-        out: &mut Writer<'_>,
-    ) -> Result<(), ClientRequestEncodeError> {
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
         let (r#type, scope, channel) = match self {
-            ClientFrame::Auth(_) => (0, 0, 0),
+            ClientFrame::Auth { .. } => (0, 0, 0),
             ClientFrame::Request { scope, .. } => (1, *scope, 0),
             ClientFrame::ChannelRequest { scope, channel, .. } => {
                 (4, *scope, *channel)
@@ -146,13 +150,9 @@ impl Encode for ClientFrame<'_> {
         out.extend_from_slice(&scope.to_be_bytes());
         out.extend_from_slice(&channel.to_be_bytes());
         match self {
-            // Its error is `Infallible`, and an empty match on one is
-            // how you say so: there is no value to handle.
-            ClientFrame::Auth(auth) => {
-                auth.encode(out).map_err(|error| match error {})
-            }
-            ClientFrame::Request { request, .. } => request.encode(out),
-            ClientFrame::ChannelRequest { payload, .. }
+            ClientFrame::Auth { payload }
+            | ClientFrame::Request { payload, .. }
+            | ClientFrame::ChannelRequest { payload, .. }
             | ClientFrame::ChannelResponse { payload, .. } => {
                 out.extend_from_slice(payload);
                 Ok(())
@@ -168,16 +168,8 @@ impl<'a> ClientFrame<'a> {
     pub fn decode(bytes: &'a [u8]) -> Result<Self, FrameError> {
         let (r#type, scope, channel, payload) = super::split_header(bytes)?;
         Ok(match r#type {
-            0 => ClientFrame::Auth(
-                Auth::decode(payload).map_err(FrameError::Auth)?,
-            ),
-            1 => ClientFrame::Request {
-                scope,
-                // Decoding one is `Infallible`: a payload this version
-                // cannot read becomes `Invalid` rather than an error.
-                request: ClientRequest::decode(payload)
-                    .unwrap_or_else(|error| match error {}),
-            },
+            0 => ClientFrame::Auth { payload },
+            1 => ClientFrame::Request { scope, payload },
             4 => ClientFrame::ChannelRequest {
                 scope,
                 channel,

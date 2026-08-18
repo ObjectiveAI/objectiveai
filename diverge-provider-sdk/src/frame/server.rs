@@ -8,9 +8,7 @@
 
 use std::convert::Infallible;
 
-use super::auth::Auth;
 use super::FrameError;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
 /// A frame sent by a server.
@@ -52,10 +50,11 @@ pub enum ServerFrame<'a> {
     /// followed by a close. A peer that has not authenticated cannot
     /// make the far end compose anything, so a bad credential earns no
     /// bytes to amplify and no reason to read.
-    Auth(
-        /// The credential — see [`Auth`].
-        Auth<'a>,
-    ),
+    Auth {
+        /// The credential bytes, mode byte included — see
+        /// [`Auth`](super::auth::Auth).
+        payload: &'a [u8],
+    },
     /// Type `2` on channel `0`. One piece of the answer to the
     /// client's request.
     Response {
@@ -125,14 +124,13 @@ pub enum ServerFrame<'a> {
 /// a header and then handing the same writer to its payload is
 /// appending twice rather than reaching backwards.
 impl Encode for ServerFrame<'_> {
-    /// [`Infallible`]: a header is fixed bytes, and every payload here
-    /// is either bytes already or an [`Auth`], which cannot fail
-    /// either.
+    /// [`Infallible`]: a header is fixed bytes and every payload is
+    /// bytes already.
     type Error = Infallible;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
         let (r#type, scope, channel) = match self {
-            ServerFrame::Auth(_) => (0, 0, 0),
+            ServerFrame::Auth { .. } => (0, 0, 0),
             ServerFrame::Response { scope, .. } => (2, *scope, 0),
             ServerFrame::ResponseFinish { scope } => (3, *scope, 0),
             ServerFrame::ChannelRequest { scope, channel, .. } => {
@@ -149,8 +147,8 @@ impl Encode for ServerFrame<'_> {
         out.extend_from_slice(&scope.to_be_bytes());
         out.extend_from_slice(&channel.to_be_bytes());
         match self {
-            ServerFrame::Auth(auth) => auth.encode(out),
-            ServerFrame::Response { payload, .. }
+            ServerFrame::Auth { payload }
+            | ServerFrame::Response { payload, .. }
             | ServerFrame::ChannelRequest { payload, .. }
             | ServerFrame::ChannelResponse { payload, .. } => {
                 out.extend_from_slice(payload);
@@ -176,9 +174,7 @@ impl<'a> ServerFrame<'a> {
             // Channel is meaningless on a scope-level reply — it is
             // always `0` — so a non-zero one is ignored rather than
             // rejected.
-            0 => ServerFrame::Auth(
-                Auth::decode(payload).map_err(FrameError::Auth)?,
-            ),
+            0 => ServerFrame::Auth { payload },
             2 => ServerFrame::Response { scope, payload },
             3 => ServerFrame::ResponseFinish { scope },
             4 => ServerFrame::ChannelRequest {

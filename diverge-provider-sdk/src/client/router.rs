@@ -187,7 +187,7 @@ impl Router {
             match frame {
                 // Not a scope's frame — it answers the connection, and
                 // the connection is not routed.
-                ServerFrame::Auth(_) => {}
+                ServerFrame::Auth { .. } => {}
                 ServerFrame::Response { scope, .. } => {
                     if let Some(entry) = self.scope(scope) {
                         let _ = entry.response_sender.send(bytes).await;

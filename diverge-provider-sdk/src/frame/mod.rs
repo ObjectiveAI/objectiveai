@@ -112,20 +112,20 @@
 //! and only a client sends it; `4` opens a CHANNEL and both sides
 //! send it.
 //!
-//! They are discriminated differently, and deliberately. A scope
-//! request is read here, into a
-//! [`ClientRequest`](crate::endpoints::ClientRequest) — there are ten
-//! of them, the set is closed, and a server has to know which one it
-//! was answering before it can answer anything. A channel request is
-//! not: its tag means something only inside the scope it arrived in,
-//! so this layer hands the bytes to whoever opened that scope.
+//! Neither is discriminated here. A scope request's tag chooses among
+//! the ten in [`ClientRequest`](crate::endpoints::ClientRequest), and a
+//! channel request's means something only inside the scope it arrived
+//! in — but both are read by whoever is going to act on them, and this
+//! layer hands over bytes either way.
 //!
-//! Reading the scope request here is also what makes a malformed one
-//! answerable. It decodes to
-//! [`Invalid`](crate::endpoints::ClientRequest::Invalid) rather than
-//! failing, so a server answers in the scope the client opened and
-//! finishes it — instead of holding bytes it cannot name with nowhere
-//! to complain.
+//! A malformed scope request is still answerable, and for the same
+//! reason it always was: decoding one is
+//! [`Infallible`](std::convert::Infallible), so a payload nobody can
+//! name becomes
+//! [`Invalid`](crate::endpoints::ClientRequest::Invalid) rather than a
+//! failure. What changed is only WHERE that happens — a server decodes
+//! when it goes to answer, in the scope the client opened, instead of
+//! this layer deciding on its behalf.
 //!
 //! # Growth happens in payloads, not here
 //!
@@ -176,13 +176,14 @@
 //! Auth frames have no scope and no channel. They come before either
 //! exists, and are what makes it possible for one to.
 //!
-//! An auth frame carries an [`Auth`](auth::Auth) directly, and it is
-//! the one payload this layer reads. Every other belongs to an
-//! endpoint and is handed on as bytes; this one belongs to the
-//! CONNECTION, which is what this layer is about — there is no scope
-//! to hand it to, because it is what makes a scope possible.
+//! An auth frame carries bytes, like every other frame here. What they
+//! mean is [`Auth`](auth::Auth), and reading them is a second step the
+//! holder takes — there is nobody else to hand them to, since a
+//! credential belongs to the CONNECTION rather than to any scope, but
+//! that is a reason to decode them promptly and not a reason for the
+//! envelope to insist.
 //!
-//! What is INSIDE the credential is still nobody's business here.
+//! What is INSIDE the credential is nobody's business here at all.
 //! [`Auth`](auth::Auth) says which mode it arrived in and hands back a
 //! string; what counts as an acceptable one is for the two ends to
 //! agree, and there is a second mode coming in which a broker is the

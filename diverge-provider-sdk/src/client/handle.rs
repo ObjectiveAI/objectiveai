@@ -14,7 +14,6 @@ use tokio::sync::mpsc::{
 use super::router::Registration;
 use crate::connection::Connection;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::ClientRequest;
 use crate::frame::client::ClientFrame;
 
 /// One connection's outbound half, and the way to be heard by the
@@ -87,8 +86,9 @@ impl Handle {
     ///
     /// The payload is written as given, tag and all. This layer does
     /// not know what a request says and does not need to — see
-    /// [`ClientRequest`] for the ten it could be, and
-    /// [`endpoints`](crate::endpoints) for what each one means.
+    /// [`ClientRequest`](crate::endpoints::ClientRequest) for the ten
+    /// it could be, and [`endpoints`](crate::endpoints) for what each
+    /// one means.
     ///
     /// Holds the lock for the whole call, which is what makes it safe
     /// to call from anywhere: minting a number, claiming it, and
@@ -318,12 +318,10 @@ impl HandleInner {
     /// without a finish frame, which is what a caller reads as "this
     /// scope is not happening".
     ///
-    /// A failed encode is the same, with the scope number given up
-    /// again — the entry comes back out of the map before returning,
-    /// because nothing on the wire ever named it. As in
-    /// [`send_channel_request`](Self::send_channel_request), that
-    /// branch cannot happen: the payload is bytes, and bytes cannot
-    /// fail to serialize.
+    /// There is no failed encode. A frame is a header and a payload
+    /// this crate never looks at, so encoding one is
+    /// [`Infallible`](std::convert::Infallible) and says so in the
+    /// type.
     async fn send_request(
         &mut self,
         payload: &[u8],
@@ -340,28 +338,9 @@ impl HandleInner {
         // and not merely reused: a `Writer` appends from wherever the
         // buffer already ends.
         self.buffer.clear();
-        let encoded = ClientFrame::Request {
-            scope,
-            // The opaque-bytes variant, which encodes verbatim. It is
-            // named for what a DECODER makes of a payload it cannot
-            // place, and this end places nothing on purpose: a caller
-            // encodes its own request and hands over the bytes, exactly
-            // as it does for a channel request.
-            request: ClientRequest::Invalid(payload),
-        }
-        .encode(&mut Writer::new(&mut self.buffer));
-        if encoded.is_err() {
-            // Never sent, never registered, never named on the wire.
-            // The senders drop here and the caller's receivers close
-            // with them. Unreachable while the payload is bytes; see
-            // above.
-            self.scopes.remove(&scope);
-            return Scope {
-                scope,
-                response_receiver,
-                request_receiver,
-            };
-        }
+        ClientFrame::Request { scope, payload }
+            .encode(&mut Writer::new(&mut self.buffer))
+            .unwrap_or_else(|error| match error {});
         let _ = self.registrations.send(Registration::Scope {
             scope,
             response_sender,
@@ -385,11 +364,9 @@ impl HandleInner {
     /// than minted — so it can be missing, which is the one failure
     /// this can report before touching the wire.
     ///
-    /// A failed encode is also `None`, with the number given up again.
-    /// It cannot happen today: a channel request's payload is bytes
-    /// this crate never looks at, and bytes cannot fail to serialize.
-    /// The branch is there because the signature says it can be, not
-    /// because anything has seen it.
+    /// It is the only failure. Encoding a frame cannot fail — a header
+    /// and a payload nobody reads — so a scope that is open is a
+    /// request that goes out.
     async fn send_channel_request(
         &mut self,
         scope: u32,
@@ -400,18 +377,13 @@ impl HandleInner {
         let channel = self.scopes.get_mut(&scope)?.mint_channel();
         let (response_sender, responses) = mpsc::channel(response_capacity);
         self.buffer.clear();
-        let encoded = ClientFrame::ChannelRequest {
+        ClientFrame::ChannelRequest {
             scope,
             channel,
             payload,
         }
-        .encode(&mut Writer::new(&mut self.buffer));
-        if encoded.is_err() {
-            if let Some(state) = self.scopes.get_mut(&scope) {
-                state.channels.remove(&channel);
-            }
-            return None;
-        }
+        .encode(&mut Writer::new(&mut self.buffer))
+        .unwrap_or_else(|error| match error {});
         let _ = self.registrations.send(Registration::Channel {
             scope,
             channel,
