@@ -47,8 +47,8 @@
 //! answers in them, so what one side registers in advance the other
 //! learns from a frame.
 //!
-//! The write half is not here yet. When it is, it will be what
-//! [`Sent`](router::Sent) is addressed to.
+//! The write half is not here yet. When it is, it will be what sends
+//! the [`Registration`](router::Registration)s.
 //!
 //! There was a handler tree here before any of this, written before the
 //! client half had a shape. It is gone rather than carried — what

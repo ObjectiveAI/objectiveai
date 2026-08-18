@@ -5,9 +5,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use futures_util::StreamExt as _;
 use futures_util::stream::SplitStream;
-use tokio::sync::mpsc::{
-    self, Receiver, Sender, UnboundedReceiver, UnboundedSender,
-};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 
 use crate::connection::Connection;
 use crate::frame::client::ClientFrame;
@@ -16,42 +14,42 @@ use crate::frame::client::ClientFrame;
 ///
 /// Reads frames, looks up where each belongs, and forwards it. The
 /// mirror of [`client::router::Router`](crate::client::router::Router),
-/// and the same in every respect the two halves share: whole frames go
+/// and the same wherever the two halves are the same: whole frames go
 /// on untouched, header included; one hop from here to the consumer;
 /// bounded senders, so a consumer that stops reading stops the
-/// connection rather than losing a frame.
+/// connection rather than losing a frame; a lookup that misses drains
+/// the registration queue and tries once more.
 ///
 /// # What is not mirrored
 ///
-/// **A scope arrives rather than being registered.** Only a client
-/// opens one, so this end cannot be told in advance where a scope's
-/// frames go — the frame that opens it is the first anyone hears of
-/// it. So this makes the entry itself and hands out a [`Request`],
-/// where the client's router waits to be told.
+/// **Scope-opening requests go somewhere before any scope exists.**
+/// Nothing else can: the client chooses the scope, so this end has
+/// nothing to register against until a request names one. They all go
+/// to one stream, the only one on this connection that is not about a
+/// particular scope.
 ///
-/// Which turns the lookup around. On the client's side a miss means
-/// "not registered YET", and draining the queue is worth a try. Here a
-/// miss on a scope is final: nothing in the queue creates one, because
-/// only a frame does.
+/// **A scope ends from this end.** No client frame closes one — the
+/// server's own response finish does, and this reads what the client
+/// sends. So it has to be told, which is what
+/// [`ScopeClosed`](Registration::ScopeClosed) is for.
 ///
-/// **A scope ends from this end.** No client frame closes a scope —
-/// the server's own `ResponseFinish` does — so the read loop never
-/// sees it happen and has to be told. That is what [`Sent`] is: the
-/// writing half saying what it wrote, in the order it wrote it.
+/// **A closure only ever names a channel.** A scope this end closed is
+/// a scope this end already knows about, so there is nothing to report
+/// back about it. Hence `(scope, channel)` rather than the client
+/// router's `(scope, Option<u32>)`.
 ///
-/// **Closures only ever name a channel.** A scope this end closed is a
-/// scope this end already knows about, so there is nothing to report
-/// back — which is why a closure out of here carries `(scope,
-/// channel)` and not the client router's `(scope, Option<u32>)`.
+/// **A scope registers one sender, not two.** Responses on channel `0`
+/// are what this end SENDS, so there is nothing coming back on that
+/// channel and nowhere for it to go.
 ///
 /// # Auth is dropped on the floor
 ///
 /// And that is a gap, not a decision. A credential belongs to the
 /// connection, this reads the connection, and there is nowhere for it
 /// to go — no channel out of here carries one, so the frame is
-/// discarded like a type nobody defines. Whatever ends up deciding
-/// what a credential means will need a path through here, and does not
-/// have one.
+/// discarded like a type nobody defines. Whatever ends up deciding what
+/// a credential means will need a path through here, and does not have
+/// one.
 #[derive(Debug)]
 pub struct Router {
     /// The read half of the connection.
@@ -63,33 +61,30 @@ pub struct Router {
     stream: SplitStream<Connection>,
     /// Every scope open on this connection.
     scopes: HashMap<u32, Scope>,
-    /// Where a newly opened scope goes.
+    /// Where every scope-opening request goes.
     ///
-    /// One per client request, in arrival order, and the only way
-    /// anything on this side learns a scope exists.
+    /// One stream for the connection, because a request is what creates
+    /// a scope and there is nothing scope-shaped to sort it into yet.
+    /// The scope is in the frame's header, and registering somewhere to
+    /// put the rest of it is what whoever reads this does next.
     ///
-    /// Bounded, and a full queue stops the loop — the same trade as
-    /// every other queue here, for a stronger reason: a dropped request
-    /// is a scope the client is waiting on and nobody is serving, and
-    /// the client would wait forever, because a stream ends at its
+    /// Bounded, and a full one stops the loop like any other. The cost
+    /// of not stopping would be worse here than anywhere: a dropped
+    /// request is a scope a client is waiting on that nobody is
+    /// serving, and it would wait forever, because a stream ends at its
     /// finish frame and no finish would ever come.
-    requests: Sender<Request>,
-    /// How deep to make a scope's channel-request stream.
+    request_sender: Sender<Bytes>,
+    /// Somewhere to register a new destination before its frames
+    /// arrive.
     ///
-    /// Chosen here because there is nobody to ask: the scope does not
-    /// exist until this makes it, and the party that will serve it has
-    /// not seen it yet. One number for every scope on the connection,
-    /// where a client picks one per request.
-    request_capacity: usize,
-    /// What the writing half has sent.
+    /// See [`Registration`] for the three kinds.
     ///
-    /// Two things, and both change this map — see [`Sent`]. One queue
-    /// rather than two, so they land in the order they were sent.
-    ///
-    /// Unbounded, for the same reason the client's registrations are: a
-    /// writer must not block to say what it just did, least of all
-    /// behind a queue that this loop is the one draining.
-    sent: UnboundedReceiver<Sent>,
+    /// Unbounded on purpose. Registering must not block, because
+    /// whoever is registering is about to write the frame that causes
+    /// the traffic — and a registration that waited behind a full queue
+    /// would be an exchange whose other half arrives before anywhere
+    /// exists to put it.
+    registrations: UnboundedReceiver<Registration>,
     /// Where this says a channel is finished.
     ///
     /// `(scope, channel)`, in this end's numbering, sent when the
@@ -98,38 +93,33 @@ pub struct Router {
     /// to whoever was reading the answer.
     ///
     /// Unbounded, because it is sent from inside the loop that would
-    /// have to drain it.
+    /// otherwise have to drain it.
     closed: UnboundedSender<(u32, u32)>,
 }
 
 impl Router {
-    /// Take the read half, and both ends that connect it to the writer.
+    /// Take the read half, and the three ends that connect it to the
+    /// writer.
     ///
     /// The read half of a split [`Connection`], the sending end of the
-    /// request channel, the receiving end of the [`Sent`] channel, and
-    /// the sending end of the closure channel. None is made here: each
-    /// has another end, and the other ends belong together elsewhere.
-    ///
-    /// `request_capacity` is the depth of every scope's channel-request
-    /// stream — one number for the connection, because the party that
-    /// will serve a scope has not seen it when this has to make it. A
-    /// client picks one per request instead.
+    /// request stream, the receiving end of the registration channel,
+    /// and the sending end of the closure channel. None of them is made
+    /// here: each has another end, and the other ends belong together
+    /// elsewhere.
     ///
     /// No scopes. A connection starts with none open, and every entry
-    /// arrives as a frame.
+    /// arrives through `registrations`.
     pub fn new(
         stream: SplitStream<Connection>,
-        requests: Sender<Request>,
-        request_capacity: usize,
-        sent: UnboundedReceiver<Sent>,
+        request_sender: Sender<Bytes>,
+        registrations: UnboundedReceiver<Registration>,
         closed: UnboundedSender<(u32, u32)>,
     ) -> Self {
         Router {
             stream,
             scopes: HashMap::new(),
-            requests,
-            request_capacity,
-            sent,
+            request_sender,
+            registrations,
             closed,
         }
     }
@@ -154,11 +144,10 @@ impl Router {
     /// frame, a scope with no entry, and a channel with no entry inside
     /// a scope that has one.
     ///
-    /// A sixth is a scope-opening request for a scope that is already
-    /// open. It is the one discard that is a client's mistake rather
-    /// than a race, and the only one this end could have been wrong
-    /// about — so it is decided only after draining what the writer has
-    /// said, in case the scope has just been finished.
+    /// A request is the one frame that cannot miss. It is not routed by
+    /// scope, so there is no entry for it to fail to find — only a
+    /// stream nobody is reading, which is a server with nothing serving
+    /// it.
     pub async fn run(mut self) {
         while let Some(received) = self.stream.next().await {
             // No frame, so nothing to route. The stream is what ends
@@ -172,20 +161,23 @@ impl Router {
                 // Nowhere to go. See the type's documentation: this is
                 // the gap, not a decision.
                 ClientFrame::Auth { .. } => {}
-                ClientFrame::Request { scope, .. } => {
-                    self.open(scope, bytes).await;
+                // Not routed by scope, because the scope is what it
+                // opens. Nothing is inserted here either: the entry
+                // arrives when whoever serves this says where the rest
+                // of the scope should go.
+                ClientFrame::Request { .. } => {
+                    let _ = self.request_sender.send(bytes).await;
                 }
                 // The scope's stream, not a channel's. The channel
                 // number in the header is the CLIENT's, and the map
                 // holds this end's — see `request_sender`.
                 //
-                // Nothing is opened here that this has to remember. The
-                // answer travels the other way, and what remembers it
-                // is whatever writes it.
+                // Nothing is closed. There is no entry to close: a
+                // request opens a channel that this end answers, and
+                // both the answering and the closing happen where the
+                // frames go, not here.
                 ClientFrame::ChannelRequest { scope, .. } => {
-                    // No drain on a miss: nothing in the queue creates
-                    // a scope, so a scope that is absent is absent.
-                    if let Some(entry) = self.scopes.get_mut(&scope) {
+                    if let Some(entry) = self.scope(scope) {
                         let _ = entry.request_sender.send(bytes).await;
                     }
                 }
@@ -206,70 +198,30 @@ impl Router {
         }
     }
 
-    /// Open a scope, and hand it to whoever is serving.
+    /// Find a scope, draining registrations first if it is not there.
     ///
-    /// The frame goes on whole, as every other frame does, inside a
-    /// [`Request`] that also carries the stream the scope's channel
-    /// requests will arrive on. Both have to exist before this returns:
-    /// a channel request for this scope may be the very next frame.
+    /// The retry is not an optimization, it is the fix for a race that
+    /// is otherwise unavoidable: a request reaches its server through
+    /// one queue and the registration comes back through another, and
+    /// the client's next frame is racing both. Draining on a miss
+    /// closes the window — anything registered before the frame was
+    /// read is found on the second look.
     ///
-    /// # A scope that is already open
-    ///
-    /// Discarded, and the client is the party that could have prevented
-    /// it. Two live scopes with one number are indistinguishable in
-    /// every frame that follows, and the alternative — replacing the
-    /// entry — would silently strand whoever is serving the first one.
-    ///
-    /// The queue is drained before deciding that, and that is the whole
-    /// reason the check is not a bare lookup: a scope this end finished
-    /// is a number the client may legitimately reuse, and the
-    /// [`ResponseFinish`](Sent::ResponseFinish) saying so may still be
-    /// waiting. Draining first is the difference between reuse and
-    /// collision.
-    ///
-    /// # Nobody serving
-    ///
-    /// If the request cannot be handed over, the entry comes back out.
-    /// Keeping it would be keeping a scope with nowhere to deliver, and
-    /// every frame that followed would be routed into a channel nobody
-    /// holds the other end of.
-    async fn open(&mut self, scope: u32, bytes: Bytes) {
-        if self.scopes.contains_key(&scope) {
+    /// A miss after the drain is a real miss. Nothing waits for a
+    /// registration that has not been made, because nothing says one is
+    /// coming: a request that nobody chose to serve never gets one.
+    fn scope(&mut self, scope: u32) -> Option<&mut Scope> {
+        if !self.scopes.contains_key(&scope) {
             self.drain();
-            if self.scopes.contains_key(&scope) {
-                return;
-            }
         }
-        let (request_sender, request_receiver) =
-            mpsc::channel(self.request_capacity);
-        self.scopes.insert(
-            scope,
-            Scope {
-                request_sender,
-                channels: HashMap::new(),
-            },
-        );
-        let request = Request {
-            scope,
-            request: bytes,
-            request_receiver,
-        };
-        if self.requests.send(request).await.is_err() {
-            self.scopes.remove(&scope);
-        }
+        self.scopes.get_mut(&scope)
     }
 
-    /// Find a channel inside a scope, draining first if it is not
-    /// there.
+    /// Find a channel inside a scope, on the same terms.
     ///
-    /// The retry is for a race that is otherwise unavoidable, and it is
-    /// the client router's race with the ends swapped: this side opens
-    /// a channel by writing a frame and saying so on [`sent`](Self::sent),
-    /// and those travel separately. The answer can arrive before the
-    /// word does.
-    ///
-    /// A miss after the drain is a real miss — a channel this end never
-    /// opened, or one whose answer already finished.
+    /// Either half missing drains, because either half can be the one
+    /// that has not arrived: a channel's registration is its own entry,
+    /// and it queues behind the scope's.
     fn channel(&mut self, scope: u32, channel: u32) -> Option<&Sender<Bytes>> {
         let found = self
             .scopes
@@ -283,12 +235,12 @@ impl Router {
 
     /// Drop a channel, and say so.
     ///
-    /// Only on a real removal. A finish for a channel that is already
-    /// gone announces nothing, so that whoever is counting what it
+    /// Only on a real removal, so that whoever is counting what it
     /// opened against what it closed is never told twice.
     ///
-    /// The scope stays. It ends when this end finishes it and not
-    /// before — see [`Sent::ResponseFinish`].
+    /// The scope stays. A scope outlives its channels — it is the
+    /// request, and they are the exchanges inside it — and it ends when
+    /// this end finishes it, which this end does not learn from here.
     fn close_channel(&mut self, scope: u32, channel: u32) {
         let Some(entry) = self.scopes.get_mut(&scope) else {
             return;
@@ -298,28 +250,43 @@ impl Router {
         }
     }
 
-    /// Apply everything the writing half has said, in order.
+    /// Take every registration that is waiting, and apply it.
     ///
-    /// Emptied rather than sampled, on a miss and before deciding a
-    /// scope number is taken. Two kinds arrive and they pull in
-    /// opposite directions — one adds a channel, the other removes a
-    /// whole scope — which is exactly why they share a queue: applied
-    /// out of order, a close and a reopen of the same number are the
-    /// same two messages with the opposite meaning.
+    /// Registrations arrive unbounded and this empties the queue rather
+    /// than taking one, because the cost is per call and not per item:
+    /// it runs on a miss, and a miss is what it is trying to stop
+    /// happening again.
     ///
-    /// A channel for a scope that is gone is discarded. It is not a
-    /// mistake here the way it is on the client's side: the scope may
-    /// have been finished by this end between the writer registering
-    /// and this reading it, which is a race nobody could have avoided
-    /// and nothing to do about.
+    /// Two things get discarded, and neither is anybody's mistake here
+    /// the way a duplicate is on the client's side.
     ///
-    /// A duplicate channel keeps the entry it already had, on the same
-    /// argument as everywhere else — replacing it would redirect a
-    /// stream somebody is still reading.
+    /// **A duplicate.** An entry that already exists stays, because
+    /// replacing it would redirect a stream somebody is still reading.
+    /// A client that reuses a live scope number is the usual cause, and
+    /// the one that could have prevented it.
+    ///
+    /// **A channel with no scope.** Its scope was finished between the
+    /// writer registering and this reading it, which is a race nobody
+    /// could have avoided. There is nothing to do about it and nothing
+    /// to report: a registration is not a request, and there is no
+    /// reply to put an answer in.
+    ///
+    /// [`ScopeClosed`](Registration::ScopeClosed) is the one that
+    /// removes rather than adds, and it shares this queue for a reason
+    /// — see there.
     fn drain(&mut self) {
-        while let Ok(sent) = self.sent.try_recv() {
-            match sent {
-                Sent::ChannelRequest {
+        while let Ok(registration) = self.registrations.try_recv() {
+            match registration {
+                Registration::Scope {
+                    scope,
+                    request_sender,
+                } => {
+                    self.scopes.entry(scope).or_insert_with(|| Scope {
+                        request_sender,
+                        channels: HashMap::new(),
+                    });
+                }
+                Registration::Channel {
                     scope,
                     channel,
                     response_sender,
@@ -329,7 +296,7 @@ impl Router {
                     };
                     entry.channels.entry(channel).or_insert(response_sender);
                 }
-                Sent::ResponseFinish { scope } => {
+                Registration::ScopeClosed { scope } => {
                     self.scopes.remove(&scope);
                 }
             }
@@ -354,9 +321,9 @@ struct Scope {
     /// `3` are two different channels, and one map keyed by `3` holds
     /// one of them.
     ///
-    /// The number is not lost: it is in the header of the frame that
-    /// goes down this, whole. What this end does with it is answer on
-    /// it, which is a write, and writes are not a router's business.
+    /// Not that the number is lost: it is in the header of the frame
+    /// that goes down this, whole. What this end does with it is answer
+    /// on it, which is a write, and writes are not a router's business.
     ///
     /// Nothing is ever removed for one of these. A request is the whole
     /// of what arrives — one frame, opening a channel whose remaining
@@ -364,7 +331,7 @@ struct Scope {
     /// none to take away.
     request_sender: Sender<Bytes>,
     /// The channels this SERVER opened, by number, and what the client
-    /// says back on each.
+    /// sends back on each.
     ///
     /// One space, because one opener: everything in here was numbered
     /// by this end. What the client numbers goes to
@@ -373,65 +340,40 @@ struct Scope {
     channels: HashMap<u32, Sender<Bytes>>,
 }
 
-/// A scope a client opened, and what will arrive inside it.
+/// Somewhere to put frames, arranged before any of them arrive.
 ///
-/// What a [`Router`] hands out, once per scope-opening request. The
-/// scope is open from the moment this exists, and stays open until this
-/// end finishes it — nothing a client sends ends one.
+/// Sent to a [`Router`], rather than installed by one, because the
+/// party that knows what a scope needs is the party that read the
+/// request and decided to serve it. It races the frames it is for,
+/// which a [`Router`] handles by draining this queue whenever a lookup
+/// misses.
 ///
-/// # Reading is not optional
+/// # Why a scope brings one sender, where a client's brings two
 ///
-/// [`request_receiver`](Self::request_receiver) is bounded. Whoever
-/// holds this either reads it or drops it: a full queue stops the
-/// router, and a stopped router stops every scope on the connection.
-/// Dropping is safe — a send to a dropped receiver fails, and the
-/// router ignores that and carries on.
+/// Because responses on channel `0` are what this end sends. A client
+/// registers somewhere for them to arrive; here there is nothing
+/// arriving on that channel at all, and the only thing a scope receives
+/// is the channels the client opens inside it.
 #[derive(Debug)]
-pub struct Request {
-    /// The scope's number, chosen by the client.
+pub enum Registration {
+    /// Take a scope this end has decided to serve.
     ///
-    /// Every frame belonging to this scope carries it, in both
-    /// directions, and every answer has to quote it.
-    pub scope: u32,
-    /// The frame that opened the scope, whole.
+    /// Nothing routes into a scope until this arrives — not because the
+    /// scope is not open, but because there is nowhere to put what
+    /// arrives in it. The request itself has already gone out on its
+    /// own stream.
+    Scope {
+        /// The scope, as the client numbered it.
+        scope: u32,
+        /// Where the client's channel requests go, whatever it numbers
+        /// them.
+        request_sender: Sender<Bytes>,
+    },
+    /// Open a channel inside a scope that is already registered.
     ///
-    /// Header included, like everything else this router forwards, so
-    /// the payload starts at
-    /// [`HEADER_LEN`](crate::frame::HEADER_LEN). What the payload means
-    /// is [`ClientRequest`](crate::endpoints::ClientRequest), and
-    /// decoding it is this holder's second step — decoding cannot fail,
-    /// so a request nobody can name still arrives as one and is still
-    /// answerable in the scope it opened.
-    pub request: Bytes,
-    /// The channel requests the client makes inside this scope.
-    ///
-    /// Whole frames, and the channel number in each header is the
-    /// CLIENT's — it is what an answer has to quote to be understood.
-    /// There may be none, and there is no announcement when there will
-    /// be no more: they stop when the scope does.
-    pub request_receiver: Receiver<Bytes>,
-}
-
-/// What the writing half has sent, so that the reading half can keep
-/// up.
-///
-/// Two frames change what this connection's map should hold, and
-/// neither is one the read loop can see, because this end is the one
-/// that sends them. So they are announced.
-///
-/// One enum on one queue, because they must be applied in the order
-/// they were sent. A scope closed and a channel opened inside it are
-/// two edits to the same entry, and the wrong order leaves a channel in
-/// a scope that is over or drops a scope that has just been reused.
-#[derive(Debug)]
-pub enum Sent {
-    /// A channel request went out. Its answers go here.
-    ///
-    /// Say it BEFORE writing the frame. The client may answer at once,
-    /// and an announcement that lost that race is an answer with
-    /// nowhere to go — the drain closes the window, but only for
-    /// something already in the queue.
-    ChannelRequest {
+    /// Discarded if it is not. A channel entry lives inside a scope's
+    /// entry, and a [`Router`] will not invent the scope to put it in.
+    Channel {
         /// The scope it is inside.
         scope: u32,
         /// The channel, chosen by this end.
@@ -439,13 +381,18 @@ pub enum Sent {
         /// Where the client's answers on it go.
         response_sender: Sender<Bytes>,
     },
-    /// A response finish went out, so the scope is over.
+    /// Forget a scope. This end has finished it.
     ///
-    /// Everything under it goes: the channel-request stream, and every
-    /// channel this end still had open inside it. There is no closure
-    /// reported for any of them, because the party that would be told
-    /// is the party that just said this.
-    ResponseFinish {
+    /// The one variant that removes, and it is here rather than on a
+    /// queue of its own because the order matters: a scope closed and a
+    /// scope opened are two edits to the same key, and a client is free
+    /// to reuse a number the moment it sees the finish. Split across
+    /// two queues, a close could overtake the registration that follows
+    /// it and quietly delete a scope that had just been reopened.
+    ///
+    /// Everything under it goes with it, and nothing is reported back —
+    /// the party that would be told is the party that just said this.
+    ScopeClosed {
         /// The scope that is over.
         scope: u32,
     },
