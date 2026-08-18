@@ -190,11 +190,7 @@ impl Handle {
         self.0
             .lock()
             .await
-            .send_frame(ClientFrame::ChannelResponse {
-                scope,
-                channel,
-                payload,
-            })
+            .send_channel_response(scope, channel, payload)
             .await;
     }
 
@@ -211,7 +207,7 @@ impl Handle {
         self.0
             .lock()
             .await
-            .send_frame(ClientFrame::ChannelResponseFinish { scope, channel })
+            .send_channel_response_finish(scope, channel)
             .await;
     }
 }
@@ -448,6 +444,35 @@ impl HandleInner {
         })
         .await;
         Some(Channel { channel, responses })
+    }
+
+    /// Answer, on a channel the server opened.
+    ///
+    /// One frame and nothing else — no minting, no registration, no
+    /// bookkeeping. A channel this end did not open leaves nothing here
+    /// to keep, and the numbers are the server's; see
+    /// [`Handle::send_channel_response`] for why neither is checked.
+    async fn send_channel_response(
+        &mut self,
+        scope: u32,
+        channel: u32,
+        payload: &[u8],
+    ) {
+        self.send_frame(ClientFrame::ChannelResponse {
+            scope,
+            channel,
+            payload,
+        })
+        .await;
+    }
+
+    /// End an answer on a channel the server opened.
+    ///
+    /// As above, with no payload. What makes it the last frame is the
+    /// type, which the far side reads off the header.
+    async fn send_channel_response_finish(&mut self, scope: u32, channel: u32) {
+        self.send_frame(ClientFrame::ChannelResponseFinish { scope, channel })
+            .await;
     }
 
     /// Build one frame and write it.
