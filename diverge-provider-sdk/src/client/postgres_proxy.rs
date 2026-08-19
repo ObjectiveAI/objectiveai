@@ -54,21 +54,46 @@ use tokio::sync::mpsc::UnboundedReceiver;
 pub trait PostgresProxy: Send + Sync {
     /// Open one connection, and splice it onto the channel.
     ///
-    /// Everything the plugin writes arrives on `from_plugin`; everything
+    /// Everything the plugin writes arrives on `requests`; everything
     /// the database says goes back on the returned stream. The channel
     /// finishes when that stream ends.
     ///
-    /// # What is on `from_plugin`
+    /// # What is on `requests`
     ///
     /// Payload bytes, with the frame header and the variant tag already
     /// off them — what the plugin wrote and nothing else. Handing them
     /// on unmodified is the whole job; anything prepended is ten bytes
     /// of garbage in front of a startup message.
     ///
-    /// They are not messages. A pgwire message may span several items
-    /// and several may share one, exactly as they would arriving off a
-    /// socket. A driver on the far end is already prepared for that;
-    /// nothing here needs to be.
+    /// They are not messages, which is what the name is at risk of
+    /// suggesting. A pgwire message may span several items and several
+    /// may share one, exactly as they would arriving off a socket. A
+    /// driver on the far end is already prepared for that; nothing here
+    /// needs to be.
+    ///
+    /// # Write them in the order they arrive, and do not wait
+    ///
+    /// Ordering is not a nicety here, it is the whole correlation
+    /// mechanism. Postgres pipelines: a client may send a second query
+    /// before the first has answered, and the extended query protocol
+    /// exists to encourage exactly that. Nothing in a pgwire message
+    /// identifies which request it answers — the server processes in
+    /// order and replies in order, and a driver matches answers to
+    /// questions BY POSITION. Two writes that swapped would not fail;
+    /// they would succeed against the wrong statements.
+    ///
+    /// So there is no policy here of waiting for a reply before passing
+    /// the next write on, and there could not be. A message larger than
+    /// one frame spans several, so a proxy that paused after one to see
+    /// what came back would be waiting on a reply to half a message,
+    /// which is never coming. That is a deadlock, not a slowdown.
+    ///
+    /// The queue preserves order on the way in, and this is meant to
+    /// drain it in order — writing each item onto the socket as it comes
+    /// and reading the answers independently. What it must not do is
+    /// take items off and put each on its own task; that is the right
+    /// shape for a request/answer channel, and it is the wrong one for a
+    /// socket.
     ///
     /// # Why it takes the receiver rather than returning a sink
     ///
@@ -128,9 +153,9 @@ pub trait PostgresProxy: Send + Sync {
     /// Written out rather than aliased, as in the two sibling proxies
     /// that return one. An alias would hide exactly those bounds from
     /// the signature a reader is checking theirs against.
-    fn connect(
+    fn handle(
         &self,
-        from_plugin: UnboundedReceiver<Bytes>,
+        requests: UnboundedReceiver<Bytes>,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>,
     > + Send;
