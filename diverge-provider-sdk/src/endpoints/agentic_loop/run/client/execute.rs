@@ -130,12 +130,17 @@ async fn proxy_channel_requests<P>(
 ///
 /// A head that will not serialize is the same case one step later.
 ///
-/// # It never sees the scope end
+/// # It stops at the first refusal
 ///
-/// Its writes simply stop landing. A channel response for a scope that
-/// has closed is a frame the provider discards, and nothing here checks
-/// first — the check would be stale by the time it was acted on, and
-/// the frame is harmless.
+/// A [`Handle`] answers whether a frame went out, and `false` means no
+/// later one will either — the connection is gone, or the scope is. So
+/// this returns rather than going on, which matters most for the answer
+/// that would otherwise never stop: an event stream held open for a
+/// session, being written at a provider that is no longer listening.
+///
+/// It is the only thing that ends this task early. Nothing cancels it,
+/// so without the check a tool call outliving its loop would run for as
+/// long as its own body stream did.
 async fn proxy_one<P>(bytes: Bytes, handle: Handle, scope: u32, proxy: Arc<P>)
 where
     P: McpProxy,
@@ -160,15 +165,23 @@ where
     {
         return;
     }
-    handle.send_channel_response(scope, channel, &buffer).await;
+    if !handle.send_channel_response(scope, channel, &buffer).await {
+        return;
+    }
 
     match body {
         Body::Single(body) => {
-            send_body(&handle, scope, channel, &mut buffer, &body).await;
+            if !send_body(&handle, scope, channel, &mut buffer, &body).await {
+                return;
+            }
         }
         Body::Stream(mut body) => {
             while let Some(piece) = body.next().await {
-                send_body(&handle, scope, channel, &mut buffer, &piece).await;
+                if !send_body(&handle, scope, channel, &mut buffer, &piece)
+                    .await
+                {
+                    return;
+                }
             }
         }
     }
@@ -181,26 +194,29 @@ where
 /// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
 /// way up from nothing for every one of them.
 ///
+/// Answers whether it went out, so a stream of them can stop at the
+/// first refusal.
+///
 /// Encoding cannot fail — a body is bytes and has nothing to get wrong
-/// — so the [`Result`] is discarded rather than handled. Saying that in
-/// a match on
+/// — so a failure there is treated as a refusal rather than handled.
+/// Saying it in a match on
 /// [`Infallible`](std::convert::Infallible) is not available here,
-/// because the frame it shares an impl with can.
+/// because the frame it shares an impl with can fail.
 async fn send_body(
     handle: &Handle,
     scope: u32,
     channel: u32,
     buffer: &mut Vec<u8>,
     body: &[u8],
-) {
+) -> bool {
     buffer.clear();
     if mcp::Frame::Body(body)
         .encode(&mut Writer::new(buffer))
         .is_err()
     {
-        return;
+        return false;
     }
-    handle.send_channel_response(scope, channel, buffer).await;
+    handle.send_channel_response(scope, channel, buffer).await
 }
 
 /// A loop that never started.

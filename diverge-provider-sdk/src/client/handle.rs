@@ -153,27 +153,42 @@ impl Handle {
     /// Nothing else ends the answer: a slow one is not a finished one,
     /// and there is no timeout anywhere in this protocol.
     ///
-    /// # Nothing comes back
+    /// # Nothing comes back on the channel
     ///
-    /// So there is nothing to return and nothing to register. This end
-    /// did not open the channel, and a channel carries one side's
-    /// answer to the other side's request — the request already
-    /// arrived, and this is the answer going the other way.
+    /// So there is nothing to register. This end did not open it, and a
+    /// channel carries one side's answer to the other side's request —
+    /// the request already arrived, and this is the answer going the
+    /// other way.
     ///
-    /// Nothing is checked either. This end tracks the numbers IT mints,
-    /// and the server's are not among them, so a misquoted channel is a
-    /// frame the server discards and this end never hears about.
+    /// # What the answer here means
+    ///
+    /// Whether the frame went out. `false` says it did not and no later
+    /// one will either, which is the whole of its use: a caller
+    /// streaming an answer stops rather than encoding the rest of it
+    /// for a socket that is not listening.
+    ///
+    /// It is refused two ways, and they are the two ways an answer can
+    /// become pointless. The connection is gone — nothing more will
+    /// reach anybody. Or the SCOPE is gone: a provider that finished it
+    /// has already dropped everything under it, so a frame naming it
+    /// would be discarded on arrival.
+    ///
+    /// The CHANNEL is not checked, and cannot be. Those numbers are the
+    /// server's and this end tracks only the ones it mints, so a
+    /// misquoted channel is a frame the server discards and this end
+    /// never hears about. The scope is different: this end chose it, so
+    /// it knows when it is over.
     pub async fn send_channel_response(
         &self,
         scope: u32,
         channel: u32,
         payload: &[u8],
-    ) {
+    ) -> bool {
         self.0
             .lock()
             .await
             .send_channel_response(scope, channel, payload)
-            .await;
+            .await
     }
 
     /// End an answer on a channel the server opened.
@@ -185,12 +200,21 @@ impl Handle {
     ///
     /// Send it even for an answer that carried nothing. An empty answer
     /// and an answer still coming are the same thing until this arrives.
-    pub async fn send_channel_response_finish(&self, scope: u32, channel: u32) {
+    ///
+    /// Answers whether it went out, on the same terms as
+    /// [`send_channel_response`](Self::send_channel_response) — though
+    /// there is rarely anything to do about `false` here, since this is
+    /// the last thing an answer had to say.
+    pub async fn send_channel_response_finish(
+        &self,
+        scope: u32,
+        channel: u32,
+    ) -> bool {
         self.0
             .lock()
             .await
             .send_channel_response_finish(scope, channel)
-            .await;
+            .await
     }
 }
 
@@ -378,7 +402,7 @@ impl HandleInner {
             response_sender,
             request_sender,
         });
-        self.send_frame(ClientFrame::Request { scope, payload }).await;
+        let _ = self.send_frame(ClientFrame::Request { scope, payload }).await;
         Scope {
             scope,
             response_receiver,
@@ -411,12 +435,13 @@ impl HandleInner {
             channel,
             response_sender,
         });
-        self.send_frame(ClientFrame::ChannelRequest {
-            scope,
-            channel,
-            payload,
-        })
-        .await;
+        let _ = self
+            .send_frame(ClientFrame::ChannelRequest {
+                scope,
+                channel,
+                payload,
+            })
+            .await;
         Some(Channel { channel, responses })
     }
 
@@ -431,22 +456,49 @@ impl HandleInner {
         scope: u32,
         channel: u32,
         payload: &[u8],
-    ) {
+    ) -> bool {
+        if !self.holds(scope) {
+            return false;
+        }
         self.send_frame(ClientFrame::ChannelResponse {
             scope,
             channel,
             payload,
         })
-        .await;
+        .await
     }
 
     /// End an answer on a channel the server opened.
     ///
     /// As above, with no payload. What makes it the last frame is the
     /// type, which the far side reads off the header.
-    async fn send_channel_response_finish(&mut self, scope: u32, channel: u32) {
+    async fn send_channel_response_finish(
+        &mut self,
+        scope: u32,
+        channel: u32,
+    ) -> bool {
+        if !self.holds(scope) {
+            return false;
+        }
         self.send_frame(ClientFrame::ChannelResponseFinish { scope, channel })
-            .await;
+            .await
+    }
+
+    /// Whether this end still has that scope.
+    ///
+    /// Takes back what the router has closed first, so the answer is as
+    /// current as anything here can be — a scope the router finished
+    /// between one frame and the next is gone by the time this is
+    /// asked.
+    ///
+    /// It is not a guarantee, and cannot be. A finish may be in flight
+    /// while this returns `true`, and the frame that follows will be
+    /// discarded on arrival. What it does is stop the case that
+    /// matters: an answer that goes on being written long after the
+    /// thing it was answering ended.
+    fn holds(&mut self, scope: u32) -> bool {
+        self.take_back();
+        self.scopes.contains_key(&scope)
     }
 
     /// Build one frame and write it.
@@ -458,17 +510,19 @@ impl HandleInner {
     /// uncleared one would send the last frame with this one glued to
     /// its back.
     ///
-    /// A failed write is dropped. It means the connection is gone, and
-    /// every receiver on it is about to close on its own — there is
-    /// nothing this could tell a caller that the caller is not about to
-    /// find out.
-    async fn send_frame(&mut self, frame: ClientFrame<'_>) {
+    /// Answers whether the write happened. A failure means the
+    /// connection is gone, and every receiver on it is about to close
+    /// on its own — so most callers have nothing to do about it and
+    /// discard the answer. The exception is anything writing a STREAM
+    /// of frames, which would otherwise go on encoding into a socket
+    /// that stopped taking them.
+    async fn send_frame(&mut self, frame: ClientFrame<'_>) -> bool {
         self.buffer.clear();
         frame
             .encode(&mut Writer::new(&mut self.buffer))
             .unwrap_or_else(|error| match error {});
         let bytes = Bytes::copy_from_slice(&self.buffer);
-        let _ = self.sink.send(bytes).await;
+        self.sink.send(bytes).await.is_ok()
     }
 
     /// Drop every scope and channel the router says is finished.
