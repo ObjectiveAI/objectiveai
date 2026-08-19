@@ -8,7 +8,7 @@ use futures_util::StreamExt as _;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::channel_response::{command, oci, postgres};
-use super::plugin::Plugin;
+use super::execute_handle::ExecuteHandle;
 use super::{channel_request, request};
 use crate::client::command_proxy::CommandProxy;
 use crate::client::handle::{Handle, SendError};
@@ -30,9 +30,9 @@ use crate::frame;
 /// dialled, and commands it cannot run itself.
 ///
 /// So this takes three proxies and puts one task on all of them. What
-/// comes back is a [`Plugin`], which is the scope and nothing else to
-/// poll — the answering happens beside it, and a caller that never
-/// touches the handle again still gets its image served.
+/// comes back is an [`ExecuteHandle`], which is nothing to poll — the
+/// answering happens beside it, and a caller that never touches the
+/// handle again still gets its image served.
 ///
 /// # Which proxies are actually used
 ///
@@ -75,7 +75,7 @@ pub async fn execute<O, P, C>(
     oci_proxy: Arc<O>,
     postgres_proxy: Arc<P>,
     command_proxy: Arc<C>,
-) -> Result<Plugin, ExecuteError>
+) -> Result<ExecuteHandle, ExecuteError>
 where
     O: OciProxy + 'static,
     P: PostgresProxy + 'static,
@@ -106,7 +106,7 @@ where
         postgres_proxy,
         command_proxy,
     ));
-    Ok(Plugin::new(
+    Ok(ExecuteHandle::new(
         scope.scope,
         scope.response_receiver,
         handle.clone(),
@@ -120,7 +120,7 @@ where
 /// Ends when the receiver closes, which is the scope ending — a
 /// [`Router`](crate::client::router::Router) drops everything under a
 /// finished scope, this receiver with it. Nothing else stops it, except
-/// the [`Plugin`] being dropped, which aborts it.
+/// the [`ExecuteHandle`] being dropped, which aborts it.
 ///
 /// The frame is passed on whole and undecoded. Decoding it here would
 /// mean either borrowing across the spawn, which cannot be done, or

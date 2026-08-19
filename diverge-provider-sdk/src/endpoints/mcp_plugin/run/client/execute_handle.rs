@@ -4,6 +4,7 @@ use std::fmt;
 
 use bytes::Bytes;
 use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc::error::TryRecvError;
 use tokio::task::JoinHandle;
 
 use super::super::server::response;
@@ -24,17 +25,22 @@ use crate::shared::error::Error;
 /// it stops the plugin — see the [`Drop`] impl, which is the ordinary
 /// way to be done with one rather than a way to abandon one.
 ///
-/// So a caller keeps this for as long as it means to call the plugin,
+/// So a caller keeps this for as long as it means to use the plugin,
 /// and lets it go when it is finished. There is nothing else to
 /// remember.
 ///
-/// # It is not what you call the plugin WITH
+/// # Two ways to ask how it is going
 ///
-/// Calling is a channel request, and this crate has no helper for one
-/// yet. A caller sends
-/// [`channel_request::Frame::Mcp`](super::channel_request::Frame::Mcp)
-/// through the [`Handle`] it already has, quoting
-/// [`scope`](Self::scope).
+/// [`wait`](Self::wait) blocks until the run is over and says nothing
+/// else. [`error`](Self::error) says what ended it, and does not
+/// block.
+///
+/// They are split rather than one method returning a [`Result`] because
+/// the questions are asked at different times. A caller that has work
+/// to do checks [`error`](Self::error) between pieces of it; a caller
+/// with nothing left to do awaits [`wait`](Self::wait). Folding the
+/// outcome into `wait`'s return would have left `error` with nothing to
+/// report and a second copy of it to keep in step.
 ///
 /// # Nothing here has to be polled
 ///
@@ -45,20 +51,26 @@ use crate::shared::error::Error;
 /// whatever a caller does with this.
 #[must_use = "dropping a plugin stops it"]
 #[derive(Debug)]
-pub struct Plugin {
+pub struct ExecuteHandle {
     /// The scope this run opened.
     ///
-    /// Public because it is what a caller needs to say anything to the
-    /// plugin. Every channel request naming it belongs to this run,
-    /// and it stops meaning anything once this is dropped.
-    pub scope: u32,
+    /// Private, and there is nothing here that gives it out. Which
+    /// means it is only ever used by the stop in [`Drop`] — see the
+    /// type's own note about what that costs.
+    scope: u32,
     /// The scope's responses, until there are no more.
     ///
-    /// [`None`] once the run has ended, which is the terminal state and
-    /// the whole of it — [`ended`](Self::ended) reads it, and
-    /// [`Drop`] checks it to decide whether there is anything left to
-    /// stop.
+    /// [`None`] once the run has ended, which is half the terminal
+    /// state; [`error`](Self::error) is the other half.
     response_receiver: Option<UnboundedReceiver<Bytes>>,
+    /// Why the run ended, if it ended badly.
+    ///
+    /// Meaningless until `response_receiver` is [`None`], and settled
+    /// once and for all when it becomes so. Both
+    /// [`wait`](Self::wait) and [`error`](Self::error) can be what sets
+    /// it, and they set it through the same path — so it cannot matter
+    /// which of them happened to notice.
+    error: Option<RunError>,
     /// The write half, for the stop this sends when it is dropped.
     handle: Handle,
     /// The stop, encoded once at construction.
@@ -76,7 +88,7 @@ pub struct Plugin {
     serving: JoinHandle<()>,
 }
 
-impl Plugin {
+impl ExecuteHandle {
     /// Take the scope, and the task that serves it.
     ///
     /// Not public. A plugin exists because a request went out, so the
@@ -89,26 +101,26 @@ impl Plugin {
         stop_request: Bytes,
         serving: JoinHandle<()>,
     ) -> Self {
-        Plugin {
+        ExecuteHandle {
             scope,
             response_receiver: Some(response_receiver),
+            error: None,
             handle,
             stop_request,
             serving,
         }
     }
 
-    /// Wait for the run to be over, and learn how it ended.
-    ///
-    /// [`Ok`] means the run ended: the scope finished, which is what a
-    /// provider sends after a stop, and after a plugin exits on its
-    /// own.
+    /// Wait for the run to be over.
     ///
     /// It does NOT resolve when the plugin comes up. There is no frame
     /// for that and deliberately none — see
     /// [`response::Frame`](super::super::server::response::Frame). A
     /// plugin that is working is a scope that says nothing, so this
     /// waits for as long as the plugin runs.
+    ///
+    /// What ended it is [`error`](Self::error)'s to say, and after this
+    /// returns that answer is final.
     ///
     /// # There is no timeout
     ///
@@ -120,44 +132,97 @@ impl Plugin {
     ///
     /// Which is worth saying because it means "stop it and then wait
     /// for it to finish" cannot be written with what is here: dropping
-    /// sends the stop and gives up this receiver in the same move.
+    /// sends the stop and gives up the receiver in the same move.
     ///
     /// So this is for waiting on an ending somebody else causes — a
     /// plugin that exits, or one that never came up. A caller that
-    /// wants to stop one and see it through needs a `stop` that leaves
-    /// the handle alive, and there is not one yet.
+    /// wants to stop one and see it through needs a stop that leaves
+    /// this alive, and there is not one yet.
+    ///
+    /// # Waiting again
+    ///
+    /// Returns at once. The run is over and the reason is already
+    /// settled, so there is nothing left to wait for.
+    pub async fn wait(&mut self) {
+        let Some(responses) = self.response_receiver.as_mut() else {
+            return;
+        };
+        match responses.recv().await {
+            Some(bytes) => self.settle(&bytes),
+            None => self.end(Some(RunError::Closed)),
+        }
+    }
+
+    /// What ended the run, if anything has.
+    ///
+    /// Does not block and does not await. It takes whatever has already
+    /// arrived — at most one frame, since one frame is all it takes to
+    /// end a run — and reports on it.
+    ///
+    /// # What [`None`] means
+    ///
+    /// That nothing has ended the run AS FAR AS THIS HAS SEEN. Two
+    /// different things wear that answer:
+    ///
+    /// - the plugin is still going, which is the ordinary case
+    /// - it ended the way it was asked to, and there is nothing to
+    ///   report
+    ///
+    /// They are told apart by whether [`wait`](Self::wait) has
+    /// returned. Before it has, [`None`] means "not yet"; after it has,
+    /// [`None`] is final and means the plugin stopped cleanly.
+    ///
+    /// Reporting the two separately would have meant a second state to
+    /// carry that says only what asking `wait` already says.
     ///
     /// # Asking twice
     ///
-    /// Answers [`Ok`]. The run is over either way, and how it ended
-    /// went to whoever asked first — the terminal state is a field, so
-    /// there is nothing left to read it out of.
-    pub async fn ended(&mut self) -> Result<(), RunError> {
-        let Some(responses) = self.response_receiver.as_mut() else {
-            return Ok(());
-        };
-        let Some(bytes) = responses.recv().await else {
-            self.response_receiver = None;
-            return Err(RunError::Closed);
-        };
-        let envelope = match frame::server::ServerFrame::decode(&bytes) {
-            Ok(envelope) => envelope,
-            Err(error) => {
-                self.response_receiver = None;
-                return Err(RunError::Frame(error));
+    /// The same answer. A run ends once, and this settles it once.
+    pub fn error(&mut self) -> Option<&RunError> {
+        if let Some(responses) = self.response_receiver.as_mut() {
+            match responses.try_recv() {
+                Ok(bytes) => self.settle(&bytes),
+                // Still running, and nothing to report about that.
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    self.end(Some(RunError::Closed));
+                }
             }
+        }
+        self.error.as_ref()
+    }
+
+    /// Read the one frame that ends a run, and record what it said.
+    ///
+    /// Shared by both ways of asking, so that a run cannot end twice or
+    /// end differently depending on which of them noticed.
+    fn settle(&mut self, bytes: &[u8]) {
+        let envelope = match frame::server::ServerFrame::decode(bytes) {
+            Ok(envelope) => envelope,
+            Err(error) => return self.end(Some(RunError::Frame(error))),
         };
-        self.response_receiver = None;
         let payload = match envelope {
             frame::server::ServerFrame::Response { payload, .. } => payload,
             // The finish, which is the run ending as it should.
-            frame::server::ServerFrame::ResponseFinish { .. } => return Ok(()),
-            _ => return Err(RunError::Misrouted),
+            frame::server::ServerFrame::ResponseFinish { .. } => {
+                return self.end(None);
+            }
+            _ => return self.end(Some(RunError::Misrouted)),
         };
-        match response::Frame::decode(payload) {
-            Ok(response::Frame(error)) => Err(RunError::Provider(error)),
-            Err(error) => Err(RunError::Response(error)),
-        }
+        self.end(Some(match response::Frame::decode(payload) {
+            Ok(response::Frame(error)) => RunError::Provider(error),
+            Err(error) => RunError::Response(error),
+        }));
+    }
+
+    /// Mark the run over, for the given reason or for none.
+    ///
+    /// Dropping the receiver is what makes it terminal, and it is the
+    /// same field [`Drop`] reads to decide whether there is anything
+    /// left to stop.
+    fn end(&mut self, error: Option<RunError>) {
+        self.response_receiver = None;
+        self.error = error;
     }
 
     /// Whether the run is over.
@@ -212,7 +277,7 @@ impl Plugin {
 /// from a caller that had crashed. The plugin is being torn down either
 /// way, and there is no reason to serve an image to a container that is
 /// about to stop.
-impl Drop for Plugin {
+impl Drop for ExecuteHandle {
     fn drop(&mut self) {
         self.serving.abort();
         if self.is_ended() {
@@ -232,10 +297,12 @@ impl Drop for Plugin {
 
 /// A run that stopped without ending.
 ///
-/// None of these is the plugin finishing. That is [`Ok`] from
-/// [`ended`](Plugin::ended), and the difference is the whole reason
-/// this type exists: a run that ended told a caller the plugin is gone,
-/// and a run that broke told it nothing about whether it is.
+/// None of these is the plugin finishing. That is
+/// [`error`](ExecuteHandle::error) answering [`None`] once
+/// [`wait`](ExecuteHandle::wait) has returned, and the difference is
+/// the whole reason this type exists: a run that ended told a caller
+/// the plugin is gone, and a run that broke told it nothing about
+/// whether it is.
 ///
 /// It is flat, and beside [`ExecuteError`](super::ExecuteError) rather
 /// than inside it: one is a plugin that never started, this is a plugin

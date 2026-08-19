@@ -7,8 +7,8 @@
 
 //! # And, behind the `client` feature, a way to use it
 //!
-//! [`execute`] starts the plugin and hands back a [`Plugin`], which is
-//! the scope and a way to wait for it to end. It takes THREE proxies —
+//! [`execute`] starts the plugin and hands back an [`ExecuteHandle`],
+//! which waits for it to end and says why. It takes THREE proxies —
 //! an [`OciProxy`](crate::client::oci_proxy::OciProxy), a
 //! [`PostgresProxy`](crate::client::postgres_proxy::PostgresProxy) and
 //! a [`CommandProxy`](crate::client::command_proxy::CommandProxy) — and
@@ -19,14 +19,21 @@
 //! they arrive interleaved on one scope. That task is most of what is
 //! in [`execute`].
 //!
-//! Dropping the [`Plugin`] sends the stop, which makes dropping the
-//! ordinary way to be done with a plugin rather than a way to abandon
-//! one.
+//! Dropping the [`ExecuteHandle`] sends the stop, which makes dropping
+//! the ordinary way to be done with a plugin rather than a way to
+//! abandon one.
 //!
-//! What is NOT here is calling the plugin. A caller sends
-//! [`channel_request::Frame::Mcp`] through the
-//! [`Handle`](crate::client::handle::Handle) it already has, quoting
-//! [`Plugin::scope`].
+//! # What is not here, and is the next thing
+//!
+//! Calling the plugin. [`channel_request::Frame::Mcp`] is the frame for
+//! it, and there is nothing that sends one: an [`ExecuteHandle`] gives
+//! out no scope number, so the plugin cannot be reached from outside
+//! this crate at all.
+//!
+//! Which means a plugin can be started, waited on, asked why it ended
+//! and stopped — and not used. That is an honest intermediate state in
+//! a crate where nothing is wired to anything yet, and it is not a
+//! resting place: an `mcp` method on that type is now the only door in.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the
@@ -40,9 +47,9 @@ pub mod request;
 #[cfg(feature = "client")]
 mod execute;
 #[cfg(feature = "client")]
-mod plugin;
+mod execute_handle;
 
 #[cfg(feature = "client")]
 pub use execute::*;
 #[cfg(feature = "client")]
-pub use plugin::*;
+pub use execute_handle::*;
