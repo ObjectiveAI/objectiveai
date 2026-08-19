@@ -1,6 +1,7 @@
 //! The other end of the read loop: what a caller actually holds.
 
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -12,7 +13,7 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use super::channel::Channel;
 use super::registration::Registration;
 use super::scope::Scope;
-use crate::connection::Connection;
+use crate::connection::{self, Connection};
 use crate::encode::{Encode, Writer};
 use crate::frame::client::ClientFrame;
 
@@ -109,7 +110,10 @@ impl Handle {
     /// unread queue grows rather than stalling anything, so the cost of
     /// walking away is memory, and the remedy is to drop the
     /// [`Scope`] — see it for what that does.
-    pub async fn send_request(&self, payload: &[u8]) -> Scope {
+    pub async fn send_request(
+        &self,
+        payload: &[u8],
+    ) -> Result<Scope, SendError> {
         self.0.lock().await.send_request(payload).await
     }
 
@@ -120,7 +124,10 @@ impl Handle {
     /// cannot always avoid — a scope ends when its finish frame
     /// arrives, and that can happen between reading the last response
     /// and asking for a channel — so it is an answer rather than a
-    /// panic. Nothing was sent when it comes back.
+    /// panic. Nothing was sent when it comes back, and it arrives as
+    /// [`SendError::Scope`] rather than as a failure of the
+    /// connection — the socket is fine and other scopes on it are
+    /// unaffected.
     ///
     /// The payload is written as given, tag and all. This layer does
     /// not know what a channel request says; see
@@ -137,7 +144,7 @@ impl Handle {
         &self,
         scope: u32,
         payload: &[u8],
-    ) -> Option<Channel> {
+    ) -> Result<Channel, SendError> {
         self.0.lock().await.send_channel_request(scope, payload).await
     }
 
@@ -162,16 +169,17 @@ impl Handle {
     ///
     /// # What the answer here means
     ///
-    /// Whether the frame went out. `false` says it did not and no later
-    /// one will either, which is the whole of its use: a caller
-    /// streaming an answer stops rather than encoding the rest of it
-    /// for a socket that is not listening.
+    /// Whether the frame went out, and if not, which of the three
+    /// things went wrong — see [`SendError`]. Any of them says no later
+    /// frame will go out either, which is the whole of its use: a
+    /// caller streaming an answer stops rather than encoding the rest
+    /// of it for a socket that is not listening.
     ///
-    /// It is refused two ways, and they are the two ways an answer can
-    /// become pointless. The connection is gone — nothing more will
-    /// reach anybody. Or the SCOPE is gone: a provider that finished it
-    /// has already dropped everything under it, so a frame naming it
-    /// would be discarded on arrival.
+    /// Two of the three are the ways an answer becomes pointless. The
+    /// connection is gone — nothing more will reach anybody. Or the
+    /// SCOPE is gone: a provider that finished it has already dropped
+    /// everything under it, so a frame naming it would be discarded on
+    /// arrival.
     ///
     /// The CHANNEL is not checked, and cannot be. Those numbers are the
     /// server's and this end tracks only the ones it mints, so a
@@ -183,7 +191,7 @@ impl Handle {
         scope: u32,
         channel: u32,
         payload: &[u8],
-    ) -> bool {
+    ) -> Result<(), SendError> {
         self.0
             .lock()
             .await
@@ -201,15 +209,15 @@ impl Handle {
     /// Send it even for an answer that carried nothing. An empty answer
     /// and an answer still coming are the same thing until this arrives.
     ///
-    /// Answers whether it went out, on the same terms as
+    /// Answers on the same terms as
     /// [`send_channel_response`](Self::send_channel_response) — though
-    /// there is rarely anything to do about `false` here, since this is
-    /// the last thing an answer had to say.
+    /// there is rarely anything to do about a failure here, since this
+    /// is the last thing an answer had to say.
     pub async fn send_channel_response_finish(
         &self,
         scope: u32,
         channel: u32,
-    ) -> bool {
+    ) -> Result<(), SendError> {
         self.0
             .lock()
             .await
@@ -384,30 +392,43 @@ impl HandleInner {
     ///
     /// # What a failed send does
     ///
-    /// Nothing, here. The receivers in the returned [`Scope`] close
-    /// without a finish frame, which is what a caller reads as "this
-    /// scope is not happening".
+    /// Says so, and hands back no [`Scope`] at all. A scope whose
+    /// request never went out is one nothing will ever answer, and
+    /// returning one anyway would have left a caller waiting on
+    /// receivers that close only when the read half notices the same
+    /// thing — which on a half-open connection is not soon.
+    ///
+    /// The number is minted and the registration is made before the
+    /// write, so a failure here leaks both. That is deliberate and
+    /// costs nothing: the order cannot be reversed without a request
+    /// whose answers have nowhere to land, and a connection this has
+    /// just failed on has no more numbers to run out of.
     ///
     /// There is no failed encode. A frame is a header and a payload
     /// this crate never looks at, so encoding one is
     /// [`Infallible`](std::convert::Infallible) and says so in the
     /// type.
-    async fn send_request(&mut self, payload: &[u8]) -> Scope {
+    async fn send_request(
+        &mut self,
+        payload: &[u8],
+    ) -> Result<Scope, SendError> {
         self.take_back();
         let scope = self.mint_scope();
         let (response_sender, response_receiver) = mpsc::unbounded_channel();
         let (request_sender, request_receiver) = mpsc::unbounded_channel();
-        let _ = self.registrations.send(Registration::Scope {
-            scope,
-            response_sender,
-            request_sender,
-        });
-        let _ = self.send_frame(ClientFrame::Request { scope, payload }).await;
-        Scope {
+        self.registrations
+            .send(Registration::Scope {
+                scope,
+                response_sender,
+                request_sender,
+            })
+            .map_err(|_| SendError::Router)?;
+        self.send_frame(ClientFrame::Request { scope, payload }).await?;
+        Ok(Scope {
             scope,
             response_receiver,
             request_receiver,
-        }
+        })
     }
 
     /// Open a channel inside a scope, and send the request that opens
@@ -426,23 +447,26 @@ impl HandleInner {
         &mut self,
         scope: u32,
         payload: &[u8],
-    ) -> Option<Channel> {
+    ) -> Result<Channel, SendError> {
         self.take_back();
-        let channel = mint_channel(self.scopes.get_mut(&scope)?);
+        let channel = mint_channel(
+            self.scopes.get_mut(&scope).ok_or(SendError::Scope)?,
+        );
         let (response_sender, responses) = mpsc::unbounded_channel();
-        let _ = self.registrations.send(Registration::Channel {
-            scope,
-            channel,
-            response_sender,
-        });
-        let _ = self
-            .send_frame(ClientFrame::ChannelRequest {
+        self.registrations
+            .send(Registration::Channel {
                 scope,
                 channel,
-                payload,
+                response_sender,
             })
-            .await;
-        Some(Channel { channel, responses })
+            .map_err(|_| SendError::Router)?;
+        self.send_frame(ClientFrame::ChannelRequest {
+            scope,
+            channel,
+            payload,
+        })
+        .await?;
+        Ok(Channel { channel, responses })
     }
 
     /// Answer, on a channel the server opened.
@@ -456,9 +480,9 @@ impl HandleInner {
         scope: u32,
         channel: u32,
         payload: &[u8],
-    ) -> bool {
+    ) -> Result<(), SendError> {
         if !self.holds(scope) {
-            return false;
+            return Err(SendError::Scope);
         }
         self.send_frame(ClientFrame::ChannelResponse {
             scope,
@@ -476,9 +500,9 @@ impl HandleInner {
         &mut self,
         scope: u32,
         channel: u32,
-    ) -> bool {
+    ) -> Result<(), SendError> {
         if !self.holds(scope) {
-            return false;
+            return Err(SendError::Scope);
         }
         self.send_frame(ClientFrame::ChannelResponseFinish { scope, channel })
             .await
@@ -510,19 +534,23 @@ impl HandleInner {
     /// uncleared one would send the last frame with this one glued to
     /// its back.
     ///
-    /// Answers whether the write happened. A failure means the
-    /// connection is gone, and every receiver on it is about to close
-    /// on its own — so most callers have nothing to do about it and
-    /// discard the answer. The exception is anything writing a STREAM
-    /// of frames, which would otherwise go on encoding into a socket
-    /// that stopped taking them.
-    async fn send_frame(&mut self, frame: ClientFrame<'_>) -> bool {
+    /// Answers with what the socket said rather than discarding it.
+    /// The old reasoning — that a failure means the connection is gone
+    /// and every receiver on it is about to close anyway — was true of
+    /// the common case and wrong twice over. A caller writing a STREAM
+    /// of frames would go on encoding into a socket that stopped taking
+    /// them, and a transport that refuses one MESSAGE is not the same
+    /// news as one that has died, though both arrive here.
+    async fn send_frame(
+        &mut self,
+        frame: ClientFrame<'_>,
+    ) -> Result<(), SendError> {
         self.buffer.clear();
         frame
             .encode(&mut Writer::new(&mut self.buffer))
             .unwrap_or_else(|error| match error {});
         let bytes = Bytes::copy_from_slice(&self.buffer);
-        self.sink.send(bytes).await.is_ok()
+        self.sink.send(bytes).await.map_err(SendError::Connection)
     }
 
     /// Drop every scope and channel the router says is finished.
@@ -591,6 +619,85 @@ fn mint_channel((counter, channels): &mut (u32, HashSet<u32>)) -> u32 {
         *counter = counter.wrapping_add(1);
         if channels.insert(*counter) {
             return *counter;
+        }
+    }
+}
+
+/// Why a frame did not go out.
+///
+/// Nothing in [`Handle`] discards a send. Every one of them answers,
+/// and there are exactly three things the answer can be — which is the
+/// point of a type rather than a bool: what a caller does about them
+/// differs.
+///
+/// # Two are the connection and one is not
+///
+/// [`Connection`](Self::Connection) and [`Router`](Self::Router) both
+/// mean this socket is finished, from the two ends of it. Everything on
+/// it is over, and a caller that has other scopes open will hear the
+/// same about those.
+///
+/// [`Scope`](Self::Scope) is one scope and says nothing about the rest.
+/// A provider finished it, or it was never opened here; either way the
+/// connection is fine and other work on it carries on.
+#[derive(Debug)]
+pub enum SendError {
+    /// The write failed.
+    ///
+    /// Carries what the socket said, because the two are not all alike.
+    /// A connection that closed and a message the transport refuses to
+    /// carry — one over its configured maximum, say — arrive here
+    /// together, and only one of them is worth retrying differently.
+    ///
+    /// Neither is worth retrying the same way. A WebSocket that has
+    /// errored is done, so this is a reason to stop rather than a
+    /// reason to try again.
+    Connection(connection::Error),
+    /// The reading half is gone.
+    ///
+    /// A registration had nowhere to go, which means the
+    /// [`Router`](super::router::Router) has been dropped and nothing
+    /// arranged here would be routed anywhere. The frame is not sent:
+    /// a request whose answers have nowhere to land is worse than one
+    /// that was never made.
+    ///
+    /// In practice this and [`Connection`](Self::Connection) arrive
+    /// together, from opposite ends — the router stops when the socket
+    /// does. They are separate because they are detected separately,
+    /// and because a router dropped deliberately is a thing a caller
+    /// can do.
+    Router,
+    /// This end has no such scope open.
+    ///
+    /// Either it never did, or a provider finished it and the router
+    /// has said so. Nothing was sent, and nothing about the connection
+    /// is wrong — other scopes on it are unaffected.
+    ///
+    /// It is the answer worth acting on rather than logging: a caller
+    /// still writing an answer into a scope that ended should stop
+    /// writing it, and can carry on doing everything else.
+    Scope,
+}
+
+impl fmt::Display for SendError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SendError::Connection(error) => {
+                write!(f, "frame did not go out: {error}")
+            }
+            SendError::Router => {
+                f.write_str("the reading half is gone, so nothing was sent")
+            }
+            SendError::Scope => f.write_str("that scope is not open"),
+        }
+    }
+}
+
+impl std::error::Error for SendError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            SendError::Connection(error) => Some(error),
+            SendError::Router | SendError::Scope => None,
         }
     }
 }

@@ -3,7 +3,7 @@
 use std::fmt;
 
 use super::request;
-use crate::client::handle::Handle;
+use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::edit::server::response;
@@ -59,7 +59,10 @@ pub async fn execute(
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
-    let mut scope = handle.send_request(&payload).await;
+    let mut scope = handle
+        .send_request(&payload)
+        .await
+        .map_err(ExecuteError::Send)?;
     let bytes = scope
         .response_receiver
         .recv()
@@ -87,6 +90,12 @@ pub async fn execute(
 /// means the exchange worked.
 #[derive(Debug)]
 pub enum ExecuteError {
+    /// The request never went out.
+    ///
+    /// Nothing was written, so nothing is waiting to answer it. See
+    /// [`SendError`] for the three reasons, only one of which is about
+    /// this exchange rather than the whole connection.
+    Send(SendError),
     /// The request would not serialize.
     Request(postcard::Error),
     /// The connection ended before anything came back.
@@ -114,6 +123,9 @@ pub enum ExecuteError {
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ExecuteError::Send(error) => {
+                write!(f, "the request never went out: {error}")
+            }
             ExecuteError::Request(error) => {
                 write!(f, "volume edit request did not serialize: {error}")
             }
@@ -144,6 +156,7 @@ impl std::error::Error for ExecuteError {
     /// that wants what is inside it matches the variant.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            ExecuteError::Send(error) => Some(error),
             ExecuteError::Request(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),

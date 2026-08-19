@@ -10,7 +10,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use super::channel_response::mcp;
 use super::execute_stream::ExecuteStream;
 use super::request;
-use crate::client::handle::Handle;
+use crate::client::handle::{Handle, SendError};
 use crate::client::mcp_proxy::{Body, McpProxy};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
@@ -78,7 +78,10 @@ where
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
-    let scope = handle.send_request(&payload).await;
+    let scope = handle
+        .send_request(&payload)
+        .await
+        .map_err(ExecuteError::Send)?;
     let proxying = tokio::spawn(proxy_channel_requests(
         scope.request_receiver,
         handle.clone(),
@@ -165,7 +168,11 @@ where
     {
         return;
     }
-    if !handle.send_channel_response(scope, channel, &buffer).await {
+    if handle
+        .send_channel_response(scope, channel, &buffer)
+        .await
+        .is_err()
+    {
         return;
     }
 
@@ -185,7 +192,9 @@ where
             }
         }
     }
-    handle.send_channel_response_finish(scope, channel).await;
+    // Nothing follows it, so there is nothing to do about a
+    // failure here that returning would not already have done.
+    let _ = handle.send_channel_response_finish(scope, channel).await;
 }
 
 /// One piece of a body, out.
@@ -194,8 +203,13 @@ where
 /// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
 /// way up from nothing for every one of them.
 ///
-/// Answers whether it went out, so a stream of them can stop at the
+/// Answers whether to carry on, so a stream of them can stop at the
 /// first refusal.
+///
+/// A [`bool`] rather than the [`SendError`] itself, because there is
+/// one thing to do about every one of them here and it is stop. Which
+/// of the three it was matters to a caller deciding whether the
+/// connection is worth keeping, and this is not that caller.
 ///
 /// Encoding cannot fail — a body is bytes and has nothing to get wrong
 /// — so a failure there is treated as a refusal rather than handled.
@@ -216,7 +230,10 @@ async fn send_body(
     {
         return false;
     }
-    handle.send_channel_response(scope, channel, buffer).await
+    handle
+        .send_channel_response(scope, channel, buffer)
+        .await
+        .is_ok()
 }
 
 /// A loop that never started.
@@ -228,6 +245,12 @@ async fn send_body(
 /// that started and then stopped without ending.
 #[derive(Debug)]
 pub enum ExecuteError {
+    /// The request never went out.
+    ///
+    /// Nothing was written, so nothing is waiting to answer it. See
+    /// [`SendError`] for the three reasons, only one of which is about
+    /// this exchange rather than the whole connection.
+    Send(SendError),
     /// The request would not serialize.
     Request(serde_json::Error),
 }
@@ -235,6 +258,9 @@ pub enum ExecuteError {
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ExecuteError::Send(error) => {
+                write!(f, "the request never went out: {error}")
+            }
             ExecuteError::Request(error) => {
                 write!(f, "agentic loop request did not serialize: {error}")
             }
@@ -245,6 +271,7 @@ impl fmt::Display for ExecuteError {
 impl std::error::Error for ExecuteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            ExecuteError::Send(error) => Some(error),
             ExecuteError::Request(error) => Some(error),
         }
     }

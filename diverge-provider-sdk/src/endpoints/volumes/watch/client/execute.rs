@@ -7,7 +7,7 @@ use bytes::Bytes;
 use super::channel_request;
 use super::execute_stream::ExecuteStream;
 use super::request;
-use crate::client::handle::Handle;
+use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
 
 /// Start watching a volume.
@@ -61,7 +61,10 @@ pub async fn execute(
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
-    let scope = handle.send_request(&payload).await;
+    let scope = handle
+        .send_request(&payload)
+        .await
+        .map_err(ExecuteError::Send)?;
     let number = scope.scope;
     let mut disconnect_request = Vec::new();
     channel_request::Frame
@@ -84,6 +87,12 @@ pub async fn execute(
 /// watch that started and then stopped without ending.
 #[derive(Debug)]
 pub enum ExecuteError {
+    /// The request never went out.
+    ///
+    /// Nothing was written, so nothing is waiting to answer it. See
+    /// [`SendError`] for the three reasons, only one of which is about
+    /// this exchange rather than the whole connection.
+    Send(SendError),
     /// The request would not serialize.
     Request(postcard::Error),
 }
@@ -91,6 +100,9 @@ pub enum ExecuteError {
 impl fmt::Display for ExecuteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            ExecuteError::Send(error) => {
+                write!(f, "the request never went out: {error}")
+            }
             ExecuteError::Request(error) => {
                 write!(f, "watch request did not serialize: {error}")
             }
@@ -101,6 +113,7 @@ impl fmt::Display for ExecuteError {
 impl std::error::Error for ExecuteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            ExecuteError::Send(error) => Some(error),
             ExecuteError::Request(error) => Some(error),
         }
     }
