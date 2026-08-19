@@ -86,23 +86,19 @@ pub trait PostgresProxy: Send + Sync {
     /// the database says goes back on the returned stream. The
     /// provider's channel finishes when that stream ends.
     ///
-    /// # What `connection_id` is for
+    /// # One call is one connection, and that is the whole of it
     ///
-    /// Naming this connection, and nothing else. It is the provider's
-    /// number for it, quoted in both channels of the pair, so it is
-    /// what lets a log line here line up with one on the other side of
-    /// the socket.
+    /// Which is why nothing here names the connection. The protocol
+    /// has an id for it — the provider mints one and both channels of
+    /// the pair quote it — but it exists to pair two channels, and by
+    /// the time this is called they are paired. What arrives is one
+    /// connection's two ends, with nothing to match them against.
     ///
-    /// Nothing is routed by it. The dispatcher has already used it to
-    /// find this connection, which is why what arrives here is a
-    /// receiver rather than an id to look one up by — an
-    /// implementation that kept its own map keyed by this would be
-    /// keeping a second copy of one that exists.
-    ///
-    /// A [`u32`] and not the frame it came from, because the
-    /// [`client`](crate::client) module names no endpoint's types.
-    /// Every proxy here takes what it needs and leaves the frames to
-    /// [`endpoints`](crate::endpoints).
+    /// Passing it anyway would put a number in the signature that no
+    /// implementation has to read, out of a namespace this side does
+    /// not mint in. A dispatcher that wants to correlate a log line
+    /// across the socket is better placed to write it than this is: it
+    /// holds the scope and both channel numbers as well.
     ///
     /// # What is on `requests`
     ///
@@ -174,9 +170,9 @@ pub trait PostgresProxy: Send + Sync {
     /// channel is the obvious shape and is worse. The two directions
     /// share the one thing that cannot be handed over twice — the
     /// socket — so an implementation split across two calls would have
-    /// to hold the dialled connection between them, keyed by
-    /// `connection_id`, in a map every implementation would write
-    /// identically and the dispatcher already keeps.
+    /// to hold the dialled connection between them, keyed by whatever
+    /// named it, in a map every implementation would write identically
+    /// and the dispatcher already keeps.
     ///
     /// One call hands over both ends at once and lets the connection
     /// live on the implementation's own stack. What it costs is a
@@ -252,7 +248,6 @@ pub trait PostgresProxy: Send + Sync {
     /// the signature a reader is checking theirs against.
     fn handle(
         &self,
-        connection_id: u32,
         requests: UnboundedReceiver<Bytes>,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>,
