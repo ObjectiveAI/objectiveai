@@ -79,11 +79,30 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// statuses, [`CommandProxy`](super::command_proxy::CommandProxy) in the
 /// CLI's own, and this one in pgwire.
 pub trait PostgresProxy: Send + Sync {
-    /// Open one connection, and splice it onto the channel.
+    /// Open one connection, and splice it onto the pair of channels
+    /// carrying it.
     ///
     /// Everything the plugin writes arrives on `requests`; everything
-    /// the database says goes back on the returned stream. The channel
-    /// finishes when that stream ends.
+    /// the database says goes back on the returned stream. The
+    /// provider's channel finishes when that stream ends.
+    ///
+    /// # What `connection_id` is for
+    ///
+    /// Naming this connection, and nothing else. It is the provider's
+    /// number for it, quoted in both channels of the pair, so it is
+    /// what lets a log line here line up with one on the other side of
+    /// the socket.
+    ///
+    /// Nothing is routed by it. The dispatcher has already used it to
+    /// find this connection, which is why what arrives here is a
+    /// receiver rather than an id to look one up by — an
+    /// implementation that kept its own map keyed by this would be
+    /// keeping a second copy of one that exists.
+    ///
+    /// A [`u32`] and not the frame it came from, because the
+    /// [`client`](crate::client) module names no endpoint's types.
+    /// Every proxy here takes what it needs and leaves the frames to
+    /// [`endpoints`](crate::endpoints).
     ///
     /// # What is on `requests`
     ///
@@ -149,6 +168,41 @@ pub trait PostgresProxy: Send + Sync {
     /// which a dispatcher would have to hold and account for
     /// differently from the other two.
     ///
+    /// # Why one method and not two
+    ///
+    /// The exchange is two channels, so a trait with a method per
+    /// channel is the obvious shape and is worse. The two directions
+    /// share the one thing that cannot be handed over twice — the
+    /// socket — so an implementation split across two calls would have
+    /// to hold the dialled connection between them, keyed by
+    /// `connection_id`, in a map every implementation would write
+    /// identically and the dispatcher already keeps.
+    ///
+    /// One call hands over both ends at once and lets the connection
+    /// live on the implementation's own stack. What it costs is a
+    /// [`tokio::spawn`] for the write pump, since the
+    /// returned stream and the draining of `requests` have to run at
+    /// the same time. That is the whole burden, and it is smaller than
+    /// the bookkeeping the split would have required.
+    ///
+    /// # The channel is opened before this is called, deliberately
+    ///
+    /// So `requests` exists before anything is dialled, which looks
+    /// like a caller committing to a connection it has not got yet. It
+    /// is the right way round.
+    ///
+    /// The plugin wrote its startup message the instant it connected,
+    /// and the provider has been holding it since. Waiting for the dial
+    /// to succeed before asking for those bytes would put the round
+    /// trip and the dial end to end instead of overlapping them, on
+    /// every connection a pool opens.
+    ///
+    /// And declining costs nothing. A proxy that cannot dial returns a
+    /// stream that ends; the caller finishes the provider's channel;
+    /// the provider closes the plugin's socket and finishes this one.
+    /// The exchange winds itself up, and what it cost was one channel
+    /// that carried a few bytes nobody read.
+    ///
     /// # `None` means the plugin hung up
     ///
     /// It is a real signal and the reason the exchange is shaped the way
@@ -198,6 +252,7 @@ pub trait PostgresProxy: Send + Sync {
     /// the signature a reader is checking theirs against.
     fn handle(
         &self,
+        connection_id: u32,
         requests: UnboundedReceiver<Bytes>,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>,
