@@ -96,34 +96,21 @@ impl Handle {
     /// callers racing here would otherwise be two callers with the same
     /// scope.
     ///
-    /// # Choosing the capacities
+    /// # There is no depth to choose
     ///
-    /// They belong to the caller because only the caller knows what it
-    /// asked for. A volume listing answers once; a file read answers in
-    /// chunks for as long as the file lasts. One number for both would
-    /// be too deep for the first or too shallow for the second.
+    /// The two receivers it comes back with are unbounded, so nothing
+    /// here asks a caller how far a provider may run ahead of it. That
+    /// question had no good answer: a volume listing answers once and a
+    /// file read answers in chunks for as long as the file lasts, and
+    /// one number for both was always going to be wrong for one of
+    /// them.
     ///
-    /// Depth buys tolerance for a slow reader and costs memory while it
-    /// goes unread — at most `capacity` frames of it per stream, and a
-    /// frame is as large as whatever the provider chunked. Too shallow
-    /// costs no frames at all: nothing is dropped, the router blocks on
-    /// the full queue instead, and it blocks for every scope on the
-    /// connection rather than only this one.
-    ///
-    /// Zero is not allowed and panics, which is
-    /// [`tokio`](tokio::sync::mpsc::channel)'s rule rather than this
-    /// one.
-    pub async fn send_request(
-        &self,
-        payload: &[u8],
-        response_capacity: usize,
-        request_capacity: usize,
-    ) -> Scope {
-        self.0
-            .lock()
-            .await
-            .send_request(payload, response_capacity, request_capacity)
-            .await
+    /// What a caller owes in exchange is to read what it asked for. An
+    /// unread queue grows rather than stalling anything, so the cost of
+    /// walking away is memory, and the remedy is to drop the
+    /// [`Scope`] — see it for what that does.
+    pub async fn send_request(&self, payload: &[u8]) -> Scope {
+        self.0.lock().await.send_request(payload).await
     }
 
     /// Open a channel inside a scope, and send the request that opens
@@ -150,13 +137,8 @@ impl Handle {
         &self,
         scope: u32,
         payload: &[u8],
-        response_capacity: usize,
     ) -> Option<Channel> {
-        self.0
-            .lock()
-            .await
-            .send_channel_request(scope, payload, response_capacity)
-            .await
+        self.0.lock().await.send_channel_request(scope, payload).await
     }
 
     /// Answer, on a channel the server opened.
@@ -386,18 +368,11 @@ impl HandleInner {
     /// this crate never looks at, so encoding one is
     /// [`Infallible`](std::convert::Infallible) and says so in the
     /// type.
-    async fn send_request(
-        &mut self,
-        payload: &[u8],
-        response_capacity: usize,
-        request_capacity: usize,
-    ) -> Scope {
+    async fn send_request(&mut self, payload: &[u8]) -> Scope {
         self.take_back();
         let scope = self.mint_scope();
-        let (response_sender, response_receiver) =
-            mpsc::channel(response_capacity);
-        let (request_sender, request_receiver) =
-            mpsc::channel(request_capacity);
+        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        let (request_sender, request_receiver) = mpsc::unbounded_channel();
         let _ = self.registrations.send(Registration::Scope {
             scope,
             response_sender,
@@ -427,11 +402,10 @@ impl HandleInner {
         &mut self,
         scope: u32,
         payload: &[u8],
-        response_capacity: usize,
     ) -> Option<Channel> {
         self.take_back();
         let channel = mint_channel(self.scopes.get_mut(&scope)?);
-        let (response_sender, responses) = mpsc::channel(response_capacity);
+        let (response_sender, responses) = mpsc::unbounded_channel();
         let _ = self.registrations.send(Registration::Channel {
             scope,
             channel,

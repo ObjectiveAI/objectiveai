@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use bytes::Bytes;
 use futures_util::StreamExt as _;
 use futures_util::stream::SplitStream;
-use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use super::registration::Registration;
 use crate::connection::Connection;
@@ -40,20 +40,20 @@ use crate::frame::server::ServerFrame;
 /// thousands — and it would not buy backpressure isolation, because
 /// the queue feeding that task fills just the same.
 ///
-/// # A full queue waits
+/// # Nothing here waits
 ///
-/// The senders are bounded and [`run`](Self::run) awaits them, so a
-/// consumer that stops reading stops the whole connection — every
-/// other scope on it included.
+/// Every sender is unbounded, so forwarding a frame is a push and this
+/// loop never blocks on a consumer. One scope that has stopped reading
+/// cannot stall another, and cannot stall the socket.
 ///
-/// That is the deliberate half of the trade. The alternative is
-/// dropping the frame, and a stream has no way to say it lost one: a
-/// caller reassembling an image layer would get a shorter layer and no
-/// indication of it. A stall is visible and recoverable; a hole is
-/// neither.
+/// Dropping the frame was never on the table — a stream has no way to
+/// say it lost one, and a caller reassembling an image layer would get
+/// a shorter layer with no indication of it. What replaces the stall is
+/// memory: an unread queue grows, at the rate the far end is sending.
 ///
-/// What follows from it is a requirement on consumers rather than on
-/// this: read your receiver, or close it.
+/// So the requirement on consumers is sharper than it was, not softer:
+/// read your receiver, or drop it. A dropped one makes these sends fail,
+/// which is ignored, and frees what it was holding.
 ///
 /// # When entries leave
 ///
@@ -101,7 +101,7 @@ pub struct Router {
     /// would have to be scanned for them.
     scopes: HashMap<
         u32,
-        (Sender<Bytes>, Sender<Bytes>, HashMap<u32, Sender<Bytes>>),
+        (UnboundedSender<Bytes>, UnboundedSender<Bytes>, HashMap<u32, UnboundedSender<Bytes>>),
     >,
     /// Somewhere to register a new destination before its frames
     /// arrive.
@@ -113,6 +113,11 @@ pub struct Router {
     /// causes the frames — and a registration that waited behind a
     /// full queue would be a request whose answers arrive before
     /// anywhere exists to put them.
+    ///
+    /// Which is now true of every queue here rather than only this one.
+    /// It stays worth saying because this one would have to be
+    /// unbounded even if the others were not: it is drained from inside
+    /// the loop that fills the rest.
     registrations: UnboundedReceiver<Registration>,
     /// Somewhere to say an entry is gone.
     ///
@@ -129,7 +134,8 @@ pub struct Router {
     /// Unbounded, and for a plainer reason than
     /// [`registrations`](Self::registrations) — this is sent from
     /// inside the read loop, so a bounded queue that filled would stop
-    /// the loop that drains it. Nothing is retried and a failed send is
+    /// the loop that drains it. That reasoning is now shared with every
+    /// other queue in here, which is unbounded for a broader one. Nothing is retried and a failed send is
     /// ignored: the only way to fail is a holder that is gone, and a
     /// holder that is gone has no record to correct.
     closed: UnboundedSender<(u32, Option<u32>)>,
@@ -220,7 +226,7 @@ impl Router {
                 ServerFrame::Auth { .. } => {}
                 ServerFrame::Response { scope, .. } => {
                     if let Some((response_sender, ..)) = self.scope(scope) {
-                        let _ = response_sender.send(bytes).await;
+                        let _ = response_sender.send(bytes);
                     }
                 }
                 // The scope is over, so everything under it goes: both
@@ -229,7 +235,7 @@ impl Router {
                 // stream ended rather than the connection.
                 ServerFrame::ResponseFinish { scope } => {
                     if let Some((response_sender, ..)) = self.scope(scope) {
-                        let _ = response_sender.send(bytes).await;
+                        let _ = response_sender.send(bytes);
                     }
                     self.close_scope(scope);
                 }
@@ -242,19 +248,19 @@ impl Router {
                 // other way, where this never looks.
                 ServerFrame::ChannelRequest { scope, .. } => {
                     if let Some((_, request_sender, _)) = self.scope(scope) {
-                        let _ = request_sender.send(bytes).await;
+                        let _ = request_sender.send(bytes);
                     }
                 }
                 ServerFrame::ChannelResponse { scope, channel, .. } => {
                     if let Some(sender) = self.channel(scope, channel) {
-                        let _ = sender.send(bytes).await;
+                        let _ = sender.send(bytes);
                     }
                 }
                 // As `ResponseFinish`, one level down: forward, then
                 // drop the channel and leave the scope open.
                 ServerFrame::ChannelResponseFinish { scope, channel } => {
                     if let Some(sender) = self.channel(scope, channel) {
-                        let _ = sender.send(bytes).await;
+                        let _ = sender.send(bytes);
                     }
                     self.close_channel(scope, channel);
                 }
@@ -278,7 +284,7 @@ impl Router {
         &mut self,
         scope: u32,
     ) -> Option<
-        &mut (Sender<Bytes>, Sender<Bytes>, HashMap<u32, Sender<Bytes>>),
+        &mut (UnboundedSender<Bytes>, UnboundedSender<Bytes>, HashMap<u32, UnboundedSender<Bytes>>),
     > {
         if !self.scopes.contains_key(&scope) {
             self.drain();
@@ -291,7 +297,7 @@ impl Router {
     /// Either half missing drains, because either half can be the one
     /// that has not arrived: a channel's registration is its own entry,
     /// and it queues behind the scope's.
-    fn channel(&mut self, scope: u32, channel: u32) -> Option<&Sender<Bytes>> {
+    fn channel(&mut self, scope: u32, channel: u32) -> Option<&UnboundedSender<Bytes>> {
         let found = self
             .scopes
             .get(&scope)

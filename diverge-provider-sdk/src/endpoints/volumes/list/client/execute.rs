@@ -33,16 +33,12 @@ use crate::shared::error::Error;
 /// a caller that treats them alike concludes there are no volumes
 /// when it was never told.
 ///
-/// # Both capacities are one
+/// # It reads one frame and leaves
 ///
-/// This answers once and opens nothing, so one frame of depth is one
-/// more than it needs. Zero is not allowed —
-/// [`tokio`](tokio::sync::mpsc::channel) panics on it — which is the
-/// only reason the second is not zero.
-///
-/// The scope's request stream is dropped unread. Nothing is supposed to
-/// arrive on it, and a provider that opened a channel anyway finds the
-/// far end already gone.
+/// The scope's queues are unbounded and this takes one thing off one of
+/// them, so nothing about depth arises. The request stream is dropped
+/// unread: nothing is supposed to arrive on it, and a provider that
+/// opened a channel anyway finds the far end already gone.
 ///
 /// # What ends the wait
 ///
@@ -70,7 +66,7 @@ pub async fn execute(
     request
         .encode(&mut Writer::new(&mut payload))
         .unwrap_or_else(|error| match error {});
-    let mut scope = handle.send_request(&payload, 1, 1).await;
+    let mut scope = handle.send_request(&payload).await;
     let bytes = scope
         .response_receiver
         .recv()

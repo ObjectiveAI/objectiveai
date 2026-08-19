@@ -1,7 +1,7 @@
 //! Somewhere for a scope's frames to go, arranged before they arrive.
 
 use bytes::Bytes;
-use tokio::sync::mpsc::Sender;
+use tokio::sync::mpsc::UnboundedSender;
 
 /// Somewhere to put frames, arranged before any of them arrive.
 ///
@@ -29,10 +29,10 @@ pub enum Registration {
         /// The scope, chosen by whoever is about to request it.
         scope: u32,
         /// Where the answers on channel `0` go.
-        response_sender: Sender<Bytes>,
+        response_sender: UnboundedSender<Bytes>,
         /// Where the server's own channel requests go, whatever it
         /// numbers them.
-        request_sender: Sender<Bytes>,
+        request_sender: UnboundedSender<Bytes>,
     },
     /// Open a channel inside a scope that is already registered.
     ///
@@ -45,6 +45,6 @@ pub enum Registration {
         /// The channel, chosen by whoever is about to request it.
         channel: u32,
         /// Where the server's answers on it go.
-        response_sender: Sender<Bytes>,
+        response_sender: UnboundedSender<Bytes>,
     },
 }

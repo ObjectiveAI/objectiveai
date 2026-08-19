@@ -7,7 +7,7 @@ use std::task::{Context, Poll, ready};
 use bytes::Bytes;
 use futures_util::Stream;
 use futures_util::stream::FusedStream;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::JoinHandle;
 
 use crate::decode::Decode;
@@ -67,7 +67,7 @@ use crate::shared::error::Error;
 /// agent, and finds its tool calls unanswered. That is a gap in the
 /// protocol rather than in this type, and it is the strongest argument
 /// the loop has for one.
-#[must_use = "a loop that is not polled stalls every scope on the connection"]
+#[must_use = "a loop that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
     /// The scope's responses, until there are no more.
@@ -88,7 +88,7 @@ pub struct ExecuteStream {
     /// may still be full of frames. Nothing about the receiver stops a
     /// stream that has declared itself finished from going on to yield
     /// chunks, and this does.
-    response_receiver: Option<Receiver<Bytes>>,
+    response_receiver: Option<UnboundedReceiver<Bytes>>,
     /// The task answering the agent's MCP requests.
     ///
     /// Held only to end it. Nothing here waits on it or reads what it
@@ -111,7 +111,7 @@ impl ExecuteStream {
     /// only thing that can honestly make one of these is the thing that
     /// sent it.
     pub(super) fn new(
-        response_receiver: Receiver<Bytes>,
+        response_receiver: UnboundedReceiver<Bytes>,
         proxying: JoinHandle<()>,
     ) -> Self {
         ExecuteStream {

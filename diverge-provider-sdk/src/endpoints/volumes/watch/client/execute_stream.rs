@@ -7,7 +7,7 @@ use std::task::{Context, Poll, ready};
 use bytes::Bytes;
 use futures_util::Stream;
 use futures_util::stream::FusedStream;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::client::handle::Handle;
 use crate::decode::Decode;
@@ -51,9 +51,9 @@ use crate::shared::filetree;
 /// A [`Scope`](crate::client::scope::Scope) carries a second receiver,
 /// for channels a provider opens inside it. Nothing is supposed to open
 /// one inside a watch — but nothing forbids it either, and that
-/// receiver is bounded at `1` while the router AWAITS it. Holding one
-/// unread would mean a provider that opened two channels blocked the
-/// router forever, stalling every scope on the connection.
+/// receiver is unbounded. Holding one unread would mean a provider that
+/// opened channels into it grew a queue nobody would ever read, for as
+/// long as the watch lasted.
 ///
 /// So [`execute`](super::execute) drops it and a stray channel request
 /// dead-letters, which is the rule
@@ -62,15 +62,15 @@ use crate::shared::filetree;
 ///
 /// # Reading is not optional
 ///
-/// The queue is bounded, at whatever depth
-/// [`execute`](super::execute) was given. A watch nobody reads stops
-/// the router that many frames later, and stopping the router stops
-/// every scope on the connection rather than only this one.
+/// The queue is unbounded, so a watch nobody reads stalls nothing — it
+/// grows, at whatever rate the tree is changing. A directory under a
+/// build sends thousands of frames a second, and every one of them is
+/// kept until somebody takes it or this is dropped.
 ///
 /// That obligation gets sharper as a [`Stream`], not softer. A
 /// `select!` is exactly where a stream someone means to ignore ends up,
-/// and one parked there that rarely wins stalls the connection once its
-/// capacity fills.
+/// and one parked there that rarely wins is one accumulating a tree's
+/// worth of changes nobody asked to keep.
 ///
 /// # Dropping it disconnects the watch
 ///
@@ -91,7 +91,7 @@ use crate::shared::filetree;
 /// go — no runtime on the thread, a connection already gone — leaves
 /// things as they were before any of this existed. It never sends the
 /// wrong one: see [`drop`](Self::drop).
-#[must_use = "a watch that is not polled stalls every scope on the connection"]
+#[must_use = "a watch that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
     /// The scope's responses, until there are no more.
@@ -118,7 +118,7 @@ pub struct ExecuteStream {
     /// dropped the moment nothing will read it, so its frames are freed
     /// and the router's later sends fail at once instead of filling
     /// something nobody is holding.
-    response_receiver: Option<Receiver<Bytes>>,
+    response_receiver: Option<UnboundedReceiver<Bytes>>,
     /// What the disconnect is sent over.
     ///
     /// A [`Handle`] rather than a pre-encoded frame, and the difference
@@ -156,7 +156,7 @@ impl ExecuteStream {
     /// only thing that can honestly make one of these is the thing that
     /// sent it.
     pub(super) fn new(
-        response_receiver: Receiver<Bytes>,
+        response_receiver: UnboundedReceiver<Bytes>,
         handle: Handle,
         scope: u32,
         disconnect_request: Bytes,
@@ -292,7 +292,7 @@ impl Drop for ExecuteStream {
         let disconnect_request = self.disconnect_request.clone();
         runtime.spawn(async move {
             let _ = handle
-                .send_channel_request(scope, &disconnect_request, 1)
+                .send_channel_request(scope, &disconnect_request)
                 .await;
         });
     }

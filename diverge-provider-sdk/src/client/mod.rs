@@ -20,13 +20,30 @@
 //! [`Sink`](futures_util::Sink) needs `&mut` and a read loop never
 //! finishes, so one type holding both could only ever do one of them.
 //!
-//! Two channels run between them, both unbounded. [`registration`]
-//! goes forward, saying where frames should go before the request that
-//! causes them; closures come back, saying an entry is gone.
+//! Two channels run between them. [`registration`] goes forward,
+//! saying where frames should go before the request that causes them;
+//! closures come back, saying an entry is gone.
 //!
 //! [`scope`] and [`channel`] are what a [`handle`] hands back — the
 //! two things a caller opens, each with the receivers its frames
 //! arrive on.
+//!
+//! # Every queue here is unbounded
+//!
+//! So nothing this half does ever waits on a consumer. A [`router`]
+//! forwarding a frame pushes it and moves on; one scope that has
+//! stopped reading cannot stall another, and cannot stall the socket.
+//!
+//! Which is the same trade [`server`](crate::server) makes, and it is a
+//! trade. Dropping a frame was never on the table — a stream has no way
+//! to say it lost one — so what a bound would have bought is a stall,
+//! and what its absence costs is memory. An unread queue grows at
+//! whatever rate the far end is sending, and nothing in this crate
+//! bounds it.
+//!
+//! So the obligation on a caller is sharper than a depth would have
+//! made it, not softer: read what you asked for, or drop it. Dropping
+//! frees the queue and makes the router's sends fail, which it ignores.
 //!
 //! Those three are data and nothing else, which is why they sit beside
 //! the handle and the router rather than inside either: what makes one

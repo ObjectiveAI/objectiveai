@@ -38,9 +38,9 @@ use crate::encode::{Encode, Writer};
 /// A [`Scope`](crate::client::scope::Scope) carries a second receiver,
 /// for channels a provider opens inside it. Nothing is supposed to open
 /// one inside a watch — but nothing forbids it either, and that
-/// receiver is bounded at `1` while the router AWAITS it. Holding one
-/// unread would mean a provider that opened two channels blocked the
-/// router forever, stalling every scope on the connection.
+/// receiver is unbounded. Holding one unread would mean a provider that
+/// opened channels into it grew a queue nobody would ever read, for as
+/// long as the watch lasted.
 ///
 /// So it is dropped here and a stray channel request dead-letters,
 /// which is the rule [`Scope`](crate::client::scope::Scope) states
@@ -53,37 +53,15 @@ use crate::encode::{Encode, Writer};
 /// [`channel_request::Frame`] rather than written as the byte it
 /// happens to be. What a disconnect looks like on the wire is that
 /// module's to say, and this is a caller like any other.
-///
-/// # Choosing the capacity
-///
-/// It belongs to the caller because only the caller knows what it is
-/// watching. A directory nobody touches sends a snapshot and goes
-/// quiet; one under a build sends thousands of frames a second.
-///
-/// The unit is whole frames, headers included, and a frame is as large
-/// as whatever the provider chunked — the memory is its choice of
-/// chunk, not this one's.
-///
-/// Depth buys tolerance for a reader that falls behind and costs memory
-/// while it does. Too shallow loses nothing — the router waits rather
-/// than dropping — but it waits for every scope on the connection, not
-/// just this one. Zero is not allowed and panics inside
-/// [`Handle::send_request`], after the request has been encoded and
-/// before anything reaches the wire, which is
-/// [`tokio`](tokio::sync::mpsc::channel)'s rule rather than this one.
-///
-/// The second capacity is `1` and not offered, because what it feeds is
-/// dropped before this returns.
 pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
-    capacity: usize,
 ) -> Result<ExecuteStream, ExecuteError> {
     let mut payload = Vec::new();
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
-    let scope = handle.send_request(&payload, capacity, 1).await;
+    let scope = handle.send_request(&payload).await;
     let number = scope.scope;
     let mut disconnect_request = Vec::new();
     channel_request::Frame

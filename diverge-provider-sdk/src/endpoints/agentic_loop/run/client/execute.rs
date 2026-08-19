@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use futures_util::StreamExt as _;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 use super::channel_response::mcp;
 use super::execute_stream::ExecuteStream;
@@ -54,25 +54,22 @@ use crate::frame;
 /// cannot run the agent says so in a frame like everything else. See
 /// [`ExecuteStreamError`](super::ExecuteStreamError).
 ///
-/// # Choosing the capacities
+/// # There is no depth to choose
 ///
-/// `chunks` is how far the agent may run ahead of a caller reading its
-/// output. `channel_requests` is how many tool calls may arrive before
-/// the proxying task has taken them off the queue — which it does
-/// promptly, since taking one off is a spawn.
+/// Both of the scope's queues are unbounded, so neither the agent's
+/// chunks nor its tool calls can stall on a slow reader. The tool calls
+/// would not have anyway — the task taking them off does nothing but
+/// spawn — but the chunks could, and a caller that stalled its own
+/// chunk stream would have been stalling every other scope on the
+/// connection with it.
 ///
-/// Both are bounded and neither is dropped when full: the router waits
-/// instead, and it waits for every scope on the connection rather than
-/// only this one. Zero is not allowed and panics inside
-/// [`Handle::send_request`], after the request has been encoded and
-/// before anything reaches the wire, which is
-/// [`tokio`](tokio::sync::mpsc::channel)'s rule rather than this one.
+/// What it costs is a bound. A caller that stops reading grows a queue
+/// instead of stopping anything, and dropping the [`ExecuteStream`] is
+/// what frees it.
 pub async fn execute<P>(
     handle: &Handle,
     request: &request::Frame,
     proxy: Arc<P>,
-    chunks: usize,
-    channel_requests: usize,
 ) -> Result<ExecuteStream, ExecuteError>
 where
     P: McpProxy + 'static,
@@ -81,7 +78,7 @@ where
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
-    let scope = handle.send_request(&payload, chunks, channel_requests).await;
+    let scope = handle.send_request(&payload).await;
     let proxying = tokio::spawn(proxy_channel_requests(
         scope.request_receiver,
         handle.clone(),
@@ -103,7 +100,7 @@ where
 /// mean either borrowing across the spawn, which cannot be done, or
 /// copying out of it, which would be a copy per tool call for nothing.
 async fn proxy_channel_requests<P>(
-    mut requests: Receiver<Bytes>,
+    mut requests: UnboundedReceiver<Bytes>,
     handle: Handle,
     scope: u32,
     proxy: Arc<P>,

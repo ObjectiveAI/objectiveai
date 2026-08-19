@@ -1,7 +1,7 @@
 //! One channel a caller opened inside a scope, and what comes back.
 
 use bytes::Bytes;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 /// A channel that has been opened inside a scope, and what comes back
 /// on it.
@@ -26,5 +26,5 @@ pub struct Channel {
     /// Whole frames, headers included. Ends at the finish frame; the
     /// channel closing without one means the connection went first, or
     /// the scope did.
-    pub responses: Receiver<Bytes>,
+    pub responses: UnboundedReceiver<Bytes>,
 }

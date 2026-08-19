@@ -1,7 +1,7 @@
 //! One scope a caller opened, and the frames that arrive in it.
 
 use bytes::Bytes;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::UnboundedReceiver;
 
 /// A scope that has been opened, and the frames that will arrive in it.
 ///
@@ -27,11 +27,15 @@ use tokio::sync::mpsc::Receiver;
 ///
 /// # Reading is not optional
 ///
-/// The receivers are bounded, at whatever depth was asked for. A caller
-/// that stops reading one stops the router that many frames later, and
-/// stopping the router stops every scope on the connection — not just
-/// this one. Drop what you are not going to read: a dropped receiver
-/// makes its sends fail, which the router ignores and carries on.
+/// The receivers are unbounded, so a caller that stops reading stalls
+/// nothing — not this scope, not the router, not the connection. What
+/// it does instead is grow, at whatever rate the server is sending, and
+/// nothing in this crate bounds that.
+///
+/// Which makes the rule the same and the reason different: drop what
+/// you are not going to read. A dropped receiver makes the router's
+/// sends fail, which it ignores and carries on, and frees what the
+/// queue was holding.
 #[derive(Debug)]
 pub struct Scope {
     /// The scope's number, chosen by this end.
@@ -46,10 +50,10 @@ pub struct Scope {
     /// Whole frames, headers included, exactly as they came off the
     /// socket. Ends at the finish frame; the channel closing without
     /// one means the connection went first.
-    pub response_receiver: Receiver<Bytes>,
+    pub response_receiver: UnboundedReceiver<Bytes>,
     /// The requests the server makes inside this scope.
     ///
     /// Whole frames again, and the channel number in each header is the
     /// SERVER's — it is what an answer has to quote to be understood.
-    pub request_receiver: Receiver<Bytes>,
+    pub request_receiver: UnboundedReceiver<Bytes>,
 }
