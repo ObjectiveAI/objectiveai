@@ -6,17 +6,44 @@ use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
-/// The plugin is running, or it is not.
+/// The plugin did not come up.
 ///
-/// One of these on channel `0`. A payload leads with one byte saying
-/// which — `0` for [`Ready`](Self::Ready), `1` for
-/// [`Error`](Self::Error) — and for the first there is nothing after
-/// it, because saying so IS the whole message.
+/// The only thing a run's scope ever says. A payload leads with one
+/// byte — `0`, and nothing else is defined — and the rest is the
+/// error.
 ///
-/// | the scope ends with | means |
-/// |----------------------|-------|
-/// | [`Ready`](Self::Ready), then work | the plugin is up; call it |
-/// | an [`Error`](Self::Error), then a finish | it never came up, and here is what the provider knows |
+/// | the scope | means |
+/// |-----------|-------|
+/// | says nothing, and stays open | the plugin is running |
+/// | one of these, then a finish | it never came up, and here is what the provider knows |
+/// | a finish, with none of these | the run is over |
+///
+/// # Silence is the good case
+///
+/// Which is unusual here and worth stating plainly: a plugin that
+/// works produces no response frame at all. The scope opens, the image
+/// is pulled on channels the provider opens, the container starts, and
+/// nothing is said about any of it. What a caller does next is call the
+/// plugin.
+///
+/// # Why there is no readiness signal
+///
+/// There was one, and it was removed, because it could not mean what
+/// it appeared to. A provider knows when a CONTAINER has started, and
+/// that is not the same fact as the MCP server inside it having bound
+/// [`port`](crate::endpoints::mcp_plugin::run::client::request::Frame::port).
+/// A signal sent at the first would have been read as the second.
+///
+/// The honest test is a call. This endpoint already relies on that
+/// elsewhere — a wrong `port` is documented as surfacing "as an
+/// exchange that finishes without an answer, rather than when the
+/// plugin started" — so a caller that wants to know whether the plugin
+/// is up asks it something, and a readiness frame would have been a
+/// second, weaker answer to a question already answered better.
+///
+/// It also cost a round of doubt that a caller had no way to resolve:
+/// nothing said what to do about a plugin that reported ready and then
+/// did not answer.
 ///
 /// # Why there is no id
 ///
@@ -41,50 +68,41 @@ use crate::shared::error::Error;
 /// it takes no [`mounts`], and a caller with no way to read or write
 /// inside it has nothing to do with a tree of it.
 ///
+/// # Why a struct with a tag, rather than the error alone
+///
+/// The tag is what leaves room. One kind of response today is not a
+/// promise of one forever, and a payload that was bare error bytes
+/// could not grow a second kind without every existing reader
+/// misreading it. One byte holds that door open.
+///
+/// A struct rather than a one-variant enum for the reason this crate
+/// uses everywhere: an enum with nothing to choose between implies a
+/// decision nobody makes.
+///
 /// [`mounts`]: crate::endpoints::laboratories::run::client::request::Frame::mounts
 #[derive(Debug, Clone, PartialEq)]
-pub enum Frame {
-    /// The plugin is up and its MCP server can be reached. Tag `0`.
-    Ready,
-    /// A failure. Tag `1`.
-    ///
-    /// The plugin is not running and will not be — the image would not
-    /// pull, the container would not start, nothing ever answered on
-    /// [`port`](crate::endpoints::mcp_plugin::run::client::request::Frame::port),
-    /// whatever the provider knows.
+pub struct Frame(
+    /// What went wrong.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
     /// why it says so little.
-    Error(Error),
-}
+    pub Error,
+);
 
-/// Tag for [`Frame::Ready`].
-const READY: u8 = 0;
+/// Tag for [`Frame`].
+const ERROR: u8 = 0;
 
-/// Tag for [`Frame::Error`].
-const ERROR: u8 = 1;
-
+/// A tag, then the error's JSON.
 impl Encode for Frame {
-    /// The ordinary JSON failure, from the half that has one. A lone
-    /// tag byte cannot fail.
+    /// The ordinary JSON failure. The tag cannot fail.
     type Error = serde_json::Error;
 
-    // Spelled out rather than `Self::Error`: this enum has a variant
-    // called `Error`, so the associated type is ambiguous by that name.
-    fn encode(
-        &self,
-        out: &mut Writer<'_>,
-    ) -> Result<(), serde_json::Error> {
-        match self {
-            Frame::Ready => {
-                out.extend_from_slice(&[READY]);
-                Ok(())
-            }
-            Frame::Error(error) => {
-                out.extend_from_slice(&[ERROR]);
-                error.encode(out)
-            }
-        }
+    // Spelled out rather than `Self::Error`: this struct's field is a
+    // type called `Error`, so the associated type is ambiguous by that
+    // name.
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
+        out.extend_from_slice(&[ERROR]);
+        self.0.encode(out)
     }
 }
 
@@ -96,10 +114,7 @@ impl Decode<'_> for Frame {
     fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
-            READY => Ok(Frame::Ready),
-            ERROR => {
-                Error::decode(rest).map(Frame::Error).map_err(FrameError::Error)
-            }
+            ERROR => Error::decode(rest).map(Frame).map_err(FrameError::Error),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -110,7 +125,11 @@ impl Decode<'_> for Frame {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is not this frame's one.
+    ///
+    /// Which is how a response kind added later arrives at a reader
+    /// built before it — as something unreadable rather than as an
+    /// error that was never sent.
     UnknownTag(u8),
     /// The error did not parse.
     Error(serde_json::Error),
