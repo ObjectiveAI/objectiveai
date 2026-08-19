@@ -45,13 +45,17 @@
 //! [`session`] is a connection: it takes one, splits it, and answers
 //! with the scopes a client opens on it. [`scope_handle`] is one of
 //! those scopes: what was asked, the channels the client opens inside
-//! it, and every way to answer.
+//! it, and the channels this end opens back.
 //!
 //! The reading is all in the first and the writing is all in the
 //! second. So a [`Session`](session::Session) holds the read half and
 //! shares the write half out, and a
 //! [`ScopeHandle`](scope_handle::ScopeHandle) carries a share of it
 //! along with its own inbox.
+//!
+//! One queue runs the other way, from the scopes back to the session,
+//! carrying the two things a session cannot work out for itself: where
+//! a channel's answer should land, and what has ended.
 //!
 //! # Why it is not the caller half turned around
 //!
@@ -63,10 +67,16 @@
 //! A client arranges where a scope's frames will go before it opens
 //! one, so something must hold those arrangements and match arriving
 //! frames against them. That is routing, and it is a job worth a type.
-//! Nothing here can arrange anything — a server is told about scopes —
+//! Nothing here can arrange a SCOPE — a server is told about those —
 //! so what would have been a router is a loop that reads frames and
 //! hands out the ones that open something, which is what a
 //! [`Session`](session::Session) is.
+//!
+//! Channels are the other way round: a channel this end opens is this
+//! end's to number, and its answer needs somewhere to land before it
+//! arrives. So a session routes for the half it opens and merely
+//! delivers for the half it is told about, and the one queue running
+//! back to it is what carries the difference.
 //!
 //! The handle divides the other way for the same reason. A client's is
 //! a shared, cloneable writer that hands out scopes it CREATED, and
@@ -77,9 +87,10 @@
 //!
 //! # What is not here yet
 //!
-//! **Channels this end opens.** A provider needs them and cannot open
-//! one, so a channel response arriving now is discarded — nothing here
-//! could have asked for it.
+//! **Answering.** A provider can open a channel inside a scope but
+//! cannot write on the scope's own stream, and cannot finish one. So
+//! nothing built on this is usable end to end: a client that opens a
+//! scope will be asked things and never answered.
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a

@@ -3,11 +3,15 @@
 use std::sync::Arc;
 
 use bytes::Bytes;
+use futures_util::SinkExt as _;
 use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
+use super::session::Notice;
 use crate::connection::Connection;
+use crate::encode::{Encode, Writer};
+use crate::frame::server::ServerFrame;
 
 /// A scope a client opened, and the means to answer it.
 ///
@@ -29,26 +33,24 @@ use crate::connection::Connection;
 /// # Dropping it ends the scope, as far as the session is concerned
 ///
 /// [`Drop`] closes the receiver and says so, in that order, and a
-/// [`Session`](super::session::Session) forgets the scope on its next
-/// poll. It is a destructor rather than a method because that is what
-/// makes it unforgettable: abandoning a scope and ending one
-/// deliberately are the same event to the session, and neither can be
-/// omitted by a caller who did not read this.
+/// [`Session`](super::session::Session) forgets the scope — and every
+/// channel opened inside it — on its next drain. It is a destructor
+/// rather than a method because that is what makes it unforgettable:
+/// abandoning a scope and ending one deliberately are the same event to
+/// the session, and neither can be omitted by a caller who did not read
+/// this.
 ///
 /// What the CLIENT sees is another matter, and it is nothing at all: *a
 /// stream ends at its finish frame, and nowhere else*, so a scope
 /// dropped without one leaves the client's reader waiting until the
 /// socket dies. Nothing anywhere will time it out.
 ///
-/// # Nothing is written yet
+/// # What is not here yet
 ///
-/// The fields are the whole of it. Answering a request, ending a scope,
-/// taking the channel requests the client opens, opening one of this
-/// end's own — none of it is here, and each of those decisions wants
-/// this to exist first.
-// Nothing reads them yet, because nothing writes yet. The attribute
-// goes when the methods do.
-#[allow(dead_code)]
+/// Answering. There is no way to write on the scope's own stream and no
+/// way to finish it, so nothing built on this is usable end to end. The
+/// machinery those need — a buffer, the lock, an encode — is here and
+/// working, because opening a channel needed it first.
 #[derive(Debug)]
 pub struct ScopeHandle {
     /// The scope's number, chosen by the CLIENT.
@@ -70,47 +72,56 @@ pub struct ScopeHandle {
     /// is already a field. It stays because slicing it off is a
     /// decision for whatever hands the payload out, and that is not
     /// written.
+    // The one field with no reader yet. The attribute goes when
+    // something exposes the request.
+    #[allow(dead_code)]
     request: Bytes,
     /// The channels the client opens inside this scope.
     ///
     /// Whole frames, and the channel number in each header is the
     /// CLIENT's — it is what an answer has to quote to be understood.
     ///
-    /// Unbounded, so that a
-    /// [`Session`](super::session::Session) can deliver into it without
-    /// waiting — which is what lets a session be a
-    /// [`Stream`](futures_util::Stream) at all.
-    ///
-    /// The obligation that comes back the other way is to READ it. A
-    /// scope that never does lets a client pile up channel requests
-    /// here without limit, and each one can be a whole MCP request.
-    /// Nothing bounds that except serving the scope, or dropping it —
-    /// which frees the queue with it.
+    /// Unbounded, so that a [`Session`](super::session::Session) can
+    /// deliver into it without waiting — which is what lets a session
+    /// be a [`Stream`](futures_util::Stream) at all. The obligation
+    /// that comes back the other way is to READ it.
     ///
     /// It is also how a [`Session`](super::session::Session) tells a
     /// live scope from an ended one. Closing this closes the sender it
     /// kept, and that — not the notice beside it — is what the session
     /// actually checks.
     channel_request_receiver: UnboundedReceiver<Bytes>,
-    /// Where to say this scope is over.
+    /// Where the next channel number in this scope comes from.
     ///
-    /// Sent from [`Drop`], and only from there. It carries no
-    /// information the sender's own state does not already have; what
-    /// it does is tell a [`Session`](super::session::Session) WHICH
-    /// number to look at, so that forgetting a scope costs a lookup
-    /// rather than a walk of every scope on the connection.
+    /// A plain counter and not a claim on anything, because nothing
+    /// else mints in this scope. A client's channels are numbered
+    /// separately and never collide with these, and no other
+    /// [`ScopeHandle`] exists for this scope.
     ///
-    /// Unbounded, because a destructor has nothing to await on and
-    /// nowhere to report a failure. The only way to fail is a session
-    /// that is already gone, which has no map left to correct.
-    closed: UnboundedSender<u32>,
+    /// It starts at `0` and pre-increments, so the first channel is
+    /// `1`. Channel `0` is the scope's own stream and is never minted.
+    ///
+    /// It wraps at the top and does not check what it lands on. That is
+    /// a scope that has opened four billion channels without this one
+    /// ending, which is not a case worth handling — the same stance
+    /// [`client::handle::Handle`](crate::client::handle::Handle) takes
+    /// about running out of scopes.
+    counter: u32,
+    /// What this scope tells the session: where an answer goes, and
+    /// what is over.
+    ///
+    /// Unbounded, because half of what rides it is sent from a
+    /// destructor, and the other half must not block — a registration
+    /// that waited would be a channel request whose answer arrives
+    /// before anywhere exists to put it.
+    notices: UnboundedSender<Notice>,
     /// The write half of the connection, shared with every other scope
     /// on it.
     ///
-    /// To be locked for one frame and never for a stream of them. One
-    /// frame is the wire's unit of exclusion, and a scope holding this
-    /// across a stream of chunks is a scope that has taken the
-    /// connection away from everybody else until it finishes.
+    /// Locked for one frame and never for a stream of them. One frame
+    /// is the wire's unit of exclusion, and a scope holding this across
+    /// a stream of chunks is a scope that has taken the connection away
+    /// from everybody else until it finishes.
     sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     /// Where a frame is built, before it is handed to the socket.
     ///
@@ -137,23 +148,106 @@ impl ScopeHandle {
     /// the only thing that can honestly make one of these is the thing
     /// reading the requests.
     ///
-    /// The buffer is not among them. A scope starts having written
-    /// nothing, and there is no other answer a caller could give.
+    /// The counter and the buffer are not among them. A scope starts
+    /// having opened nothing and written nothing, and there is no other
+    /// answer a caller could give.
     pub(super) fn new(
         scope: u32,
         request: Bytes,
         channel_request_receiver: UnboundedReceiver<Bytes>,
-        closed: UnboundedSender<u32>,
+        notices: UnboundedSender<Notice>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     ) -> Self {
         ScopeHandle {
             scope,
             request,
             channel_request_receiver,
-            closed,
+            counter: 0,
+            notices,
             sink,
             buffer: Vec::new(),
         }
+    }
+
+    /// Open a channel inside this scope, and send the request that
+    /// opens it.
+    ///
+    /// For the things a provider needs from a caller mid-scope: serving
+    /// an image, reaching a database, running a command. Comes back
+    /// with the number and the stream the client's answer will arrive
+    /// on — see [`Channel`].
+    ///
+    /// The payload is written as given, tag and all. This layer does
+    /// not know what a channel request says; see
+    /// [`endpoints`](crate::endpoints) for who does.
+    ///
+    /// # It cannot fail
+    ///
+    /// Where the client's returns [`Option`] because the scope might
+    /// have ended underneath it, holding one of these IS the scope
+    /// being open. Minting cannot fail, and encoding a frame never
+    /// could.
+    ///
+    /// A write that fails is dropped. The receiver in the returned
+    /// [`Channel`] closes without a finish frame, which is what a
+    /// caller reads as "this channel is not happening".
+    ///
+    /// # The registration goes first
+    ///
+    /// Before the frame reaches the socket, so it is always in the
+    /// queue before the client could possibly answer — which is what
+    /// makes a session's drain-on-miss enough to close the race rather
+    /// than merely narrow it.
+    pub async fn send_channel_request(&mut self, payload: &[u8]) -> Channel {
+        self.counter = self.counter.wrapping_add(1);
+        let channel = self.counter;
+        let (response_sender, responses) = mpsc::unbounded_channel();
+        let _ = self.notices.send(Notice::Register {
+            scope: self.scope,
+            channel,
+            response_sender,
+        });
+        self.send_frame(ServerFrame::ChannelRequest {
+            scope: self.scope,
+            channel,
+            payload,
+        })
+        .await;
+        Channel {
+            channel,
+            responses,
+            scope: self.scope,
+            notices: self.notices.clone(),
+        }
+    }
+
+    /// Build one frame and write it.
+    ///
+    /// Every frame this scope sends goes through here, which is what
+    /// keeps the buffer's protocol in one place: clear, encode, copy
+    /// out, write. Cleared and not merely reused because a [`Writer`]
+    /// appends from wherever the buffer already ends, so an uncleared
+    /// one would send the last frame with this one glued to its back.
+    ///
+    /// The lock is taken after the encoding and released with the
+    /// statement, so it covers one write and nothing else.
+    ///
+    /// A failed write is dropped. It means the connection is gone, and
+    /// everything on it is about to find out on its own — there is
+    /// nothing this could tell a caller that the caller is not about to
+    /// learn.
+    ///
+    /// There is no failed encode. A frame is a header and a payload
+    /// this crate never looks at, so encoding one is
+    /// [`Infallible`](std::convert::Infallible) and says so in the
+    /// type.
+    async fn send_frame(&mut self, frame: ServerFrame<'_>) {
+        self.buffer.clear();
+        frame
+            .encode(&mut Writer::new(&mut self.buffer))
+            .unwrap_or_else(|error| match error {});
+        let bytes = Bytes::copy_from_slice(&self.buffer);
+        let _ = self.sink.lock().await.send(bytes).await;
     }
 }
 
@@ -163,7 +257,7 @@ impl ScopeHandle {
 ///
 /// And the order is what makes the notice safe to act on. A
 /// [`Session`](super::session::Session) does not remove a scope because
-/// it was told to — it removes one whose sender reads as closed, since
+/// it was told to — it removes one whose inbox reads as closed, since
 /// the number may since have been reused and removing by number alone
 /// would evict the new scope instead.
 ///
@@ -175,6 +269,64 @@ impl ScopeHandle {
 impl Drop for ScopeHandle {
     fn drop(&mut self) {
         self.channel_request_receiver.close();
-        let _ = self.closed.send(self.scope);
+        let _ = self.notices.send(Notice::Closed(self.scope, None));
+    }
+}
+
+/// A channel this end opened inside a scope, and what comes back on it.
+///
+/// What [`ScopeHandle::send_channel_request`] gives back. The request
+/// has gone out, and the session is holding the other end of
+/// [`responses`](Self::responses).
+///
+/// The number is this end's. The client counts its own channels
+/// separately and from zero, so a client's channel `1` and this one are
+/// unrelated — which is why they never share a stream.
+///
+/// # Read it or drop it
+///
+/// [`responses`](Self::responses) is unbounded, and what rides it is a
+/// stream rather than a message — an image layer, a database
+/// connection, a command's items. An answer nobody reads is memory the
+/// far side can grow without limit, and nothing in this crate bounds
+/// it. Dropping this frees the queue and tells the session to forget
+/// the channel.
+#[derive(Debug)]
+pub struct Channel {
+    /// The channel's number, chosen by this end.
+    ///
+    /// Meaningful only inside the scope it was opened in.
+    pub channel: u32,
+    /// The client's answer, frame by frame.
+    ///
+    /// Whole frames, headers included. Ends at the finish frame; the
+    /// channel closing without one means the connection went first, or
+    /// the scope did.
+    pub responses: UnboundedReceiver<Bytes>,
+    /// The scope it belongs to, for the notice at the end.
+    ///
+    /// Not public, because it is not this type's to tell — a caller
+    /// that wants the scope's number has the
+    /// [`ScopeHandle`] it came from.
+    scope: u32,
+    /// Where to say this channel is over.
+    notices: UnboundedSender<Notice>,
+}
+
+/// Tell the session the channel is over.
+///
+/// The same shape as [`ScopeHandle`]'s, one level down and for the same
+/// reason: close first, then say so, so that the session's check reads
+/// as closed the moment the notice is visible.
+///
+/// A channel whose answer finished has already been forgotten — the
+/// session drops the entry when it forwards the finish frame — so this
+/// is for the other case, a caller that walked away mid-answer.
+impl Drop for Channel {
+    fn drop(&mut self) {
+        self.responses.close();
+        let _ = self
+            .notices
+            .send(Notice::Closed(self.scope, Some(self.channel)));
     }
 }

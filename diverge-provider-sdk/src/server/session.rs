@@ -28,10 +28,14 @@ use crate::frame::client::ClientFrame;
 /// something has to hold those arrangements and match arriving frames
 /// against them. That is routing, and it is a job.
 ///
-/// Nothing here can arrange anything. A server does not open scopes, it
-/// is told about them — so there is no registration to match, and what
-/// would have been a router is a loop that reads frames and hands out
-/// the ones that open something.
+/// Nothing here can arrange a SCOPE. A server does not open one, it is
+/// told about one — so what would have been a router is a loop that
+/// reads frames and hands out the ones that open something.
+///
+/// Channels are the other way round, and that is why there is a
+/// registration queue: a channel this end opens is this end's to
+/// number, and the answer to it has to have somewhere to land before
+/// it arrives.
 ///
 /// # Polling this is what runs the connection
 ///
@@ -50,10 +54,9 @@ use crate::frame::client::ClientFrame;
 ///
 /// # What is not here yet
 ///
-/// **Channels this end opens.** A provider needs them — serving an
-/// image, reaching a database, running a command — and there is no way
-/// to open one. Which is why a channel response arriving now is
-/// discarded: nothing here could have asked for it.
+/// **Answering a scope.** A provider can open channels inside one but
+/// cannot yet respond on the scope's own stream or finish it, so
+/// nothing built on this is usable end to end.
 ///
 /// **Auth.** A credential belongs to the connection and there is
 /// nowhere for one to go, in either direction. An
@@ -87,51 +90,67 @@ pub struct Session {
     /// [`Connection`] rather than a [`SplitStream`] — the two halves
     /// have to start together for the scopes to get theirs.
     sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
-    /// The scopes a client has open, and where what arrives inside each
-    /// one goes.
+    /// Every scope a client has open, and everything routed inside it.
+    ///
+    /// `(channel_requests, channels)`.
+    ///
+    /// **`0`** is where the channels the CLIENT opens go, whole and in
+    /// arrival order. One stream for all of them, because the number in
+    /// each header is the client's and this end was never told about
+    /// any of them.
+    ///
+    /// **`1`** is the channels THIS end opened, by number, and where
+    /// the client's answers on each go. A separate space, because a
+    /// channel number belongs to whoever opened it and both sides count
+    /// from zero — the client's channel `3` and this end's channel `3`
+    /// are two different channels, and one map keyed by `3` would hold
+    /// one of them.
+    ///
+    /// Nested rather than flattened to a `(scope, channel)` key,
+    /// because a scope ending ends everything under it: one removal
+    /// drops the inbox and every channel at once, where a flat map
+    /// would have to be scanned. It is the same shape, for the same
+    /// reason, as
+    /// [`client::router::Router`](crate::client::router::Router)'s.
     ///
     /// An address book rather than bookkeeping. It holds no counter and
-    /// frees no numbers, because a server mints neither scopes nor
-    /// anything in them: the numbers are the client's, and this end
-    /// only ever looks them up.
-    ///
-    /// A plain [`HashMap`], single-owned, because every read and every
-    /// write of it happens in [`poll_next`](Stream::poll_next). A
-    /// shared map would put a lock on the lookup that runs per channel
-    /// request, to save one on the removal that runs per scope.
+    /// frees no numbers: the scope numbers are the client's, and a
+    /// scope's channel numbers belong to the one handle that mints
+    /// them.
     ///
     /// # Unbounded, and what that trades
     ///
-    /// So that delivering a frame is a synchronous send that cannot
-    /// wait. [`poll_next`](Stream::poll_next) cannot wait either, and a
-    /// bounded queue would mean carrying a half-delivered frame across
-    /// polls — a stored reservation, an allocation, and a stall that
-    /// stops the whole connection whenever any one scope falls behind.
+    /// Both queues, so that delivering a frame is a synchronous send
+    /// that cannot wait. [`poll_next`](Stream::poll_next) cannot wait
+    /// either, and a bounded queue would mean carrying a
+    /// half-delivered frame across polls — a stored reservation, an
+    /// allocation, and a stall that stops the whole connection whenever
+    /// any one scope falls behind.
     ///
-    /// What makes it defensible is what rides here. A channel request
-    /// is ONE frame — the answer travels the other way, on channels of
-    /// its own — so this queue holds channels a client has opened and
-    /// the scope has not yet taken, not a byte stream. A scope that is
-    /// being served at all drains it.
+    /// What it costs is a bound, and the two queues owe differently for
+    /// it. A channel request is ONE frame, so that queue holds channels
+    /// opened and not yet taken. A channel RESPONSE is a stream — an
+    /// image layer, a database connection, a command's items — so an
+    /// answer nobody reads accumulates without limit, and it is the
+    /// larger exposure by far.
     ///
-    /// What it costs is a bound. Those frames carry whole MCP requests,
-    /// and a scope that never reads its own inbox lets a peer grow this
-    /// without limit. Nothing here stops that, and nothing here can:
-    /// the only remedy is to serve a scope or drop it, and dropping it
-    /// frees the queue with it.
-    scopes: HashMap<u32, UnboundedSender<Bytes>>,
-    /// Where a scope says its handle is gone.
+    /// Nothing here can bound either, and nothing here tries. The
+    /// remedy is to read a queue or drop the thing holding it, which
+    /// frees it.
+    scopes: HashMap<u32, (UnboundedSender<Bytes>, HashMap<u32, UnboundedSender<Bytes>>)>,
+    /// Everything the scopes have to say, in the order they said it.
     ///
-    /// Sent from [`ScopeHandle`]'s [`Drop`], so it cannot be forgotten
-    /// and covers abandonment as well as any deliberate ending. See
-    /// [`drain_closed`](Self::drain_closed) for why the notice is a
-    /// prompt to look rather than an instruction to remove.
+    /// See [`Notice`] for the two kinds and
+    /// [`drain`](Self::drain) for how they are applied.
     ///
-    /// Unbounded, because it is sent from a destructor, where there is
-    /// nothing to await on and nowhere to report a failure.
-    closed: UnboundedReceiver<u32>,
+    /// Unbounded, because half of what rides it is sent from a
+    /// destructor, where there is nothing to await on and nowhere to
+    /// report a failure. The other half must not block either: a
+    /// registration that waited behind a full queue would be a channel
+    /// request whose answer arrives before anywhere exists to put it.
+    notices: UnboundedReceiver<Notice>,
     /// The other end of it, kept to clone into every scope.
-    closed_sender: UnboundedSender<u32>,
+    notice_sender: UnboundedSender<Notice>,
 }
 
 impl Session {
@@ -147,13 +166,13 @@ impl Session {
     /// upgrade are all settled before this is called.
     pub fn new(connection: Connection) -> Self {
         let (sink, stream) = connection.split();
-        let (closed_sender, closed) = mpsc::unbounded_channel();
+        let (notice_sender, notices) = mpsc::unbounded_channel();
         Session {
             stream,
             sink: Arc::new(Mutex::new(sink)),
             scopes: HashMap::new(),
-            closed,
-            closed_sender,
+            notices,
+            notice_sender,
         }
     }
 
@@ -172,7 +191,7 @@ impl Session {
     ///
     /// # Occupied is not the same as open
     ///
-    /// An entry whose sender reports
+    /// An entry whose inbox reports
     /// [`is_closed`](UnboundedSender::is_closed) is a scope whose
     /// handle is gone, and it is overwritten rather than refused. A
     /// client is free to reuse a scope number once that scope has
@@ -180,77 +199,172 @@ impl Session {
     /// would refuse a legitimate request over bookkeeping that has not
     /// caught up.
     ///
-    /// # Why the sweep lives here
-    ///
-    /// Because this is the only place the map can GROW, and the drain
-    /// is housekeeping rather than correctness — the check above reads
-    /// the sender's own state, so a stale entry is already treated as
-    /// no entry whether or not it has been swept.
-    ///
-    /// Which leaves the question of how often, and the answer is: as
-    /// rarely as possible. Draining once per poll would pay for every
-    /// spurious wakeup; once per frame would pay for every channel
-    /// request. Here it is paid once per scope opened, which is exactly
-    /// the rate at which the thing it cleans accumulates.
+    /// Overwriting takes the old scope's channels with it, which is
+    /// correct: they belonged to a scope that no longer exists, and
+    /// nothing will ever answer on them again.
     fn open_scope(
         &mut self,
         scope: u32,
         request: Bytes,
     ) -> Option<ScopeHandle> {
-        self.drain_closed();
-        if self.scopes.get(&scope).is_some_and(|sender| !sender.is_closed())
-        {
+        let occupied = self
+            .scopes
+            .get(&scope)
+            .is_some_and(|(inbox, _)| !inbox.is_closed());
+        if occupied {
             return None;
         }
         let (sender, receiver) = mpsc::unbounded_channel();
-        self.scopes.insert(scope, sender);
+        self.scopes.insert(scope, (sender, HashMap::new()));
         Some(ScopeHandle::new(
             scope,
             request,
             receiver,
-            self.closed_sender.clone(),
+            self.notice_sender.clone(),
             self.sink.clone(),
         ))
     }
 
-    /// Forget every scope whose handle has been dropped.
+    /// Find a channel this end opened.
     ///
-    /// Run from [`open_scope`](Self::open_scope) and nowhere else — see
-    /// there for why that is the one moment worth paying for. Between
-    /// two scopes opening, dead entries sit in the map and their
-    /// notices sit in the queue, and neither costs anything but the
-    /// room: a lookup is no slower for them, and the check that matters
-    /// does not consult them.
+    /// No retry, unlike
+    /// [`client::router::Router`](crate::client::router::Router)'s,
+    /// which drains on a miss because a registration can otherwise
+    /// arrive after the answer it is for. That race is closed here by
+    /// ordering rather than by looking twice — see
+    /// [`drain`](Self::drain).
     ///
-    /// Both are bounded by the same thing. A notice exists because a
-    /// scope existed, and every scope that opens drains all of them, so
-    /// what accumulates between drains cannot exceed what has been
-    /// handed out.
+    /// So a miss is a real miss: a channel this end never opened, one
+    /// whose answer already finished, or one whose scope did.
+    fn channel(
+        &self,
+        scope: u32,
+        channel: u32,
+    ) -> Option<&UnboundedSender<Bytes>> {
+        self.scopes.get(&scope)?.1.get(&channel)
+    }
+
+    /// Drop a channel, and leave the scope it was in alone.
     ///
-    /// # The notice is a prompt, not an instruction
+    /// A scope outlives its channels — it is the request, and they are
+    /// the exchanges inside it — so a channel ending takes nothing else
+    /// with it. A scope that is already gone took this with it.
     ///
-    /// It says a handle went away, and the removal still checks that
-    /// the entry under that number is the one that went away — because
-    /// by the time this runs, the client may have opened a NEW scope
-    /// with the same number, and removing by number alone would evict
-    /// it. [`is_closed`](UnboundedSender::is_closed) tells the two
-    /// apart, since a fresh entry has a live receiver behind it.
+    /// Unguarded, unlike the removals in [`drain`](Self::drain),
+    /// because this is not acting on a message that may have gone
+    /// stale: the finish frame that prompts it named the channel that
+    /// is in the map right now.
+    fn close_channel(&mut self, scope: u32, channel: u32) {
+        if let Some((_, channels)) = self.scopes.get_mut(&scope) {
+            channels.remove(&channel);
+        }
+    }
+
+    /// Apply everything the scopes have said, in the order they said
+    /// it.
     ///
-    /// # Why the check is never merely stale
+    /// The queue is emptied rather than sampled, because what it holds
+    /// is exactly the work that is outstanding.
     ///
-    /// [`ScopeHandle`]'s [`Drop`] closes its receiver BEFORE sending
-    /// the notice. So a notice that has arrived is a notice whose
-    /// sender already reads as closed, and there is no window in which
-    /// this looks at a scope that is on its way out and sees it as
-    /// live.
-    fn drain_closed(&mut self) {
-        while let Ok(scope) = self.closed.try_recv() {
-            if self
-                .scopes
-                .get(&scope)
-                .is_some_and(UnboundedSender::is_closed)
-            {
-                self.scopes.remove(&scope);
+    /// # Once per frame, and why that is enough
+    ///
+    /// [`send_channel_request`](super::scope_handle::ScopeHandle::send_channel_request)
+    /// enqueues its registration BEFORE the frame reaches the socket.
+    /// So the chain is: registration queued, frame written, client
+    /// reads it, client answers, this reads the answer — and by the
+    /// time an answer is in hand, the registration it needs has been in
+    /// the queue for at least a round trip. Draining after the read and
+    /// before the lookup therefore always finds it.
+    ///
+    /// Which is why there is no drain-on-miss here, where
+    /// [`client::router::Router`](crate::client::router::Router) has
+    /// one. That router looks twice because it drains lazily; this
+    /// drains on a schedule that already dominates the race.
+    ///
+    /// # Why not more rarely
+    ///
+    /// It was once per scope opened, back when a scope ending was the
+    /// only thing that could accumulate. It is not any more: a
+    /// [`Channel`](super::scope_handle::Channel) dropped sends a notice
+    /// too, at a rate that has nothing to do with scopes opening.
+    ///
+    /// And the lazy trigger would almost never fire. On a healthy
+    /// connection every lookup HITS, so a drain that ran only on a miss
+    /// would not run at all — one long-lived scope opening ten thousand
+    /// channels would hold ten thousand notices and ten thousand dead
+    /// entries, and on a single-scope connection nothing would ever
+    /// clear them.
+    ///
+    /// What it costs instead is one `try_recv` on an empty queue per
+    /// frame — a couple of atomic loads, against a path that already
+    /// decodes a header and hashes a scope number.
+    ///
+    /// # One queue is what makes the order right
+    ///
+    /// A handle registers a channel and later says the scope is over.
+    /// On two queues those could be drained the wrong way round, and a
+    /// registration would land after the eviction that should have
+    /// covered it — an entry outliving the scope it belongs to. One
+    /// FIFO makes that unrepresentable rather than merely documented.
+    ///
+    /// # A registration with no scope is dropped
+    ///
+    /// A channel entry lives inside a scope's entry, and this does not
+    /// invent one: a scope that is not in the map is a scope that
+    /// ended, and half an entry would be a channel working inside a
+    /// scope that does not.
+    ///
+    /// # A closure is a prompt, not an instruction
+    ///
+    /// It says something went away, and the removal still checks that
+    /// what is under that number is what went away.
+    ///
+    /// The hazard is not within a scope. Channel numbers there are
+    /// minted by one counter that only ever goes up, so a stale
+    /// closure cannot name a live channel of the same scope. It is
+    /// across scope GENERATIONS: a client reuses scope `7`, the new
+    /// handle mints channel `1` as every handle does, and a
+    /// `Closed(7, Some(1))` left over from the old generation would
+    /// evict it. The same reuse is what makes the scope case need a
+    /// guard too.
+    ///
+    /// [`is_closed`](UnboundedSender::is_closed) tells the generations
+    /// apart, since anything fresh has a live receiver behind it.
+    ///
+    /// The check is never merely stale, because both destructors close
+    /// their receiver BEFORE sending. A notice that has arrived is a
+    /// notice whose sender already reads as closed — which is what
+    /// makes the guard a test of identity rather than of timing.
+    fn drain(&mut self) {
+        while let Ok(notice) = self.notices.try_recv() {
+            match notice {
+                Notice::Register {
+                    scope,
+                    channel,
+                    response_sender,
+                } => {
+                    if let Some((_, channels)) = self.scopes.get_mut(&scope) {
+                        channels.insert(channel, response_sender);
+                    }
+                }
+                Notice::Closed(scope, None) => {
+                    let gone = self
+                        .scopes
+                        .get(&scope)
+                        .is_some_and(|(inbox, _)| inbox.is_closed());
+                    if gone {
+                        self.scopes.remove(&scope);
+                    }
+                }
+                Notice::Closed(scope, Some(channel)) => {
+                    if let Some((_, channels)) = self.scopes.get_mut(&scope)
+                        && channels
+                            .get(&channel)
+                            .is_some_and(UnboundedSender::is_closed)
+                    {
+                        channels.remove(&channel);
+                    }
+                }
             }
         }
     }
@@ -267,11 +381,10 @@ impl Session {
 /// than merely what accepts from it.
 ///
 /// Nothing in here waits except the socket read, which is what lets it
-/// be a [`Stream`] at all. Delivering a frame into a scope is a
-/// synchronous send onto an unbounded queue, so one scope that is not
-/// being served slows nobody down — and grows instead, which is the
-/// obligation that lands on
-/// [`ScopeHandle`]: read your channel requests, or drop the scope.
+/// be a [`Stream`] at all. Delivering a frame is a synchronous send
+/// onto an unbounded queue, so one scope that is not being served slows
+/// nobody down — and grows instead, which is the obligation that lands
+/// on whoever holds the other end: read it, or drop it.
 ///
 /// # Discarding
 ///
@@ -279,15 +392,11 @@ impl Session {
 /// carries on. There is no one to tell, and the connection is still
 /// good for every other scope on it.
 ///
-/// It happens six ways: a header too short to read, a type this layer
+/// It happens five ways: a header too short to read, a type this layer
 /// does not define (including `2` and `3`, which are a server's replies
-/// and not a client's to send), an auth frame, a channel response of
-/// either kind, a request for a scope that is already open, and a
-/// channel request for a scope that is not.
-///
-/// The channel responses are the temporary one. Nothing here opens a
-/// channel yet, so an answer to one is an answer to a question this end
-/// never asked.
+/// and not a client's to send), an auth frame, a request for a scope
+/// that is already open, and anything inside a scope or a channel with
+/// no entry.
 ///
 /// A duplicate scope is the peer's mistake rather than this end's, and
 /// it is still silent. Handing out a second scope for one number would
@@ -318,12 +427,13 @@ impl Stream for Session {
             // untouched — a consumer needs the header too, because
             // telling a request from a finish means reading the type.
             let Ok(frame) = ClientFrame::decode(&bytes) else { continue };
+            // Once per frame, before anything is looked up. See
+            // `drain` for why here and why that is enough.
+            this.drain();
             match frame {
-                // Nowhere to go, and nothing here opened anything one
-                // of these could answer. See the type's documentation.
-                ClientFrame::Auth { .. }
-                | ClientFrame::ChannelResponse { .. }
-                | ClientFrame::ChannelResponseFinish { .. } => {}
+                // Nowhere to go. See the type's documentation: this is
+                // the gap, not a decision.
+                ClientFrame::Auth { .. } => {}
                 ClientFrame::Request { scope, .. } => {
                     if let Some(handle) = this.open_scope(scope, bytes) {
                         return Poll::Ready(Some(handle));
@@ -334,11 +444,64 @@ impl Stream for Session {
                 // do about either: the frame had nowhere to go, and
                 // the entry goes the next time a scope opens.
                 ClientFrame::ChannelRequest { scope, .. } => {
-                    if let Some(sender) = this.scopes.get(&scope) {
+                    if let Some((inbox, _)) = this.scopes.get(&scope) {
+                        let _ = inbox.send(bytes);
+                    }
+                }
+                ClientFrame::ChannelResponse { scope, channel, .. } => {
+                    if let Some(sender) = this.channel(scope, channel) {
                         let _ = sender.send(bytes);
                     }
+                }
+                // Forwarded first, because the finish is what says the
+                // answer ended rather than the connection.
+                ClientFrame::ChannelResponseFinish { scope, channel } => {
+                    if let Some(sender) = this.channel(scope, channel) {
+                        let _ = sender.send(bytes);
+                    }
+                    this.close_channel(scope, channel);
                 }
             }
         }
     }
+}
+
+/// What a scope tells the session it is doing.
+///
+/// One queue rather than two, which is not tidiness: a handle registers
+/// a channel and later says its scope is over, and on separate queues
+/// those can be applied the wrong way round. Here the order they were
+/// sent in is the order they are applied in, and the hazard cannot be
+/// expressed.
+///
+/// Not public, unlike
+/// [`client::router::Registration`](crate::client::router::Registration),
+/// because a [`Session`] makes both ends of this itself. There is
+/// nothing for a caller to wire up and so nothing for it to name.
+#[derive(Debug)]
+pub(super) enum Notice {
+    /// Somewhere to put an answer, arranged before it is asked for.
+    ///
+    /// Sent by the scope that is about to write the channel request,
+    /// because it is the only party that knows an answer is coming. It
+    /// races that answer, which a [`Session`] handles by draining
+    /// whenever a lookup misses.
+    Register {
+        /// The scope the channel is inside, as the client numbered it.
+        scope: u32,
+        /// The channel, chosen by this end.
+        channel: u32,
+        /// Where the client's answers on it go.
+        response_sender: UnboundedSender<Bytes>,
+    },
+    /// Something is gone: a whole scope for [`None`], one channel
+    /// inside it for [`Some`].
+    ///
+    /// Sent from a destructor in both cases, so it cannot be forgotten
+    /// and covers abandonment as well as any deliberate ending.
+    ///
+    /// The scope case takes every channel under it, which is why the
+    /// map is nested — a scope's end is one removal rather than a scan
+    /// for everything that belonged to it.
+    Closed(u32, Option<u32>),
 }
