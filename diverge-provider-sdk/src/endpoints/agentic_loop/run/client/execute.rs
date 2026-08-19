@@ -26,7 +26,7 @@ use crate::frame;
 /// MCP requests on channels the provider opens, because the MCP servers
 /// live with the caller and the agent runs beside the provider.
 ///
-/// So this takes a [`McpProxy`] and puts a task on it. The returned
+/// So this takes an [`McpProxy`] and puts a task on it. The returned
 /// [`ExecuteStream`] carries chunks and nothing else; the answering
 /// happens beside it and neither waits on the other. A caller that
 /// stops to think about a chunk would otherwise be a caller that has
@@ -69,7 +69,7 @@ use crate::frame;
 pub async fn execute<P>(
     handle: &Handle,
     request: &request::Frame,
-    proxy: Arc<P>,
+    mcp_proxy: Arc<P>,
 ) -> Result<ExecuteStream, ExecuteError>
 where
     P: McpProxy + 'static,
@@ -86,7 +86,7 @@ where
         scope.request_receiver,
         handle.clone(),
         scope.scope,
-        proxy,
+        mcp_proxy,
     ));
     Ok(ExecuteStream::new(scope.response_receiver, proxying))
 }
@@ -106,12 +106,17 @@ async fn proxy_channel_requests<P>(
     mut requests: UnboundedReceiver<Bytes>,
     handle: Handle,
     scope: u32,
-    proxy: Arc<P>,
+    mcp_proxy: Arc<P>,
 ) where
     P: McpProxy + 'static,
 {
     while let Some(bytes) = requests.recv().await {
-        tokio::spawn(proxy_one(bytes, handle.clone(), scope, proxy.clone()));
+        tokio::spawn(proxy_one(
+            bytes,
+            handle.clone(),
+            scope,
+            mcp_proxy.clone(),
+        ));
     }
 }
 
@@ -144,7 +149,12 @@ async fn proxy_channel_requests<P>(
 /// It is the only thing that ends this task early. Nothing cancels it,
 /// so without the check a tool call outliving its loop would run for as
 /// long as its own body stream did.
-async fn proxy_one<P>(bytes: Bytes, handle: Handle, scope: u32, proxy: Arc<P>)
+async fn proxy_one<P>(
+    bytes: Bytes,
+    handle: Handle,
+    scope: u32,
+    mcp_proxy: Arc<P>,
+)
 where
     P: McpProxy,
 {
@@ -159,7 +169,7 @@ where
     else {
         return;
     };
-    let (head, body) = proxy.forward(request).await;
+    let (head, body) = mcp_proxy.forward(request).await;
 
     let mut buffer = Vec::new();
     if mcp::Frame::Head(head)
