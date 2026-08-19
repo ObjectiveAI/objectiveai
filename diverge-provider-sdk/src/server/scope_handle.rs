@@ -48,13 +48,13 @@ use crate::frame::server::ServerFrame;
 ///
 /// # What is not here yet
 ///
-/// **Reading.** The request that opened the scope is held and not
+/// Reading. Every frame a provider can send is here; none of what it
+/// can receive is. The request that opened the scope is held and not
 /// exposed, and the channel requests the client opens arrive in a queue
-/// with no way to take them off it. So a provider can say things but
-/// cannot yet find out what it was asked.
-///
-/// **Answering a channel the client opened.** Which is the other half
-/// of that queue, and waits on it.
+/// with no way to take them off it — so a provider can answer, but
+/// cannot find out what it is answering, and the two
+/// `channel_response` calls have no way to learn which channel to
+/// quote.
 #[derive(Debug)]
 pub struct ScopeHandle {
     /// The scope's number, chosen by the CLIENT.
@@ -328,6 +328,68 @@ impl ScopeHandle {
             scope: self.scope,
             notices: self.notices.clone(),
         }
+    }
+
+    /// Answer, on a channel the client opened.
+    ///
+    /// Any number of these, including none, and then exactly one
+    /// [`send_channel_response_finish`](Self::send_channel_response_finish).
+    ///
+    /// # The channel is quoted, never chosen
+    ///
+    /// It comes out of the header of a channel request the client sent,
+    /// and it is in the CLIENT's numbering — so it is an argument here
+    /// where [`send_response`](Self::send_response) needs none. The
+    /// scope is still a field, because that one is the same in both
+    /// directions.
+    ///
+    /// Which is why nothing here touches the mint set. A client's
+    /// channel `5` and this scope's channel `5` are different channels,
+    /// told apart by which way a frame travelled, and this end tracks
+    /// only the numbers it hands out. Claiming a quoted number would
+    /// take one out of circulation for no reason; freeing one would
+    /// free somebody else's.
+    ///
+    /// # Nothing is checked
+    ///
+    /// For the same reason. The numbers are the client's, so this end
+    /// has nothing to check against — a misquoted channel is a frame
+    /// the client discards, and this end never hears about it.
+    pub async fn send_channel_response(
+        &mut self,
+        channel: u32,
+        payload: &[u8],
+    ) {
+        self.send_frame(ServerFrame::ChannelResponse {
+            scope: self.scope,
+            channel,
+            payload,
+        })
+        .await;
+    }
+
+    /// End an answer on a channel the client opened.
+    ///
+    /// One frame, no payload, and the channel is over. The far side
+    /// learns the answer is complete here and nowhere else — the same
+    /// rule this end relies on when it reads a [`Channel`].
+    ///
+    /// Send it even for an answer that carried nothing. An empty answer
+    /// and an answer still coming are the same thing until this
+    /// arrives.
+    ///
+    /// It frees nothing on this side, because it took nothing: the
+    /// number was the client's, and giving it back is the client's to
+    /// do. Compare
+    /// [`Session`](super::session::Session), which hands a number back
+    /// to this handle when the client finishes a channel THIS end
+    /// opened.
+    pub async fn send_channel_response_finish(&mut self, channel: u32) {
+        self.send_frame(ServerFrame::ChannelResponseFinish {
+            scope: self.scope,
+            channel,
+        })
+        .await;
     }
 
     /// Take back every channel number the session says is free.
