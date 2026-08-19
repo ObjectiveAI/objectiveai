@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::channel::Channel;
-use super::router::Registration;
+use super::registration::Registration;
 use super::scope::Scope;
 use crate::connection::Connection;
 use crate::encode::{Encode, Writer};

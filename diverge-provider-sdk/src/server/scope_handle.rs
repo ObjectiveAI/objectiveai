@@ -9,7 +9,8 @@ use futures_util::stream::SplitSink;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-use super::session::Notice;
+use super::channel::Channel;
+use super::notification::Notification;
 use crate::connection::Connection;
 use crate::encode::{Encode, Writer};
 use crate::frame::server::ServerFrame;
@@ -92,7 +93,7 @@ pub struct ScopeHandle {
     ///
     /// It is also how a [`Session`](super::session::Session) tells a
     /// live scope from an ended one. Closing this closes the sender it
-    /// kept, and that — not the notice beside it — is what the session
+    /// kept, and that — not the notification beside it — is what the session
     /// actually checks.
     channel_request_receiver: UnboundedReceiver<Bytes>,
     /// Where the next channel number in this scope comes from.
@@ -153,7 +154,7 @@ pub struct ScopeHandle {
     /// destructor, and the other half must not block — a registration
     /// that waited would be a channel request whose answer arrives
     /// before anywhere exists to put it.
-    notices: UnboundedSender<Notice>,
+    notifications: UnboundedSender<Notification>,
     /// The write half of the connection, shared with every other scope
     /// on it.
     ///
@@ -195,7 +196,7 @@ impl ScopeHandle {
         request: Bytes,
         channel_request_receiver: UnboundedReceiver<Bytes>,
         finished_channels: UnboundedReceiver<u32>,
-        notices: UnboundedSender<Notice>,
+        notifications: UnboundedSender<Notification>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     ) -> Self {
         ScopeHandle {
@@ -205,7 +206,7 @@ impl ScopeHandle {
             counter: 0,
             channels: HashSet::new(),
             finished_channels,
-            notices,
+            notifications,
             sink,
             buffer: Vec::new(),
         }
@@ -311,7 +312,7 @@ impl ScopeHandle {
         self.take_back();
         let channel = self.mint_channel();
         let (response_sender, responses) = mpsc::unbounded_channel();
-        let _ = self.notices.send(Notice::Register {
+        let _ = self.notifications.send(Notification::Register {
             scope: self.scope,
             channel,
             response_sender,
@@ -326,7 +327,7 @@ impl ScopeHandle {
             channel,
             responses,
             scope: self.scope,
-            notices: self.notices.clone(),
+            notifications: self.notifications.clone(),
         }
     }
 
@@ -479,64 +480,6 @@ impl ScopeHandle {
 impl Drop for ScopeHandle {
     fn drop(&mut self) {
         self.channel_request_receiver.close();
-        let _ = self.notices.send(Notice::Closed(self.scope, None));
-    }
-}
-
-/// A channel this end opened inside a scope, and what comes back on it.
-///
-/// What [`ScopeHandle::send_channel_request`] gives back. The request
-/// has gone out, and the session is holding the other end of
-/// [`responses`](Self::responses).
-///
-/// The number is this end's. The client counts its own channels
-/// separately and from zero, so a client's channel `1` and this one are
-/// unrelated — which is why they never share a stream.
-///
-/// # Read it or drop it
-///
-/// [`responses`](Self::responses) is unbounded, and what rides it is a
-/// stream rather than a message — an image layer, a database
-/// connection, a command's items. An answer nobody reads is memory the
-/// far side can grow without limit, and nothing in this crate bounds
-/// it. Dropping this frees the queue and tells the session to forget
-/// the channel.
-#[derive(Debug)]
-pub struct Channel {
-    /// The channel's number, chosen by this end.
-    ///
-    /// Meaningful only inside the scope it was opened in.
-    pub channel: u32,
-    /// The client's answer, frame by frame.
-    ///
-    /// Whole frames, headers included. Ends at the finish frame; the
-    /// channel closing without one means the connection went first, or
-    /// the scope did.
-    pub responses: UnboundedReceiver<Bytes>,
-    /// The scope it belongs to, for the notice at the end.
-    ///
-    /// Not public, because it is not this type's to tell — a caller
-    /// that wants the scope's number has the
-    /// [`ScopeHandle`] it came from.
-    scope: u32,
-    /// Where to say this channel is over.
-    notices: UnboundedSender<Notice>,
-}
-
-/// Tell the session the channel is over.
-///
-/// The same shape as [`ScopeHandle`]'s, one level down and for the same
-/// reason: close first, then say so, so that the session's check reads
-/// as closed the moment the notice is visible.
-///
-/// A channel whose answer finished has already been forgotten — the
-/// session drops the entry when it forwards the finish frame — so this
-/// is for the other case, a caller that walked away mid-answer.
-impl Drop for Channel {
-    fn drop(&mut self) {
-        self.responses.close();
-        let _ = self
-            .notices
-            .send(Notice::Closed(self.scope, Some(self.channel)));
+        let _ = self.notifications.send(Notification::Closed(self.scope, None));
     }
 }

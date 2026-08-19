@@ -20,15 +20,18 @@
 //! [`Sink`](futures_util::Sink) needs `&mut` and a read loop never
 //! finishes, so one type holding both could only ever do one of them.
 //!
-//! Two channels run between them, both unbounded: registrations
-//! forward, saying where frames should go before the request that
-//! causes them, and closures back, saying an entry is gone.
+//! Two channels run between them, both unbounded. [`registration`]
+//! goes forward, saying where frames should go before the request that
+//! causes them; closures come back, saying an entry is gone.
 //!
 //! [`scope`] and [`channel`] are what a [`handle`] hands back — the
 //! two things a caller opens, each with the receivers its frames
-//! arrive on. They are data and nothing else, which is why they sit
-//! beside the handle rather than inside it: what makes one is the
-//! handle's business, and what to do with one is a caller's.
+//! arrive on.
+//!
+//! Those three are data and nothing else, which is why they sit beside
+//! the handle and the router rather than inside either: what makes one
+//! is the writer's business, what routes by one is the reader's, and
+//! what to do with one is a caller's.
 //!
 //! The socket itself is not here.
 //! [`Connection`](crate::connection::Connection) carries either kind
@@ -37,5 +40,6 @@
 
 pub mod channel;
 pub mod handle;
+pub mod registration;
 pub mod router;
 pub mod scope;

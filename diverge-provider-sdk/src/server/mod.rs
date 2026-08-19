@@ -40,7 +40,8 @@
 //!
 //! # What is here
 //!
-//! Two types, and the whole shape is in how they divide.
+//! Two types that do something, and the whole shape is in how they
+//! divide.
 //!
 //! [`session`] is a connection: it takes one, splits it, and answers
 //! with the scopes a client opens on it. [`scope_handle`] is one of
@@ -53,9 +54,16 @@
 //! [`ScopeHandle`](scope_handle::ScopeHandle) carries a share of it
 //! along with its own inbox.
 //!
-//! One queue runs the other way, from the scopes back to the session,
-//! carrying the two things a session cannot work out for itself: where
-//! a channel's answer should land, and what has ended.
+//! [`channel`] is what a scope gets back when it opens one — a number
+//! and the receiver its answers arrive on. Data and nothing else, which
+//! is why it sits beside the handle rather than inside it: what makes
+//! one is the handle's business, and what to do with one is a caller's.
+//!
+//! `notification` is the queue running the other way, from the scopes
+//! back to the session, carrying the two things a session cannot work
+//! out for itself: where a channel's answer should land, and what has
+//! ended. It is private, because a session makes both ends of it and
+//! there is nothing for a caller to wire up.
 //!
 //! # Why it is not the caller half turned around
 //!
@@ -105,5 +113,7 @@
 //! answers requests should be built knowing how the reading was solved,
 //! not around a sketch that predates it.
 
+pub mod channel;
+mod notification;
 pub mod scope_handle;
 pub mod session;

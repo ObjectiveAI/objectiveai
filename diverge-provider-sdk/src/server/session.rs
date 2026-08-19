@@ -11,6 +11,7 @@ use futures_util::{Stream, StreamExt as _};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
+use super::notification::Notification;
 use super::scope_handle::ScopeHandle;
 use crate::connection::Connection;
 use crate::frame::client::ClientFrame;
@@ -155,7 +156,7 @@ pub struct Session {
     >,
     /// Everything the scopes have to say, in the order they said it.
     ///
-    /// See [`Notice`] for the two kinds and
+    /// See [`Notification`] for the two kinds and
     /// [`drain`](Self::drain) for how they are applied.
     ///
     /// Unbounded, because half of what rides it is sent from a
@@ -163,9 +164,9 @@ pub struct Session {
     /// report a failure. The other half must not block either: a
     /// registration that waited behind a full queue would be a channel
     /// request whose answer arrives before anywhere exists to put it.
-    notices: UnboundedReceiver<Notice>,
+    notices: UnboundedReceiver<Notification>,
     /// The other end of it, kept to clone into every scope.
-    notice_sender: UnboundedSender<Notice>,
+    notification_sender: UnboundedSender<Notification>,
 }
 
 impl Session {
@@ -181,13 +182,13 @@ impl Session {
     /// upgrade are all settled before this is called.
     pub fn new(connection: Connection) -> Self {
         let (sink, stream) = connection.split();
-        let (notice_sender, notices) = mpsc::unbounded_channel();
+        let (notification_sender, notices) = mpsc::unbounded_channel();
         Session {
             stream,
             sink: Arc::new(Mutex::new(sink)),
             scopes: HashMap::new(),
             notices,
-            notice_sender,
+            notification_sender,
         }
     }
 
@@ -238,7 +239,7 @@ impl Session {
             request,
             channel_requests,
             finished,
-            self.notice_sender.clone(),
+            self.notification_sender.clone(),
             self.sink.clone(),
         ))
     }
@@ -378,7 +379,7 @@ impl Session {
     fn drain(&mut self) {
         while let Ok(notice) = self.notices.try_recv() {
             match notice {
-                Notice::Register {
+                Notification::Register {
                     scope,
                     channel,
                     response_sender,
@@ -387,7 +388,7 @@ impl Session {
                         channels.insert(channel, response_sender);
                     }
                 }
-                Notice::Closed(scope, None) => {
+                Notification::Closed(scope, None) => {
                     let gone = self
                         .scopes
                         .get(&scope)
@@ -396,7 +397,7 @@ impl Session {
                         self.scopes.remove(&scope);
                     }
                 }
-                Notice::Closed(scope, Some(channel)) => {
+                Notification::Closed(scope, Some(channel)) => {
                     if let Some((_, channels, _)) = self.scopes.get_mut(&scope)
                         && channels
                             .get(&channel)
@@ -504,44 +505,4 @@ impl Stream for Session {
             }
         }
     }
-}
-
-/// What a scope tells the session it is doing.
-///
-/// One queue rather than two, which is not tidiness: a handle registers
-/// a channel and later says its scope is over, and on separate queues
-/// those can be applied the wrong way round. Here the order they were
-/// sent in is the order they are applied in, and the hazard cannot be
-/// expressed.
-///
-/// Not public, unlike
-/// [`client::router::Registration`](crate::client::router::Registration),
-/// because a [`Session`] makes both ends of this itself. There is
-/// nothing for a caller to wire up and so nothing for it to name.
-#[derive(Debug)]
-pub(super) enum Notice {
-    /// Somewhere to put an answer, arranged before it is asked for.
-    ///
-    /// Sent by the scope that is about to write the channel request,
-    /// because it is the only party that knows an answer is coming. It
-    /// races that answer, which a [`Session`] handles by draining
-    /// whenever a lookup misses.
-    Register {
-        /// The scope the channel is inside, as the client numbered it.
-        scope: u32,
-        /// The channel, chosen by this end.
-        channel: u32,
-        /// Where the client's answers on it go.
-        response_sender: UnboundedSender<Bytes>,
-    },
-    /// Something is gone: a whole scope for [`None`], one channel
-    /// inside it for [`Some`].
-    ///
-    /// Sent from a destructor in both cases, so it cannot be forgotten
-    /// and covers abandonment as well as any deliberate ending.
-    ///
-    /// The scope case takes every channel under it, which is why the
-    /// map is nested — a scope's end is one removal rather than a scan
-    /// for everything that belonged to it.
-    Closed(u32, Option<u32>),
 }
