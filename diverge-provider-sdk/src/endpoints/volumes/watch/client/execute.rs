@@ -1,18 +1,14 @@
-//! Starting a watch, and reading it for as long as it lasts.
+//! Starting a watch.
 
 use std::fmt;
 
 use bytes::Bytes;
 
 use super::channel_request;
+use super::execute_stream::ExecuteStream;
 use super::request;
 use crate::client::handle::Handle;
-use crate::client::scope_response_stream::ScopeResponseStream;
-use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::volumes::watch::server::response;
-use crate::shared::error::Error;
-use crate::shared::filetree;
 
 /// Start watching a volume.
 ///
@@ -25,33 +21,17 @@ use crate::shared::filetree;
 /// that returned one value would have had to pick a frame and throw the
 /// rest away.
 ///
-/// So it hands back a
-/// [`ScopeResponseStream`](crate::client::scope_response_stream::ScopeResponseStream),
-/// which is where everything about reading one lives — what ends it,
-/// what a caller owes it, and what dropping it does.
-///
-/// # Dropping it stops the watch
-///
-/// The stream carries the
-/// [`channel_request`](super::channel_request) that means stop, and
-/// sends it if it is dropped while still running. Which makes dropping
-/// the ordinary way to be done with a watch: a provider is told rather
-/// than left walking a tree nobody is listening about, and the scope
-/// number comes back.
-///
-/// It is best-effort in exactly one direction. There is nowhere for a
-/// destructor to report a failure and nothing to await it, so a stop
-/// that cannot go — no runtime on the thread, a connection already
-/// gone — leaves things as they were before any of this existed. It
-/// never sends the wrong one: a scope that has closed is checked for,
-/// because its number may already belong to somebody else.
+/// So it hands back an [`ExecuteStream`], which is where everything
+/// about reading one lives — what ends it, what a caller owes it, and
+/// what dropping it does.
 ///
 /// # It fails in only one way
 ///
 /// The request either serializes or it does not. Everything after that
 /// belongs to the watch rather than to the asking — a provider that
 /// refuses is refusing the watch, and it says so in a frame like
-/// everything else. See [`WatchError`].
+/// everything else. See
+/// [`ExecuteStreamError`](super::ExecuteStreamError).
 ///
 /// # It keeps the responses and lets the rest of the scope go
 ///
@@ -65,6 +45,14 @@ use crate::shared::filetree;
 /// So it is dropped here and a stray channel request dead-letters,
 /// which is the rule [`Scope`](crate::client::scope::Scope) states
 /// about itself: drop what you are not going to read.
+///
+/// # The disconnect is built here, not later
+///
+/// [`ExecuteStream`] sends it when dropped, and a destructor is a poor
+/// place to be encoding anything — so it is encoded now, through
+/// [`channel_request::Frame`] rather than written as the byte it
+/// happens to be. What a disconnect looks like on the wire is that
+/// module's to say, and this is a caller like any other.
 ///
 /// # Choosing the capacity
 ///
@@ -90,50 +78,32 @@ pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
     capacity: usize,
-) -> Result<ScopeResponseStream<filetree::response::Frame, WatchError>, ExecuteError>
-{
+) -> Result<ExecuteStream, ExecuteError> {
     let mut payload = Vec::new();
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let scope = handle.send_request(&payload, capacity, 1).await;
     let number = scope.scope;
-    // Encoded through its own frame rather than written as the byte it
-    // happens to be. What a stop looks like on the wire is
-    // `channel_request`'s to say, and this is a caller like any other.
-    let mut stop = Vec::new();
+    let mut disconnect_request = Vec::new();
     channel_request::Frame
-        .encode(&mut Writer::new(&mut stop))
+        .encode(&mut Writer::new(&mut disconnect_request))
         .unwrap_or_else(|error| match error {});
-    Ok(ScopeResponseStream::new(scope.response_receiver, decode)
-        .stop_with(handle.clone(), number, Bytes::from(stop)))
-}
-
-/// One payload, as one change on the tree.
-///
-/// The whole of what is watch's about a watch stream. Everything else —
-/// the receiver, the envelope, the ending, staying ended — belongs to
-/// [`ScopeResponseStream`](crate::client::scope_response_stream::ScopeResponseStream).
-///
-/// The item is [`filetree::response::Frame`], the SHARED one. Taking
-/// this endpoint's own envelope off it is the point: a caller folding a
-/// tree wants the change, not the news that a change is what this is.
-fn decode(
-    payload: Bytes,
-) -> Result<filetree::response::Frame, WatchError> {
-    match response::Frame::decode(&payload) {
-        Ok(response::Frame::Filetree(frame)) => Ok(frame),
-        Ok(response::Frame::Error(error)) => Err(WatchError::Provider(error)),
-        Err(error) => Err(WatchError::Response(error)),
-    }
+    Ok(ExecuteStream::new(
+        scope.response_receiver,
+        handle.clone(),
+        number,
+        Bytes::from(disconnect_request),
+    ))
 }
 
 /// A watch that never started.
 ///
 /// One way, because starting one is only serializing the request and
 /// writing it. Everything a provider might object to is objected to
-/// afterwards, in a frame — see [`WatchError`], which is the watch that
-/// started and then stopped without ending.
+/// afterwards, in a frame — see
+/// [`ExecuteStreamError`](super::ExecuteStreamError), which is the
+/// watch that started and then stopped without ending.
 #[derive(Debug)]
 pub enum ExecuteError {
     /// The request would not serialize.
@@ -154,62 +124,6 @@ impl std::error::Error for ExecuteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ExecuteError::Request(error) => Some(error),
-        }
-    }
-}
-
-/// Why there is no change to report, and never will be again.
-///
-/// What a watch stream carries in
-/// [`ResponseStreamError::Payload`](crate::client::response_stream_error::ResponseStreamError::Payload).
-/// The stream's own failures — a connection that went, a frame that was
-/// not one — are beside it there rather than in here, because they
-/// happen to every stream and have nothing to do with watching.
-///
-/// Both of these end the stream, and both are terminal for the same
-/// underlying reason: a filetree is a FOLD. The frames apply to a tree
-/// the reader is keeping, so a gap in them leaves that tree permanently
-/// wrong with no way to notice. Reading on would be applying changes to
-/// something known to be broken. The recovery is a new watch and a
-/// fresh snapshot, which is cheap.
-#[derive(Debug)]
-pub enum WatchError {
-    /// The response frame did not parse.
-    Response(response::FrameDecodeError),
-    /// The provider stopped watching, and said so.
-    ///
-    /// An answer of a kind — the provider is saying the watch is over
-    /// and why — but not a change to the tree, which is why it is not
-    /// the stream simply ending.
-    ///
-    /// See [`shared::error::Error`](crate::shared::error::Error) for
-    /// why it says so little.
-    Provider(Error),
-}
-
-impl fmt::Display for WatchError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            WatchError::Response(error) => {
-                write!(f, "watch frame did not parse: {error}")
-            }
-            WatchError::Provider(_) => {
-                f.write_str("the provider stopped watching")
-            }
-        }
-    }
-}
-
-impl std::error::Error for WatchError {
-    /// [`Provider`](WatchError::Provider) has no source, because what
-    /// it carries is not a Rust error and deliberately does not
-    /// implement one — see
-    /// [`shared::error::Error`](crate::shared::error::Error). A caller
-    /// that wants what is inside it matches the variant.
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            WatchError::Response(error) => Some(error),
-            WatchError::Provider(_) => None,
         }
     }
 }
