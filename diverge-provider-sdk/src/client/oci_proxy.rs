@@ -82,6 +82,14 @@ use crate::shared::http::response;
 /// parameter would work and still lose — bounds would read
 /// `P: HttpProxy<Oci>` instead of `P: OciProxy`, and this method's
 /// documentation could no longer say what a `404` means.
+///
+/// The two share a method name deliberately, which is a cost worth
+/// naming: on a type implementing both, `handle` is ambiguous and
+/// resolves as `<T as OciProxy>::handle`. That does not arise where
+/// these are actually called — a dispatcher is generic over one of
+/// them at a time, so the bound picks the method — and the alternative
+/// was two verbs for one act, which would have made a reader wonder
+/// what the difference was.
 pub trait OciProxy: Send + Sync {
     /// Take one registry request, and answer it.
     ///
@@ -105,7 +113,7 @@ pub trait OciProxy: Send + Sync {
     /// from. A dispatcher answering these on their own tasks owns those
     /// bytes inside the task rather than decoding before it — the same
     /// arrangement `agentic_loop`'s already has.
-    fn serve(
+    fn handle(
         &self,
         request: request::Request<'_>,
     ) -> impl Future<Output = (response::Head, Body)> + Send;

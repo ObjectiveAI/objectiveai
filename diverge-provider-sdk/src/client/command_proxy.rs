@@ -76,7 +76,7 @@ pub trait CommandProxy: Send + Sync {
     ///
     /// # The request is owned
     ///
-    /// Unlike [`McpProxy::forward`](super::mcp_proxy::McpProxy::forward),
+    /// Unlike [`McpProxy::handle`](super::mcp_proxy::McpProxy::handle),
     /// which can borrow because it is answered in the task that received
     /// the frame. A command's answers can outlast that task by as long
     /// as the command runs, so a dispatcher hands the bytes to something

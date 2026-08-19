@@ -169,7 +169,7 @@ where
     else {
         return;
     };
-    let (head, body) = mcp_proxy.forward(request).await;
+    let (head, body) = mcp_proxy.handle(request).await;
 
     let mut buffer = Vec::new();
     if mcp::Frame::Head(head)

@@ -49,7 +49,7 @@ pub trait McpProxy: Send + Sync {
     /// pins that concurrency to one. It is spelled out rather than left
     /// to `async fn`, which promises nothing about the future it
     /// returns.
-    fn forward(
+    fn handle(
         &self,
         request: request::Request<'_>,
     ) -> impl Future<Output = (response::Head, Body)> + Send;
