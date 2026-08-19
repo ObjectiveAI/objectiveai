@@ -33,6 +33,23 @@
 //! is the writer's business, what routes by one is the reader's, and
 //! what to do with one is a caller's.
 //!
+//! # Answering what the far end asks
+//!
+//! A caller is not only a source of requests. A provider opens channels
+//! back into it for the things it cannot reach itself — an MCP server,
+//! a database, a registry, a command — and something has to answer
+//! them.
+//!
+//! [`mcp_proxy`] is the first of those, and the others will read like
+//! it: a trait a caller implements, taking the request off a channel
+//! and returning what goes back. They are traits rather than callbacks
+//! because each has its own shape — an MCP answer is an HTTP response
+//! and a Postgres answer is a byte pipe — and nothing useful is shared
+//! between them but the fact that a channel carried it.
+//!
+//! None of them is wired to anything yet. What reads a scope's channel
+//! requests and dispatches to one is not written.
+//!
 //! The socket itself is not here.
 //! [`Connection`](crate::connection::Connection) carries either kind
 //! under either half, because which end dialled is not a fact about
@@ -40,6 +57,7 @@
 
 pub mod channel;
 pub mod handle;
+pub mod mcp_proxy;
 pub mod registration;
 pub mod router;
 pub mod scope;
