@@ -1,7 +1,12 @@
 //! The client side of a watch: what a client sends.
 //!
-//! [`request`] is the whole of what goes on the wire — one name, once.
-//! Everything after it travels the other way.
+//! [`request`] opens it — one name, once. [`channel_request`] closes
+//! it, and is the only other thing a caller ever sends: everything in
+//! between travels the other way.
+//!
+//! It is the only volume endpoint with a second half at all, because it
+//! is the only one that does not end by itself. The rest answer and
+//! finish; a watch reports until somebody says stop.
 //!
 //! # And, behind the `client` feature, a way to use it
 //!
@@ -11,6 +16,10 @@
 //! endpoint that does not collapse into a single answer, because a
 //! watch does not end.
 //!
+//! It does not yet send the [`channel_request`]. Doing that when the
+//! stream is dropped is what the frame is for, and nothing can write
+//! one from a destructor as the writing half stands.
+//!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the
 //! crate that can hold a socket — the same bargain
@@ -18,6 +27,7 @@
 //! than kept behind a name of its own, because a name for it would be
 //! a name for one function.
 
+pub mod channel_request;
 pub mod request;
 
 #[cfg(feature = "client")]
