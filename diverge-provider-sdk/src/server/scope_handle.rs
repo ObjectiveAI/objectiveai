@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
 use super::channel::Channel;
-use super::notification::Notification;
+use super::notice::Notice;
 use crate::connection::Connection;
 use crate::encode::{Encode, Writer};
 use crate::frame::server::ServerFrame;
@@ -93,7 +93,7 @@ pub struct ScopeHandle {
     ///
     /// It is also how a [`Session`](super::session::Session) tells a
     /// live scope from an ended one. Closing this closes the sender it
-    /// kept, and that — not the notification beside it — is what the session
+    /// kept, and that — not the notice beside it — is what the session
     /// actually checks.
     channel_request_receiver: UnboundedReceiver<Bytes>,
     /// Where the next channel number in this scope comes from.
@@ -154,7 +154,7 @@ pub struct ScopeHandle {
     /// destructor, and the other half must not block — a registration
     /// that waited would be a channel request whose answer arrives
     /// before anywhere exists to put it.
-    notifications: UnboundedSender<Notification>,
+    notices: UnboundedSender<Notice>,
     /// The write half of the connection, shared with every other scope
     /// on it.
     ///
@@ -196,7 +196,7 @@ impl ScopeHandle {
         request: Bytes,
         channel_request_receiver: UnboundedReceiver<Bytes>,
         finished_channels: UnboundedReceiver<u32>,
-        notifications: UnboundedSender<Notification>,
+        notices: UnboundedSender<Notice>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     ) -> Self {
         ScopeHandle {
@@ -206,7 +206,7 @@ impl ScopeHandle {
             counter: 0,
             channels: HashSet::new(),
             finished_channels,
-            notifications,
+            notices,
             sink,
             buffer: Vec::new(),
         }
@@ -312,7 +312,7 @@ impl ScopeHandle {
         self.take_back();
         let channel = self.mint_channel();
         let (response_sender, responses) = mpsc::unbounded_channel();
-        let _ = self.notifications.send(Notification::Register {
+        let _ = self.notices.send(Notice::Register {
             scope: self.scope,
             channel,
             response_sender,
@@ -327,7 +327,7 @@ impl ScopeHandle {
             channel,
             responses,
             scope: self.scope,
-            notifications: self.notifications.clone(),
+            notices: self.notices.clone(),
         }
     }
 
@@ -480,6 +480,6 @@ impl ScopeHandle {
 impl Drop for ScopeHandle {
     fn drop(&mut self) {
         self.channel_request_receiver.close();
-        let _ = self.notifications.send(Notification::Closed(self.scope, None));
+        let _ = self.notices.send(Notice::Closed(self.scope, None));
     }
 }

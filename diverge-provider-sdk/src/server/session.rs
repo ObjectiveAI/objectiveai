@@ -11,7 +11,7 @@ use futures_util::{Stream, StreamExt as _};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-use super::notification::Notification;
+use super::notice::Notice;
 use super::scope_handle::ScopeHandle;
 use crate::connection::Connection;
 use crate::frame::client::ClientFrame;
@@ -156,7 +156,7 @@ pub struct Session {
     >,
     /// Everything the scopes have to say, in the order they said it.
     ///
-    /// See [`Notification`] for the two kinds and
+    /// See [`Notice`] for the two kinds and
     /// [`drain`](Self::drain) for how they are applied.
     ///
     /// Unbounded, because half of what rides it is sent from a
@@ -164,9 +164,9 @@ pub struct Session {
     /// report a failure. The other half must not block either: a
     /// registration that waited behind a full queue would be a channel
     /// request whose answer arrives before anywhere exists to put it.
-    notices: UnboundedReceiver<Notification>,
+    notices: UnboundedReceiver<Notice>,
     /// The other end of it, kept to clone into every scope.
-    notification_sender: UnboundedSender<Notification>,
+    notice_sender: UnboundedSender<Notice>,
 }
 
 impl Session {
@@ -182,13 +182,13 @@ impl Session {
     /// upgrade are all settled before this is called.
     pub fn new(connection: Connection) -> Self {
         let (sink, stream) = connection.split();
-        let (notification_sender, notices) = mpsc::unbounded_channel();
+        let (notice_sender, notices) = mpsc::unbounded_channel();
         Session {
             stream,
             sink: Arc::new(Mutex::new(sink)),
             scopes: HashMap::new(),
             notices,
-            notification_sender,
+            notice_sender,
         }
     }
 
@@ -239,7 +239,7 @@ impl Session {
             request,
             channel_requests,
             finished,
-            self.notification_sender.clone(),
+            self.notice_sender.clone(),
             self.sink.clone(),
         ))
     }
@@ -379,7 +379,7 @@ impl Session {
     fn drain(&mut self) {
         while let Ok(notice) = self.notices.try_recv() {
             match notice {
-                Notification::Register {
+                Notice::Register {
                     scope,
                     channel,
                     response_sender,
@@ -388,7 +388,7 @@ impl Session {
                         channels.insert(channel, response_sender);
                     }
                 }
-                Notification::Closed(scope, None) => {
+                Notice::Closed(scope, None) => {
                     let gone = self
                         .scopes
                         .get(&scope)
@@ -397,7 +397,7 @@ impl Session {
                         self.scopes.remove(&scope);
                     }
                 }
-                Notification::Closed(scope, Some(channel)) => {
+                Notice::Closed(scope, Some(channel)) => {
                     if let Some((_, channels, _)) = self.scopes.get_mut(&scope)
                         && channels
                             .get(&channel)

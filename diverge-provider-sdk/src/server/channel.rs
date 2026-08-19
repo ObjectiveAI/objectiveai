@@ -3,7 +3,7 @@
 use bytes::Bytes;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use super::notification::Notification;
+use super::notice::Notice;
 
 /// A channel this end opened inside a scope, and what comes back on it.
 ///
@@ -36,14 +36,14 @@ pub struct Channel {
     /// channel closing without one means the connection went first, or
     /// the scope did.
     pub responses: UnboundedReceiver<Bytes>,
-    /// The scope it belongs to, for the notification at the end.
+    /// The scope it belongs to, for the notice at the end.
     ///
     /// Not public, because it is not this type's to tell — a caller
     /// that wants the scope's number has the
     /// [`ScopeHandle`](super::scope_handle::ScopeHandle) it came from.
     pub(super) scope: u32,
     /// Where to say this channel is over.
-    pub(super) notifications: UnboundedSender<Notification>,
+    pub(super) notices: UnboundedSender<Notice>,
 }
 
 /// Tell the session the channel is over.
@@ -51,8 +51,7 @@ pub struct Channel {
 /// The same shape as
 /// [`ScopeHandle`](super::scope_handle::ScopeHandle)'s, one level down
 /// and for the same reason: close first, then say so, so that the
-/// session's check reads as closed the moment the notification is
-/// visible.
+/// session's check reads as closed the moment the notice is visible.
 ///
 /// A channel whose answer finished has already been forgotten — the
 /// session drops the entry when it forwards the finish frame — so this
@@ -61,7 +60,7 @@ impl Drop for Channel {
     fn drop(&mut self) {
         self.responses.close();
         let _ = self
-            .notifications
-            .send(Notification::Closed(self.scope, Some(self.channel)));
+            .notices
+            .send(Notice::Closed(self.scope, Some(self.channel)));
     }
 }

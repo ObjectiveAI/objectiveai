@@ -59,11 +59,11 @@
 //! is why it sits beside the handle rather than inside it: what makes
 //! one is the handle's business, and what to do with one is a caller's.
 //!
-//! `notification` is the queue running the other way, from the scopes
-//! back to the session, carrying the two things a session cannot work
-//! out for itself: where a channel's answer should land, and what has
-//! ended. It is private, because a session makes both ends of it and
-//! there is nothing for a caller to wire up.
+//! `notice` is the queue running the other way, from the scopes back to
+//! the session, carrying the two things a session cannot work out for
+//! itself: where a channel's answer should land, and what has ended. It
+//! is private, because a session makes both ends of it and there is
+//! nothing for a caller to wire up.
 //!
 //! # Why it is not the caller half turned around
 //!
@@ -114,6 +114,6 @@
 //! not around a sketch that predates it.
 
 pub mod channel;
-mod notification;
+mod notice;
 pub mod scope_handle;
 pub mod session;

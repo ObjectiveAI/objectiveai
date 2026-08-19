@@ -24,7 +24,7 @@ use tokio::sync::mpsc::UnboundedSender;
 /// There is nothing for a caller to wire up and so nothing for it to
 /// name.
 #[derive(Debug)]
-pub(super) enum Notification {
+pub(super) enum Notice {
     /// Somewhere to put an answer, arranged before it is asked for.
     ///
     /// Sent by the scope that is about to write the channel request,
