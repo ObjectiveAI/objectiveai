@@ -57,15 +57,52 @@
 //! a database, a registry, a command — and something has to answer
 //! them.
 //!
-//! [`mcp_proxy`] is the first of those, and the others will read like
-//! it: a trait a caller implements, taking the request off a channel
-//! and returning what goes back. They are traits rather than callbacks
-//! because each has its own shape — an MCP answer is an HTTP response
-//! and a Postgres answer is a byte pipe — and nothing useful is shared
-//! between them but the fact that a channel carried it.
+//! There are four so far, one per thing that can be asked.
+//! [`mcp_proxy`] forwards an exchange to a server the provider cannot
+//! see. [`oci_proxy`] serves an image, for a plugin run and a
+//! laboratory run alike. [`command_proxy`] runs a command a plugin has
+//! no binary for. [`postgres_proxy`] splices a connection onto the
+//! caller's database.
+//!
+//! They are traits rather than callbacks because each has its own
+//! shape, and the shapes really are different: one request one answer,
+//! one request many answers, and one connection for a channel's whole
+//! life. Only [`oci_proxy`] reads like [`mcp_proxy`], and only because
+//! both are tunneled HTTP.
+//!
+//! What they share is one idea rather than one signature — each punts
+//! failure into a vocabulary that already exists, and each punts to a
+//! different one. An HTTP status, a pgwire `ErrorResponse`, an item in
+//! the CLI's own shape. None of them has an error variant, because a
+//! second way to say a thing is a second thing to disagree about.
+//!
+//! The roster is not finished. A [`laboratory run`](crate::endpoints::laboratories::run::server::channel_request::Frame)
+//! also asks for an authorization and for content to write, and those
+//! need two more — the authorization being the one case whose answer is
+//! genuinely shaped like a [`Result`], since its frame has variants to
+//! say so.
 //!
 //! None of them is wired to anything yet. What reads a scope's channel
-//! requests and dispatches to one is not written.
+//! requests and dispatches to one is not written, and it will not be
+//! one loop: a request/answer exchange wants a task per frame, and a
+//! database connection wants a task per CHANNEL with the frames after
+//! the first fed to the one already running.
+//!
+//! # Two things true of all four
+//!
+//! None is `dyn`-compatible, because each returns `impl Future`. So a
+//! dispatcher is generic over the ones it needs at once rather than
+//! holding boxes — which monomorphizes free and costs nothing, unless a
+//! caller wants to choose a proxy at runtime, whose answer is an enum
+//! of their own with one impl on it.
+//!
+//! None can exert backpressure, for the reason the section above gives.
+//! A command yielding a million items queues them into the sink as fast
+//! as the socket takes them, and every one of those frames takes the
+//! handle's lock in turn against every other write on the connection.
+//! The lock is held for one frame and never for a stream of them, so
+//! nothing is starved — but a caller writing a firehose should know it
+//! is contending.
 //!
 //! The socket itself is not here.
 //! [`Connection`](crate::connection::Connection) carries either kind
@@ -73,8 +110,11 @@
 //! the protocol.
 
 pub mod channel;
+pub mod command_proxy;
 pub mod handle;
 pub mod mcp_proxy;
+pub mod oci_proxy;
+pub mod postgres_proxy;
 pub mod registration;
 pub mod router;
 pub mod scope;
