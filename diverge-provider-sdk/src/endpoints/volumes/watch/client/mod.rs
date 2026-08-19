@@ -16,9 +16,9 @@
 //! endpoint that does not collapse into a single answer, because a
 //! watch does not end.
 //!
-//! It does not yet send the [`channel_request`]. Doing that when the
-//! stream is dropped is what the frame is for, and nothing can write
-//! one from a destructor as the writing half stands.
+//! It sends the [`channel_request`] when that stream is dropped, which
+//! makes dropping the ordinary way to be done with a watch rather than
+//! a way to abandon one.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the

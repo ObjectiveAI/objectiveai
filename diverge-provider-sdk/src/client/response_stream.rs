@@ -6,6 +6,7 @@ use std::task::{Context, Poll, ready};
 use bytes::Bytes;
 use tokio::sync::mpsc::Receiver;
 
+use super::handle::Handle;
 use super::response_stream_error::ResponseStreamError;
 use crate::frame;
 
@@ -88,6 +89,33 @@ pub(super) struct ResponseStream<T, E> {
     decode: fn(Bytes) -> Result<T, E>,
     /// Which two frames to look for. See [`Kind`].
     kind: Kind,
+    /// What to say on the way out, if there is anything to say.
+    ///
+    /// `(handle, scope, payload)` — a channel request to send when this
+    /// is dropped without having ended. [`None`] for a stream whose
+    /// endpoint has nothing that means stop, which is most of them.
+    ///
+    /// # Why the handle rather than a frame
+    ///
+    /// Because a frame carries a scope number it cannot re-check, and
+    /// by the time a destructor runs that number may belong to somebody
+    /// else. A scope ends, the router says so, the next mint hands the
+    /// same number out again — and a pre-encoded frame would then stop
+    /// a watch the caller had just started.
+    ///
+    /// [`Handle::send_channel_request`](super::handle::Handle::send_channel_request)
+    /// takes back what the router has closed and then looks the scope
+    /// up, so a scope that is gone sends nothing. That check is the
+    /// whole guard, and only a handle has it.
+    ///
+    /// # A triple rather than a callback
+    ///
+    /// A `Box<dyn FnOnce() + Send>` would say the same thing and cost
+    /// an allocation, an indirect call, and [`Sync`] — no field here
+    /// holds a `T` or an `E`, so these streams are [`Send`], [`Sync`]
+    /// and [`Unpin`] for every one of them, and a boxed closure would
+    /// have taken the second away for nothing.
+    stop: Option<(Handle, u32, Bytes)>,
 }
 
 impl<T, E> ResponseStream<T, E> {
@@ -101,7 +129,22 @@ impl<T, E> ResponseStream<T, E> {
             responses: Some(responses),
             decode,
             kind,
+            stop: None,
         }
+    }
+
+    /// Say this on the way out.
+    ///
+    /// A channel request to send if this is dropped before it ends. See
+    /// [`stop`](Self::stop) for why it takes a handle rather than a
+    /// frame.
+    pub(super) fn stop_with(
+        &mut self,
+        handle: Handle,
+        scope: u32,
+        payload: Bytes,
+    ) {
+        self.stop = Some((handle, scope, payload));
     }
 
     /// Whether the stream is over.
@@ -191,6 +234,59 @@ impl<T, E> ResponseStream<T, E> {
                 Err(ResponseStreamError::Payload(error))
             }
         }))
+    }
+}
+
+/// Tell the provider to stop, if there is anything to tell it and it is
+/// not already over.
+///
+/// # It spawns rather than sends
+///
+/// A destructor cannot await, and writing a frame means locking a
+/// connection and waiting on a socket. What it can do is hand the whole
+/// thing to a runtime and return, which is all this does.
+///
+/// [`try_current`](tokio::runtime::Handle::try_current) rather than
+/// [`tokio::spawn`], because `spawn` PANICS outside a runtime and a
+/// destructor is the worst place in a program to do that. No runtime
+/// means no send, which leaves things exactly as they were before this
+/// existed.
+///
+/// # It says nothing about a stream that ended
+///
+/// A stream that has ended has nothing to stop — and worse, its scope
+/// number may since have been handed out again, so a late stop could
+/// end somebody else's work. The terminal state is already a field, so
+/// the check is free.
+///
+/// That covers every ending: a finish, a closed connection, and each of
+/// the errors. What it does not cover is a finish sitting unread in the
+/// queue when a caller drops, and that window is closed one level down
+/// —
+/// [`send_channel_request`](super::handle::Handle::send_channel_request)
+/// looks the scope up after taking back what the router has closed, and
+/// a scope that is gone sends nothing.
+///
+/// # The answer is dropped
+///
+/// Nothing answers a stop; what answers it is the scope's own finish.
+/// So the channel this opens is abandoned immediately, and its entry in
+/// the router lingers until the scope closes — which is the thing the
+/// stop is provoking.
+impl<T, E> Drop for ResponseStream<T, E> {
+    fn drop(&mut self) {
+        if self.is_terminated() {
+            return;
+        }
+        let Some((handle, scope, payload)) = self.stop.take() else {
+            return;
+        };
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        runtime.spawn(async move {
+            let _ = handle.send_channel_request(scope, &payload, 1).await;
+        });
     }
 }
 

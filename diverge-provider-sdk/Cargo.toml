@@ -53,8 +53,10 @@ rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # `net` for the `TcpStream` an outgoing socket sits on, `sync` for the
-# channels frames are routed over. Nothing here runs a runtime.
-tokio = { version = "1.53.1", default-features = false, features = ["net", "sync"], optional = true }
+# channels frames are routed over, and `rt` for the one thing a
+# destructor can do about an unfinished scope: hand its last frame to a
+# runtime somebody else is already running. Nothing here CREATES one.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt", "sync"], optional = true }
 # `stream` and nothing else: enough to NAME `MaybeTlsStream`, and not
 # `connect` or any TLS backend. Dialling is the caller's, the same way
 # upgrading is the provider's — this crate takes the socket that comes

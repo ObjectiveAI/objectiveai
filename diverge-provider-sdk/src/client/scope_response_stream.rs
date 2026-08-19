@@ -9,6 +9,7 @@ use futures_util::Stream;
 use futures_util::stream::FusedStream;
 use tokio::sync::mpsc::Receiver;
 
+use super::handle::Handle;
 use super::response_stream::{Kind, ResponseStream};
 use super::response_stream_error::ResponseStreamError;
 
@@ -66,19 +67,27 @@ use super::response_stream_error::ResponseStreamError;
 /// and one parked there that rarely wins stalls the connection once its
 /// capacity fills.
 ///
-/// # Dropping this stops you reading, not the provider writing
+/// # Dropping this stops you reading, and the provider only if it was
+/// told to
 ///
-/// There is no frame for cancelling a scope. A client opens one and a
-/// server ends one; nothing in
-/// [`ClientFrame`](crate::frame::client::ClientFrame) says stop. So
-/// dropping this leaves the provider sending, the router decoding and
-/// discarding a frame at a time, and the scope number unreclaimed —
-/// because that only happens on a finish which is never coming.
+/// There is still no frame for cancelling a SCOPE. A client opens one
+/// and a server ends one; nothing in
+/// [`ClientFrame`](crate::frame::client::ClientFrame) says stop at that
+/// level. So by default dropping this leaves the provider sending, the
+/// router decoding and discarding a frame at a time, and the scope
+/// number unreclaimed — because that only happens on a finish which is
+/// never coming.
 ///
-/// For an endpoint that ends by itself this is the rare case of a
-/// caller walking away. For one that does not — a watch — it is the
-/// ORDINARY exit. It is a gap in the protocol rather than in this type,
-/// and it is the strongest argument this crate has for a cancel frame.
+/// [`stop_with`](Self::stop_with) is how an endpoint escapes that, and
+/// it is endpoint-specific by necessity: what it sends is a CHANNEL
+/// request, so it exists only where an endpoint defined one that means
+/// stop.
+///
+/// Which most have no use for. An endpoint that ends by itself is
+/// already finishing; dropping its stream early is the rare case of a
+/// caller walking away. It is the ones that do not end — a
+/// [`watch`](crate::endpoints::volumes::watch) — where dropping is the
+/// ORDINARY exit, and those are exactly the ones that define a stop.
 #[must_use = "a response stream that is not polled stalls every scope on the connection"]
 pub struct ScopeResponseStream<T, E>(ResponseStream<T, E>);
 
@@ -98,6 +107,40 @@ impl<T, E> ScopeResponseStream<T, E> {
         decode: fn(Bytes) -> Result<T, E>,
     ) -> Self {
         ScopeResponseStream(ResponseStream::new(responses, decode, Kind::Scope))
+    }
+
+    /// Say this if the stream is dropped before it ends.
+    ///
+    /// A channel request — `payload` is one, encoded, tag and all —
+    /// sent on `scope` when a caller walks away from a stream that was
+    /// still running. For an endpoint that has something meaning stop,
+    /// that is what turns "I stopped reading" into "I am done", and it
+    /// is the difference between a provider that keeps working and one
+    /// that is told.
+    ///
+    /// It takes a [`Handle`] rather than a frame on purpose: by the time
+    /// a destructor runs, the scope number may belong to somebody else,
+    /// and only a handle can check. Nothing is sent for a scope that has
+    /// closed.
+    ///
+    /// Nothing is sent for a stream that ended either — an ending is
+    /// the provider saying it is finished, and there is nothing left to
+    /// ask of it.
+    ///
+    /// # Not every endpoint has one
+    ///
+    /// Most do not, and it would mean nothing if they did. A listing
+    /// answers and finishes; there is no moment at which a caller could
+    /// usefully say stop. Leave this off and dropping a stream stops
+    /// only the reading, which is all it has ever done.
+    pub fn stop_with(
+        mut self,
+        handle: Handle,
+        scope: u32,
+        payload: Bytes,
+    ) -> Self {
+        self.0.stop_with(handle, scope, payload);
+        self
     }
 }
 

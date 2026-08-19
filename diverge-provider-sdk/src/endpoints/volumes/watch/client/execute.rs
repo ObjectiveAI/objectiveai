@@ -4,6 +4,7 @@ use std::fmt;
 
 use bytes::Bytes;
 
+use super::channel_request;
 use super::request;
 use crate::client::handle::Handle;
 use crate::client::scope_response_stream::ScopeResponseStream;
@@ -27,7 +28,23 @@ use crate::shared::filetree;
 /// So it hands back a
 /// [`ScopeResponseStream`](crate::client::scope_response_stream::ScopeResponseStream),
 /// which is where everything about reading one lives — what ends it,
-/// what a caller owes it, and what dropping it does not do.
+/// what a caller owes it, and what dropping it does.
+///
+/// # Dropping it stops the watch
+///
+/// The stream carries the
+/// [`channel_request`](super::channel_request) that means stop, and
+/// sends it if it is dropped while still running. Which makes dropping
+/// the ordinary way to be done with a watch: a provider is told rather
+/// than left walking a tree nobody is listening about, and the scope
+/// number comes back.
+///
+/// It is best-effort in exactly one direction. There is nowhere for a
+/// destructor to report a failure and nothing to await it, so a stop
+/// that cannot go — no runtime on the thread, a connection already
+/// gone — leaves things as they were before any of this existed. It
+/// never sends the wrong one: a scope that has closed is checked for,
+/// because its number may already belong to somebody else.
 ///
 /// # It fails in only one way
 ///
@@ -80,7 +97,16 @@ pub async fn execute(
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let scope = handle.send_request(&payload, capacity, 1).await;
-    Ok(ScopeResponseStream::new(scope.response_receiver, decode))
+    let number = scope.scope;
+    // Encoded through its own frame rather than written as the byte it
+    // happens to be. What a stop looks like on the wire is
+    // `channel_request`'s to say, and this is a caller like any other.
+    let mut stop = Vec::new();
+    channel_request::Frame
+        .encode(&mut Writer::new(&mut stop))
+        .unwrap_or_else(|error| match error {});
+    Ok(ScopeResponseStream::new(scope.response_receiver, decode)
+        .stop_with(handle.clone(), number, Bytes::from(stop)))
 }
 
 /// One payload, as one change on the tree.
