@@ -2,15 +2,12 @@
 
 use std::fmt;
 
-use super::request::Frame as Request;
+use super::request;
 use crate::client::handle::Handle;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::images::check::server::response::{
-    Frame as ResponseFrame, FrameError as ResponseFrameError, Response,
-};
-use crate::frame::FrameError;
-use crate::frame::server::ServerFrame;
+use crate::endpoints::images::check::server::response;
+use crate::frame;
 use crate::shared::error::Error;
 
 /// Ask whether an image can be supplied, and wait for the answer.
@@ -80,8 +77,8 @@ use crate::shared::error::Error;
 /// nobody is listening for the rest.
 pub async fn execute(
     handle: &Handle,
-    request: &Request,
-) -> Result<Response, ExecuteError> {
+    request: &request::Frame,
+) -> Result<response::Response, ExecuteError> {
     let mut payload = Vec::new();
     request
         .encode(&mut Writer::new(&mut payload))
@@ -92,16 +89,18 @@ pub async fn execute(
         .recv()
         .await
         .ok_or(ExecuteError::Closed)?;
-    let frame = ServerFrame::decode(&bytes).map_err(ExecuteError::Frame)?;
+    let envelope = frame::server::ServerFrame::decode(&bytes)
+        .map_err(ExecuteError::Frame)?;
     // A router puts only a response and its finish on a scope's
     // response stream, so the only other thing this can be is a finish
     // arriving first — a scope that ended without saying anything.
-    let ServerFrame::Response { payload, .. } = frame else {
+    let frame::server::ServerFrame::Response { payload, .. } = envelope
+    else {
         return Err(ExecuteError::Unanswered);
     };
-    match ResponseFrame::decode(payload).map_err(ExecuteError::Response)? {
-        ResponseFrame::Response(response) => Ok(response),
-        ResponseFrame::Error(error) => Err(ExecuteError::Provider(error)),
+    match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
+        response::Frame::Response(answer) => Ok(answer),
+        response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
 
@@ -120,7 +119,7 @@ pub enum ExecuteError {
     /// provider out.
     Closed,
     /// What came back was not a frame.
-    Frame(FrameError),
+    Frame(frame::FrameError),
     /// The scope finished without an answer in it.
     ///
     /// A provider sends exactly one response before the finish that
@@ -128,7 +127,7 @@ pub enum ExecuteError {
     /// all, which is different from saying no.
     Unanswered,
     /// The response frame did not parse.
-    Response(ResponseFrameError),
+    Response(response::FrameError),
     /// The provider could not answer, and said so.
     ///
     /// **Not an unavailable image.** This is the absence of an answer,

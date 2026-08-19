@@ -83,19 +83,18 @@ impl Encode for ClientRequest<'_> {
         &self,
         out: &mut Writer<'_>,
     ) -> Result<(), ClientRequestEncodeError> {
-        use ClientRequestEncodeError as E;
         match self {
             ClientRequest::AgenticLoopRun(frame) => {
-                frame.encode(out).map_err(E::Json)
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::McpPluginRun(frame) => {
-                frame.encode(out).map_err(E::Json)
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::LaboratoriesRun(frame) => {
-                frame.encode(out).map_err(E::Json)
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::LaboratoriesConnect(frame) => {
-                frame.encode(out).map_err(E::Json)
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::VolumesList(frame) => {
                 // Its error is `Infallible`, and an empty match on one
@@ -103,19 +102,19 @@ impl Encode for ClientRequest<'_> {
                 frame.encode(out).map_err(|error| match error {})
             }
             ClientRequest::VolumesWatch(frame) => {
-                frame.encode(out).map_err(E::Postcard)
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesCreate(frame) => {
-                frame.encode(out).map_err(E::Postcard)
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesEdit(frame) => {
-                frame.encode(out).map_err(E::Postcard)
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::VolumesDelete(frame) => {
-                frame.encode(out).map_err(E::Postcard)
+                frame.encode(out).map_err(ClientRequestEncodeError::Postcard)
             }
             ClientRequest::ImagesCheck(frame) => {
-                frame.encode(out).map_err(E::Json)
+                frame.encode(out).map_err(ClientRequestEncodeError::Json)
             }
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
