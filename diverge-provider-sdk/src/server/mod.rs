@@ -87,10 +87,11 @@
 //!
 //! # What is not here yet
 //!
-//! **Answering.** A provider can open a channel inside a scope but
-//! cannot write on the scope's own stream, and cannot finish one. So
-//! nothing built on this is usable end to end: a client that opens a
-//! scope will be asked things and never answered.
+//! **Reading.** A scope can be answered, finished, and have channels
+//! opened inside it — but the request that opened it is not exposed,
+//! and the channel requests a client opens cannot be taken off their
+//! queue. So the writing half is done and the reading half is not, and
+//! nothing built on this is usable end to end yet.
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a

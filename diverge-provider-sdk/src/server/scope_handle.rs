@@ -47,10 +47,13 @@ use crate::frame::server::ServerFrame;
 ///
 /// # What is not here yet
 ///
-/// Answering. There is no way to write on the scope's own stream and no
-/// way to finish it, so nothing built on this is usable end to end. The
-/// machinery those need — a buffer, the lock, an encode — is here and
-/// working, because opening a channel needed it first.
+/// **Reading.** The request that opened the scope is held and not
+/// exposed, and the channel requests the client opens arrive in a queue
+/// with no way to take them off it. So a provider can say things but
+/// cannot yet find out what it was asked.
+///
+/// **Answering a channel the client opened.** Which is the other half
+/// of that queue, and waits on it.
 #[derive(Debug)]
 pub struct ScopeHandle {
     /// The scope's number, chosen by the CLIENT.
@@ -167,6 +170,73 @@ impl ScopeHandle {
             sink,
             buffer: Vec::new(),
         }
+    }
+
+    /// Answer, on the scope's own stream.
+    ///
+    /// Any number of these, then exactly one
+    /// [`send_response_finish`](Self::send_response_finish). Nothing
+    /// else ends the answer: a slow one is not a finished one, and
+    /// there is no timeout anywhere in this protocol.
+    ///
+    /// The payload is written as given, tag and all. This layer does
+    /// not know what an answer says; see
+    /// [`endpoints`](crate::endpoints) for who does.
+    ///
+    /// # The scope is never an argument
+    ///
+    /// It is a field, so it cannot be wrong. The client's equivalent
+    /// has to be told which scope it is answering in, because one
+    /// handle serves every scope on the connection; here the handle IS
+    /// the scope, and a misdirected response is not expressible.
+    pub async fn send_response(&mut self, payload: &[u8]) {
+        self.send_frame(ServerFrame::Response {
+            scope: self.scope,
+            payload,
+        })
+        .await;
+    }
+
+    /// End the scope.
+    ///
+    /// One frame, no payload, and everything belonging to this scope is
+    /// over — the answer, and every channel either side opened inside
+    /// it. The client learns it here and nowhere else.
+    ///
+    /// Any [`Channel`] still held from this scope will see its stream
+    /// close without a finish frame, which is indistinguishable from
+    /// losing the connection. That is correct: the scope it belonged to
+    /// is gone, and so is whatever it was answering.
+    ///
+    /// # It consumes the handle
+    ///
+    /// Which makes *any number of responses, then exactly one finish,
+    /// then nothing* a property of the type rather than a line in a
+    /// document. There is no state in which a finished scope can be
+    /// answered again, because there is no handle left to answer with.
+    ///
+    /// [`client::handle::Handle`](crate::client::handle::Handle) cannot
+    /// do this and does not try: a client does not decide when its
+    /// scope ends, it finds out.
+    ///
+    /// # The inbox closes first, and this is where it matters most
+    ///
+    /// A client may reuse a scope number the instant it reads this
+    /// finish. If the number still looked live when the reused
+    /// [`Request`](crate::frame::client::ClientFrame::Request) arrived,
+    /// a [`Session`](super::session::Session) would take it for a
+    /// duplicate and discard it — a legitimate request dropped in
+    /// silence, and a client hanging on a scope that was never
+    /// answered.
+    ///
+    /// Leaving it to the drop is not enough. The drop runs after this
+    /// returns, and what it races is a round trip that has already
+    /// begun. Closing before the frame goes out means the number reads
+    /// as free from the moment the client could possibly act on it.
+    pub async fn send_response_finish(mut self) {
+        self.channel_request_receiver.close();
+        self.send_frame(ServerFrame::ResponseFinish { scope: self.scope })
+            .await;
     }
 
     /// Open a channel inside this scope, and send the request that

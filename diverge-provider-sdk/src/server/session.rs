@@ -54,9 +54,9 @@ use crate::frame::client::ClientFrame;
 ///
 /// # What is not here yet
 ///
-/// **Answering a scope.** A provider can open channels inside one but
-/// cannot yet respond on the scope's own stream or finish it, so
-/// nothing built on this is usable end to end.
+/// **Reading a request.** A scope arrives with the frame that opened it
+/// and no way to look inside, so a provider can answer but cannot yet
+/// find out what it is answering.
 ///
 /// **Auth.** A credential belongs to the connection and there is
 /// nowhere for one to go, in either direction. An
