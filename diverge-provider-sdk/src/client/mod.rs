@@ -33,13 +33,36 @@
 //! is the writer's business, what routes by one is the reader's, and
 //! what to do with one is a caller's.
 //!
+//! # Reading what comes back
+//!
+//! [`scope_response_stream`] and [`channel_response_stream`] are what a
+//! caller DOES with the receivers those two hand over. Both are
+//! [`Stream`](futures_util::Stream)s that take one frame off a queue,
+//! strip the envelope, and hand the payload to a function the endpoint
+//! supplies; [`response_stream_error`] is what either of them says when
+//! it stops without ending.
+//!
+//! They are behaviour rather than data, and they still sit out here
+//! rather than in [`handle`] or [`router`], because they belong to
+//! neither half of the socket. Everything they touch has already
+//! crossed it.
+//!
+//! Nothing about them is endpoint-specific — which is the point. The
+//! only part of reading a stream that ever differs is turning one
+//! payload into one item, and that is the one thing they take as an
+//! argument.
+//!
 //! The socket itself is not here.
 //! [`Connection`](crate::connection::Connection) carries either kind
 //! under either half, because which end dialled is not a fact about
 //! the protocol.
 
 pub mod channel;
+pub mod channel_response_stream;
 pub mod handle;
 pub mod registration;
+mod response_stream;
+pub mod response_stream_error;
 pub mod router;
 pub mod scope;
+pub mod scope_response_stream;

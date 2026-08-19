@@ -1,20 +1,15 @@
 //! Starting a watch, and reading it for as long as it lasts.
 
 use std::fmt;
-use std::pin::Pin;
-use std::task::{Context, Poll, ready};
 
 use bytes::Bytes;
-use futures_util::Stream;
-use futures_util::stream::FusedStream;
-use tokio::sync::mpsc::Receiver;
 
 use super::request;
 use crate::client::handle::Handle;
+use crate::client::scope_response_stream::ScopeResponseStream;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::volumes::watch::server::response;
-use crate::frame;
 use crate::shared::error::Error;
 use crate::shared::filetree;
 
@@ -29,8 +24,10 @@ use crate::shared::filetree;
 /// that returned one value would have had to pick a frame and throw the
 /// rest away.
 ///
-/// So this returns a [`Watch`] instead — the same saving the others
-/// make, made once per frame rather than once.
+/// So it hands back a
+/// [`ScopeResponseStream`](crate::client::scope_response_stream::ScopeResponseStream),
+/// which is where everything about reading one lives — what ends it,
+/// what a caller owes it, and what dropping it does not do.
 ///
 /// # It fails in only one way
 ///
@@ -38,6 +35,19 @@ use crate::shared::filetree;
 /// belongs to the watch rather than to the asking — a provider that
 /// refuses is refusing the watch, and it says so in a frame like
 /// everything else. See [`WatchError`].
+///
+/// # It keeps the responses and lets the rest of the scope go
+///
+/// A [`Scope`](crate::client::scope::Scope) carries a second receiver,
+/// for channels a provider opens inside it. Nothing is supposed to open
+/// one inside a watch — but nothing forbids it either, and that
+/// receiver is bounded at `1` while the router AWAITS it. Holding one
+/// unread would mean a provider that opened two channels blocked the
+/// router forever, stalling every scope on the connection.
+///
+/// So it is dropped here and a stray channel request dead-letters,
+/// which is the rule [`Scope`](crate::client::scope::Scope) states
+/// about itself: drop what you are not going to read.
 ///
 /// # Choosing the capacity
 ///
@@ -57,179 +67,38 @@ use crate::shared::filetree;
 /// before anything reaches the wire, which is
 /// [`tokio`](tokio::sync::mpsc::channel)'s rule rather than this one.
 ///
-/// The second capacity is `1` and not offered. Nothing is supposed to
-/// open a channel inside a watch, and what would carry one is dropped
-/// before this returns.
+/// The second capacity is `1` and not offered, because what it feeds is
+/// dropped before this returns.
 pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
     capacity: usize,
-) -> Result<Watch, ExecuteError> {
+) -> Result<ScopeResponseStream<filetree::response::Frame, WatchError>, ExecuteError>
+{
     let mut payload = Vec::new();
     request
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
     let scope = handle.send_request(&payload, capacity, 1).await;
-    // Only the responses are kept. See `Watch` for why keeping the rest
-    // would be a connection-wide hazard rather than a spare field.
-    Ok(Watch {
-        responses: Some(scope.response_receiver),
-    })
+    Ok(ScopeResponseStream::new(scope.response_receiver, decode))
 }
 
-/// A watch that is running, and the changes coming out of it.
+/// One payload, as one change on the tree.
 ///
-/// What [`execute`] gives back, and a [`Stream`] of what the provider
-/// says about the tree. The request has gone out and the router is
-/// already putting frames where this will find them.
+/// The whole of what is watch's about a watch stream. Everything else —
+/// the receiver, the envelope, the ending, staying ended — belongs to
+/// [`ScopeResponseStream`](crate::client::scope_response_stream::ScopeResponseStream).
 ///
-/// The item is [`filetree::response::Frame`], the SHARED one — a
-/// snapshot and then changes to it. Stripping this endpoint's own
-/// envelope off it is most of what this type is for. What that sequence
-/// means, and what a reader has to hold to make sense of it, is
-/// [`filetree`]'s to say.
-///
-/// # Zero or more answers, then one ending
-///
-/// It yields zero or more [`Ok`], and then either ends or yields
-/// exactly one [`Err`] and ends. Every error is terminal, which is what
-/// makes the type explainable in one line and what
-/// [`FusedStream`] then reports honestly.
-///
-/// Terminal for the errors that are, not by convention. A payload that
-/// will not decode is a hole in a FOLD — the frames apply to a tree the
-/// reader is keeping, so one missing removal leaves that tree
-/// permanently wrong with no way to notice. Carrying on would be
-/// applying changes to something known to be broken. The recovery is a
-/// new watch and a fresh snapshot, which is cheap.
-///
-/// # It holds the responses and nothing else
-///
-/// A [`Scope`](crate::client::scope::Scope) carries a second receiver,
-/// for the channels a provider opens inside it. Nothing is supposed to
-/// open one inside a watch — but nothing forbids it either, and that
-/// receiver is bounded at `1` while the router AWAITS it. Holding one
-/// unread would mean a provider that opened two channels blocked the
-/// router forever, stalling every scope on the connection.
-///
-/// So [`execute`] keeps the response receiver and lets the rest go, and
-/// a stray channel request dead-letters. Which is the rule
-/// [`Scope`](crate::client::scope::Scope) states about itself: drop what
-/// you are not going to read.
-///
-/// # Reading is not optional
-///
-/// The queue is bounded, at whatever depth [`execute`] was given. A
-/// watch nobody reads stops the router that many frames later, and
-/// stopping the router stops every scope on the connection rather than
-/// only this one.
-///
-/// That obligation gets sharper as a [`Stream`], not softer. A
-/// `select!` is exactly where a stream someone means to ignore ends
-/// up, and one parked there that rarely wins stalls the connection
-/// once `capacity` frames pile up.
-///
-/// # Dropping this stops you reading, not the provider writing
-///
-/// There is no frame for cancelling a scope. A client opens one and a
-/// server ends one; nothing in
-/// [`ClientFrame`](crate::frame::client::ClientFrame) says stop. So a
-/// dropped [`Watch`] leaves the provider watching and sending, the
-/// router decoding and discarding a frame at a time, and the scope
-/// number unreclaimed — because that only happens on a finish which is
-/// never coming.
-///
-/// For every other endpoint that is the rare case of a caller walking
-/// away. For a watch it is the ORDINARY exit, because a watch never
-/// ends by itself. It is a gap in the protocol rather than in this
-/// type, and it is the strongest argument this crate has for a
-/// cancel frame.
-#[must_use = "a Watch that is not polled stalls every scope on the connection"]
-#[derive(Debug)]
-pub struct Watch {
-    /// The scope's responses, until there are no more.
-    ///
-    /// [`None`] once the stream has ended, which is the terminal state
-    /// and the whole of it. An [`Option`] rather than a flag beside a
-    /// receiver, because taking it out is what a flag would only
-    /// record: the queue is dropped the moment nothing will read it, so
-    /// its frames are freed and the router's later sends fail at once
-    /// instead of filling something nobody is holding.
-    ///
-    /// It also has to be one or the other.
-    /// [`poll_recv`](Receiver::poll_recv) latches [`None`] forever once
-    /// the senders are gone, so a stream that reported that as an error
-    /// each time it saw it would report it without end.
-    responses: Option<Receiver<Bytes>>,
-}
-
-/// One change on the tree at a time, until there are no more.
-///
-/// [`None`] is the watch ending as it should: a finish frame, meaning
-/// the provider will not send another. [`WatchError::Closed`] is the
-/// connection going away mid-watch, and the two are worth telling apart
-/// — one says the tree is no longer being reported, the other says
-/// nothing at all, so what the tree looks like now is unknown rather
-/// than unchanged.
-///
-/// There is no timeout. A tree nobody is touching is a watch that says
-/// nothing for as long as that lasts, and a quiet stream is not a
-/// finished one.
-impl Stream for Watch {
-    type Item = Result<filetree::response::Frame, WatchError>;
-
-    fn poll_next(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<Self::Item>> {
-        // Every field is `Unpin` — one channel end — so this never has
-        // to project.
-        let this = self.get_mut();
-        let Some(responses) = this.responses.as_mut() else {
-            return Poll::Ready(None);
-        };
-        let Some(bytes) = ready!(responses.poll_recv(cx)) else {
-            this.responses = None;
-            return Poll::Ready(Some(Err(WatchError::Closed)));
-        };
-        let envelope = match frame::server::ServerFrame::decode(&bytes) {
-            Ok(envelope) => envelope,
-            Err(error) => {
-                this.responses = None;
-                return Poll::Ready(Some(Err(WatchError::Frame(error))));
-            }
-        };
-        // A router puts only a response and its finish on a scope's
-        // response stream, so anything else is the finish — the watch
-        // ending, which is what `None` says.
-        let frame::server::ServerFrame::Response { payload, .. } = envelope
-        else {
-            this.responses = None;
-            return Poll::Ready(None);
-        };
-        Poll::Ready(Some(match response::Frame::decode(payload) {
-            Ok(response::Frame::Filetree(frame)) => Ok(frame),
-            Ok(response::Frame::Error(error)) => {
-                this.responses = None;
-                Err(WatchError::Provider(error))
-            }
-            Err(error) => {
-                this.responses = None;
-                Err(WatchError::Response(error))
-            }
-        }))
-    }
-}
-
-/// Whether the stream is over.
-///
-/// Free to answer, because the terminal state is a field rather than
-/// something to work out — and worth answering, because a watch is
-/// exactly the stream that ends up in a `select!`, which wants a
-/// fused one.
-impl FusedStream for Watch {
-    fn is_terminated(&self) -> bool {
-        self.responses.is_none()
+/// The item is [`filetree::response::Frame`], the SHARED one. Taking
+/// this endpoint's own envelope off it is the point: a caller folding a
+/// tree wants the change, not the news that a change is what this is.
+fn decode(
+    payload: Bytes,
+) -> Result<filetree::response::Frame, WatchError> {
+    match response::Frame::decode(&payload) {
+        Ok(response::Frame::Filetree(frame)) => Ok(frame),
+        Ok(response::Frame::Error(error)) => Err(WatchError::Provider(error)),
+        Err(error) => Err(WatchError::Response(error)),
     }
 }
 
@@ -263,34 +132,23 @@ impl std::error::Error for ExecuteError {
     }
 }
 
-/// A watch that stopped without ending.
+/// Why there is no change to report, and never will be again.
 ///
-/// None of these is the watch finishing. That is [`None`] from the
-/// [`Stream`], and the difference is the whole reason this type exists:
-/// a watch that ended told a caller the tree is no longer being
-/// reported, and a watch that broke told it nothing.
+/// What a watch stream carries in
+/// [`ResponseStreamError::Payload`](crate::client::response_stream_error::ResponseStreamError::Payload).
+/// The stream's own failures — a connection that went, a frame that was
+/// not one — are beside it there rather than in here, because they
+/// happen to every stream and have nothing to do with watching.
 ///
-/// Every one of them is the last thing the stream yields.
+/// Both of these end the stream, and both are terminal for the same
+/// underlying reason: a filetree is a FOLD. The frames apply to a tree
+/// the reader is keeping, so a gap in them leaves that tree permanently
+/// wrong with no way to notice. Reading on would be applying changes to
+/// something known to be broken. The recovery is a new watch and a
+/// fresh snapshot, which is cheap.
 #[derive(Debug)]
 pub enum WatchError {
-    /// The connection ended mid-watch.
-    ///
-    /// The frames stopped without a finish, so what the tree looks like
-    /// now is unknown — not unchanged.
-    Closed,
-    /// What came back was not a frame.
-    ///
-    /// Unreachable through this crate's own router, which decodes the
-    /// same bytes before forwarding them and discards what will not
-    /// parse. It is here because
-    /// [`Scope`](crate::client::scope::Scope) is public and its
-    /// receiver could be fed by something else.
-    Frame(frame::FrameError),
     /// The response frame did not parse.
-    ///
-    /// Terminal, and that is the point: what rides this stream is a
-    /// fold, so a frame that cannot be applied leaves the reader's tree
-    /// wrong forever. Start a new watch and take the snapshot again.
     Response(response::FrameDecodeError),
     /// The provider stopped watching, and said so.
     ///
@@ -306,12 +164,6 @@ pub enum WatchError {
 impl fmt::Display for WatchError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WatchError::Closed => {
-                f.write_str("connection ended in the middle of a watch")
-            }
-            WatchError::Frame(error) => {
-                write!(f, "watch frame did not decode: {error}")
-            }
             WatchError::Response(error) => {
                 write!(f, "watch frame did not parse: {error}")
             }
@@ -330,9 +182,8 @@ impl std::error::Error for WatchError {
     /// that wants what is inside it matches the variant.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            WatchError::Frame(error) => Some(error),
             WatchError::Response(error) => Some(error),
-            WatchError::Closed | WatchError::Provider(_) => None,
+            WatchError::Provider(_) => None,
         }
     }
 }

@@ -5,10 +5,11 @@
 //!
 //! # And, behind the `client` feature, a way to use it
 //!
-//! [`execute`] starts the watch and hands back a [`Watch`], which
-//! is a [`Stream`](futures_util::Stream) of what the provider says
-//! about the tree. It is the one volume endpoint that does not
-//! collapse into a single answer, because a watch does not end.
+//! [`execute`] starts the watch and hands back a
+//! [`ScopeResponseStream`](crate::client::scope_response_stream::ScopeResponseStream)
+//! of what the provider says about the tree. It is the one volume
+//! endpoint that does not collapse into a single answer, because a
+//! watch does not end.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the
