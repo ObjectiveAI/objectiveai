@@ -90,6 +90,9 @@ pub enum ClientFrame<'a> {
     /// The server answers on that same channel with its own responses
     /// and finish.
     ///
+    /// One of these per channel, and never a second — see `channel`
+    /// below.
+    ///
     /// Not discriminated here either, for the same reason and by the
     /// same means.
     ChannelRequest {
@@ -98,6 +101,22 @@ pub enum ClientFrame<'a> {
         /// A channel unique within the scope, minted here in the
         /// CLIENT's numbering. The server's channels are counted
         /// separately and never collide with these.
+        ///
+        /// # One request per channel
+        ///
+        /// A client sends no further request on a channel it has
+        /// opened, and does not use the number again until the
+        /// server's response stream on it has finished. Reusing one
+        /// that is still live makes two exchanges indistinguishable,
+        /// and the client is the only party that could have prevented
+        /// it. Reuse after a finish is fine, because nothing
+        /// remembers.
+        ///
+        /// A client with more to say opens another channel. It has
+        /// nothing to lose by it — a number is a `u32` and a scope
+        /// will not exhaust one — and something to gain: two channels
+        /// each end when their answers do, where a channel taking
+        /// repeated requests could never say it had stopped asking.
         channel: u32,
         /// The request bytes, tag included.
         payload: &'a [u8],

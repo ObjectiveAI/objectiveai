@@ -18,14 +18,41 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// what makes an opted-out plugin cost nothing rather than cost an idle
 /// tunnel.
 ///
-/// # It is the one that is not a request
+/// # It is the one that takes two channels
 ///
-/// The other proxies answer something. This one is handed a socket. A
-/// Postgres session is a long-lived conversation with no natural
-/// top-level unit — successive frames on the channel are successive
-/// writes, and a message larger than one frame simply spans several — so
-/// one channel is one connection for its whole life, and this is called
-/// once to open it and never again.
+/// The other proxies answer something: a request arrives, an answer goes
+/// back, the channel ends. A Postgres session is a long-lived
+/// conversation with no natural top-level unit, so it does not fit that
+/// and is not made to. One connection is TWO channels, one per
+/// direction.
+///
+/// The provider opens the first, asking the caller to dial its database
+/// and stream back what it says. The caller opens the second, quoting
+/// the same
+/// [`connection_id`](crate::endpoints::mcp_plugin::run::server::channel_request::Postgres::connection_id),
+/// asking for what the plugin writes. This is called once per
+/// connection, after both exist.
+///
+/// It is that way because only a responder can finish a channel, and a
+/// connection has to be endable from both ends. One duplex channel could
+/// say neither "the plugin is gone" nor "the database is gone"; two say
+/// both, with nothing added to the protocol. It is the same inversion a
+/// [`write`](crate::shared::container::write_path) makes, at the same
+/// price of one round trip before the first byte.
+///
+/// # Several at once, and none of them related
+///
+/// A plugin holds a connection POOL, so this is called concurrently, on
+/// the same `&self`, once per connection — which is what the [`Send`] and
+/// [`Sync`] bounds above are for. An implementation must dial per call
+/// rather than hand back something it is holding; one reusable
+/// connection shared between calls would interleave two sessions onto
+/// one socket, and pgwire has no way to tell them apart.
+///
+/// Nothing is shared between connections and nothing bounds how many run
+/// at once. Their frames interleave freely on the one socket, which is
+/// what keeps a large result set on one connection from blocking its
+/// siblings.
 ///
 /// # Never parsed
 ///
@@ -60,18 +87,26 @@ pub trait PostgresProxy: Send + Sync {
     ///
     /// # What is on `requests`
     ///
-    /// Payload bytes, with the frame header and the variant tag already
-    /// off them — what the plugin wrote and nothing else. Handing them
-    /// on unmodified is the whole job; anything prepended is ten bytes
-    /// of garbage in front of a startup message.
+    /// Payload bytes, with the frame header off them — what the plugin
+    /// wrote and nothing else. Handing them on unmodified is the whole
+    /// job; anything prepended is nine bytes of garbage in front of a
+    /// startup message.
     ///
-    /// They are not messages, which is what the name is at risk of
-    /// suggesting. A pgwire message may span several items and several
-    /// may share one, exactly as they would arriving off a socket. A
-    /// driver on the far end is already prepared for that; nothing here
-    /// needs to be.
+    /// They arrive as the RESPONSES on the channel the caller opened for
+    /// them, which is why they can end. Calling them requests is a claim
+    /// about pgwire — these are what the plugin asks the database — and
+    /// not about which frame carried them.
+    ///
+    /// They are not messages, which is the other thing the name is at
+    /// risk of suggesting. A pgwire message may span several items and
+    /// several may share one, exactly as they would arriving off a
+    /// socket. A driver on the far end is already prepared for that;
+    /// nothing here needs to be.
     ///
     /// # Write them in the order they arrive, and do not wait
+    ///
+    /// Within one connection. Nothing is ordered against another
+    /// connection's traffic, and nothing needs to be.
     ///
     /// Ordering is not a nicety here, it is the whole correlation
     /// mechanism. Postgres pipelines: a client may send a second query
@@ -114,19 +149,27 @@ pub trait PostgresProxy: Send + Sync {
     /// which a dispatcher would have to hold and account for
     /// differently from the other two.
     ///
-    /// # `None` does not mean the plugin hung up
+    /// # `None` means the plugin hung up
     ///
-    /// It cannot. Nothing in this protocol lets a REQUESTOR say it is
-    /// finished — only a responder finishes — so there is no frame for
-    /// a plugin closing its half, and a pgwire half-close arrives as a
-    /// `Terminate` (`'X'`) message inside the bytes like anything else.
+    /// It is a real signal and the reason the exchange is shaped the way
+    /// it is. `None` is the provider finishing the channel the caller
+    /// opened, which says the plugin's socket ended and no further byte
+    /// will ever be written by this connection.
     ///
-    /// `None` means the scope ended or the connection died. It is the
-    /// signal to hang up on the database, not a message from the plugin.
+    /// Not "nothing right now" — a quiet channel is a channel still
+    /// running, and nothing here times one out. The right response is to
+    /// hang up on the database and let the returned stream end.
     ///
-    /// The other direction is not the mirror of this: the returned
-    /// stream ending IS representable, and becomes a finish on the
-    /// channel that says the database connection dropped.
+    /// It matters most for the case the bytes cannot cover. A plugin
+    /// that exits cleanly sends pgwire's `Terminate` (`'X'`) and the
+    /// database closes on its own; a plugin that CRASHES sends nothing,
+    /// and without this frame a caller would hold a backend for a client
+    /// that no longer exists.
+    ///
+    /// The two directions are mirrors. This ending says the plugin is
+    /// gone; the returned stream ending says the database is, and
+    /// becomes a finish the provider acts on by shutting the plugin's
+    /// socket.
     ///
     /// # Dropping the receiver is a real answer
     ///

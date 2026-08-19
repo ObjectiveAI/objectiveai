@@ -52,6 +52,38 @@
 //! neither end has to know what the other has minted, and neither can
 //! collide with it.
 //!
+//! # One request per channel
+//!
+//! A channel carries exactly ONE request. There is never a second
+//! request frame on a live channel, and the number may not be used
+//! again until the response stream on it has finished.
+//!
+//! Both halves of that are the same rule seen from either end, and it
+//! holds for both sides — a server opening two requests on one of its
+//! channels breaks it exactly as a client would.
+//!
+//! It is what makes a channel mean something. A channel that took
+//! several requests would have no answer to when its number came free,
+//! because the responses to the first and the third would be
+//! indistinguishable; and it would have no way to END, because
+//! finishing is a responder's act and a requestor has no frame with
+//! which to say it has stopped asking.
+//!
+//! # So a duplex exchange is TWO channels
+//!
+//! Which is the shape everything bidirectional in this protocol takes,
+//! rather than a limitation any of them work around. A write names its
+//! destination on the client's channel and streams its content back on
+//! one the provider opens; an image pull does the same; a Postgres
+//! connection is one channel per direction, correlated by an id that
+//! belongs to the connection rather than to either channel.
+//!
+//! It costs a round trip before the first byte and buys two channels
+//! that each do one thing — and, more than that, it buys a close in
+//! both directions. Each side finishes the channel it is answering on,
+//! so each side can say it is done, which a single duplex channel
+//! could never have expressed.
+//!
 //! # A stream ends at its finish frame, and nowhere else
 //!
 //! This holds everywhere, for every stream in this protocol. A quiet

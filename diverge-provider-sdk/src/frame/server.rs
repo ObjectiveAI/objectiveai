@@ -74,6 +74,9 @@ pub enum ServerFrame<'a> {
     /// The client answers on that same channel with its own responses
     /// and finish.
     ///
+    /// One of these per channel, and never a second — see `channel`
+    /// below.
+    ///
     /// Not discriminated here. WHICH request this is lives in the
     /// payload's own leading byte — see
     /// [`request::Frame`](crate::endpoints::agentic_loop::run::server::channel_request::Frame),
@@ -86,6 +89,24 @@ pub enum ServerFrame<'a> {
         /// several can be outstanding at once without their answers
         /// being confusable — and the client's channels are counted
         /// separately and never collide with these.
+        ///
+        /// # One request per channel
+        ///
+        /// The same rule the client's channels follow, and it is one
+        /// rule rather than two conventions: a server sends no further
+        /// request on a channel it has opened, and does not use the
+        /// number again until the client's response stream on it has
+        /// finished.
+        ///
+        /// It has to hold on both sides to mean anything. A rule that
+        /// bound only the client would be a fact about one
+        /// implementation, and a reader on either end could no longer
+        /// take "this channel" to name one exchange.
+        ///
+        /// A server with more to say opens another channel — which is
+        /// what makes the second half of a duplex exchange possible at
+        /// all, since finishing is a responder's act and neither side
+        /// can end a channel it is asking on.
         channel: u32,
         /// The request bytes, tag included.
         payload: &'a [u8],

@@ -10,7 +10,7 @@ use crate::encode::{Encode, Writer};
 /// on a channel opened by
 /// [`channel_request::Frame::Postgres`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Postgres).
 ///
-/// pgwire as it came off the socket, going back the way it came.
+/// pgwire as the database said it, on its way to the plugin.
 ///
 /// Opaque, for the reason db-proxy's conduit gives: it is never
 /// parsed, so TLS negotiation and every protocol extension cross
@@ -18,12 +18,27 @@ use crate::encode::{Encode, Writer};
 /// larger than one frame simply spans several, and both ends
 /// reassemble, as they would from a socket.
 ///
+/// # One half of a connection
+///
+/// This is what the DATABASE says. What the plugin writes travels the
+/// other way, on a channel the caller opens quoting the same
+/// [`connection_id`](crate::endpoints::mcp_plugin::run::server::channel_request::Postgres::connection_id),
+/// and arrives as a
+/// [`server::channel_response::postgres::Frame`](crate::endpoints::mcp_plugin::run::server::channel_response::postgres::Frame).
+///
+/// The finish here says the database connection closed, and a provider
+/// acts on it by shutting the plugin's socket. It is also how a caller
+/// DECLINES: one that cannot reach its database finishes without
+/// sending a byte, which the plugin sees as a server that hung up on
+/// it — the truth, and something its driver already knows how to
+/// report.
+///
 /// # Why a struct, where the outbound side has an enum
 ///
 /// Because there is nothing to choose between. A provider's
 /// [`channel_request::Frame`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame)
-/// has two variants because it opens two kinds of channel and a reader
-/// must tell them apart. Once THIS channel is open its kind is
+/// has three variants because it opens three kinds of channel and a
+/// reader must tell them apart. Once THIS channel is open its kind is
 /// settled, and it carries one kind of traffic from the first byte to
 /// the last. An enum would imply a decision nobody makes, and a tag
 /// byte would be a tag on a stream — a byte the far end has to strip

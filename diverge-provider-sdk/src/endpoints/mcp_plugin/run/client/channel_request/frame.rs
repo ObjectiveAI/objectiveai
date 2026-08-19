@@ -3,6 +3,7 @@
 use std::error::Error;
 use std::fmt;
 
+use super::Postgres;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::http::request::Request;
@@ -10,19 +11,30 @@ use crate::shared::http::request::Request;
 /// What a caller asks a provider for while a plugin runs.
 ///
 /// A payload leads with one byte saying which — `0` for
-/// [`Mcp`](Self::Mcp), `1` for [`Stop`](Self::Stop) — and the rest is
-/// that variant's own bytes, of which the second has none.
+/// [`Mcp`](Self::Mcp), `1` for [`Stop`](Self::Stop), `2` for
+/// [`Postgres`](Self::Postgres) — and the rest is that variant's own
+/// bytes, of which the second has none.
 ///
-/// Both reach INTO the container, which is the thing a caller cannot
-/// dial: it runs on the provider, on a port the provider published to
-/// its own loopback and told nobody. That is the whole reason these
-/// channels open outward from the client rather than the other way.
+/// # Two reach into the container, and one does not
+///
+/// [`Mcp`](Self::Mcp) and [`Stop`](Self::Stop) are aimed at the thing
+/// a caller cannot dial: the container runs on the provider, on a port
+/// the provider published to its own loopback and told nobody. That is
+/// the whole reason those channels open outward from the client rather
+/// than the other way.
+///
+/// [`Postgres`](Self::Postgres) opens outward for a different reason,
+/// and the difference is worth keeping. It asks for bytes the provider
+/// is already holding, so topology has nothing to do with it — the
+/// writes have to arrive as a RESPONSE stream, because only a
+/// responder can finish a channel and the provider needs to be able to
+/// say the plugin has gone.
 ///
 /// A [`laboratory run`](crate::endpoints::laboratories::run::client::channel_request::Frame)
-/// has five. The three missing here are about files — a plugin serves
-/// tools rather than holds a filesystem, takes no [`mounts`], and
-/// reports no tree — so a read, a write and a transfer have nothing to
-/// act on.
+/// has five. The three there and missing here are about files — a
+/// plugin serves tools rather than holds a filesystem, takes no
+/// [`mounts`], and reports no tree — so a read, a write and a transfer
+/// have nothing to act on.
 ///
 /// [`mounts`]: crate::endpoints::laboratories::run::client::request::Frame::mounts
 #[derive(Debug, Clone, PartialEq)]
@@ -88,6 +100,16 @@ pub enum Frame<'a> {
     /// caller's behalf — a provider that tried would be guessing which
     /// of a caller's outstanding calls it still wanted.
     Stop,
+    /// The plugin's half of a database connection. Tag `2`.
+    ///
+    /// Sent in answer to a
+    /// [`server::channel_request::Frame::Postgres`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Postgres),
+    /// quoting the connection it names. What comes back is everything
+    /// the plugin writes; the finish says the plugin's socket ended.
+    ///
+    /// See [`Postgres`] for why a connection takes two channels and
+    /// what a caller owes the provider once it has taken the first.
+    Postgres(Postgres),
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -96,8 +118,12 @@ const MCP: u8 = 0;
 /// Tag for [`Frame::Stop`].
 const STOP: u8 = 1;
 
+/// Tag for [`Frame::Postgres`].
+const POSTGRES: u8 = 2;
+
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure, from the half that has one.
+    /// The ordinary JSON failure, from the only variant that has one.
+    /// A stop carries nothing and a connection id is four known bytes.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -110,12 +136,19 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[STOP]);
                 Ok(())
             }
+            Frame::Postgres(postgres) => {
+                out.extend_from_slice(&[POSTGRES]);
+                postgres
+                    .encode(out)
+                    .unwrap_or_else(|error| match error {});
+                Ok(())
+            }
         }
     }
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Three ways to fail, and only one of them is JSON.
+    /// Four ways to fail, and only one of them is JSON.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
@@ -123,6 +156,9 @@ impl<'a> Decode<'a> for Frame<'a> {
         match *tag {
             MCP => Request::decode(rest).map(Frame::Mcp).map_err(FrameError::Mcp),
             STOP => Ok(Frame::Stop),
+            POSTGRES => Postgres::decode(rest)
+                .map(Frame::Postgres)
+                .map_err(FrameError::Postgres),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -133,10 +169,12 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is neither of this frame's two.
+    /// A tag that is none of this frame's three.
     UnknownTag(u8),
     /// The MCP request did not parse.
     Mcp(serde_json::Error),
+    /// The write request was not a connection id.
+    Postgres(super::postgres::PostgresError),
 }
 
 impl fmt::Display for FrameError {
@@ -151,6 +189,9 @@ impl fmt::Display for FrameError {
             FrameError::Mcp(error) => {
                 write!(f, "mcp request did not parse: {error}")
             }
+            FrameError::Postgres(error) => {
+                write!(f, "postgres write request did not parse: {error}")
+            }
         }
     }
 }
@@ -159,6 +200,7 @@ impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             FrameError::Mcp(error) => Some(error),
+            FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }

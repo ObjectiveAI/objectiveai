@@ -66,9 +66,10 @@
 //!
 //! They are traits rather than callbacks because each has its own
 //! shape, and the shapes really are different: one request one answer,
-//! one request many answers, and one connection for a channel's whole
-//! life. Only [`oci_proxy`] reads like [`mcp_proxy`], and only because
-//! both are tunneled HTTP.
+//! one request many answers, and — for a database — a PAIR of channels,
+//! one per direction, because only a responder can end a channel and a
+//! connection has to be endable from both sides. Only [`oci_proxy`]
+//! reads like [`mcp_proxy`], and only because both are tunneled HTTP.
 //!
 //! What they share is one idea rather than one signature — each punts
 //! failure into a vocabulary that already exists, and each punts to a
@@ -83,10 +84,11 @@
 //! say so.
 //!
 //! None of them is wired to anything yet. What reads a scope's channel
-//! requests and dispatches to one is not written, and it will not be
-//! one loop: a request/answer exchange wants a task per frame, and a
-//! database connection wants a task per CHANNEL with the frames after
-//! the first fed to the one already running.
+//! requests and dispatches to one is not written, and Postgres is the
+//! one that will not fall out of a task per frame: a connection request
+//! has to open a channel BACK before it can be served, and the writes
+//! then arrive as that channel's responses rather than as further
+//! requests.
 //!
 //! # Two things true of all four
 //!

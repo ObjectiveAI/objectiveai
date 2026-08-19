@@ -3,6 +3,7 @@
 use std::error::Error;
 use std::fmt;
 
+use super::Postgres;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::http::request::Request;
@@ -27,8 +28,9 @@ use crate::shared::http::request::Request;
 ///
 /// # Why the three are shaped differently
 ///
-/// [`Oci`](Self::Oci) is a structured exchange; the other two are
-/// bytes. That is not a preference — it is what each thing IS.
+/// [`Oci`](Self::Oci) is a structured exchange, [`Postgres`](Self::Postgres)
+/// names a connection, and [`Command`](Self::Command) is bytes. That is
+/// not a preference — it is what each thing IS.
 ///
 /// A registry pull is a series of discrete requests, each with a
 /// method, a path and a status, and this specification RELIES on those
@@ -37,9 +39,10 @@ use crate::shared::http::request::Request;
 /// is built on.
 ///
 /// A Postgres session is a long-lived socket carrying a conversation
-/// with no natural top-level unit, so successive request frames on one
-/// channel are successive writes, and a message larger than one frame
-/// simply spans several.
+/// with no natural top-level unit — so it is not an exchange at all,
+/// and this frame does not try to make it one. It opens HALF a
+/// connection, and the caller opens the other half. See
+/// [`Postgres`] for why a socket has to be two channels.
 ///
 /// A command is neither. It is one ask and a stream of answers, framed
 /// by the channel itself — and its CONTENTS belong to a vocabulary
@@ -68,10 +71,12 @@ pub enum Frame<'a> {
     /// laboratories alike — and a request routes itself without a
     /// provider keeping state between them.
     Oci(Request<'a>),
-    /// Postgres bytes, toward the caller's database. Tag `1`.
+    /// One database connection, opened toward the caller. Tag `1`.
     ///
-    /// Opaque, and a stream — this is a socket, and successive frames
-    /// on the channel are successive writes.
+    /// Carries no bytes. It names a connection and asks the caller to
+    /// dial its database; what the database SAYS comes back on this
+    /// channel, and what the plugin WRITES arrives on a second channel
+    /// the caller opens quoting the same id — see [`Postgres`].
     ///
     /// # Why a plugin, and not the agent
     ///
@@ -80,19 +85,16 @@ pub enum Frame<'a> {
     /// where the tool runs, and the loop that called it never sees a
     /// connection it has no query to send down.
     ///
-    /// # It is opened, not offered
-    ///
-    /// A provider opens this because something inside the container
-    /// dialled the conduit it was given. A plugin that never connects
-    /// means this channel never exists — which is what makes an
-    /// opted-out plugin cost nothing rather than cost an idle tunnel.
-    ///
     /// # Never parsed
     ///
     /// Which is what lets TLS negotiation and every protocol extension
     /// cross untouched. A conduit that understood pgwire would have to
     /// keep up with it; one that does not is finished being written.
-    Postgres(&'a [u8]),
+    ///
+    /// It is why the bytes are never framed as messages either: a
+    /// pgwire message larger than one frame simply spans several, and
+    /// both ends reassemble as they would from a socket.
+    Postgres(Postgres),
     /// One Diverge command, toward the caller. Tag `2`.
     ///
     /// A plugin has no CLI binary in its container and no daemon it is
@@ -145,8 +147,9 @@ const COMMAND: u8 = 2;
 
 impl Encode for Frame<'_> {
     /// The registry request's error, since the other two have none.
-    /// Bytes are copied, and copying cannot fail — so the union of the
-    /// three is just what a registry request can do wrong.
+    /// A connection id is four known bytes and a command is bytes
+    /// copied, neither of which can fail — so the union of the three
+    /// is just what a registry request can do wrong.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
@@ -155,9 +158,11 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[OCI]);
                 request.encode(out)
             }
-            Frame::Postgres(bytes) => {
+            Frame::Postgres(postgres) => {
                 out.extend_from_slice(&[POSTGRES]);
-                out.extend_from_slice(bytes);
+                postgres
+                    .encode(out)
+                    .unwrap_or_else(|error| match error {});
                 Ok(())
             }
             Frame::Command(bytes) => {
@@ -170,14 +175,17 @@ impl Encode for Frame<'_> {
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Three ways to fail, and only one of them is a parse.
+    /// Four ways to fail, and two of them are parses. A command is the
+    /// only one of the three payloads with nothing to get wrong.
     type Error = FrameError;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
         match *tag {
             OCI => Request::decode(rest).map(Frame::Oci).map_err(FrameError::Oci),
-            POSTGRES => Ok(Frame::Postgres(rest)),
+            POSTGRES => Postgres::decode(rest)
+                .map(Frame::Postgres)
+                .map_err(FrameError::Postgres),
             COMMAND => Ok(Frame::Command(rest)),
             tag => Err(FrameError::UnknownTag(tag)),
         }
@@ -196,6 +204,8 @@ pub enum FrameError {
     UnknownTag(u8),
     /// The registry request did not parse.
     Oci(serde_json::Error),
+    /// The connection request was not a connection id.
+    Postgres(super::postgres::PostgresError),
 }
 
 impl fmt::Display for FrameError {
@@ -210,6 +220,9 @@ impl fmt::Display for FrameError {
             FrameError::Oci(error) => {
                 write!(f, "registry request did not parse: {error}")
             }
+            FrameError::Postgres(error) => {
+                write!(f, "postgres connection request did not parse: {error}")
+            }
         }
     }
 }
@@ -218,6 +231,7 @@ impl Error for FrameError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             FrameError::Oci(error) => Some(error),
+            FrameError::Postgres(error) => Some(error),
             FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
