@@ -24,10 +24,18 @@
 //! forward, saying where frames should go before the request that
 //! causes them, and closures back, saying an entry is gone.
 //!
+//! [`scope`] and [`channel`] are what a [`handle`] hands back — the
+//! two things a caller opens, each with the receivers its frames
+//! arrive on. They are data and nothing else, which is why they sit
+//! beside the handle rather than inside it: what makes one is the
+//! handle's business, and what to do with one is a caller's.
+//!
 //! The socket itself is not here.
 //! [`Connection`](crate::connection::Connection) carries either kind
 //! under either half, because which end dialled is not a fact about
 //! the protocol.
 
+pub mod channel;
 pub mod handle;
 pub mod router;
+pub mod scope;
