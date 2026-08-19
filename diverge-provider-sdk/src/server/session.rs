@@ -92,7 +92,7 @@ pub struct Session {
     sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     /// Every scope a client has open, and everything routed inside it.
     ///
-    /// `(channel_requests, channels)`.
+    /// `(channel_requests, channels, finished)`.
     ///
     /// **`0`** is where the channels the CLIENT opens go, whole and in
     /// arrival order. One stream for all of them, because the number in
@@ -105,6 +105,14 @@ pub struct Session {
     /// from zero — the client's channel `3` and this end's channel `3`
     /// are two different channels, and one map keyed by `3` would hold
     /// one of them.
+    ///
+    /// **`2`** is how a number gets given back. When an answer
+    /// finishes, the channel it finished is free to be minted again,
+    /// and the only party that learns it is this one — so it says so,
+    /// to the handle that does the minting. The mirror of
+    /// [`client::router::Router`](crate::client::router::Router)'s
+    /// `closed`, one level down and per scope rather than per
+    /// connection.
     ///
     /// Nested rather than flattened to a `(scope, channel)` key,
     /// because a scope ending ends everything under it: one removal
@@ -137,7 +145,14 @@ pub struct Session {
     /// Nothing here can bound either, and nothing here tries. The
     /// remedy is to read a queue or drop the thing holding it, which
     /// frees it.
-    scopes: HashMap<u32, (UnboundedSender<Bytes>, HashMap<u32, UnboundedSender<Bytes>>)>,
+    scopes: HashMap<
+        u32,
+        (
+            UnboundedSender<Bytes>,
+            HashMap<u32, UnboundedSender<Bytes>>,
+            UnboundedSender<u32>,
+        ),
+    >,
     /// Everything the scopes have to say, in the order they said it.
     ///
     /// See [`Notice`] for the two kinds and
@@ -210,16 +225,19 @@ impl Session {
         let occupied = self
             .scopes
             .get(&scope)
-            .is_some_and(|(inbox, _)| !inbox.is_closed());
+            .is_some_and(|(inbox, ..)| !inbox.is_closed());
         if occupied {
             return None;
         }
-        let (sender, receiver) = mpsc::unbounded_channel();
-        self.scopes.insert(scope, (sender, HashMap::new()));
+        let (inbox, channel_requests) = mpsc::unbounded_channel();
+        let (finished_sender, finished) = mpsc::unbounded_channel();
+        self.scopes
+            .insert(scope, (inbox, HashMap::new(), finished_sender));
         Some(ScopeHandle::new(
             scope,
             request,
-            receiver,
+            channel_requests,
+            finished,
             self.notice_sender.clone(),
             self.sink.clone(),
         ))
@@ -244,7 +262,7 @@ impl Session {
         self.scopes.get(&scope)?.1.get(&channel)
     }
 
-    /// Drop a channel, and leave the scope it was in alone.
+    /// Drop a channel, and give its number back.
     ///
     /// A scope outlives its channels — it is the request, and they are
     /// the exchanges inside it — so a channel ending takes nothing else
@@ -254,9 +272,31 @@ impl Session {
     /// because this is not acting on a message that may have gone
     /// stale: the finish frame that prompts it named the channel that
     /// is in the map right now.
+    ///
+    /// # Why the number goes back from HERE
+    ///
+    /// Because a finish is the only thing that makes a channel number
+    /// safe to mint again. It is the client saying it will send nothing
+    /// more under that number — so reusing it cannot collide with
+    /// anything still in flight.
+    ///
+    /// A [`Channel`](super::scope_handle::Channel) being dropped is not
+    /// that. It says a consumer walked away, which the client was never
+    /// told, so the client may still be sending; a number freed on that
+    /// signal could be minted again and would route the old channel's
+    /// late frames into the new one. So an abandoned channel keeps its
+    /// number until the connection ends, exactly as it does on the
+    /// client.
+    ///
+    /// Only on a real removal, so that whoever is counting what it
+    /// opened against what it closed is never told twice.
     fn close_channel(&mut self, scope: u32, channel: u32) {
-        if let Some((_, channels)) = self.scopes.get_mut(&scope) {
-            channels.remove(&channel);
+        let Some((_, channels, finished)) = self.scopes.get_mut(&scope)
+        else {
+            return;
+        };
+        if channels.remove(&channel).is_some() {
+            let _ = finished.send(channel);
         }
     }
 
@@ -343,7 +383,7 @@ impl Session {
                     channel,
                     response_sender,
                 } => {
-                    if let Some((_, channels)) = self.scopes.get_mut(&scope) {
+                    if let Some((_, channels, _)) = self.scopes.get_mut(&scope) {
                         channels.insert(channel, response_sender);
                     }
                 }
@@ -351,13 +391,13 @@ impl Session {
                     let gone = self
                         .scopes
                         .get(&scope)
-                        .is_some_and(|(inbox, _)| inbox.is_closed());
+                        .is_some_and(|(inbox, ..)| inbox.is_closed());
                     if gone {
                         self.scopes.remove(&scope);
                     }
                 }
                 Notice::Closed(scope, Some(channel)) => {
-                    if let Some((_, channels)) = self.scopes.get_mut(&scope)
+                    if let Some((_, channels, _)) = self.scopes.get_mut(&scope)
                         && channels
                             .get(&channel)
                             .is_some_and(UnboundedSender::is_closed)
@@ -444,7 +484,7 @@ impl Stream for Session {
                 // do about either: the frame had nowhere to go, and
                 // the entry goes the next time a scope opens.
                 ClientFrame::ChannelRequest { scope, .. } => {
-                    if let Some((inbox, _)) = this.scopes.get(&scope) {
+                    if let Some((inbox, ..)) = this.scopes.get(&scope) {
                         let _ = inbox.send(bytes);
                     }
                 }

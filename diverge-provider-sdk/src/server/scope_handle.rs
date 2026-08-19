@@ -1,5 +1,6 @@
 //! One scope, and everything a provider does inside it.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -96,20 +97,55 @@ pub struct ScopeHandle {
     channel_request_receiver: UnboundedReceiver<Bytes>,
     /// Where the next channel number in this scope comes from.
     ///
-    /// A plain counter and not a claim on anything, because nothing
-    /// else mints in this scope. A client's channels are numbered
-    /// separately and never collide with these, and no other
-    /// [`ScopeHandle`] exists for this scope.
-    ///
     /// It starts at `0` and pre-increments, so the first channel is
     /// `1`. Channel `0` is the scope's own stream and is never minted.
     ///
-    /// It wraps at the top and does not check what it lands on. That is
-    /// a scope that has opened four billion channels without this one
-    /// ending, which is not a case worth handling — the same stance
-    /// [`client::handle::Handle`](crate::client::handle::Handle) takes
-    /// about running out of scopes.
+    /// It wraps at the top, which is why it is not enough on its own:
+    /// after a wrap the numbers below it may still be in use, and only
+    /// [`channels`](Self::channels) knows.
     counter: u32,
+    /// Which channel numbers in this scope are spoken for.
+    ///
+    /// Not the session's map, though it holds the same numbers. That
+    /// one says where a frame GOES; this one says what has been handed
+    /// out and not yet taken back, which is the question a minter asks
+    /// and a router never does. The same split
+    /// [`client::handle::Handle`](crate::client::handle::Handle) makes
+    /// against its own router.
+    ///
+    /// A set, because there is nothing to store against a number. What
+    /// arrives on a channel goes to a receiver somebody else holds; the
+    /// only fact kept here is that the number is in use.
+    ///
+    /// An entry leaves when
+    /// [`finished_channels`](Self::finished_channels) says so, and only
+    /// then.
+    channels: HashSet<u32>,
+    /// Where the session says a channel number is free again.
+    ///
+    /// It arrives after the finish frame it followed, and it is not
+    /// that frame's duplicate: the finish tells whoever was reading
+    /// that answer that the answer is over, and this tells the minter
+    /// that the number can be used again.
+    ///
+    /// # Why a finish and not a drop
+    ///
+    /// Because a finish is the client saying it will send nothing more
+    /// under that number, which is the only thing that makes reuse
+    /// safe. A [`Channel`] being dropped says a consumer walked away —
+    /// which the client was never told, so it may still be sending, and
+    /// a number freed on that signal could be minted again and route
+    /// the old channel's late frames into the new one.
+    ///
+    /// So a channel abandoned without a finish keeps its number until
+    /// the connection ends. That is a leak, it is bounded by what this
+    /// scope abandoned, and it is the same one
+    /// [`client::router::Router`](crate::client::router::Router)
+    /// documents.
+    ///
+    /// Unbounded, because it is sent from inside the loop that would
+    /// otherwise have to drain it.
+    finished_channels: UnboundedReceiver<u32>,
     /// What this scope tells the session: where an answer goes, and
     /// what is over.
     ///
@@ -151,13 +187,14 @@ impl ScopeHandle {
     /// the only thing that can honestly make one of these is the thing
     /// reading the requests.
     ///
-    /// The counter and the buffer are not among them. A scope starts
-    /// having opened nothing and written nothing, and there is no other
-    /// answer a caller could give.
+    /// The bookkeeping is not among them. A scope starts having opened
+    /// nothing and written nothing, its first channel at `1`, and there
+    /// is no other answer a caller could give.
     pub(super) fn new(
         scope: u32,
         request: Bytes,
         channel_request_receiver: UnboundedReceiver<Bytes>,
+        finished_channels: UnboundedReceiver<u32>,
         notices: UnboundedSender<Notice>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     ) -> Self {
@@ -166,6 +203,8 @@ impl ScopeHandle {
             request,
             channel_request_receiver,
             counter: 0,
+            channels: HashSet::new(),
+            finished_channels,
             notices,
             sink,
             buffer: Vec::new(),
@@ -269,8 +308,8 @@ impl ScopeHandle {
     /// makes a session's drain-on-miss enough to close the race rather
     /// than merely narrow it.
     pub async fn send_channel_request(&mut self, payload: &[u8]) -> Channel {
-        self.counter = self.counter.wrapping_add(1);
-        let channel = self.counter;
+        self.take_back();
+        let channel = self.mint_channel();
         let (response_sender, responses) = mpsc::unbounded_channel();
         let _ = self.notices.send(Notice::Register {
             scope: self.scope,
@@ -288,6 +327,45 @@ impl ScopeHandle {
             responses,
             scope: self.scope,
             notices: self.notices.clone(),
+        }
+    }
+
+    /// Take back every channel number the session says is free.
+    ///
+    /// The queue is emptied rather than sampled, and it is emptied
+    /// before minting, because what it holds is exactly the numbers
+    /// that are available again. A mint that ran first would step over
+    /// them and hand out a larger number for no reason.
+    fn take_back(&mut self) {
+        while let Ok(channel) = self.finished_channels.try_recv() {
+            self.channels.remove(&channel);
+        }
+    }
+
+    /// Take the next free channel number, and claim it.
+    ///
+    /// Counts up and steps over anything open, wrapping at the top
+    /// rather than stopping there. Which is why the counter is not
+    /// enough on its own: after a wrap the numbers below it may still
+    /// be in use, and only [`channels`](Self::channels) knows.
+    ///
+    /// The claim and the question are one move — a
+    /// [`HashSet`] insert answers "was it free" and takes it at the
+    /// same time — which also means a number minted is a number
+    /// recorded, and the next call cannot hand out the same one.
+    ///
+    /// This is
+    /// [`client::handle::Handle`](crate::client::handle::Handle)'s
+    /// channel minting, one side over. It never returns if all four
+    /// billion are open, which is not a case worth handling: that is a
+    /// single scope holding four billion unfinished channels, and the
+    /// set itself would not fit in memory first.
+    fn mint_channel(&mut self) -> u32 {
+        loop {
+            self.counter = self.counter.wrapping_add(1);
+            if self.channels.insert(self.counter) {
+                return self.counter;
+            }
         }
     }
 
