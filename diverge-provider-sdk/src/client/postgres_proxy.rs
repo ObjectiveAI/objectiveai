@@ -7,6 +7,8 @@ use bytes::Bytes;
 use futures_util::Stream;
 use tokio::sync::mpsc::UnboundedReceiver;
 
+use crate::endpoints::mcp_plugin::run::client::request;
+
 /// What connects a plugin to the caller's database.
 ///
 /// A provider opens a Postgres channel because something inside a
@@ -78,6 +80,26 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// each time — [`OciProxy`](super::oci_proxy::OciProxy) answers in HTTP
 /// statuses, [`CommandProxy`](super::command_proxy::CommandProxy) in the
 /// CLI's own, and this one in pgwire.
+///
+/// # It names an endpoint's type, alone among these
+///
+/// The other three take a [`shared`](crate::shared) type or bytes, and
+/// nothing else in [`client`](crate::client) names anything from
+/// [`endpoints`](crate::endpoints). This one takes an MCP plugin's
+/// [`request::Frame`], and that is a deliberate exception rather than an
+/// oversight.
+///
+/// A caller decides what a plugin's connection may REACH, and it decides
+/// that from who is asking and what is running. Neither is expressible
+/// in a shared type, because both are facts about this endpoint's
+/// request. A trait that could not say what a security decision rests on
+/// would be the worse violation of the two.
+///
+/// It also makes explicit what was already true: this proxy answers one
+/// channel of one endpoint. [`OciProxy`](super::oci_proxy::OciProxy)
+/// serves two and [`McpProxy`](super::mcp_proxy::McpProxy) serves two,
+/// so their generality is real. This one's was only ever a fact about
+/// its imports.
 pub trait PostgresProxy: Send + Sync {
     /// Open one connection, and splice it onto the pair of channels
     /// carrying it.
@@ -86,19 +108,61 @@ pub trait PostgresProxy: Send + Sync {
     /// the database says goes back on the returned stream. The
     /// provider's channel finishes when that stream ends.
     ///
-    /// # One call is one connection, and that is the whole of it
+    /// # What `request` is for
     ///
-    /// Which is why nothing here names the connection. The protocol
-    /// has an id for it — the provider mints one and both channels of
-    /// the pair quote it — but it exists to pair two channels, and by
-    /// the time this is called they are paired. What arrives is one
-    /// connection's two ends, with nothing to match them against.
+    /// Deciding what this connection may reach.
     ///
-    /// Passing it anyway would put a number in the signature that no
-    /// implementation has to read, out of a namespace this side does
-    /// not mint in. A dispatcher that wants to correlate a log line
-    /// across the socket is better placed to write it than this is: it
-    /// holds the scope and both channel numbers as well.
+    /// A caller that puts its plugins in compartments — so that one
+    /// cannot read what another wrote — has to choose the compartment
+    /// from something, and the request is where that something is.
+    /// [`identity`](request::Frame::identity) says on whose behalf the
+    /// plugin runs; [`image`](request::Frame::image) says what is
+    /// running. Neither alone is enough: the same image on behalf of
+    /// two agents is two compartments, and two images on behalf of one
+    /// agent are also two.
+    ///
+    /// Nothing in this specification performs that separation or
+    /// requires it. What this argument does is make it POSSIBLE, which
+    /// it was not when all a proxy received was a stream of bytes —
+    /// every plugin's connection looked alike, so every plugin's
+    /// connection had to be trusted alike.
+    ///
+    /// # Why the whole frame, and not the two fields
+    ///
+    /// Because the policy is the caller's and this specification
+    /// should not be the thing that bounds it. Narrowing to identity
+    /// and image would be a guess about what a compartment is derived
+    /// from, and a signature change the first time it is derived from
+    /// something else —
+    /// [`arguments`](request::Frame::arguments) being the obvious next
+    /// one, since a plugin's own configuration may name what it
+    /// expects to reach.
+    ///
+    /// It costs nothing to hand over. This is the caller's own request
+    /// coming back to it, already decoded, already held for the run's
+    /// life.
+    ///
+    /// # It is the same every call
+    ///
+    /// One plugin run is one scope is one request, and every
+    /// connection opened under it gets that request. So a proxy
+    /// deriving a compartment from it derives the same compartment
+    /// every time, which is the point — a plugin's own connections
+    /// belong together, and it is other plugins they are being kept
+    /// apart from.
+    ///
+    /// A borrow, because it belongs to the run rather than to any one
+    /// connection and outlives all of them. An implementation that
+    /// wants to keep something out of it clones what it wants.
+    ///
+    /// # One call is still one connection
+    ///
+    /// Nothing here names the connection, because nothing needs to.
+    /// The protocol has an id for it — the provider mints one and both
+    /// channels of the pair quote it — but it exists to pair two
+    /// channels, and by the time this is called they are paired. What
+    /// arrives is one connection's two ends, with nothing to match
+    /// them against.
     ///
     /// # What is on `requests`
     ///
@@ -235,6 +299,17 @@ pub trait PostgresProxy: Send + Sync {
     /// out rather than left to `async fn`, which promises nothing about
     /// the future it returns.
     ///
+    /// # The future is not `'static`
+    ///
+    /// It borrows `request` for as long as it runs, so a dispatcher
+    /// putting each connection on its own task holds the run's request
+    /// behind something shared and borrows it inside the task, rather
+    /// than trying to send a reference into one.
+    ///
+    /// The dial is the only thing that happens before the returned
+    /// stream exists, so the borrow is brief. What runs for the
+    /// connection's life is the STREAM, and that is `'static`.
+    ///
     /// # The bounds on the stream
     ///
     /// [`Send`] and `'static` because it is polled from wherever the
@@ -248,6 +323,7 @@ pub trait PostgresProxy: Send + Sync {
     /// the signature a reader is checking theirs against.
     fn handle(
         &self,
+        request: &request::Frame,
         requests: UnboundedReceiver<Bytes>,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>,

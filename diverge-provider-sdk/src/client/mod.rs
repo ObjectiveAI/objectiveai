@@ -62,7 +62,14 @@
 //! see. [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
 //! no binary for. [`postgres_proxy`] splices a connection onto the
-//! caller's database.
+//! caller's database, and is handed the request that started the
+//! plugin so that a caller can decide what that connection may reach.
+//!
+//! Which makes it the only one that names a type from
+//! [`endpoints`](crate::endpoints). It answers one channel of one
+//! endpoint, and what it has to decide is not sayable in a
+//! [`shared`](crate::shared) type — see the trait for the whole of
+//! that argument.
 //!
 //! They are traits rather than callbacks because each has its own
 //! shape, and the shapes really are different: one request one answer,
