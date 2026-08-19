@@ -40,19 +40,58 @@
 //!
 //! # What is here
 //!
-//! [`router`], the read loop: frames off the socket, forwarded to
-//! whoever is waiting. It is the mirror of
-//! [`client::router`](crate::client::router), and where it is not, the
-//! reason is always the same one: a client opens scopes and a server
-//! answers in them, so what one side registers in advance the other
-//! learns from a frame.
+//! Two types, and the whole shape is in how they divide.
 //!
-//! The write half is not here yet. When it is, it will be what sends
-//! the [`Registration`](router::Registration)s.
+//! [`session`] is a connection: it takes one, splits it, and answers
+//! with the scopes a client opens on it. [`scope_handle`] is one of
+//! those scopes: what was asked, the channels the client opens inside
+//! it, and every way to answer.
+//!
+//! The reading is all in the first and the writing is all in the
+//! second. So a [`Session`](session::Session) holds the read half and
+//! shares the write half out, and a
+//! [`ScopeHandle`](scope_handle::ScopeHandle) carries a share of it
+//! along with its own inbox.
+//!
+//! # Why it is not the caller half turned around
+//!
+//! [`client`](crate::client) is a router and a handle, and neither
+//! shape survives the crossing. The reason is the one asymmetry in the
+//! whole protocol: **a client mints scope numbers and a server only
+//! ever learns them.**
+//!
+//! A client arranges where a scope's frames will go before it opens
+//! one, so something must hold those arrangements and match arriving
+//! frames against them. That is routing, and it is a job worth a type.
+//! Nothing here can arrange anything — a server is told about scopes —
+//! so what would have been a router is a loop that reads frames and
+//! hands out the ones that open something, which is what a
+//! [`Session`](session::Session) is.
+//!
+//! The handle divides the other way for the same reason. A client's is
+//! a shared, cloneable writer that hands out scopes it CREATED, and
+//! every clone can create another. A provider creates none, so there is
+//! nothing to share at that level: the writing belongs to the
+//! individual scope, and that is where the connection's write half
+//! ends up.
+//!
+//! # What is not here yet
+//!
+//! **Channels this end opens.** A provider needs them and cannot open
+//! one, so a channel response arriving now is discarded — nothing here
+//! could have asked for it.
+//!
+//! **Auth**, in both directions. A credential belongs to the connection
+//! and there is nowhere for one to go, so a
+//! [`ClientFrame::Auth`](crate::frame::client::ClientFrame::Auth) is
+//! discarded and a provider on an
+//! [`Outgoing`](crate::connection::Connection::Outgoing) connection
+//! cannot send the one it owes.
 //!
 //! There was a handler tree here before any of this, written before the
 //! client half had a shape. It is gone rather than carried — what
-//! answers requests should be built knowing how the routing was
-//! solved, not around a sketch that predates it.
+//! answers requests should be built knowing how the reading was solved,
+//! not around a sketch that predates it.
 
-pub mod router;
+pub mod scope_handle;
+pub mod session;
