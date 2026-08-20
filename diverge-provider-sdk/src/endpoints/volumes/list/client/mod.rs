@@ -21,7 +21,4 @@
 pub mod request;
 
 #[cfg(feature = "client")]
-mod execute;
-
-#[cfg(feature = "client")]
-pub use execute::*;
+pub mod execute;

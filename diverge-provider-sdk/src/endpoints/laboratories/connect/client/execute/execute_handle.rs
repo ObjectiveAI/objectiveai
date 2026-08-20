@@ -8,8 +8,8 @@ use futures_util::Stream;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 
-use super::super::server::channel_response;
-use super::channel_request;
+use super::super::super::server::channel_response;
+use super::super::channel_request;
 use super::mcp_stream::McpStream;
 use super::read_stream::ReadStream;
 use crate::client::handle::{Handle, SendError};
@@ -304,7 +304,7 @@ impl ExecuteHandle {
     /// # The stream, and what an [`Err`] in it does
     ///
     /// An [`Err`] ends the write. It goes out as an
-    /// [`Error`](super::channel_response::write_bytes::Frame::Error) on
+    /// [`Error`](super::super::channel_response::write_bytes::Frame::Error) on
     /// the content channel, the channel finishes, and nothing after it
     /// in the stream is read — which is what that frame means: "the
     /// full content was not streamed".

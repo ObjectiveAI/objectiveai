@@ -2,15 +2,15 @@
 
 use std::fmt;
 
-use super::request;
+use super::super::request;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
-use crate::endpoints::volumes::create::server::response;
+use crate::endpoints::volumes::list::server::response;
 use crate::frame;
 use crate::shared::error::Error;
 
-/// Ask a provider to make a volume, and wait for the answer.
+/// List the volumes a provider offers, and wait for the answer.
 ///
 /// The rest of this crate describes the exchange; this performs it.
 /// Opening a scope, writing the request, waiting for the one frame that
@@ -28,10 +28,10 @@ use crate::shared::error::Error;
 ///
 /// # An answer and an error are two different things
 ///
-/// There is one answer and it carries nothing: the volume exists.
-/// Everything else is an [`ExecuteError::Provider`] — a name already
-/// taken, a quota, a disk — and this layer names none of them,
-/// because a provider knows what happened and this does not.
+/// An empty list is an ANSWER: the provider looked and offers
+/// nothing. An [`ExecuteError::Provider`] is the absence of one, and
+/// a caller that treats them alike concludes there are no volumes
+/// when it was never told.
 ///
 /// # It reads one frame and leaves
 ///
@@ -54,11 +54,18 @@ use crate::shared::error::Error;
 pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
-) -> Result<(), ExecuteError> {
+) -> Result<Vec<response::Volume>, ExecuteError> {
     let mut payload = Vec::new();
+    // Taken as an argument like every other endpoint's, though it has
+    // no fields to carry yet, so that all five read alike and a field
+    // added later changes nothing here.
+    //
+    // Its encode is `Infallible`, which is why this error type has no
+    // request variant: an empty match on one is how you say there is no
+    // value to handle.
     request
         .encode(&mut Writer::new(&mut payload))
-        .map_err(ExecuteError::Request)?;
+        .unwrap_or_else(|error| match error {});
     let mut scope = handle
         .send_request(&payload)
         .await
@@ -78,12 +85,12 @@ pub async fn execute(
         return Err(ExecuteError::Unanswered);
     };
     match response::Frame::decode(payload).map_err(ExecuteError::Response)? {
-        response::Frame::Created => Ok(()),
+        response::Frame::Volumes(volumes) => Ok(volumes),
         response::Frame::Error(error) => Err(ExecuteError::Provider(error)),
     }
 }
 
-/// A creation that did not produce an answer.
+/// A listing that did not produce an answer.
 ///
 /// All but the last are this end's view of something going wrong. The
 /// last is the provider saying so itself, and it is the only one that
@@ -96,8 +103,6 @@ pub enum ExecuteError {
     /// [`SendError`] for the three reasons, only one of which is about
     /// this exchange rather than the whole connection.
     Send(SendError),
-    /// The request would not serialize.
-    Request(postcard::Error),
     /// The connection ended before anything came back.
     ///
     /// Which is the only way waiting stops early. Nothing times a
@@ -112,7 +117,7 @@ pub enum ExecuteError {
     /// at all.
     Unanswered,
     /// The response frame did not parse.
-    Response(response::FrameError),
+    Response(response::FrameDecodeError),
     /// The provider could not do it, and said so.
     ///
     /// See [`shared::error::Error`](crate::shared::error::Error) for
@@ -126,23 +131,20 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Send(error) => {
                 write!(f, "the request never went out: {error}")
             }
-            ExecuteError::Request(error) => {
-                write!(f, "volume creation request did not serialize: {error}")
-            }
             ExecuteError::Closed => f.write_str(
-                "connection ended before the volume creation answered",
+                "connection ended before the volume listing answered",
             ),
             ExecuteError::Frame(error) => {
-                write!(f, "volume creation answer did not decode: {error}")
+                write!(f, "volume listing answer did not decode: {error}")
             }
             ExecuteError::Unanswered => {
-                f.write_str("volume creation finished without an answer")
+                f.write_str("volume listing finished without an answer")
             }
             ExecuteError::Response(error) => {
-                write!(f, "volume creation answer did not parse: {error}")
+                write!(f, "volume listing answer did not parse: {error}")
             }
             ExecuteError::Provider(_) => {
-                f.write_str("the provider could not complete the volume creation")
+                f.write_str("the provider could not complete the volume listing")
             }
         }
     }
@@ -157,7 +159,6 @@ impl std::error::Error for ExecuteError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ExecuteError::Send(error) => Some(error),
-            ExecuteError::Request(error) => Some(error),
             ExecuteError::Frame(error) => Some(error),
             ExecuteError::Response(error) => Some(error),
             ExecuteError::Closed

@@ -7,7 +7,7 @@ use crate::shared::http::response;
 /// The head of an MCP answer, or a piece of its body.
 ///
 /// What an [`McpStream`](super::McpStream) yields. The same two things
-/// [`mcp::Frame`](super::super::server::channel_response::mcp::Frame)
+/// [`mcp::Frame`](super::super::super::server::channel_response::mcp::Frame)
 /// carries on the wire, owning its body instead of borrowing it —
 /// which is the whole reason this exists. A frame decoded out of a
 /// message borrows that message, and a stream item outlives the poll

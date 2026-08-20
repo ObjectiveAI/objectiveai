@@ -9,7 +9,7 @@ use futures_util::Stream;
 use futures_util::stream::FusedStream;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::super::server::response;
+use super::super::super::server::response;
 use crate::decode::Decode;
 use crate::frame;
 use crate::shared::error::Error;

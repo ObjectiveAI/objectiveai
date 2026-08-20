@@ -78,7 +78,7 @@ use crate::shared::filetree;
 /// and a server ends one, and nothing in
 /// [`ClientFrame`](crate::frame::client::ClientFrame) says stop at that
 /// level. What a watch has instead is a
-/// [`channel_request`](super::channel_request) that means it,
+/// [`channel_request`](super::super::channel_request) that means it,
 /// and this carries one and sends it on the way out.
 ///
 /// Which makes dropping the ordinary way to be done with a watch rather
@@ -141,7 +141,7 @@ pub struct ExecuteStream {
     /// The disconnect, encoded and ready.
     ///
     /// Built once by [`execute`](super::execute) through
-    /// [`channel_request::Frame`](super::channel_request::Frame)
+    /// [`channel_request::Frame`](super::super::channel_request::Frame)
     /// rather than written as the byte it happens to be. A destructor
     /// is a poor place to be encoding anything, and what a disconnect
     /// looks like on the wire is not this type's to know.

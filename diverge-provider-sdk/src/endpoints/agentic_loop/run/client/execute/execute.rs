@@ -7,9 +7,9 @@ use bytes::Bytes;
 use futures_util::StreamExt as _;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use super::channel_response::mcp;
+use super::super::channel_response::mcp;
 use super::execute_stream::ExecuteStream;
-use super::request;
+use super::super::request;
 use crate::client::handle::{Handle, SendError};
 use crate::client::mcp_proxy::{Body, McpProxy};
 use crate::decode::Decode;

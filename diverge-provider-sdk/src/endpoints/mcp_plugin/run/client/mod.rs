@@ -7,7 +7,7 @@
 
 //! # And, behind the `client` feature, a way to use it
 //!
-//! [`execute`] starts the plugin and hands back an [`ExecuteHandle`],
+//! [`execute`] starts the plugin and hands back an [`ExecuteHandle`](execute::ExecuteHandle),
 //! which waits for it to end and says why. It takes THREE proxies —
 //! an [`OciProxy`](crate::client::oci_proxy::OciProxy), a
 //! [`PostgresProxy`](crate::client::postgres_proxy::PostgresProxy) and
@@ -19,14 +19,14 @@
 //! they arrive interleaved on one scope. That task is most of what is
 //! in [`execute`].
 //!
-//! Dropping the [`ExecuteHandle`] sends the stop, which makes dropping
+//! Dropping the [`ExecuteHandle`](execute::ExecuteHandle) sends the stop, which makes dropping
 //! the ordinary way to be done with a plugin rather than a way to
 //! abandon one.
 //!
 //! # What is not here, and is the next thing
 //!
 //! Calling the plugin. [`channel_request::Frame::Mcp`] is the frame for
-//! it, and there is nothing that sends one: an [`ExecuteHandle`] gives
+//! it, and there is nothing that sends one: an [`ExecuteHandle`](execute::ExecuteHandle) gives
 //! out no scope number, so the plugin cannot be reached from outside
 //! this crate at all.
 //!
@@ -45,11 +45,4 @@ pub mod channel_response;
 pub mod request;
 
 #[cfg(feature = "client")]
-mod execute;
-#[cfg(feature = "client")]
-mod execute_handle;
-
-#[cfg(feature = "client")]
-pub use execute::*;
-#[cfg(feature = "client")]
-pub use execute_handle::*;
+pub mod execute;

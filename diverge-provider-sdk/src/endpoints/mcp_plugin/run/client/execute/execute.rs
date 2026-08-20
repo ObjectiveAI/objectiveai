@@ -7,9 +7,9 @@ use bytes::Bytes;
 use futures_util::StreamExt as _;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-use super::channel_response::{command, oci, postgres};
+use super::super::channel_response::{command, oci, postgres};
 use super::execute_handle::ExecuteHandle;
-use super::{channel_request, request};
+use super::super::{channel_request, request};
 use crate::client::command_proxy::CommandProxy;
 use crate::client::handle::{Handle, SendError};
 use crate::client::oci_proxy::{self, OciProxy};

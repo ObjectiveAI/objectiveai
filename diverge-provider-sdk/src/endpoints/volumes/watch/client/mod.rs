@@ -10,7 +10,7 @@
 //!
 //! # And, behind the `client` feature, a way to use it
 //!
-//! [`execute`] starts the watch and hands back an [`ExecuteStream`]
+//! [`execute`] starts the watch and hands back an [`ExecuteStream`](execute::ExecuteStream)
 //! of what the provider says about the tree. It is the one volume
 //! endpoint that does not collapse into a single answer, because a
 //! watch does not end.
@@ -30,11 +30,4 @@ pub mod channel_request;
 pub mod request;
 
 #[cfg(feature = "client")]
-mod execute;
-#[cfg(feature = "client")]
-mod execute_stream;
-
-#[cfg(feature = "client")]
-pub use execute::*;
-#[cfg(feature = "client")]
-pub use execute_stream::*;
+pub mod execute;

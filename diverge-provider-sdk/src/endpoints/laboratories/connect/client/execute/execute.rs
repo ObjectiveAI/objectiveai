@@ -8,11 +8,11 @@ use bytes::Bytes;
 use futures_util::{Stream, StreamExt as _};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 
-use super::super::server::channel_request as server_channel_request;
-use super::channel_response;
+use super::super::super::server::channel_request as server_channel_request;
+use super::super::channel_response;
 use super::execute_handle::{ExecuteHandle, Write};
 use super::execute_stream::ExecuteStream;
-use super::{channel_request, request};
+use super::super::{channel_request, request};
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};

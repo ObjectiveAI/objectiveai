@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use super::request;
+use super::super::request;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};

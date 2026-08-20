@@ -7,7 +7,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::task::JoinHandle;
 
-use super::super::server::response;
+use super::super::super::server::response;
 use crate::client::handle::Handle;
 use crate::decode::Decode;
 use crate::frame;
@@ -115,7 +115,7 @@ impl ExecuteHandle {
     ///
     /// It does NOT resolve when the plugin comes up. There is no frame
     /// for that and deliberately none — see
-    /// [`response::Frame`](super::super::server::response::Frame). A
+    /// [`response::Frame`](super::super::super::server::response::Frame). A
     /// plugin that is working is a scope that says nothing, so this
     /// waits for as long as the plugin runs.
     ///

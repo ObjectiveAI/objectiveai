@@ -4,9 +4,9 @@ use std::fmt;
 
 use bytes::Bytes;
 
-use super::channel_request;
+use super::super::channel_request;
 use super::execute_stream::ExecuteStream;
-use super::request;
+use super::super::request;
 use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
 
