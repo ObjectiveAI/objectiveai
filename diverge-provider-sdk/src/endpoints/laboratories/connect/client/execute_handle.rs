@@ -85,7 +85,7 @@ pub struct ExecuteHandle {
     /// write, which is what makes the race a non-race: the provider
     /// cannot ask for content until it has the request, and the request
     /// goes out after this.
-    writes: UnboundedSender<Write>,
+    write_sender: UnboundedSender<Write>,
     /// The task that answers the provider's requests for content.
     ///
     /// Held only to end it. It stops on its own when the scope closes,
@@ -105,14 +105,14 @@ impl ExecuteHandle {
         handle: Handle,
         scope: u32,
         disconnect_request: Bytes,
-        writes: UnboundedSender<Write>,
+        write_sender: UnboundedSender<Write>,
         serving: JoinHandle<()>,
     ) -> Self {
         ExecuteHandle {
             handle,
             scope,
             disconnect_request,
-            writes,
+            write_sender,
             serving,
         }
     }
@@ -188,7 +188,7 @@ impl ExecuteHandle {
 
         // Before the request goes out, so the provider's ask for
         // content cannot arrive before the content it names.
-        self.writes
+        self.write_sender
             .send(Write {
                 write_id,
                 content: Box::pin(content),
@@ -202,7 +202,7 @@ impl ExecuteHandle {
             .map_err(WriteError::Send)?;
 
         loop {
-            let Some(bytes) = channel.responses.recv().await else {
+            let Some(bytes) = channel.response_receiver.recv().await else {
                 return Err(WriteError::Closed);
             };
             let envelope = frame::server::ServerFrame::decode(&bytes)
@@ -374,7 +374,7 @@ impl fmt::Display for WriteError {
                 write!(f, "write request did not serialize: {error}")
             }
             WriteError::Serving => {
-                f.write_str("the connection is no longer serving writes")
+                f.write_str("the connection is no longer serving write_sender")
             }
             WriteError::Send(error) => {
                 write!(f, "the write request never went out: {error}")

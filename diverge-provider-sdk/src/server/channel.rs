@@ -10,7 +10,7 @@ use super::notice::Notice;
 /// What
 /// [`ScopeHandle::send_channel_request`](super::scope_handle::ScopeHandle::send_channel_request)
 /// gives back. The request has gone out, and the session is holding the
-/// other end of [`responses`](Self::responses).
+/// other end of [`response_receiver`](Self::response_receiver).
 ///
 /// The number is this end's. The client counts its own channels
 /// separately and from zero, so a client's channel `1` and this one are
@@ -18,7 +18,7 @@ use super::notice::Notice;
 ///
 /// # Read it or drop it
 ///
-/// [`responses`](Self::responses) is unbounded, and what rides it is a
+/// [`response_receiver`](Self::response_receiver) is unbounded, and what rides it is a
 /// stream rather than a message — an image layer, a database
 /// connection, a command's items. An answer nobody reads is memory the
 /// far side can grow without limit, and nothing in this crate bounds
@@ -35,7 +35,7 @@ pub struct Channel {
     /// Whole frames, headers included. Ends at the finish frame; the
     /// channel closing without one means the connection went first, or
     /// the scope did.
-    pub responses: UnboundedReceiver<Bytes>,
+    pub response_receiver: UnboundedReceiver<Bytes>,
     /// The scope it belongs to, for the notice at the end.
     ///
     /// Not public, because it is not this type's to tell — a caller
@@ -43,7 +43,7 @@ pub struct Channel {
     /// [`ScopeHandle`](super::scope_handle::ScopeHandle) it came from.
     pub(super) scope: u32,
     /// Where to say this channel is over.
-    pub(super) notices: UnboundedSender<Notice>,
+    pub(super) notice_sender: UnboundedSender<Notice>,
 }
 
 /// Tell the session the channel is over.
@@ -58,9 +58,9 @@ pub struct Channel {
 /// is for the other case, a caller that walked away mid-answer.
 impl Drop for Channel {
     fn drop(&mut self) {
-        self.responses.close();
+        self.response_receiver.close();
         let _ = self
-            .notices
+            .notice_sender
             .send(Notice::Closed(self.scope, Some(self.channel)));
     }
 }

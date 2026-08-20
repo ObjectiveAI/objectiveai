@@ -97,10 +97,10 @@ pub async fn execute(
         .send_request(&payload)
         .await
         .map_err(ExecuteError::Send)?;
-    let (writes, registrations) = mpsc::unbounded_channel();
+    let (write_sender, write_receiver) = mpsc::unbounded_channel();
     let serving = tokio::spawn(serve_writes(
         scope.request_receiver,
-        registrations,
+        write_receiver,
         handle.clone(),
         scope.scope,
     ));
@@ -110,7 +110,7 @@ pub async fn execute(
             handle.clone(),
             scope.scope,
             Bytes::from(disconnect),
-            writes,
+            write_sender,
             serving,
         ),
     ))
@@ -154,8 +154,8 @@ pub async fn execute(
 /// Because a write is as long as the file is, and serving one in place
 /// would put every later write behind whichever is largest.
 async fn serve_writes(
-    mut requests: UnboundedReceiver<Bytes>,
-    mut registrations: UnboundedReceiver<Write>,
+    mut request_receiver: UnboundedReceiver<Bytes>,
+    mut write_receiver: UnboundedReceiver<Write>,
     handle: Handle,
     scope: u32,
 ) {
@@ -163,8 +163,8 @@ async fn serve_writes(
         u32,
         Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>,
     > = HashMap::new();
-    while let Some(bytes) = requests.recv().await {
-        while let Ok(write) = registrations.try_recv() {
+    while let Some(bytes) = request_receiver.recv().await {
+        while let Ok(write) = write_receiver.try_recv() {
             pending.insert(write.write_id, write.content);
         }
         let Ok(frame::server::ServerFrame::ChannelRequest {

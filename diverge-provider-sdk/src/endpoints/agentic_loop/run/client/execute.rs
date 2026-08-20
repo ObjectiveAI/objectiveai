@@ -103,14 +103,14 @@ where
 /// mean either borrowing across the spawn, which cannot be done, or
 /// copying out of it, which would be a copy per tool call for nothing.
 async fn proxy_channel_requests<P>(
-    mut requests: UnboundedReceiver<Bytes>,
+    mut request_receiver: UnboundedReceiver<Bytes>,
     handle: Handle,
     scope: u32,
     mcp_proxy: Arc<P>,
 ) where
     P: McpProxy + 'static,
 {
-    while let Some(bytes) = requests.recv().await {
+    while let Some(bytes) = request_receiver.recv().await {
         tokio::spawn(proxy_one(
             bytes,
             handle.clone(),

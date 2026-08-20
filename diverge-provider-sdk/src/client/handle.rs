@@ -70,13 +70,13 @@ impl Handle {
     /// the right ones.
     pub fn new(
         sink: SplitSink<Connection, Bytes>,
-        registrations: UnboundedSender<Registration>,
-        closed: UnboundedReceiver<(u32, Option<u32>)>,
+        registration_sender: UnboundedSender<Registration>,
+        closed_receiver: UnboundedReceiver<(u32, Option<u32>)>,
     ) -> Self {
         Handle(Arc::new(Mutex::new(HandleInner::new(
             sink,
-            registrations,
-            closed,
+            registration_sender,
+            closed_receiver,
         ))))
     }
 
@@ -295,7 +295,7 @@ struct HandleInner {
     /// Unbounded, so that arranging never blocks. A registration that
     /// waited behind a full queue would be a request whose answers
     /// arrive before anywhere exists to put them.
-    registrations: UnboundedSender<Registration>,
+    registration_sender: UnboundedSender<Registration>,
     /// Where the router says an entry is gone.
     ///
     /// `(scope, channel)`, `None` for a whole scope. It arrives after
@@ -303,7 +303,7 @@ struct HandleInner {
     /// duplicate: the finish tells whoever was reading that stream that
     /// the stream is over, and this tells whoever is minting numbers
     /// that the number is free.
-    closed: UnboundedReceiver<(u32, Option<u32>)>,
+    closed_receiver: UnboundedReceiver<(u32, Option<u32>)>,
     /// Where the next scope number comes from.
     ///
     /// Nobody else mints one, on this connection or anywhere: a scope
@@ -369,13 +369,13 @@ impl HandleInner {
     /// end handed out, and this end is what is being made.
     fn new(
         sink: SplitSink<Connection, Bytes>,
-        registrations: UnboundedSender<Registration>,
-        closed: UnboundedReceiver<(u32, Option<u32>)>,
+        registration_sender: UnboundedSender<Registration>,
+        closed_receiver: UnboundedReceiver<(u32, Option<u32>)>,
     ) -> Self {
         HandleInner {
             sink,
-            registrations,
-            closed,
+            registration_sender,
+            closed_receiver,
             scope_counter: 0,
             scopes: HashMap::new(),
             buffer: Vec::new(),
@@ -416,7 +416,7 @@ impl HandleInner {
         let scope = self.mint_scope();
         let (response_sender, response_receiver) = mpsc::unbounded_channel();
         let (request_sender, request_receiver) = mpsc::unbounded_channel();
-        self.registrations
+        self.registration_sender
             .send(Registration::Scope {
                 scope,
                 response_sender,
@@ -452,8 +452,8 @@ impl HandleInner {
         let channel = mint_channel(
             self.scopes.get_mut(&scope).ok_or(SendError::Scope)?,
         );
-        let (response_sender, responses) = mpsc::unbounded_channel();
-        self.registrations
+        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        self.registration_sender
             .send(Registration::Channel {
                 scope,
                 channel,
@@ -466,7 +466,7 @@ impl HandleInner {
             payload,
         })
         .await?;
-        Ok(Channel { channel, responses })
+        Ok(Channel { channel, response_receiver })
     }
 
     /// Answer, on a channel the server opened.
@@ -564,7 +564,7 @@ impl HandleInner {
     /// one, is nothing to do. Both mean the same thing, which is that
     /// the number is not in use.
     fn take_back(&mut self) {
-        while let Ok((scope, channel)) = self.closed.try_recv() {
+        while let Ok((scope, channel)) = self.closed_receiver.try_recv() {
             match channel {
                 None => {
                     self.scopes.remove(&scope);

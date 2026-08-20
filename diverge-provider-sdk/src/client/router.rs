@@ -118,7 +118,7 @@ pub struct Router {
     /// It stays worth saying because this one would have to be
     /// unbounded even if the others were not: it is drained from inside
     /// the loop that fills the rest.
-    registrations: UnboundedReceiver<Registration>,
+    registration_receiver: UnboundedReceiver<Registration>,
     /// Somewhere to say an entry is gone.
     ///
     /// `(scope, channel)`, naming what a [`Registration`] named —
@@ -132,13 +132,13 @@ pub struct Router {
     /// ended; this tells it the number is free.
     ///
     /// Unbounded, and for a plainer reason than
-    /// [`registrations`](Self::registrations) — this is sent from
+    /// [`registration_receiver`](Self::registration_receiver) — this is sent
     /// inside the read loop, so a bounded queue that filled would stop
     /// the loop that drains it. That reasoning is now shared with every
     /// other queue in here, which is unbounded for a broader one. Nothing is retried and a failed send is
     /// ignored: the only way to fail is a holder that is gone, and a
     /// holder that is gone has no record to correct.
-    closed: UnboundedSender<(u32, Option<u32>)>,
+    closed_sender: UnboundedSender<(u32, Option<u32>)>,
 }
 
 impl Router {
@@ -157,17 +157,17 @@ impl Router {
     /// over.
     ///
     /// No scopes. A connection starts with none open, and every entry
-    /// arrives through `registrations`.
+    /// arrives through `registration_receiver`.
     pub fn new(
         stream: SplitStream<Connection>,
-        registrations: UnboundedReceiver<Registration>,
-        closed: UnboundedSender<(u32, Option<u32>)>,
+        registration_receiver: UnboundedReceiver<Registration>,
+        closed_sender: UnboundedSender<(u32, Option<u32>)>,
     ) -> Self {
         Router {
             stream,
             scopes: HashMap::new(),
-            registrations,
-            closed,
+            registration_receiver,
+            closed_sender,
         }
     }
 
@@ -324,7 +324,7 @@ impl Router {
     /// gets the same number twice.
     fn close_scope(&mut self, scope: u32) {
         if self.scopes.remove(&scope).is_some() {
-            let _ = self.closed.send((scope, None));
+            let _ = self.closed_sender.send((scope, None));
         }
     }
 
@@ -336,7 +336,7 @@ impl Router {
     fn close_channel(&mut self, scope: u32, channel: u32) {
         let Some(entry) = self.scopes.get_mut(&scope) else { return };
         if entry.2.remove(&channel).is_some() {
-            let _ = self.closed.send((scope, Some(channel)));
+            let _ = self.closed_sender.send((scope, Some(channel)));
         }
     }
 
@@ -366,7 +366,7 @@ impl Router {
     /// there is no reply to put an answer in. What a caller sees is a
     /// receiver that stays empty.
     fn drain(&mut self) {
-        while let Ok(registration) = self.registrations.try_recv() {
+        while let Ok(registration) = self.registration_receiver.try_recv() {
             match registration {
                 Registration::Scope {
                     scope,

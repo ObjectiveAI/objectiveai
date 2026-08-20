@@ -119,7 +119,7 @@ pub struct ScopeHandle {
     /// only fact kept here is that the number is in use.
     ///
     /// An entry leaves when
-    /// [`finished_channels`](Self::finished_channels) says so, and only
+    /// [`finished_channel_receiver`](Self::finished_channel_receiver) says so,
     /// then.
     channels: HashSet<u32>,
     /// Where the session says a channel number is free again.
@@ -146,7 +146,7 @@ pub struct ScopeHandle {
     ///
     /// Unbounded, because it is sent from inside the loop that would
     /// otherwise have to drain it.
-    finished_channels: UnboundedReceiver<u32>,
+    finished_channel_receiver: UnboundedReceiver<u32>,
     /// What this scope tells the session: where an answer goes, and
     /// what is over.
     ///
@@ -154,7 +154,7 @@ pub struct ScopeHandle {
     /// destructor, and the other half must not block — a registration
     /// that waited would be a channel request whose answer arrives
     /// before anywhere exists to put it.
-    notices: UnboundedSender<Notice>,
+    notice_sender: UnboundedSender<Notice>,
     /// The write half of the connection, shared with every other scope
     /// on it.
     ///
@@ -195,8 +195,8 @@ impl ScopeHandle {
         scope: u32,
         request: Bytes,
         channel_request_receiver: UnboundedReceiver<Bytes>,
-        finished_channels: UnboundedReceiver<u32>,
-        notices: UnboundedSender<Notice>,
+        finished_channel_receiver: UnboundedReceiver<u32>,
+        notice_sender: UnboundedSender<Notice>,
         sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     ) -> Self {
         ScopeHandle {
@@ -205,8 +205,8 @@ impl ScopeHandle {
             channel_request_receiver,
             counter: 0,
             channels: HashSet::new(),
-            finished_channels,
-            notices,
+            finished_channel_receiver,
+            notice_sender,
             sink,
             buffer: Vec::new(),
         }
@@ -311,8 +311,8 @@ impl ScopeHandle {
     pub async fn send_channel_request(&mut self, payload: &[u8]) -> Channel {
         self.take_back();
         let channel = self.mint_channel();
-        let (response_sender, responses) = mpsc::unbounded_channel();
-        let _ = self.notices.send(Notice::Register {
+        let (response_sender, response_receiver) = mpsc::unbounded_channel();
+        let _ = self.notice_sender.send(Notice::Register {
             scope: self.scope,
             channel,
             response_sender,
@@ -325,9 +325,9 @@ impl ScopeHandle {
         .await;
         Channel {
             channel,
-            responses,
+            response_receiver,
             scope: self.scope,
-            notices: self.notices.clone(),
+            notice_sender: self.notice_sender.clone(),
         }
     }
 
@@ -400,7 +400,7 @@ impl ScopeHandle {
     /// that are available again. A mint that ran first would step over
     /// them and hand out a larger number for no reason.
     fn take_back(&mut self) {
-        while let Ok(channel) = self.finished_channels.try_recv() {
+        while let Ok(channel) = self.finished_channel_receiver.try_recv() {
             self.channels.remove(&channel);
         }
     }
@@ -480,6 +480,6 @@ impl ScopeHandle {
 impl Drop for ScopeHandle {
     fn drop(&mut self) {
         self.channel_request_receiver.close();
-        let _ = self.notices.send(Notice::Closed(self.scope, None));
+        let _ = self.notice_sender.send(Notice::Closed(self.scope, None));
     }
 }

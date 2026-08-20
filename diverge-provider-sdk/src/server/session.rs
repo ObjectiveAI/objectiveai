@@ -93,7 +93,7 @@ pub struct Session {
     sink: Arc<Mutex<SplitSink<Connection, Bytes>>>,
     /// Every scope a client has open, and everything routed inside it.
     ///
-    /// `(channel_requests, channels, finished)`.
+    /// `(channel_request_sender, channels, finished_channel_sender)`.
     ///
     /// **`0`** is where the channels the CLIENT opens go, whole and in
     /// arrival order. One stream for all of them, because the number in
@@ -164,7 +164,7 @@ pub struct Session {
     /// report a failure. The other half must not block either: a
     /// registration that waited behind a full queue would be a channel
     /// request whose answer arrives before anywhere exists to put it.
-    notices: UnboundedReceiver<Notice>,
+    notice_receiver: UnboundedReceiver<Notice>,
     /// The other end of it, kept to clone into every scope.
     notice_sender: UnboundedSender<Notice>,
 }
@@ -182,12 +182,12 @@ impl Session {
     /// upgrade are all settled before this is called.
     pub fn new(connection: Connection) -> Self {
         let (sink, stream) = connection.split();
-        let (notice_sender, notices) = mpsc::unbounded_channel();
+        let (notice_sender, notice_receiver) = mpsc::unbounded_channel();
         Session {
             stream,
             sink: Arc::new(Mutex::new(sink)),
             scopes: HashMap::new(),
-            notices,
+            notice_receiver,
             notice_sender,
         }
     }
@@ -226,19 +226,23 @@ impl Session {
         let occupied = self
             .scopes
             .get(&scope)
-            .is_some_and(|(inbox, ..)| !inbox.is_closed());
+            .is_some_and(|(channel_request_sender, ..)| !channel_request_sender.is_closed());
         if occupied {
             return None;
         }
-        let (inbox, channel_requests) = mpsc::unbounded_channel();
-        let (finished_sender, finished) = mpsc::unbounded_channel();
+        let (channel_request_sender, channel_request_receiver) = mpsc::unbounded_channel();
+        let (finished_channel_sender, finished_channel_receiver) =
+            mpsc::unbounded_channel();
         self.scopes
-            .insert(scope, (inbox, HashMap::new(), finished_sender));
+            .insert(
+            scope,
+            (channel_request_sender, HashMap::new(), finished_channel_sender),
+        );
         Some(ScopeHandle::new(
             scope,
             request,
-            channel_requests,
-            finished,
+            channel_request_receiver,
+            finished_channel_receiver,
             self.notice_sender.clone(),
             self.sink.clone(),
         ))
@@ -292,12 +296,13 @@ impl Session {
     /// Only on a real removal, so that whoever is counting what it
     /// opened against what it closed is never told twice.
     fn close_channel(&mut self, scope: u32, channel: u32) {
-        let Some((_, channels, finished)) = self.scopes.get_mut(&scope)
+        let Some((_, channels, finished_channel_sender)) =
+            self.scopes.get_mut(&scope)
         else {
             return;
         };
         if channels.remove(&channel).is_some() {
-            let _ = finished.send(channel);
+            let _ = finished_channel_sender.send(channel);
         }
     }
 
@@ -377,7 +382,7 @@ impl Session {
     /// notice whose sender already reads as closed — which is what
     /// makes the guard a test of identity rather than of timing.
     fn drain(&mut self) {
-        while let Ok(notice) = self.notices.try_recv() {
+        while let Ok(notice) = self.notice_receiver.try_recv() {
             match notice {
                 Notice::Register {
                     scope,
@@ -392,7 +397,7 @@ impl Session {
                     let gone = self
                         .scopes
                         .get(&scope)
-                        .is_some_and(|(inbox, ..)| inbox.is_closed());
+                        .is_some_and(|(channel_request_sender, ..)| channel_request_sender.is_closed());
                     if gone {
                         self.scopes.remove(&scope);
                     }
@@ -485,8 +490,8 @@ impl Stream for Session {
                 // do about either: the frame had nowhere to go, and
                 // the entry goes the next time a scope opens.
                 ClientFrame::ChannelRequest { scope, .. } => {
-                    if let Some((inbox, ..)) = this.scopes.get(&scope) {
-                        let _ = inbox.send(bytes);
+                    if let Some((channel_request_sender, ..)) = this.scopes.get(&scope) {
+                        let _ = channel_request_sender.send(bytes);
                     }
                 }
                 ClientFrame::ChannelResponse { scope, channel, .. } => {

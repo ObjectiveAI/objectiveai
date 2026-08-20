@@ -324,7 +324,7 @@ pub trait PostgresProxy: Send + Sync {
     fn handle(
         &self,
         request: &request::Frame,
-        requests: UnboundedReceiver<Bytes>,
+        request_receiver: UnboundedReceiver<Bytes>,
     ) -> impl Future<
         Output = Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>,
     > + Send;

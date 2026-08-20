@@ -9,7 +9,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 /// What
 /// [`Handle::send_channel_request`](super::handle::Handle::send_channel_request)
 /// gives back. The request has gone out, and the router is holding the
-/// other end of [`responses`](Self::responses).
+/// other end of [`response_receiver`](Self::response_receiver).
 ///
 /// The number is this end's. The server counts its own channels
 /// separately and from zero, so a server's channel `1` and this one are
@@ -26,5 +26,5 @@ pub struct Channel {
     /// Whole frames, headers included. Ends at the finish frame; the
     /// channel closing without one means the connection went first, or
     /// the scope did.
-    pub responses: UnboundedReceiver<Bytes>,
+    pub response_receiver: UnboundedReceiver<Bytes>,
 }

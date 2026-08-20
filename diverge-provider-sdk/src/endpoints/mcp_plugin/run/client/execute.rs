@@ -130,7 +130,7 @@ where
 /// [`PostgresProxy::handle`] borrows it per connection, and it has to
 /// outlive this call for that to be possible.
 async fn serve_channel_requests<O, P, C>(
-    mut requests: UnboundedReceiver<Bytes>,
+    mut request_receiver: UnboundedReceiver<Bytes>,
     handle: Handle,
     scope: u32,
     request: Arc<request::Frame>,
@@ -142,7 +142,7 @@ async fn serve_channel_requests<O, P, C>(
     P: PostgresProxy + 'static,
     C: CommandProxy + 'static,
 {
-    while let Some(bytes) = requests.recv().await {
+    while let Some(bytes) = request_receiver.recv().await {
         tokio::spawn(serve_one(
             bytes,
             handle.clone(),
@@ -398,10 +398,10 @@ async fn serve_postgres<P>(
         return;
     };
 
-    let (writes, plugin_writes) = mpsc::unbounded_channel();
-    tokio::spawn(pump_writes(channel.responses, writes));
+    let (write_sender, write_receiver) = mpsc::unbounded_channel();
+    tokio::spawn(pump_writes(channel.response_receiver, write_sender));
 
-    let mut database = postgres_proxy.handle(request, plugin_writes).await;
+    let mut database = postgres_proxy.handle(request, write_receiver).await;
     while let Some(bytes) = database.next().await {
         buffer.clear();
         postgres::Frame(&bytes)
@@ -448,10 +448,10 @@ async fn serve_postgres<P>(
 /// having hung up — the one thing pgwire cannot say for a plugin that
 /// crashed without sending `Terminate`.
 async fn pump_writes(
-    mut responses: UnboundedReceiver<Bytes>,
-    writes: UnboundedSender<Bytes>,
+    mut response_receiver: UnboundedReceiver<Bytes>,
+    write_sender: UnboundedSender<Bytes>,
 ) {
-    while let Some(bytes) = responses.recv().await {
+    while let Some(bytes) = response_receiver.recv().await {
         let Ok(frame::server::ServerFrame::ChannelResponse {
             payload, ..
         }) = frame::server::ServerFrame::decode(&bytes)
@@ -462,7 +462,7 @@ async fn pump_writes(
         };
         let postgres::Frame(write) = postgres::Frame::decode(payload)
             .unwrap_or_else(|error| match error {});
-        if writes.send(bytes.slice_ref(write)).is_err() {
+        if write_sender.send(bytes.slice_ref(write)).is_err() {
             return;
         }
     }
