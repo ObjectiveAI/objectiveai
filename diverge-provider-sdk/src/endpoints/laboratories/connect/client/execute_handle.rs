@@ -10,11 +10,12 @@ use tokio::task::JoinHandle;
 
 use super::super::server::channel_response;
 use super::channel_request;
+use super::read_stream::ReadStream;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::frame;
-use crate::shared::container::write_path;
+use crate::shared::container::{read, transfer, write_path};
 use crate::shared::error::Error;
 
 /// An attachment to somebody else's laboratory.
@@ -39,18 +40,18 @@ use crate::shared::error::Error;
 /// [`Stop`](crate::endpoints::laboratories::run::client::channel_request::Frame::Stop)
 /// on their scope, not anything a connector can reach.
 ///
-/// # One of the four asks is written
+/// # Three of the four asks are written
 ///
-/// [`write`](Self::write) is here.
-/// [`Mcp`](super::channel_request::Frame::Mcp),
-/// [`Read`](super::channel_request::Frame::Read) and
-/// [`Transfer`](super::channel_request::Frame::Transfer) are not, and
-/// they will want nothing this does not already hold: each opens a
-/// channel, reads what comes back on it, and is finished.
+/// [`read`](Self::read), [`write`](Self::write) and
+/// [`transfer`](Self::transfer).
+/// [`Mcp`](super::channel_request::Frame::Mcp) is not, and it will want
+/// nothing this does not already hold.
 ///
-/// A write was the one worth doing first because it is the one that
-/// needed anything built. Its content does not travel on the channel
-/// that asked for it.
+/// They are three shapes, not one. A transfer is one ask and one
+/// answer, so it resolves to a result. A read is one ask and a stream,
+/// so it hands back a [`ReadStream`](super::ReadStream). A write is one
+/// ask whose CONTENT travels the other way, on a channel the provider
+/// opens, which is why it is the only one that needed anything built.
 #[must_use = "dropping the handle leaves the laboratory"]
 #[derive(Debug)]
 pub struct ExecuteHandle {
@@ -114,6 +115,107 @@ impl ExecuteHandle {
             disconnect_request,
             write_sender,
             serving,
+        }
+    }
+
+    /// Read one file out of the container.
+    ///
+    /// Returns once the request has gone out, not once the file has
+    /// arrived — what comes back is a [`ReadStream`] of the file's
+    /// pieces, and the provider is already sending into it.
+    ///
+    /// # One channel, and only the provider talks on it
+    ///
+    /// Which is what makes a read the simplest of the three. A
+    /// connector says which file; the provider answers with the bytes
+    /// and finishes. Nothing has to travel back the other way, so
+    /// nothing had to be inverted the way a
+    /// [`write`](Self::write) is.
+    ///
+    /// # It reads one file, and never a directory
+    ///
+    /// See [`read`](crate::shared::container::read) for why. A tree is
+    /// not something this exchange can carry, and asking for one is not
+    /// an error it reports — the path names a file or the read fails.
+    ///
+    /// # Several at once are fine
+    ///
+    /// Each takes its own channel, so reads do not queue behind one
+    /// another and a large file does not hold up a small one. Their
+    /// frames interleave on the socket, which is what keeps that true.
+    pub async fn read(
+        &self,
+        request: read::request::Request,
+    ) -> Result<ReadStream, ReadError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::Read(request)
+            .encode(&mut Writer::new(&mut payload))
+            .map_err(ReadError::Request)?;
+        let channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(ReadError::Send)?;
+        Ok(ReadStream::new(channel.response_receiver))
+    }
+
+    /// Move one file into another container.
+    ///
+    /// Resolves when the provider says the file is at the destination,
+    /// or says it is not.
+    ///
+    /// # Nothing travels
+    ///
+    /// Not through this connection, and not through the connector. Both
+    /// containers are the provider's, so the bytes go from one to the
+    /// other without ever becoming a message — which is the whole point
+    /// of having this rather than a
+    /// [`read`](Self::read) piped into a [`write`](Self::write).
+    ///
+    /// Which also means a transfer is the one of the three that is one
+    /// ask and one answer. There is no content to stream in either
+    /// direction, so there is no stream.
+    ///
+    /// # The destination is named, not held
+    ///
+    /// See [`transfer`](crate::shared::container::transfer) for when a
+    /// provider can do this at all. A destination it does not host is
+    /// not something a connector can work around from here, and it
+    /// comes back as an error like any other refusal.
+    pub async fn transfer(
+        &self,
+        request: transfer::request::Request,
+    ) -> Result<(), TransferError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::Transfer(request)
+            .encode(&mut Writer::new(&mut payload))
+            .map_err(TransferError::Request)?;
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(TransferError::Send)?;
+
+        let Some(bytes) = channel.response_receiver.recv().await else {
+            return Err(TransferError::Closed);
+        };
+        let envelope = frame::server::ServerFrame::decode(&bytes)
+            .map_err(TransferError::Frame)?;
+        let payload = match envelope {
+            frame::server::ServerFrame::ChannelResponse { payload, .. } => {
+                payload
+            }
+            frame::server::ServerFrame::ChannelResponseFinish { .. } => {
+                return Err(TransferError::Unanswered);
+            }
+            _ => return Err(TransferError::Misrouted),
+        };
+        match channel_response::transfer::Frame::decode(payload) {
+            Ok(channel_response::transfer::Frame::Transferred(_)) => Ok(()),
+            Ok(channel_response::transfer::Frame::Error(error)) => {
+                Err(TransferError::Provider(error))
+            }
+            Err(error) => Err(TransferError::Response(error)),
         }
     }
 
@@ -313,6 +415,144 @@ impl Drop for ExecuteHandle {
             let _ =
                 handle.send_channel_request(scope, &disconnect_request).await;
         });
+    }
+}
+
+/// A read that never started.
+///
+/// Two ways, and neither of them is the provider refusing — a file it
+/// cannot read arrives as
+/// [`ReadStreamError::Provider`](super::ReadStreamError::Provider), on
+/// a channel that opened to carry it.
+#[derive(Debug)]
+pub enum ReadError {
+    /// The request would not serialize.
+    Request(serde_json::Error),
+    /// The request never went out.
+    ///
+    /// See [`SendError`] for the three reasons, only one of which is
+    /// about this exchange rather than the whole connection.
+    Send(SendError),
+}
+
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ReadError::Request(error) => {
+                write!(f, "read request did not serialize: {error}")
+            }
+            ReadError::Send(error) => {
+                write!(f, "the read request never went out: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for ReadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ReadError::Request(error) => Some(error),
+            ReadError::Send(error) => Some(error),
+        }
+    }
+}
+
+/// A transfer that did not happen, or could not be asked for.
+///
+/// Only [`Provider`](Self::Provider) is the provider refusing. The rest
+/// are the exchange going wrong around it, and none of them says
+/// anything about what is at the destination — a transfer that fails
+/// leaves nothing partial there, whether this heard so or not.
+#[derive(Debug)]
+pub enum TransferError {
+    /// The request would not serialize.
+    Request(serde_json::Error),
+    /// The request never went out.
+    ///
+    /// See [`SendError`] for the three reasons, only one of which is
+    /// about this exchange rather than the whole connection.
+    Send(SendError),
+    /// The channel closed without an answer.
+    ///
+    /// The connection went away, or the scope did. Whether the file
+    /// moved is unknown — the provider may have finished moving it
+    /// after this end stopped being able to hear so.
+    Closed,
+    /// The provider finished the channel without answering.
+    ///
+    /// Distinct from [`Closed`](Self::Closed): the connection is fine
+    /// and the provider deliberately said nothing, which is not
+    /// something this protocol gives it a way to mean.
+    Unanswered,
+    /// What came back was not a frame.
+    ///
+    /// Unreachable through this crate's own
+    /// [`Router`](crate::client::router::Router), which decodes the
+    /// same bytes before forwarding them.
+    Frame(frame::FrameError),
+    /// A frame arrived that does not belong on a channel's answer.
+    Misrouted,
+    /// The answer did not parse.
+    Response(channel_response::transfer::FrameError),
+    /// The provider says the file is not at the destination.
+    ///
+    /// Which includes the case it could never have done: a destination
+    /// this provider does not host is a refusal like any other, because
+    /// a transfer that never leaves the provider cannot reach one that
+    /// is somewhere else.
+    ///
+    /// See [`shared::error::Error`](crate::shared::error::Error) for
+    /// why it says so little.
+    Provider(Error),
+}
+
+impl fmt::Display for TransferError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TransferError::Request(error) => {
+                write!(f, "transfer request did not serialize: {error}")
+            }
+            TransferError::Send(error) => {
+                write!(f, "the transfer request never went out: {error}")
+            }
+            TransferError::Closed => f.write_str(
+                "the connection ended before the transfer was answered",
+            ),
+            TransferError::Unanswered => {
+                f.write_str("the transfer channel finished without an answer")
+            }
+            TransferError::Frame(error) => {
+                write!(f, "transfer answer did not decode: {error}")
+            }
+            TransferError::Misrouted => f.write_str(
+                "a frame arrived that does not belong on a transfer",
+            ),
+            TransferError::Response(error) => {
+                write!(f, "transfer answer did not parse: {error}")
+            }
+            TransferError::Provider(_) => {
+                f.write_str("the file was not transferred")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TransferError {
+    /// [`Provider`](TransferError::Provider) has no source, because
+    /// what it carries is not a Rust error and deliberately does not
+    /// implement one — see
+    /// [`shared::error::Error`](crate::shared::error::Error).
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            TransferError::Request(error) => Some(error),
+            TransferError::Send(error) => Some(error),
+            TransferError::Frame(error) => Some(error),
+            TransferError::Response(error) => Some(error),
+            TransferError::Closed
+            | TransferError::Unanswered
+            | TransferError::Misrouted
+            | TransferError::Provider(_) => None,
+        }
     }
 }
 

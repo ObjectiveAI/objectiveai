@@ -26,20 +26,26 @@
 //! answer: a provider asks a connector for a write's content and for
 //! nothing else on its own account.
 //!
-//! # What is not here, and is the next thing
+//! # Three of the four asks
 //!
-//! The four asks. [`ExecuteHandle`] has no methods —
-//! [`Mcp`](channel_request::Frame::Mcp),
-//! [`Read`](channel_request::Frame::Read),
-//! [`Write`](channel_request::Frame::Write) and
-//! [`Transfer`](channel_request::Frame::Transfer) are all unwritten,
-//! and it carries what they will need.
+//! [`ExecuteHandle`] has [`read`](ExecuteHandle::read),
+//! [`write`](ExecuteHandle::write) and
+//! [`transfer`](ExecuteHandle::transfer).
+//! [`Mcp`](channel_request::Frame::Mcp) is the one left, and it wants
+//! nothing the handle does not already hold.
 //!
-//! Three of them want nothing beyond the connection and the scope. The
-//! write is the one with a decision left in it, and
-//! [`ExecuteHandle`]'s own docs say what: content arrives on channels
-//! the provider opens, several writes can be outstanding at once, and
-//! routing them apart is a task and a registry rather than a method.
+//! They are three shapes rather than one, because the exchanges are:
+//!
+//! | ask | goes out | comes back |
+//! |-----|----------|------------|
+//! | [`transfer`](ExecuteHandle::transfer) | one request | one answer |
+//! | [`read`](ExecuteHandle::read) | one request | a [`ReadStream`] of the file |
+//! | [`write`](ExecuteHandle::write) | one request, and the content on a channel the PROVIDER opens | one answer |
+//!
+//! Only the write needed machinery. Its content cannot travel on the
+//! channel that asked for it — only a responder can finish a channel —
+//! so [`execute`] spawns a task that holds registered content until the
+//! provider asks for it and routes by write id.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the
@@ -56,6 +62,8 @@ mod execute;
 mod execute_handle;
 #[cfg(feature = "client")]
 mod execute_stream;
+#[cfg(feature = "client")]
+mod read_stream;
 
 #[cfg(feature = "client")]
 pub use execute::*;
@@ -63,3 +71,5 @@ pub use execute::*;
 pub use execute_handle::*;
 #[cfg(feature = "client")]
 pub use execute_stream::*;
+#[cfg(feature = "client")]
+pub use read_stream::*;
