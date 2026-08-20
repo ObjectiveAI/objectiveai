@@ -1,14 +1,24 @@
 //! Joining a laboratory.
 
+use std::collections::HashMap;
 use std::fmt;
+use std::pin::Pin;
 
 use bytes::Bytes;
+use futures_util::{Stream, StreamExt as _};
+use tokio::sync::mpsc::{self, UnboundedReceiver};
 
-use super::execute_handle::ExecuteHandle;
+use super::super::server::channel_request as server_channel_request;
+use super::channel_response;
+use super::execute_handle::{ExecuteHandle, Write};
 use super::execute_stream::ExecuteStream;
 use super::{channel_request, request};
 use crate::client::handle::{Handle, SendError};
+use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
+use crate::frame;
+use crate::shared::container::write_bytes;
+use crate::shared::error::Error;
 
 /// Attach to a container somebody else is running.
 ///
@@ -36,17 +46,22 @@ use crate::encode::{Encode, Writer};
 /// A tuple rather than a type holding both, because a type holding both
 /// would exist only to be taken apart.
 ///
-/// # It answers nothing
+/// # It answers one thing, and takes no proxy for it
 ///
-/// A connection is the one endpoint where a caller is purely a caller.
-/// A provider asks a connector for exactly one thing — the content of a
-/// file the connector said it wanted to write — and asks for nothing on
-/// its own account: the image was somebody else's problem and so was
-/// deciding who may attach.
+/// A connection is the one endpoint where a caller is almost purely a
+/// caller. A provider asks a connector for exactly one thing — the
+/// content of a file the connector said it wanted to write — and asks
+/// for nothing on its own account: the image was somebody else's
+/// problem and so was deciding who may attach.
 ///
 /// Which is why this takes no proxies, where a
 /// [`plugin`](crate::endpoints::mcp_plugin::run::client::execute) takes
-/// three, and why there is no task spawned beside it.
+/// three. There is nothing for a caller to implement, because the
+/// content of a write is not a service a connector provides — it is an
+/// argument to the write it already asked for. So the task spawned here
+/// serves content out of what
+/// [`write`](ExecuteHandle::write) handed over, and a connector that
+/// never writes never sees it work.
 ///
 /// # It fails in only one way
 ///
@@ -82,15 +97,167 @@ pub async fn execute(
         .send_request(&payload)
         .await
         .map_err(ExecuteError::Send)?;
+    let (writes, registrations) = mpsc::unbounded_channel();
+    let serving = tokio::spawn(serve_writes(
+        scope.request_receiver,
+        registrations,
+        handle.clone(),
+        scope.scope,
+    ));
     Ok((
         ExecuteStream::new(scope.response_receiver),
         ExecuteHandle::new(
             handle.clone(),
             scope.scope,
             Bytes::from(disconnect),
-            scope.request_receiver,
+            writes,
+            serving,
         ),
     ))
+}
+
+/// Answer the provider's requests for write content.
+///
+/// The one thing a connector is ever asked for. Ends when the request
+/// receiver closes, which is the scope ending — a
+/// [`Router`](crate::client::router::Router) drops everything under a
+/// finished scope, that receiver with it. Nothing else stops it, except
+/// the [`ExecuteHandle`] being dropped, which aborts it.
+///
+/// # Why it holds the writes rather than the writes holding it
+///
+/// The ask and the content arrive from opposite directions. A connector
+/// hands over content when it asks for a write; the provider asks for
+/// that content some time afterwards, on a channel of its own, naming
+/// only a
+/// [`write_id`](crate::shared::container::write_path::request::Request::write_id).
+/// Several writes can be outstanding, and their asks all arrive on this
+/// one receiver.
+///
+/// So something has to keep the content until the ask for it turns up,
+/// and route by the id when it does. That is this, and it is a task
+/// rather than a method because the queue it reads is the scope's, not
+/// any one write's.
+///
+/// # The race that is not one
+///
+/// [`write`](ExecuteHandle::write) registers the content BEFORE it
+/// sends the request, and a provider cannot ask for content it has not
+/// been told about — so by the time an ask arrives, its content is
+/// already in the queue. Draining the queue on every ask is what turns
+/// "already sent" into "already here", and it is the same thing a
+/// [`Router`](crate::client::router::Router) does with its own
+/// registrations.
+///
+/// # One task per write, once its content is found
+///
+/// Because a write is as long as the file is, and serving one in place
+/// would put every later write behind whichever is largest.
+async fn serve_writes(
+    mut requests: UnboundedReceiver<Bytes>,
+    mut registrations: UnboundedReceiver<Write>,
+    handle: Handle,
+    scope: u32,
+) {
+    let mut pending: HashMap<
+        u32,
+        Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>,
+    > = HashMap::new();
+    while let Some(bytes) = requests.recv().await {
+        while let Ok(write) = registrations.try_recv() {
+            pending.insert(write.write_id, write.content);
+        }
+        let Ok(frame::server::ServerFrame::ChannelRequest {
+            channel,
+            payload,
+            ..
+        }) = frame::server::ServerFrame::decode(&bytes)
+        else {
+            continue;
+        };
+        let Ok(server_channel_request::Frame(request)) =
+            server_channel_request::Frame::decode(payload)
+        else {
+            continue;
+        };
+        // An ask for a write nobody registered. The channel is left
+        // unfinished: there is no content to send and no error to
+        // report that would not be inventing one, and a provider that
+        // asked about a write this end never made has already lost
+        // track of which writes are outstanding.
+        let Some(content) = pending.remove(&request.write_id) else {
+            continue;
+        };
+        tokio::spawn(send_content(handle.clone(), scope, channel, content));
+    }
+}
+
+/// Stream one write's content onto the channel that asked for it.
+///
+/// Bodies until the stream ends, then a finish — or, if the stream
+/// yields an error, that error and then a finish. Which is what the
+/// frame means by "an [`Error`], then a finish | the full content was
+/// not streamed".
+///
+/// [`Error`]: channel_response::write_bytes::Frame::Error
+///
+/// # It stops at the first refusal
+///
+/// A [`Handle`] says whether a frame went out, and a failure means no
+/// later one will either — the connection is gone, or the scope is. So
+/// this returns rather than going on, which matters most for the thing
+/// this sends: a file, which is the longest stream a connector ever
+/// writes.
+///
+/// Returning that way leaves the channel unfinished, deliberately.
+/// There is nothing left to finish it over.
+async fn send_content(
+    handle: Handle,
+    scope: u32,
+    channel: u32,
+    mut content: Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>,
+) {
+    let mut buffer = Vec::new();
+    while let Some(piece) = content.next().await {
+        buffer.clear();
+        match piece {
+            Ok(bytes) => {
+                if channel_response::write_bytes::Frame::Body(
+                    write_bytes::response::Frame(&bytes),
+                )
+                .encode(&mut Writer::new(&mut buffer))
+                .is_err()
+                {
+                    return;
+                }
+                if handle
+                    .send_channel_response(scope, channel, &buffer)
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            Err(error) => {
+                // The last thing this channel carries. A failure to
+                // encode it is treated the same as one to send it:
+                // there is nothing else to say, and the finish below
+                // says the content stopped either way.
+                if channel_response::write_bytes::Frame::Error(error)
+                    .encode(&mut Writer::new(&mut buffer))
+                    .is_ok()
+                {
+                    let _ = handle
+                        .send_channel_response(scope, channel, &buffer)
+                        .await;
+                }
+                break;
+            }
+        }
+    }
+    // Nothing follows it, so there is nothing to do about a failure
+    // here that returning would not already have done.
+    let _ = handle.send_channel_response_finish(scope, channel).await;
 }
 
 /// A connection that never opened.
