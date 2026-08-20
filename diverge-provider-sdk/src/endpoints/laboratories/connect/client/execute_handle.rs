@@ -315,10 +315,10 @@ impl ExecuteHandle {
     ///
     /// [`Send`] and `'static` because the stream outlives this call —
     /// it is read by the task that answers the provider, not by this.
-    /// [`Sync`] is NOT required, unlike the streams the
-    /// [`client`](crate::client) proxies return: one task owns this one
-    /// and polls it through `&mut`, so plenty of ordinary generators
-    /// that those turn away are fine here.
+    /// [`Sync`] is not required, here or on any of the
+    /// [`client`](crate::client) proxies: one task owns the stream and
+    /// polls it through `&mut`, so a shared reference to it never
+    /// exists.
     ///
     /// # The id is the caller's, and so is keeping it unique
     ///

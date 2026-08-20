@@ -99,10 +99,11 @@ pub enum Body {
     /// and will be polled from wherever the answer is being written,
     /// which is not where it was built.
     ///
-    /// [`Sync`] because it is held behind a shared reference while that
-    /// happens. It is the strictest of the three and the one most
-    /// likely to bite: a stream needs only `&mut` to be polled, so
-    /// plenty of otherwise ordinary ones are [`Send`] without being
-    /// [`Sync`].
-    Stream(Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>),
+    /// [`Sync`] is NOT required, and used to be. Whoever writes the
+    /// answer OWNS this and polls it through `&mut`, so a shared
+    /// reference to it never exists — and requiring one turned away the
+    /// obvious way to write a stream, since an `async_stream` generator
+    /// is [`Sync`] only if everything it awaits is. A mutex guard held
+    /// across an await was enough to disqualify it.
+    Stream(Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>),
 }

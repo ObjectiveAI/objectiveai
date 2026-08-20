@@ -221,8 +221,8 @@ pub trait PostgresProxy: Send + Sync {
     /// queue in front of itself.
     ///
     /// The nearest alternative is taking a sender as a second argument
-    /// and returning nothing, and it is a real one: no boxed stream, no
-    /// [`Sync`] to satisfy. It loses on shape. Every proxy here returns
+    /// and returning nothing, and it is a real one: no boxed stream at
+    /// all. It loses on shape. Every proxy here returns
     /// what goes back, and that signature's future would instead be the
     /// connection's entire lifetime — a task rather than an answer,
     /// which a dispatcher would have to hold and account for
@@ -313,19 +313,22 @@ pub trait PostgresProxy: Send + Sync {
     /// # The bounds on the stream
     ///
     /// [`Send`] and `'static` because it is polled from wherever the
-    /// answer is written, which is not where it was built. [`Sync`]
-    /// because it is held behind a shared reference while that happens —
-    /// the strictest of the three, and the one most likely to bite,
-    /// since a stream needs only `&mut` to be polled.
+    /// answer is written, which is not where it was built.
     ///
-    /// Written out rather than aliased, as in the two sibling proxies
-    /// that return one. An alias would hide exactly those bounds from
-    /// the signature a reader is checking theirs against.
+    /// [`Sync`] is NOT required, and used to be. Whoever writes the
+    /// answer owns this and polls it through `&mut`, so a shared
+    /// reference to it never exists — and requiring one turned away the
+    /// obvious way to write a stream, since an `async_stream` generator
+    /// is [`Sync`] only if everything it awaits is.
+    ///
+    /// Written out rather than aliased, as in the sibling proxies that
+    /// return one. An alias would hide exactly those bounds from the
+    /// signature a reader is checking theirs against.
     fn handle(
         &self,
         request: &request::Frame,
         request_receiver: UnboundedReceiver<Bytes>,
     ) -> impl Future<
-        Output = Pin<Box<dyn Stream<Item = Bytes> + Send + Sync + 'static>>,
+        Output = Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>,
     > + Send;
 }
