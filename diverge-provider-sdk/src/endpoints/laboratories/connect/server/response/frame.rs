@@ -36,7 +36,7 @@ pub enum Frame {
     /// The same [`filetree`](crate::shared::filetree) stream a run gets,
     /// over the same tree. A connector sees what the runner sees.
     Filetree(crate::shared::filetree::response::Frame),
-    /// A failure. Tag `2`.
+    /// A failure. Tag `1`.
     ///
     /// The connection is not open and will not be — the laboratory was
     /// not there, its runner said no, whatever the provider knows. It
