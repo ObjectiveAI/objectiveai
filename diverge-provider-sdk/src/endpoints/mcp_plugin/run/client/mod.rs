@@ -19,9 +19,12 @@
 //! they arrive interleaved on one scope. That task is most of what is
 //! in [`execute`].
 //!
-//! Dropping the [`ExecuteHandle`](execute::ExecuteHandle) sends the stop, which makes dropping
-//! the ordinary way to be done with a plugin rather than a way to
-//! abandon one.
+//! [`stop`](execute::ExecuteHandle::stop) ends the run, and
+//! [`wait`](execute::ExecuteHandle::wait) sees it through. They are two
+//! methods rather than a destructor because a destructor could do
+//! neither in sequence: it sent the frame and gave up the receiver in
+//! the same move, so stopping a plugin and watching it go was not
+//! something a caller could write.
 //!
 //! # What is not here, and is the next thing
 //!

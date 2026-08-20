@@ -2,11 +2,9 @@
 
 use std::fmt;
 
-use bytes::Bytes;
-
-use super::super::channel_request;
-use super::execute_stream::ExecuteStream;
 use super::super::request;
+use super::execute_handle::ExecuteHandle;
+use super::execute_stream::ExecuteStream;
 use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
 
@@ -21,9 +19,15 @@ use crate::encode::{Encode, Writer};
 /// that returned one value would have had to pick a frame and throw the
 /// rest away.
 ///
-/// So it hands back an [`ExecuteStream`], which is where everything
-/// about reading one lives — what ends it, what a caller owes it, and
-/// what dropping it does.
+/// So it hands back two things. The [`ExecuteStream`] is where
+/// everything about reading one lives — what ends it and what a caller
+/// owes it — and the [`ExecuteHandle`] is how a caller says stop.
+///
+/// They are split for the reason
+/// [`laboratories::connect`](crate::endpoints::laboratories::connect::client::execute)
+/// splits its two: a caller that has stopped reading the changes has
+/// not necessarily stopped wanting the watch, and one that wants to end
+/// it should not have to hold a stream to do so.
 ///
 /// # It fails in only one way
 ///
@@ -46,17 +50,16 @@ use crate::encode::{Encode, Writer};
 /// which is the rule [`Scope`](crate::client::scope::Scope) states
 /// about itself: drop what you are not going to read.
 ///
-/// # The disconnect is built here, not later
+/// # Nothing is built ahead of time
 ///
-/// [`ExecuteStream`] sends it when dropped, and a destructor is a poor
-/// place to be encoding anything — so it is encoded now, through
-/// [`channel_request::Frame`] rather than written as the byte it
-/// happens to be. What a disconnect looks like on the wire is that
-/// module's to say, and this is a caller like any other.
+/// The disconnect used to be encoded here, because the destructor that
+/// sent it could not encode anything itself. There is no destructor
+/// now, so [`ExecuteHandle::disconnect`] encodes its own frame when it
+/// is called and reports what goes wrong.
 pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
-) -> Result<ExecuteStream, ExecuteError> {
+) -> Result<(ExecuteStream, ExecuteHandle), ExecuteError> {
     let mut payload = Vec::new();
     request
         .encode(&mut Writer::new(&mut payload))
@@ -65,16 +68,9 @@ pub async fn execute(
         .send_request(&payload)
         .await
         .map_err(ExecuteError::Send)?;
-    let number = scope.scope;
-    let mut disconnect_request = Vec::new();
-    channel_request::Frame
-        .encode(&mut Writer::new(&mut disconnect_request))
-        .unwrap_or_else(|error| match error {});
-    Ok(ExecuteStream::new(
-        scope.response_receiver,
-        handle.clone(),
-        number,
-        Bytes::from(disconnect_request),
+    Ok((
+        ExecuteStream::new(scope.response_receiver),
+        ExecuteHandle::new(handle.clone(), scope.scope),
     ))
 }
 

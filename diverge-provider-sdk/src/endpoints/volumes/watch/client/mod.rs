@@ -15,9 +15,12 @@
 //! endpoint that does not collapse into a single answer, because a
 //! watch does not end.
 //!
-//! It sends the [`channel_request`] when that stream is dropped, which
-//! makes dropping the ordinary way to be done with a watch rather than
-//! a way to abandon one.
+//! It hands back an [`ExecuteHandle`](execute::ExecuteHandle) beside
+//! it, whose one method sends the [`channel_request`] that stops the
+//! watch. Ending one is something a caller says rather than something
+//! that happens when a value goes out of scope — a destructor could
+//! not await it, could not report it failing, and could not be told to
+//! leave the watch running.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the

@@ -18,9 +18,11 @@
 //! folding these two together would mean a connector that stopped
 //! reading the filetree had stopped being able to read a file.
 //!
-//! Dropping the stream costs a view of the filesystem. Dropping the
-//! handle sends the disconnect, which makes dropping the ordinary way
-//! to leave rather than a way to abandon a connection.
+//! Dropping the stream costs a view of the filesystem. Leaving is
+//! [`disconnect`](execute::ExecuteHandle::disconnect), which is a
+//! method rather than a destructor: a caller says when it is done, and
+//! dropping the handle without saying so leaves the connection open as
+//! far as the provider is concerned.
 //!
 //! It takes no proxies, unlike a plugin's, because there is nothing to
 //! answer: a provider asks a connector for a write's content and for
@@ -31,8 +33,8 @@
 //! [`ExecuteHandle`](execute::ExecuteHandle) has [`mcp`](execute::ExecuteHandle::mcp),
 //! [`read`](execute::ExecuteHandle::read), [`write`](execute::ExecuteHandle::write) and
 //! [`transfer`](execute::ExecuteHandle::transfer) — everything a connector can
-//! say. The fifth thing it can do is leave, and dropping the handle is
-//! that.
+//! say. The fifth thing it can do is leave, and that is
+//! [`disconnect`](execute::ExecuteHandle::disconnect).
 //!
 //! They are three shapes rather than one, because the exchanges are:
 //!

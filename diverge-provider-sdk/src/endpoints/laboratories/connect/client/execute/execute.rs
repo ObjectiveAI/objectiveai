@@ -12,7 +12,7 @@ use super::super::super::server::channel_request as server_channel_request;
 use super::super::channel_response;
 use super::execute_handle::{ExecuteHandle, Write};
 use super::execute_stream::ExecuteStream;
-use super::super::{channel_request, request};
+use super::super::request;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
@@ -72,13 +72,13 @@ use crate::shared::error::Error;
 /// happen. See
 /// [`ExecuteStreamError`](super::ExecuteStreamError).
 ///
-/// # The disconnect is built here, not later
+/// # Nothing is built ahead of time
 ///
-/// [`ExecuteHandle`] sends it when dropped, and a destructor is a poor
-/// place to be encoding anything — so it is encoded now, through
-/// [`channel_request::Frame`] rather than written as the byte it
-/// happens to be. What a disconnect looks like on the wire is that
-/// module's to say, and this is a caller like any other.
+/// The disconnect used to be encoded here, because the destructor that
+/// sent it could not encode anything itself. There is no destructor
+/// now, so
+/// [`ExecuteHandle::disconnect`](ExecuteHandle::disconnect) encodes its
+/// own frame when it is called and reports what goes wrong.
 pub async fn execute(
     handle: &Handle,
     request: &request::Frame,
@@ -88,17 +88,12 @@ pub async fn execute(
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
 
-    let mut disconnect = Vec::new();
-    channel_request::Frame::Disconnect
-        .encode(&mut Writer::new(&mut disconnect))
-        .map_err(ExecuteError::Disconnect)?;
-
     let scope = handle
         .send_request(&payload)
         .await
         .map_err(ExecuteError::Send)?;
     let (write_sender, write_receiver) = mpsc::unbounded_channel();
-    let serving = tokio::spawn(serve_writes(
+    tokio::spawn(serve_writes(
         scope.request_receiver,
         write_receiver,
         handle.clone(),
@@ -106,13 +101,7 @@ pub async fn execute(
     ));
     Ok((
         ExecuteStream::new(scope.response_receiver),
-        ExecuteHandle::new(
-            handle.clone(),
-            scope.scope,
-            Bytes::from(disconnect),
-            write_sender,
-            serving,
-        ),
+        ExecuteHandle::new(handle.clone(), scope.scope, write_sender),
     ))
 }
 
@@ -262,8 +251,8 @@ async fn send_content(
 
 /// A connection that never opened.
 ///
-/// One of two ways to fail before there is anything to fail at, and
-/// neither of them is a refusal — a runner saying no arrives as a frame
+/// Two ways to fail before there is anything to fail at, and neither
+/// of them is a refusal — a runner saying no arrives as a frame
 /// on a scope that opened to carry it. See
 /// [`ExecuteStreamError`](super::ExecuteStreamError), which is the
 /// connection that opened and then stopped without closing.
@@ -277,14 +266,6 @@ pub enum ExecuteError {
     Send(SendError),
     /// The request would not serialize.
     Request(serde_json::Error),
-    /// The disconnect would not serialize.
-    ///
-    /// Which cannot happen — a disconnect is one tag byte — and is
-    /// reported rather than unwrapped because the encode it shares an
-    /// impl with can fail. It is built here, before the request goes
-    /// out, because the only place it is used is a destructor: too late
-    /// to serialize, and with nobody to tell if it went wrong.
-    Disconnect(serde_json::Error),
 }
 
 impl fmt::Display for ExecuteError {
@@ -296,9 +277,6 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Request(error) => {
                 write!(f, "connection request did not serialize: {error}")
             }
-            ExecuteError::Disconnect(error) => {
-                write!(f, "connection disconnect did not serialize: {error}")
-            }
         }
     }
 }
@@ -308,7 +286,6 @@ impl std::error::Error for ExecuteError {
         match self {
             ExecuteError::Send(error) => Some(error),
             ExecuteError::Request(error) => Some(error),
-            ExecuteError::Disconnect(error) => Some(error),
         }
     }
 }

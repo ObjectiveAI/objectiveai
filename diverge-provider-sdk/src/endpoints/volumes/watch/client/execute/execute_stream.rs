@@ -9,7 +9,6 @@ use futures_util::Stream;
 use futures_util::stream::FusedStream;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::client::handle::Handle;
 use crate::decode::Decode;
 use crate::endpoints::volumes::watch::server::response;
 use crate::frame;
@@ -72,25 +71,15 @@ use crate::shared::filetree;
 /// and one parked there that rarely wins is one accumulating a tree's
 /// worth of changes nobody asked to keep.
 ///
-/// # Dropping it disconnects the watch
+/// # Dropping it says nothing
 ///
-/// There is still no frame for cancelling a SCOPE — a client opens one
-/// and a server ends one, and nothing in
-/// [`ClientFrame`](crate::frame::client::ClientFrame) says stop at that
-/// level. What a watch has instead is a
-/// [`channel_request`](super::super::channel_request) that means it,
-/// and this carries one and sends it on the way out.
+/// Which it used to. Ending a watch is
+/// [`ExecuteHandle::disconnect`](super::ExecuteHandle::disconnect) now,
+/// and this type carries nothing to send and no way to send it.
 ///
-/// Which makes dropping the ordinary way to be done with a watch rather
-/// than a way to abandon one: the provider is told instead of left
-/// walking a tree nobody is listening about, and the scope number comes
-/// back.
-///
-/// Best-effort in one direction only. A destructor has nowhere to
-/// report a failure and nothing to await it, so a request that cannot
-/// go — no runtime on the thread, a connection already gone — leaves
-/// things as they were before any of this existed. It never sends the
-/// wrong one: see [`drop`](Self::drop).
+/// So dropping this stops a caller reading and stops nothing else. The
+/// provider goes on reporting a tree into a queue the router discards,
+/// until somebody disconnects or the connection goes.
 #[must_use = "a watch that is not polled grows a queue nobody reads"]
 #[derive(Debug)]
 pub struct ExecuteStream {
@@ -119,53 +108,18 @@ pub struct ExecuteStream {
     /// and the router's later sends fail at once instead of filling
     /// something nobody is holding.
     response_receiver: Option<UnboundedReceiver<Bytes>>,
-    /// What the disconnect is sent over.
-    ///
-    /// A [`Handle`] rather than a pre-encoded frame, and the difference
-    /// matters: a frame carries a scope number it cannot re-check, and
-    /// by the time a destructor runs that number may belong to somebody
-    /// else. A scope ends, the router says so, the next mint hands the
-    /// same number out again — and a frame would then disconnect a
-    /// watch the caller had just started.
-    ///
-    /// [`send_channel_request`](Handle::send_channel_request) takes
-    /// back what the router has closed and then looks the scope up, so
-    /// a scope that is gone sends nothing. That check is the guard, and
-    /// only a handle has it.
-    handle: Handle,
-    /// The scope this watch is running in, as this end numbered it.
-    ///
-    /// Kept only to say which scope the disconnect is for. Nothing else
-    /// here needs it — the router already sorted the frames by it.
-    scope: u32,
-    /// The disconnect, encoded and ready.
-    ///
-    /// Built once by [`execute`](super::execute) through
-    /// [`channel_request::Frame`](super::super::channel_request::Frame)
-    /// rather than written as the byte it happens to be. A destructor
-    /// is a poor place to be encoding anything, and what a disconnect
-    /// looks like on the wire is not this type's to know.
-    disconnect_request: Bytes,
 }
 
 impl ExecuteStream {
-    /// Take the pieces, from the [`execute`](super::execute) that has
-    /// them.
+    /// Take the responses, from the [`execute`](super::execute) that
+    /// has them.
     ///
     /// Not public. A watch exists because a request went out, so the
     /// only thing that can honestly make one of these is the thing that
     /// sent it.
-    pub(super) fn new(
-        response_receiver: UnboundedReceiver<Bytes>,
-        handle: Handle,
-        scope: u32,
-        disconnect_request: Bytes,
-    ) -> Self {
+    pub(super) fn new(response_receiver: UnboundedReceiver<Bytes>) -> Self {
         ExecuteStream {
             response_receiver: Some(response_receiver),
-            handle,
-            scope,
-            disconnect_request,
         }
     }
 }
@@ -181,8 +135,8 @@ impl Stream for ExecuteStream {
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<Self::Item>> {
-        // A channel end, a handle, a number and some bytes — all
-        // `Unpin`, so this never has to project.
+        // One channel end, and it is `Unpin`, so this never has to
+        // project.
         let this = self.get_mut();
         let Some(responses) = this.response_receiver.as_mut() else {
             return Poll::Ready(None);
@@ -243,61 +197,6 @@ impl FusedStream for ExecuteStream {
         self.response_receiver.is_none()
     }
 }
-
-/// Tell the provider to stop watching.
-///
-/// # It spawns rather than sends
-///
-/// A destructor cannot await, and writing a frame means locking a
-/// connection and waiting on a socket. What it can do is hand the whole
-/// thing to a runtime and return, which is all this does.
-///
-/// [`try_current`](tokio::runtime::Handle::try_current) rather than
-/// [`tokio::spawn`], because `spawn` PANICS outside a runtime and a
-/// destructor is the worst place in a program to do that. No runtime
-/// means no disconnect, which leaves things exactly as they were before
-/// this existed.
-///
-/// # It says nothing about a watch that ended
-///
-/// A watch that has ended has nothing to stop — and worse, its scope
-/// number may since have been handed out again, so a late disconnect
-/// could end somebody else's work. The terminal state is already a
-/// field, so the check is free.
-///
-/// That covers every ending: a finish, a closed connection, and each of
-/// the errors. What it does not cover is a finish sitting unread in the
-/// queue when a caller drops, and that window is closed one level down
-/// —
-/// [`send_channel_request`](Handle::send_channel_request) looks the
-/// scope up after taking back what the router has closed, and a scope
-/// that is gone sends nothing.
-///
-/// # The answer is dropped
-///
-/// Nothing answers a disconnect; what answers it is the scope's own
-/// finish. So the channel this opens is abandoned immediately, and its
-/// entry in the router lingers until the scope closes — which is the
-/// thing the disconnect is provoking.
-impl Drop for ExecuteStream {
-    fn drop(&mut self) {
-        if self.is_terminated() {
-            return;
-        }
-        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-            return;
-        };
-        let handle = self.handle.clone();
-        let scope = self.scope;
-        let disconnect_request = self.disconnect_request.clone();
-        runtime.spawn(async move {
-            let _ = handle
-                .send_channel_request(scope, &disconnect_request)
-                .await;
-        });
-    }
-}
-
 /// A watch that stopped without ending.
 ///
 /// None of these is the watch finishing. That is [`None`] from the

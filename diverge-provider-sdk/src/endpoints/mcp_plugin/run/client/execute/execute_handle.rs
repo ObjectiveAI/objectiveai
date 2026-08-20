@@ -5,10 +5,11 @@ use std::fmt;
 use bytes::Bytes;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::task::JoinHandle;
 
+use super::super::channel_request;
 use super::super::super::server::response;
-use crate::client::handle::Handle;
+use crate::client::handle::{Handle, SendError};
+use crate::encode::{Encode, Writer};
 use crate::decode::Decode;
 use crate::frame;
 use crate::shared::error::Error;
@@ -19,15 +20,16 @@ use crate::shared::error::Error;
 /// out, the provider is pulling the image, and the task answering the
 /// channels it opens to do that is already running.
 ///
-/// # Holding it is what keeps the plugin alive
+/// # Stopping is something you say, not something you stop doing
 ///
-/// The scope IS the container's life, and this owns the scope. Dropping
-/// it stops the plugin — see the [`Drop`] impl, which is the ordinary
-/// way to be done with one rather than a way to abandon one.
+/// The scope IS the container's life, and this owns the scope.
+/// [`stop`](Self::stop) ends it, and dropping this does not — a
+/// reversal, since this used to carry a [`Drop`] that sent the frame. A
+/// destructor could not await, could not report a failure, and could
+/// not be skipped when a caller wanted the plugin to outlive the value.
 ///
-/// So a caller keeps this for as long as it means to use the plugin,
-/// and lets it go when it is finished. There is nothing else to
-/// remember.
+/// So a caller that drops this without stopping leaves the container
+/// running until the connection goes.
 ///
 /// # Two ways to ask how it is going
 ///
@@ -55,8 +57,7 @@ pub struct ExecuteHandle {
     /// The scope this run opened.
     ///
     /// Private, and there is nothing here that gives it out. Which
-    /// means it is only ever used by the stop in [`Drop`] — see the
-    /// type's own note about what that costs.
+    /// means [`stop`](Self::stop) is the only thing that reads it.
     scope: u32,
     /// The scope's responses, until there are no more.
     ///
@@ -71,21 +72,8 @@ pub struct ExecuteHandle {
     /// it, and they set it through the same path — so it cannot matter
     /// which of them happened to notice.
     error: Option<RunError>,
-    /// The write half, for the stop this sends when it is dropped.
+    /// The write half, for the stop.
     handle: Handle,
-    /// The stop, encoded once at construction.
-    ///
-    /// Because a destructor is no place to serialize: it cannot report
-    /// a failure and cannot await, so the bytes are made while there is
-    /// still somebody to tell.
-    stop_request: Bytes,
-    /// The task answering the channels the provider opens.
-    ///
-    /// Held only to end it. Nothing here waits on it or reads what it
-    /// returns — it stops on its own when the scope closes, because the
-    /// receiver it reads closes with everything else under a finished
-    /// scope.
-    serving: JoinHandle<()>,
 }
 
 impl ExecuteHandle {
@@ -98,17 +86,65 @@ impl ExecuteHandle {
         scope: u32,
         response_receiver: UnboundedReceiver<Bytes>,
         handle: Handle,
-        stop_request: Bytes,
-        serving: JoinHandle<()>,
     ) -> Self {
         ExecuteHandle {
             scope,
             response_receiver: Some(response_receiver),
             error: None,
             handle,
-            stop_request,
-            serving,
         }
+    }
+
+    /// Stop the plugin.
+    ///
+    /// Returns when the frame has been written, and that is all it
+    /// waits for. What ANSWERS a stop is the scope finishing, which is
+    /// what [`wait`](Self::wait) is for — so a stop and then a wait is
+    /// how a caller sees the container actually gone, and a stop alone
+    /// is how it stops caring.
+    ///
+    /// That pairing is the reason this exists as a method. It could not
+    /// be written when stopping was a destructor: dropping sent the
+    /// frame and gave up the receiver in the same move, so "stop it and
+    /// see it through" was not expressible.
+    ///
+    /// # What it adds over just going away
+    ///
+    /// Dropping the connection stops the plugin too, since the scope is
+    /// the container's life. The difference is that a provider cannot
+    /// tell a deliberate exit from a network that stopped answering,
+    /// and has to wait to find out. This is unambiguous and immediate:
+    /// a caller that says so is not gone, it is finished.
+    ///
+    /// # What it does to exchanges in flight
+    ///
+    /// Ends them, unanswered. A caller with MCP channels still open
+    /// when it sends this will see them finish without heads, because
+    /// the container they were aimed at is gone. Waiting for them first
+    /// is the caller's to do, and nothing here does it on the caller's
+    /// behalf.
+    ///
+    /// # Saying it twice is harmless
+    ///
+    /// The second one opens another channel and says the same thing,
+    /// and a provider that has already finished the scope has no scope
+    /// to route it to.
+    ///
+    /// # The answer is discarded
+    ///
+    /// Nothing answers a stop; what answers it is the scope's own
+    /// finish. So the channel this opens is abandoned as soon as the
+    /// frame is out.
+    pub async fn stop(&self) -> Result<(), StopError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::Stop
+            .encode(&mut Writer::new(&mut payload))
+            .map_err(StopError::Request)?;
+        self.handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map(|_| ())
+            .map_err(StopError::Send)
     }
 
     /// Wait for the run to be over.
@@ -128,16 +164,12 @@ impl ExecuteHandle {
     /// a plugin that is running, and a quiet scope is not a finished
     /// one.
     ///
-    /// # The way to STOP a plugin is to drop it
+    /// # It waits for an ending, whoever caused it
     ///
-    /// Which is worth saying because it means "stop it and then wait
-    /// for it to finish" cannot be written with what is here: dropping
-    /// sends the stop and gives up the receiver in the same move.
-    ///
-    /// So this is for waiting on an ending somebody else causes — a
-    /// plugin that exits, or one that never came up. A caller that
-    /// wants to stop one and see it through needs a stop that leaves
-    /// this alive, and there is not one yet.
+    /// A plugin that exits on its own, one that never came up, or one
+    /// this caller stopped — [`stop`](Self::stop) and then this is how
+    /// a caller sees a stop through, which is the pairing a destructor
+    /// could not offer.
     ///
     /// # Waiting again
     ///
@@ -224,74 +256,49 @@ impl ExecuteHandle {
         self.response_receiver = None;
         self.error = error;
     }
+}
 
-    /// Whether the run is over.
+/// A stop that did not go out.
+///
+/// Neither way is the provider refusing — nothing answers a stop, so
+/// there is nothing for it to refuse with. Both are this end failing to
+/// say it.
+#[derive(Debug)]
+pub enum StopError {
+    /// The request would not serialize.
     ///
-    /// Free to answer, because the terminal state is a field rather
-    /// than something to work out.
-    fn is_ended(&self) -> bool {
-        self.response_receiver.is_none()
+    /// Which cannot happen — a stop is one tag byte — and is reported
+    /// rather than unwrapped because the encode it shares an impl with
+    /// can fail.
+    Request(serde_json::Error),
+    /// The request never went out.
+    ///
+    /// See [`SendError`] for the three reasons. Here the one that is
+    /// about this exchange rather than the whole connection —
+    /// [`Scope`](SendError::Scope) — means the run has already ended,
+    /// which is what a stop was trying to arrange.
+    Send(SendError),
+}
+
+impl fmt::Display for StopError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StopError::Request(error) => {
+                write!(f, "stop did not serialize: {error}")
+            }
+            StopError::Send(error) => {
+                write!(f, "the stop never went out: {error}")
+            }
+        }
     }
 }
 
-/// Stop the plugin, and stop answering for it.
-///
-/// # It spawns rather than sends
-///
-/// A destructor cannot await, and writing a frame means locking a
-/// connection and waiting on a socket. What it can do is hand the whole
-/// thing to a runtime and return, which is all this does.
-///
-/// [`try_current`](tokio::runtime::Handle::try_current) rather than
-/// [`tokio::spawn`], because `spawn` PANICS outside a runtime and a
-/// destructor is the worst place in a program to do that. No runtime
-/// means no stop, which leaves things exactly as they were before this
-/// existed.
-///
-/// # It says nothing about a run that ended
-///
-/// A run that has ended has nothing to stop — and worse, its scope
-/// number may since have been handed out again, so a late stop could
-/// end somebody else's work. The terminal state is already a field, so
-/// the check is free.
-///
-/// That covers every ending this type observed. What it does not cover
-/// is a finish sitting unread in the queue when a caller drops, and
-/// that window is closed one level down —
-/// [`send_channel_request`](Handle::send_channel_request) looks the
-/// scope up after taking back what the router has closed, and a scope
-/// that is gone sends nothing.
-///
-/// # The answer is dropped
-///
-/// Nothing answers a stop; what answers it is the scope's own finish.
-/// So the channel this opens is abandoned immediately, and its entry in
-/// the router lingers until the scope closes — which is the thing the
-/// stop is provoking.
-///
-/// # The serving task is aborted, unconditionally
-///
-/// Even though the stop will end it anyway, moments later. It can land
-/// mid-answer, leaving a channel with a head and no body and no finish
-/// — which is untidy and is also exactly what the far end would see
-/// from a caller that had crashed. The plugin is being torn down either
-/// way, and there is no reason to serve an image to a container that is
-/// about to stop.
-impl Drop for ExecuteHandle {
-    fn drop(&mut self) {
-        self.serving.abort();
-        if self.is_ended() {
-            return;
+impl std::error::Error for StopError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            StopError::Request(error) => Some(error),
+            StopError::Send(error) => Some(error),
         }
-        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-            return;
-        };
-        let handle = self.handle.clone();
-        let scope = self.scope;
-        let stop_request = self.stop_request.clone();
-        runtime.spawn(async move {
-            let _ = handle.send_channel_request(scope, &stop_request).await;
-        });
     }
 }
 

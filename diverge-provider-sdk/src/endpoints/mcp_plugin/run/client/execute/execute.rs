@@ -86,18 +86,11 @@ where
         .encode(&mut Writer::new(&mut payload))
         .map_err(ExecuteError::Request)?;
 
-    // Encoded before the request goes out, because the only place it is
-    // used is a destructor, which can neither serialize nor complain.
-    let mut stop = Vec::new();
-    channel_request::Frame::Stop
-        .encode(&mut Writer::new(&mut stop))
-        .map_err(ExecuteError::Stop)?;
-
     let scope = handle
         .send_request(&payload)
         .await
         .map_err(ExecuteError::Send)?;
-    let serving = tokio::spawn(serve_channel_requests(
+    tokio::spawn(serve_channel_requests(
         scope.request_receiver,
         handle.clone(),
         scope.scope,
@@ -110,8 +103,6 @@ where
         scope.scope,
         scope.response_receiver,
         handle.clone(),
-        Bytes::from(stop),
-        serving,
     ))
 }
 
@@ -120,7 +111,8 @@ where
 /// Ends when the receiver closes, which is the scope ending — a
 /// [`Router`](crate::client::router::Router) drops everything under a
 /// finished scope, this receiver with it. Nothing else stops it, except
-/// the [`ExecuteHandle`] being dropped, which aborts it.
+/// nothing, since the task is detached — it simply outlives a caller
+/// that has stopped caring, until the scope it reads closes.
 ///
 /// The frame is passed on whole and undecoded. Decoding it here would
 /// mean either borrowing across the spawn, which cannot be done, or
@@ -483,14 +475,6 @@ pub enum ExecuteError {
     Send(SendError),
     /// The request would not serialize.
     Request(serde_json::Error),
-    /// The stop would not serialize.
-    ///
-    /// Which cannot happen — a stop is one tag byte — and is reported
-    /// rather than unwrapped because the encode it shares an impl with
-    /// can fail. It is built here, before the request goes out, because
-    /// the only place it is used is a destructor: too late to
-    /// serialize, and with nobody to tell if it went wrong.
-    Stop(serde_json::Error),
 }
 
 impl fmt::Display for ExecuteError {
@@ -502,9 +486,6 @@ impl fmt::Display for ExecuteError {
             ExecuteError::Request(error) => {
                 write!(f, "mcp plugin request did not serialize: {error}")
             }
-            ExecuteError::Stop(error) => {
-                write!(f, "mcp plugin stop did not serialize: {error}")
-            }
         }
     }
 }
@@ -514,7 +495,6 @@ impl std::error::Error for ExecuteError {
         match self {
             ExecuteError::Send(error) => Some(error),
             ExecuteError::Request(error) => Some(error),
-            ExecuteError::Stop(error) => Some(error),
         }
     }
 }

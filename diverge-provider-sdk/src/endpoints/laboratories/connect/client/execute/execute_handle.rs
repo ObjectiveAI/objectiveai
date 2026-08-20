@@ -6,7 +6,6 @@ use std::pin::Pin;
 use bytes::Bytes;
 use futures_util::Stream;
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::task::JoinHandle;
 
 use super::super::super::server::channel_response;
 use super::super::channel_request;
@@ -28,17 +27,21 @@ use crate::shared::http::request;
 /// provider says without being asked, and this is how a connector asks
 /// for anything.
 ///
-/// # Holding it is what keeps the connection open
+/// # Leaving is something you say, not something you stop doing
 ///
-/// Dropping it leaves the laboratory — see the [`Drop`] impl. That
-/// makes dropping the ordinary way to be done rather than a way to
-/// abandon one, and it is why the two halves are worth telling apart:
-/// letting the filetree go costs a connector its view of the
-/// filesystem, and letting this go costs it the connection.
+/// [`disconnect`](Self::disconnect) ends the connection, and dropping
+/// this does not. That is a reversal: it used to have a [`Drop`] that
+/// sent the frame, and a destructor could not await, could not report
+/// a failure, and could not be skipped when a caller wanted the
+/// connection to outlive the value.
 ///
-/// It takes nothing with it. The container goes on running, other
-/// connectors stay attached, and the runner sees one fewer connection
-/// — stopping a laboratory belongs to whoever created it and is
+/// So a connector that drops this without disconnecting stays attached
+/// as far as the provider is concerned, until the connection goes.
+///
+/// Leaving takes nothing with it either way. The container goes on
+/// running, other connectors stay attached, and the runner sees one
+/// fewer connection — stopping a laboratory belongs to whoever created
+/// it and is
 /// [`Stop`](crate::endpoints::laboratories::run::client::channel_request::Frame::Stop)
 /// on their scope, not anything a connector can reach.
 ///
@@ -58,13 +61,11 @@ use crate::shared::http::request;
 pub struct ExecuteHandle {
     /// What everything a connector says goes out over.
     ///
-    /// A [`Handle`] rather than pre-encoded frames, and for the
-    /// disconnect in particular the difference matters: a frame carries
-    /// a scope number it cannot re-check, and by the time a destructor
-    /// runs that number may belong to somebody else.
+    /// A [`Handle`] rather than pre-encoded frames.
     /// [`send_channel_request`](Handle::send_channel_request) takes
     /// back what the router has closed and then looks the scope up, so
-    /// a scope that is gone sends nothing.
+    /// a connection that has already ended sends nothing rather than
+    /// reaching into whoever holds that scope number now.
     handle: Handle,
     /// The scope this connection is running in, as this end numbered
     /// it.
@@ -73,14 +74,6 @@ pub struct ExecuteHandle {
     /// disconnect. The router already sorted the incoming frames by it,
     /// so nothing here reads it for that.
     scope: u32,
-    /// The disconnect, encoded and ready.
-    ///
-    /// Built once by [`execute`](super::execute) through
-    /// [`channel_request::Frame`] rather than written as the byte it
-    /// happens to be. A destructor is a poor place to be encoding
-    /// anything, and what a disconnect looks like on the wire is not
-    /// this type's to know.
-    disconnect_request: Bytes,
     /// Where a write's content is handed to the task that serves it.
     ///
     /// [`write`](Self::write) puts one here BEFORE it asks for the
@@ -88,12 +81,6 @@ pub struct ExecuteHandle {
     /// cannot ask for content until it has the request, and the request
     /// goes out after this.
     write_sender: UnboundedSender<Write>,
-    /// The task that answers the provider's requests for content.
-    ///
-    /// Held only to end it. It stops on its own when the scope closes,
-    /// because the receiver it reads closes with everything else under
-    /// a finished scope.
-    serving: JoinHandle<()>,
 }
 
 impl ExecuteHandle {
@@ -106,17 +93,66 @@ impl ExecuteHandle {
     pub(super) fn new(
         handle: Handle,
         scope: u32,
-        disconnect_request: Bytes,
         write_sender: UnboundedSender<Write>,
-        serving: JoinHandle<()>,
     ) -> Self {
         ExecuteHandle {
             handle,
             scope,
-            disconnect_request,
             write_sender,
-            serving,
         }
+    }
+
+    /// Leave the laboratory.
+    ///
+    /// Returns when the frame has been written, and that is all it
+    /// waits for. What ANSWERS a disconnect is the scope's own finish,
+    /// which arrives on the
+    /// [`ExecuteStream`](super::ExecuteStream) as [`None`] — so a
+    /// connector that wants to see itself actually gone reads the
+    /// stream until it ends, and one that only wants to stop being
+    /// attached is finished here.
+    ///
+    /// # What it adds over just going away
+    ///
+    /// Leaving ends the scope either way. The difference is that a
+    /// provider cannot tell a deliberate exit from a network that
+    /// stopped answering, and has to wait to find out — during which
+    /// the runner has not been told this connector is gone. This is
+    /// unambiguous and immediate, and the
+    /// [`Disconnected`](crate::endpoints::laboratories::run::server::response::Frame::Disconnected)
+    /// follows straight away.
+    ///
+    /// # Exchanges in flight end where they are
+    ///
+    /// A read still arriving, an MCP event stream, a write still
+    /// streaming its content — all of them stop when the scope does,
+    /// unfinished. Waiting for them first is a connector's to do, and
+    /// nothing here does it on a connector's behalf.
+    ///
+    /// # Saying it twice is harmless
+    ///
+    /// The second one opens another channel and says the same thing,
+    /// and a provider that has already finished the scope has no scope
+    /// to route it to. Nothing here refuses it, because nothing here
+    /// knows — the terminal state lives on the stream, which a
+    /// connector may have dropped.
+    ///
+    /// # The answer is discarded
+    ///
+    /// Nothing answers a disconnect; what answers it is the scope's own
+    /// finish. So the channel this opens is abandoned as soon as the
+    /// frame is out, and its entry in the router lingers until the
+    /// scope closes — which is the thing the disconnect is provoking.
+    pub async fn disconnect(&self) -> Result<(), DisconnectError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::Disconnect
+            .encode(&mut Writer::new(&mut payload))
+            .map_err(DisconnectError::Request)?;
+        self.handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map(|_| ())
+            .map_err(DisconnectError::Send)
     }
 
     /// Make one MCP exchange against the container's server.
@@ -420,63 +456,47 @@ impl fmt::Debug for Write {
     }
 }
 
-/// Leave the laboratory.
+/// A disconnect that did not go out.
 ///
-/// # It spawns rather than sends
-///
-/// A destructor cannot await, and writing a frame means locking a
-/// connection and waiting on a socket. What it can do is hand the whole
-/// thing to a runtime and return, which is all this does.
-///
-/// [`try_current`](tokio::runtime::Handle::try_current) rather than
-/// [`tokio::spawn`], because `spawn` PANICS outside a runtime and a
-/// destructor is the worst place in a program to do that. No runtime
-/// means no disconnect, which leaves things exactly as they were before
-/// this existed.
-///
-/// # There is no terminal state to check, and none is needed
-///
-/// A [`watch`](crate::endpoints::volumes::watch)'s stream checks one
-/// before sending, because it holds the receiver that would know. This
-/// does not — the
-/// [`ExecuteStream`](super::ExecuteStream) has it, and the two halves
-/// are separable on purpose, so a connector that dropped the stream
-/// long ago would leave this with nothing to consult.
-///
-/// The guard that matters was never that check anyway. It is one level
-/// down: [`send_channel_request`](Handle::send_channel_request) takes
-/// back what the router has closed and then looks the scope up, so a
-/// scope that has ended sends nothing — and cannot disconnect somebody
-/// who was handed the same number afterwards. The field check is an
-/// early-out; this is the close.
-///
-/// # The answer is dropped
-///
-/// Nothing answers a disconnect; what answers it is the scope's own
-/// finish. So the channel this opens is abandoned immediately, and its
-/// entry in the router lingers until the scope closes — which is the
-/// thing the disconnect is provoking.
-///
-/// # Writes in flight end where they are
-///
-/// The serving task is aborted, so a write still streaming stops
-/// mid-content and its channel is left unfinished. That is untidy and
-/// is also exactly what a provider would see from a connector that had
-/// crashed — and the disconnect going out beside it says the connection
-/// is over, which covers every write under it at once.
-impl Drop for ExecuteHandle {
-    fn drop(&mut self) {
-        self.serving.abort();
-        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
-            return;
-        };
-        let handle = self.handle.clone();
-        let scope = self.scope;
-        let disconnect_request = self.disconnect_request.clone();
-        runtime.spawn(async move {
-            let _ =
-                handle.send_channel_request(scope, &disconnect_request).await;
-        });
+/// Neither way is the provider refusing — nothing answers a disconnect,
+/// so there is nothing for it to refuse with. Both are this end failing
+/// to say it.
+#[derive(Debug)]
+pub enum DisconnectError {
+    /// The request would not serialize.
+    ///
+    /// Which cannot happen — a disconnect is one tag byte — and is
+    /// reported rather than unwrapped because the encode it shares an
+    /// impl with can fail.
+    Request(serde_json::Error),
+    /// The request never went out.
+    ///
+    /// See [`SendError`] for the three reasons. Here the one that is
+    /// about this exchange rather than the connection —
+    /// [`Scope`](SendError::Scope) — means the connection has already
+    /// ended, which is what a disconnect was trying to arrange.
+    Send(SendError),
+}
+
+impl fmt::Display for DisconnectError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DisconnectError::Request(error) => {
+                write!(f, "disconnect did not serialize: {error}")
+            }
+            DisconnectError::Send(error) => {
+                write!(f, "the disconnect never went out: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for DisconnectError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            DisconnectError::Request(error) => Some(error),
+            DisconnectError::Send(error) => Some(error),
+        }
     }
 }
 
