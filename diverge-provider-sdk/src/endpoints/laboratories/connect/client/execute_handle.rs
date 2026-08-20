@@ -10,6 +10,7 @@ use tokio::task::JoinHandle;
 
 use super::super::server::channel_response;
 use super::channel_request;
+use super::mcp_stream::McpStream;
 use super::read_stream::ReadStream;
 use crate::client::handle::{Handle, SendError};
 use crate::decode::Decode;
@@ -17,6 +18,7 @@ use crate::encode::{Encode, Writer};
 use crate::frame;
 use crate::shared::container::{read, transfer, write_path};
 use crate::shared::error::Error;
+use crate::shared::http::request;
 
 /// An attachment to somebody else's laboratory.
 ///
@@ -40,17 +42,16 @@ use crate::shared::error::Error;
 /// [`Stop`](crate::endpoints::laboratories::run::client::channel_request::Frame::Stop)
 /// on their scope, not anything a connector can reach.
 ///
-/// # Three of the four asks are written
+/// # All four asks are here
 ///
-/// [`read`](Self::read), [`write`](Self::write) and
-/// [`transfer`](Self::transfer).
-/// [`Mcp`](super::channel_request::Frame::Mcp) is not, and it will want
-/// nothing this does not already hold.
+/// [`mcp`](Self::mcp), [`read`](Self::read), [`write`](Self::write)
+/// and [`transfer`](Self::transfer), which is everything a connector
+/// can say. The fifth thing it can do is leave, and that is [`Drop`].
 ///
 /// They are three shapes, not one. A transfer is one ask and one
-/// answer, so it resolves to a result. A read is one ask and a stream,
-/// so it hands back a [`ReadStream`](super::ReadStream). A write is one
-/// ask whose CONTENT travels the other way, on a channel the provider
+/// answer, so it resolves to a result. A read and an MCP exchange are
+/// one ask and a stream, so they hand one back. A write is one ask
+/// whose CONTENT travels the other way, on a channel the provider
 /// opens, which is why it is the only one that needed anything built.
 #[must_use = "dropping the handle leaves the laboratory"]
 #[derive(Debug)]
@@ -116,6 +117,67 @@ impl ExecuteHandle {
             write_sender,
             serving,
         }
+    }
+
+    /// Make one MCP exchange against the container's server.
+    ///
+    /// Returns once the request has gone out, not once it has been
+    /// answered — what comes back is an [`McpStream`] of the head and
+    /// then the body, and the provider is already relaying into it.
+    ///
+    /// # It is a tunnel, not a client
+    ///
+    /// What goes in is an HTTP request and what comes out is an HTTP
+    /// response. Nothing on the way parses JSON-RPC, tracks a session,
+    /// or reads the `Mcp-Session-Id` that ties exchanges together — the
+    /// provider relays and nothing more, which is why two connectors on
+    /// one container hold two sessions it has no opinion about.
+    ///
+    /// It is the same relay an
+    /// [`McpProxy`](crate::client::mcp_proxy::McpProxy) implements,
+    /// pointed the other way: that trait answers exchanges a provider
+    /// forwards, and this makes them.
+    ///
+    /// # The session is yours to carry
+    ///
+    /// The initialize response mints a session id and it arrives in the
+    /// head. Putting it back on later requests is this end's job, and
+    /// nothing here does it — a caller that wants one session makes
+    /// every call carry the header, and a caller that wants two makes
+    /// two.
+    ///
+    /// Ending one is also an exchange: a `DELETE` carrying the session
+    /// id, sent through here like anything else. There is no
+    /// channel-level way to do it, which matters for an event stream —
+    /// see [`McpStream`] for why.
+    ///
+    /// # A refusal is a status, not an error
+    ///
+    /// [`McpError`] is only this exchange failing to start. A server
+    /// that is not there, a method that does not exist, a body the far
+    /// end will not accept — all of those are answers, and they arrive
+    /// as a head on a stream that is working.
+    ///
+    /// # Several at once are fine
+    ///
+    /// Each takes its own channel, so exchanges do not queue behind one
+    /// another — which matters more here than for a read, because an
+    /// event stream is held open for as long as the session lasts and
+    /// would otherwise hold up everything behind it.
+    pub async fn mcp(
+        &self,
+        request: request::Request<'_>,
+    ) -> Result<McpStream, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::Mcp(request)
+            .encode(&mut Writer::new(&mut payload))
+            .map_err(McpError::Request)?;
+        let channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+        Ok(McpStream::new(channel.response_receiver))
     }
 
     /// Read one file out of the container.
@@ -415,6 +477,47 @@ impl Drop for ExecuteHandle {
             let _ =
                 handle.send_channel_request(scope, &disconnect_request).await;
         });
+    }
+}
+
+/// An MCP exchange that never started.
+///
+/// Two ways, and neither of them is the far server refusing — there is
+/// no error frame on an MCP channel at all. A refusal is a status, and
+/// a status arrives as a head on an
+/// [`McpStream`](super::McpStream) that is working. See
+/// [`McpStreamError`](super::McpStreamError) for the exchange that
+/// started and then stopped without ending.
+#[derive(Debug)]
+pub enum McpError {
+    /// The request would not serialize.
+    Request(serde_json::Error),
+    /// The request never went out.
+    ///
+    /// See [`SendError`] for the three reasons, only one of which is
+    /// about this exchange rather than the whole connection.
+    Send(SendError),
+}
+
+impl fmt::Display for McpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            McpError::Request(error) => {
+                write!(f, "mcp request did not serialize: {error}")
+            }
+            McpError::Send(error) => {
+                write!(f, "the mcp request never went out: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for McpError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            McpError::Request(error) => Some(error),
+            McpError::Send(error) => Some(error),
+        }
     }
 }
 

@@ -26,13 +26,13 @@
 //! answer: a provider asks a connector for a write's content and for
 //! nothing else on its own account.
 //!
-//! # Three of the four asks
+//! # All four asks
 //!
-//! [`ExecuteHandle`] has [`read`](ExecuteHandle::read),
-//! [`write`](ExecuteHandle::write) and
-//! [`transfer`](ExecuteHandle::transfer).
-//! [`Mcp`](channel_request::Frame::Mcp) is the one left, and it wants
-//! nothing the handle does not already hold.
+//! [`ExecuteHandle`] has [`mcp`](ExecuteHandle::mcp),
+//! [`read`](ExecuteHandle::read), [`write`](ExecuteHandle::write) and
+//! [`transfer`](ExecuteHandle::transfer) — everything a connector can
+//! say. The fifth thing it can do is leave, and dropping the handle is
+//! that.
 //!
 //! They are three shapes rather than one, because the exchanges are:
 //!
@@ -40,7 +40,13 @@
 //! |-----|----------|------------|
 //! | [`transfer`](ExecuteHandle::transfer) | one request | one answer |
 //! | [`read`](ExecuteHandle::read) | one request | a [`ReadStream`] of the file |
+//! | [`mcp`](ExecuteHandle::mcp) | one request | an [`McpStream`]: the head, then the body |
 //! | [`write`](ExecuteHandle::write) | one request, and the content on a channel the PROVIDER opens | one answer |
+//!
+//! An MCP exchange is the one with no failure of its own. The other
+//! three can come back with the provider saying no; that channel has
+//! no error frame, because the exchange is HTTP and a refusal is a
+//! status.
 //!
 //! Only the write needed machinery. Its content cannot travel on the
 //! channel that asked for it — only a responder can finish a channel —
@@ -63,6 +69,10 @@ mod execute_handle;
 #[cfg(feature = "client")]
 mod execute_stream;
 #[cfg(feature = "client")]
+mod mcp_frame;
+#[cfg(feature = "client")]
+mod mcp_stream;
+#[cfg(feature = "client")]
 mod read_stream;
 
 #[cfg(feature = "client")]
@@ -71,5 +81,9 @@ pub use execute::*;
 pub use execute_handle::*;
 #[cfg(feature = "client")]
 pub use execute_stream::*;
+#[cfg(feature = "client")]
+pub use mcp_frame::*;
+#[cfg(feature = "client")]
+pub use mcp_stream::*;
 #[cfg(feature = "client")]
 pub use read_stream::*;
