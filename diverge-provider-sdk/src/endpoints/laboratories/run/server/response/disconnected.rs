@@ -13,9 +13,11 @@ pub struct Disconnected {
     /// [`Authorized`](crate::endpoints::laboratories::run::client::channel_response::authorize::Frame::Authorized)
     /// it.
     ///
-    /// Absent when the runner gave none, which is a runner that did
-    /// not care to tell its connectors apart. Nothing downstream has
-    /// to invent an identity nobody supplied.
+    /// Always present, because an authorization always carried one. A
+    /// runner that did not care to tell its connectors apart gave them
+    /// all the same name — most likely the empty string — and their
+    /// departures arrive under it, distinguishing nothing. Which is
+    /// what a missing name said, without a second case to hold.
     ///
     /// The provider stores it and hands it back; it never read it, and
     /// the connector was never told it had one.
@@ -24,6 +26,5 @@ pub struct Disconnected {
     /// nickname, and a departure then names both and resolves neither
     /// — which is the runner's own arrangement rather than something
     /// this protocol did to it.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nickname: Option<String>,
+    pub nickname: String,
 }

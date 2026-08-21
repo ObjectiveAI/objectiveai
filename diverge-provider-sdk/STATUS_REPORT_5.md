@@ -121,7 +121,7 @@ a plugin that never came up.
 
 ## `execute` has three shapes
 
-Behind the `client` feature, and now for nine of the ten scopes.
+Behind the `client` feature, and now for every one of the ten scopes.
 
 Five collapse into a value — an image check and the four volume
 operations that end by themselves. `agentic_loop::run` and
@@ -165,10 +165,7 @@ same sequence and only `Content-Type` says which is arriving.
 ## Known gaps
 
 - **Nothing has been executed.** No frame has round-tripped. True in
-  every report, and now true of nine executors as well as ten scopes.
-- **`laboratories::run` has no executor**, which makes it the last large
-  one. It is also the only endpoint that must answer an authorization,
-  and nothing implements that yet.
+  every report, and now true of ten executors as well as ten scopes.
 - **A provider cannot read what it was asked.** `ScopeHandle` sends
   every frame a provider has and exposes none of what arrives: the
   opening request is held unexposed and channel requests land in a queue
@@ -196,6 +193,14 @@ same sequence and only `Content-Type` says which is arriving.
 - **Nothing delivers a connection's credentials.** A laboratory id comes
   from a run's own response and an authorization comes from nowhere at
   all — both reach a prospective connector out of band.
+
+`laboratories::run` gained its executor after this was written, which
+closes the largest gap above and finishes the set. It took one new
+trait — `LaboratoryConnectionAuthorizer`, the fifth thing in `client`
+and the first that is not a proxy: it forwards to nothing, it decides,
+and a denial is as ordinary an outcome as an admission. Its nickname
+stopped being optional in the same change, which took a presence byte
+off the wire and two variants off a frame error.
 
 Report 4's note that `connect`'s response documented its error as tag
 `2` where the constant said `1` is fixed. So is the `Sync` bound this

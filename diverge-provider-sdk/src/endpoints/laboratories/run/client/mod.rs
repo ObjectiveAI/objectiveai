@@ -8,3 +8,6 @@
 pub mod channel_request;
 pub mod channel_response;
 pub mod request;
+
+#[cfg(feature = "client")]
+pub mod execute;

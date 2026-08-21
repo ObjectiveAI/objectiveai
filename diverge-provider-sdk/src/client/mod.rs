@@ -57,7 +57,7 @@
 //! a database, a registry, a command — and something has to answer
 //! them.
 //!
-//! There are four so far, one per thing that can be asked.
+//! There are five, one per thing that can be asked.
 //! [`mcp_proxy`] forwards an exchange to a server the provider cannot
 //! see. [`oci_proxy`] serves an image, for a plugin run and a
 //! laboratory run alike. [`command_proxy`] runs a command a plugin has
@@ -65,11 +65,11 @@
 //! caller's database, and is handed the request that started the
 //! plugin so that a caller can decide what that connection may reach.
 //!
-//! Which makes it the only one that names a type from
-//! [`endpoints`](crate::endpoints). It answers one channel of one
-//! endpoint, and what it has to decide is not sayable in a
-//! [`shared`](crate::shared) type — see the trait for the whole of
-//! that argument.
+//! Which is one of the two things here that name a type from
+//! [`endpoints`](crate::endpoints). Both do it for the same reason:
+//! what they have to decide is that endpoint's question, and no
+//! [`shared`](crate::shared) type says it. See each trait for the whole
+//! of that argument.
 //!
 //! They are traits rather than callbacks because each has its own
 //! shape, and the shapes really are different: one request one answer,
@@ -84,20 +84,36 @@
 //! the CLI's own shape. None of them has an error variant, because a
 //! second way to say a thing is a second thing to disagree about.
 //!
-//! The roster is not finished. A [`laboratory run`](crate::endpoints::laboratories::run::server::channel_request::Frame)
-//! also asks for an authorization and for content to write, and those
-//! need two more — the authorization being the one case whose answer is
-//! genuinely shaped like a [`Result`], since its frame has variants to
-//! say so.
+//! The roster is finished, and the fifth is not a proxy.
+//! [`laboratory_connection_authorizer`] decides whether a connector may
+//! join a running laboratory, and there is nothing on the other side of
+//! it to forward to — it is asked a question and it answers.
 //!
-//! None of them is wired to anything yet. What reads a scope's channel
-//! requests and dispatches to one is not written, and Postgres is the
-//! one that will not fall out of a task per frame: a connection request
-//! has to open a channel BACK before it can be served, and the writes
-//! then arrive as that channel's responses rather than as further
-//! requests.
+//! Which makes it the one whose answer is not an aside. The four above
+//! have no error variant because a refusal already has somewhere to
+//! live; here a refusal IS the answer, and a denial is as ordinary an
+//! outcome as an admission.
 //!
-//! # Two things true of all four
+//! The other thing a laboratory run asks for is the content of a write,
+//! and that needed no trait at all: content is an argument to the write
+//! a caller already asked for, not a service a caller provides.
+//!
+//! # Who asks for them
+//!
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run::client::execute)
+//! takes an [`mcp_proxy`];
+//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run::client::execute)
+//! takes an [`oci_proxy`], a [`postgres_proxy`] and a
+//! [`command_proxy`];
+//! [`laboratories::run`](crate::endpoints::laboratories::run::client::execute)
+//! takes an [`oci_proxy`] and a
+//! [`laboratory_connection_authorizer`].
+//!
+//! [`laboratories::connect`](crate::endpoints::laboratories::connect::client::execute)
+//! takes none, because a connector is asked for one thing and that
+//! thing is an argument rather than a service.
+//!
+//! # Two things true of all five
 //!
 //! None is `dyn`-compatible, because each returns `impl Future`. So a
 //! dispatcher is generic over the ones it needs at once rather than
@@ -121,6 +137,7 @@
 pub mod channel;
 pub mod command_proxy;
 pub mod handle;
+pub mod laboratory_connection_authorizer;
 pub mod mcp_proxy;
 pub mod oci_proxy;
 pub mod postgres_proxy;
