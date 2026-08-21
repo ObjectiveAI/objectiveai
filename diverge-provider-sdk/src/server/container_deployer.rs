@@ -3,6 +3,7 @@
 use std::future::Future;
 
 use super::client_registry::ClientRegistry;
+use super::container::Container;
 use super::deployment::Deployment;
 
 /// What runs a container for a provider.
@@ -84,16 +85,14 @@ use super::deployment::Deployment;
 ///
 /// # What a container IS is the provider's
 ///
-/// [`Container`](Self::Container) is unbounded on purpose. A provider
-/// hands back whatever it holds a running container by — a process
-/// handle, a name, an id its runtime minted, a struct with all three —
-/// and this crate does not look inside.
+/// A provider hands back whatever it holds a running container by — a
+/// process handle, a name, an id its runtime minted, a struct with all
+/// three — and this crate does not look inside.
 ///
-/// What can be DONE with one is a separate trait and is not written.
-/// Naming the type without bounding it is what lets this land without
-/// guessing that surface, the same state
-/// [`McpProxy`](crate::client::mcp_proxy::McpProxy) sat in before
-/// anything used it.
+/// What it must be ABLE to do is [`Container`], which is one method:
+/// stopping. Everything else a container is asked for travels on
+/// channels the scope already carries, and relaying does not need the
+/// container to have a method for it.
 ///
 /// # Failure is the provider's too
 ///
@@ -119,13 +118,11 @@ use super::deployment::Deployment;
 pub trait ContainerDeployer: Send + Sync {
     /// A running container, however this provider holds one.
     ///
-    /// [`Send`] and `'static` because it outlives the deploy that made
-    /// it and will be used from wherever the scope is being served,
-    /// which is not where it was built.
-    ///
-    /// Nothing else is required of it, because nothing here does
-    /// anything with it yet.
-    type Container: Send + 'static;
+    /// `'static` because it outlives the deploy that made it. [`Send`]
+    /// and [`Sync`] come from [`Container`] itself, which needs them
+    /// for the same reason: a scope is served by more than one task and
+    /// a container is reached from any of them.
+    type Container: Container + 'static;
 
     /// Why a container is not running.
     ///
@@ -146,12 +143,10 @@ pub trait ContainerDeployer: Send + Sync {
     /// deploy failure needs a way to turn one of these into one, and
     /// this trait deliberately does not say how.
     ///
-    /// It is the same bet [`Container`](Self::Container) makes. There
-    /// is no handler yet, so requiring a conversion now would be
-    /// guessing at its shape — and an
-    /// [`Into`] bound would be this crate's error
-    /// type back in the signature under a different name, which is the
-    /// thing an associated type was for.
+    /// There is no handler yet, so requiring a conversion now would be
+    /// guessing at its shape — and an [`Into`] bound would be this
+    /// crate's error type back in the signature under a different name,
+    /// which is the thing an associated type was for.
     type Error: Send + 'static;
 
     /// Deploy from an image the CALLER serves.
