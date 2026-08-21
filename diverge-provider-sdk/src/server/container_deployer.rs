@@ -21,6 +21,49 @@ use super::deployment::Deployment;
 /// beside [`Session`](super::session::Session) and for the same reason:
 /// it is about running things, not about what was asked.
 ///
+/// # The container is RUNNING when a method returns
+///
+/// Not created, not scheduled, not queued behind a pull — running. An
+/// implementation that has more to do does it before it returns
+/// [`Ok`], and one that cannot finish returns
+/// [`Err`](Self::Error).
+///
+/// This protocol has nothing that means "starting". A scope either
+/// answers or it fails, and the first thing a caller does with a
+/// container is reach into it — call its MCP server, read a file, write
+/// one. There is no state between "asked for" and "usable" for a caller
+/// to wait in.
+///
+/// # Which is why there is no create-then-start
+///
+/// Splitting the deploy would let a provider write files into a
+/// container before anything ran in it, which is what
+/// `podman create` followed by `podman cp` does. It is also a shape
+/// most backends do not have: an instance on a cloud provider boots
+/// from an image with no idle filesystem to write into, and a pod's
+/// filesystem is not reachable until something is running in it.
+///
+/// So a two-step deploy would put one container runtime's lifecycle in
+/// a trait meant for any of them, and every implementation that is not
+/// that runtime would fake the half it lacks.
+///
+/// Nothing needs it. Getting data in ahead of time is
+/// [`mounts`](Deployment::mounts), which every backend expresses —
+/// a bind mount, an attached disk, a volume. And a caller's own writes
+/// are channel requests inside the scope, which only exists once the
+/// container does, so the protocol has no pre-start write and never
+/// had one. A laboratory's file transfers happen while it runs.
+///
+/// # It does not promise what is INSIDE has started
+///
+/// A container running is not a server bound. The distinction is the
+/// one that deleted `mcp_plugin`'s readiness signal: a provider knows
+/// when a CONTAINER has started, and that is not the same fact as the
+/// thing inside it having bound its port.
+///
+/// So this returns when the container is up, and whether what it holds
+/// is answering yet is found out by asking it.
+///
 /// # Three methods, one per source
 ///
 /// [`Image`](crate::shared::container::request::Image) has three
