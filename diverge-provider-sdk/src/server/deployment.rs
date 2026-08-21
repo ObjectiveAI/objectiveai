@@ -115,11 +115,12 @@ pub struct Deployment {
     ///
     /// # More than one, because one is not the rule
     ///
-    /// An [`mcp_plugin`](crate::endpoints::mcp_plugin::run) names
-    /// three on its own: where its MCP server listens, and where it
-    /// listens for the database and command conduits a provider dials
-    /// in to. A provider that arranges something further for itself
-    /// needs somewhere to say so, and this is it.
+    /// An [`mcp_plugin`](crate::endpoints::mcp_plugin::run) names one
+    /// to three on its own: where its MCP server listens, and, if it
+    /// wants them, where it listens for the database and command
+    /// conduits a provider dials in to. A provider that arranges
+    /// something further for itself needs somewhere to say so, and this
+    /// is it.
     ///
     /// Order means nothing and duplicates mean nothing. Empty is a
     /// container nothing reaches over a socket, which is ordinary.

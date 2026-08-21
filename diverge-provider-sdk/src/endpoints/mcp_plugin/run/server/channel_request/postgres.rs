@@ -36,9 +36,14 @@ use crate::encode::{Encode, Writer};
 ///
 /// # It is opened, not offered
 ///
-/// A plugin that never connects means this channel never exists, which
-/// is what makes an opted-out plugin cost nothing rather than cost an
-/// idle tunnel.
+/// Twice over. A plugin that named no
+/// [`postgres_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::postgres_port)
+/// never has one of these at all, because a provider has nothing to
+/// dial. And one that named a port but has no queries to send does not
+/// either, because nothing inside it opened a connection.
+///
+/// So an opted-out plugin costs nothing rather than costing an idle
+/// tunnel, and a quiet one costs nothing either.
 ///
 /// # Several at once is the ordinary case
 ///

@@ -16,9 +16,9 @@ use crate::endpoints::mcp_plugin::run::client::request;
 /// the caller, so the bytes come out and this is what splices the far
 /// end onto the real thing.
 ///
-/// A plugin that never connects means the channel never exists, which is
-/// what makes an opted-out plugin cost nothing rather than cost an idle
-/// tunnel.
+/// A plugin that asked for no database, or that asked and never
+/// connects, means the channel never exists — which is what makes an
+/// opted-out plugin cost nothing rather than cost an idle tunnel.
 ///
 /// # It is the one that takes two channels
 ///

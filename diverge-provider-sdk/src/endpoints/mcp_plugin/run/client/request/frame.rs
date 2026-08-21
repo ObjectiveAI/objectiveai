@@ -16,14 +16,18 @@ use crate::shared::container::request::Image;
 /// chooses the name, the labels and the entrypoint — with the
 /// injection removed and the configuration added.
 ///
-/// # Three ports, and they are all the container's
+/// # One port, and up to two more
 ///
 /// [`mcp_port`](Self::mcp_port),
 /// [`postgres_port`](Self::postgres_port) and
-/// [`command_port`](Self::command_port) are the three sockets a
-/// provider opens INTO this container. They are ports inside it, not
-/// host ones — what a provider reaches them as is its own business and
-/// no caller will see it.
+/// [`command_port`](Self::command_port) are the sockets a provider
+/// opens INTO this container. They are ports inside it, not host ones
+/// — what a provider reaches them as is its own business and no caller
+/// will see it.
+///
+/// Only the first is required, because a plugin that serves no tools
+/// is not a plugin. The other two are conduits a plugin may want and
+/// may not, and [`None`] is how it says it does not.
 ///
 /// The caller states them because only the image's author knows what
 /// the image binds. A
@@ -34,13 +38,15 @@ use crate::shared::container::request::Image;
 ///
 /// # A wrong one is not detectable from here
 ///
-/// The container starts fine and nothing answers. Which is true of all
-/// three and shows up differently in each: a wrong
-/// [`mcp_port`](Self::mcp_port) is an exchange that finishes without a
-/// head, and a wrong
+/// The container starts fine and nothing answers. Which shows up
+/// differently in each: a wrong [`mcp_port`](Self::mcp_port) is an
+/// exchange that finishes without a head, and a wrong
 /// [`postgres_port`](Self::postgres_port) or
 /// [`command_port`](Self::command_port) is a conduit that never
 /// carries anything, because the provider connected to nothing.
+///
+/// An ABSENT one is a different thing and is not a mistake. There is
+/// nothing to connect to and nothing that was supposed to.
 ///
 /// # What is missing, and why it is missing rather than ignored
 ///
@@ -120,7 +126,19 @@ pub struct Frame {
     /// available: a provider cannot put a listening socket inside
     /// somebody else's container, so if a plugin wants something dialled
     /// FOR it, the plugin is the one that has to be listening.
-    pub postgres_port: u16,
+    ///
+    /// # [`None`] is a plugin that wants no database
+    ///
+    /// The provider connects to nothing, opens no channel, and the
+    /// caller is never asked to dial one. Which is what makes an
+    /// opted-out plugin cost nothing rather than cost an idle tunnel.
+    ///
+    /// Declared rather than discovered. A provider could have dialled
+    /// and taken a refusal as the answer, but a plugin that is slow to
+    /// bind and a plugin that never will look identical from outside,
+    /// and only one of them is worth retrying.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub postgres_port: Option<u16>,
     /// Where the plugin listens for its command conduit, inside the
     /// container.
     ///
@@ -129,7 +147,10 @@ pub struct Frame {
     /// then the plugin asks for commands to be run and the provider
     /// relays them to the caller. See
     /// [`Command`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Command).
-    pub command_port: u16,
+    ///
+    /// [`None`] is a plugin that runs no commands, on the same terms.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_port: Option<u16>,
     /// The plugin's configuration.
     ///
     /// Whatever its author defined, and this specification has no
