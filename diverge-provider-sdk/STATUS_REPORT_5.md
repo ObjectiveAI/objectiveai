@@ -121,11 +121,12 @@ a plugin that never came up.
 
 ## `execute` has three shapes
 
-Behind the `client` feature, and now for every one of the ten scopes.
+Behind the `client` feature, and now for nine of the ten scopes.
 
 Five collapse into a value — an image check and the four volume
 operations that end by themselves. `agentic_loop::run` and
-`volumes::watch` hand back a stream. `mcp_plugin::run` hands back a handle, because a plugin's
+`volumes::watch` hand
+back a stream. `mcp_plugin::run` hands back a handle, because a plugin's
 scope is almost silent and the thing worth holding is the connection to
 it: `wait` blocks until the run ends, `error` says what ended it without
 blocking, and dropping it sends the stop.
@@ -165,7 +166,10 @@ same sequence and only `Content-Type` says which is arriving.
 ## Known gaps
 
 - **Nothing has been executed.** No frame has round-tripped. True in
-  every report, and now true of ten executors as well as ten scopes.
+  every report, and now true of nine executors as well as ten scopes.
+- **`laboratories::run` has no executor**, which makes it the last large
+  one. It is also the only endpoint that must answer an authorization,
+  and nothing implements that yet.
 - **A provider cannot read what it was asked.** `ScopeHandle` sends
   every frame a provider has and exposes none of what arrives: the
   opening request is held unexposed and channel requests land in a queue
@@ -179,6 +183,11 @@ same sequence and only `Content-Type` says which is arriving.
   an MCP event stream held open for a session both go on being produced
   until the scope ends. For MCP the remedy is MCP's own `DELETE`; for a
   read there is none.
+- **`Sync` on the proxies' boxed streams is probably wrong.** The only
+  consumer owns the stream and polls it through `&mut`, so nothing needs
+  it — and it turns away `async_stream` generators, which are the
+  obvious way to write one. `connect`'s write content does not require
+  it and is the proof. Dropping it later widens and breaks nobody.
 - **`write_id` uniqueness is unpoliced.** Two outstanding writes sharing
   one sends content to the wrong channel, and only the caller could have
   prevented it.
@@ -194,16 +203,5 @@ same sequence and only `Content-Type` says which is arriving.
   from a run's own response and an authorization comes from nowhere at
   all — both reach a prospective connector out of band.
 
-`laboratories::run` gained its executor after this was written, which
-closes the largest gap above and finishes the set. It took one new
-trait — `LaboratoryConnectionAuthorizer`, the fifth thing in `client`
-and the first that is not a proxy: it forwards to nothing, it decides,
-and a denial is as ordinary an outcome as an admission. Its nickname
-stopped being optional in the same change, which took a presence byte
-off the wire and two variants off a frame error.
-
 Report 4's note that `connect`'s response documented its error as tag
-`2` where the constant said `1` is fixed. So is the `Sync` bound this
-report first listed: the proxies' boxed streams no longer require it,
-since whoever writes the answer owns the stream and polls it through
-`&mut`, and requiring it turned away the obvious way to write one.
+`2` where the constant said `1` is fixed.
