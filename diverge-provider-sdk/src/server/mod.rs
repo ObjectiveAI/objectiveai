@@ -165,8 +165,12 @@
 //! deployer as a name and an identity, and finding the directory is
 //! the deployer's, the way publishing a port already is.
 //!
-//! Nothing implements either and nothing calls them. What dispatches a
-//! request to one is the handler that is still not written.
+//! Nothing implements either. The five
+//! [`volumes`](crate::endpoints::volumes) endpoints each have a
+//! `server::handle` that calls a [`volume_manager`], which is the first
+//! thing in this crate to consume one of these traits; nothing calls a
+//! [`container_deployer`] yet. What is missing in front of both is the
+//! dispatch that reads a request's tag and picks which to call.
 
 pub mod channel;
 pub mod client_registry;

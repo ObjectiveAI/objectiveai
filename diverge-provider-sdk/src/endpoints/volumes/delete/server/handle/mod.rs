@@ -2,11 +2,11 @@
 //!
 //! [`handle`] takes the scope a
 //! [`Session`](crate::server::session::Session) yielded and
-//! resizes the volume.
+//! removes the volume.
 //!
 //! Its own files are flattened into it, so everything is named
 //! through this module and not through the file it lives in.
 
-mod handler;
+mod handle;
 
-pub use handler::*;
+pub use handle::*;

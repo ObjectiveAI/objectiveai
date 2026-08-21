@@ -5,7 +5,7 @@
 //!
 //! # And, behind the `server` feature, a way to answer it
 //!
-//! [`handler`] performs the exchange rather than describing it: hand it
+//! [`handle`] performs the exchange rather than describing it: hand it
 //! the [`ScopeHandle`](crate::server::scope_handle::ScopeHandle) a
 //! [`Session`](crate::server::session::Session) yielded, whose caller
 //! it is, and a
@@ -21,4 +21,4 @@
 pub mod response;
 
 #[cfg(feature = "server")]
-pub mod handler;
+pub mod handle;
