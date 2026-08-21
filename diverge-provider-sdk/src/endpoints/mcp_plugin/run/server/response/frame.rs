@@ -1,16 +1,13 @@
 //! What a server's response frame carries for an MCP plugin.
 
-use std::fmt;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::error::Error;
 
 /// The plugin did not come up.
 ///
-/// The only thing a run's scope ever says. A payload leads with one
-/// byte — `0`, and nothing else is defined — and the rest is the
-/// error.
+/// The only thing a run's scope ever says, and the whole payload — no
+/// tag, because there is nothing to discriminate.
 ///
 /// | the scope | means |
 /// |-----------|-------|
@@ -68,16 +65,18 @@ use crate::shared::error::Error;
 /// it takes no [`mounts`], and a caller with no way to read or write
 /// inside it has nothing to do with a tree of it.
 ///
-/// # Why a struct with a tag, rather than the error alone
+/// # A struct, and no tag
 ///
-/// The tag is what leaves room. One kind of response today is not a
-/// promise of one forever, and a payload that was bare error bytes
-/// could not grow a second kind without every existing reader
-/// misreading it. One byte holds that door open.
+/// This was an enum — a readiness signal beside the failure — and its
+/// tag byte told the two apart. With one variant left there is nothing
+/// to tell apart, so the byte went with the variant that justified it.
 ///
-/// A struct rather than a one-variant enum for the reason this crate
-/// uses everywhere: an enum with nothing to choose between implies a
-/// decision nobody makes.
+/// It is not held open against a second kind of answer arriving later.
+/// A tag spent on a choice nobody is making is a byte on every frame
+/// and a case in every reader, paid now for something that may never
+/// happen — which is the same trade
+/// [`write_path`](crate::shared::container::write_path::response::Frame)
+/// looked at and declined.
 ///
 /// [`mounts`]: crate::endpoints::laboratories::run::client::request::Frame::mounts
 #[derive(Debug, Clone, PartialEq)]
@@ -89,73 +88,28 @@ pub struct Frame(
     pub Error,
 );
 
-/// Tag for [`Frame`].
-const ERROR: u8 = 0;
-
-/// A tag, then the error's JSON.
+/// The error's JSON, and nothing in front of it.
 impl Encode for Frame {
-    /// The ordinary JSON failure. The tag cannot fail.
+    /// The ordinary JSON failure, which is the error's own.
     type Error = serde_json::Error;
 
     // Spelled out rather than `Self::Error`: this struct's field is a
     // type called `Error`, so the associated type is ambiguous by that
     // name.
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), serde_json::Error> {
-        out.extend_from_slice(&[ERROR]);
         self.0.encode(out)
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Three ways to fail, and only one of them is a parse.
-    type Error = FrameError;
+    /// The ordinary JSON failure, which is the error's own. There is
+    /// nothing else here to get wrong — no tag to be unknown, and no
+    /// empty case, since no bytes at all is a JSON document that ended
+    /// too early and is reported as one.
+    type Error = serde_json::Error;
 
     // Spelled out for the same reason as `encode` above.
-    fn decode(bytes: &[u8]) -> Result<Self, FrameError> {
-        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
-        match *tag {
-            ERROR => Error::decode(rest).map(Frame).map_err(FrameError::Error),
-            tag => Err(FrameError::UnknownTag(tag)),
-        }
-    }
-}
-
-/// An MCP plugin response frame that could not be read.
-#[derive(Debug)]
-pub enum FrameError {
-    /// No bytes at all, so not even a tag.
-    Empty,
-    /// A tag that is not this frame's one.
-    ///
-    /// Which is how a response kind added later arrives at a reader
-    /// built before it — as something unreadable rather than as an
-    /// error that was never sent.
-    UnknownTag(u8),
-    /// The error did not parse.
-    Error(serde_json::Error),
-}
-
-impl fmt::Display for FrameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FrameError::Empty => {
-                f.write_str("mcp plugin response frame is empty")
-            }
-            FrameError::UnknownTag(tag) => {
-                write!(f, "unknown mcp plugin response frame tag {tag}")
-            }
-            FrameError::Error(error) => {
-                write!(f, "mcp plugin error did not parse: {error}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for FrameError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            FrameError::Error(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
-        }
+    fn decode(bytes: &[u8]) -> Result<Self, serde_json::Error> {
+        Error::decode(bytes).map(Frame)
     }
 }

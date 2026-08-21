@@ -1,6 +1,7 @@
 //! Asking what a provider is.
 
 use std::fmt;
+use std::str::Utf8Error;
 
 use super::super::request;
 use super::super::super::server::response;
@@ -107,12 +108,11 @@ pub enum ExecuteError {
     /// same bytes before forwarding them and discards what will not
     /// parse.
     Frame(frame::FrameError),
-    /// The answer did not parse.
+    /// The answer was not UTF-8.
     ///
-    /// Which includes a tag this build does not know — an answer kind
-    /// added after it was compiled arrives here rather than as
-    /// silence.
-    Response(response::FrameError),
+    /// The payload is the version and nothing else, so this is the
+    /// only way reading one can go wrong.
+    Response(Utf8Error),
 }
 
 impl fmt::Display for ExecuteError {
@@ -131,7 +131,7 @@ impl fmt::Display for ExecuteError {
                 write!(f, "version answer did not decode: {error}")
             }
             ExecuteError::Response(error) => {
-                write!(f, "version answer did not parse: {error}")
+                write!(f, "version answer was not utf-8: {error}")
             }
         }
     }

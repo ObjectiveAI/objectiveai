@@ -345,10 +345,10 @@ pub enum RunError {
     Misrouted,
     /// The response frame did not parse.
     ///
-    /// Which includes a tag this build does not know — a response kind
-    /// added after it was compiled arrives here rather than as
-    /// silence.
-    Response(response::FrameError),
+    /// The payload is the provider's error as JSON and nothing else,
+    /// so this is that JSON being wrong — there is no tag to be
+    /// unknown and no envelope to be malformed.
+    Response(serde_json::Error),
     /// The plugin did not come up, and the provider said why.
     ///
     /// The image would not pull, the container would not start,
