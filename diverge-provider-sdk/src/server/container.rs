@@ -53,10 +53,12 @@ pub trait Container: Send + Sync {
     /// disk that filled — these belong to a runtime and a kernel, and
     /// this crate names neither.
     ///
-    /// One type for all three methods, because a provider that told
-    /// them apart would be doing it for its own benefit rather than
-    /// this crate's. Nothing here branches on which operation failed;
-    /// what it does with one is put it on the wire.
+    /// One type for both methods that can fail, because a provider
+    /// that told them apart would be doing it for its own benefit
+    /// rather than this crate's. Nothing here branches on which
+    /// operation failed; what it does with one is put it on the wire.
+    ///
+    /// [`stop`](Self::stop) is not one of them — see it for why.
     ///
     /// It need not be the same type a deploy fails with. A provider
     /// whose deploy and whose reads go wrong in the same ways uses one
@@ -73,25 +75,39 @@ pub trait Container: Send + Sync {
     /// Returns when the container is stopped, the way a deploy returns
     /// when it is running. Not when a stop has been requested, not when
     /// a signal has been sent — an implementation that waits for
-    /// something waits before it returns [`Ok`].
+    /// something waits before it resolves.
     ///
-    /// # A container that is already gone is a stop that worked
+    /// # It cannot fail, and the reason is not optimism
     ///
-    /// Because what a caller wanted is the state, not the act. A
-    /// container that exited on its own, or crashed, or was stopped by
-    /// something else, is a container that is not running — which is
-    /// the whole of what was asked for.
+    /// Two things would have gone in a [`Result`] and neither belongs
+    /// there.
     ///
-    /// The alternative is an error every caller has to recognise and
-    /// then ignore, which is a way of writing the same rule in every
-    /// caller instead of once here.
+    /// A container that is ALREADY GONE is not a failure. It exited on
+    /// its own, or crashed, or something else stopped it — and what was
+    /// asked for is the state rather than the act, so a container that
+    /// is not running is the whole of it. An error there would be one
+    /// every caller has to recognise and then ignore, which is writing
+    /// the same rule in every caller instead of once here.
+    ///
+    /// A container that WILL NOT stop is a failure, and there is
+    /// nothing to do about it. No frame means "the container would not
+    /// stop": a scope ends when its provider finishes it, and it
+    /// finishes either way. The error would have nowhere to go and no
+    /// caller able to act on it.
+    ///
+    /// What an implementation does about the second is its own business
+    /// — retry it, log it, leave it for whatever reaps stragglers. That
+    /// is operational, and this protocol has no opinion.
+    ///
+    /// Which leaves one thing this future means: as far as the provider
+    /// is concerned, that container is done.
     ///
     /// # What it does to the scope is not this
     ///
     /// A scope ends when its provider finishes it, and stopping a
     /// container is one of the things that leads to that. This does not
     /// send a frame and does not know there is one to send.
-    fn stop(&self) -> impl Future<Output = Result<(), Self::Error>> + Send;
+    fn stop(&self) -> impl Future<Output = ()> + Send;
 
     /// Read one file out of it.
     ///
