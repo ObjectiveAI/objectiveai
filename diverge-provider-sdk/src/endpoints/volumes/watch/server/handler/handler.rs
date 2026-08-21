@@ -46,9 +46,9 @@ use crate::shared::error::Error;
 /// to say and saying it is the whole message. So a frame arriving on
 /// any channel of this scope is the stop, and nothing here decodes it.
 pub async fn handle<M>(
-    manager: &M,
-    client_identity: &str,
     mut scope: ScopeHandle,
+    client_identity: &str,
+    manager: &M,
 ) where
     M: VolumeManager,
     M::Error: Into<Error>,

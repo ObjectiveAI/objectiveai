@@ -6,10 +6,11 @@
 //! # And, behind the `server` feature, a way to answer it
 //!
 //! [`handler`] performs the exchange rather than describing it: hand it
-//! a [`VolumeManager`](crate::server::volume_manager::VolumeManager),
-//! whose caller it is, and the
-//! [`ScopeHandle`](crate::server::scope_handle::ScopeHandle) a
-//! [`Session`](crate::server::session::Session) yielded, and it
+//! the [`ScopeHandle`](crate::server::scope_handle::ScopeHandle) a
+//! [`Session`](crate::server::session::Session) yielded, whose caller
+//! it is, and a
+//! [`VolumeManager`](crate::server::volume_manager::VolumeManager), and
+//! it
 //! answers with the volumes.
 //!
 //! It is the mirror of [`execute`](super::client::execute) on the other
