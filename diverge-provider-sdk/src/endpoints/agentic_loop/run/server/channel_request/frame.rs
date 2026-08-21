@@ -1,8 +1,5 @@
 //! What a server's request frame carries.
 
-use std::error::Error;
-use std::fmt;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::shared::http::request::Request;
@@ -34,17 +31,18 @@ use crate::shared::http::request::Request;
 /// regardless — see
 /// [`Request::body`](crate::shared::http::request::Request::body).
 ///
-/// # A struct, and still a tag byte
+/// # A struct, and no tag
 ///
 /// One thing to ask for is a struct; an enum of one variant would be a
-/// discriminant with nothing to discriminate.
+/// discriminant with nothing to discriminate — and a tag byte is that
+/// discriminant written on the wire, so it goes for the same reason.
 ///
-/// The byte stays anyway, for the same reason
+/// It is not held open against a second thing to ask for. A tag spent
+/// on a choice nobody is making is a byte on every frame and a case in
+/// every reader, paid now for something that may never happen — which
+/// is the trade
 /// [`write_path`](crate::shared::container::write_path::response::Frame)
-/// spends one: a second thing to ask a client for is additive if there
-/// is a tag to add to, and a wire break if there is not. Whoever adds
-/// one turns this into an enum with `Mcp` at tag `0` and changes
-/// nothing on the wire.
+/// looked at and declined.
 ///
 /// The frame's own `type` could have carried the discrimination — it
 /// is right there in the header — and deliberately does not. A frame
@@ -71,66 +69,22 @@ pub struct Frame<'a>(
     pub Request<'a>,
 );
 
-/// The tag that says this is an MCP exchange.
-const MCP: u8 = 0;
-
+/// The request's own bytes, and nothing in front of them.
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure. The tag cannot fail.
+    /// The ordinary JSON failure, which is the request's own.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        out.extend_from_slice(&[MCP]);
         self.0.encode(out)
     }
 }
 
 impl<'a> Decode<'a> for Frame<'a> {
-    /// Three ways to fail, and only one of them is JSON.
-    type Error = FrameError;
+    /// The ordinary JSON failure, which is the request's own. There is
+    /// nothing else here to get wrong.
+    type Error = serde_json::Error;
 
     fn decode(bytes: &'a [u8]) -> Result<Self, Self::Error> {
-        let (tag, rest) = bytes.split_first().ok_or(FrameError::Empty)?;
-        if *tag != MCP {
-            return Err(FrameError::UnknownTag(*tag));
-        }
-        Request::decode(rest).map(Frame).map_err(FrameError::Mcp)
-    }
-}
-
-/// A server request frame that could not be read.
-#[derive(Debug)]
-pub enum FrameError {
-    /// No bytes at all, so not even a tag.
-    Empty,
-    /// A tag this version does not define.
-    ///
-    /// Which is what a server asking for something else will send,
-    /// once there is something else to ask for. Until then it is a
-    /// peer that disagrees about the protocol.
-    UnknownTag(u8),
-    /// The MCP request did not parse.
-    Mcp(serde_json::Error),
-}
-
-impl fmt::Display for FrameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FrameError::Empty => f.write_str("server request frame is empty"),
-            FrameError::UnknownTag(tag) => {
-                write!(f, "unknown server request frame tag {tag}")
-            }
-            FrameError::Mcp(error) => {
-                write!(f, "mcp request did not parse: {error}")
-            }
-        }
-    }
-}
-
-impl Error for FrameError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            FrameError::Mcp(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
-        }
+        Request::decode(bytes).map(Frame)
     }
 }

@@ -1,8 +1,5 @@
 //! What a client's channel request frame carries for a watch.
 
-use std::error::Error;
-use std::fmt;
-
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -50,56 +47,27 @@ use crate::encode::{Encode, Writer};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Frame;
 
-/// The tag that says stop watching.
-const DISCONNECT: u8 = 0;
-
+/// Nothing at all. The frame is the whole message: which channel it
+/// arrived on says it is this scope's, and there is nothing else this
+/// scope's caller can say.
 impl Encode for Frame {
-    /// [`Infallible`](std::convert::Infallible): one known byte.
+    /// [`Infallible`](std::convert::Infallible): no bytes.
     type Error = std::convert::Infallible;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
-        out.extend_from_slice(&[DISCONNECT]);
+    fn encode(&self, _out: &mut Writer<'_>) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
 impl Decode<'_> for Frame {
-    /// Two ways to fail, and neither is a parse.
-    type Error = FrameError;
+    /// [`Infallible`](std::convert::Infallible): there is nothing to
+    /// read.
+    type Error = std::convert::Infallible;
 
-    fn decode(bytes: &[u8]) -> Result<Self, Self::Error> {
-        match bytes.first() {
-            Some(&DISCONNECT) => Ok(Frame),
-            Some(&byte) => Err(FrameError::UnknownTag(byte)),
-            None => Err(FrameError::Empty),
-        }
+    /// Whatever bytes arrive are ignored. There are none to send, so a
+    /// peer that sent some knows something this version does not, and
+    /// leaving room for it is cheaper than refusing it.
+    fn decode(_bytes: &[u8]) -> Result<Self, Self::Error> {
+        Ok(Frame)
     }
 }
-
-/// A watch channel request that could not be read.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum FrameError {
-    /// No bytes at all, so not even a tag.
-    Empty,
-    /// A tag this version does not define.
-    ///
-    /// Which is what a caller asking for something else will send,
-    /// once there is something else to ask for. Until then it is a
-    /// peer that disagrees about the protocol.
-    UnknownTag(u8),
-}
-
-impl fmt::Display for FrameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FrameError::Empty => {
-                f.write_str("watch channel request frame is empty")
-            }
-            FrameError::UnknownTag(tag) => {
-                write!(f, "unknown watch channel request tag {tag}")
-            }
-        }
-    }
-}
-
-impl Error for FrameError {}
