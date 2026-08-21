@@ -142,6 +142,7 @@ pub mod channel;
 pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
+pub mod content_error;
 pub mod deployment;
 mod notice;
 pub mod oci_stream;

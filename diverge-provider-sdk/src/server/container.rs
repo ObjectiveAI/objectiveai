@@ -6,7 +6,7 @@ use std::pin::Pin;
 use bytes::Bytes;
 use futures_util::Stream;
 
-use crate::shared::error::Error;
+use super::content_error::ContentError;
 
 /// A running container, as far as this crate needs one.
 ///
@@ -168,18 +168,29 @@ pub trait Container: Send + Sync {
     /// prefix of the new one. That holds whether this returns [`Ok`] or
     /// not, and callers are told it does.
     ///
-    /// # The content's errors are the CALLER's
+    /// # The content can come from two places
     ///
-    /// Which is the one asymmetry here.
-    /// [`Self::Error`](Self::Error) is the provider's, and it is what
-    /// this returns — but the [`Error`] inside the stream came off the
-    /// wire, from whoever is supplying the bytes.
+    /// Which is why its errors are a [`ContentError`] rather than one
+    /// type. A caller's content arrives over the wire and fails in the
+    /// caller's vocabulary; a
+    /// [`transfer`](crate::shared::container::transfer)'s comes from a
+    /// [`read`](Self::read) on another container in this same process
+    /// and fails in the provider's. See [`ContentError`] for why
+    /// neither collapses into the other.
     ///
-    /// So an [`Err`] item is not a failure of the container. It is the
-    /// far end saying its content stopped, which the endpoint's frame
-    /// calls "the full content was not streamed". An implementation
-    /// that sees one abandons the write and reports whatever it makes
-    /// of that — there is nothing partial at the path either way.
+    /// Either way an [`Err`] item is not a failure of the container
+    /// being written into. It is the source saying it has no more to
+    /// give — what the endpoint's frame calls "the full content was not
+    /// streamed" — and an implementation that sees one abandons the
+    /// write. There is nothing partial at the path either way.
+    ///
+    /// # What it RETURNS is still the provider's
+    ///
+    /// [`Self::Error`](Self::Error), whatever ended the content. A
+    /// write abandoned because its source stopped is still a write that
+    /// did not land, and this reports what the container made of that
+    /// rather than repeating why the bytes ran out — which the thing
+    /// supplying them already knows.
     ///
     /// # Boxed rather than generic
     ///
@@ -195,6 +206,11 @@ pub trait Container: Send + Sync {
     fn write(
         &self,
         path: &[String],
-        content: Pin<Box<dyn Stream<Item = Result<Bytes, Error>> + Send>>,
+        content: Pin<
+            Box<
+                dyn Stream<Item = Result<Bytes, ContentError<Self::Error>>>
+                    + Send,
+            >,
+        >,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
