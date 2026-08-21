@@ -95,11 +95,15 @@
 //!
 //! # What is not here yet
 //!
-//! **Reading.** A scope can be answered, finished, and have channels
-//! opened inside it — but the request that opened it is not exposed,
-//! and the channel requests a client opens cannot be taken off their
-//! queue. So the writing half is done and the reading half is not, and
-//! nothing built on this is usable end to end yet.
+//! **Dispatch.** A scope can now be read as well as written —
+//! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
+//! out the payload and
+//! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
+//! takes the channels off their queue — and the five
+//! [`volumes`](crate::endpoints::volumes) endpoints have handlers that
+//! use both. What is missing is the thing in front of them: nothing
+//! reads the leading tag byte of a request and decides which handler it
+//! belongs to, so the pieces exist and nothing wires them together.
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a

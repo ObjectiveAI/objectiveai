@@ -74,12 +74,8 @@ pub struct ScopeHandle {
     ///
     /// Whole, header included, though nothing here needs the header —
     /// the type is always `1` and the channel always `0`, and the scope
-    /// is already a field. It stays because slicing it off is a
-    /// decision for whatever hands the payload out, and that is not
-    /// written.
-    // The one field with no reader yet. The attribute goes when
-    // something exposes the request.
-    #[allow(dead_code)]
+    /// is already a field. [`request`](Self::request) is what slices it
+    /// off.
     request: Bytes,
     /// The channels the client opens inside this scope.
     ///
@@ -210,6 +206,55 @@ impl ScopeHandle {
             sink,
             buffer: Vec::new(),
         }
+    }
+
+    /// What was asked, without the header.
+    ///
+    /// The payload of the frame that opened this scope: a tag byte
+    /// saying which request it is, then that request's own bytes. It is
+    /// what [`ClientRequest`](crate::endpoints::ClientRequest) decodes,
+    /// and what an endpoint's own `request::Frame` decodes.
+    ///
+    /// Borrowed rather than handed over, because everything decoded out
+    /// of it borrows from it — a `ClientRequest` holds slices of these
+    /// bytes, so it cannot outlive the handle.
+    ///
+    /// The header is sliced off here rather than left to a caller. It
+    /// carries nothing a reader of this does not already have: the type
+    /// is always `1`, the channel always `0`, and the scope is
+    /// [`ScopeHandle`]'s own.
+    pub fn request(&self) -> &[u8] {
+        // The session parsed a header out of these very bytes before
+        // building this, so the slice is always there.
+        self.request.get(crate::frame::HEADER_LEN..).unwrap_or_default()
+    }
+
+    /// Take the next channel the client opened inside this scope.
+    ///
+    /// [`None`] when the client will open no more — it left, or the
+    /// connection did. A scope whose client is gone can still be
+    /// answered into the void, so this is the earliest a provider
+    /// learns to stop working.
+    ///
+    /// # Whole frames
+    ///
+    /// Header included, unlike [`request`](Self::request), because a
+    /// caller needs what is in it: the channel number is the CLIENT's,
+    /// and it is what
+    /// [`send_channel_response`](Self::send_channel_response) has to
+    /// quote to be understood. Slicing it off here would throw away the
+    /// one thing that makes an answer addressable.
+    ///
+    /// # It is cancel-safe
+    ///
+    /// Nothing is taken off the queue by a poll that does not complete,
+    /// so this can lose a `select` and be called again without dropping
+    /// a channel request. Which is what a stream-shaped scope needs — a
+    /// [`watch`](crate::endpoints::volumes::watch) races this against
+    /// the tree it is reporting, and one of the two loses every time
+    /// round.
+    pub async fn recv_channel_request(&mut self) -> Option<Bytes> {
+        self.channel_request_receiver.recv().await
     }
 
     /// Answer, on the scope's own stream.
