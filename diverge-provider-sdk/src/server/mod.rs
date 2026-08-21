@@ -99,9 +99,11 @@
 //! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
 //! out the payload and
 //! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and the five
-//! [`volumes`](crate::endpoints::volumes) endpoints have handlers that
-//! use both. What is missing is the thing in front of them: nothing
+//! takes the channels off their queue — and six endpoints have a
+//! `server::handle` that uses them: the five
+//! [`volumes`](crate::endpoints::volumes) and
+//! [`version`](crate::endpoints::version). What is missing is the thing
+//! in front of them: nothing
 //! reads the leading tag byte of a request and decides which handler it
 //! belongs to, so the pieces exist and nothing wires them together.
 //!
@@ -171,6 +173,10 @@
 //! thing in this crate to consume one of these traits; nothing calls a
 //! [`container_deployer`] yet. What is missing in front of both is the
 //! dispatch that reads a request's tag and picks which to call.
+//!
+//! [`version`](crate::endpoints::version) has a handler too and asks
+//! for neither, its answer being a compile-time constant. It is the one
+//! request a provider can serve without supplying anything at all.
 
 pub mod channel;
 pub mod client_registry;
