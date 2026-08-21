@@ -70,18 +70,16 @@ pub struct ClientRegistry<'a> {
     /// capture: what varies between endpoints is which enum the
     /// request goes into, and that is known at the call site without
     /// any state.
-    wrap: Wrap,
+    ///
+    /// Written out rather than aliased, here and in
+    /// [`new`](Self::new). An alias would be a second name for a
+    /// signature a reader has to know anyway to supply one, and this
+    /// crate keeps aliases for frames.
+    wrap: fn(
+        request::Request<'_>,
+        &mut Writer<'_>,
+    ) -> Result<(), serde_json::Error>,
 }
-
-/// Putting a registry request into whichever channel-request frame the
-/// endpoint uses.
-///
-/// Written out as its own name because it appears twice — once as a
-/// field and once as an argument — and a reader meeting it in a
-/// signature should not have to hold four lifetimes in their head to
-/// see that it is "encode this request, somehow".
-pub type Wrap =
-    fn(request::Request<'_>, &mut Writer<'_>) -> Result<(), serde_json::Error>;
 
 impl<'a> ClientRegistry<'a> {
     /// Point one at a scope.
@@ -98,7 +96,13 @@ impl<'a> ClientRegistry<'a> {
     ///     channel_request::Frame::Oci(request).encode(out)
     /// })
     /// ```
-    pub fn new(scope_handle: &'a mut ScopeHandle, wrap: Wrap) -> Self {
+    pub fn new(
+        scope_handle: &'a mut ScopeHandle,
+        wrap: fn(
+            request::Request<'_>,
+            &mut Writer<'_>,
+        ) -> Result<(), serde_json::Error>,
+    ) -> Self {
         ClientRegistry { scope_handle, wrap }
     }
 
