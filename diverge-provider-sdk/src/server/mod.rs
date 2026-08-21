@@ -112,8 +112,33 @@
 //! client half had a shape. It is gone rather than carried — what
 //! answers requests should be built knowing how the reading was solved,
 //! not around a sketch that predates it.
+//!
+//! # And what a provider supplies
+//!
+//! [`container_deployer`] is the first thing this half asks FOR rather
+//! than provides, and it mirrors what [`client`](crate::client) has
+//! five of: a trait a provider implements, so that the part this crate
+//! cannot know — where a container actually runs — is somebody else's.
+//!
+//! It is generic across the three endpoints that put a container
+//! somewhere, because they differ in what goes in one and not in how
+//! one is deployed. What it is handed is a [`deployment`], and what it
+//! hands back is whatever that provider holds a running container by.
+//!
+//! [`client_registry`] is the piece that goes with it, and it is a
+//! concrete type rather than a trait: pulling an image the CALLER
+//! serves means opening a channel on a scope, which is this crate's
+//! machinery and not something a provider could implement. What comes
+//! back on one is an [`oci_stream`].
+//!
+//! Nothing implements the trait and nothing calls it. What dispatches a
+//! request to it is the handler that is still not written.
 
 pub mod channel;
+pub mod client_registry;
+pub mod container_deployer;
+pub mod deployment;
 mod notice;
+pub mod oci_stream;
 pub mod scope_handle;
 pub mod session;
