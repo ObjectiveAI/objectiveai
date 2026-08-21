@@ -124,8 +124,10 @@
 //! somewhere, because they differ in what goes in one and not in how
 //! one is deployed. What it is handed is a [`deployment`], and what it
 //! hands back is a [`container`] — whatever that provider holds a
-//! running container by, with the one method nothing else can do for
-//! it.
+//! running container by, with the three things nothing else can do for
+//! it: stopping it, and reading and writing a file inside it. What can
+//! be done from OUTSIDE, like an MCP exchange against a port, is
+//! relayed and needs no method.
 //!
 //! [`client_registry`] is the piece that goes with it, and it is a
 //! concrete type rather than a trait: pulling an image the CALLER
