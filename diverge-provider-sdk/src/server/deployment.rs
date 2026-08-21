@@ -2,7 +2,7 @@
 
 use indexmap::IndexMap;
 
-use crate::shared::container::request::Mount;
+use super::mount::Mount;
 
 /// A container to put somewhere, minus the image.
 ///
@@ -45,7 +45,13 @@ use crate::shared::container::request::Mount;
 /// environment "by its own reserved names", so a handler folds them in
 /// and what arrives here is [`environment`](Self::environment).
 ///
-/// Its three ports ARE, and are [`ports`](Self::ports).
+/// Its ports ARE, and are [`ports`](Self::ports).
+///
+/// The [`client_identity`](Mount::client_identity) on a
+/// [`Mount`] is not that `identity` and does not contradict this. That
+/// one is what a plugin is told about its caller; this one is what the
+/// provider knows about its own, and it is here because a volume name
+/// cannot be resolved without it.
 ///
 /// A laboratory's `initial_cwd` is where an agent's shell starts, not
 /// where the container's entrypoint runs — `mcp_plugin` says as much
@@ -87,8 +93,12 @@ pub struct Deployment {
     /// mounting a caller's directories into one would hand it access it
     /// has no reason to want.
     ///
-    /// See [`Mount`] for why the host side is a name and an offset
-    /// rather than a path.
+    /// Not the [`Mount`](crate::shared::container::request::Mount) a
+    /// caller sent. [`server::Mount`](Mount) is that one plus the
+    /// caller it came from, because a volume's name is unique within
+    /// the caller it was listed to and means nothing on its own — so a
+    /// handler pairs each with whoever it authenticated before putting
+    /// it here.
     pub mounts: Vec<Mount>,
     /// The ports inside the container that must be reachable.
     ///

@@ -132,6 +132,12 @@
 //! That last one is a byte pipe rather than an HTTP client, because
 //! more than one protocol runs over it and always did.
 //!
+//! A deployment's [`mount`] is the one piece of it that is not simply
+//! copied out of a request. A caller names a volume, and a name is
+//! unique within the caller it was listed to — so what a handler puts
+//! in a deployment is the name together with whoever it authenticated,
+//! which is a fact only this half of the connection has.
+//!
 //! [`client_registry`] is the piece that goes with it, and it is a
 //! concrete type rather than a trait: pulling an image the CALLER
 //! serves means opening a channel on a scope, which is this crate's
@@ -146,6 +152,7 @@ pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
+pub mod mount;
 mod notice;
 pub mod oci_stream;
 pub mod scope_handle;
