@@ -28,11 +28,11 @@ use crate::shared::error::Error;
 /// There was one, and it was removed, because it could not mean what
 /// it appeared to. A provider knows when a CONTAINER has started, and
 /// that is not the same fact as the MCP server inside it having bound
-/// [`port`](crate::endpoints::mcp_plugin::run::client::request::Frame::port).
+/// [`mcp_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port).
 /// A signal sent at the first would have been read as the second.
 ///
 /// The honest test is a call. This endpoint already relies on that
-/// elsewhere — a wrong `port` is documented as surfacing "as an
+/// elsewhere — a wrong `mcp_port` is documented as surfacing "as an
 /// exchange that finishes without an answer, rather than when the
 /// plugin started" — so a caller that wants to know whether the plugin
 /// is up asks it something, and a readiness frame would have been a

@@ -16,6 +16,32 @@ use crate::shared::container::request::Image;
 /// chooses the name, the labels and the entrypoint — with the
 /// injection removed and the configuration added.
 ///
+/// # Three ports, and they are all the container's
+///
+/// [`mcp_port`](Self::mcp_port),
+/// [`postgres_port`](Self::postgres_port) and
+/// [`command_port`](Self::command_port) are the three sockets a
+/// provider opens INTO this container. They are ports inside it, not
+/// host ones — what a provider reaches them as is its own business and
+/// no caller will see it.
+///
+/// The caller states them because only the image's author knows what
+/// the image binds. A
+/// [`laboratory`](crate::endpoints::laboratories::run::client::request::Frame)
+/// has none of these: a provider puts the server in a laboratory
+/// itself and therefore picks its own numbers. Here everything arrived
+/// with the image, already bound to something.
+///
+/// # A wrong one is not detectable from here
+///
+/// The container starts fine and nothing answers. Which is true of all
+/// three and shows up differently in each: a wrong
+/// [`mcp_port`](Self::mcp_port) is an exchange that finishes without a
+/// head, and a wrong
+/// [`postgres_port`](Self::postgres_port) or
+/// [`command_port`](Self::command_port) is a conduit that never
+/// carries anything, because the provider connected to nothing.
+///
 /// # What is missing, and why it is missing rather than ignored
 ///
 /// A laboratory takes `mounts` and an `initial_cwd`. Neither appears
@@ -74,21 +100,36 @@ pub struct Frame {
     /// appear twice with values that contradict each other.
     #[serde(default, skip_serializing_if = "IndexMap::is_empty")]
     pub environment: IndexMap<String, String>,
-    /// What port the plugin's MCP server listens on, inside the
+    /// Where the plugin's MCP server listens, inside the container.
+    ///
+    /// A provider connects to it and relays a caller's
+    /// [`Mcp`](crate::endpoints::mcp_plugin::run::client::channel_request::Frame::Mcp)
+    /// exchanges in. It is the only one of the three where the
+    /// connection and the requests run the same way round.
+    pub mcp_port: u16,
+    /// Where the plugin listens for its database conduit, inside the
     /// container.
     ///
-    /// The caller states it because only the image's author knows it.
-    /// A laboratory does not have this field: the provider puts the
-    /// server there and therefore assigns the port. Here the server
-    /// arrived with the image, already bound to something.
+    /// A provider connects to it, and then the traffic runs the other
+    /// way: what the plugin writes comes OUT of that socket and goes to
+    /// the caller's database, and the answers come back down it. See
+    /// [`Postgres`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Postgres)
+    /// for the pair of channels that carries it.
     ///
-    /// This is the CONTAINER's port, not a host one. What a provider
-    /// publishes it as is the provider's business and no caller will
-    /// see it.
+    /// So a provider dials in and then serves. Which is the only shape
+    /// available: a provider cannot put a listening socket inside
+    /// somebody else's container, so if a plugin wants something dialled
+    /// FOR it, the plugin is the one that has to be listening.
+    pub postgres_port: u16,
+    /// Where the plugin listens for its command conduit, inside the
+    /// container.
     ///
-    /// A wrong value is not detectable from here. The container starts
-    /// fine and nothing answers.
-    pub port: u16,
+    /// The same shape as
+    /// [`postgres_port`](Self::postgres_port): a provider connects, and
+    /// then the plugin asks for commands to be run and the provider
+    /// relays them to the caller. See
+    /// [`Command`](crate::endpoints::mcp_plugin::run::server::channel_request::Frame::Command).
+    pub command_port: u16,
     /// The plugin's configuration.
     ///
     /// Whatever its author defined, and this specification has no

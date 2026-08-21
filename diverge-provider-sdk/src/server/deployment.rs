@@ -45,7 +45,7 @@ use crate::shared::container::request::Mount;
 /// environment "by its own reserved names", so a handler folds them in
 /// and what arrives here is [`environment`](Self::environment).
 ///
-/// Its `port` IS one, and is [`ports`](Self::ports).
+/// Its three ports ARE, and are [`ports`](Self::ports).
 ///
 /// A laboratory's `initial_cwd` is where an agent's shell starts, not
 /// where the container's entrypoint runs — `mcp_plugin` says as much
@@ -115,11 +115,11 @@ pub struct Deployment {
     ///
     /// # More than one, because one is not the rule
     ///
-    /// An [`mcp_plugin`](crate::endpoints::mcp_plugin::run) declares
-    /// the port its server listens on and that is usually all. A
-    /// provider that arranges something else for itself — a conduit to
-    /// a database, a sidecar it dials — needs somewhere to say so, and
-    /// this is it.
+    /// An [`mcp_plugin`](crate::endpoints::mcp_plugin::run) names
+    /// three on its own: where its MCP server listens, and where it
+    /// listens for the database and command conduits a provider dials
+    /// in to. A provider that arranges something further for itself
+    /// needs somewhere to say so, and this is it.
     ///
     /// Order means nothing and duplicates mean nothing. Empty is a
     /// container nothing reaches over a socket, which is ordinary.

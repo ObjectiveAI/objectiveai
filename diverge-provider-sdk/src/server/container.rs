@@ -202,7 +202,7 @@ pub trait Container: Send + Sync {
     ///
     /// It is an [`Err`] here. Nothing listening on that port is the
     /// ordinary case rather than an exceptional one —
-    /// [`mcp_plugin`](crate::endpoints::mcp_plugin::run::client::request::Frame::port)
+    /// [`mcp_plugin`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port)
     /// documents a wrong port as exactly that — and folding it into the
     /// [`Reader`](Self::Reader) would make "could not connect"
     /// indistinguishable from "connected, then closed".

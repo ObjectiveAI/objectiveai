@@ -51,12 +51,12 @@ pub enum Frame<'a> {
     /// A laboratory's MCP server was put there by the provider, so the
     /// provider chose its port. A plugin's arrived with the image and
     /// bound whatever its author chose, which the caller stated as
-    /// [`port`](crate::endpoints::mcp_plugin::run::client::request::Frame::port).
+    /// [`mcp_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port).
     /// Both end up as an HTTP request written onto a socket inside the
     /// container. Nothing about the relaying differs; only what it was
     /// aimed at, and that was settled before the container started.
     ///
-    /// Which means a wrong `port` surfaces HERE, as an exchange that
+    /// Which means a wrong `mcp_port` surfaces HERE, as an exchange that
     /// finishes without an answer, rather than when the plugin
     /// started — the container came up fine, and there was never
     /// anything to discover.
