@@ -115,10 +115,13 @@
 //!
 //! # And what a provider supplies
 //!
-//! [`container_deployer`] is the first thing this half asks FOR rather
-//! than provides, and it mirrors what [`client`](crate::client) has
-//! five of: a trait a provider implements, so that the part this crate
-//! cannot know — where a container actually runs — is somebody else's.
+//! Two traits, which are what this half asks FOR rather than provides.
+//! They mirror what [`client`](crate::client) has five of: something a
+//! provider implements, so that the parts this crate cannot know are
+//! somebody else's.
+//!
+//! [`container_deployer`] is the first — where a container actually
+//! runs.
 //!
 //! It is generic across the three endpoints that put a container
 //! somewhere, because they differ in what goes in one and not in how
@@ -144,8 +147,22 @@
 //! machinery and not something a provider could implement. What comes
 //! back on one is an [`oci_stream`].
 //!
-//! Nothing implements the trait and nothing calls it. What dispatches a
-//! request to it is the handler that is still not written.
+//! [`volume_manager`] is the second, and it is the other five
+//! endpoints: the directories a provider offers, listed, created,
+//! resized, deleted and watched. One trait for all of them, because
+//! they are five verbs over one namespace rather than five subjects.
+//!
+//! It takes a client identity on every method, which is the same fact
+//! a [`mount`] carries — a volume's name is unique within the caller it
+//! was listed to, so a name alone asks a question with more than one
+//! answer.
+//!
+//! The two traits do not know about each other. A mount reaches a
+//! deployer as a name and an identity, and finding the directory is
+//! the deployer's, the way publishing a port already is.
+//!
+//! Nothing implements either and nothing calls them. What dispatches a
+//! request to one is the handler that is still not written.
 
 pub mod channel;
 pub mod client_registry;
@@ -157,3 +174,4 @@ mod notice;
 pub mod oci_stream;
 pub mod scope_handle;
 pub mod session;
+pub mod volume_manager;
