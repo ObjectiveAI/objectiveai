@@ -4,7 +4,6 @@ use std::future::Future;
 
 use super::client_registry::ClientRegistry;
 use super::deployment::Deployment;
-use crate::shared::error::Error;
 
 /// What runs a container for a provider.
 ///
@@ -53,16 +52,27 @@ use crate::shared::error::Error;
 /// [`McpProxy`](crate::client::mcp_proxy::McpProxy) sat in before
 /// anything used it.
 ///
-/// # Failure is the provider's vocabulary
+/// # Failure is the provider's too
 ///
-/// [`Error`] is the opaque one every endpoint's failure variant already
-/// carries. A provider says what went wrong in whatever shape it likes
-/// and the SDK relays it — which is what would happen to a typed error
-/// anyway, one conversion later.
+/// [`Error`](Self::Error) is an associated type for the same reason
+/// [`Container`](Self::Container) is: what goes wrong deploying a
+/// container is a runtime's business, a kernel's, a registry's, and
+/// this crate knows none of them.
+///
+/// It would have been easy to require
+/// [`shared::error::Error`](crate::shared::error::Error) — the opaque
+/// one every endpoint's failure variant carries — since that is where a
+/// failure ends up. That would have made an implementation build a
+/// `serde_json::Value` at the point it has a real error in hand, which
+/// is the worst place to lose it: the type that knows most about what
+/// happened, thrown away first.
+///
+/// So a provider returns its own, and getting one onto the wire is the
+/// handler's problem — see below.
 ///
 /// There is no separate "refused" and "broke". A container that is not
-/// running is a container that is not running, and the caller's
-/// remedies are the same either way.
+/// running is a container that is not running, and a caller's remedies
+/// are the same either way.
 pub trait ContainerDeployer: Send + Sync {
     /// A running container, however this provider holds one.
     ///
@@ -73,6 +83,33 @@ pub trait ContainerDeployer: Send + Sync {
     /// Nothing else is required of it, because nothing here does
     /// anything with it yet.
     type Container: Send + 'static;
+
+    /// Why a container is not running.
+    ///
+    /// Whatever the provider's own failure type is. A runtime's exit
+    /// status, a registry's refusal, a kernel saying no — this crate
+    /// does not name any of them and does not convert one.
+    ///
+    /// [`Send`] and `'static` for the same reasons
+    /// [`Container`](Self::Container) is: the future returning it is
+    /// [`Send`], so its output has to be, and it outlives the deploy
+    /// that produced it.
+    ///
+    /// # Something will have to render one
+    ///
+    /// A failure reaches a caller as
+    /// [`shared::error::Error`](crate::shared::error::Error), which is
+    /// one JSON value and nothing else. So a handler that reports a
+    /// deploy failure needs a way to turn one of these into one, and
+    /// this trait deliberately does not say how.
+    ///
+    /// It is the same bet [`Container`](Self::Container) makes. There
+    /// is no handler yet, so requiring a conversion now would be
+    /// guessing at its shape — and an
+    /// [`Into`] bound would be this crate's error
+    /// type back in the signature under a different name, which is the
+    /// thing an associated type was for.
+    type Error: Send + 'static;
 
     /// Deploy from an image the CALLER serves.
     ///
@@ -112,7 +149,7 @@ pub trait ContainerDeployer: Send + Sync {
         name: &str,
         digest: &str,
         registry: ClientRegistry<'_>,
-    ) -> impl Future<Output = Result<Self::Container, Error>> + Send;
+    ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 
     /// Deploy from an image the PROVIDER produces.
     ///
@@ -133,7 +170,7 @@ pub trait ContainerDeployer: Send + Sync {
         deployment: &Deployment,
         name: &str,
         digest: &str,
-    ) -> impl Future<Output = Result<Self::Container, Error>> + Send;
+    ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 
     /// Deploy from wherever the CALLER says.
     ///
@@ -155,11 +192,11 @@ pub trait ContainerDeployer: Send + Sync {
     ///
     /// An implementation's to set and to enforce, and nothing in this
     /// protocol expresses it. A caller naming a host the provider will
-    /// not go to learns so by being refused, which is an [`Error`] like
-    /// any other.
+    /// not go to learns so by being refused, which is an
+    /// [`Error`](Self::Error) like any other.
     fn registry(
         &self,
         deployment: &Deployment,
         reference: &str,
-    ) -> impl Future<Output = Result<Self::Container, Error>> + Send;
+    ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;
 }
