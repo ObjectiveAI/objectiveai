@@ -11,6 +11,7 @@
 //! | [`volumes`] | list what a provider offers; watch one; make, resize or destroy one |
 //! | [`laboratories`] | run a laboratory; join one |
 //! | [`mcp_plugin`] | run a plugin, call it |
+//! | [`version`] | ask what a provider is |
 //!
 //! # The tags
 //!
@@ -31,18 +32,22 @@
 //! | `7` | [`volumes::edit`] |
 //! | `8` | [`volumes::delete`] |
 //! | `9` | [`images::check`] |
+//! | `10` | [`version`] |
 //!
-//! Ten, grouped by endpoint and ordered within it. The three
+//! Eleven, grouped by endpoint and ordered within it. The three
 //! containers lead, in the order an agent meets them — it runs in the
 //! first, calls the second, works inside the third — then joining one
 //! somebody else is running. The five volume scopes follow in the
 //! order a caller uses them: find one, watch it, make one, resize it,
-//! destroy it. [`images::check`] is last because it is the one scope
-//! that asks about something rather than doing anything.
+//! destroy it. Then the two that ask rather than do:
+//! [`images::check`], and [`version`].
 //!
-//! Nothing derives meaning from adjacency. The grouping is for whoever
-//! reads the table, and a new scope takes `10` wherever it belongs
-//! conceptually.
+//! Nothing derives meaning from adjacency, which [`version`] is the
+//! proof of — it is the one a client asks FIRST and it holds the
+//! highest tag, because tags are handed out in the order scopes were
+//! defined and nothing reads them in order. The grouping is for
+//! whoever reads the table, and a new scope takes `11` wherever it
+//! belongs conceptually.
 //!
 //! This table is the whole allocation. Each request states its own
 //! value and points here, because a value chosen in one module has to
@@ -75,4 +80,5 @@ pub mod agentic_loop;
 pub mod images;
 pub mod laboratories;
 pub mod mcp_plugin;
+pub mod version;
 pub mod volumes;

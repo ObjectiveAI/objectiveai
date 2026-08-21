@@ -3,7 +3,9 @@
 use std::convert::Infallible;
 use std::fmt;
 
-use super::{agentic_loop, images, laboratories, mcp_plugin, volumes};
+use super::{
+    agentic_loop, images, laboratories, mcp_plugin, version, volumes,
+};
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -50,6 +52,8 @@ pub enum ClientRequest<'a> {
     VolumesDelete(volumes::delete::client::request::Frame),
     /// Tag `9`. Ask whether an image can be supplied.
     ImagesCheck(images::check::client::request::Frame),
+    /// Tag `10`. Ask what the provider is.
+    Version(version::client::request::Frame),
     /// Something this version cannot read, kept as it arrived.
     ///
     /// No tag of its own. It is not a request a client sends — it is
@@ -75,8 +79,9 @@ pub enum ClientRequest<'a> {
 }
 
 impl Encode for ClientRequest<'_> {
-    /// Two ways to fail, because ten requests use two encodings
-    /// between them.
+    /// Two ways to fail, because eleven requests use two encodings
+    /// between them — and one of the eleven uses neither, having
+    /// nothing to encode.
     type Error = ClientRequestEncodeError;
 
     fn encode(
@@ -115,6 +120,11 @@ impl Encode for ClientRequest<'_> {
             }
             ClientRequest::ImagesCheck(frame) => {
                 frame.encode(out).map_err(ClientRequestEncodeError::Json)
+            }
+            ClientRequest::Version(frame) => {
+                // Its error is `Infallible`, and an empty match on one
+                // is how you say so: there is no value to handle.
+                frame.encode(out).map_err(|error| match error {})
             }
             ClientRequest::Invalid(bytes) => {
                 out.extend_from_slice(bytes);
@@ -169,6 +179,9 @@ impl<'a> Decode<'a> for ClientRequest<'a> {
                 .ok(),
             9 => images::check::client::request::Frame::decode(bytes)
                 .map(ClientRequest::ImagesCheck)
+                .ok(),
+            10 => version::client::request::Frame::decode(bytes)
+                .map(ClientRequest::Version)
                 .ok(),
             _ => None,
         };
