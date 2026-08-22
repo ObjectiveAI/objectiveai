@@ -419,8 +419,12 @@ where
             Ok(request) => request,
             // A payload that is not a request must not reach the caller
             // as though it were. Everything else on the conduit is
-            // still good, so only this exchange is dropped.
-            Err(_) => continue,
+            // still good, so only this exchange ends — and it has to
+            // END, because nothing else is ever going to answer it.
+            Err(_) => {
+                ended(&writer, message.exchange).await;
+                continue;
+            }
         };
 
         let mut bytes = Vec::new();
@@ -428,6 +432,7 @@ where
             .encode(&mut Writer::new(&mut bytes))
             .is_err()
         {
+            ended(&writer, message.exchange).await;
             continue;
         }
 
@@ -475,6 +480,24 @@ async fn exchange<W>(
         }
     }
 
+    ended(&writer, exchange).await;
+}
+
+/// Say an exchange is over, and nothing more.
+///
+/// The empty message, which is the conduit's only way of ending one.
+/// Every path that stops serving an exchange goes through here — the
+/// caller having finished its answer, and the two where a message never
+/// became a channel request at all.
+///
+/// That second kind is why this is a function. A container that asked
+/// and is told nothing waits for an answer that no longer has anything
+/// to produce it, and it waits forever: nothing in this protocol times
+/// out, and the conduit is the only place the news could arrive.
+async fn ended<W>(writer: &tokio::sync::Mutex<W>, exchange: u32)
+where
+    W: futures_util::Sink<Bytes> + Unpin,
+{
     let message = mcp_conduit::encode(exchange, &[]);
     let _ = writer.lock().await.send(message).await;
 }

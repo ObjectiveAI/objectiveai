@@ -57,6 +57,18 @@ pub fn encode(exchange: u32, payload: &[u8]) -> Bytes {
 /// the leftovers and yields a [`Message`] each time a whole one is
 /// there.
 ///
+/// # A length is believed before it is met
+///
+/// Bytes accumulate until the message a header PROMISED is complete, so
+/// a container that announces four gigabytes and then trickles is a
+/// container this will buffer four gigabytes for. Nothing here caps it.
+///
+/// Which is deliberate for the same reason the queues in this crate are
+/// unbounded — a limit invented here is a limit no protocol document
+/// states — but it is worth saying plainly, because unlike those this
+/// one is a number the far side chose. A provider running images it did
+/// not build should know that is where the exposure is.
+///
 /// # It ends where the pipe ends
 ///
 /// Cleanly if the last message was complete, and with
