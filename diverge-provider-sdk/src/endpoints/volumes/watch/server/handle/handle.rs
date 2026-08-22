@@ -74,8 +74,8 @@ pub async fn handle<M>(
     };
 
     loop {
-        // The borrows end with the block, so the scope is free again by
-        // the time there is something to write on it.
+        // Both futures only borrow the scope, so this races them
+        // without taking anything away from the writes below.
         let item = {
             let next = pin!(stream.next());
             let stop = pin!(scope.recv_channel_request());
