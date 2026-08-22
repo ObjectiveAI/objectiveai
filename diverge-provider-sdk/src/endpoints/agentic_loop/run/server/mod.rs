@@ -8,6 +8,21 @@
 //! There is no `request` here and no `channel_response`. Only a client
 //! opens a scope, and in a loop only a server opens channels, so there
 //! is nothing on this side for either name to hold.
+//!
+//! # And, behind the `server` feature, a way to answer it
+//!
+//! [`handle`] performs the exchange rather than describing it: hand it
+//! the [`ScopeHandle`](crate::server::scope_handle::ScopeHandle) a
+//! [`Session`](crate::server::session::Session) yielded and a
+//! [`ContainerDeployer`](crate::server::container_deployer::ContainerDeployer),
+//! and it runs the agent and relays both directions.
+//!
+//! It is the only handler that writes on both of the modules above:
+//! [`response`] carries the chunks down, and [`channel_request`] takes
+//! the agent's tool calls out.
 
 pub mod channel_request;
 pub mod response;
+
+#[cfg(feature = "server")]
+pub mod handle;

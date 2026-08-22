@@ -23,6 +23,13 @@
 //! server or process does — none of it is this protocol's business,
 //! and a crate that served HTTP would have opinions about all of it.
 //!
+//! It does speak HTTP in one direction, and that is not a reversal.
+//! `hyper`'s CLIENT is compiled in, because a container is reached over
+//! a byte pipe and something has to turn that into a request — see
+//! `http`, which is private for the same reason the rest of this is
+//! careful: dialling a pipe somebody handed over is not owning an
+//! endpoint.
+//!
 //! # Nothing is re-exported
 //!
 //! A provider that hands over a socket already depends on axum, and
@@ -99,14 +106,16 @@
 //! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
 //! out the payload and
 //! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and seven endpoints have a
+//! takes the channels off their queue — and eight endpoints have a
 //! `server::handle` that uses them: the five
 //! [`volumes`](crate::endpoints::volumes),
-//! [`images::check`](crate::endpoints::images::check) and
-//! [`version`](crate::endpoints::version). What is missing is the thing
-//! in front of them: nothing
-//! reads the leading tag byte of a request and decides which handler it
-//! belongs to, so the pieces exist and nothing wires them together.
+//! [`images::check`](crate::endpoints::images::check),
+//! [`version`](crate::endpoints::version) and
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run), which is
+//! the first to write in both directions at once. What is missing is
+//! the thing in front of them: nothing reads the leading tag byte of a
+//! request and decides which handler it belongs to, so the pieces exist
+//! and nothing wires them together.
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a
@@ -174,14 +183,23 @@
 //! pulls nothing, and because no is an ANSWER here where it would be an
 //! error there.
 //!
-//! Nothing implements any of them. Two are consumed:
+//! Nothing implements any of them, and all three are now consumed:
 //! [`volume_manager`] by the five
-//! [`volumes`](crate::endpoints::volumes) endpoints' handlers and
+//! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
-//! [`images::check`](crate::endpoints::images::check)'s. Nothing calls
-//! a [`container_deployer`] yet, that being the trait whose endpoints
-//! all involve a container running for a while rather than a question
-//! answered once.
+//! [`images::check`](crate::endpoints::images::check)'s, and
+//! [`container_deployer`] by
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run)'s — the
+//! first endpoint to put a container somewhere and the only one so far.
+//!
+//! [`mcp_conduit`] is what goes with that last one. An agent runs in a
+//! container beside the provider and calls tools that live with the
+//! CALLER, so a tool call has to leave the container — and it leaves on
+//! a second pipe the container listens on and the provider dials,
+//! because a provider cannot put a listening socket inside somebody
+//! else's container. It is a contract with an image rather than
+//! anything a provider implements, which is why it is documented as
+//! carefully as a frame.
 //!
 //! [`version`](crate::endpoints::version) has a handler too and asks
 //! for nothing at all, its answer being a compile-time constant. It is
@@ -195,7 +213,9 @@ pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
+pub(crate) mod http;
 pub mod image_checker;
+pub mod mcp_conduit;
 pub mod mount;
 mod notice;
 pub mod oci_stream;
