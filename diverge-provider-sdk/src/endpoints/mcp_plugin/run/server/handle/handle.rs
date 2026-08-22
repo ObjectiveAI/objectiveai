@@ -369,6 +369,9 @@ async fn relay<C>(
         })
         .uri(&request.path);
     for (name, value) in &request.headers {
+        if framing(name) {
+            continue;
+        }
         builder = builder.header(name, value);
     }
     // HTTP/1.1 requires one and a pipe makes it meaningless, so one is
@@ -428,6 +431,42 @@ async fn relay<C>(
             scope.send_channel_response(channel, &buffer).await;
         }
     }
+}
+
+/// Whether a header describes the message rather than the request.
+///
+/// These three are the only ones this relay drops, and dropping them is
+/// not an edit to what the caller asked for. They describe how a
+/// message was framed on the connection it arrived on, and it is now on
+/// a different one with a different body.
+///
+/// # The one that would hang the exchange
+///
+/// `content-length`. A caller's is the length of the body it received;
+/// what goes into the container is
+/// [`body`](crate::shared::http::request::Request::body) re-serialized,
+/// and the two are not the same number. Sent as it came it would be a
+/// promise about bytes that are not there — a container reading a
+/// longer body than exists waits for the rest forever, and one reading
+/// a shorter body treats the remainder as the start of another request.
+///
+/// hyper writes the right one from the body it is handed, so there is
+/// nothing to replace it with.
+///
+/// `transfer-encoding` is the same fact stated the other way, and a
+/// `connection` belongs to the hop it was read on rather than to this
+/// one.
+///
+/// # Everything else goes through untouched
+///
+/// Including `Mcp-Session-Id`, which is what ties a caller's exchanges
+/// together and which this crate never reads. The rule is narrow on
+/// purpose: a relay that decided which headers a plugin deserves would
+/// be reading the protocol it is carrying.
+fn framing(name: &str) -> bool {
+    name.eq_ignore_ascii_case("content-length")
+        || name.eq_ignore_ascii_case("transfer-encoding")
+        || name.eq_ignore_ascii_case("connection")
 }
 
 /// The plugin's half of a database connection, streamed to the caller.
