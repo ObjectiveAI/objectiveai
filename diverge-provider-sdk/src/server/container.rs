@@ -8,6 +8,7 @@ use bytes::Bytes;
 use futures_util::Stream;
 
 use crate::shared::error::Error;
+use crate::shared::http::request;
 
 /// A running container, as far as this crate needs one.
 ///
@@ -25,25 +26,28 @@ use crate::shared::error::Error;
 /// container is done from outside it, and still needs a fact the deploy
 /// was the only thing to learn.
 ///
-/// So the three are three facts a provider keeps to itself. Where the
-/// container's filesystem is, for [`read`](Self::read) and
-/// [`write`](Self::write). How to end it, for [`stop`](Self::stop).
+/// So these are facts a provider keeps to itself. Where the container's
+/// filesystem is, for [`read`](Self::read) and [`write`](Self::write).
+/// How to end it, for [`stop`](Self::stop). How to reach a port inside
+/// it, for [`http_serve`](Self::http_serve) — a container's port has a
+/// host-side address only on some runtimes, and on the rest the way in
+/// is the provider's own control plane, so it is a method and never an
+/// address.
 ///
 /// A filetree will join them when it is written, since watching a
 /// filesystem is knowing where one is. A transfer will not — it is a
 /// read on one container and a write on another, both already here.
 ///
-/// # Reaching a port is not here, for now
+/// # Ports are two methods, not one
 ///
-/// It was: a `connect` handed back a byte pipe, and everything spoken
-/// into a container rode one. It is gone while the shape of that is
-/// reconsidered, and it will come back as something — a container that
-/// cannot be spoken to serves nobody.
+/// There was a `connect` that handed back a byte pipe, and everything
+/// spoken to a container rode one. It is gone, because the two things
+/// riding it were not one thing: sometimes the provider asks and the
+/// container answers, and sometimes the container asks and the provider
+/// answers. Those need opposite shapes and only ever shared a socket.
 ///
-/// What it leaves behind is the reason it was ever a method rather than
-/// an address: a container's port has a host-side address only on some
-/// runtimes, and on the rest the way in is the provider's own control
-/// plane. Whatever replaces it inherits that constraint.
+/// [`http_serve`](Self::http_serve) is the second of them. The first —
+/// the provider asking — is not written yet.
 ///
 /// # `Send` and `Sync`
 ///
@@ -81,6 +85,86 @@ pub trait Container: Send + Sync {
     /// to be, and it outlives the call that produced it.
     type Error: Send + 'static;
 
+
+    /// What arrives when the container asks for something.
+    ///
+    /// One item per request, each with the [`ResponseWriter`] that
+    /// answers that one. The stream ends when the container has no more
+    /// to ask — see [`http_serve`](Self::http_serve).
+    type Requests: Stream<Item = (request::Owned, Self::ResponseWriter)>
+        + Send
+        + Unpin
+        + 'static;
+
+    /// Where one of those requests is answered.
+    ///
+    /// Its error is [`Self::Error`] because a failure to answer is a
+    /// failure of the same connection the request arrived on, and
+    /// splitting them would be inventing a distinction a provider does
+    /// not have.
+    type ResponseWriter: ResponseWriter<Error = Self::Error> + Send + 'static;
+
+    /// Serve HTTP to something inside the container.
+    ///
+    /// The container is the CLIENT here. It makes requests and this end
+    /// answers them, which is the direction an agent's tool calls
+    /// travel: an
+    /// [`agentic_loop`](crate::endpoints::agentic_loop::run) runs its
+    /// agent beside the provider and the MCP servers live with the
+    /// caller, so a tool call has to leave the container before it can
+    /// go anywhere.
+    ///
+    /// # It is the provider that dials
+    ///
+    /// Even though the provider is the one serving. A provider cannot
+    /// put a listening socket inside somebody else's container, so
+    /// anything a container wants served FOR it is something the
+    /// container has to be listening on — and the provider connects and
+    /// then answers on a connection it opened.
+    ///
+    /// Which is why this takes a port and does not hand back an
+    /// address. The port is the container's, declared in
+    /// [`ports`](super::deployment::Deployment::ports), and how a
+    /// provider reaches it is the provider's business.
+    ///
+    /// # Requests, not bytes
+    ///
+    /// The implementation speaks HTTP and this crate does not. Which is
+    /// the whole point of the shape: a byte pipe would have every
+    /// consumer parsing request heads and decoding chunked bodies, and
+    /// there is no version of that which is this protocol's business.
+    ///
+    /// It also means the framing question is answered by HTTP rather
+    /// than by anything invented here. Several tool calls at once are
+    /// several requests, told apart by the protocol that already tells
+    /// requests apart, on however many connections the implementation
+    /// finds convenient.
+    ///
+    /// # Answers can be given in any order
+    ///
+    /// Each request arrives with its own writer, and nothing pairs a
+    /// writer with the one that came before it. A consumer that takes
+    /// three requests and answers the third first has done nothing
+    /// wrong, and an implementation has to be able to carry that —
+    /// which for HTTP/1.1 means a connection each, and for anything
+    /// newer means a stream each.
+    ///
+    /// # The stream ends when the container stops asking
+    ///
+    /// Cleanly, and it says nothing about the container. A plugin that
+    /// has no more tool calls to make and a plugin that has finished
+    /// its work look the same from here, because they are the same
+    /// thing from here: the conversation is over and the container's
+    /// own life is [`stop`](Self::stop)'s business.
+    ///
+    /// An [`Err`] is a failure to START serving — nothing listening on
+    /// that port, or a port that was never declared. A failure after
+    /// that ends the stream, since a request that cannot be received is
+    /// indistinguishable from one that was never sent.
+    fn http_serve(
+        &self,
+        port: u16,
+    ) -> impl Future<Output = Result<Self::Requests, Self::Error>> + Send;
 
     /// Stop it.
     ///
@@ -226,6 +310,74 @@ pub trait Container: Send + Sync {
             >,
         >,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+}
+
+/// How one HTTP response is written.
+///
+/// The other half of [`Container::http_serve`]: it hands out requests
+/// and one of these each, and this is what an answer goes into.
+///
+/// # A head, then a body, then a finish
+///
+/// Which is HTTP's own order and is not a convention imposed here. The
+/// [`Head`] carries the status and the headers, so it goes first and
+/// goes once; [`body`](Self::body) is called for as much body as there
+/// turns out to be, including none.
+///
+/// It is the same split
+/// [`http::response::Frame`](crate::shared::http::response::Frame)
+/// makes on the wire, which is what lets an answer be relayed from one
+/// to the other without being assembled first.
+///
+/// # Finishing is a method, not a destructor
+///
+/// Because a destructor cannot await and cannot report. A response has
+/// to be terminated — a chunked body has a terminator, and a reader
+/// that does not see one has no way to tell a complete answer from a
+/// truncated one — and whether that terminator reached the container is
+/// a fact worth having.
+///
+/// So [`finish`](Self::finish) consumes the writer and says whether it
+/// worked. Dropping one without calling it is not a protocol error and
+/// nothing here can prevent it; what the container sees is a connection
+/// that closed mid-answer, which is what actually happened.
+///
+/// The same argument this crate makes everywhere it has a choice
+/// between a method and a `Drop`.
+///
+/// [`Head`]: crate::shared::http::response::Head
+pub trait ResponseWriter {
+    /// Why an answer could not be written.
+    ///
+    /// A provider's own, like everything else here.
+    type Error: Send + 'static;
+
+    /// Send the status and the headers.
+    ///
+    /// Once, before any [`body`](Self::body). What an implementation
+    /// does about a second one is its business — there is nothing
+    /// useful to do with it, and a type that made it unrepresentable
+    /// would be a second writer type for the sake of one mistake.
+    fn head(
+        &mut self,
+        head: crate::shared::http::response::Head,
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+
+    /// Send some of the body.
+    ///
+    /// As many times as there are pieces, and the pieces mean nothing:
+    /// an implementation is free to buffer them, and a reader on the
+    /// far side will see whatever boundaries the transport produces
+    /// rather than these.
+    fn body(
+        &mut self,
+        bytes: &[u8],
+    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+
+    /// Say the answer is complete.
+    ///
+    /// See the type's own documentation for why this is a method.
+    fn finish(self) -> impl Future<Output = Result<(), Self::Error>> + Send;
 }
 
 /// The content for a write ran out early, and this is whose fault it
