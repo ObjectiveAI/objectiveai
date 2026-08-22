@@ -200,9 +200,23 @@ enum Write {
 
 /// Drive the container until the loop ends or the caller goes.
 ///
-/// Three parts: a task reading chunks, a task working the MCP conduit,
-/// and this, which owns the scope and does every write either of them
-/// asks for.
+/// Three parts: a task that asks the agent and reads its stream, a task
+/// working the MCP conduit, and this, which owns the scope and does
+/// every write either of them asks for.
+///
+/// # The conduit is open before the request is sent
+///
+/// Which is the ordering that matters and the reason the request is not
+/// sent from here. A container is free to want a tool call while it is
+/// still working out how to answer, so the pipe it would ask on has to
+/// be dialled first — and the loop below has to already be RUNNING,
+/// because an answer needs a channel opened, and only this task can
+/// open one.
+///
+/// A version that sent the request here and then started the loop
+/// deadlocks on exactly that: the container waits for its tool answer,
+/// this waits for the container's head, and the queue that would have
+/// resolved it is not being read by anyone.
 async fn relay<C>(scope: &mut ScopeHandle, container: &C, body: Bytes)
 where
     C: Container,
@@ -210,51 +224,27 @@ where
 {
     let (writes, mut queue) = mpsc::unbounded_channel();
 
-    // TODO: the port and the path are settled when the image is.
-    let request = hyper::Request::builder()
-        .method(hyper::Method::POST)
-        .uri("/")
-        .header(hyper::header::HOST, "container")
-        .header(hyper::header::CONTENT_TYPE, "application/json")
-        .header(hyper::header::ACCEPT, "text/event-stream")
-        .body(Full::new(body));
-
-    let request = match request {
-        Ok(request) => request,
-        Err(error) => {
-            fail(scope, Error(Value::String(error.to_string()))).await;
-            return;
-        }
-    };
-
-    let response =
-        match crate::server::http::request(container, 8080, request).await {
-            Ok(response) => response,
-            Err(error) => {
-                fail(scope, error).await;
-                return;
-            }
-        };
-
-    // A status is the container's answer about itself, and this is the
-    // one place to judge it: everything after here assumes a stream.
-    if !response.status().is_success() {
-        let status = response.status().as_u16();
-        let error = format!("the agent container answered {status}");
-        fail(scope, Error(Value::String(error))).await;
-        return;
-    }
-
+    // TODO: both ports are settled when the images are. The conduit
+    // first, deliberately — see above.
     let (mcp_reader, mcp_writer) = match container.connect(8081).await {
         Ok(pipe) => pipe,
         Err(error) => {
-            fail(scope, error.into()).await;
+            write(scope, &response::Frame::Error(error.into())).await;
             return;
         }
     };
+    let mcp = tokio::spawn(mcp(mcp_reader, mcp_writer, writes.clone()));
 
-    let chunks = tokio::spawn(chunks(response, writes.clone()));
-    let mcp = tokio::spawn(mcp(mcp_reader, mcp_writer, writes));
+    let (agent_reader, agent_writer) = match container.connect(8080).await {
+        Ok(pipe) => pipe,
+        Err(error) => {
+            mcp.abort();
+            write(scope, &response::Frame::Error(error.into())).await;
+            return;
+        }
+    };
+    let agent =
+        tokio::spawn(agent(agent_reader, agent_writer, body, writes));
 
     loop {
         // The borrows end with the block, so the scope is free again by
@@ -292,20 +282,59 @@ where
         }
     }
 
-    chunks.abort();
+    agent.abort();
     mcp.abort();
 }
 
-/// Read the agent's stream, and turn each event into a frame.
+/// Ask the agent to run, and turn what comes back into frames.
 ///
-/// A straight loop with no knowledge of the conduit beside it. An event
-/// that is not a chunk ends the loop and is reported, because a stream
-/// that has started saying things this crate cannot read is not one to
-/// keep relaying.
-async fn chunks(
-    response: hyper::Response<hyper::body::Incoming>,
+/// A straight loop with no knowledge of the conduit beside it. It sends
+/// the request rather than being handed the answer, because sending it
+/// is the part that must not happen on the task doing the writing —
+/// see [`relay`].
+///
+/// An event that is not a chunk ends the loop and is reported, because
+/// a stream that has started saying things this crate cannot read is
+/// not one to keep relaying.
+async fn agent<R, W, E>(
+    reader: R,
+    writer: W,
+    body: Bytes,
     writes: mpsc::UnboundedSender<Write>,
-) {
+) where
+    R: futures_util::Stream<Item = Result<Bytes, E>> + Send + Unpin + 'static,
+    W: futures_util::Sink<Bytes, Error = E> + Send + Unpin + 'static,
+    E: Into<Error> + Send + 'static,
+{
+    // TODO: the path is settled when the images are.
+    let request = hyper::Request::builder()
+        .method(hyper::Method::POST)
+        .uri("/")
+        .header(hyper::header::HOST, "container")
+        .header(hyper::header::CONTENT_TYPE, "application/json")
+        .header(hyper::header::ACCEPT, "text/event-stream")
+        .body(Full::new(body));
+
+    let response = match request {
+        Ok(request) => {
+            crate::server::http::request(reader, writer, request).await
+        }
+        Err(error) => Err(Error(Value::String(error.to_string()))),
+    };
+
+    let response = match response {
+        Ok(response) => response,
+        Err(error) => return done(&writes, Some(error)),
+    };
+
+    // A status is the container's answer about itself, and this is the
+    // one place to judge it: everything after here assumes a stream.
+    if !response.status().is_success() {
+        let status = response.status().as_u16();
+        let error = format!("the agent container answered {status}");
+        return done(&writes, Some(Error(Value::String(error))));
+    }
+
     // The body is a stream of frames, of which the data ones are the
     // bytes; a trailer is not an event and there are none here anyway.
     let events = BodyStream::new(response.into_body()).filter_map(|frame| {
@@ -328,21 +357,26 @@ async fn chunks(
                     .map_err(|error| Error(Value::String(error.to_string())))
             });
 
-        let frame = match chunk {
-            Ok(chunk) => response::Frame::Chunk(chunk),
-            Err(error) => {
-                let _ = writes.send(encoded(&response::Frame::Error(error)));
-                break;
-            }
+        let chunk = match chunk {
+            Ok(chunk) => chunk,
+            Err(error) => return done(&writes, Some(error)),
         };
 
-        if writes.send(encoded(&frame)).is_err() {
+        if writes.send(encoded(&response::Frame::Chunk(chunk))).is_err() {
             return;
         }
     }
 
     // The agent is finished, so the scope is. Whatever the conduit was
     // doing was in service of a loop that is over.
+    done(&writes, None)
+}
+
+/// Say the loop is over, reporting a failure first if there was one.
+fn done(writes: &mpsc::UnboundedSender<Write>, error: Option<Error>) {
+    if let Some(error) = error {
+        let _ = writes.send(encoded(&response::Frame::Error(error)));
+    }
     let _ = writes.send(Write::Done);
 }
 
@@ -470,15 +504,10 @@ fn encoded(frame: &response::Frame) -> Write {
     Write::Response(bytes)
 }
 
-/// Report a failure on the scope's own stream.
-///
-/// Used only before the workers exist. Once they do, a failure travels
-/// as a [`Write`] like anything else.
-async fn fail(scope: &mut ScopeHandle, error: Error) {
-    write(scope, &response::Frame::Error(error)).await;
-}
-
 /// Write one frame, or write nothing if it will not encode.
+///
+/// Used only where there is no worker yet to route through. Once there
+/// is, a frame travels as a [`Write`] like anything else.
 async fn write(scope: &mut ScopeHandle, frame: &response::Frame) {
     let mut bytes = Vec::new();
     if frame.encode(&mut Writer::new(&mut bytes)).is_ok() {

@@ -29,17 +29,26 @@ use std::io;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use futures_util::{SinkExt as _, StreamExt as _};
+use futures_util::{Sink, SinkExt as _, Stream, StreamExt as _};
 use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper_util::rt::TokioIo;
 use tokio_util::io::{CopyToBytes, SinkWriter, StreamReader};
 
-use super::container::Container;
 use crate::shared::error::Error;
 
-/// Open a connection to a port inside a container and send one request
-/// on it.
+/// Send one request over a pipe into a container, and read the answer.
+///
+/// # It is handed a pipe rather than a container
+///
+/// Because dialling and asking are two things a caller may need to do
+/// at different moments. A container that talks back on a SECOND pipe
+/// while it is answering the first has to have that one open before
+/// this is called — and a function that dialled its own would make the
+/// order impossible to arrange.
+///
+/// So [`connect`](super::container::Container::connect) is the caller's
+/// to call, and when, and this takes what came out of it.
 ///
 /// The response comes back with its body unread, so a caller streams it
 /// rather than waiting for it — which is the whole point here, the one
@@ -59,23 +68,21 @@ use crate::shared::error::Error;
 ///
 /// # What the errors are
 ///
-/// [`Err`] means no answer at all — the port refused, the pipe broke
-/// before a head arrived, the container answered something that was not
-/// HTTP. A response with a status in it is [`Ok`], including a `500`:
+/// [`Err`] means no answer at all — the pipe broke before a head
+/// arrived, or the container answered something that was not HTTP. A
+/// response with a status in it is [`Ok`], including a `500`:
 /// what a status MEANS is the caller's to judge, and this layer would
 /// be guessing.
-pub async fn request<C>(
-    container: &C,
-    port: u16,
+pub async fn request<R, W, E>(
+    reader: R,
+    writer: W,
     request: hyper::Request<Full<Bytes>>,
 ) -> Result<hyper::Response<Incoming>, Error>
 where
-    C: Container,
-    C::Error: Into<Error>,
+    R: Stream<Item = Result<Bytes, E>> + Send + Unpin + 'static,
+    W: Sink<Bytes, Error = E> + Send + Unpin + 'static,
+    E: Into<Error> + Send + 'static,
 {
-    let (reader, writer) =
-        container.connect(port).await.map_err(Into::into)?;
-
     // The pipe's own failures cannot travel as themselves: the adapters
     // below need `io::Error`, and a container's error type promises
     // nothing that could be formatted into one. So the real error is
