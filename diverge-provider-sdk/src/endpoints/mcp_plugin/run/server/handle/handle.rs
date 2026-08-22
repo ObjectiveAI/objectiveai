@@ -661,12 +661,21 @@ const EXCHANGE_LEN: usize = 4;
 /// takes N dials a round trip apart. Both are local, and neither is
 /// worth a wire format to avoid.
 ///
-/// # A pipe that dies unused is dialled again
+/// # A pipe that ends unused ends the conduit
 ///
-/// Which is the one place this could spin. It cannot spin quickly: each
-/// turn is a connect and a read that reached the end, so a container
-/// closing pipes as fast as they open is a container that has stopped
-/// working, and the stop that follows is what ends this.
+/// Rather than being dialled again, which is the obvious thing and is
+/// wrong. Connecting and closing are both fast, so a container that
+/// hands back unused pipes would have the provider dialling in a tight
+/// loop — at full CPU, for as long as the plugin lives. Retrying here
+/// costs the machine; giving up costs the plugin one facility it was
+/// already failing to use.
+///
+/// And a working plugin does not do it. It accepts a pipe when it wants
+/// something and writes what it wants; a pipe that closes with nothing
+/// on it is a plugin that has stopped serving that conduit.
+///
+/// Nothing waits between attempts instead, because a delay here would
+/// be a timeout, and this protocol does not have those.
 async fn accept<C>(
     container: &C,
     port: u16,
@@ -674,17 +683,9 @@ async fn accept<C>(
 where
     C: Container,
 {
-    loop {
-        let (mut reader, writer) = container.connect(port).await.ok()?;
-        match reader.next().await {
-            Some(item) => {
-                if let Some(bytes) = item.bytes() {
-                    return Some((bytes, reader, writer));
-                }
-            }
-            None => continue,
-        }
-    }
+    let (mut reader, writer) = container.connect(port).await.ok()?;
+    let bytes = reader.next().await?.bytes()?;
+    Some((bytes, reader, writer))
 }
 
 /// One item off a container's pipe, if it was bytes.
