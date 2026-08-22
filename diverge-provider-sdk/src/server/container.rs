@@ -179,6 +179,17 @@ pub trait Container: Send + Sync {
     /// stream; anything more structured is something built on top, by
     /// whoever knows which protocol this is.
     ///
+    /// # It dials once
+    ///
+    /// There is no waiting here and no retry. A
+    /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
+    /// hands back a container whose declared ports already accept, so
+    /// there is nothing to wait for — see the section there for why
+    /// that waiting belongs to a provider and not to this crate.
+    ///
+    /// A refusal therefore means something is wrong rather than that
+    /// something is slow, which is what makes it worth reporting.
+    ///
     /// # The port has to have been declared
     ///
     /// In [`Deployment::ports`](super::deployment::Deployment::ports),

@@ -55,15 +55,42 @@ use super::deployment::Deployment;
 /// container does, so the protocol has no pre-start write and never
 /// had one. A laboratory's file transfers happen while it runs.
 ///
-/// # It does not promise what is INSIDE has started
+/// # And it is READY when a method returns
 ///
-/// A container running is not a server bound. The distinction is the
-/// one that deleted `mcp_plugin`'s readiness signal: a provider knows
-/// when a CONTAINER has started, and that is not the same fact as the
-/// thing inside it having bound its port.
+/// Every port in [`ports`](Deployment::ports) accepts a connection by
+/// the time this is [`Ok`]. Not "will shortly" — a handler's first act
+/// after a deploy is to dial into the container, and it dials once.
 ///
-/// So this returns when the container is up, and whether what it holds
-/// is answering yet is found out by asking it.
+/// # Why the waiting is not this protocol's
+///
+/// Because nothing here can do it. Knowing that a process inside a
+/// container has bound a socket means knowing something about the
+/// runtime: a health check, a readiness probe, a socket poll, a
+/// notification the orchestrator already has. A provider has all of
+/// that and this crate has none of it, so a wait written here would be
+/// a retry loop guessing at what a provider could simply have known.
+///
+/// It would also have to guess how long, and this protocol has no
+/// timeouts anywhere. The choice would be between giving up early on a
+/// container that was coming and waiting forever on one that never
+/// was — which is exactly the decision a provider is equipped to make
+/// and a caller is not.
+///
+/// So it is an assumption, stated: an implementation that has more to
+/// wait for waits before it returns, the same way it does for the
+/// container itself.
+///
+/// # A port that is never bound is a different thing
+///
+/// And it is still not detectable here. An image that binds nothing on
+/// [`mcp_port`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port)
+/// is a container that came up perfectly and has nothing listening, and
+/// no amount of waiting turns that into an answer — which is why
+/// `mcp_plugin` documents a wrong port as surfacing "as an exchange
+/// that finishes without an answer".
+///
+/// The distinction is between not YET and not EVER. This promises the
+/// first is over; nothing can promise the second away.
 ///
 /// # Three methods, one per source
 ///
