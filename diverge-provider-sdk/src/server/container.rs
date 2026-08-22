@@ -8,7 +8,6 @@ use bytes::Bytes;
 use futures_util::Stream;
 
 use crate::shared::error::Error;
-use crate::shared::http::request;
 
 /// A running container, as far as this crate needs one.
 ///
@@ -91,7 +90,35 @@ pub trait Container: Send + Sync {
     /// One item per request, each with the [`HttpResponseWriter`] that
     /// answers that one. The stream ends when the container has no more
     /// to ask — see [`http_serve`](Self::http_serve).
-    type HttpRequestStream: Stream<Item = (request::Owned, Self::HttpResponseWriter)>
+    ///
+    /// # The request is bytes, and they are a
+    /// [`Request`](crate::shared::http::request::Request)
+    ///
+    /// Encoded as that type encodes: JSON, with the body nested
+    /// verbatim as the [`RawValue`](serde_json::value::RawValue) it
+    /// already is. An implementation produces one; a consumer decodes
+    /// it.
+    ///
+    /// # Why not the type itself
+    ///
+    /// Because a [`Request`](crate::shared::http::request::Request)
+    /// borrows its body from the buffer it was decoded out of, so it
+    /// cannot be a stream item — an item has to stand on its own once
+    /// yielded, and that one points into something.
+    ///
+    /// [`Bytes`] is that buffer, made ownable. A consumer holds the
+    /// item and decodes a request that borrows from it, which is the
+    /// same arrangement every frame in this crate already has: the
+    /// bytes are the thing that lives, and the typed view is a way of
+    /// reading them.
+    ///
+    /// It also means a relay does not have to re-encode. What a
+    /// container asked is already in the form a channel request
+    /// carries, so forwarding it is a copy at worst and a
+    /// [`slice_ref`](Bytes::slice_ref) at best — where a decoded
+    /// request would have been taken apart and put back together for
+    /// nothing.
+    type HttpRequestStream: Stream<Item = (Bytes, Self::HttpResponseWriter)>
         + Send
         + Unpin
         + 'static;
@@ -129,12 +156,18 @@ pub trait Container: Send + Sync {
     /// [`ports`](super::deployment::Deployment::ports), and how a
     /// provider reaches it is the provider's business.
     ///
-    /// # Requests, not bytes
+    /// # Requests, not a byte pipe
     ///
     /// The implementation speaks HTTP and this crate does not. Which is
-    /// the whole point of the shape: a byte pipe would have every
-    /// consumer parsing request heads and decoding chunked bodies, and
-    /// there is no version of that which is this protocol's business.
+    /// the whole point of the shape: a pipe would have every consumer
+    /// parsing request heads and decoding chunked bodies, and there is
+    /// no version of that which is this protocol's business.
+    ///
+    /// What arrives is one request per item, already separated from the
+    /// next and already stripped of the framing that separated them.
+    /// That it arrives as bytes rather than as a struct is a different
+    /// question, answered on
+    /// [`HttpRequestStream`](Self::HttpRequestStream).
     ///
     /// It also means the framing question is answered by HTTP rather
     /// than by anything invented here. Several tool calls at once are
