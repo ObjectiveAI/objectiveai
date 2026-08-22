@@ -1,9 +1,11 @@
 //! Running a plugin, and serving everything either end asks of it.
 
 use std::collections::HashMap;
+use std::pin::pin;
 use std::sync::Arc;
 
 use bytes::{Bytes, BytesMut};
+use futures_util::future;
 use futures_util::{SinkExt as _, StreamExt as _};
 use http_body_util::{BodyStream, Full};
 use indexmap::IndexMap;
@@ -242,6 +244,11 @@ async fn serve<C>(
 
     let mcp_port = request.mcp_port;
     loop {
+        // Finished ones, so the set does not grow for the life of the
+        // plugin. An exchange is a task, and a plugin serving tools for
+        // hours has a great many of them.
+        while workers.try_join_next().is_some() {}
+
         // The caller is gone, and nothing it asked for matters now.
         let Some(bytes) = scope.recv_channel_request().await else {
             break;
@@ -360,13 +367,20 @@ async fn relay<C>(
             http::request::Method::Head => hyper::Method::HEAD,
             http::request::Method::Delete => hyper::Method::DELETE,
         })
-        .uri(&request.path)
-        // HTTP/1.1 requires one and the pipe makes it meaningless, so
-        // it is stated rather than derived. A caller's own `Host`, if it
-        // sent one, replaces this below.
-        .header(hyper::header::HOST, "container");
+        .uri(&request.path);
     for (name, value) in &request.headers {
         builder = builder.header(name, value);
+    }
+    // HTTP/1.1 requires one and a pipe makes it meaningless, so one is
+    // invented — but only if the caller sent none. A builder APPENDS,
+    // so adding ours unconditionally would put two on a request that is
+    // allowed exactly one.
+    let host = request
+        .headers
+        .keys()
+        .any(|name| name.eq_ignore_ascii_case("host"));
+    if !host {
+        builder = builder.header(hyper::header::HOST, "container");
     }
 
     let Ok(built) = builder.body(Full::new(body)) else {
@@ -546,7 +560,17 @@ async fn connection<R, W>(
         }
     };
 
-    futures_util::future::join(outward, inward).await;
+    // Whichever ends first ends the connection. A join would have
+    // waited for both, and only one of them has a reason to stop on its
+    // own: the plugin closing its socket ends `outward`, while `inward`
+    // waits on a channel the caller may never finish — so a dead
+    // connection would have left a task alive for the plugin's life.
+    //
+    // Dropping them is also what closes the pipe, which is how the
+    // plugin learns the other side went.
+    let outward = pin!(outward);
+    let inward = pin!(inward);
+    future::select(outward, inward).await;
 }
 
 /// Take commands as the plugin asks for them.
