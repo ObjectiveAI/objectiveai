@@ -167,6 +167,12 @@ where
     let Ok(channel_request::Frame(request)) =
         channel_request::Frame::decode(payload)
     else {
+        // The channel is known, the connection is fine, and nothing
+        // is going to answer this. So it is ENDED rather than
+        // abandoned: a provider waiting on it waits forever otherwise,
+        // and a finish with no head is already what this protocol
+        // means by there being no answer.
+        let _ = handle.send_channel_response_finish(scope, channel).await;
         return;
     };
     let (head, body) = mcp_proxy.handle(request).await;

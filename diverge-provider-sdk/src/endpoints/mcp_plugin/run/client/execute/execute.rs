@@ -198,7 +198,14 @@ async fn serve_one<O, P, C>(
             )
             .await;
         }
-        Err(_) => {}
+        // Same reasoning as the arms above, which all finish the
+        // channel they served: one that cannot be served still has to
+        // be ended, or a provider waits on it forever. The likely
+        // cause is a provider newer than this client, sending a
+        // variant that did not exist when it was built.
+        Err(_) => {
+            let _ = handle.send_channel_response_finish(scope, channel).await;
+        }
     }
 }
 
