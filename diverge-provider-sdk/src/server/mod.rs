@@ -99,9 +99,10 @@
 //! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
 //! out the payload and
 //! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and six endpoints have a
+//! takes the channels off their queue — and seven endpoints have a
 //! `server::handle` that uses them: the five
-//! [`volumes`](crate::endpoints::volumes) and
+//! [`volumes`](crate::endpoints::volumes),
+//! [`images::check`](crate::endpoints::images::check) and
 //! [`version`](crate::endpoints::version). What is missing is the thing
 //! in front of them: nothing
 //! reads the leading tag byte of a request and decides which handler it
@@ -121,10 +122,10 @@
 //!
 //! # And what a provider supplies
 //!
-//! Two traits, which are what this half asks FOR rather than provides.
-//! They mirror what [`client`](crate::client) has five of: something a
-//! provider implements, so that the parts this crate cannot know are
-//! somebody else's.
+//! Three traits, which are what this half asks FOR rather than
+//! provides. They mirror what [`client`](crate::client) has five of:
+//! something a provider implements, so that the parts this crate cannot
+//! know are somebody else's.
 //!
 //! [`container_deployer`] is the first — where a container actually
 //! runs.
@@ -167,22 +168,34 @@
 //! deployer as a name and an identity, and finding the directory is
 //! the deployer's, the way publishing a port already is.
 //!
-//! Nothing implements either. The five
-//! [`volumes`](crate::endpoints::volumes) endpoints each have a
-//! `server::handle` that calls a [`volume_manager`], which is the first
-//! thing in this crate to consume one of these traits; nothing calls a
-//! [`container_deployer`] yet. What is missing in front of both is the
-//! dispatch that reads a request's tag and picks which to call.
+//! [`image_checker`] is the third, and it is the smallest: would you
+//! supply this image, to this caller. It is not a
+//! [`container_deployer`] method because a check creates nothing and
+//! pulls nothing, and because no is an ANSWER here where it would be an
+//! error there.
+//!
+//! Nothing implements any of them. Two are consumed:
+//! [`volume_manager`] by the five
+//! [`volumes`](crate::endpoints::volumes) endpoints' handlers and
+//! [`image_checker`] by
+//! [`images::check`](crate::endpoints::images::check)'s. Nothing calls
+//! a [`container_deployer`] yet, that being the trait whose endpoints
+//! all involve a container running for a while rather than a question
+//! answered once.
 //!
 //! [`version`](crate::endpoints::version) has a handler too and asks
-//! for neither, its answer being a compile-time constant. It is the one
-//! request a provider can serve without supplying anything at all.
+//! for nothing at all, its answer being a compile-time constant. It is
+//! the one request a provider can serve without supplying anything.
+//!
+//! What is missing in front of all of them is the dispatch that reads a
+//! request's tag and picks which to call.
 
 pub mod channel;
 pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
+pub mod image_checker;
 pub mod mount;
 mod notice;
 pub mod oci_stream;
