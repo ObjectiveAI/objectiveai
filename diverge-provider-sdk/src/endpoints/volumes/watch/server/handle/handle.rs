@@ -46,7 +46,7 @@ use crate::shared::error::Error;
 /// to say and saying it is the whole message. So a frame arriving on
 /// any channel of this scope is the stop, and nothing here decodes it.
 pub async fn handle<M>(
-    mut scope: ScopeHandle,
+    scope: ScopeHandle,
     client_identity: &str,
     manager: &M,
 ) where
@@ -58,7 +58,7 @@ pub async fn handle<M>(
         Err(error) => {
             let frame =
                 response::Frame::Error(Error(Value::String(error.to_string())));
-            send(&mut scope, &frame).await;
+            send(&scope, &frame).await;
             scope.send_response_finish().await;
             return;
         }
@@ -67,7 +67,7 @@ pub async fn handle<M>(
     let mut stream = match manager.watch(client_identity, &request.name).await {
         Ok(stream) => stream,
         Err(error) => {
-            send(&mut scope, &response::Frame::Error(error.into())).await;
+            send(&scope, &response::Frame::Error(error.into())).await;
             scope.send_response_finish().await;
             return;
         }
@@ -89,10 +89,10 @@ pub async fn handle<M>(
 
         match item {
             Some(Ok(frame)) => {
-                send(&mut scope, &response::Frame::Filetree(frame)).await
+                send(&scope, &response::Frame::Filetree(frame)).await
             }
             Some(Err(error)) => {
-                send(&mut scope, &response::Frame::Error(error.into())).await;
+                send(&scope, &response::Frame::Error(error.into())).await;
                 break;
             }
             None => break,
@@ -106,7 +106,7 @@ pub async fn handle<M>(
 ///
 /// The one failure with nowhere to report it: the channel for saying so
 /// is the thing that would not serialize.
-async fn send(scope: &mut ScopeHandle, frame: &response::Frame) {
+async fn send(scope: &ScopeHandle, frame: &response::Frame) {
     let mut buffer = Vec::new();
     if frame.encode(&mut Writer::new(&mut buffer)).is_ok() {
         scope.send_response(&buffer).await;

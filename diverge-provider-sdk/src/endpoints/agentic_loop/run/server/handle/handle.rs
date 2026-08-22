@@ -8,7 +8,7 @@ use futures_util::future::{self, Either};
 use futures_util::{SinkExt as _, StreamExt as _};
 use http_body_util::{BodyStream, Full};
 use serde_json::Value;
-use tokio::sync::{mpsc, oneshot};
+use std::sync::Arc;
 
 use super::super::{channel_request, response};
 use crate::decode::Decode;
@@ -55,12 +55,18 @@ use crate::shared::http;
 /// leaving. There is no destructor doing it, because teardown in this
 /// crate is a method; there is one call, after the loop, and every exit
 /// goes through it.
-pub async fn handle<D>(mut scope: ScopeHandle, deployer: &D)
+pub async fn handle<D>(scope: ScopeHandle, deployer: &D)
 where
     D: ContainerDeployer,
     D::Error: Into<Error>,
     <D::Container as Container>::Error: Into<Error>,
 {
+    // Shared from here, because both workers write on it and neither
+    // may hold it alone. `ScopeHandle`'s methods take `&self` for
+    // exactly this; what stays exclusive is ENDING the scope, which is
+    // why the finish below has to get the handle back out.
+    let scope = Arc::new(scope);
+
     let (agent, body) = match request::Frame::decode(scope.request()) {
         // The payload is a tag byte and then the request's own JSON, so
         // what the container should be handed is everything after the
@@ -71,8 +77,8 @@ where
         ),
         Err(error) => {
             let error = Error(Value::String(error.to_string()));
-            write(&mut scope, &response::Frame::Error(error)).await;
-            scope.send_response_finish().await;
+            write(&scope, &response::Frame::Error(error)).await;
+            finish(scope).await;
             return;
         }
     };
@@ -93,16 +99,35 @@ where
     let container = match deployer.registry(&deployment, image(&agent)).await {
         Ok(container) => container,
         Err(error) => {
-            write(&mut scope, &response::Frame::Error(error.into())).await;
-            scope.send_response_finish().await;
+            write(&scope, &response::Frame::Error(error.into())).await;
+            finish(scope).await;
             return;
         }
     };
 
-    relay(&mut scope, &container, body).await;
+    relay(&scope, &container, body).await;
 
     container.stop().await;
-    scope.send_response_finish().await;
+    finish(scope).await;
+}
+
+/// End the scope, which needs the handle back to itself.
+///
+/// [`send_response_finish`](ScopeHandle::send_response_finish) consumes
+/// the handle, and that is what makes one finish per scope a fact
+/// rather than a rule. So it cannot be reached through a share, and
+/// this is where the shares are proved gone.
+///
+/// [`relay`] awaits both workers after aborting them, so their clones
+/// are dropped before this is reached and there is one left. If somehow
+/// there were not, the scope still ends when the last clone goes -- a
+/// [`ScopeHandle`] tells the session on drop -- but with no finish
+/// frame, and a caller would see the connection account for it rather
+/// than the scope.
+async fn finish(scope: Arc<ScopeHandle>) {
+    if let Some(scope) = Arc::into_inner(scope) {
+        scope.send_response_finish().await;
+    }
 }
 
 /// Which image runs this agent.
@@ -169,63 +194,34 @@ fn disk(agent: &Agent) -> u64 {
     }
 }
 
-/// Something a worker wants done on the scope.
+/// Drive the container until the agent stops or the caller goes.
 ///
-/// The workers do not hold the [`ScopeHandle`] and cannot: this half's
-/// writing belongs to the individual scope, and there is one of it. So
-/// they ask, over a queue, and the task that owns the scope does it.
+/// Three parts, and this is the smallest of them: a task that asks the
+/// agent and reads its stream, a task working the MCP conduit, and this
+/// waiting for whichever ending comes first.
 ///
-/// Which also settles the thing a mutex could not. Watching for the
-/// caller leaving means awaiting
-/// [`recv_channel_request`](ScopeHandle::recv_channel_request), and a
-/// mutex held across that would be held for the whole run — starving
-/// exactly the writers it was there to let cooperate.
-enum Write {
-    /// A frame for the scope's own stream.
-    Response(Vec<u8>),
-    /// Open a channel, and hand the channel back.
-    ///
-    /// The reply is what makes this different from the others: a
-    /// [`Channel`] is what a request produces, only the scope may
-    /// produce one, and the worker is what has to read it.
-    ChannelRequest(Vec<u8>, oneshot::Sender<Channel>),
-    /// Nothing more is coming.
-    ///
-    /// Sent rather than inferred from the queue closing, because the
-    /// two workers hold a sender each: one of them finishing leaves the
-    /// other's alive, and a scope waiting for both would outlive the
-    /// loop it was reporting.
-    Done,
-}
-
-/// Drive the container until the loop ends or the caller goes.
+/// # Neither worker knows the other exists
 ///
-/// Three parts: a task that asks the agent and reads its stream, a task
-/// working the MCP conduit, and this, which owns the scope and does
-/// every write either of them asks for.
+/// They share the scope and nothing else. Both write on it directly,
+/// because a [`ScopeHandle`] takes `&self` --- so there is no queue
+/// between them, no third party deciding whose turn it is, and a tool
+/// call that takes a minute cannot delay a chunk.
 ///
 /// # The conduit is open before the request is sent
 ///
-/// Which is the ordering that matters and the reason the request is not
-/// sent from here. A container is free to want a tool call while it is
-/// still working out how to answer, so the pipe it would ask on has to
-/// be dialled first — and the loop below has to already be RUNNING,
-/// because an answer needs a channel opened, and only this task can
-/// open one.
-///
-/// A version that sent the request here and then started the loop
-/// deadlocks on exactly that: the container waits for its tool answer,
-/// this waits for the container's head, and the queue that would have
-/// resolved it is not being read by anyone.
-async fn relay<C>(scope: &mut ScopeHandle, container: &C, body: Bytes)
+/// Which is the ordering that matters, and the reason the request is
+/// not sent from here. A container is free to want a tool call while it
+/// is still working out how to answer, so the pipe it would ask on has
+/// to be dialled first --- and the task that serves it has to be
+/// running rather than waiting behind the very request it would be
+/// unblocking.
+async fn relay<C>(scope: &Arc<ScopeHandle>, container: &C, body: Bytes)
 where
     C: Container,
     C::Error: Into<Error>,
 {
-    let (writes, mut queue) = mpsc::unbounded_channel();
-
     // TODO: both ports are settled when the images are. The conduit
-    // first, deliberately — see above.
+    // first, deliberately --- see above.
     let (mcp_reader, mcp_writer) = match container.connect(8081).await {
         Ok(pipe) => pipe,
         Err(error) => {
@@ -233,74 +229,71 @@ where
             return;
         }
     };
-    let mcp = tokio::spawn(mcp(mcp_reader, mcp_writer, writes.clone()));
+    let mut mcp =
+        tokio::spawn(mcp(mcp_reader, mcp_writer, Arc::clone(scope)));
 
     let (agent_reader, agent_writer) = match container.connect(8080).await {
         Ok(pipe) => pipe,
         Err(error) => {
             mcp.abort();
+            let _ = (&mut mcp).await;
             write(scope, &response::Frame::Error(error.into())).await;
             return;
         }
     };
-    let agent =
-        tokio::spawn(agent(agent_reader, agent_writer, body, writes));
+    let mut agent = tokio::spawn(agent(
+        agent_reader,
+        agent_writer,
+        body,
+        Arc::clone(scope),
+    ));
 
-    loop {
-        // The borrows end with the block, so the scope is free again by
-        // the time there is something to write on it.
-        let write = {
-            let queued = pin!(queue.recv());
-            let caller = pin!(scope.recv_channel_request());
-            match future::select(queued, caller).await {
-                Either::Left((Some(write), _)) => write,
-                // Both workers are gone without having said so, which
-                // only a panic produces.
-                Either::Left((None, _)) => break,
-                // Nothing is defined on a channel a caller opens here,
-                // so there is nothing to do with one but carry on.
-                Either::Right((Some(_), _)) => continue,
-                // The caller is gone. Nothing it asked for matters now.
-                Either::Right((None, _)) => break,
-            }
-        };
+    // The agent finishing is the loop being over; the caller leaving is
+    // nobody being left to tell. Nothing else ends this.
+    let stopped = {
+        let hangup = pin!(hangup(scope));
+        matches!(future::select(&mut agent, hangup).await, Either::Left(_))
+    };
 
-        match write {
-            // A frame that would not encode arrives empty, and an empty
-            // response is not a legal one. It is dropped here because
-            // this is where the wire is, and the worker that produced
-            // it had nowhere to report the failure anyway.
-            Write::Response(bytes) if bytes.is_empty() => {}
-            Write::Response(bytes) => scope.send_response(&bytes).await,
-            Write::ChannelRequest(bytes, back) => {
-                let channel = scope.send_channel_request(&bytes).await;
-                // A worker that stopped waiting drops the channel here,
-                // which tells the session the number is free again.
-                let _ = back.send(channel);
-            }
-            Write::Done => break,
-        }
+    // A `JoinHandle` that has already resolved must not be polled
+    // again, which is why the two are not simply awaited together.
+    if !stopped {
+        agent.abort();
+        let _ = (&mut agent).await;
     }
-
-    agent.abort();
     mcp.abort();
+    let _ = (&mut mcp).await;
+}
+
+/// Wait for the caller to leave.
+///
+/// This endpoint defines no channel for a caller to open, and an answer
+/// to one of ours goes to that channel's own receiver --- so nothing is
+/// ever expected here. What is being waited for is the [`None`]: the
+/// session drops the sender when the scope ends, and that is how a
+/// caller hanging up is learned at all.
+///
+/// Anything that does arrive is read and dropped, because a queue
+/// nobody drains is memory the far side can grow.
+async fn hangup(scope: &ScopeHandle) {
+    while scope.recv_channel_request().await.is_some() {}
 }
 
 /// Ask the agent to run, and turn what comes back into frames.
 ///
-/// A straight loop with no knowledge of the conduit beside it. It sends
-/// the request rather than being handed the answer, because sending it
-/// is the part that must not happen on the task doing the writing —
-/// see [`relay`].
+/// A straight loop that mentions the conduit nowhere. It sends the
+/// request itself rather than being handed the answer, because the
+/// container may want a tool call before it answers and the task that
+/// serves those has to already be running --- see [`relay`].
 ///
-/// An event that is not a chunk ends the loop and is reported, because
-/// a stream that has started saying things this crate cannot read is
-/// not one to keep relaying.
+/// An event that is not a chunk ends it and is reported, because a
+/// stream that has started saying things this crate cannot read is not
+/// one to keep relaying.
 async fn agent<R, W, E>(
     reader: R,
     writer: W,
     body: Bytes,
-    writes: mpsc::UnboundedSender<Write>,
+    scope: Arc<ScopeHandle>,
 ) where
     R: futures_util::Stream<Item = Result<Bytes, E>> + Send + Unpin + 'static,
     W: futures_util::Sink<Bytes, Error = E> + Send + Unpin + 'static,
@@ -315,29 +308,32 @@ async fn agent<R, W, E>(
         .header(hyper::header::ACCEPT, "text/event-stream")
         .body(Full::new(body));
 
-    let response = match request {
+    let answer = match request {
         Ok(request) => {
             crate::server::http::request(reader, writer, request).await
         }
         Err(error) => Err(Error(Value::String(error.to_string()))),
     };
 
-    let response = match response {
-        Ok(response) => response,
-        Err(error) => return done(&writes, Some(error)),
+    let answer = match answer {
+        Ok(answer) => answer,
+        Err(error) => {
+            return write(&scope, &response::Frame::Error(error)).await;
+        }
     };
 
     // A status is the container's answer about itself, and this is the
     // one place to judge it: everything after here assumes a stream.
-    if !response.status().is_success() {
-        let status = response.status().as_u16();
+    if !answer.status().is_success() {
+        let status = answer.status().as_u16();
         let error = format!("the agent container answered {status}");
-        return done(&writes, Some(Error(Value::String(error))));
+        let error = Error(Value::String(error));
+        return write(&scope, &response::Frame::Error(error)).await;
     }
 
     // The body is a stream of frames, of which the data ones are the
     // bytes; a trailer is not an event and there are none here anyway.
-    let events = BodyStream::new(response.into_body()).filter_map(|frame| {
+    let events = BodyStream::new(answer.into_body()).filter_map(|frame| {
         async {
             match frame {
                 Ok(frame) => frame.into_data().ok().map(Ok),
@@ -357,27 +353,13 @@ async fn agent<R, W, E>(
                     .map_err(|error| Error(Value::String(error.to_string())))
             });
 
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
-            Err(error) => return done(&writes, Some(error)),
-        };
-
-        if writes.send(encoded(&response::Frame::Chunk(chunk))).is_err() {
-            return;
+        match chunk {
+            Ok(chunk) => write(&scope, &response::Frame::Chunk(chunk)).await,
+            Err(error) => {
+                return write(&scope, &response::Frame::Error(error)).await;
+            }
         }
     }
-
-    // The agent is finished, so the scope is. Whatever the conduit was
-    // doing was in service of a loop that is over.
-    done(&writes, None)
-}
-
-/// Say the loop is over, reporting a failure first if there was one.
-fn done(writes: &mpsc::UnboundedSender<Write>, error: Option<Error>) {
-    if let Some(error) = error {
-        let _ = writes.send(encoded(&response::Frame::Error(error)));
-    }
-    let _ = writes.send(Write::Done);
 }
 
 /// Work the MCP conduit, in both of its directions.
@@ -393,16 +375,13 @@ fn done(writes: &mpsc::UnboundedSender<Write>, error: Option<Error>) {
 /// A conduit that ends means the agent has no tools left, not that the
 /// agent is finished. What it is doing without them is its own
 /// business, and it is still being relayed.
-async fn mcp<R, W, E>(
-    reader: R,
-    writer: W,
-    writes: mpsc::UnboundedSender<Write>,
-) where
+async fn mcp<R, W, E>(reader: R, writer: W, scope: Arc<ScopeHandle>)
+where
     R: futures_util::Stream<Item = Result<Bytes, E>> + Unpin,
     W: futures_util::Sink<Bytes> + Send + Unpin + 'static,
     E: Into<Error>,
 {
-    let writer = std::sync::Arc::new(tokio::sync::Mutex::new(writer));
+    let writer = Arc::new(tokio::sync::Mutex::new(writer));
     let mut messages = pin!(mcp_conduit::messages(reader));
     // Owned here rather than spawned loose, so that aborting this task
     // aborts the exchanges it started: dropping the set cancels every
@@ -437,15 +416,14 @@ async fn mcp<R, W, E>(
             continue;
         }
 
-        let (back, channel) = oneshot::channel();
-        if writes.send(Write::ChannelRequest(bytes, back)).is_err() {
-            return;
-        }
+        // Opened here, on the scope itself. There is nothing between
+        // this task and the wire.
+        let channel = scope.send_channel_request(&bytes).await;
 
         exchanges.spawn(exchange(
             message.exchange,
             channel,
-            std::sync::Arc::clone(&writer),
+            Arc::clone(&writer),
         ));
     }
 }
@@ -463,16 +441,11 @@ async fn mcp<R, W, E>(
 /// exchange is over, and that is what the empty message below means.
 async fn exchange<W>(
     exchange: u32,
-    channel: oneshot::Receiver<Channel>,
-    writer: std::sync::Arc<tokio::sync::Mutex<W>>,
+    mut channel: Channel,
+    writer: Arc<tokio::sync::Mutex<W>>,
 ) where
     W: futures_util::Sink<Bytes> + Unpin,
 {
-    // Gone means the scope ended between asking and being answered.
-    let Ok(mut channel) = channel.await else {
-        return;
-    };
-
     while let Some(bytes) = channel.response_receiver.recv().await {
         if let Ok(ClientFrame::ChannelResponse { payload, .. }) =
             ClientFrame::decode(&bytes)
@@ -491,24 +464,11 @@ async fn exchange<W>(
     let _ = writer.lock().await.send(message).await;
 }
 
-/// Encode a frame as a write, or as an empty one if it will not encode.
-///
-/// The one failure with nowhere to report it: the channel for saying so
-/// is the thing that would not serialize. An empty payload is not a
-/// legal response, so it is dropped rather than sent.
-fn encoded(frame: &response::Frame) -> Write {
-    let mut bytes = Vec::new();
-    if frame.encode(&mut Writer::new(&mut bytes)).is_err() {
-        bytes.clear();
-    }
-    Write::Response(bytes)
-}
-
 /// Write one frame, or write nothing if it will not encode.
 ///
-/// Used only where there is no worker yet to route through. Once there
-/// is, a frame travels as a [`Write`] like anything else.
-async fn write(scope: &mut ScopeHandle, frame: &response::Frame) {
+/// The one failure with nowhere to report it: the channel for saying so
+/// is the thing that would not serialize.
+async fn write(scope: &ScopeHandle, frame: &response::Frame) {
     let mut bytes = Vec::new();
     if frame.encode(&mut Writer::new(&mut bytes)).is_ok() {
         scope.send_response(&bytes).await;

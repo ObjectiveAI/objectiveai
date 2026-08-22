@@ -25,7 +25,7 @@ use crate::shared::error::Error;
 /// [`Ok`] becomes the first, whichever way the `Ok` went. Nothing here
 /// turns a no into a failure or a failure into a no.
 pub async fn handle<C>(
-    mut scope: ScopeHandle,
+    scope: ScopeHandle,
     client_identity: &str,
     checker: &C,
 ) where

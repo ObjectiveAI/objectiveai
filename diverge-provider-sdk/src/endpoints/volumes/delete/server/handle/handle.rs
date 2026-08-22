@@ -21,7 +21,7 @@ use crate::shared::error::Error;
 /// and left to break what was holding it is the manager's to decide —
 /// the protocol does not adjudicate it, so neither does this.
 pub async fn handle<M>(
-    mut scope: ScopeHandle,
+    scope: ScopeHandle,
     client_identity: &str,
     manager: &M,
 ) where

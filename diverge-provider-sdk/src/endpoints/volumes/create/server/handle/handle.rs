@@ -25,7 +25,7 @@ use crate::shared::error::Error;
 /// [`VolumeManager`] for why: the wire has one error per endpoint and
 /// no vocabulary for the reasons.
 pub async fn handle<M>(
-    mut scope: ScopeHandle,
+    scope: ScopeHandle,
     client_identity: &str,
     manager: &M,
 ) where

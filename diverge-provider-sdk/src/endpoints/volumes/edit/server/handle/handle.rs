@@ -24,7 +24,7 @@ use crate::shared::error::Error;
 /// Nothing in this protocol promises `bytes` is ever at least
 /// `bytes_used`, and this does not start.
 pub async fn handle<M>(
-    mut scope: ScopeHandle,
+    scope: ScopeHandle,
     client_identity: &str,
     manager: &M,
 ) where

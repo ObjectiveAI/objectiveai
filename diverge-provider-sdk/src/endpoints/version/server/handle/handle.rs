@@ -40,7 +40,7 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// It is checked at all because this is public and a scope is a scope.
 /// Whatever dispatches here read the tag to get here; this confirms it
 /// rather than trusting it.
-pub async fn handle(mut scope: ScopeHandle) {
+pub async fn handle(scope: ScopeHandle) {
     if request::Frame::decode(scope.request()).is_ok() {
         let mut buffer = Vec::new();
         response::Frame(VERSION)

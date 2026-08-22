@@ -100,6 +100,14 @@
 //! individual scope, and that is where the connection's write half
 //! ends up.
 //!
+//! Sharing happens one level down instead. A
+//! [`ScopeHandle`](scope_handle::ScopeHandle) takes `&self` throughout,
+//! so several tasks can answer one scope at once — which is what a
+//! provider needs where a client does not, because an endpoint like
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) writes in
+//! two directions and neither should wait on the other. A client shares
+//! the thing that makes scopes; a provider shares the scope.
+//!
 //! # What is not here yet
 //!
 //! **Dispatch.** A scope can now be read as well as written —

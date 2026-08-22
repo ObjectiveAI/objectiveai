@@ -26,13 +26,13 @@
 //! a pipe that a provider handed over, and speaks into it.
 
 use std::io;
-use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
 use futures_util::{Sink, SinkExt as _, Stream, StreamExt as _};
 use http_body_util::Full;
 use hyper::body::Incoming;
 use hyper_util::rt::TokioIo;
+use tokio::sync::mpsc;
 use tokio_util::io::{CopyToBytes, SinkWriter, StreamReader};
 
 use crate::shared::error::Error;
@@ -87,19 +87,23 @@ where
     // below need `io::Error`, and a container's error type promises
     // nothing that could be formatted into one. So the real error is
     // put aside as it goes past, and read back if hyper then complains.
-    let stashed = Arc::new(Mutex::new(None));
+    //
+    // A queue rather than a lock, because the two places that put one
+    // aside are ordinary closures with no await between them — a
+    // `send` is exactly what fits there, and it keeps the first
+    // failure first without anything having to compare them.
+    let (stash, mut stashed) = mpsc::unbounded_channel();
 
-    let reading = Arc::clone(&stashed);
+    let reading = stash.clone();
     let reader = StreamReader::new(reader.map(move |result| {
         result.map_err(|error| {
-            stash(&reading, error.into());
+            let _ = reading.send(error.into());
             io::Error::other("the container's pipe failed")
         })
     }));
-    let writing = Arc::clone(&stashed);
     let writer = SinkWriter::new(CopyToBytes::new(writer.sink_map_err(
         move |error| {
-            stash(&writing, error.into());
+            let _ = stash.send(error.into());
             io::Error::other("the container's pipe failed")
         },
     )));
@@ -109,7 +113,7 @@ where
             tokio::io::join(reader, writer),
         ))
         .await
-        .map_err(|error| taken(&stashed, error))?;
+        .map_err(|error| taken(&mut stashed, error))?;
 
     // Dropped by the sender going away, which happens when the response
     // body is finished or dropped.
@@ -118,18 +122,7 @@ where
     sender
         .send_request(request)
         .await
-        .map_err(|error| taken(&stashed, error))
-}
-
-/// Keep the first pipe failure, and only the first.
-///
-/// The first is the one that explains the rest: a broken pipe reports
-/// itself again on every subsequent poll, and the later reports say
-/// nothing the first did not.
-fn stash(slot: &Mutex<Option<Error>>, error: Error) {
-    if let Ok(mut slot) = slot.lock() {
-        slot.get_or_insert(error);
-    }
+        .map_err(|error| taken(&mut stashed, error))
 }
 
 /// The pipe's failure if there was one, and hyper's if there was not.
@@ -137,11 +130,15 @@ fn stash(slot: &Mutex<Option<Error>>, error: Error) {
 /// hyper reports a broken connection in its own words, which are true
 /// and unhelpful — the container's error is the one that says what
 /// actually went wrong, and it is preferred whenever it exists.
-fn taken(slot: &Mutex<Option<Error>>, fallback: hyper::Error) -> Error {
-    slot.lock()
-        .ok()
-        .and_then(|mut slot| slot.take())
-        .unwrap_or_else(|| {
-            Error(serde_json::Value::String(fallback.to_string()))
-        })
+///
+/// The FIRST one, which is what a queue gives without asking: a broken
+/// pipe reports itself again on every subsequent poll, and the later
+/// reports say nothing the first did not.
+fn taken(
+    stashed: &mut mpsc::UnboundedReceiver<Error>,
+    fallback: hyper::Error,
+) -> Error {
+    stashed.try_recv().unwrap_or_else(|_| {
+        Error(serde_json::Value::String(fallback.to_string()))
+    })
 }

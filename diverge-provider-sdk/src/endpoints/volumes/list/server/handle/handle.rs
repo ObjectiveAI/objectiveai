@@ -38,7 +38,7 @@ use crate::shared::error::Error;
 /// go, and the scope simply finishes without an answer. A caller reads
 /// that as a provider that said nothing, which is what happened.
 pub async fn handle<M>(
-    mut scope: ScopeHandle,
+    scope: ScopeHandle,
     client_identity: &str,
     manager: &M,
 ) where
