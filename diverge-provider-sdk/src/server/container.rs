@@ -8,6 +8,7 @@ use bytes::Bytes;
 use futures_util::Stream;
 
 use crate::shared::error::Error;
+use crate::shared::http::{request, response};
 
 /// A running container, as far as this crate needs one.
 ///
@@ -45,8 +46,10 @@ use crate::shared::error::Error;
 /// container answers, and sometimes the container asks and the provider
 /// answers. Those need opposite shapes and only ever shared a socket.
 ///
-/// [`http_serve`](Self::http_serve) is the second of them. The first —
-/// the provider asking — is not written yet.
+/// [`http_call`](Self::http_call) is the provider asking, and
+/// [`http_serve`](Self::http_serve) is the provider answering. They
+/// share a transport and nothing else: one takes a request and returns
+/// an answer, and the other returns requests and takes answers.
 ///
 /// # `Send` and `Sync`
 ///
@@ -201,6 +204,68 @@ pub trait Container: Send + Sync {
         port: u16,
     ) -> impl Future<Output = Result<Self::HttpRequestStream, Self::Error>> + Send;
 
+    /// Make one HTTP request to something inside the container.
+    ///
+    /// The other direction from [`http_serve`](Self::http_serve), and
+    /// the more ordinary one: a plugin's MCP server, a laboratory's, an
+    /// agent image asked to start a run. The container is the server
+    /// and this end is its client.
+    ///
+    /// # One call is one exchange
+    ///
+    /// No session, no connection to hold, nothing kept between calls.
+    /// Which is what MCP over Streamable HTTP already is — a series of
+    /// discrete requests over a session identified by a HEADER rather
+    /// than by anything at the transport layer — so a connection held
+    /// open between them would be a pool this crate was managing on
+    /// somebody else's behalf.
+    ///
+    /// Whether an implementation actually opens a socket each time is
+    /// its own business. Nothing here can tell, and nothing here should
+    /// care.
+    ///
+    /// # The request is not encoded
+    ///
+    /// Unlike [`http_serve`](Self::http_serve), whose items are bytes.
+    /// The asymmetry is not an inconsistency: there the bytes ARE the
+    /// buffer a borrowed request needs, and here the request is an
+    /// argument that lives for the call, so there is nothing to own it
+    /// and no reason to serialize it first.
+    ///
+    /// # The answer is a head and a body
+    ///
+    /// Separately, and the body is one piece or a stream of them — see
+    /// [`Body`]. Which is the shape MCP forces: a `Content-Type` of
+    /// `application/json` introduces one document and the exchange is
+    /// over, and `text/event-stream` introduces a stream held open for
+    /// the session. Collapsing them would mean buffering the second
+    /// into the first, which for a session stream means buffering until
+    /// it closes and answering nothing until then.
+    ///
+    /// It is the same pair a
+    /// [`McpProxy`](crate::client::mcp_proxy::McpProxy) hands back on
+    /// the other half of this crate, for the same reason and with the
+    /// same meaning.
+    ///
+    /// # What an [`Err`] is
+    ///
+    /// No answer at all — nothing listening on that port, a port never
+    /// declared, a connection that broke before a head arrived. A
+    /// response with a status in it is [`Ok`], including a `500`: what
+    /// a status MEANS belongs to whatever asked, and this layer would
+    /// be guessing.
+    ///
+    /// A failure after the head has gone is neither. There is nowhere
+    /// to report one — the status is already sent and HTTP has no way
+    /// to take it back — so the body simply stops, which is what an
+    /// ordinary HTTP connection dropping looks like and is what this
+    /// stands in for.
+    fn http_call(
+        &self,
+        port: u16,
+        request: request::Request<'_>,
+    ) -> impl Future<Output = Result<(response::Head, Body), Self::Error>> + Send;
+
     /// Stop it.
     ///
     /// Returns when the container is stopped, the way a deploy returns
@@ -345,6 +410,71 @@ pub trait Container: Send + Sync {
             >,
         >,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
+}
+
+/// The body of an answer: all of it, or a piece at a time.
+///
+/// What [`Container::http_call`] hands back beside the head.
+///
+/// # Why the shape is a choice at all
+///
+/// Because MCP over Streamable HTTP answers in two ways, and the head
+/// says which. A `Content-Type` of `application/json` introduces one
+/// document, complete, and a request that got one is over. A
+/// `text/event-stream` introduces an event stream held open for the
+/// session, which is where a server pushes notifications and the
+/// answers to things it was asked while it was thinking.
+///
+/// Something that had to pick one would have to buffer the second into
+/// the first — which for a stream held open for a session means
+/// buffering forever, and answering nothing until it closed.
+///
+/// # Both end the same way
+///
+/// The answer is over when the body is: after the one piece, or after
+/// the stream yields [`None`]. Nothing else says so, and nothing needs
+/// to.
+///
+/// Which is also all a stream can do about its own failure. There is
+/// nowhere to report one after the head has gone — the status is
+/// already sent, and HTTP has no way to take it back — so a body that
+/// breaks ends, and whoever is reading sees a body that stopped. That
+/// is what an ordinary HTTP connection dropping looks like, which is
+/// what this is standing in for.
+///
+/// # It is the same enum a proxy has, written again
+///
+/// [`McpProxy`](crate::client::mcp_proxy::McpProxy) and
+/// [`OciProxy`](crate::client::oci_proxy::OciProxy) each carry one of
+/// these, and this is a third copy rather than a shared definition.
+/// Deliberately: those two are the CALLER's half and this is the
+/// PROVIDER's, they are behind different features, and a type shared
+/// across that line would tie two halves together that a build is
+/// allowed to compile one of.
+pub enum Body {
+    /// The whole answer, at once.
+    ///
+    /// For the ordinary case: one JSON document, complete before it was
+    /// sent.
+    Single(Bytes),
+    /// The answer a piece at a time, for as long as it lasts.
+    ///
+    /// For an event stream. Each item is another piece of the body, and
+    /// the answer is over when the stream ends.
+    ///
+    /// # Why it is boxed, and why the bounds are what they are
+    ///
+    /// [`Send`] and `'static` because it outlives the call that made it
+    /// and will be polled from wherever the answer is being read, which
+    /// is not where it was built.
+    ///
+    /// [`Sync`] is NOT required. Whoever reads the answer OWNS this and
+    /// polls it through `&mut`, so a shared reference to it never
+    /// exists — and requiring one turns away the obvious way to write a
+    /// stream, since an `async_stream` generator is [`Sync`] only if
+    /// everything it awaits is. A mutex guard held across an await is
+    /// enough to disqualify it.
+    Stream(Pin<Box<dyn Stream<Item = Bytes> + Send + 'static>>),
 }
 
 /// How one HTTP response is written.
