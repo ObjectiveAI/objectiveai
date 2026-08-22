@@ -152,7 +152,11 @@
 //!
 //! It is generic across the three endpoints that put a container
 //! somewhere, because they differ in what goes in one and not in how
-//! one is deployed. What it is handed is a [`deployment`], and what it
+//! one is deployed. What it is handed is a [`deployment`] and the
+//! caller it is for — the same opaque identity a [`mount`] carries,
+//! because deploying is the most consequential thing a provider does on
+//! somebody's behalf and every question worth asking about it needs to
+//! know whose. What it
 //! hands back is a [`container`] — whatever that provider holds a
 //! running container by, with the four things that need something only
 //! the deploy learned: where its filesystem is, for reading and

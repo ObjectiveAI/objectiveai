@@ -33,13 +33,14 @@ use crate::shared::http;
 /// channels, and the caller's answers come back and go in. Neither
 /// waits for the other, because neither is in the other's loop.
 ///
-/// # It takes no `client_identity`
+/// # The identity goes to the deployer and no further
 ///
-/// Alone among the handlers. This endpoint's request carries no
-/// identity and a [`ContainerDeployer`] takes none, so there is nothing
-/// an identity would be used for — the container gets no mounts, no
-/// volumes and no environment, so there is no namespace to resolve it
-/// against.
+/// This endpoint's request carries none of its own, and the container
+/// gets no mounts, no volumes and no environment — so there is no
+/// namespace to resolve one against and nothing inside is told who
+/// asked. What it is for is the deploy, which is a provider spending
+/// its own capacity on somebody's behalf and is entitled to know
+/// whose.
 ///
 /// # The request is forwarded verbatim
 ///
@@ -55,7 +56,11 @@ use crate::shared::http;
 /// leaving. There is no destructor doing it, because teardown in this
 /// crate is a method; there is one call, after the loop, and every exit
 /// goes through it.
-pub async fn handle<D>(scope: ScopeHandle, deployer: &D)
+pub async fn handle<D>(
+    scope: ScopeHandle,
+    client_identity: &str,
+    deployer: &D,
+)
 where
     D: ContainerDeployer,
     D::Error: Into<Error>,
@@ -96,7 +101,9 @@ where
         ports: vec![8080, 8081],
     };
 
-    let container = match deployer.registry(&deployment, image(&agent)).await {
+    let deployed =
+        deployer.registry(client_identity, &deployment, image(&agent));
+    let container = match deployed.await {
         Ok(container) => container,
         Err(error) => {
             write(&scope, &response::Frame::Error(error.into())).await;

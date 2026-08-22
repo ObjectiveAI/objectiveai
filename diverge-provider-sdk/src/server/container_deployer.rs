@@ -121,6 +121,26 @@ use super::deployment::Deployment;
 /// channels the scope already carries, and relaying does not need the
 /// container to have a method for it.
 ///
+/// # Every method is told whose it is
+///
+/// `client_identity` is whatever authenticated the connection the
+/// request arrived on — the same opaque string a
+/// [`mount`](super::mount::Mount) carries and a
+/// [`VolumeManager`](super::volume_manager::VolumeManager) takes. This
+/// crate never mints one, parses one, or compares two.
+///
+/// It is here because deploying is the most consequential thing a
+/// provider does on somebody's behalf, and every question worth asking
+/// about it needs to know whose behalf. What a caller may spend, which
+/// registries its credentials reach, where its containers are placed,
+/// what to bill, what to write down afterwards — none of it is
+/// answerable from a [`Deployment`], and all of it is a provider's to
+/// decide rather than this protocol's.
+///
+/// Which is why it is an argument and not a constructor parameter: one
+/// deployer serves every caller on every connection, the same way one
+/// [`VolumeManager`](super::volume_manager::VolumeManager) does.
+///
 /// # Failure is the provider's too
 ///
 /// [`Error`](Self::Error) is an associated type for the same reason
@@ -210,6 +230,7 @@ pub trait ContainerDeployer: Send + Sync {
     /// nothing about the future it returns.
     fn client(
         &self,
+        client_identity: &str,
         deployment: &Deployment,
         name: &str,
         digest: &str,
@@ -232,6 +253,7 @@ pub trait ContainerDeployer: Send + Sync {
     /// handed with nothing to translate.
     fn server(
         &self,
+        client_identity: &str,
         deployment: &Deployment,
         name: &str,
         digest: &str,
@@ -261,6 +283,7 @@ pub trait ContainerDeployer: Send + Sync {
     /// [`Error`](Self::Error) like any other.
     fn registry(
         &self,
+        client_identity: &str,
         deployment: &Deployment,
         reference: &str,
     ) -> impl Future<Output = Result<Self::Container, Self::Error>> + Send;

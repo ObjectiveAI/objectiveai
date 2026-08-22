@@ -50,20 +50,16 @@ use crate::shared::http;
 ///
 /// Which is not the plugin's own [`Identity`](request::Identity). That
 /// one is what the CALLER says about itself and reaches the container
-/// as environment; this is what the PROVIDER established about the
-/// connection, and it is here because pulling a
-/// [`Client`](Image::Client) image happens on that caller's behalf.
+/// as environment, and a plugin reads it to decide how to behave. This
+/// is what the PROVIDER established about the connection, and it goes
+/// to the [`ContainerDeployer`], which is the party that decides
+/// whether this caller may have a container at all.
 pub async fn handle<D>(scope: ScopeHandle, client_identity: &str, deployer: &D)
 where
     D: ContainerDeployer,
     D::Error: Into<Error>,
     <D::Container as Container>::Error: Into<Error>,
 {
-    // Nothing consults it yet. It is an argument because the deploy
-    // below is done for somebody, and a provider that attributes work
-    // needs to be told whose it is.
-    let _ = client_identity;
-
     // Shared from here, because the workers write on it and none of
     // them may hold it alone. What stays exclusive is ENDING the scope,
     // which is why the finish has to get the handle back out.
@@ -95,7 +91,15 @@ where
     };
 
     let container =
-        match deploy(&scope, deployer, &deployment, &request.image).await {
+        match deploy(
+            &scope,
+            deployer,
+            client_identity,
+            &deployment,
+            &request.image,
+        )
+        .await
+        {
             Ok(container) => Arc::new(container),
             Err(error) => {
                 write(&scope, &response::Frame(error)).await;
@@ -120,6 +124,7 @@ where
 async fn deploy<D>(
     scope: &Arc<ScopeHandle>,
     deployer: &D,
+    client_identity: &str,
     deployment: &Deployment,
     image: &Image,
 ) -> Result<D::Container, Error>
@@ -132,13 +137,15 @@ where
             let registry = ClientRegistry::new(scope, |request, out| {
                 channel_request::Frame::Oci(request).encode(out)
             });
-            deployer.client(deployment, name, digest, registry).await
+            deployer
+                .client(client_identity, deployment, name, digest, registry)
+                .await
         }
         Image::Server { name, digest } => {
-            deployer.server(deployment, name, digest).await
+            deployer.server(client_identity, deployment, name, digest).await
         }
         Image::Registry { reference } => {
-            deployer.registry(deployment, reference).await
+            deployer.registry(client_identity, deployment, reference).await
         }
     }
     .map_err(Into::into)
