@@ -252,7 +252,22 @@ where
     // nobody being left to tell. Nothing else ends this.
     let stopped = {
         let hangup = pin!(hangup(scope));
-        matches!(future::select(&mut agent, hangup).await, Either::Left(_))
+        match future::select(&mut agent, hangup).await {
+            Either::Left((Ok(()), _)) => true,
+            // The agent's own failures are frames before it returns, so
+            // the only thing left here is the task itself having
+            // stopped existing. Which is the one failure it could not
+            // report, and it must not read as a clean finish: a caller
+            // that saw silence would conclude the loop simply had
+            // nothing more to say.
+            Either::Left((Err(_), _)) => {
+                let error = "the agent relay stopped unexpectedly";
+                let error = Error(Value::String(error.to_owned()));
+                write(scope, &response::Frame::Error(error)).await;
+                true
+            }
+            Either::Right(_) => false,
+        }
     };
 
     // A `JoinHandle` that has already resolved must not be polled
