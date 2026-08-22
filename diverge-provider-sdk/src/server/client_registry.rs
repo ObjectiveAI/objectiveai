@@ -62,7 +62,7 @@ use crate::shared::http::request;
 #[derive(Debug)]
 pub struct ClientRegistry<'a> {
     /// The scope the image is being pulled for.
-    scope_handle: &'a mut ScopeHandle,
+    scope_handle: &'a ScopeHandle,
     /// How to put a request into this endpoint's channel-request
     /// frame.
     ///
@@ -97,7 +97,7 @@ impl<'a> ClientRegistry<'a> {
     /// })
     /// ```
     pub fn new(
-        scope_handle: &'a mut ScopeHandle,
+        scope_handle: &'a ScopeHandle,
         wrap: fn(
             request::Request<'_>,
             &mut Writer<'_>,
@@ -134,7 +134,7 @@ impl<'a> ClientRegistry<'a> {
     /// this crate's plumbing and never a refusal, because a refusal is
     /// a status.
     pub async fn request(
-        &mut self,
+        &self,
         request: request::Request<'_>,
     ) -> Result<OciStream, serde_json::Error> {
         let mut payload = Vec::new();

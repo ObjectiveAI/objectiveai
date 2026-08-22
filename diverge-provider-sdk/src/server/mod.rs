@@ -114,16 +114,19 @@
 //! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
 //! out the payload and
 //! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and eight endpoints have a
-//! `server::handle` that uses them: the five
-//! [`volumes`](crate::endpoints::volumes),
-//! [`images::check`](crate::endpoints::images::check),
-//! [`version`](crate::endpoints::version) and
-//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run), which is
-//! the first to write in both directions at once. What is missing is
-//! the thing in front of them: nothing reads the leading tag byte of a
-//! request and decides which handler it belongs to, so the pieces exist
-//! and nothing wires them together.
+//! takes the channels off their queue — and every endpoint now has a
+//! `server::handle`. The five [`volumes`](crate::endpoints::volumes)
+//! and [`images::check`](crate::endpoints::images::check) answer and
+//! finish; [`version`](crate::endpoints::version) answers from a
+//! constant; [`agentic_loop::run`](crate::endpoints::agentic_loop::run)
+//! writes in two directions at once; and
+//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) is the only
+//! one that SERVES the channels a caller opens rather than only opening
+//! its own.
+//!
+//! What is missing is the thing in front of them: nothing reads the
+//! leading tag byte of a request and decides which handler it belongs
+//! to, so the pieces exist and nothing wires them together.
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a
@@ -191,14 +194,18 @@
 //! pulls nothing, and because no is an ANSWER here where it would be an
 //! error there.
 //!
-//! Nothing implements any of them, and all three are now consumed:
+//! Nothing implements any of them, and all three are consumed:
 //! [`volume_manager`] by the five
 //! [`volumes`](crate::endpoints::volumes) endpoints' handlers,
 //! [`image_checker`] by
 //! [`images::check`](crate::endpoints::images::check)'s, and
-//! [`container_deployer`] by
-//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run)'s — the
-//! first endpoint to put a container somewhere and the only one so far.
+//! [`container_deployer`] by the handlers of
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) and
+//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) — the two
+//! endpoints that put a container somewhere. Only the second uses all
+//! three of its methods, an agent's image being this crate's own; and
+//! only the second reaches [`client_registry`] and [`oci_stream`],
+//! which exist for an image the CALLER serves.
 //!
 //! [`mcp_conduit`] is what goes with that last one. An agent runs in a
 //! container beside the provider and calls tools that live with the

@@ -179,7 +179,7 @@ pub trait Container: Send + Sync {
     /// stream; anything more structured is something built on top, by
     /// whoever knows which protocol this is.
     ///
-    /// # It dials once
+    /// # A refusal is not a delay
     ///
     /// There is no waiting here and no retry. A
     /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
@@ -189,6 +189,35 @@ pub trait Container: Send + Sync {
     ///
     /// A refusal therefore means something is wrong rather than that
     /// something is slow, which is what makes it worth reporting.
+    ///
+    /// # As many at once as are wanted
+    ///
+    /// One call is one connection, and nothing limits how many a
+    /// caller makes. Two calls naming the same port are two separate
+    /// pipes to the same listening socket, and they are independent in
+    /// every way that matters — one closing says nothing about the
+    /// other.
+    ///
+    /// Which is what an [`mcp_plugin`](crate::endpoints::mcp_plugin::run)
+    /// relies on. A plugin holds a database connection POOL, and one
+    /// pipe is one connection in it, so the provider dials as many
+    /// times as the plugin turns out to want.
+    ///
+    /// # A half-close has to survive
+    ///
+    /// The [`Reader`](Self::Reader) ending while the
+    /// [`Writer`](Self::Writer) still works is a real state and means
+    /// something: the far side has said everything it is going to say
+    /// and is waiting for the answer. TCP gives it for nothing, and an
+    /// implementation carrying a pipe over something else has to
+    /// preserve it rather than treating either end's close as the
+    /// connection's.
+    ///
+    /// A plugin's command conduit is the case that needs it. What the
+    /// plugin asks for is however much it writes, and the end of its
+    /// writes is what says the ask is complete — which is the
+    /// alternative to putting a length in front of it, and the reason
+    /// nothing here is framed.
     ///
     /// # The port has to have been declared
     ///
