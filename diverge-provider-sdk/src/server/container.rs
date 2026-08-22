@@ -88,10 +88,10 @@ pub trait Container: Send + Sync {
 
     /// What arrives when the container asks for something.
     ///
-    /// One item per request, each with the [`ResponseWriter`] that
+    /// One item per request, each with the [`HttpResponseWriter`] that
     /// answers that one. The stream ends when the container has no more
     /// to ask — see [`http_serve`](Self::http_serve).
-    type Requests: Stream<Item = (request::Owned, Self::ResponseWriter)>
+    type HttpRequestStream: Stream<Item = (request::Owned, Self::HttpResponseWriter)>
         + Send
         + Unpin
         + 'static;
@@ -102,7 +102,9 @@ pub trait Container: Send + Sync {
     /// failure of the same connection the request arrived on, and
     /// splitting them would be inventing a distinction a provider does
     /// not have.
-    type ResponseWriter: ResponseWriter<Error = Self::Error> + Send + 'static;
+    type HttpResponseWriter: HttpResponseWriter<Error = Self::Error>
+        + Send
+        + 'static;
 
     /// Serve HTTP to something inside the container.
     ///
@@ -164,7 +166,7 @@ pub trait Container: Send + Sync {
     fn http_serve(
         &self,
         port: u16,
-    ) -> impl Future<Output = Result<Self::Requests, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Self::HttpRequestStream, Self::Error>> + Send;
 
     /// Stop it.
     ///
@@ -346,7 +348,7 @@ pub trait Container: Send + Sync {
 /// between a method and a `Drop`.
 ///
 /// [`Head`]: crate::shared::http::response::Head
-pub trait ResponseWriter {
+pub trait HttpResponseWriter {
     /// Why an answer could not be written.
     ///
     /// A provider's own, like everything else here.
