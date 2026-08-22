@@ -20,11 +20,13 @@
 //!
 //! So the provider declares the port in
 //! [`Deployment::ports`](super::deployment::Deployment::ports), dials
-//! it with
-//! [`Container::connect`](super::container::Container::connect), and
-//! then LISTENS on a connection it opened. Nothing new is needed
-//! anywhere: no address a container has to be told, no endpoint a
-//! provider has to stand up, and nothing in this crate serving HTTP.
+//! it, and then LISTENS on a connection it opened. Nothing new is
+//! needed anywhere: no address a container has to be told, no endpoint
+//! a provider has to stand up, and nothing in this crate serving HTTP.
+//!
+//! What does the dialling is being reconsidered — see
+//! [`container`](super::container) — so this module describes a
+//! contract nothing currently reaches.
 //!
 //! # One frame, both directions
 //!

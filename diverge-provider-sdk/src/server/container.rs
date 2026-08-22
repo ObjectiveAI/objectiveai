@@ -5,7 +5,7 @@ use std::future::Future;
 use std::pin::Pin;
 
 use bytes::Bytes;
-use futures_util::{Sink, Stream};
+use futures_util::Stream;
 
 use crate::shared::error::Error;
 
@@ -20,21 +20,30 @@ use crate::shared::error::Error;
 /// # What belongs here
 ///
 /// Whatever needs something only the thing that deployed the container
-/// has. Not "what a provider cannot do from outside" — that was the
-/// first answer and [`connect`](Self::connect) is what disproves it. An
-/// MCP exchange IS made from outside, over a socket, and it still
-/// belongs here: reaching the port means knowing which host-side
-/// address that container's port ended up at, and only the deploy
-/// learned it.
+/// has. Not "what a provider cannot do from outside", which was the
+/// first answer and is too narrow — plenty of what a provider does to a
+/// container is done from outside it, and still needs a fact the deploy
+/// was the only thing to learn.
 ///
-/// So the four are the four facts a provider keeps to itself. Where the
+/// So the three are three facts a provider keeps to itself. Where the
 /// container's filesystem is, for [`read`](Self::read) and
 /// [`write`](Self::write). How to end it, for [`stop`](Self::stop).
-/// Where to reach it, for [`connect`](Self::connect).
 ///
 /// A filetree will join them when it is written, since watching a
 /// filesystem is knowing where one is. A transfer will not — it is a
 /// read on one container and a write on another, both already here.
+///
+/// # Reaching a port is not here, for now
+///
+/// It was: a `connect` handed back a byte pipe, and everything spoken
+/// into a container rode one. It is gone while the shape of that is
+/// reconsidered, and it will come back as something — a container that
+/// cannot be spoken to serves nobody.
+///
+/// What it leaves behind is the reason it was ever a method rather than
+/// an address: a container's port has a host-side address only on some
+/// runtimes, and on the rest the way in is the provider's own control
+/// plane. Whatever replaces it inherits that constraint.
 ///
 /// # `Send` and `Sync`
 ///
@@ -72,55 +81,6 @@ pub trait Container: Send + Sync {
     /// to be, and it outlives the call that produced it.
     type Error: Send + 'static;
 
-    /// The half of a connection that bytes arrive on.
-    ///
-    /// Whatever comes off the socket, in whatever pieces it comes off
-    /// in. Those pieces mean nothing — a protocol riding this
-    /// reassembles, exactly as it would from a socket, because that is
-    /// what this is.
-    ///
-    /// # [`Unpin`], which is the bound worth arguing about
-    ///
-    /// [`StreamExt::next`](futures_util::StreamExt::next) requires it.
-    /// Without it every place that reads one does the manual
-    /// [`poll_next`](Stream::poll_next) dance or boxes it first.
-    ///
-    /// An implementation holding something that is not [`Unpin`] boxes
-    /// it once, where it is built. A consumer without the bound pays at
-    /// every call. That asymmetry is the whole argument.
-    ///
-    /// [`Send`] and `'static` because it outlives the call that made it
-    /// and is polled from wherever the reading happens, which is not
-    /// where it was built.
-    type Reader: Stream<Item = Result<Bytes, Self::Error>>
-        + Send
-        + Unpin
-        + 'static;
-
-    /// The half of a connection that bytes go out on.
-    ///
-    /// Its [`Error`](Sink::Error) is [`Self::Error`], so a write
-    /// failing and a read failing are the same kind of thing — which
-    /// they are, being two directions of one socket.
-    ///
-    /// # Closing it does not close the [`Reader`](Self::Reader)
-    ///
-    /// [`close`](futures_util::SinkExt::close) is a half-close, and
-    /// both protocols that will ride this depend on it being one.
-    /// pgwire's `Terminate` is a client saying it is done talking while
-    /// the server is still answering; an HTTP request whose response is
-    /// still coming is the same shape.
-    ///
-    /// An implementation that tore down the read half here would break
-    /// both, and would do it in a way that looks like the far end
-    /// hanging up.
-    ///
-    /// # [`Unpin`], for the same reason
-    ///
-    /// [`SinkExt::send`](futures_util::SinkExt::send) requires it, and
-    /// without it a writer is `poll_ready`, `start_send`, `poll_flush`
-    /// by hand at every site.
-    type Writer: Sink<Bytes, Error = Self::Error> + Send + Unpin + 'static;
 
     /// Stop it.
     ///
@@ -161,108 +121,6 @@ pub trait Container: Send + Sync {
     /// send a frame and does not know there is one to send.
     fn stop(&self) -> impl Future<Output = ()> + Send;
 
-    /// Open a socket to a port inside it.
-    ///
-    /// A byte pipe and nothing more. What rides it is the caller's
-    /// business — MCP over HTTP, pgwire, whatever a provider arranged
-    /// for itself — and this neither knows nor frames any of it.
-    ///
-    /// # Why bytes rather than the protocol
-    ///
-    /// Because there is more than one protocol and there always was. An
-    /// MCP server speaks HTTP, a database conduit speaks pgwire, and
-    /// something a provider set up for its own purposes speaks whatever
-    /// it likes. A method shaped like one of them would serve that one
-    /// and be worked around by the rest.
-    ///
-    /// It is also what the container actually offers. A port is a byte
-    /// stream; anything more structured is something built on top, by
-    /// whoever knows which protocol this is.
-    ///
-    /// # A refusal is not a delay
-    ///
-    /// There is no waiting here and no retry. A
-    /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
-    /// hands back a container whose declared ports already accept, so
-    /// there is nothing to wait for — see the section there for why
-    /// that waiting belongs to a provider and not to this crate.
-    ///
-    /// A refusal therefore means something is wrong rather than that
-    /// something is slow, which is what makes it worth reporting.
-    ///
-    /// # As many at once as are wanted
-    ///
-    /// One call is one connection, and nothing limits how many a
-    /// caller makes. Two calls naming the same port are two separate
-    /// pipes to the same listening socket, and they are independent in
-    /// every way that matters — one closing says nothing about the
-    /// other.
-    ///
-    /// Which is what an [`mcp_plugin`](crate::endpoints::mcp_plugin::run)
-    /// relies on. A plugin holds a database connection POOL, and one
-    /// pipe is one connection in it, so the provider dials as many
-    /// times as the plugin turns out to want.
-    ///
-    /// # A half-close has to survive
-    ///
-    /// The [`Reader`](Self::Reader) ending while the
-    /// [`Writer`](Self::Writer) still works is a real state and means
-    /// something: the far side has said everything it is going to say
-    /// and is waiting for the answer. TCP gives it for nothing, and an
-    /// implementation carrying a pipe over something else has to
-    /// preserve it rather than treating either end's close as the
-    /// connection's.
-    ///
-    /// A plugin's command conduit is the case that needs it. What the
-    /// plugin asks for is however much it writes, and the end of its
-    /// writes is what says the ask is complete — which is the
-    /// alternative to putting a length in front of it, and the reason
-    /// nothing here is framed.
-    ///
-    /// # The port has to have been declared
-    ///
-    /// In [`Deployment::ports`](super::deployment::Deployment::ports),
-    /// before the container was deployed. Connecting to one that was
-    /// not is not required to work, and on a runtime that publishes
-    /// ports when it creates a container it cannot — there is nothing
-    /// left to publish through.
-    ///
-    /// This is the other half of the rule that field states. A provider
-    /// undertook to make those ports reachable; it undertook nothing
-    /// about any others.
-    ///
-    /// # Two halves, handed over separately
-    ///
-    /// Because they are pumped by different tasks — one reading the
-    /// socket and writing frames, one reading frames and writing the
-    /// socket — and a single duplex value would have to be taken apart
-    /// before either could start.
-    ///
-    /// # Failing to connect is not an empty stream
-    ///
-    /// It is an [`Err`] here. Nothing listening on that port is the
-    /// ordinary case rather than an exceptional one —
-    /// [`mcp_plugin`](crate::endpoints::mcp_plugin::run::client::request::Frame::mcp_port)
-    /// documents a wrong port as exactly that — and folding it into the
-    /// [`Reader`](Self::Reader) would make "could not connect"
-    /// indistinguishable from "connected, then closed".
-    ///
-    /// Which is the confusion this protocol works hardest to prevent
-    /// everywhere else, and there is no reason to introduce it here.
-    ///
-    /// # It says nothing about what answers
-    ///
-    /// A connection is a connection. Whether the thing on the other end
-    /// is the server that was expected, or is ready, or will answer at
-    /// all, is found out by talking to it — the same distinction a
-    /// [`ContainerDeployer`](super::container_deployer::ContainerDeployer)
-    /// draws when it says a container running is not a server bound.
-    fn connect(
-        &self,
-        port: u16,
-    ) -> impl Future<
-        Output = Result<(Self::Reader, Self::Writer), Self::Error>,
-    > + Send;
 
     /// Read one file out of it.
     ///

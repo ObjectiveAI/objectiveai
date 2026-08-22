@@ -114,19 +114,25 @@
 //! [`ScopeHandle::request`](scope_handle::ScopeHandle::request) hands
 //! out the payload and
 //! [`recv_channel_request`](scope_handle::ScopeHandle::recv_channel_request)
-//! takes the channels off their queue — and every endpoint now has a
-//! `server::handle`. The five [`volumes`](crate::endpoints::volumes)
-//! and [`images::check`](crate::endpoints::images::check) answer and
-//! finish; [`version`](crate::endpoints::version) answers from a
-//! constant; [`agentic_loop::run`](crate::endpoints::agentic_loop::run)
-//! writes in two directions at once; and
-//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) is the only
-//! one that SERVES the channels a caller opens rather than only opening
-//! its own.
+//! takes the channels off their queue — and seven endpoints have a
+//! `server::handle` that uses them: the five
+//! [`volumes`](crate::endpoints::volumes),
+//! [`images::check`](crate::endpoints::images::check) and
+//! [`version`](crate::endpoints::version). Each answers and finishes,
+//! which is the whole of what those endpoints do.
 //!
-//! What is missing is the thing in front of them: nothing reads the
-//! leading tag byte of a request and decides which handler it belongs
-//! to, so the pieces exist and nothing wires them together.
+//! Two more are written and not compiled.
+//! [`agentic_loop::run`](crate::endpoints::agentic_loop::run) and
+//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run) were built
+//! around a byte pipe into the container, and that is being
+//! reconsidered — see [`container`] for what went and why.
+//!
+//! The two [`laboratories`](crate::endpoints::laboratories) scopes have
+//! no handler at all yet.
+//!
+//! And in front of all of them, nothing reads the leading tag byte of a
+//! request and decides which handler it belongs to. So the pieces exist
+//! and nothing wires them together.
 //!
 //! **Auth**, in both directions. A credential belongs to the connection
 //! and there is nowhere for one to go, so a
@@ -158,13 +164,13 @@
 //! somebody's behalf and every question worth asking about it needs to
 //! know whose. What it
 //! hands back is a [`container`] — whatever that provider holds a
-//! running container by, with the four things that need something only
-//! the deploy learned: where its filesystem is, for reading and
-//! writing; how to end it; and where to reach it, for a socket to a
-//! port inside it.
+//! running container by, with the things that need something only the
+//! deploy learned: where its filesystem is, for reading and writing,
+//! and how to end it.
 //!
-//! That last one is a byte pipe rather than an HTTP client, because
-//! more than one protocol runs over it and always did.
+//! Reaching a port inside one belonged here too and is gone for now,
+//! while the shape of it is reconsidered. It will come back as
+//! something: a container nothing can speak to serves nobody.
 //!
 //! A deployment's [`mount`] is the one piece of it that is not simply
 //! copied out of a request. A caller names a volume, and a name is
@@ -232,7 +238,9 @@ pub mod client_registry;
 pub mod container;
 pub mod container_deployer;
 pub mod deployment;
-pub(crate) mod http;
+// Waiting with the handlers above. It turns a byte pipe into an HTTP
+// exchange, and there is no byte pipe at the moment.
+// pub(crate) mod http;
 pub mod image_checker;
 pub mod mcp_conduit;
 pub mod mount;
