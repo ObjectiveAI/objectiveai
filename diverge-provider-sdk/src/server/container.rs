@@ -58,7 +58,7 @@ use crate::shared::error::Error;
 /// into an MCP server the container runs itself. An agentic loop needs
 /// the first, a plugin the second, and a laboratory both.
 ///
-/// [`call_agentic_loop`](Self::call_agentic_loop) is neither, being the
+/// [`agentic_loop`](Self::agentic_loop) is neither, being the
 /// one thing a container says that this crate defined — so it is the
 /// one thing read rather than relayed.
 ///
@@ -172,15 +172,16 @@ pub trait Container: Send + Sync {
     /// push no more, and why. Nothing follows one — which is the
     /// server's own vocabulary and not this crate's, so it is an
     /// [`ErrorData`] rather than a [`Self::Error`].
-    type McpNotifications: Stream<Item = Result<ServerNotification, ErrorData>>
-        + Send
+    type McpNotificationStream: Stream<
+            Item = Result<ServerNotification, ErrorData>,
+        > + Send
         + Unpin
         + 'static;
 
     /// What an agent says, as it says it.
     ///
     /// One item per chunk, already parsed. See
-    /// [`call_agentic_loop`](Self::call_agentic_loop) for why this is
+    /// [`agentic_loop`](Self::agentic_loop) for why this is
     /// the one thing a container says that arrives as something other
     /// than bytes.
     ///
@@ -307,8 +308,9 @@ pub trait Container: Send + Sync {
         &self,
         port: u16,
         params: Option<PaginatedRequestParams>,
-    ) -> impl Future<Output = Result<Result<ListToolsResult, ErrorData>, Self::Error>>
-    + Send;
+    ) -> impl Future<
+        Output = Result<Result<ListToolsResult, ErrorData>, Self::Error>,
+    > + Send;
 
     /// Ask what resources the container offers.
     ///
@@ -332,8 +334,9 @@ pub trait Container: Send + Sync {
         &self,
         port: u16,
         params: Option<PaginatedRequestParams>,
-    ) -> impl Future<Output = Result<Result<ListResourcesResult, ErrorData>, Self::Error>>
-    + Send;
+    ) -> impl Future<
+        Output = Result<Result<ListResourcesResult, ErrorData>, Self::Error>,
+    > + Send;
 
     /// Run one of the container's tools.
     ///
@@ -358,8 +361,9 @@ pub trait Container: Send + Sync {
         &self,
         port: u16,
         params: CallToolRequestParams,
-    ) -> impl Future<Output = Result<Result<CallToolResult, ErrorData>, Self::Error>>
-    + Send;
+    ) -> impl Future<
+        Output = Result<Result<CallToolResult, ErrorData>, Self::Error>,
+    > + Send;
 
     /// Read one of the container's resources.
     ///
@@ -382,8 +386,9 @@ pub trait Container: Send + Sync {
         &self,
         port: u16,
         params: ReadResourceRequestParams,
-    ) -> impl Future<Output = Result<Result<ReadResourceResult, ErrorData>, Self::Error>>
-    + Send;
+    ) -> impl Future<
+        Output = Result<Result<ReadResourceResult, ErrorData>, Self::Error>,
+    > + Send;
 
     /// Hear what the container's own MCP server says unprompted.
     ///
@@ -404,11 +409,13 @@ pub trait Container: Send + Sync {
     /// The [`Err`] here is the same outer one the four have: no stream
     /// at all, because the port was wrong or nothing was listening. A
     /// server that refuses says so inside the stream — see
-    /// [`McpNotifications`](Self::McpNotifications).
+    /// [`McpNotificationStream`](Self::McpNotificationStream).
     fn mcp_notifications(
         &self,
         port: u16,
-    ) -> impl Future<Output = Result<Self::McpNotifications, Self::Error>> + Send;
+    ) -> impl Future<
+        Output = Result<Self::McpNotificationStream, Self::Error>,
+    > + Send;
 
     /// Start an agentic loop, and take the chunks it produces.
     ///
@@ -469,7 +476,7 @@ pub trait Container: Send + Sync {
     /// model survives the trip. What an implementation wraps it in —
     /// which verb, which path, which headers — is between it and the
     /// image, and neither is this protocol's.
-    fn call_agentic_loop(
+    fn agentic_loop(
         &self,
         port: u16,
         body: &RawValue,

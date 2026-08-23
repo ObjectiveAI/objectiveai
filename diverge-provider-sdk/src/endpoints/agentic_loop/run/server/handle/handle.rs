@@ -315,7 +315,7 @@ where
     };
 
     // TODO: the port is settled when the images are.
-    let mut chunks = match container.call_agentic_loop(8080, body).await {
+    let mut chunks = match container.agentic_loop(8080, body).await {
         Ok(chunks) => chunks,
         Err(error) => {
             return write(&scope, &response::Frame::Error(error.into())).await;
