@@ -4,11 +4,13 @@ use std::collections::HashMap;
 use std::pin::pin;
 use std::sync::Arc;
 
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use futures_util::future;
-use futures_util::{SinkExt as _, StreamExt as _};
-use http_body_util::{BodyStream, Full};
+use futures_util::{Sink, SinkExt as _, Stream, StreamExt as _};
 use indexmap::IndexMap;
+use rmcp::model::{
+    CallToolRequestParams, PaginatedRequestParams, ReadResourceRequestParams,
+};
 use serde_json::Value;
 use tokio::sync::{Mutex, mpsc};
 
@@ -27,7 +29,6 @@ use crate::server::deployment::Deployment;
 use crate::server::scope_handle::ScopeHandle;
 use crate::shared::container::request::Image;
 use crate::shared::error::Error;
-use crate::shared::http;
 
 /// Run the plugin, and keep serving it until somebody stops.
 ///
@@ -58,7 +59,6 @@ pub async fn handle<D>(scope: ScopeHandle, client_identity: &str, deployer: &D)
 where
     D: ContainerDeployer,
     D::Error: Into<Error>,
-    <D::Container as Container>::Error: Into<Error>,
 {
     // Shared from here, because the workers write on it and none of
     // them may hold it alone. What stays exclusive is ENDING the scope,
@@ -216,9 +216,9 @@ fn environment(request: &request::Frame) -> IndexMap<String, String> {
 ///
 /// A connection is one pipe and TWO channels, and they arrive at
 /// different moments: the provider mints the id and opens its own
-/// channel the instant a pipe is taken, and the caller's channel
-/// quoting that id turns up whenever the caller gets to it. So the
-/// plugin's writes wait here in between.
+/// channel the instant the plugin opens a connection, and the caller's
+/// channel quoting that id turns up whenever the caller gets to it. So
+/// the plugin's writes wait here in between.
 ///
 /// The receiver is put in BEFORE the channel request that names the id
 /// goes out, which is what makes the lookup safe: a caller cannot ask
@@ -228,15 +228,15 @@ type Connections = Arc<Mutex<HashMap<u32, mpsc::UnboundedReceiver<Bytes>>>>;
 
 /// Serve the plugin until it is stopped or the caller leaves.
 ///
-/// Two conduits dialling ahead into the container, a task per exchange,
-/// and this reading what the caller opens and handing each one on.
+/// Two conduits standing by for what the container asks — its database
+/// connections and its commands — a task per exchange, and this reading
+/// what the caller opens and handing each one on.
 async fn serve<C>(
     scope: &Arc<ScopeHandle>,
     container: &Arc<C>,
     request: &request::Frame,
 ) where
     C: Container + 'static,
-    C::Error: Into<Error>,
 {
     let connections: Connections = Default::default();
     // Owned here, so that leaving this function cancels everything it
@@ -274,16 +274,52 @@ async fn serve<C>(
             continue;
         };
 
+        // The MCP variants carry owned params, so each ask moves into
+        // its task whole — nothing borrows the frame it arrived in, and
+        // nothing has to be decoded twice.
         match asked::Frame::decode(payload) {
-            Ok(asked::Frame::Mcp(_)) => {
-                // The frame is re-decoded inside the task, because what
-                // it holds borrows from bytes this loop owns.
-                workers.spawn(mcp(
-                    bytes.clone(),
-                    channel,
-                    mcp_port,
+            Ok(asked::Frame::McpListTools(request)) => {
+                workers.spawn(mcp_list_tools(
                     Arc::clone(scope),
+                    channel,
                     Arc::clone(container),
+                    mcp_port,
+                    request.0,
+                ));
+            }
+            Ok(asked::Frame::McpListResources(request)) => {
+                workers.spawn(mcp_list_resources(
+                    Arc::clone(scope),
+                    channel,
+                    Arc::clone(container),
+                    mcp_port,
+                    request.0,
+                ));
+            }
+            Ok(asked::Frame::McpCallTool(request)) => {
+                workers.spawn(mcp_call_tool(
+                    Arc::clone(scope),
+                    channel,
+                    Arc::clone(container),
+                    mcp_port,
+                    request.0,
+                ));
+            }
+            Ok(asked::Frame::McpReadResource(request)) => {
+                workers.spawn(mcp_read_resource(
+                    Arc::clone(scope),
+                    channel,
+                    Arc::clone(container),
+                    mcp_port,
+                    request.0,
+                ));
+            }
+            Ok(asked::Frame::McpNotifications(_)) => {
+                workers.spawn(mcp_notifications(
+                    Arc::clone(scope),
+                    channel,
+                    Arc::clone(container),
+                    mcp_port,
                 ));
             }
             Ok(asked::Frame::Stop) => break,
@@ -310,177 +346,190 @@ async fn serve<C>(
     workers.shutdown().await;
 }
 
-/// One MCP exchange, relayed into the container and answered back.
+/// Answer one caller-opened channel, and finish it.
 ///
-/// The provider does not parse what it carries. It does not read
-/// JSON-RPC, does not track sessions, and never looks at the
-/// `Mcp-Session-Id` that ties a caller's exchanges together — the
-/// headers go in as they came and come back the same way.
+/// The unary MCP shape, written once: at most one frame, then the
+/// finish, on every path.
 ///
-/// # One connection per exchange
+/// [`None`] is the container not being reachable — nothing listening on
+/// the MCP port, or a port that was never declared — and it sends
+/// nothing at all. That is not this function inventing a shape: a
+/// finish with nothing before it is already what the wire means by "the
+/// provider could not serve the exchange", and it is exactly what
+/// [`mcp_port`](request::Frame::mcp_port) documents a wrong port as
+/// looking like. The caller's own error type names it `Unanswered`.
 ///
-/// Because that is what MCP over Streamable HTTP is: discrete requests
-/// over a session identified by a header rather than by anything at the
-/// transport layer. A pipe held open between them would be a pool this
-/// crate would then be managing on the plugin's behalf.
-///
-/// # The channel is finished on every path
-///
-/// Including the ones with nothing to say. A caller that gets a finish
-/// with no head knows the exchange produced nothing — which is exactly
-/// what a wrong [`mcp_port`](request::Frame::mcp_port) looks like from
-/// here, and is documented as looking like.
-async fn mcp<C>(
-    bytes: Bytes,
-    channel: u32,
-    port: u16,
-    scope: Arc<ScopeHandle>,
-    container: Arc<C>,
-) where
-    C: Container,
-    C::Error: Into<Error>,
+/// An encode failure sends nothing and still finishes, for the same
+/// reason: the channel being over is a fact the caller cannot go
+/// without, and gating it on serialization would leave a healthy
+/// connection with a channel nobody can ever close.
+async fn answer<F>(scope: &ScopeHandle, channel: u32, frame: Option<F>)
+where
+    F: Encode<Error = serde_json::Error>,
 {
-    relay(&bytes, channel, port, &scope, container.as_ref()).await;
+    if let Some(frame) = frame {
+        let mut payload = Vec::new();
+        if frame.encode(&mut Writer::new(&mut payload)).is_ok() {
+            scope.send_channel_response(channel, &payload).await;
+        }
+    }
     scope.send_channel_response_finish(channel).await;
 }
 
-/// The part of an MCP exchange that can give up part way through.
+/// Ask the plugin what tools it has, for the caller.
 ///
-/// Split out so that the finish above happens whatever this does. There
-/// is nowhere to report a failure on an MCP channel — its frames are a
-/// head and a body, with no error among them — so what a caller sees is
-/// the absence of a head.
-async fn relay<C>(
-    bytes: &Bytes,
+/// The plugin's own MCP server answers, through
+/// [`Container::mcp_list_tools`]. Its refusal is an answer — the
+/// `Error` frame — where the container being unreachable is not, and
+/// [`answer`] says what each becomes on the wire.
+///
+/// The three siblings below are this exchange against a different noun,
+/// and differ in nothing else.
+async fn mcp_list_tools<C>(
+    scope: Arc<ScopeHandle>,
     channel: u32,
+    container: Arc<C>,
     port: u16,
-    scope: &ScopeHandle,
-    container: &C,
+    params: Option<PaginatedRequestParams>,
 ) where
     C: Container,
-    C::Error: Into<Error>,
 {
-    let Ok(ClientFrame::ChannelRequest { payload, .. }) =
-        ClientFrame::decode(bytes)
-    else {
-        return;
-    };
-    let Ok(asked::Frame::Mcp(request)) = asked::Frame::decode(payload) else {
-        return;
-    };
-
-    let body = request
-        .body
-        .map(|body| Bytes::copy_from_slice(body.get().as_bytes()))
-        .unwrap_or_default();
-
-    let mut builder = hyper::Request::builder()
-        .method(match request.method {
-            http::request::Method::Post => hyper::Method::POST,
-            http::request::Method::Get => hyper::Method::GET,
-            http::request::Method::Head => hyper::Method::HEAD,
-            http::request::Method::Delete => hyper::Method::DELETE,
-        })
-        .uri(&request.path);
-    for (name, value) in &request.headers {
-        if framing(name) {
-            continue;
+    let frame = match container.mcp_list_tools(port, params).await {
+        Ok(Ok(result)) => {
+            Some(channel_response::mcp_list_tools::Frame::Result(result))
         }
-        builder = builder.header(name, value);
-    }
-    // HTTP/1.1 requires one and a pipe makes it meaningless, so one is
-    // invented — but only if the caller sent none. A builder APPENDS,
-    // so adding ours unconditionally would put two on a request that is
-    // allowed exactly one.
-    let host = request
-        .headers
-        .keys()
-        .any(|name| name.eq_ignore_ascii_case("host"));
-    if !host {
-        builder = builder.header(hyper::header::HOST, "container");
-    }
+        Ok(Err(error)) => {
+            Some(channel_response::mcp_list_tools::Frame::Error(error))
+        }
+        Err(_) => None,
+    };
+    answer(&scope, channel, frame).await;
+}
 
-    let Ok(built) = builder.body(Full::new(body)) else {
-        return;
+/// Ask the plugin what resources it has, for the caller.
+async fn mcp_list_resources<C>(
+    scope: Arc<ScopeHandle>,
+    channel: u32,
+    container: Arc<C>,
+    port: u16,
+    params: Option<PaginatedRequestParams>,
+) where
+    C: Container,
+{
+    let frame = match container.mcp_list_resources(port, params).await {
+        Ok(Ok(result)) => {
+            Some(channel_response::mcp_list_resources::Frame::Result(result))
+        }
+        Ok(Err(error)) => {
+            Some(channel_response::mcp_list_resources::Frame::Error(error))
+        }
+        Err(_) => None,
     };
-    let Ok((reader, writer)) = container.connect(port).await else {
-        return;
-    };
-    let Ok(answer) = crate::server::http::request(reader, writer, built).await
-    else {
-        return;
-    };
+    answer(&scope, channel, frame).await;
+}
 
-    let head = http::response::Head {
-        status: answer.status().as_u16(),
-        headers: answer
-            .headers()
-            .iter()
-            .filter_map(|(name, value)| {
-                let value = value.to_str().ok()?;
-                Some((name.as_str().to_owned(), value.to_owned()))
-            })
-            .collect(),
+/// Run one of the plugin's tools, for the caller.
+async fn mcp_call_tool<C>(
+    scope: Arc<ScopeHandle>,
+    channel: u32,
+    container: Arc<C>,
+    port: u16,
+    params: CallToolRequestParams,
+) where
+    C: Container,
+{
+    let frame = match container.mcp_call_tool(port, params).await {
+        Ok(Ok(result)) => {
+            Some(channel_response::mcp_call_tool::Frame::Result(result))
+        }
+        Ok(Err(error)) => {
+            Some(channel_response::mcp_call_tool::Frame::Error(error))
+        }
+        Err(_) => None,
+    };
+    answer(&scope, channel, frame).await;
+}
+
+/// Read one of the plugin's resources, for the caller.
+async fn mcp_read_resource<C>(
+    scope: Arc<ScopeHandle>,
+    channel: u32,
+    container: Arc<C>,
+    port: u16,
+    params: ReadResourceRequestParams,
+) where
+    C: Container,
+{
+    let frame = match container.mcp_read_resource(port, params).await {
+        Ok(Ok(result)) => {
+            Some(channel_response::mcp_read_resource::Frame::Result(result))
+        }
+        Ok(Err(error)) => {
+            Some(channel_response::mcp_read_resource::Frame::Error(error))
+        }
+        Err(_) => None,
+    };
+    answer(&scope, channel, frame).await;
+}
+
+/// Relay what the plugin says on its own account, for as long as it
+/// says anything.
+///
+/// The one MCP exchange that is not answered once. The channel stays
+/// open and every frame on it is another notification, until the
+/// plugin's stream ends — or says why it will push no more, which is
+/// the `Error` frame and is terminal by that frame's own contract.
+///
+/// A container that cannot be reached is a bare finish, same as the
+/// unary four and for the same documented reason.
+///
+/// # The channel is finished on every path
+///
+/// Including after the error frame. The error says why the
+/// notifications stopped; the finish says the channel is over, and they
+/// are different facts on this wire.
+async fn mcp_notifications<C>(
+    scope: Arc<ScopeHandle>,
+    channel: u32,
+    container: Arc<C>,
+    port: u16,
+) where
+    C: Container,
+{
+    let mut notifications = match container.mcp_notifications(port).await {
+        Ok(notifications) => notifications,
+        Err(_) => {
+            scope.send_channel_response_finish(channel).await;
+            return;
+        }
     };
 
     let mut buffer = Vec::new();
-    if channel_response::mcp::Frame::Head(head)
-        .encode(&mut Writer::new(&mut buffer))
-        .is_err()
-    {
-        return;
-    }
-    scope.send_channel_response(channel, &buffer).await;
-
-    let mut body = BodyStream::new(answer.into_body());
-    while let Some(Ok(frame)) = body.next().await {
-        let Ok(piece) = frame.into_data() else {
-            continue;
+    while let Some(item) = notifications.next().await {
+        let (frame, last) = match item {
+            Ok(notification) => (
+                channel_response::mcp_notifications::Frame::Notification(
+                    notification,
+                ),
+                false,
+            ),
+            Err(error) => (
+                channel_response::mcp_notifications::Frame::Error(error),
+                true,
+            ),
         };
         buffer.clear();
-        if channel_response::mcp::Frame::Body(&piece)
-            .encode(&mut Writer::new(&mut buffer))
-            .is_ok()
-        {
+        // A notification that will not serialize is dropped and the
+        // stream goes on: it is one thing the plugin said, and the next
+        // may be fine.
+        if frame.encode(&mut Writer::new(&mut buffer)).is_ok() {
             scope.send_channel_response(channel, &buffer).await;
         }
+        if last {
+            break;
+        }
     }
-}
-
-/// Whether a header describes the message rather than the request.
-///
-/// These three are the only ones this relay drops, and dropping them is
-/// not an edit to what the caller asked for. They describe how a
-/// message was framed on the connection it arrived on, and it is now on
-/// a different one with a different body.
-///
-/// # The one that would hang the exchange
-///
-/// `content-length`. A caller's is the length of the body it received;
-/// what goes into the container is
-/// [`body`](crate::shared::http::request::Request::body) re-serialized,
-/// and the two are not the same number. Sent as it came it would be a
-/// promise about bytes that are not there — a container reading a
-/// longer body than exists waits for the rest forever, and one reading
-/// a shorter body treats the remainder as the start of another request.
-///
-/// hyper writes the right one from the body it is handed, so there is
-/// nothing to replace it with.
-///
-/// `transfer-encoding` is the same fact stated the other way, and a
-/// `connection` belongs to the hop it was read on rather than to this
-/// one.
-///
-/// # Everything else goes through untouched
-///
-/// Including `Mcp-Session-Id`, which is what ties a caller's exchanges
-/// together and which this crate never reads. The rule is narrow on
-/// purpose: a relay that decided which headers a plugin deserves would
-/// be reading the protocol it is carrying.
-fn framing(name: &str) -> bool {
-    name.eq_ignore_ascii_case("content-length")
-        || name.eq_ignore_ascii_case("transfer-encoding")
-        || name.eq_ignore_ascii_case("connection")
+    scope.send_channel_response_finish(channel).await;
 }
 
 /// The plugin's half of a database connection, streamed to the caller.
@@ -504,12 +553,12 @@ async fn writes(
         let mut buffer = Vec::new();
         while let Some(bytes) = receiver.recv().await {
             buffer.clear();
-            if channel_response::postgres::Frame(&bytes)
+            // Bytes are bytes: copying them into a frame has no failure
+            // mode, and the type says so.
+            channel_response::postgres::Frame(&bytes)
                 .encode(&mut Writer::new(&mut buffer))
-                .is_ok()
-            {
-                scope.send_channel_response(channel, &buffer).await;
-            }
+                .unwrap_or_else(|error| match error {});
+            scope.send_channel_response(channel, &buffer).await;
         }
     }
 
@@ -518,10 +567,18 @@ async fn writes(
 
 /// Take database connections as the plugin opens them.
 ///
-/// See [`accept`] for the dialling, which is the whole mechanism. Each
-/// pipe that turns out to be wanted becomes one connection: an id, a
-/// channel opened outward for what the database says, and a place for
-/// the caller to come and collect what the plugin says.
+/// [`Container::postgres_serve`] yields one item per connection, when
+/// the plugin opens one — the item's existence is the fact, so there is
+/// nothing here to dial and nothing to probe. Each becomes one
+/// connection: an id, a channel opened outward for what the database
+/// says, and a place for the caller to come and collect what the plugin
+/// says.
+///
+/// A container with nothing listening on the port never serves, and
+/// this returns: the conduit never starts, and the plugin's pool never
+/// fills — which is what
+/// [`postgres_port`](request::Frame::postgres_port) documents a wrong
+/// port as looking like.
 async fn postgres<C>(
     container: Arc<C>,
     port: u16,
@@ -529,8 +586,11 @@ async fn postgres<C>(
     connections: Connections,
 ) where
     C: Container,
-    C::Error: Into<Error>,
 {
+    let Ok(mut opened) = container.postgres_serve(port).await else {
+        return;
+    };
+
     // Counting up, and never reused while live: a wrapped counter would
     // need the set of open ids to step over, and a connection pool does
     // not reach four billion. One task mints them, so it is a number
@@ -538,28 +598,24 @@ async fn postgres<C>(
     let mut ids = 0u32;
     let mut taken = tokio::task::JoinSet::new();
 
-    while let Some((first, reader, writer)) = accept(container.as_ref(), port).await {
+    while let Some((reader, writer)) = opened.next().await {
         while taken.try_join_next().is_some() {}
 
         ids += 1;
         let connection_id = ids;
         let (sender, receiver) = mpsc::unbounded_channel();
+        // Before the channel request that names the id goes out, so a
+        // caller cannot arrive before the thing it is coming for.
         connections.lock().await.insert(connection_id, receiver);
 
         let mut payload = Vec::new();
         let postgres = channel_request::Postgres { connection_id };
-        if channel_request::Frame::Postgres(postgres)
+        channel_request::Frame::Postgres(postgres)
             .encode(&mut Writer::new(&mut payload))
-            .is_err()
-        {
-            connections.lock().await.remove(&connection_id);
-            continue;
-        }
-        // After the receiver is in place, so a caller cannot arrive
-        // before the thing it is coming for.
+            .unwrap_or_else(|error| match error {});
         let channel = scope.send_channel_request(&payload).await;
 
-        taken.spawn(connection(first, reader, writer, sender, channel));
+        taken.spawn(connection(reader, writer, sender, channel));
     }
 }
 
@@ -568,25 +624,21 @@ async fn postgres<C>(
 /// Two directions and neither waits on the other: what the plugin
 /// writes goes to the caller through the queue, and what the database
 /// says comes back on the channel and goes into the pipe.
-async fn connection<R, W>(
-    first: Bytes,
+async fn connection<R, W, E>(
     reader: R,
     writer: W,
     sender: mpsc::UnboundedSender<Bytes>,
     channel: Channel,
 ) where
-    R: futures_util::Stream<Item: TryIntoBytes> + Send + Unpin + 'static,
-    W: futures_util::Sink<Bytes> + Send + Unpin + 'static,
+    R: Stream<Item = Result<Bytes, E>> + Send + Unpin + 'static,
+    W: Sink<Bytes> + Send + Unpin + 'static,
 {
     let outward = async move {
-        // The byte that said this pipe was wanted is part of the
-        // conversation, not a signal outside it.
-        if sender.send(first).is_err() {
-            return;
-        }
         let mut reader = reader;
-        while let Some(item) = reader.next().await {
-            let Some(bytes) = item.bytes() else { return };
+        // An `Err` item is this connection's own failure, and it ends
+        // it — the trait says a failure on one connection arrives in
+        // its own reader, and this is the arriving.
+        while let Some(Ok(bytes)) = reader.next().await {
             if sender.send(bytes).is_err() {
                 return;
             }
@@ -628,53 +680,51 @@ async fn connection<R, W>(
 
 /// Take commands as the plugin asks for them.
 ///
-/// One pipe is one command. What the plugin writes after the id is the
-/// ask, and the end of its writes is where the ask ends — see
-/// [`Container::connect`] for why a half-close carries that rather than
-/// a length in front of it.
+/// [`Container::command_serve`] yields one item per command: the whole
+/// ask, already read to the plugin's half-close, and the writer its
+/// answers go back into. Each becomes one task, because a command runs
+/// as long as it runs and the next one must not wait behind it.
+///
+/// A container with nothing listening never serves, and this returns —
+/// the same silence a wrong
+/// [`command_port`](request::Frame::command_port) is documented to be.
 async fn command<C>(container: Arc<C>, port: u16, scope: Arc<ScopeHandle>)
 where
-    C: Container,
-    C::Error: Into<Error>,
+    C: Container + 'static,
 {
-    let mut asks = tokio::task::JoinSet::new();
+    let Ok(mut asks) = container.command_serve(port).await else {
+        return;
+    };
 
-    while let Some((first, reader, writer)) = accept(container.as_ref(), port).await {
-        while asks.try_join_next().is_some() {}
-        asks.spawn(ask(first, reader, writer, Arc::clone(&scope)));
+    let mut running = tokio::task::JoinSet::new();
+    while let Some((ask, writer)) = asks.next().await {
+        while running.try_join_next().is_some() {}
+        running.spawn(run(ask, writer, Arc::clone(&scope)));
     }
 }
 
-/// One command: read it whole, relay it, and stream the answers back.
-async fn ask<R, W>(first: Bytes, reader: R, writer: W, scope: Arc<ScopeHandle>)
+/// One command: relay the ask out, and stream the answers back.
+///
+/// The channel finishing is the command being over, and dropping the
+/// writer — which every path out of here does — is what closes the
+/// plugin's pipe and says so.
+///
+/// # An error ends it the same way
+///
+/// [`Error`](answered::command::Frame::Error) is the caller saying the
+/// command did not finish, and nothing follows it. The pipe closing is
+/// the whole vocabulary the plugin has, so early is how it hears the
+/// difference: what arrived is what the command produced, and the close
+/// came before the caller's channel did.
+async fn run<W>(ask: Bytes, writer: W, scope: Arc<ScopeHandle>)
 where
-    R: futures_util::Stream<Item: TryIntoBytes> + Send + Unpin + 'static,
-    W: futures_util::Sink<Bytes> + Send + Unpin + 'static,
+    W: Sink<Bytes> + Send + Unpin + 'static,
 {
-    let mut buffer = BytesMut::from(&first[..]);
-    let mut reader = reader;
-    // To the end of the plugin's writes, which is the ask. Nothing
-    // delimits it because nothing has to: this pipe carries one.
-    while let Some(item) = reader.next().await {
-        let Some(bytes) = item.bytes() else { break };
-        buffer.extend_from_slice(&bytes);
-    }
-
-    // The exchange, fixed width and unchanging, and then the ask. It is
-    // the plugin's to mint and the plugin's to keep unique among the
-    // commands it has open — nothing here reads it twice.
-    if buffer.len() < EXCHANGE_LEN {
-        return;
-    }
-    let ask = buffer.split_off(EXCHANGE_LEN);
-
     let mut payload = Vec::new();
-    if channel_request::Frame::Command(&ask)
+    // Bytes copied into a frame: no failure mode, and the type says so.
+    channel_request::Frame::Command(&ask)
         .encode(&mut Writer::new(&mut payload))
-        .is_err()
-    {
-        return;
-    }
+        .unwrap_or_else(|error| match error {});
     let mut channel = scope.send_channel_request(&payload).await;
 
     let mut writer = writer;
@@ -682,80 +732,30 @@ where
         let Ok(ClientFrame::ChannelResponse { payload, .. }) =
             ClientFrame::decode(&bytes)
         else {
+            // The finish, or a frame with no business here. The first
+            // ends the channel on its own and the second is not an
+            // item, so neither is anything to write.
             continue;
         };
-        // An item is bytes and arrives as the same bytes, so reading
-        // one has no failure mode.
-        let answered::command::Frame(item) =
-            answered::command::Frame::decode(payload)
-                .unwrap_or_else(|error| match error {});
-        if writer.send(Bytes::copy_from_slice(item)).await.is_err() {
-            return;
+        match answered::command::Frame::decode(payload) {
+            Ok(answered::command::Frame::Item(item)) => {
+                if writer
+                    .send(Bytes::copy_from_slice(item))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+            // The command did not finish, and nothing follows. Closing
+            // the pipe now is what tells the plugin.
+            Ok(answered::command::Frame::Error(_)) => return,
+            // An item this crate cannot read is an item the plugin
+            // will not get, and relaying around the hole would hand the
+            // plugin output with a silent gap in it. Truncation is at
+            // least visible.
+            Err(_) => return,
         }
-    }
-    // The channel finished, so the command did. Dropping the writer
-    // closes the pipe, which is how the plugin is told.
-}
-
-/// The bytes a command's exchange id occupies.
-const EXCHANGE_LEN: usize = 4;
-
-/// Keep one connection dialled, and hand it over when it is wanted.
-///
-/// A plugin listens and therefore cannot ask for a pipe, so the
-/// provider keeps one waiting. The first byte is the signal that it has
-/// been taken, and it is a sound one because both conduits exist for
-/// the plugin to speak first: pgwire's startup message is the client's,
-/// and a command conduit is a plugin asking.
-///
-/// # What it costs
-///
-/// One idle connection per conduit at a time, and a pool warming to N
-/// takes N dials a round trip apart. Both are local, and neither is
-/// worth a wire format to avoid.
-///
-/// # A pipe that ends unused ends the conduit
-///
-/// Rather than being dialled again, which is the obvious thing and is
-/// wrong. Connecting and closing are both fast, so a container that
-/// hands back unused pipes would have the provider dialling in a tight
-/// loop — at full CPU, for as long as the plugin lives. Retrying here
-/// costs the machine; giving up costs the plugin one facility it was
-/// already failing to use.
-///
-/// And a working plugin does not do it. It accepts a pipe when it wants
-/// something and writes what it wants; a pipe that closes with nothing
-/// on it is a plugin that has stopped serving that conduit.
-///
-/// Nothing waits between attempts instead, because a delay here would
-/// be a timeout, and this protocol does not have those.
-async fn accept<C>(
-    container: &C,
-    port: u16,
-) -> Option<(Bytes, C::Reader, C::Writer)>
-where
-    C: Container,
-{
-    let (mut reader, writer) = container.connect(port).await.ok()?;
-    let bytes = reader.next().await?.bytes()?;
-    Some((bytes, reader, writer))
-}
-
-/// One item off a container's pipe, if it was bytes.
-///
-/// [`Container::Reader`](Container::Reader) yields
-/// `Result<Bytes, C::Error>` and every consumer here wants the same
-/// thing from it: the bytes, or an end. Naming that as a trait is what
-/// lets the pumps be generic over a reader without carrying its error
-/// type around to discard it.
-trait TryIntoBytes {
-    /// The bytes, or [`None`] if this item was a failure.
-    fn bytes(self) -> Option<Bytes>;
-}
-
-impl<E> TryIntoBytes for Result<Bytes, E> {
-    fn bytes(self) -> Option<Bytes> {
-        self.ok()
     }
 }
 

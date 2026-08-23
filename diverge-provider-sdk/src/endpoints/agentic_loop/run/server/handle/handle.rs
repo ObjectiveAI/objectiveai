@@ -387,13 +387,8 @@ where
 /// waiting, and this connection is the only thing that can tell it
 /// otherwise — so a caller that never answered, a frame that would not
 /// decode and a channel that closed all end in an
-/// [`ErrorData`] rather than in a return.
-///
-/// It is the same reason the old shape always finished its writer,
-/// arrived at again now that an answer is a value rather than a stream:
-/// a response that is never terminated leaves the agent unable to tell
-/// a complete answer from a truncated one, and it has no other way to
-/// find out.
+/// [`ErrorData`] rather than in a return. See [`exchange`] for where
+/// that happens.
 ///
 /// # Which method answers is this function's to get right
 ///
@@ -406,98 +401,109 @@ where
 {
     match request {
         McpRequest::ListTools(params) => {
-            let answer = ask(
+            let result = exchange(
                 &scope,
                 &channel_request::Frame::McpListTools(
                     mcp::list_tools::request::Request(params),
                 ),
+                |frame| match frame {
+                    channel_response::mcp_list_tools::Frame::Result(
+                        result,
+                    ) => Ok(result),
+                    channel_response::mcp_list_tools::Frame::Error(
+                        error,
+                    ) => Err(error),
+                },
             )
             .await;
-            let result = match answer.as_ref().map(|bytes| {
-                channel_response::mcp_list_tools::Frame::decode(bytes)
-            }) {
-                Some(Ok(channel_response::mcp_list_tools::Frame::Result(
-                    result,
-                ))) => Ok(result),
-                Some(Ok(channel_response::mcp_list_tools::Frame::Error(
-                    error,
-                ))) => Err(error),
-                Some(Err(_)) => Err(unreadable()),
-                None => Err(unanswered()),
-            };
             let _ = responder.list_tools(result).await;
         }
         McpRequest::ListResources(params) => {
-            let answer = ask(
+            let result = exchange(
                 &scope,
                 &channel_request::Frame::McpListResources(
                     mcp::list_resources::request::Request(params),
                 ),
-            )
-            .await;
-            let result = match answer.as_ref().map(|bytes| {
-                channel_response::mcp_list_resources::Frame::decode(bytes)
-            }) {
-                Some(Ok(
+                |frame| match frame {
                     channel_response::mcp_list_resources::Frame::Result(
                         result,
-                    ),
-                )) => Ok(result),
-                Some(Ok(channel_response::mcp_list_resources::Frame::Error(
-                    error,
-                ))) => Err(error),
-                Some(Err(_)) => Err(unreadable()),
-                None => Err(unanswered()),
-            };
+                    ) => Ok(result),
+                    channel_response::mcp_list_resources::Frame::Error(
+                        error,
+                    ) => Err(error),
+                },
+            )
+            .await;
             let _ = responder.list_resources(result).await;
         }
         McpRequest::CallTool(params) => {
-            let answer = ask(
+            let result = exchange(
                 &scope,
                 &channel_request::Frame::McpCallTool(
                     mcp::call_tool::request::Request(params),
                 ),
+                |frame| match frame {
+                    channel_response::mcp_call_tool::Frame::Result(
+                        result,
+                    ) => Ok(result),
+                    channel_response::mcp_call_tool::Frame::Error(
+                        error,
+                    ) => Err(error),
+                },
             )
             .await;
-            let result = match answer.as_ref().map(|bytes| {
-                channel_response::mcp_call_tool::Frame::decode(bytes)
-            }) {
-                Some(Ok(channel_response::mcp_call_tool::Frame::Result(
-                    result,
-                ))) => Ok(result),
-                Some(Ok(channel_response::mcp_call_tool::Frame::Error(
-                    error,
-                ))) => Err(error),
-                Some(Err(_)) => Err(unreadable()),
-                None => Err(unanswered()),
-            };
             let _ = responder.call_tool(result).await;
         }
         McpRequest::ReadResource(params) => {
-            let answer = ask(
+            let result = exchange(
                 &scope,
                 &channel_request::Frame::McpReadResource(
                     mcp::read_resource::request::Request(params),
                 ),
+                |frame| match frame {
+                    channel_response::mcp_read_resource::Frame::Result(
+                        result,
+                    ) => Ok(result),
+                    channel_response::mcp_read_resource::Frame::Error(
+                        error,
+                    ) => Err(error),
+                },
             )
             .await;
-            let result = match answer.as_ref().map(|bytes| {
-                channel_response::mcp_read_resource::Frame::decode(bytes)
-            }) {
-                Some(Ok(channel_response::mcp_read_resource::Frame::Result(
-                    result,
-                ))) => Ok(result),
-                Some(Ok(channel_response::mcp_read_resource::Frame::Error(
-                    error,
-                ))) => Err(error),
-                Some(Err(_)) => Err(unreadable()),
-                None => Err(unanswered()),
-            };
             let _ = responder.read_resource(result).await;
         }
         McpRequest::Notifications => {
             notifications(responder, &scope).await;
         }
+    }
+}
+
+/// One ask, one answer, and the failures told to the agent.
+///
+/// The unary shape, written once instead of four times. `split` is
+/// which exchange this is: it takes the decoded answer frame apart into
+/// the result the responder wants. A plain `fn` rather than a closure
+/// bound, because there is nothing to capture — what varies between the
+/// four exchanges is the frame type, and that is the type parameter.
+///
+/// Every way this can go wrong becomes an [`ErrorData`], because the
+/// agent is waiting and silence is the one answer it cannot act on: no
+/// answer at all is [`unanswered`], and an answer this crate could not
+/// read is [`unreadable`].
+async fn exchange<F, T>(
+    scope: &ScopeHandle,
+    frame: &channel_request::Frame,
+    split: fn(F) -> Result<T, ErrorData>,
+) -> Result<T, ErrorData>
+where
+    F: for<'a> Decode<'a, Error = mcp::FrameError>,
+{
+    match ask(scope, frame).await {
+        Some(bytes) => match F::decode(&bytes) {
+            Ok(frame) => split(frame),
+            Err(_) => Err(unreadable()),
+        },
+        None => Err(unanswered()),
     }
 }
 

@@ -62,6 +62,11 @@ use crate::shared::error::Error;
 /// one thing a container says that this crate defined — so it is the
 /// one thing read rather than relayed.
 ///
+/// [`command_serve`](Self::command_serve) is the provider taking asks
+/// again — a plugin's CLI commands, each one ask and a stream of
+/// answers. Typed as far as the asking goes and opaque inside, because
+/// what a command says belongs to the CLI.
+///
 /// [`postgres_serve`](Self::postgres_serve) is the exception, and it is
 /// the only one still shaped like a socket — because pgwire is a duplex
 /// conversation rather than a series of exchanges, and there was
@@ -104,7 +109,7 @@ pub trait Container: Send + Sync {
     /// disk that filled — these belong to a runtime and a kernel, and
     /// this crate names neither.
     ///
-    /// One type for both methods that can fail, because a provider
+    /// One type for every method that can fail, because a provider
     /// that told them apart would be doing it for its own benefit
     /// rather than this crate's. Nothing here branches on which
     /// operation failed; what it does with one is put it on the wire.
@@ -224,6 +229,47 @@ pub trait Container: Send + Sync {
     /// What the caller's database said, on its way back in. Also
     /// unframed, and for the same reason.
     type PostgresWriter: Sink<Bytes, Error = Self::Error>
+        + Send
+        + Unpin
+        + 'static;
+
+    /// The commands a container asks to have run, as it asks.
+    ///
+    /// One item per command: the whole ask, beside the
+    /// [`CommandWriter`](Self::CommandWriter) that carries its answers
+    /// back in.
+    ///
+    /// # The ask arrives whole
+    ///
+    /// The container-side protocol ends an ask with a half-close — see
+    /// [`command_serve`](Self::command_serve) for the whole of it — so
+    /// reading up to one is transport framing, and framing is the
+    /// implementation's. The same doctrine that put SSE reassembly
+    /// inside [`agentic_loop`](Self::agentic_loop): the thing that
+    /// knows how the pieces were cut is the thing that puts them back
+    /// together, and a consumer is handed an ask and never a piece of
+    /// one.
+    type CommandStream: Stream<Item = (Bytes, Self::CommandWriter)>
+        + Send
+        + Unpin
+        + 'static;
+
+    /// Where one command's answers go.
+    ///
+    /// Items as they arrive, opaque. What a command produces belongs to
+    /// the CLI, which gains subcommands on its own schedule, and
+    /// nothing between the caller and the plugin reads one.
+    ///
+    /// # Dropping it is the finish
+    ///
+    /// The pipe closing is how the plugin learns the command is over,
+    /// and dropping this is what closes it. There is no method for the
+    /// ending because there is nothing to distinguish: unlike a
+    /// notification stream, which can end well or badly and has an
+    /// error frame to say which, a command's answers just stop — the
+    /// pipe closing is the whole vocabulary the plugin has, whatever
+    /// ended them.
+    type CommandWriter: Sink<Bytes, Error = Self::Error>
         + Send
         + Unpin
         + 'static;
@@ -549,6 +595,48 @@ pub trait Container: Send + Sync {
         port: u16,
     ) -> impl Future<
         Output = Result<Self::PostgresConnectionStream, Self::Error>,
+    > + Send;
+
+    /// Take commands as the container asks for them.
+    ///
+    /// A plugin may want things run that only the caller can run — the
+    /// caller's own CLI, against the caller's own state — so it asks,
+    /// and the ask has to leave the container before anything can
+    /// happen. What the caller's
+    /// [`CommandProxy`](crate::client::command_proxy::CommandProxy)
+    /// produces comes back through the item's writer.
+    ///
+    /// # The container-side protocol, whole
+    ///
+    /// On the port named here, one connection is one command: the
+    /// plugin writes the ask, half-closes, reads the answers, and the
+    /// pipe closing is the command being over. Nothing delimits the ask
+    /// because nothing has to — the half-close does — and nothing leads
+    /// it. There was a four-byte exchange id in front once, and it was
+    /// read by nobody ever: one pipe is one command, so the pipe itself
+    /// is the correlation.
+    ///
+    /// How an implementation keeps connections available to a plugin
+    /// that listens is its own business, the way sockets are its
+    /// business everywhere else here.
+    ///
+    /// # Ends and errors
+    ///
+    /// The stream ends when the plugin stops asking, which says nothing
+    /// about the container: a plugin between commands and a plugin that
+    /// has finished look identical from here, because they are
+    /// identical from here.
+    ///
+    /// An [`Err`] is a failure to START — nothing listening on that
+    /// port, or a port never declared. A failure after that ends the
+    /// stream. A failure on one COMMAND is that command's: its writer
+    /// errors, and dropping the writer closes the pipe, which is all
+    /// the plugin can be told either way.
+    fn command_serve(
+        &self,
+        port: u16,
+    ) -> impl Future<
+        Output = Result<Self::CommandStream, Self::Error>,
     > + Send;
 
     /// Stop it.

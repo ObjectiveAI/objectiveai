@@ -5,15 +5,15 @@
 //! channel the caller opens to call the plugin. [`response`] is what
 //! comes back on channel `0` once it runs.
 
+//!
+//! # And, behind the `server` feature, [`handle`]
+//!
+//! The largest handler: it deploys the container and then serves both
+//! ends at once, for as long as the plugin runs.
+
 pub mod channel_request;
 pub mod channel_response;
 pub mod response;
 
-// The handler is written and does not compile: it was built around
-// `Container::connect`, which is gone while the way into a container is
-// reconsidered. The file is left as it was rather than gutted, because
-// what replaces it will be a rewrite against the new shape and this is
-// the account of what the endpoint has to do.
-//
-// One line restores it.
-// pub mod handle;
+#[cfg(feature = "server")]
+pub mod handle;

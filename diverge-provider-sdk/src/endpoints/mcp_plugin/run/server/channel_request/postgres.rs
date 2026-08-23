@@ -9,8 +9,8 @@ use crate::encode::{Encode, Writer};
 /// Connect to the database, and stream back what it says.
 ///
 /// The first half of a Postgres connection. A provider opens a channel
-/// with this because something inside the container dialled the
-/// conduit it was given, and the database lives with the caller.
+/// with this because something inside the container opened a database
+/// connection, and the database lives with the caller.
 ///
 /// What comes back on this channel is everything the DATABASE says.
 /// What the plugin writes travels the other way, on a channel the

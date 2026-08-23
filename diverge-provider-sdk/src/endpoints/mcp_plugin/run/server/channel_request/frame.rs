@@ -29,15 +29,16 @@ use crate::shared::oci;
 ///
 /// # Why the three are shaped differently
 ///
-/// [`Oci`](Self::Oci) is a structured exchange, [`Postgres`](Self::Postgres)
-/// names a connection, and [`Command`](Self::Command) is bytes. That is
+/// [`Oci`](Self::Oci) is a request forwarded whole,
+/// [`Postgres`](Self::Postgres) names a connection, and
+/// [`Command`](Self::Command) is an ask framed by its channel. That is
 /// not a preference — it is what each thing IS.
 ///
-/// A registry pull is a series of discrete requests, each with a
-/// method, a path and a status, and this specification RELIES on those
-/// semantics: `404` means a blob is absent, `206` resumes, `HEAD`
-/// probes. Reducing it to bytes would throw away meaning the protocol
-/// is built on.
+/// A registry pull is a series of discrete requests whose semantics —
+/// `404` for an absent blob, `206` resuming, `HEAD` probing — belong to
+/// the registry and the runtime speaking to it. Forwarding each one
+/// verbatim is what keeps those semantics intact: nothing between the
+/// two reads a header, so nothing between the two can get one wrong.
 ///
 /// A Postgres session is a long-lived socket carrying a conversation
 /// with no natural top-level unit — so it is not an exchange at all,
@@ -134,10 +135,10 @@ pub enum Frame<'a> {
     /// [`identity`](crate::endpoints::mcp_plugin::run::client::request::Frame::identity)
     /// the caller supplied.
     ///
-    /// # Bytes, where a registry request is a request
+    /// # Bytes, for a different reason than the registry's
     ///
-    /// [`Oci`](Self::Oci) is HTTP because a registry speaks HTTP, and
-    /// carrying anything else would mean the far end reassembling one.
+    /// [`Oci`](Self::Oci) carries bytes because a registry SPEAKS a
+    /// protocol and forwarding it untouched is what keeps it working.
     /// Nothing speaks a command but the CLI, and the CLI is on the
     /// other side of this relay — so there is no protocol here to be
     /// faithful to, and an envelope would be one this specification

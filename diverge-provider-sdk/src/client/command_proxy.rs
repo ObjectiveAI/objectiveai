@@ -50,10 +50,10 @@ use crate::shared::error::Error;
 ///
 /// Bytes go up and bytes come back, with nothing around them. There was
 /// an HTTP one for a while — a method, a path, headers, a status — and
-/// it was carrying nothing: a registry request is HTTP because a
-/// registry SPEAKS HTTP and the far end has to reassemble one, and
-/// nothing speaks a command except the CLI, which is at the far end of
-/// this relay already.
+/// it was carrying nothing: a registry request is worth forwarding
+/// whole because a registry SPEAKS a protocol and the far end relies on
+/// it, and nothing speaks a command except the CLI, which is at the far
+/// end of this relay already.
 ///
 /// So the envelope was one this specification had invented and then had
 /// to justify, and what it was for is served by a tag byte instead.
