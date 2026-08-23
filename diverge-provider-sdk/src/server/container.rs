@@ -149,7 +149,7 @@ pub trait Container: Send + Sync {
     /// connection, a stream id, a channel into its own server — and
     /// that is the responder, not something this crate could put inside
     /// an enum it defines.
-    type McpRequests: Stream<Item = (McpRequest, Self::McpResponder)>
+    type McpRequestStream: Stream<Item = (McpRequest, Self::McpResponder)>
         + Send
         + Unpin
         + 'static;
@@ -190,8 +190,9 @@ pub trait Container: Send + Sync {
     /// this crate could not, and the next one may be fine. Which is
     /// what keeps "the agent said something unreadable" from looking
     /// like "the agent finished".
-    type AgenticLoopStream: Stream<Item = Result<AgenticLoopChunk, Self::Error>>
-        + Send
+    type AgenticLoopStream: Stream<
+            Item = Result<AgenticLoopChunk, Self::Error>,
+        > + Send
         + Unpin
         + 'static;
 
@@ -200,7 +201,7 @@ pub trait Container: Send + Sync {
     /// One item per connection, and nothing before it. A plugin holds a
     /// POOL, so this is the shape that says how many there are: however
     /// many turn up.
-    type PostgresConnections: Stream<
+    type PostgresConnectionStream: Stream<
             Item = (Self::PostgresReader, Self::PostgresWriter),
         > + Send
         + Unpin
@@ -285,7 +286,9 @@ pub trait Container: Send + Sync {
     fn mcp_serve(
         &self,
         port: u16,
-    ) -> impl Future<Output = Result<Self::McpRequests, Self::Error>> + Send;
+    ) -> impl Future<
+        Output = Result<Self::McpRequestStream, Self::Error>,
+    > + Send;
 
     /// Ask what tools the container offers.
     ///
@@ -480,7 +483,9 @@ pub trait Container: Send + Sync {
         &self,
         port: u16,
         body: &RawValue,
-    ) -> impl Future<Output = Result<Self::AgenticLoopStream, Self::Error>> + Send;
+    ) -> impl Future<
+        Output = Result<Self::AgenticLoopStream, Self::Error>,
+    > + Send;
 
     /// Take the database connections a container opens.
     ///
@@ -542,7 +547,9 @@ pub trait Container: Send + Sync {
     fn postgres_serve(
         &self,
         port: u16,
-    ) -> impl Future<Output = Result<Self::PostgresConnections, Self::Error>> + Send;
+    ) -> impl Future<
+        Output = Result<Self::PostgresConnectionStream, Self::Error>,
+    > + Send;
 
     /// Stop it.
     ///
@@ -692,7 +699,7 @@ pub trait Container: Send + Sync {
 
 /// One thing a container's MCP client asked for.
 ///
-/// The item of [`Container::McpRequests`], paired with the
+/// The item of [`Container::McpRequestStream`], paired with the
 /// [`McpResponder`] that answers it.
 ///
 /// # Five, because the wire carries five
