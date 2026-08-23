@@ -164,7 +164,11 @@ where
     else {
         return;
     };
-    let Ok(channel_request::Frame(request)) =
+    // TODO: the four typed exchanges are on the wire and nothing serves
+    // them. Doing so needs `McpProxy` to grow a method each, which is
+    // the next step; until then they are declined the way an unreadable
+    // frame is, and for the same reason.
+    let Ok(channel_request::Frame::Mcp(request)) =
         channel_request::Frame::decode(payload)
     else {
         // The channel is known, the connection is fine, and nothing
