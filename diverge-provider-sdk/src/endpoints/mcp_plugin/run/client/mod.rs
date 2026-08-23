@@ -26,17 +26,19 @@
 //! the same move, so stopping a plugin and watching it go was not
 //! something a caller could write.
 //!
-//! # What is not here, and is the next thing
+//! # Calling the plugin
 //!
-//! Calling the plugin. `channel_request::Frame::Mcp` is the frame for
-//! it, and there is nothing that sends one: an `ExecuteHandle` gives
-//! out no scope number, so the plugin cannot be reached from outside
-//! this crate at all.
+//! Five methods on that handle, one per MCP exchange: listing tools,
+//! listing resources, calling a tool, reading a resource, and hearing
+//! what the plugin says on its own account. They are the only door in,
+//! because an
+//! [`ExecuteHandle`](execute::ExecuteHandle) gives out no scope number
+//! and nothing else can open a channel on the run.
 //!
-//! Which means a plugin can be started, waited on, asked why it ended
-//! and stopped — and not used. That is an honest intermediate state in
-//! a crate where nothing is wired to anything yet, and it is not a
-//! resting place: an `mcp` method on that type is now the only door in.
+//! Four of them ask and are answered once. The fifth hands back a
+//! stream, because a notification is not an answer — see
+//! [`shared::mcp`](crate::shared::mcp) for why those five and why the
+//! last one is shaped differently.
 //!
 //! Every other module in [`endpoints`](crate::endpoints) is types only,
 //! and this one still is unless a caller asked for the half of the
@@ -47,13 +49,5 @@ pub mod channel_request;
 pub mod channel_response;
 pub mod request;
 
-// The executor is written and does not compile: it sends the tunneled
-// MCP request that this endpoint no longer has, and reads an answer
-// split into a head and a body. The five typed exchanges replaced both
-// and nothing has been rewired to them yet.
-//
-// Left whole rather than gutted. What replaces it is a rewrite against
-// the new shape, and this is the account of what the endpoint does.
-//
-// One line restores it.
-// pub mod execute;
+#[cfg(feature = "client")]
+pub mod execute;

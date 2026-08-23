@@ -1,11 +1,9 @@
 //! What running a tool produced.
 
-use std::error;
-use std::fmt;
-
 use rmcp::ErrorData;
 use rmcp::model::CallToolResult;
 
+use super::super::super::FrameError;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 
@@ -90,42 +88,6 @@ impl Decode<'_> for Frame {
                 .map(Frame::Error)
                 .map_err(FrameError::Body),
             tag => Err(FrameError::UnknownTag(tag)),
-        }
-    }
-}
-
-/// An answer that could not be read.
-#[derive(Debug)]
-pub enum FrameError {
-    /// No bytes at all, so not even a tag.
-    Empty,
-    /// A tag that is neither of this frame's two.
-    UnknownTag(u8),
-    /// The payload after the tag did not parse.
-    Body(serde_json::Error),
-}
-
-impl fmt::Display for FrameError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            FrameError::Empty => {
-                f.write_str("call_tool response frame is empty")
-            }
-            FrameError::UnknownTag(tag) => {
-                write!(f, "unknown call_tool response frame tag {tag}")
-            }
-            FrameError::Body(error) => {
-                write!(f, "call_tool response did not parse: {error}")
-            }
-        }
-    }
-}
-
-impl error::Error for FrameError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            FrameError::Body(error) => Some(error),
-            FrameError::Empty | FrameError::UnknownTag(_) => None,
         }
     }
 }

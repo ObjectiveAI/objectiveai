@@ -3,10 +3,22 @@
 use std::fmt;
 
 use bytes::Bytes;
+use futures_util::{Stream, stream};
+use rmcp::ErrorData;
+use rmcp::model::{
+    CallToolRequestParams, CallToolResult, ListResourcesResult,
+    ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+    ReadResourceResult, ServerNotification,
+};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::mpsc::error::TryRecvError;
 
 use super::super::channel_request;
+use super::super::super::server::channel_response::{
+    mcp_call_tool, mcp_list_resources, mcp_list_tools, mcp_notifications,
+    mcp_read_resource,
+};
+use crate::shared::mcp;
 use super::super::super::server::response;
 use crate::client::handle::{Handle, SendError};
 use crate::encode::{Encode, Writer};
@@ -146,6 +158,233 @@ impl ExecuteHandle {
             .map(|_| ())
             .map_err(StopError::Send)
     }
+
+    /// Ask the plugin what tools it has.
+    ///
+    /// [`None`] asks for the first page. A plugin with more to give
+    /// says so with a cursor, and the next page is another call.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    pub async fn list_tools(
+        &self,
+        params: Option<PaginatedRequestParams>,
+    ) -> Result<ListToolsResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpListTools(mcp::list_tools::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let payload = answer(&bytes)?.ok_or(McpError::Unanswered)?;
+
+        match mcp_list_tools::Frame::decode(payload).map_err(McpError::Answer)? {
+            mcp_list_tools::Frame::Result(result) => Ok(result),
+            mcp_list_tools::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Ask the plugin what resources it has.
+    ///
+    /// The same shape [`list_tools`](Self::list_tools) has, for the
+    /// same reason: it is the same MCP request against a different
+    /// noun.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    pub async fn list_resources(
+        &self,
+        params: Option<PaginatedRequestParams>,
+    ) -> Result<ListResourcesResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpListResources(mcp::list_resources::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let payload = answer(&bytes)?.ok_or(McpError::Unanswered)?;
+
+        match mcp_list_resources::Frame::decode(payload).map_err(McpError::Answer)? {
+            mcp_list_resources::Frame::Result(result) => Ok(result),
+            mcp_list_resources::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Run one of the plugin's tools.
+    ///
+    /// # A tool that fails is still [`Ok`]
+    ///
+    /// [`CallToolResult`] carries its own `is_error`, which is a tool
+    /// saying its work did not succeed. An
+    /// [`McpError::Mcp`] is the plugin refusing to run it at all: no
+    /// such tool, arguments that do not match its schema, a server that
+    /// broke. The distinction is MCP's and this keeps it.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    pub async fn call_tool(
+        &self,
+        params: CallToolRequestParams,
+    ) -> Result<CallToolResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpCallTool(mcp::call_tool::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let payload = answer(&bytes)?.ok_or(McpError::Unanswered)?;
+
+        match mcp_call_tool::Frame::decode(payload).map_err(McpError::Answer)? {
+            mcp_call_tool::Frame::Result(result) => Ok(result),
+            mcp_call_tool::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Read one of the plugin's resources.
+    ///
+    /// By URI, which is the plugin's to interpret. Nothing between
+    /// here and it resolves one.
+    ///
+    /// # One channel, one answer
+    ///
+    /// This opens a channel, writes the ask, and reads the one frame
+    /// that answers it. The channel finishes after, which is the
+    /// provider's to do and not something a caller waits for — so the
+    /// channel is dropped here rather than drained.
+    pub async fn read_resource(
+        &self,
+        params: ReadResourceRequestParams,
+    ) -> Result<ReadResourceResult, McpError> {
+        let mut payload = Vec::new();
+        channel_request::Frame::McpReadResource(mcp::read_resource::request::Request(
+            params,
+        ))
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let mut channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        let bytes = channel
+            .response_receiver
+            .recv()
+            .await
+            .ok_or(McpError::Unanswered)?;
+        let payload = answer(&bytes)?.ok_or(McpError::Unanswered)?;
+
+        match mcp_read_resource::Frame::decode(payload).map_err(McpError::Answer)? {
+            mcp_read_resource::Frame::Result(result) => Ok(result),
+            mcp_read_resource::Frame::Error(error) => Err(McpError::Mcp(error)),
+        }
+    }
+
+    /// Hear what the plugin says on its own account.
+    ///
+    /// Tools changed, resources changed, a resource updated, a log
+    /// line. See [`ServerNotification`] for the whole of what one can
+    /// be.
+    ///
+    /// # It is the one that does not answer
+    ///
+    /// The other four ask and are answered once. This opens a channel
+    /// and reads it for as long as the plugin has anything to push, so
+    /// what comes back is a stream rather than a value.
+    ///
+    /// It ends when the plugin has no more to say, which arrives as the
+    /// channel's finish. Dropping the stream drops the channel, and
+    /// that is what tells the provider nobody is listening — there is
+    /// nothing to unsubscribe with, and nothing needs one.
+    ///
+    /// # It takes nothing
+    ///
+    /// Because in MCP there is nothing to ask: a client opens that
+    /// stream with a bare `GET` and no body, and there is no
+    /// `notifications/subscribe` to mirror.
+    ///
+    /// # An [`Err`] item is the last one
+    ///
+    /// Whether it is the plugin saying it will push no more, or this
+    /// end failing to read what it pushed. Nothing follows either.
+    pub async fn notifications(
+        &self,
+    ) -> Result<
+        impl Stream<Item = Result<ServerNotification, McpError>> + Unpin,
+        McpError,
+    > {{
+        let mut payload = Vec::new();
+        channel_request::Frame::McpNotifications(
+            mcp::notifications::request::Request,
+        )
+        .encode(&mut Writer::new(&mut payload))
+        .map_err(McpError::Request)?;
+
+        let channel = self
+            .handle
+            .send_channel_request(self.scope, &payload)
+            .await
+            .map_err(McpError::Send)?;
+
+        Ok(Box::pin(stream::unfold(Some(channel), |state| async move {{
+            let mut channel = state?;
+            let bytes = channel.response_receiver.recv().await?;
+            let item = notification(&bytes)?;
+            // An error is the last thing on this channel, so the state
+            // that would read another is dropped with it.
+            let next = item.as_ref().err().is_none().then_some(channel);
+            Some((item, next))
+        }})))
+    }}
 
     /// Wait for the run to be over.
     ///
@@ -394,6 +633,126 @@ impl std::error::Error for RunError {
             RunError::Closed | RunError::Misrouted | RunError::Provider(_) => {
                 None
             }
+        }
+    }
+}
+
+/// The payload of one channel response, or nothing if it was a finish.
+///
+/// Whole client frames arrive on a channel's receiver: a session
+/// forwards the finish and only then closes the channel, so a reader
+/// sees it as an item rather than as the stream ending. Which is what
+/// lets a finish mean "that was all" rather than "the connection went".
+fn answer(bytes: &[u8]) -> Result<Option<&[u8]>, McpError> {
+    match frame::client::ClientFrame::decode(bytes)
+        .map_err(McpError::Frame)?
+    {
+        frame::client::ClientFrame::ChannelResponse { payload, .. } => {
+            Ok(Some(payload))
+        }
+        _ => Ok(None),
+    }
+}
+
+/// One notification off the stream, or nothing if the channel finished.
+///
+/// [`None`] ends the stream cleanly, which is what a finish is. An
+/// [`Err`] item is a failure that ends it too, and says why.
+fn notification(
+    bytes: &[u8],
+) -> Option<Result<ServerNotification, McpError>> {
+    let payload = match answer(bytes) {
+        Ok(Some(payload)) => payload,
+        // The channel finished, and that is the ordinary end.
+        Ok(None) => return None,
+        Err(error) => return Some(Err(error)),
+    };
+    Some(
+        match mcp_notifications::Frame::decode(payload) {
+            Ok(mcp_notifications::Frame::Notification(notification)) => {
+                Ok(notification)
+            }
+            Ok(mcp_notifications::Frame::Error(error)) => {
+                Err(McpError::Mcp(error))
+            }
+            Err(error) => Err(McpError::Answer(error)),
+        },
+    )
+}
+
+/// One MCP exchange that did not happen.
+///
+/// # It is not what a plugin said
+///
+/// [`Mcp`](Self::Mcp) is, and it is the only variant that is: the
+/// plugin's own MCP server refusing, in its own vocabulary, with a
+/// JSON-RPC code that means something. Everything else here is this end
+/// failing to ask or failing to read the answer.
+///
+/// The two are worth telling apart because only one of them says
+/// anything about the plugin.
+#[derive(Debug)]
+pub enum McpError {
+    /// The ask would not serialize.
+    ///
+    /// Which means the params would not, since nothing else in the
+    /// frame can fail.
+    Request(serde_json::Error),
+    /// The ask never went out. See
+    /// [`SendError`](crate::client::handle::SendError).
+    Send(SendError),
+    /// The scope ended before the answer came.
+    ///
+    /// A provider that finished the scope, or a connection that went.
+    /// Also what a channel finishing with nothing on it looks like,
+    /// which is what a provider says when it cannot serve the exchange
+    /// at all.
+    Unanswered,
+    /// The answer was not a frame this crate could read.
+    Frame(crate::frame::FrameError),
+    /// The frame was read and its payload was not an answer.
+    Answer(mcp::FrameError),
+    /// The plugin's MCP server said no.
+    ///
+    /// Relayed whole, because the JSON-RPC code is content: `-32601` is
+    /// "no such tool" and `-32602` is "the arguments were wrong", and a
+    /// caller told only that something failed can act on neither.
+    Mcp(ErrorData),
+}
+
+impl fmt::Display for McpError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            McpError::Request(error) => {
+                write!(f, "mcp request did not serialize: {error}")
+            }
+            McpError::Send(error) => {
+                write!(f, "mcp request was not sent: {error}")
+            }
+            McpError::Unanswered => {
+                f.write_str("the scope ended before the plugin answered")
+            }
+            McpError::Frame(error) => {
+                write!(f, "the plugin's answer was not a frame: {error}")
+            }
+            McpError::Answer(error) => {
+                write!(f, "the plugin's answer did not parse: {error}")
+            }
+            McpError::Mcp(error) => {
+                write!(f, "the plugin refused: {error}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for McpError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            McpError::Request(error) => Some(error),
+            McpError::Send(error) => Some(error),
+            McpError::Frame(error) => Some(error),
+            McpError::Answer(error) => Some(error),
+            McpError::Unanswered | McpError::Mcp(_) => None,
         }
     }
 }

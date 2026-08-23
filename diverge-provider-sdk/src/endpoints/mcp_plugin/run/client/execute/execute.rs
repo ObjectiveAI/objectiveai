@@ -7,16 +7,17 @@ use bytes::Bytes;
 use futures_util::StreamExt as _;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 
-use super::super::channel_response::{command, oci, postgres};
+use super::super::channel_response::{command, postgres};
 use super::execute_handle::ExecuteHandle;
 use super::super::{channel_request, request};
 use crate::client::command_proxy::CommandProxy;
 use crate::client::handle::{Handle, SendError};
-use crate::client::oci_proxy::{self, OciProxy};
+use crate::client::oci_proxy::OciProxy;
 use crate::client::postgres_proxy::PostgresProxy;
 use crate::decode::Decode;
 use crate::encode::{Encode, Writer};
 use crate::endpoints::mcp_plugin::run::server::channel_request as server_channel_request;
+use crate::shared::oci;
 use crate::frame;
 
 /// Run an MCP plugin, and serve it for as long as it lives.
@@ -178,6 +179,10 @@ async fn serve_one<O, P, C>(
     };
     match server_channel_request::Frame::decode(payload) {
         Ok(server_channel_request::Frame::Oci(request)) => {
+            // Refcounted rather than copied: the answer outlives this
+            // frame by as long as a layer takes to send, so a borrow
+            // could not have gone with it.
+            let request = bytes.slice_ref(request.0);
             serve_oci(&handle, scope, channel, request, &*oci_proxy).await;
         }
         Ok(server_channel_request::Frame::Command(command)) => {
@@ -211,10 +216,11 @@ async fn serve_one<O, P, C>(
 
 /// Answer one registry request.
 ///
-/// The head goes back first and then the body, as one frame or as many,
-/// and the channel finishes after. That order is the wire's — see
-/// [`http::response::Frame`](crate::shared::http::response::Frame) for
-/// why a head arrives separately from the body it introduces.
+/// Whatever the caller's registry says, in the pieces it says it in,
+/// and then a finish. There is no head, because there is nothing to
+/// read a status out of — a registry answer is bytes off a socket and
+/// this end relays them without looking. See
+/// [`oci::response::Frame`](crate::shared::oci::response::Frame).
 ///
 /// # It stops at the first refusal
 ///
@@ -228,43 +234,16 @@ async fn serve_oci<O>(
     handle: &Handle,
     scope: u32,
     channel: u32,
-    request: crate::shared::http::request::Request<'_>,
+    request: Bytes,
     oci_proxy: &O,
 ) where
     O: OciProxy,
 {
-    let (head, body) = oci_proxy.handle(request).await;
-
+    let mut answer = oci_proxy.handle(request).await;
     let mut buffer = Vec::new();
-    if oci::Frame::Head(head)
-        .encode(&mut Writer::new(&mut buffer))
-        .is_err()
-    {
-        return;
-    }
-    if handle
-        .send_channel_response(scope, channel, &buffer)
-        .await
-        .is_err()
-    {
-        return;
-    }
-
-    match body {
-        oci_proxy::Body::Single(body) => {
-            if !send_oci_body(handle, scope, channel, &mut buffer, &body).await
-            {
-                return;
-            }
-        }
-        oci_proxy::Body::Stream(mut body) => {
-            while let Some(piece) = body.next().await {
-                if !send_oci_body(handle, scope, channel, &mut buffer, &piece)
-                    .await
-                {
-                    return;
-                }
-            }
+    while let Some(piece) = answer.next().await {
+        if !send_oci_body(handle, scope, channel, &mut buffer, &piece).await {
+            return;
         }
     }
     // Nothing follows it, so there is nothing to do about a failure
@@ -272,7 +251,7 @@ async fn serve_oci<O>(
     let _ = handle.send_channel_response_finish(scope, channel).await;
 }
 
-/// One piece of a registry body, out.
+/// One piece of a registry answer, out.
 ///
 /// The buffer is the one the head was built in, reused: a body frame is
 /// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
@@ -290,12 +269,11 @@ async fn send_oci_body(
     body: &[u8],
 ) -> bool {
     buffer.clear();
-    if oci::Frame::Body(body)
+    // The shared type rather than this endpoint's alias of it: an
+    // alias names a tuple struct but cannot construct one.
+    oci::response::Frame(body)
         .encode(&mut Writer::new(buffer))
-        .is_err()
-    {
-        return false;
-    }
+        .unwrap_or_else(|error| match error {});
     handle
         .send_channel_response(scope, channel, buffer)
         .await

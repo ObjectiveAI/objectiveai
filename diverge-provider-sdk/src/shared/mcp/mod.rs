@@ -36,6 +36,10 @@
 //! Adding one is adding a module here and a variant to whichever
 //! channel request wants it.
 
+mod frame_error;
+
+pub use frame_error::*;
+
 pub mod call_tool;
 pub mod list_resources;
 pub mod list_tools;

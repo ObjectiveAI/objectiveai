@@ -102,7 +102,7 @@
 //!
 //! [`agentic_loop::run`](crate::endpoints::agentic_loop::run::client::execute)
 //! takes an [`mcp_proxy`];
-//! `mcp_plugin::run`
+//! [`mcp_plugin::run`](crate::endpoints::mcp_plugin::run::client::execute)
 //! takes an [`oci_proxy`], a [`postgres_proxy`] and a
 //! [`command_proxy`];
 //! `laboratories::run`
