@@ -15,18 +15,7 @@ publish = true
 [features]
 # The provider half. Off by default so a client, and a tool that only
 # inspects the protocol, compiles messages and nothing else.
-#
-# It alone brings the HTTP client, because it alone dials into a
-# container. See the `hyper` entry below for why that is not a reversal
-# of the line under `axum`.
-server = [
-    "__websocket",
-    "dep:eventsource-stream",
-    "dep:http-body-util",
-    "dep:hyper",
-    "dep:hyper-util",
-    "dep:tokio-util",
-]
+server = ["__websocket"]
 # The caller half. Same bargain in the other direction.
 client = ["__websocket"]
 # Not for anyone to enable. Either half needs a socket, and needs BOTH
@@ -47,38 +36,15 @@ all-features = true
 [dependencies]
 # `ws` and nothing else. It brings tokio, hyper, tokio-tungstenite,
 # sha1 and base64 — the handshake and the socket — and deliberately not
-# http1 or http2, so nothing here can SERVE HTTP. A provider does the
-# serving and hands over an upgraded socket. Which endpoint, which URL,
-# what authenticates the upgrade: none of it is this crate's business,
-# and a crate that served would have opinions about all of it.
+# http1 or http2, so nothing here can speak HTTP at all. A provider does
+# the serving and hands over an upgraded socket; a provider also does
+# whatever HTTP a container needs, since `Container` takes and returns
+# requests rather than the bytes of one.
+#
+# Which endpoint, which URL, what authenticates the upgrade: none of it
+# is this crate's business, and a crate that served would have opinions
+# about all of it.
 axum = { version = "0.8.9", default-features = false, features = ["ws"], optional = true }
-# The SSE half of talking to a container. It takes the stream shape a
-# body already has and yields events, which is worth not owning: data
-# spread over several lines, CRLF against LF, and a leading BOM are all
-# real and all easy to get subtly wrong.
-eventsource-stream = { version = "0.2.3", optional = true }
-# A request body that is one piece of bytes, which is every request
-# this crate makes.
-http-body-util = { version = "0.1.3", optional = true }
-# `client` and `http1` — the other side of the line above, and not a
-# reversal of it.
-#
-# Serving means owning an endpoint and a URL space. This dials one: a
-# provider hands over a byte pipe into a container it deployed, and
-# something has to turn that into a request and read the answer back.
-# The alternative was owning an HTTP/1.1 codec here — a head parser and
-# a chunked-transfer decoder, in the crate that is the normative
-# artifact of this protocol, with no test suite. This is the smaller
-# risk by a wide margin.
-#
-# It is not a new dependency in any real sense: axum's `ws` already
-# compiles hyper for this crate. What changes is that two of its
-# features are on, behind `server` alone.
-hyper = { version = "1.8.1", default-features = false, features = ["client", "http1"], optional = true }
-# `tokio` and nothing else: `TokioIo`, which is the shim between
-# tokio's read and write traits and hyper's own. Thirty lines that are
-# already written and already correct.
-hyper-util = { version = "0.1.20", default-features = false, features = ["tokio"], optional = true }
 # What both sides call a binary payload. axum and tungstenite already
 # agree on it, so naming it costs nothing and copying out of it would.
 bytes = { version = "1.11.1", default-features = false, optional = true }
@@ -93,18 +59,11 @@ rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["preserve_order", "raw_value"] }
 # `net` for the `TcpStream` an outgoing socket sits on, `sync` for the
-# channels frames are routed over, `rt` for the tasks that pump one
-# stream into another, and `io-util` for joining a reader and a writer
-# back into the one thing an HTTP client wants. Nothing here CREATES a
-# runtime.
-tokio = { version = "1.53.1", default-features = false, features = ["io-util", "net", "rt", "sync"], optional = true }
+# channels frames are routed over, and `rt` for the tasks that pump one
+# stream into another. Nothing here CREATES a runtime.
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt", "sync"], optional = true }
 # `stream` and nothing else: enough to NAME `MaybeTlsStream`, and not
 # `connect` or any TLS backend. Dialling is the caller's, the same way
 # upgrading is the provider's — this crate takes the socket that comes
 # out of either.
 tokio-tungstenite = { version = "0.29.0", default-features = false, features = ["stream"], optional = true }
-# `io`, for `StreamReader` and `SinkWriter`. A container's pipe is a
-# `Stream` and a `Sink` because that is what the rest of this crate
-# speaks; an HTTP client wants a reader and a writer. These are the
-# adapter, and writing them by hand would be copying them.
-tokio-util = { version = "0.7.18", default-features = false, features = ["io"], optional = true }
