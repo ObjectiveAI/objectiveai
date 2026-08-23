@@ -40,7 +40,7 @@ use crate::shared::container::request::Image;
 ///
 /// The container starts fine and nothing answers. Which shows up
 /// differently in each: a wrong [`mcp_port`](Self::mcp_port) is an
-/// exchange that finishes without a head, and a wrong
+/// exchange that finishes without an answer, and a wrong
 /// [`postgres_port`](Self::postgres_port) or
 /// [`command_port`](Self::command_port) is a conduit that never
 /// carries anything, because the provider connected to nothing.

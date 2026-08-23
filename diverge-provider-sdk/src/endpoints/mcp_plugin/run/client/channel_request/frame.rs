@@ -79,7 +79,7 @@ pub enum Frame {
     /// # What it does to exchanges in flight
     ///
     /// Ends them, unanswered. A caller with MCP channels still open
-    /// when it sends this will see them finish without heads, because
+    /// when it sends this will see them finish without answers, because
     /// the container they were aimed at is gone. Waiting for them
     /// first is the caller's to do, and nothing here does it on the
     /// caller's behalf — a provider that tried would be guessing which

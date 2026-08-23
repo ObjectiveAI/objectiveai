@@ -97,10 +97,10 @@ pub struct ExecuteStream {
     /// finished scope.
     ///
     /// Aborting rather than detaching, so that dropping this stops the
-    /// proxying too. It can land mid-answer, leaving a channel with a
-    /// head and no body and no finish — which is untidy and is also
-    /// exactly what the far end would see from a caller that had
-    /// crashed. The scope is being abandoned either way.
+    /// proxying too. It can land mid-answer, leaving a channel that has
+    /// been answered in part and never finished — which is untidy and
+    /// is also exactly what the far end would see from a caller that
+    /// had crashed. The scope is being abandoned either way.
     proxying: JoinHandle<()>,
 }
 

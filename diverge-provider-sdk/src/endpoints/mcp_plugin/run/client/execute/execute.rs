@@ -253,14 +253,15 @@ async fn serve_oci<O>(
 
 /// One piece of a registry answer, out.
 ///
-/// The buffer is the one the head was built in, reused: a body frame is
-/// a tag and a copy, and a fresh [`Vec`] per piece would reallocate its
-/// way up from nothing for every one of them.
+/// The buffer is reused across pieces: a frame is a copy, and a fresh
+/// [`Vec`] per piece would reallocate its way up from nothing for every
+/// one of them.
 ///
 /// Answers whether to carry on, so a stream of them can stop at the
 /// first refusal. A [`bool`] rather than the [`SendError`] itself,
 /// because there is one thing to do about every one of them here and it
-/// is stop.
+/// is stop. Encoding cannot fail — an answer is bytes and has nothing
+/// to get wrong — so the only `false` is a send that did not land.
 async fn send_oci_body(
     handle: &Handle,
     scope: u32,

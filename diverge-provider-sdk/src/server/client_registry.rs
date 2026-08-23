@@ -3,7 +3,7 @@
 use super::oci_stream::OciStream;
 use super::scope_handle::ScopeHandle;
 use crate::encode::Writer;
-use crate::shared::http::request;
+use crate::shared::oci;
 
 /// How a provider asks a caller for image bytes.
 ///
@@ -76,7 +76,7 @@ pub struct ClientRegistry<'a> {
     /// signature a reader has to know anyway to supply one, and this
     /// crate keeps aliases for frames.
     wrap: fn(
-        request::Request<'_>,
+        oci::request::Request<'_>,
         &mut Writer<'_>,
     ) -> Result<(), serde_json::Error>,
 }
@@ -99,7 +99,7 @@ impl<'a> ClientRegistry<'a> {
     pub fn new(
         scope_handle: &'a ScopeHandle,
         wrap: fn(
-            request::Request<'_>,
+            oci::request::Request<'_>,
             &mut Writer<'_>,
         ) -> Result<(), serde_json::Error>,
     ) -> Self {
@@ -110,8 +110,8 @@ impl<'a> ClientRegistry<'a> {
     ///
     /// One channel per request, opened here and answered by the
     /// caller's [`OciProxy`](crate::client::oci_proxy::OciProxy). What
-    /// comes back is an [`OciStream`]: the head once, then as much body
-    /// as there turns out to be.
+    /// comes back is an [`OciStream`]: the registry's answer as it
+    /// arrives, in as many pieces as it arrives in.
     ///
     /// # It returns before the answer does
     ///
@@ -127,15 +127,26 @@ impl<'a> ClientRegistry<'a> {
     /// nothing about scopes. What arrives here is the request the
     /// caller should see.
     ///
-    /// # It fails one way
+    /// # It fails one way, and not even that one
     ///
     /// The frame either goes out or it does not. Everything after that
     /// belongs to the answer — see [`OciStream`], whose failures are
     /// this crate's plumbing and never a refusal, because a refusal is
     /// a status.
+    ///
+    /// The [`Err`] is unreachable in practice, and deliberately kept.
+    /// A request is bytes copied into a buffer and cannot fail to
+    /// encode; what the type reports is the whole endpoint frame's
+    /// error, and
+    /// [`laboratories::run`](crate::endpoints::laboratories::run::server::channel_request::Frame)
+    /// has a variant that IS JSON. Narrowing it would mean a type
+    /// parameter here, which would then have to appear on
+    /// [`ContainerDeployer::client`](super::container_deployer::ContainerDeployer::client)
+    /// — a bound on every implementation, to delete an arm one endpoint
+    /// still needs.
     pub async fn request(
         &self,
-        request: request::Request<'_>,
+        request: oci::request::Request<'_>,
     ) -> Result<OciStream, serde_json::Error> {
         let mut payload = Vec::new();
         (self.wrap)(request, &mut Writer::new(&mut payload))?;

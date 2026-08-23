@@ -1,5 +1,6 @@
 //! What a server's channel request frame carries for an MCP plugin.
 
+use std::convert::Infallible;
 use std::error::Error;
 use std::fmt;
 
@@ -157,33 +158,36 @@ const POSTGRES: u8 = 1;
 const COMMAND: u8 = 2;
 
 impl Encode for Frame<'_> {
-    /// The registry request's error, since the other two have none. A
-    /// connection id is four known bytes and a command is bytes copied,
-    /// neither of which can fail — so the union of the three is just
-    /// what a registry request can do wrong.
-    type Error = serde_json::Error;
+    /// [`Infallible`], all three being bytes. A connection id is four
+    /// known bytes and a command is bytes copied, and a registry
+    /// request is now bytes copied too.
+    ///
+    /// It was the registry request's error, which was JSON's. A
+    /// [`Request`](oci::request::Request) carries what the runtime
+    /// wrote, verbatim, so the last thing here with anything to get
+    /// wrong stopped having it.
+    type Error = Infallible;
 
-    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
+    fn encode(&self, out: &mut Writer<'_>) -> Result<(), Infallible> {
+        // Each arm discharges its own, and an empty match on an
+        // [`Infallible`] is how you say there is no value to handle.
         match self {
             Frame::Oci(request) => {
                 out.extend_from_slice(&[OCI]);
-                // Its error is `Infallible`, and an empty match on one
-                // is how you say so: there is no value to handle.
-                request.encode(out).map_err(|error| match error {})
+                request.encode(out).unwrap_or_else(|error| match error {});
             }
             Frame::Postgres(postgres) => {
                 out.extend_from_slice(&[POSTGRES]);
                 postgres
                     .encode(out)
                     .unwrap_or_else(|error| match error {});
-                Ok(())
             }
             Frame::Command(bytes) => {
                 out.extend_from_slice(&[COMMAND]);
                 out.extend_from_slice(bytes);
-                Ok(())
             }
         }
+        Ok(())
     }
 }
 

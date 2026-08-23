@@ -135,7 +135,14 @@ where
     match image {
         Image::Client { name, digest } => {
             let registry = ClientRegistry::new(scope, |request, out| {
-                channel_request::Frame::Oci(request).encode(out)
+                // This frame's error is `Infallible` and a
+                // `ClientRegistry` wants the JSON one, because it also
+                // serves a laboratory whose frame really can fail. An
+                // empty match on an `Infallible` produces whatever is
+                // asked for, there being no value to produce it from.
+                channel_request::Frame::Oci(request)
+                    .encode(out)
+                    .map_err(|error| match error {})
             });
             deployer
                 .client(client_identity, deployment, name, digest, registry)

@@ -74,9 +74,11 @@ const AUTHORIZE: u8 = 1;
 const WRITE: u8 = 2;
 
 impl Encode for Frame<'_> {
-    /// The ordinary JSON failure. [`Oci`](Frame::Oci) and
-    /// [`Authorize`](Frame::Authorize) are both JSON;
-    /// [`Write`](Frame::Write) is four known bytes and cannot fail.
+    /// The ordinary JSON failure, and [`Authorize`](Frame::Authorize)
+    /// is the only one that can produce it.
+    /// [`Oci`](Frame::Oci) is the runtime's own bytes copied and
+    /// [`Write`](Frame::Write) is four known bytes, neither of which
+    /// can fail.
     type Error = serde_json::Error;
 
     fn encode(&self, out: &mut Writer<'_>) -> Result<(), Self::Error> {
