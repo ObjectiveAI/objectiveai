@@ -172,7 +172,7 @@ pub trait Container: Send + Sync {
     /// push no more, and why. Nothing follows one — which is the
     /// server's own vocabulary and not this crate's, so it is an
     /// [`ErrorData`] rather than a [`Self::Error`].
-    type McpNotificationStream: Stream<
+    type McpNotificationsStream: Stream<
             Item = Result<ServerNotification, ErrorData>,
         > + Send
         + Unpin
@@ -409,12 +409,12 @@ pub trait Container: Send + Sync {
     /// The [`Err`] here is the same outer one the four have: no stream
     /// at all, because the port was wrong or nothing was listening. A
     /// server that refuses says so inside the stream — see
-    /// [`McpNotificationStream`](Self::McpNotificationStream).
+    /// [`McpNotificationsStream`](Self::McpNotificationsStream).
     fn mcp_notifications(
         &self,
         port: u16,
     ) -> impl Future<
-        Output = Result<Self::McpNotificationStream, Self::Error>,
+        Output = Result<Self::McpNotificationsStream, Self::Error>,
     > + Send;
 
     /// Start an agentic loop, and take the chunks it produces.
