@@ -1,19 +1,19 @@
 //! The answers a client sends on the channels a server opened.
 //!
-//! Four of them are one MCP exchange each — [`list_tools`],
-//! [`list_resources`], [`call_tool`] and [`read_resource`] — and every
-//! one is a result or an
+//! Five of them are one MCP exchange each. [`list_tools`],
+//! [`list_resources`], [`call_tool`] and [`read_resource`] answer once
+//! and finish; [`notifications`] carries a frame per notification for
+//! as long as the channel lives. All five are a value or an
 //! [`ErrorData`](rmcp::ErrorData), with nothing around it.
 //!
-//! [`mcp`] is the fifth and is the older way: a whole HTTP exchange
+//! [`mcp`] is the sixth and is the older way: a whole HTTP exchange
 //! tunneled, whose frame is an ALIAS of
 //! [`http::response::Frame`](crate::shared::http::response::Frame),
 //! because the head-then-body split is a fact about HTTP rather than
-//! about this channel. It survives only for what the four cannot do
-//! yet, which is an event stream.
+//! about this channel. Nothing is left that only it can do.
 //!
 //! Each stays a module in the path rather than being re-exported
-//! upward. It is what tells five types called `Frame` apart, which was
+//! upward. It is what tells six types called `Frame` apart, which was
 //! the reason to keep the shape when there was only one of them.
 //!
 //! Note what is NOT here. The chunks of the loop itself are a response
@@ -26,4 +26,5 @@ pub mod call_tool;
 pub mod list_resources;
 pub mod list_tools;
 pub mod mcp;
+pub mod notifications;
 pub mod read_resource;

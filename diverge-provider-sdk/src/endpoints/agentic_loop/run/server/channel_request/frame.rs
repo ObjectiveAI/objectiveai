@@ -50,11 +50,19 @@ use crate::shared::http::request::Request;
 /// struct and the byte that would have said which was not spent.
 ///
 /// That was right, and it stopped being right the moment there were
-/// five. The four beside [`Mcp`](Self::Mcp) are what a tunneled MCP
+/// six. The five beside [`Mcp`](Self::Mcp) are what a tunneled MCP
 /// request was standing in for: an agent listing tools, listing
-/// resources, calling one, reading one. Naming them is what lets a
-/// relay hand over `rmcp`'s own types instead of an HTTP envelope
-/// nobody reads.
+/// resources, calling one, reading one, and hearing what the server
+/// says unprompted. Naming them is what lets a relay hand over
+/// `rmcp`'s own types instead of an HTTP envelope nobody reads.
+///
+/// # The tag is the GET and the POST
+///
+/// Which is what makes six the right number rather than an accident.
+/// An MCP server has ONE url; a client POSTs a JSON-RPC message to it
+/// for the four, and opens a stream with a bare `GET` on the same url
+/// for the fifth. The verb is the whole of the distinction there, and
+/// the tag byte is the whole of it here.
 ///
 /// The frame's own `type` could have carried the discrimination — it
 /// is right there in the header — and deliberately does not. A frame
@@ -123,6 +131,37 @@ pub enum Frame<'a> {
     /// defines it. The URI is the server's to interpret; a relay that
     /// resolved one would be deciding what a resource is.
     ReadResource(ReadResourceRequestParams),
+    /// Everything the server says on its own account. Tag `5`.
+    ///
+    /// Tools changed, resources changed, a resource updated, a log
+    /// line. What comes back is one frame per notification for as long
+    /// as the channel lives, where the four above answer once — see
+    /// [`notifications`](crate::endpoints::agentic_loop::run::client::channel_response::notifications).
+    ///
+    /// # It carries nothing, and MCP is why
+    ///
+    /// The four above are JSON-RPC methods, and a request that names
+    /// one carries its params. This is not a method. In Streamable
+    /// HTTP a client opens the notification stream with a bare `GET` on
+    /// the same URL it POSTs everything else to — no method name, no
+    /// body, nothing to say. There is no `notifications/subscribe` to
+    /// mirror.
+    ///
+    /// So the empty payload is not an economy. It is the request, whole.
+    ///
+    /// # What it replaces, and what it does not
+    ///
+    /// It is the last thing [`Mcp`](Self::Mcp) could do that nothing
+    /// else could, which is what kept a tunneled HTTP exchange alive.
+    ///
+    /// Two pieces of that exchange do not come with it. An
+    /// `Mcp-Session-Id` said which session a stream belonged to, and
+    /// the channel IS the session — opened by one container inside one
+    /// scope, belonging to nothing else. A `Last-Event-ID` resumed a
+    /// stream whose connection dropped while its session survived, and
+    /// here a channel can only die with the scope and a scope only with
+    /// the connection, so there is nothing left to resume onto.
+    Notifications,
 }
 
 /// Tag for [`Frame::Mcp`].
@@ -139,6 +178,9 @@ const CALL_TOOL: u8 = 3;
 
 /// Tag for [`Frame::ReadResource`].
 const READ_RESOURCE: u8 = 4;
+
+/// Tag for [`Frame::Notifications`].
+const NOTIFICATIONS: u8 = 5;
 
 /// A tag, then that variant's own JSON.
 impl Encode for Frame<'_> {
@@ -168,6 +210,10 @@ impl Encode for Frame<'_> {
                 out.extend_from_slice(&[READ_RESOURCE]);
                 serde_json::to_writer(out, params)
             }
+            Frame::Notifications => {
+                out.extend_from_slice(&[NOTIFICATIONS]);
+                Ok(())
+            }
         }
     }
 }
@@ -192,6 +238,11 @@ impl<'a> Decode<'a> for Frame<'a> {
             READ_RESOURCE => serde_json::from_slice(rest)
                 .map(Frame::ReadResource)
                 .map_err(FrameError::Body),
+            // Whatever follows the tag is ignored rather than rejected.
+            // There is nothing this variant could carry, so a reader
+            // that found something has met a writer from a version that
+            // gave it one — and the tag already said what was meant.
+            NOTIFICATIONS => Ok(Frame::Notifications),
             tag => Err(FrameError::UnknownTag(tag)),
         }
     }
@@ -202,7 +253,7 @@ impl<'a> Decode<'a> for Frame<'a> {
 pub enum FrameError {
     /// No bytes at all, so not even a tag.
     Empty,
-    /// A tag that is none of this frame's five.
+    /// A tag that is none of this frame's six.
     ///
     /// What a provider newer than its caller produces, which is the
     /// case the tag exists to make survivable: a reader that does not
