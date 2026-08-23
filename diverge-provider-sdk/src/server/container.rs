@@ -7,6 +7,7 @@ use std::pin::Pin;
 use bytes::Bytes;
 use futures_util::{Sink, Stream};
 
+use crate::endpoints::agentic_loop::run::server::response::AgenticLoopChunk;
 use crate::shared::error::Error;
 use crate::shared::http::{request, response};
 
@@ -29,7 +30,7 @@ use crate::shared::http::{request, response};
 /// So these are facts a provider keeps to itself. Where the container's
 /// filesystem is, for [`read`](Self::read) and [`write`](Self::write).
 /// How to end it, for [`stop`](Self::stop). How to reach a port inside
-/// it, for [`http_serve`](Self::http_serve) — a container's port has a
+/// it, for [`serve_http_raw`](Self::serve_http_raw) — a container's port has a
 /// host-side address only on some runtimes, and on the rest the way in
 /// is the provider's own control plane, so it is a method and never an
 /// address.
@@ -38,18 +39,23 @@ use crate::shared::http::{request, response};
 /// filesystem is knowing where one is. A transfer will not — it is a
 /// read on one container and a write on another, both already here.
 ///
-/// # Ports are three methods, not one
+/// # Ports are four methods, not one
 ///
 /// There was a `connect` that handed back a byte pipe, and everything
 /// spoken to a container rode one. It is gone, because the things
 /// riding it were not one thing.
 ///
-/// [`http_call`](Self::http_call) is the provider asking and
-/// [`http_serve`](Self::http_serve) is the provider answering: one
+/// [`call_http_raw`](Self::call_http_raw) is the provider asking and
+/// [`serve_http_raw`](Self::serve_http_raw) is the provider answering: one
 /// takes a request and returns an answer, the other returns requests
 /// and takes answers. Between them they carry everything a container
 /// says in HTTP, which is an MCP server, an agent's tool calls, and a
 /// plugin's commands.
+///
+/// [`call_http_agentic_loop`](Self::call_http_agentic_loop) is the same
+/// exchange as the first with the answer read rather than relayed,
+/// because an agentic loop is the one thing a container says that this
+/// crate defined.
 ///
 /// [`postgres_serve`](Self::postgres_serve) is the exception, and it is
 /// the only one still shaped like a socket — because pgwire is a duplex
@@ -101,7 +107,7 @@ pub trait Container: Send + Sync {
     ///
     /// One item per request, each with the [`HttpResponseWriter`] that
     /// answers that one. The stream ends when the container has no more
-    /// to ask — see [`http_serve`](Self::http_serve).
+    /// to ask — see [`serve_http_raw`](Self::serve_http_raw).
     ///
     /// # The request is bytes, and they are a
     /// [`Request`](crate::shared::http::request::Request)
@@ -143,6 +149,23 @@ pub trait Container: Send + Sync {
     /// not have.
     type HttpResponseWriter: HttpResponseWriter<Error = Self::Error>
         + Send
+        + 'static;
+
+    /// What an agent says, as it says it.
+    ///
+    /// One item per chunk, already parsed. See
+    /// [`call_http_agentic_loop`](Self::call_http_agentic_loop) for why
+    /// this is the one thing a container says that arrives as something
+    /// other than bytes.
+    ///
+    /// An item that is [`Err`] is an event that could not be read, and
+    /// it does not end the stream: it is one thing the agent said that
+    /// this crate could not, and the next one may be fine. Which is
+    /// what keeps "the agent said something unreadable" from looking
+    /// like "the agent finished".
+    type AgenticLoopStream: Stream<Item = Result<AgenticLoopChunk, Self::Error>>
+        + Send
+        + Unpin
         + 'static;
 
     /// The database connections a container opens, as it opens them.
@@ -240,14 +263,14 @@ pub trait Container: Send + Sync {
     /// that port, or a port that was never declared. A failure after
     /// that ends the stream, since a request that cannot be received is
     /// indistinguishable from one that was never sent.
-    fn http_serve(
+    fn serve_http_raw(
         &self,
         port: u16,
     ) -> impl Future<Output = Result<Self::HttpRequestStream, Self::Error>> + Send;
 
     /// Make one HTTP request to something inside the container.
     ///
-    /// The other direction from [`http_serve`](Self::http_serve), and
+    /// The other direction from [`serve_http_raw`](Self::serve_http_raw), and
     /// the more ordinary one: a plugin's MCP server, a laboratory's, an
     /// agent image asked to start a run. The container is the server
     /// and this end is its client.
@@ -267,7 +290,7 @@ pub trait Container: Send + Sync {
     ///
     /// # The request is not encoded
     ///
-    /// Unlike [`http_serve`](Self::http_serve), whose items are bytes.
+    /// Unlike [`serve_http_raw`](Self::serve_http_raw), whose items are bytes.
     /// The asymmetry is not an inconsistency: there the bytes ARE the
     /// buffer a borrowed request needs, and here the request is an
     /// argument that lives for the call, so there is nothing to own it
@@ -301,11 +324,69 @@ pub trait Container: Send + Sync {
     /// to take it back — so the body simply stops, which is what an
     /// ordinary HTTP connection dropping looks like and is what this
     /// stands in for.
-    fn http_call(
+    fn call_http_raw(
         &self,
         port: u16,
         request: request::Request<'_>,
     ) -> impl Future<Output = Result<(response::Head, Body), Self::Error>> + Send;
+
+    /// Start an agentic loop, and take the chunks it produces.
+    ///
+    /// The same exchange [`call_http_raw`](Self::call_http_raw) makes,
+    /// with the answer read rather than relayed. What comes back is
+    /// what the agent said, in the shape this crate defines for it.
+    ///
+    /// # It is the one thing here that is not somebody else's protocol
+    ///
+    /// Everything else a container says passes through. An MCP server's
+    /// answers belong to MCP, a registry's to the registry API, a
+    /// command's to the CLI — and this trait carries all of them as
+    /// bytes because it has no standing to interpret them, and a relay
+    /// that parsed could only drop what its schema was too old to know.
+    ///
+    /// An agentic loop is not passing through. The image producing it
+    /// is this crate's, the
+    /// [`AgenticLoopChunk`] it produces is this crate's, and the caller
+    /// receives that same type at the far end. There is no third party
+    /// whose protocol would be being second-guessed.
+    ///
+    /// So this is where the line falls: a container's answer is raw
+    /// unless this crate is the thing that defined it.
+    ///
+    /// # Where the framing went
+    ///
+    /// Into the implementation, which is the only place that can do it.
+    /// An agent answers with an event stream, and the pieces an HTTP
+    /// body arrives in are not the events it contains — so something
+    /// has to hold the leftovers and hand over a chunk each time a
+    /// whole one is there.
+    ///
+    /// That something knows it is reading an event stream, because it
+    /// read the head. A consumer handed
+    /// [`Body::Stream`] would be reassembling from
+    /// pieces, having been told nothing about how they were cut.
+    ///
+    /// # No head, and no unary case
+    ///
+    /// This promises chunks, so anything that is not chunks is a
+    /// failure to produce them: a status that is not a success, a
+    /// response that is not an event stream, a connection that broke
+    /// before one started. All of it is the [`Err`], and a caller that
+    /// gets [`Ok`] has a stream and nothing left to check.
+    ///
+    /// Which is what makes the missing head not a loss. There is
+    /// nothing to judge — the judging already happened, and the answer
+    /// was either a stream of chunks or it was not.
+    ///
+    /// A run that produces one chunk is a stream of one. Nothing else
+    /// would be simpler: a caller reading a stream reads the same code
+    /// either way, where a caller choosing between two shapes writes
+    /// the choice out every time.
+    fn call_http_agentic_loop(
+        &self,
+        port: u16,
+        request: request::Request<'_>,
+    ) -> impl Future<Output = Result<Self::AgenticLoopStream, Self::Error>> + Send;
 
     /// Take the database connections a container opens.
     ///
@@ -318,8 +399,8 @@ pub trait Container: Send + Sync {
     /// # It is bytes, and it is the one thing that has to be
     ///
     /// Everything else spoken to a container is an HTTP exchange, which
-    /// is what lets [`http_call`](Self::http_call) and
-    /// [`http_serve`](Self::http_serve) hand over requests instead of a
+    /// is what lets [`call_http_raw`](Self::call_http_raw) and
+    /// [`serve_http_raw`](Self::serve_http_raw) hand over requests instead of a
     /// socket. This cannot be: pgwire is a duplex conversation with its
     /// own framing, its own pipelining, and messages that arrive
     /// unprompted, and there is no exchange in it to hand over.
@@ -516,7 +597,7 @@ pub trait Container: Send + Sync {
 
 /// The body of an answer: all of it, or a piece at a time.
 ///
-/// What [`Container::http_call`] hands back beside the head.
+/// What [`Container::call_http_raw`] hands back beside the head.
 ///
 /// # Why the shape is a choice at all
 ///
@@ -561,8 +642,17 @@ pub enum Body {
     Single(Bytes),
     /// The answer a piece at a time, for as long as it lasts.
     ///
-    /// For an event stream. Each item is another piece of the body, and
-    /// the answer is over when the stream ends.
+    /// Each item is another piece of the BODY — whatever came off the
+    /// socket, cut wherever the transport cut it — and the answer is
+    /// over when the stream ends. The pieces mean nothing, which is the
+    /// point: an answer relayed onward has to arrive the way it left,
+    /// and something that reshaped it would not be a relay.
+    ///
+    /// So a consumer that needs to know where one THING ends reassembles
+    /// them, and a consumer that is relaying does not care. An agentic
+    /// loop is the first kind and does not use this at all — see
+    /// [`Container::call_http_agentic_loop`], where the reassembly is
+    /// done by the thing that read the head.
     ///
     /// # Why it is boxed, and why the bounds are what they are
     ///
@@ -581,7 +671,7 @@ pub enum Body {
 
 /// How one HTTP response is written.
 ///
-/// The other half of [`Container::http_serve`]: it hands out requests
+/// The other half of [`Container::serve_http_raw`]: it hands out requests
 /// and one of these each, and this is what an answer goes into.
 ///
 /// # A head, then a body, then a finish

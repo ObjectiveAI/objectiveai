@@ -230,7 +230,7 @@ where
     C::Error: Into<Error>,
 {
     // TODO: the port is settled when the images are.
-    let requests = match container.http_serve(8081).await {
+    let requests = match container.serve_http_raw(8081).await {
         Ok(requests) => requests,
         Err(error) => {
             write(scope, &response::Frame::Error(error.into())).await;
@@ -320,7 +320,7 @@ where
     };
 
     // TODO: the port is settled when the images are.
-    let (head, body) = match container.http_call(8080, request).await {
+    let (head, body) = match container.call_http_raw(8080, request).await {
         Ok(answer) => answer,
         Err(error) => {
             return write(&scope, &response::Frame::Error(error.into())).await;
