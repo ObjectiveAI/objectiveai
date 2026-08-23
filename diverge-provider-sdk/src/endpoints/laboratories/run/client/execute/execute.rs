@@ -168,16 +168,17 @@ async fn serve<O, A>(
         };
         match server_channel_request::Frame::decode(payload) {
             Ok(server_channel_request::Frame::Oci(request)) => {
-                // Decoded again inside the task: a request borrows the
-                // frame it came out of, and a borrow cannot cross a
-                // spawn.
+                // Refcounted rather than copied: the request outlives
+                // the frame it was decoded from, so a borrow could not
+                // have gone with it across the spawn.
+                let request = bytes.slice_ref(request.0);
                 tokio::spawn(serve_oci(
-                    bytes.clone(),
                     handle.clone(),
                     scope,
+                    channel,
+                    request,
                     Arc::clone(&oci_proxy),
                 ));
-                let _ = request;
             }
             Ok(server_channel_request::Frame::Authorize(request)) => {
                 tokio::spawn(serve_authorize(
@@ -218,12 +219,16 @@ async fn serve<O, A>(
 /// carries it rather than describing it — see
 /// [`oci`](crate::shared::oci) for why the exchange is bytes.
 ///
-/// # It decodes the frame again
+/// # It takes the request rather than the frame
 ///
-/// Because the request borrows the bytes it was decoded from, and a
-/// borrow cannot cross a spawn. The [`Bytes`] is refcounted, so what
-/// crosses is a pointer and the second decode is a parse of memory that
-/// was already there.
+/// The dispatcher has already decoded it, so what arrives here is the
+/// request itself: a [`Bytes`] pointing into the frame it came out of,
+/// refcounted rather than copied because a borrow could not have crossed
+/// the spawn.
+///
+/// It used to take the whole frame and decode it a second time, which
+/// meant carrying two failure branches for a decode the dispatcher had
+/// already done successfully on the same bytes. Neither could fire.
 ///
 /// # It stops at the first refusal
 ///
@@ -232,32 +237,15 @@ async fn serve<O, A>(
 /// matters most for a layer: a blob is the longest thing this protocol
 /// sends, and going on writing one at a provider that has stopped
 /// listening is the most work available to waste.
-async fn serve_oci<O>(bytes: Bytes, handle: Handle, scope: u32, oci_proxy: Arc<O>)
-where
+async fn serve_oci<O>(
+    handle: Handle,
+    scope: u32,
+    channel: u32,
+    request: Bytes,
+    oci_proxy: Arc<O>,
+) where
     O: OciProxy,
 {
-    let Ok(frame::server::ServerFrame::ChannelRequest {
-        channel, payload, ..
-    }) = frame::server::ServerFrame::decode(&bytes)
-    else {
-        return;
-    };
-    let Ok(server_channel_request::Frame::Oci(request)) =
-        server_channel_request::Frame::decode(payload)
-    else {
-        // The channel is known, the connection is fine, and nothing
-        // is going to answer this. So it is ENDED rather than
-        // abandoned: a provider waiting on it waits forever otherwise,
-        // and a finish with no head is already what this protocol
-        // means by there being no answer.
-        let _ = handle.send_channel_response_finish(scope, channel).await;
-        return;
-    };
-    // Refcounted rather than copied: the answer outlives this frame by
-    // as long as a layer takes to send, so a borrow could not have gone
-    // with it.
-    let request = bytes.slice_ref(request.0);
-
     let mut answer = oci_proxy.handle(request).await;
     let mut buffer = Vec::new();
     while let Some(piece) = answer.next().await {
